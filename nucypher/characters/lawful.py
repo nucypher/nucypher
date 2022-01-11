@@ -39,11 +39,6 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from flask import Response, request
-from nucypher.crypto.umbral_adapter import (
-    PublicKey,
-    reencrypt,
-    VerifiedKeyFrag,
-)
 from nucypher_core import (
     MessageKit,
     EncryptedKeyFrag,

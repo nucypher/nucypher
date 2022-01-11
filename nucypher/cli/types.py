@@ -14,20 +14,22 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
+from decimal import Decimal, DecimalException
+from ipaddress import ip_address
 from pathlib import Path
 
 import click
 from cryptography.exceptions import InternalError
-from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
-from ipaddress import ip_address
-
 from nucypher_core.umbral import PublicKey
 
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
+from nucypher.policy.payment import PAYMENT_METHODS
 from nucypher.utilities.networking import validate_worker_ip, InvalidWorkerIP
 
 
@@ -154,4 +156,5 @@ IPV4_ADDRESS = IPv4Address()
 WORKER_IP = WorkerIPAddress()
 
 GAS_STRATEGY_CHOICES = click.Choice(list(BlockchainInterface.GAS_STRATEGIES.keys()))
+PAYMENT_METHOD_CHOICES = click.Choice(list(PAYMENT_METHODS))
 UMBRAL_PUBLIC_KEY_HEX = UmbralPublicKeyHex()

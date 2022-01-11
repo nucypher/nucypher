@@ -196,11 +196,11 @@ def select_client_account_for_staking(emitter: StdoutEmitter,
     return client_account, staking_address
 
 
-def select_network(emitter: StdoutEmitter) -> str:
+def select_network(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
     """Interactively select a network from nucypher networks inventory list"""
-    headers = ["Network"]
+    emitter.message(message=message or str(), color='yellow')
     rows = [[n] for n in NetworksInventory.NETWORKS]
-    emitter.echo(tabulate(rows, headers=headers, showindex='always'))
+    emitter.echo(tabulate(rows, showindex='always'))
     choice = click.prompt(SELECT_NETWORK, default=0, type=click.IntRange(0, len(NetworksInventory.NETWORKS)-1))
     network = NetworksInventory.NETWORKS[choice]
     return network

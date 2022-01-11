@@ -54,7 +54,7 @@ from nucypher.cli.options import (
     option_teacher_uri,
     option_lonely,
     option_max_gas_price,
-    option_key_material
+    option_key_material, option_payment_provider, option_payment_method, option_payment_network
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
@@ -87,7 +87,10 @@ class UrsulaConfigOptions:
                  max_gas_price: int,  # gwei
                  signer_uri: str,
                  availability_check: bool,
-                 lonely: bool
+                 lonely: bool,
+                 payment_method: str,
+                 payment_provider: str,
+                 payment_network: str
                  ):
 
         if federated_only:
@@ -111,6 +114,9 @@ class UrsulaConfigOptions:
         self.max_gas_price = max_gas_price
         self.availability_check = availability_check
         self.lonely = lonely
+        self.payment_method = payment_method
+        self.payment_provider = payment_provider
+        self.payment_network = payment_network
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -130,7 +136,10 @@ class UrsulaConfigOptions:
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
                 db_filepath=self.db_filepath,
-                availability_check=self.availability_check
+                availability_check=self.availability_check,
+                payment_method=self.payment_method,
+                payment_provider=self.payment_provider,
+                payment_network=self.payment_network
             )
         else:
             if not config_file:
@@ -153,7 +162,10 @@ class UrsulaConfigOptions:
                     poa=self.poa,
                     light=self.light,
                     federated_only=self.federated_only,
-                    availability_check=self.availability_check
+                    availability_check=self.availability_check,
+                    payment_method=self.payment_method,
+                    payment_provider=self.payment_provider,
+                    payment_network=self.payment_network
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
@@ -196,7 +208,11 @@ class UrsulaConfigOptions:
                                             max_gas_price=self.max_gas_price,
                                             poa=self.poa,
                                             light=self.light,
-                                            availability_check=self.availability_check)
+                                            availability_check=self.availability_check,
+                                            payment_method=self.payment_method,
+                                            payment_provider=self.payment_provider,
+                                            payment_network=self.payment_network
+                                            )
 
     def get_updates(self) -> dict:
         payload = dict(rest_host=self.rest_host,
@@ -212,13 +228,18 @@ class UrsulaConfigOptions:
                        max_gas_price=self.max_gas_price,
                        poa=self.poa,
                        light=self.light,
-                       availability_check=self.availability_check)
+                       availability_check=self.availability_check,
+                       payment_method=self.payment_method,
+                       payment_provider=self.payment_provider,
+                       payment_network=self.payment_network
+        )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
 
 
 group_config_options = group_options(
+    # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
     UrsulaConfigOptions,
     provider_uri=option_provider_uri(),
     signer_uri=option_signer_uri,
@@ -229,13 +250,16 @@ group_config_options = group_options(
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=WORKER_IP),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
     db_filepath=option_db_filepath,
-    network=option_network(),  # Don't set defaults here or they will be applied to config updates. Use the Config API.
+    network=option_network(),
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
     dev=option_dev,
     availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None),
     lonely=option_lonely,
+    payment_provider=option_payment_provider,
+    payment_network=option_payment_network,
+    payment_method=option_payment_method,
 )
 
 
@@ -307,7 +331,9 @@ def init(general_config, config_options, force, config_root, key_material):
     if not config_options.federated_only and not config_options.provider_uri:
         raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
-        config_options.domain = select_network(emitter)
+        config_options.domain = select_network(emitter, message="Select Staking Network")
+    if not config_options.federated_only and not config_options.payment_network:
+        config_options.domain = select_network(emitter, message="Select Payment Network")
     ursula_config = config_options.generate_config(emitter=emitter,
                                                    config_root=config_root,
                                                    force=force,

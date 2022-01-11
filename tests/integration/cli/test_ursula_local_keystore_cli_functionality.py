@@ -46,12 +46,12 @@ def mock_account_password_keystore(tmp_path_factory):
     return account, password, keystore
 
 
+@pytest.mark.usefixtures('test_registry_source_manager')
 def test_ursula_init_with_local_keystore_signer(click_runner,
                                                 temp_dir_path,
                                                 mocker,
                                                 mock_testerchain,
-                                                mock_account_password_keystore,
-                                                test_registry_source_manager):
+                                                mock_account_password_keystore):
     custom_filepath = temp_dir_path
     custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_account_password_keystore
@@ -63,12 +63,20 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     deploy_port = select_test_port()
 
     init_args = ('ursula', 'init',
+
+                 # Layer 1
                  '--network', TEMPORARY_DOMAIN,
-                 '--worker-address', worker_account.address,
-                 '--config-root', str(custom_filepath.absolute()),
                  '--provider', mock_testerchain.provider_uri,
+
+                 # Layer 2
+                 '--payment-network', TEMPORARY_DOMAIN,
+                 '--payment-provider', mock_testerchain.provider_uri,
+
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port,
+
+                 '--worker-address', worker_account.address,
+                 '--config-root', str(custom_filepath.absolute()),
 
                  # The bit we are testing here
                  '--signer', mock_signer_uri)
@@ -98,7 +106,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.key)
     ursula_config.keystore.unlock(password=password)
 
-    # Produce an ursula with a Keystore signer correctly derived from the signer URI, and dont do anything else!
+    # Produce an ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)
     ursula = ursula_config.produce()
     ursula.signer.unlock_account(account=worker_account.address, password=password)

@@ -56,7 +56,7 @@ from nucypher.cli.options import (
     option_threshold,
     option_lonely,
     option_max_gas_price,
-    option_key_material
+    option_key_material, option_payment_method, option_payment_network, option_payment_provider
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -69,7 +69,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-option_payment_periods = click.option('--payment-periods', help="Policy payment periods", type=click.INT)
+option_duration = click.option('--duration', help="Policy payment periods", type=click.INT)
 
 
 class AliceConfigOptions:
@@ -89,6 +89,9 @@ class AliceConfigOptions:
                  max_gas_price: int,  # gwei
                  signer_uri: str,
                  lonely: bool,
+                 payment_method: str,
+                 payment_provider: str,
+                 payment_network: str
                  ):
 
         self.dev = dev
@@ -103,6 +106,10 @@ class AliceConfigOptions:
         self.registry_filepath = registry_filepath
         self.middleware = middleware
         self.lonely = lonely
+        
+        self.payment_method = payment_method
+        self.payment_provider = payment_provider
+        self.payment_network = payment_network
 
     def create_config(self, emitter, config_file):
 
@@ -124,7 +131,10 @@ class AliceConfigOptions:
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
                 federated_only=True,
-                lonely=self.lonely
+                lonely=self.lonely,
+                payment_method=self.payment_method,
+                payment_provider=self.payment_provider,
+                payment_network=self.payment_network
             )
 
         else:
@@ -146,7 +156,10 @@ class AliceConfigOptions:
                     rest_port=self.discovery_port,
                     checksum_address=self.pay_with,
                     registry_filepath=self.registry_filepath,
-                    lonely=self.lonely
+                    lonely=self.lonely,
+                    payment_method=self.payment_method,
+                    payment_provider=self.payment_provider,
+                    payment_network=self.payment_network
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(
@@ -169,6 +182,9 @@ group_config_options = group_options(
     registry_filepath=option_registry_filepath,
     middleware=option_middleware,
     lonely=option_lonely,
+    payment_provider=option_payment_provider,
+    payment_network=option_payment_network,
+    payment_method=option_payment_method,
 )
 
 
@@ -176,13 +192,13 @@ class AliceFullConfigOptions:
 
     __option_name__ = 'full_config_options'
 
-    def __init__(self, config_options, poa: bool, light: bool, threshold: int, shares: int, payment_periods: int):
+    def __init__(self, config_options, poa: bool, light: bool, threshold: int, shares: int, duration: int):
         self.config_options = config_options
         self.poa = poa
         self.light = light
         self.threshold = threshold
         self.shares = shares
-        self.payment_periods = payment_periods
+        self.duration = duration
 
     def generate_config(self, emitter: StdoutEmitter, config_root: Path, key_material: str) -> AliceConfiguration:
 
@@ -218,7 +234,11 @@ class AliceFullConfigOptions:
             light=self.light,
             threshold=self.threshold,
             shares=self.shares,
-            payment_periods=self.payment_periods)
+            duration=self.duration,
+            payment_provider=opts.payment_provider,
+            payment_network=opts.payment_network,
+            payment_method=opts.payment_method,
+        )
 
     def get_updates(self) -> dict:
         opts = self.config_options
@@ -232,7 +252,11 @@ class AliceFullConfigOptions:
                        light=self.light,
                        threshold=self.threshold,
                        shares=self.shares,
-                       payment_periods=self.payment_periods)
+                       duration=self.duration,
+                       payment_provider=opts.payment_provider,
+                       payment_network=opts.payment_network,
+                       payment_method=opts.payment_method,
+                       )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -245,7 +269,7 @@ group_full_config_options = group_options(
     light=option_light,
     threshold=option_threshold,
     shares=option_shares,
-    payment_periods=option_payment_periods
+    duration=option_duration
 )
 
 
