@@ -955,9 +955,9 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     #
 
     @contract_api(CONTRACT_CALL)
-    def rate_per_second(self) -> int:
+    def rate_per_second(self) -> Wei:
         result = self.contract.functions.RATE_PER_SECOND().call()
-        return result
+        return Wei(result)
 
     @contract_api(CONTRACT_CALL)
     def is_policy_active(self, policy_id: bytes) -> bool:
