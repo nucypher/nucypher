@@ -196,9 +196,8 @@ class PolicyManagerPayment(ContractPayment):
                                             start_of_period=True)
             expiration -= 1  # Get the last second of the target period
         else:
-            now = self.agent.blockchain.get_blocktime()
             duration = calculate_period_duration(now=maya.MayaDT(now),
-                                                 future_time=expiration,
+                                                 future_time=maya.MayaDT(expiration),
                                                  seconds_per_period=self.economics.seconds_per_period)
             duration += 1  # Number of all included periods
 
@@ -208,8 +207,8 @@ class PolicyManagerPayment(ContractPayment):
         else:
             value_per_node = value // shares
             if value_per_node * shares != value:
-                raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value} wei) cannot be"
-                                                          f" divided by N ({shares}) without a remainder.")
+                raise ValueError(f"Policy value of ({value} wei) cannot be "
+                                 f"divided by N ({shares}) without a remainder.")
 
             rate = value_per_node // duration
             if rate * duration != value_per_node:
@@ -237,47 +236,45 @@ class SubscriptionManagerPayment(ContractPayment):
         result = self.agent.is_policy_active(policy_id=bytes(request.hrac))
         return result
 
-    def pay(self, policy: BlockchainPolicy) -> HexBytes:
+    def pay(self, policy: BlockchainPolicy) -> TxReceipt:
         """Writes a new policy to the SubscriptionManager contract."""
-
-        # TODO: Make this optional on-chain
-        commencement = policy.commencement or self.agent.blockchain.get_blocktime()
-
         receipt = self.agent.create_policy(
-            value=policy.value,                     # wei
-            policy_id=bytes(policy.hrac),           # bytes16 _policyID
-            start_timestamp=commencement,           # uint16
-            end_timestamp=policy.expiration.epoch,  # uint16
+            value=policy.value,                   # wei
+            policy_id=bytes(policy.hrac),         # bytes16 _policyID
+            start_timestamp=policy.commencement,  # uint16
+            end_timestamp=policy.expiration,      # uint16
             transacting_power=policy.publisher.transacting_power
         )
+        return receipt
 
-        # Capture transaction receipt
-        txid = receipt['transactionHash']
-        policy.log.info(f"published policy TXID: {txid}")
-        return txid
-
-    def default_rate(self) -> int:
+    @property
+    def rate(self) -> Wei:
         fixed_rate = self.agent.rate_per_second()
-        return fixed_rate
+        return Wei(fixed_rate)
 
-    def calculate_price(self,
-                        shares: int,
-                        duration: int = None,
-                        commencement: maya.MayaDT = None,
-                        expiration: maya.MayaDT = None,
-                        value: Optional[int] = None,
-                        rate: Optional[int] = None
-                        ) -> dict:
-        # TODO: This section needs improvement but works for basic cases.
+    def quote(self,
+              commencement: Optional[Timestamp] = None,
+              expiration: Optional[Timestamp] = None,
+              duration: Optional[int] = None,
+              value: Optional[Wei] = None,
+              rate: Optional[Wei] = None,
+              *args, **kwargs
+              ) -> PaymentMethod.Quote:
+        # TODO: This section is over-complicated and needs improvement but works for basic cases.
 
+        # invalid input
         if rate:
             raise ValueError(f"{self._AGENT.contract_name} uses a fixed rate.")
         if not any((duration, expiration, value)):
             raise ValueError("Policy end time must be specified with 'expiration', 'duration' or 'value'.")
-
-        # Check for negative inputs
-        if sum(True for i in (shares, duration, value) if i is not None and i < 0) > 0:
+        if sum(True for i in (commencement, expiration, duration, value, rate) if i is not None and i < 0) > 0:
             raise ValueError(f"Negative policy parameters are not allowed. Be positive.")
+
+        if not commencement:
+            if expiration and duration:
+                commencement = expiration - duration  # reverse
+            else:
+                commencement = maya.now().epoch  # start now
 
         if not duration:
             if expiration and commencement:

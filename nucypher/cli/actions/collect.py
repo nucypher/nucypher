@@ -114,7 +114,7 @@ def collect_policy_rate_and_value(alice: Alice, rate: int, value: int, shares: i
     if not policy_value_provided:
 
         # TODO #1709 - Fine tuning and selection of default rates
-        rate = alice.payment_method.default_rate  # wei
+        rate = alice.payment_method.rate  # wei
 
         if not force:
             default_gwei = Web3.fromWei(rate, 'gwei')  # wei -> gwei
