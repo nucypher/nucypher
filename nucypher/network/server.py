@@ -206,12 +206,11 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
 
         # Enforce Policy Payment
         # TODO: Accept multiple payment methods
-        paid = this_node.payment_method.verify(node=this_node, request=reenc_request)
+        # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
+        paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
         if not paid:
             message = f"{bob_identity_message} Policy {hrac} is unpaid."
             return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
-
-        # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
 
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)

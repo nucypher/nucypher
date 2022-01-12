@@ -37,6 +37,7 @@ from nucypher.cli.literature import SUCCESSFUL_MINTING
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.policy.payment import PolicyManagerPayment
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
@@ -363,6 +364,7 @@ def test_ursula_init(click_runner,
 
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
+                 '--payment-network', TEMPORARY_DOMAIN,
                  '--worker-address', manual_worker,
                  '--config-root', str(custom_filepath.absolute()),
                  '--provider', TEST_PROVIDER_URI,
@@ -578,7 +580,10 @@ def test_collect_rewards_integration(click_runner,
     assert staker.stakes
     assert staker.worker_address == worker_address
 
+    # TODO: Test for SubscriptionManager?
+    payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
     ursula_port = select_test_port()
+
     ursula = Ursula(is_me=True,
                     checksum_address=staker_address,
                     signer=Web3Signer(testerchain.client),
@@ -589,7 +594,8 @@ def test_collect_rewards_integration(click_runner,
                     provider_uri=TEST_PROVIDER_URI,
                     network_middleware=MockRestMiddleware(),
                     db_filepath=tempfile.mkdtemp(),
-                    domain=TEMPORARY_DOMAIN)
+                    domain=TEMPORARY_DOMAIN,
+                    payment_method=payment_method)
 
     MOCK_KNOWN_URSULAS_CACHE[ursula_port] = ursula
     assert ursula.worker_address == worker_address
@@ -617,6 +623,7 @@ def test_collect_rewards_integration(click_runner,
                                                shares=shares,
                                                value=policy_value,
                                                expiration=expiration,
+                                               payment_method=payment_method,
                                                ursulas={ursula})
 
     # Ensure that the handpicked Ursula was selected for the policy

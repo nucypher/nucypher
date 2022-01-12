@@ -28,14 +28,18 @@ from nucypher.policy.payment import PolicyManagerPayment
 from tests.constants import TEST_PROVIDER_URI
 
 
-def test_policy_simple_sinpa(blockchain_ursulas,
-                             blockchain_alice,
-                             blockchain_bob,
-                             agency,
-                             testerchain):
+def test_policy_simple_sinpa_policy_manager(blockchain_ursulas,
+                                            blockchain_alice,
+                                            blockchain_bob,
+                                            agency,
+                                            testerchain):
     """
     Making a Policy without paying.
     """
+
+    # This test only applies to the PolicyManager payment method
+    blockchain_alice.payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+
     amonia = Amonia.from_lawful_alice(blockchain_alice)
 
     # Setup the policy details
