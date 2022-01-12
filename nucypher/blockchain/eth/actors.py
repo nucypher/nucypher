@@ -1207,46 +1207,6 @@ class Worker(NucypherTokenActor):
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
-    def verify_policy_payment(self, hrac: HRAC) -> None:
-        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=bytes(hrac))
-        members = set()
-        for arrangement in arrangements:
-            members.add(arrangement.node)
-            if self.checksum_address == arrangement.node:
-                return
-        else:
-            if not members:
-                raise Policy.Unknown(f'{hrac} is not a published policy.')
-            raise Policy.Unpaid(f"{hrac} is unpaid.")
-
-    def verify_active_policy(self, hrac: HRAC) -> None:
-        policy = self.policy_agent.fetch_policy(policy_id=bytes(hrac))
-        if policy.disabled:
-            raise Policy.Inactive(f'{hrac} is a disabled policy.')
-        expired = datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp)
-        if expired:
-            raise Policy.Expired(f'{hrac} is an expired policy.')
-
-
-# TODO: This class can easily be removed with the introduction of Payments.
-class BlockchainPolicyAuthor(NucypherTokenActor):
-    """Alice base class for blockchain operations, mocking up new policies!"""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
-        self.economics = EconomicsFactory.get_economics(registry=self.registry)
-
-    def create_policy(self, *args, **kwargs):
-        """
-        Hence the name, a BlockchainPolicyAuthor can create
-        a BlockchainPolicy with themself as the author.
-        """
-        from nucypher.policy.policies import BlockchainPolicy
-        blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)
-        return blockchain_policy
-
 
 class Investigator(NucypherTokenActor):
     """

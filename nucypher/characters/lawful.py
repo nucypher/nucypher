@@ -47,8 +47,8 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
-from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
+from nucypher.blockchain.eth.actors import Worker
+from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -98,7 +98,7 @@ from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
 
 
-class Alice(Character, BlockchainPolicyAuthor):
+class Alice(Character):
     banner = ALICE_BANNER
     _interface_class = AliceInterface
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -167,7 +167,9 @@ class Alice(Character, BlockchainPolicyAuthor):
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
+
             # BlockchainPolicyAuthor was here
+            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
