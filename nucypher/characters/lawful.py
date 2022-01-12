@@ -92,7 +92,7 @@ from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.payment import ContractPayment, PaymentMethod
+from nucypher.policy.payment import ContractPayment, PaymentMethod, FreeReencryptions
 from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
@@ -121,7 +121,7 @@ class Alice(Character):
                  # Policy Value
                  rate: int = None,
                  duration: int = None,
-                 payment_method: ContractPayment = None,  # TODO: Make this required?
+                 payment_method: PaymentMethod = None,
 
                  # Policy Storage
                  store_policy_credentials: bool = None,
@@ -177,6 +177,9 @@ class Alice(Character):
                 self.make_cli_controller()
 
             # Policy Payment
+            if federated_only and not payment_method:
+                # Federated payments are free by default.
+                payment_method = FreeReencryptions()
             if not payment_method:
                 raise ValueError('payment_method is a required argument for a local Alice.')
             self.payment_method = payment_method
@@ -740,15 +743,16 @@ class Ursula(Teacher, Character, ThresholdWorker):
             self.__pruning_task: Union[Deferred, None] = None
 
             # Policy Payment
-            if not payment_method:
-                raise ValueError('payment_method is a required argument for is_me Ursula.')
-            self.payment_method = payment_method
+            if federated_only and not payment_method:
+                # Federated payments are free by default.
+                payment_method = FreeReencryptions()
 
             # Decentralized Worker
             if not federated_only:
-
                 if not provider_uri:
                     raise ValueError('Provider URI is required to init a decentralized character.')
+                if not payment_method:
+                    raise ValueError('Payment method is required to init a decentralized character.')
 
                 # TODO: Move to method
                 # Prepare a TransactingPower from worker node's transacting keys
@@ -771,11 +775,15 @@ class Ursula(Teacher, Character, ThresholdWorker):
                                     registry=self.registry,
                                     worker_address=worker_address)
                 except (Exception, self.WorkerError):
-                    # TODO: ... thanks I hate it
                     # TODO: Do not announce self to "other nodes" until this init is finished.
                     # It's not possible to finish constructing this node.
                     self.stop(halt_reactor=False)
                     raise
+
+            # Payment Method
+            # TODO: What value can be here for a remote node...
+            # TODO: Include accepted payment method announcements in metadata?
+            self.payment_method = payment_method
 
             # Server
             self.rest_server = self._make_local_server(host=rest_host,
