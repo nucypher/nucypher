@@ -92,8 +92,8 @@ from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.payment import ContractPayment
-from nucypher.policy.policies import Policy
+from nucypher.policy.payment import ContractPayment, PaymentMethod
+from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
 
@@ -243,30 +243,29 @@ class Alice(Character):
                        bob=bob,
                        kfrags=kfrags,
                        public_key=public_key,
-                       threshold=policy_params['threshold'],
-                       expiration=policy_params['expiration'])
+                       **policy_params)
 
         if self.federated_only:
             # Use known nodes
-            from nucypher.policy.policies import FederatedPolicy
             policy = FederatedPolicy(publisher=self, **payload)
-
         else:
-            # Sample from blockchain PolicyManager
+            # Sample from blockchain
             payload.update(**policy_params)
-            policy = super().create_policy(**payload)
+            policy = BlockchainPolicy(publisher=self, **payload)
 
         return policy
 
     def generate_policy_parameters(self,
-                                   threshold: int = None,
-                                   shares: int = None,
-                                   duration: int = None,
-                                   expiration: maya.MayaDT = None,
-                                   value: int = None,
-                                   rate: int = None
+                                   threshold: Optional[int] = None,
+                                   shares: Optional[int] = None,
+                                   duration: Optional[int] = None,
+                                   commencement: Optional[maya.MayaDT] = None,
+                                   expiration: Optional[maya.MayaDT] = None,
+                                   value: Optional[int] = None,
+                                   rate: Optional[int] = None,
+                                   payment_method: Optional[PaymentMethod] = None
                                    ) -> dict:
-        """Construct policy creation from parameters or overrides."""
+        """Construct policy creation from default parameters or overrides."""
 
         if not duration and not expiration:
             raise ValueError("Policy end time must be specified as 'expiration' or 'duration', got neither.")
@@ -1243,7 +1242,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
                                  balance_eth=balance_eth,
                                  balance_nu=balance_nu,
                                  missing_commitments=missing_commitments,
-                                 last_committed_period=last_committed_period,
+                                 last_committed_period=last_committed_period
                                  )
 
 
