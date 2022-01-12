@@ -20,7 +20,6 @@ import tempfile
 from unittest.mock import ANY
 
 import pytest
-from constant_sorrow.constants import FEDERATED_ADDRESS
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
 
