@@ -30,6 +30,7 @@ from nucypher.crypto.powers import DecryptingPower, DelegatingPower, TLSHostingP
 from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.datastore.datastore import Datastore
 from nucypher.network.server import ProxyRESTServer
+from nucypher.policy.payment import FreeReencryptions
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.matchers import IsType
@@ -67,7 +68,7 @@ def test_generate_alice_keystore(temp_dir_path):
     assert delegating_pubkey == another_delegating_pubkey
 
 
-def test_characters_use_keystore(temp_dir_path):
+def test_characters_use_keystore(temp_dir_path, test_registry_source_manager):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path
@@ -81,7 +82,8 @@ def test_characters_use_keystore(temp_dir_path):
            rest_host=LOOPBACK_ADDRESS,
            rest_port=12345,
            db_filepath=tempfile.mkdtemp(),
-           domain=TEMPORARY_DOMAIN)
+           domain=TEMPORARY_DOMAIN,
+           payment_method=FreeReencryptions())
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 
 

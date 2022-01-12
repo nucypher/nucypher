@@ -175,15 +175,21 @@ class Alice(Character):
         if is_me:
             if controller:
                 self.make_cli_controller()
-            self.log.info(self.banner)
 
-        self.active_policies = dict()
-        self.revocation_kits = dict()
-        self.store_policy_credentials = store_policy_credentials
-        self.store_character_cards = store_character_cards
-        self.payment_method = payment_method
-        self.rate = rate
-        self.duration = duration
+            # Policy Payment
+            if not payment_method:
+                raise ValueError('payment_method is a required argument for a local Alice.')
+            self.payment_method = payment_method
+            self.rate = rate
+            self.duration = duration
+
+            # Settings
+            self.active_policies = dict()
+            self.revocation_kits = dict()
+            self.store_policy_credentials = store_policy_credentials
+            self.store_character_cards = store_character_cards
+
+            self.log.info(self.banner)
 
     def get_card(self) -> 'Card':
         from nucypher.policy.identity import Card
@@ -695,7 +701,7 @@ class Ursula(Teacher, Character, Worker):
                  decentralized_identity_evidence=NOT_SIGNED,
 
                  provider_uri: str = None,
-                 payment_method: ContractPayment = None,
+                 payment_method: PaymentMethod = None,
 
                  # Character
                  abort_on_learning_error: bool = False,
@@ -734,6 +740,11 @@ class Ursula(Teacher, Character, Worker):
 
             # Datastore Pruning
             self.__pruning_task: Union[Deferred, None] = None
+
+            # Policy Payment
+            if not payment_method:
+                raise ValueError('payment_method is a required argument for is_me Ursula.')
+            self.payment_method = payment_method
 
             # Decentralized Worker
             if not federated_only:
@@ -780,9 +791,6 @@ class Ursula(Teacher, Character, Worker):
 
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
-
-            # Policy Payment
-            self.payment_method = payment_method
 
             # Care to introduce yourself?
             message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)

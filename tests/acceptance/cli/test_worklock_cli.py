@@ -23,19 +23,20 @@ import pytest
 from eth_utils import to_wei
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Bidder, Staker
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     WorkLockAgent
 )
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.commands.worklock import worklock
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.payment import PolicyManagerPayment
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS, TEST_PROVIDER_URI, MOCK_PROVIDER_URI)
 from tests.utils.ursula import select_test_port
-from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @pytest.fixture(scope='module')
@@ -247,7 +248,8 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
                     worker_address=worker_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port(),
-                    db_filepath=tempfile.mkdtemp())
+                    db_filepath=tempfile.mkdtemp(),
+                    payment_method=PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN))
 
     # Ensure there is work to do
     remaining_work = worklock_agent.get_remaining_work(checksum_address=bidder)
