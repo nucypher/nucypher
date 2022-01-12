@@ -1,51 +1,64 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, NamedTuple, Dict
 
 import maya
+from hexbytes import HexBytes
+from nucypher_core import ReencryptionRequest
+from web3.types import Wei, ChecksumAddress, Timestamp
 
+from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, SubscriptionManagerAgent
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.utils import get_current_period, datetime_at_period, calculate_period_duration
-from nucypher_core import ReencryptionRequest
-from nucypher.policy.policies import BlockchainPolicy
-from hexbytes import HexBytes
-from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.policy.policies import BlockchainPolicy, Policy
 
 
 class ReencryptionPrerequisite(ABC):
     """Baseclass for reencryption preconditions relating to a policy."""
 
     ONCHAIN = NotImplemented
+    NAME = NotImplemented
 
     @abstractmethod
-    def verify(self, node: 'Ursula', request: ReencryptionRequest) -> bool:
+    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
         """returns True is reencryption is permitted by ursula for the given reencryption request."""
         raise NotImplemented
 
 
 class PaymentMethod(ReencryptionPrerequisite, ABC):
-    # TODO: Logging?
+
+    class Quote(NamedTuple):
+        rate: int
+        value: int
+        commencement: int  # epoch
+        expiration: int    # epoch
+        duration: int      # seconds or periods
 
     @abstractmethod
-    def pay(self, policy: BlockchainPolicy) -> HexBytes:
+    def pay(self, policy: Policy) -> Dict:
+        raise NotImplemented
+
+    @property
+    @abstractmethod
+    def rate(self) -> int:
         raise NotImplemented
 
     @abstractmethod
-    def default_rate(self):
+    def quote(self,
+              shares: int,
+              duration: Optional[int] = None,
+              commencement: Optional[Timestamp] = None,
+              expiration: Optional[int] = None,
+              value: Optional[int] = None,
+              rate: Optional[int] = None
+              ) -> Quote:
         raise NotImplemented
 
     @abstractmethod
-    def calculate_price(self,
-                        shares: int,
-                        duration: int = None,
-                        expiration: maya.MayaDT = None,
-                        value: Optional[int] = None,
-                        rate: Optional[int] = None
-                        ) -> dict:
-        raise NotImplemented
-
-    @abstractmethod
-    def validate_rate(self, shares: int, value: int, duration: int) -> None:
+    def validate_price(self,
+                       shares: int,
+                       value: int,
+                       duration: int) -> None:
         raise NotImplemented
 
 
@@ -54,6 +67,10 @@ class ContractPayment(PaymentMethod, ABC):
 
     ONCHAIN = True
     _AGENT = NotImplemented
+
+    class Quote(PaymentMethod.Quote):
+        rate: Wei
+        value: Wei
 
     def __init__(self, provider: str, network: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -76,35 +93,50 @@ class FreeReencryptions(PaymentMethod):
     """Useful for private federations and testing."""
 
     ONCHAIN = False
+    NAME = 'Free'
 
-    def verify(self, node: 'Ursula', request: ReencryptionRequest) -> bool:
+    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
         return True
 
-    def pay(self, policy: BlockchainPolicy) -> HexBytes:
-        return HexBytes(bytes())
+    def pay(self, policy: Policy) -> Dict:
+        receipt = f'Receipt for free policy {bytes(policy.hrac).hex()}.'
+        return dict(receipt=receipt.encode())
 
-    def default_rate(self) -> int:
+    @property
+    def rate(self) -> int:
         return 0
 
-    def calculate_price(self, *args, **kwargs) -> dict:
-        return dict(value=0, rate=0)
+    def quote(self,
+              commencement: Optional[Timestamp] = None,
+              expiration: Optional[Timestamp] = None,
+              duration: Optional[int] = None,
+              *args, **kwargs
+              ) -> PaymentMethod.Quote:
+        return self.Quote(
+            value=0,
+            rate=0,
+            duration=duration,
+            commencement=commencement,
+            expiration=expiration
+        )
 
-    def validate_rate(self, *args, **kwargs) -> None:
-        return
+    def validate_price(self, *args, **kwargs) -> bool:
+        return True
 
 
 class PolicyManagerPayment(ContractPayment):
     """Handle policy payment using the PolicyManager contract."""
 
     _AGENT = PolicyManagerAgent
+    NAME = 'PolicyManager'
 
-    def verify(self, node, request: ReencryptionRequest) -> bool:
+    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
         """Verify policy payment by reading the PolicyManager contract"""
         arrangements = self.agent.fetch_policy_arrangements(policy_id=bytes(request.hrac))
         members = set()
         for arrangement in arrangements:
             members.add(arrangement.node)
-            if node.checksum_address == arrangement.node:
+            if payee == arrangement.node:
                 return True
         else:
             if not members:
@@ -114,47 +146,48 @@ class PolicyManagerPayment(ContractPayment):
     def pay(self, policy: BlockchainPolicy) -> HexBytes:
         """Writes a new policy to the PolicyManager contract."""
         receipt = self.agent.create_policy(
-            value=policy.value,                     # wei
-            policy_id=bytes(policy.hrac),           # bytes16 _policyID
-            end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
-            node_addresses=policy.addresses,        # address[] memory _nodes
+            value=policy.value,                # wei
+            policy_id=bytes(policy.hrac),      # bytes16 _policyID
+            end_timestamp=policy.expiration,   # uint16 _numberOfPeriods
+            node_addresses=policy.nodes,       # address[] memory _nodes
             transacting_power=policy.publisher.transacting_power
         )
+        return receipt
 
-        # Capture transaction receipt
-        txid = receipt['transactionHash']
-        policy.log.info(f"published policy TXID: {txid}")
-        return txid
-
-    def default_rate(self):
+    @property
+    def rate(self) -> Wei:
         _minimum, default, _maximum = self.agent.get_fee_rate_range()
         return default
 
-    def validate_rate(self, shares: int, value: int, duration: int) -> None:
+    def validate_price(self, shares: int, value: int, duration: int) -> bool:
         rate_per_period = value // shares // duration  # wei
         recalculated_value = duration * rate_per_period * shares
         if recalculated_value != value:
             raise ValueError(f"Invalid policy value calculation - "
                              f"{value} can't be divided into {shares} staker payments per period "
                              f"for {duration} periods without a remainder")
+        return True
 
-    def calculate_price(self,
-                        shares: int,
-                        duration: int = None,
-                        expiration: maya.MayaDT = None,
-                        value: Optional[int] = None,
-                        rate: Optional[int] = None) -> dict:
+    def quote(self,
+              shares: int,
+              expiration: Optional[Timestamp] = None,
+              duration: Optional[int] = None,
+              value: Optional[int] = None,
+              rate: Optional[int] = None,
+              *args, **kwargs
+              ) -> PaymentMethod.Quote:
 
         # Check for negative inputs
-        if sum(True for i in (shares, duration, value, rate) if i is not None and i < 0) > 0:
-            raise BlockchainPolicy.InvalidPolicyValue(f"Negative policy parameters are not allowed. Be positive.")
+        if sum(True for i in (shares, expiration, duration, value, rate) if i is not None and i < 0) > 0:
+            raise ValueError(f"Negative policy parameters are not allowed. Be positive.")
 
         # Check for policy params
         if not (bool(value) ^ bool(rate)):
             if not (value == 0 or rate == 0):  # Support a min fee rate of 0
-                raise BlockchainPolicy.InvalidPolicyValue(f"Either 'value' or 'rate'  must be provided for policy. "
-                                                          f"Got value: {value} and rate: {rate}")
-            
+                raise ValueError(f"Either 'value' or 'rate'  must be provided for policy. "
+                                 f"Got value: {value} and rate: {rate}")
+
+        now = self.agent.blockchain.get_blocktime()
         if duration:
             # Duration equals one period means that expiration date is the last second of the current period
             current_period = get_current_period(seconds_per_period=self.economics.seconds_per_period)
@@ -180,20 +213,26 @@ class PolicyManagerPayment(ContractPayment):
 
             rate = value_per_node // duration
             if rate * duration != value_per_node:
-                raise BlockchainPolicy.InvalidPolicyValue(f"Policy value of ({value_per_node} wei) per node "
-                                                          f"cannot be divided by duration ({duration} periods)"
-                                                          f" without a remainder.")
-
-        params = dict(rate=rate, value=value, duration=duration)
-        return params
+                raise ValueError(f"Policy value of ({value_per_node} wei) per node "
+                                 f"cannot be divided by duration ({duration} periods)"
+                                 f" without a remainder.")
+        q = self.Quote(
+            rate=Wei(rate),
+            value=Wei(value),
+            duration=duration,
+            expiration=Timestamp(expiration),
+            commencement=Timestamp(now)
+        )
+        return q
 
 
 class SubscriptionManagerPayment(ContractPayment):
     """Handle policy payment using the SubscriptionManager contract."""
 
     _AGENT = SubscriptionManagerAgent
+    NAME = 'SubscriptionManager'
 
-    def verify(self, node: 'Ursula', request: ReencryptionRequest) -> bool:
+    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
         """Verify policy payment by reading the SubscriptionManager contract"""
         result = self.agent.is_policy_active(policy_id=bytes(request.hrac))
         return result
@@ -243,28 +282,27 @@ class SubscriptionManagerPayment(ContractPayment):
         if not duration:
             if expiration and commencement:
                 duration = expiration - commencement
-            if not commencement:
-                # TODO: This is inaccurate since the on-chain policy creation is slightly in the future
-                commencement = maya.now()
-            if expiration and not duration:
-                duration = expiration.epoch - commencement.epoch
 
-        subscription_rate = self.agent.rate_per_second()
-        value = subscription_rate * duration
-        params = dict(rate=subscription_rate, value=value, duration=duration)
-        return params
+        q = self.Quote(
+            rate=Wei(self.rate),
+            value=Wei(self.rate * duration),
+            commencement=Timestamp(commencement),
+            expiration=Timestamp(expiration),
+            duration=duration
+        )
+        return q
 
-    def validate_rate(self, shares: int, value: int, duration: int) -> None:
-        subscription_rate = self.agent.rate_per_second()
+    def validate_price(self, value: Wei, duration: Wei, *args, **kwargs) -> bool:
         if value and duration:
-            if duration != value // subscription_rate:
+            if duration != value // self.rate:
                 raise ValueError(f"Invalid duration ({duration}) for value ({value}).")
-            if value != duration * subscription_rate:
+            if value != duration * self.rate:
                 raise ValueError(f"Invalid value ({value}) for duration ({duration}).")
+        return True
 
 
 PAYMENT_METHODS = {
-    'Free': FreeReencryptions,
-    'PolicyManager': PolicyManagerPayment,
-    'SubscriptionManager': SubscriptionManagerPayment,
+    FreeReencryptions.NAME: FreeReencryptions,
+    PolicyManagerPayment.NAME: PolicyManagerPayment,
+    SubscriptionManagerPayment.NAME: SubscriptionManagerPayment,
 }

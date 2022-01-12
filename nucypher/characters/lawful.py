@@ -276,30 +276,37 @@ class Alice(Character):
         shares = shares or self.shares
         duration = duration or self.duration
         rate = rate if rate is not None else self.rate  # TODO conflict with CLI default value, see #1709
-
-        base_payload = dict(threshold=threshold,
-                            shares=shares,
-                            duration=duration,
-                            expiration=expiration)
+        payment_method = payment_method or self.payment_method
 
         # Calculate Policy Rate, Duration, and Value
-        payload = self.payment_method.calculate_price(
+        quote = self.payment_method.quote(
             shares=shares,
             duration=duration,
-            expiration=expiration,
+            commencement=commencement.epoch if commencement else None,
+            expiration=expiration.epoch if expiration else None,
             rate=rate,
             value=value
         )
-        base_payload.update(payload)
-        return base_payload
+
+        params = dict(
+            payment_method=payment_method,
+            threshold=threshold,
+            shares=shares,
+            duration=quote.duration,
+            commencement=quote.commencement,
+            expiration=quote.expiration,
+            rate=quote.rate,
+            value=quote.value
+        )
+        return params
 
     def _check_grant_requirements(self, policy):
         """Called immediately before granting."""
 
         # TODO: Remove when the time is right.
         if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
-            raise self.ActorError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
-                                  f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
+            raise RuntimeError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
+                               f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
 
     def grant(self,
               bob: "Bob",
