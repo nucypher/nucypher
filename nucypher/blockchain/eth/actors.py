@@ -17,24 +17,22 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-
-import maya
-import os
 import time
-from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from datetime import datetime
 from decimal import Decimal
+from typing import Callable, Union
+from typing import Dict, Iterable, List, Optional, Tuple
+
+import maya
+from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import Callable, Union
-from typing import Dict, Iterable, List, Optional, Tuple
+from nucypher_core import HRAC
 from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
-
-from nucypher_core import HRAC
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import (
@@ -48,7 +46,6 @@ from nucypher.blockchain.eth.agents import (
     MultiSigAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
-    StakersReservoir,
     StakingEscrowAgent,
     TokenManagerAgent,
     VotingAgent,
@@ -101,13 +98,12 @@ from nucypher.blockchain.eth.token import (
 )
 from nucypher.blockchain.eth.utils import (
     calculate_period_duration,
-    datetime_at_period,
     datetime_to_period,
     prettify_eth_amount
 )
 from nucypher.characters.banners import STAKEHOLDER_BANNER
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.policies import Policy
 from nucypher.types import NuNits, Period
@@ -1225,6 +1221,7 @@ class Worker(NucypherTokenActor):
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
+<<<<<<< HEAD
     def verify_policy_payment(self, hrac: HRAC) -> None:
         arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=bytes(hrac))
         members = set()
@@ -1360,6 +1357,8 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)
         return blockchain_policy
 
+=======
+>>>>>>> f400a6409... Removes BlockchainPolicyAuthor.
 
 class Investigator(NucypherTokenActor):
     """

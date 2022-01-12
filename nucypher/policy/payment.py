@@ -6,7 +6,7 @@ import maya
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, SubscriptionManagerAgent
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.utils import get_current_period, datetime_at_period, calculate_period_duration
-from nucypher.core import ReencryptionRequest
+from nucypher_core import ReencryptionRequest
 from nucypher.policy.policies import BlockchainPolicy
 from hexbytes import HexBytes
 from nucypher.blockchain.economics import EconomicsFactory
