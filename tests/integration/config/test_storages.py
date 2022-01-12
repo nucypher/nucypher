@@ -19,12 +19,10 @@ import tempfile
 
 import pytest
 
-from nucypher_core import NodeMetadata
-
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
-from nucypher.network.nodes import Learner
+from nucypher.policy.payment import FreeReencryptions
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
@@ -49,7 +47,8 @@ class BaseTestNodeStorageBackends:
                       rest_port=MOCK_URSULA_STARTING_PORT,
                       db_filepath=MOCK_URSULA_DB_FILEPATH,
                       federated_only=True,
-                      domain=TEMPORARY_DOMAIN)
+                      domain=TEMPORARY_DOMAIN,
+                      payment_method=FreeReencryptions())
         yield node
 
     character_class = Ursula
@@ -72,7 +71,8 @@ class BaseTestNodeStorageBackends:
                           db_filepath=MOCK_URSULA_DB_FILEPATH,
                           rest_port=port,
                           federated_only=True,
-                          domain=TEMPORARY_DOMAIN)
+                          domain=TEMPORARY_DOMAIN,
+                          payment_method=FreeReencryptions())
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)
 
