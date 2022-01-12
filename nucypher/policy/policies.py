@@ -17,15 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from abc import ABC, abstractmethod
-from typing import Sequence, Optional, Iterable, List
+from typing import Sequence, Optional, Iterable, List, Dict
 
 import maya
 from eth_typing.evm import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import HRAC, TreasureMap
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
@@ -52,30 +50,9 @@ class Policy(ABC):
 
     class NotEnoughUrsulas(PolicyException):
         """
-        Raised when a Policy cannot be generated due an an insufficient
+        Raised when a Policy cannot be generated due an insufficient
         number of available qualified network nodes.
         """
-
-    class EnactmentError(PolicyException):
-        """Raised if one or more Ursulas failed to enact the policy."""
-
-    class Unpaid(PolicyException):
-        """Raised when a worker expects policy payment but receives none."""
-
-    class Unknown(PolicyException):
-        """Raised when a worker cannot find a published policy for a given policy ID"""
-
-    class Inactive(PolicyException):
-        """Raised when a worker is requested to perform re-encryption for a disabled policy"""
-
-    class Expired(PolicyException):
-        """Raised when a worker is requested to perform re-encryption for an expired policy"""
-
-    class Unauthorized(PolicyException):
-        """Raised when Bob is not authorized to request re-encryption from Ursula.."""
-
-    class Revoked(Unauthorized):
-        """Raised when a policy is revoked has been revoked access"""
 
     def __init__(self,
                  publisher: 'Alice',
@@ -85,26 +62,32 @@ class Policy(ABC):
                  public_key: PublicKey,
                  threshold: int,
                  expiration: maya.MayaDT,
-                 commencement: Optional[maya.MayaDT] = None
+                 commencement: maya.MayaDT,
+                 value: int,
+                 rate: int,
+                 duration: int,
+                 payment_method: 'PaymentMethod'
                  ):
-
-        """
-        :param kfrags:  A list of KeyFrags to distribute per this Policy.
-        :param label: The identity of the resource to which Bob is granted access.
-        """
 
         self.threshold = threshold
         self.shares = len(kfrags)
-        self.publisher = publisher
         self.label = label
         self.bob = bob
         self.kfrags = kfrags
         self.public_key = public_key
-        self.expiration = expiration
         self.commencement = commencement
+        self.expiration = expiration
+        self.duration = duration
+        self.value = value
+        self.rate = rate
+        self.nodes = None  # set by publication
+
+        self.publisher = publisher
         self.hrac = HRAC(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
                          bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
                          label=self.label)
+        self.payment_method = payment_method
+        self.payment_method.validate_price(shares=self.shares, value=value, duration=duration)
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{bytes(self.hrac).hex()[:6]}"
@@ -114,9 +97,10 @@ class Policy(ABC):
         """Builds a `MergedReservoir` to use for drawing addresses to send proposals to."""
         raise NotImplementedError
 
-    @abstractmethod
-    def _publish(self, ursulas: List['Ursula']) -> None:
-        raise NotImplementedError
+    def _publish(self, ursulas: List['Ursula']) -> Dict:
+        self.nodes = [ursula.checksum_address for ursula in ursulas]
+        receipt = self.payment_method.pay(policy=self)
+        return receipt
 
     def _ping_node(self, address: ChecksumAddress, network_middleware: RestMiddleware) -> 'Ursula':
         # Handles edge case when provided address is not a known peer.
@@ -215,11 +199,7 @@ class Policy(ABC):
 
 class FederatedPolicy(Policy):
 
-    def _publish(self, ursulas: List['Ursula']) -> None:
-        """Hook to perform publication operations for federated policies."""
-        pass
-
-    def _make_reservoir(self, handpicked_addresses):
+    def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
         """Returns a federated node reservoir for creating a federated policy."""
         return make_federated_staker_reservoir(known_nodes=self.publisher.known_nodes,
                                                include_addresses=handpicked_addresses)
@@ -227,51 +207,21 @@ class FederatedPolicy(Policy):
 
 class BlockchainPolicy(Policy):
 
-    class InvalidPolicyValue(ValueError):
-        pass
-
-    def __init__(self,
-                 value: int,
-                 rate: int,
-                 duration: int,
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-        self.duration = duration
-        self.value = value
-        self.rate = rate
-
-        # This part is a bit hacky bit it gets the job done.
-        # This allows payment logic to be decoupled from instances
-        # of this object. A future improvement may remove this class entirely
-        # in favor of a more simple PolicyInfo.
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.publisher.registry)
-        self.publisher.payment_method.validate_rate(
-            shares=self.shares,
-            value=value,
-            duration=duration
-        )
-        self.addresses = None
-
-    def _publish(self, ursulas: List['Ursula']) -> HexBytes:
-        self.addresses = [ursula.checksum_address for ursula in ursulas]
-        txid = self.publisher.payment_method.pay(policy=self)
-        return txid
-
-    def _make_reservoir(self, handpicked_addresses):
+    def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
         """Returns a reservoir of staking nodes to create a decentralized policy."""
 
-        # TODO: Dissolve this shim to provide compatibility between SubscriptionManager and StakingEscrow sampling
+        # TODO: This is a shim to provide compatibility between SubscriptionManager and StakingEscrow sampling
         # Handles the duration unit difference between PolicyManager (periods) and SubscriptionManager (seconds)
-        # this can be further abstracted away (into payments?) or removed when StakingEscrow periods are fully deprecated.
+        # this can be further abstracted away (into payments?) or removed when
+        # StakingEscrow periods are fully deprecated.
         from nucypher.policy.payment import SubscriptionManagerPayment
         duration = self.duration
         if isinstance(self.publisher.payment_method, SubscriptionManagerPayment):
             economics = self.publisher.payment_method.economics
-            duration = calculate_period_duration(future_time=self.expiration,
+            duration = calculate_period_duration(future_time=maya.MayaDT(self.expiration),
                                                  seconds_per_period=economics.seconds_per_period)
 
-        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.staking_agent,
+        staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.publisher.staking_agent,
                                                                duration_periods=duration,
                                                                include_addresses=handpicked_addresses)
         return staker_reservoir

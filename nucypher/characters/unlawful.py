@@ -174,7 +174,7 @@ class Amonia(Alice):
                 policy_id=bytes(policy.hrac),  # bytes16 _policyID
                 transacting_power=policy.publisher.transacting_power,
                 value=policy.value,
-                end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
+                end_timestamp=policy.expiration,  # uint16 _numberOfPeriods
                 node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes
             )
 
