@@ -38,7 +38,7 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
-    WorkLockAgent
+    WorkLockAgent, PREApplicationAgent
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import (
