@@ -21,11 +21,12 @@ class ReencryptionPrerequisite(ABC):
 
     @abstractmethod
     def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
-        """returns True is reencryption is permitted by ursula for the given reencryption request."""
+        """returns True if reencryption is permitted by the payee (ursula) for the given reencryption request."""
         raise NotImplemented
 
 
 class PaymentMethod(ReencryptionPrerequisite, ABC):
+    """Extends ReencryptionPrerequisite to facilitate policy payment and payment verification."""
 
     class Quote(NamedTuple):
         rate: int
@@ -36,11 +37,13 @@ class PaymentMethod(ReencryptionPrerequisite, ABC):
 
     @abstractmethod
     def pay(self, policy: Policy) -> Dict:
+        """Carry out payment for the given policy."""
         raise NotImplemented
 
     @property
     @abstractmethod
     def rate(self) -> int:
+        """The cost of this payment method per unit."""
         raise NotImplemented
 
     @abstractmethod
@@ -52,6 +55,7 @@ class PaymentMethod(ReencryptionPrerequisite, ABC):
               value: Optional[int] = None,
               rate: Optional[int] = None
               ) -> Quote:
+        """Generates a valid quote for this payment method using pricing details."""
         raise NotImplemented
 
     @abstractmethod
@@ -82,6 +86,7 @@ class ContractPayment(PaymentMethod, ABC):
 
     @property
     def agent(self):
+        """Returns an instance of the agent used to carry out contract payments."""
         if self.__agent:
             return self.__agent  # get cache
         agent = self._AGENT(provider_uri=self.provider, registry=self.registry)
@@ -156,6 +161,7 @@ class PolicyManagerPayment(ContractPayment):
 
     @property
     def rate(self) -> Wei:
+        """Returns the default rate set on PolicyManager."""
         _minimum, default, _maximum = self.agent.get_fee_rate_range()
         return default
 
@@ -260,6 +266,9 @@ class SubscriptionManagerPayment(ContractPayment):
               rate: Optional[Wei] = None,
               *args, **kwargs
               ) -> PaymentMethod.Quote:
+        """
+        A quote for the SubscriptionManager is calculated as rate * duration seconds
+        """
         # TODO: This section is over-complicated and needs improvement but works for basic cases.
 
         # invalid input
