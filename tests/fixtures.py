@@ -599,7 +599,7 @@ def deployer_transacting_power(testerchain):
     return transacting_power
 
 
-def _make_agency(testerchain, test_registry, token_economics, deployer_transacting_power):
+def _make_agency(testerchain, test_registry, token_economics, deployer_transacting_power, deploy_contract):
 
     transacting_power = deployer_transacting_power
 
@@ -624,6 +624,12 @@ def _make_agency(testerchain, test_registry, token_economics, deployer_transacti
     staking_escrow_deployer = StakingEscrowDeployer(economics=token_economics, registry=test_registry)
     staking_escrow_deployer.deploy(deployment_mode=FULL, transacting_power=transacting_power)
 
+    # faked threshold staking interface for tests
+    threshold_staking, _ = deploy_contract('TStakingTest')
+    pre_application_deployer = PREApplicationDeployer(economics=token_economics, registry=test_registry,
+                                                      staking_interface=threshold_staking.address)
+    pre_application_deployer.deploy(transacting_power=transacting_power)
+
     # Set additional parameters
     minimum, default, maximum = FEE_RATE_RANGE
     policy_agent = policy_manager_deployer.make_agent()
@@ -642,11 +648,13 @@ def agency(testerchain,
            test_registry,
            token_economics,
            test_registry_source_manager,
-           deployer_transacting_power):
+           deployer_transacting_power,
+           deploy_contract):
     _make_agency(testerchain=testerchain,
                  test_registry=test_registry,
                  token_economics=token_economics,
-                 deployer_transacting_power=deployer_transacting_power)
+                 deployer_transacting_power=deployer_transacting_power,
+                 deploy_contract=deploy_contract)
 
 
 @pytest.fixture(scope='module')
