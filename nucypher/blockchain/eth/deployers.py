@@ -1124,6 +1124,50 @@ class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, Ownabl
         return deployment_receipts
 
 
+class PREApplicationDeployer(BaseContractDeployer):
+
+    agency = PREApplicationAgent
+    contract_name = agency.contract_name
+    deployment_steps = ('contract_deployment', )
+    _upgradeable = False
+
+    def __init__(self,
+                 min_authorization: int = 0,  # TODO: Remove these args, use constants or economics
+                 min_seconds: int = 0,
+                 staking_interface: str = None,
+                 *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.threshold_staking_interface = staking_interface
+        self.min_authorization = min_authorization
+        self.min_seconds = min_seconds
+
+    def deploy(self,
+               transacting_power: TransactingPower,
+               gas_limit: int = None,
+               confirmations: int = 0,
+               deployment_mode=FULL,
+               ignore_deployed: bool = False,
+               emitter=None):
+
+        constructor_args = (
+            self.threshold_staking_interface,
+            self.min_authorization,
+            self.min_seconds
+        )
+
+        contract, receipt = self.blockchain.deploy_contract(
+            transacting_power,
+            self.registry,
+            self.contract_name,
+            *constructor_args,
+            gas_limit=gas_limit,
+            confirmations=confirmations
+        )
+        self._contract = contract
+        self.deployment_receipts = dict(zip(self.deployment_steps, (receipt, )))
+        return self.deployment_receipts
+
+
 class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent

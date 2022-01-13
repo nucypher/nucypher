@@ -44,7 +44,7 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     StakingEscrowDeployer,
     StakingInterfaceDeployer,
-    WorklockDeployer
+    WorklockDeployer, PREApplicationDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
