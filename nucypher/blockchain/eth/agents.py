@@ -20,7 +20,7 @@ import random
 import sys
 from bisect import bisect_right
 from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator, NamedTuple
 
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.constants import (
     VOTING_CONTRACT_NAME,
     VOTING_AGGREGATOR_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME,
-    DAO_AGENT_CONTRACT_NAME
+    DAO_AGENT_CONTRACT_NAME, PRE_APPLICATION_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
@@ -1007,6 +1007,81 @@ class AdjudicatorAgent(EthereumContractAgent):
 
         staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
         return staking_parameters
+
+
+class PREApplicationAgent(EthereumContractAgent):
+
+    contract_name: str = PRE_APPLICATION_CONTRACT_NAME
+
+    class OperatorInfo(NamedTuple):
+        address: ChecksumAddress
+        confirmed: bool
+        start_timestamp: Timestamp
+
+    @contract_api(CONTRACT_CALL)
+    def get_min_authorization(self) -> int:
+        result = self.contract.functions.minAuthorization().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_min_worker_seconds(self) -> int:
+        result = self.contract.functions.minWorkerSeconds().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_operator_from_worker(self, worker_address: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.operatorFromWorker(worker_address).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_worker_from_operator(self, operator: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.getWorkerFromOperator(operator).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_beneficiary(self, operator: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.getBeneficiary(operator).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_worker_confirmed(self, worker: ChecksumAddress) -> bool:
+        result = self.contract.functions.isWorkerConfirmed(worker).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_authorized_stake(self, operator: ChecksumAddress) -> int:
+        result = self.contract.functions.authorizedStake(operator).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_operators_length(self) -> int:
+        result = self.contract.functions.getOperatorsLength().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_active_operators(self, start_index: int, max_results: int):
+        result = self.contract.functions.getActiveOperators(start_index, max_results).call()
+        return result
+
+    #
+    # Transactions
+    #
+
+    @contract_api(TRANSACTION)
+    def confirm_worker_address(self, transacting_power: TransactingPower) -> TxReceipt:
+        """Confirm the sender's account as a worker"""
+        contract_function: ContractFunction = self.contract.functions.confirmWorkerAddress()
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def bond_worker(self, worker: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+        """For use by threshold operator accounts only."""
+        contract_function: ContractFunction = self.contract.functions.bondWorker(worker)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
+        return receipt
 
 
 class WorkLockAgent(EthereumContractAgent):
