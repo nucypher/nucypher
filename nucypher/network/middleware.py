@@ -38,8 +38,9 @@ class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
 
-    def __init__(self, registry=None, *args, **kwargs):
+    def __init__(self, registry=None, provider_uri: str = None, *args, **kwargs):
         self.registry = registry
+        self.provider_uri = provider_uri
 
     @staticmethod
     def response_cleaner(response):
@@ -55,7 +56,7 @@ class NucypherMiddlewareClient:
         if node_or_sprout:
             if node_or_sprout is not EXEMPT_FROM_VERIFICATION:
                 node = node_or_sprout.mature()  # Morph into a node.
-                node.verify_node(network_middleware_client=self, registry=self.registry)
+                node.verify_node(network_middleware_client=self, registry=self.registry, provider_uri=self.provider_uri)
         return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
     def parse_node_or_host_and_port(self, node, host, port):
@@ -175,8 +176,8 @@ class RestMiddleware:
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
-    def __init__(self, registry=None):
-        self.client = self._client_class(registry)
+    def __init__(self, registry=None, provider_uri: str = None):
+        self.client = self._client_class(registry=registry, provider_uri=provider_uri)
 
     def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
                         current_attempt: int = 0):

@@ -1068,16 +1068,16 @@ class Teacher:
             raise self.UnbondedWorker(f"Worker {self.worker_address} is not bonded")
         return staker_address == self.checksum_address
 
-    def _staker_is_really_staking(self, registry: BaseContractRegistry) -> bool:
+    def _staker_is_really_staking(self, registry: BaseContractRegistry, provider_uri: Optional[str] = None) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the staker is, indeed, staking.
         """
         # Lazy agent get or create
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)  # type: StakingEscrowAgent
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry, provider_uri=provider_uri)  # type: StakingEscrowAgent
 
         try:
-            economics = EconomicsFactory.get_economics(registry=registry)
+            economics = EconomicsFactory.get_economics(registry=registry, provider_uri=provider_uri)
         except Exception:
             raise  # TODO: Get StandardEconomics  NRN
 
@@ -1088,7 +1088,7 @@ class Teacher:
         is_staking = max(stake_current_period, stake_next_period) >= min_stake
         return is_staking
 
-    def validate_worker(self, registry: BaseContractRegistry = None) -> None:
+    def validate_worker(self, registry: BaseContractRegistry = None, provider_uri: Optional[str] = None) -> None:
 
         # Federated
         if self.federated_only:
@@ -1113,7 +1113,7 @@ class Teacher:
                     self.log.debug(message)
                     raise self.UnbondedWorker(message)
 
-                if self._staker_is_really_staking(registry=registry):  # <-- Blockchain CALL
+                if self._staker_is_really_staking(registry=registry, provider_uri=provider_uri):  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
                     raise self.NotStaking(f"Staker {self.checksum_address} is not staking")
@@ -1131,7 +1131,7 @@ class Teacher:
         else:
             raise self.InvalidNode("Metadata signature is invalid")
 
-    def validate_metadata(self, registry: BaseContractRegistry = None):
+    def validate_metadata(self, registry: BaseContractRegistry = None, provider_uri: Optional[str] = None):
 
         # Verify the metadata signature
         if not self.verified_metadata:
@@ -1143,7 +1143,7 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.validate_worker(registry=registry)
+            self.validate_worker(registry=registry, provider_uri=provider_uri)
         except self.WrongMode:
             if bool(registry):
                 raise
@@ -1151,6 +1151,7 @@ class Teacher:
     def verify_node(self,
                     network_middleware_client,
                     registry: BaseContractRegistry = None,
+                    provider_uri: Optional[str] = None,
                     certificate_filepath: Optional[Path] = None,
                     force: bool = False
                     ) -> bool:
@@ -1182,7 +1183,7 @@ class Teacher:
                            "on-chain Staking verification will not be performed.")
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        self.validate_metadata(registry=registry)
+        self.validate_metadata(registry=registry, provider_uri=provider_uri)
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:

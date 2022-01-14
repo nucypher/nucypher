@@ -61,7 +61,7 @@ class CanonicalRegistrySource(ABC):
         raise NotImplementedError
 
     def __repr__(self):
-        return self.get_publication_endpoint()
+        return str(self.get_publication_endpoint())
 
 
 class GithubRegistrySource(CanonicalRegistrySource):
