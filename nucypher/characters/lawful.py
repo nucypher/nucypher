@@ -61,6 +61,7 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
+from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import ThresholdWorker
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
@@ -92,7 +93,7 @@ from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.payment import ContractPayment, PaymentMethod, FreeReencryptions
+from nucypher.policy.payment import PaymentMethod, FreeReencryptions
 from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_worker_ip
@@ -169,7 +170,10 @@ class Alice(Character):
             self._crypto_power.consume_power_up(self.transacting_power)
 
             # BlockchainPolicyAuthor was here
-            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+            self.economics = EconomicsFactory.get_economics(registry=self.registry, provider_uri=provider_uri)
+            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
+                                                          registry=self.registry,
+                                                          provider_uri=provider_uri)
 
         self.log = Logger(self.__class__.__name__)
         if is_me:

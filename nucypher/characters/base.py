@@ -165,17 +165,13 @@ class Character(Learner):
             # Blockchainy
             if not self.federated_only:
                 self.provider_uri = provider_uri
-
-                # TODO: Implicit / lazy blockchain connection here?
-                # if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                #     BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
-
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
             # REST
-            self.network_middleware = network_middleware or RestMiddleware(registry=self.registry)
+            self.network_middleware = network_middleware or RestMiddleware(registry=self.registry,
+                                                                           provider_uri=provider_uri)
 
             # Learner
             Learner.__init__(self,
