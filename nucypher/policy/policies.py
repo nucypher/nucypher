@@ -217,9 +217,10 @@ class BlockchainPolicy(Policy):
         from nucypher.policy.payment import SubscriptionManagerPayment
         duration = self.duration
         if isinstance(self.publisher.payment_method, SubscriptionManagerPayment):
-            economics = self.publisher.payment_method.economics
-            duration = calculate_period_duration(future_time=maya.MayaDT(self.expiration),
-                                                 seconds_per_period=economics.seconds_per_period)
+            economics = self.publisher.economics
+            expiration = maya.MayaDT(self.expiration)
+            duration = calculate_period_duration(future_time=expiration, seconds_per_period=economics.seconds_per_period)
+            duration += 1
 
         staker_reservoir = make_decentralized_staker_reservoir(staking_agent=self.publisher.staking_agent,
                                                                duration_periods=duration,
