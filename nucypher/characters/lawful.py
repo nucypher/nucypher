@@ -72,7 +72,6 @@ from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER,
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.cli.processes import UrsulaCommandProtocol
-from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
@@ -314,11 +313,11 @@ class Alice(Character):
 
     def _check_grant_requirements(self, policy):
         """Called immediately before granting."""
-
         # TODO: Remove when the time is right.
-        if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
-            raise RuntimeError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
-                               f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
+        # from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
+        # if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
+        #     raise RuntimeError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
+        #                        f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
 
     def grant(self,
               bob: "Bob",
