@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from decimal import Decimal, localcontext
 from math import log
-from typing import Tuple
+from typing import Tuple, Optional
 
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -448,26 +448,26 @@ class EconomicsFactory:
     __economics = dict()
 
     @classmethod
-    def get_economics(cls, registry: BaseContractRegistry) -> BaseEconomics:
+    def get_economics(cls, registry: BaseContractRegistry, provider_uri: Optional[str] = None) -> BaseEconomics:
         registry_id = registry.id
         try:
             return cls.__economics[registry_id]
         except KeyError:
-            economics = EconomicsFactory.retrieve_from_blockchain(registry=registry)
+            economics = EconomicsFactory.retrieve_from_blockchain(registry=registry, provider_uri=provider_uri)
             cls.__economics[registry_id] = economics
             return economics
 
     @staticmethod
-    def retrieve_from_blockchain(registry: BaseContractRegistry) -> BaseEconomics:
+    def retrieve_from_blockchain(registry: BaseContractRegistry, provider_uri: Optional[str] = None) -> BaseEconomics:
 
         # Agents
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-        adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
+        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry, provider_uri=provider_uri)
+        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry, provider_uri=provider_uri)
+        adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry, provider_uri=provider_uri)
 
         worklock_deployed = True
         try:
-            worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry)
+            worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=registry, provider_uri=provider_uri)
         except registry.UnknownContract:
             worklock_deployed = False
 

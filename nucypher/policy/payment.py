@@ -81,7 +81,6 @@ class ContractPayment(PaymentMethod, ABC):
         self.provider = provider
         self.network = network
         self.registry = InMemoryContractRegistry.from_latest_publication(network=network)
-        self.economics = EconomicsFactory.get_economics(registry=self.registry)
         self.__agent = None  # delay blockchain/registry reads until later
 
     @property
@@ -134,6 +133,10 @@ class PolicyManagerPayment(ContractPayment):
 
     _AGENT = PolicyManagerAgent
     NAME = 'PolicyManager'
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.economics = EconomicsFactory.get_economics(registry=self.registry, provider_uri=self.provider)
 
     def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
         """Verify policy payment by reading the PolicyManager contract"""
