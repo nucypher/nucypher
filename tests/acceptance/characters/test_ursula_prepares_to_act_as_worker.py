@@ -83,7 +83,7 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(blockchain_ur
     vladimir = remote_vladimir(target_ursula=his_target)
 
     # Now, even though his public signing key matches Ursulas...
-    assert vladimir.metadata().verifying_key == his_target.stamp.as_umbral_pubkey()
+    assert vladimir.metadata().payload.verifying_key == his_target.stamp.as_umbral_pubkey()
 
     # ...he is unable to pretend that his interface is valid
     # because the validity check contains the canonical public address as part of its message.

@@ -15,8 +15,9 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from nucypher_core.umbral import SecretKey
+
 from nucypher.cli.main import nucypher_cli
-from nucypher.crypto.umbral_adapter import SecretKey
 
 
 def test_enrico_encrypt(click_runner):

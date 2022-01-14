@@ -21,7 +21,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import EncryptedKeyFrag
+from nucypher_core import EncryptedKeyFrag
 
 from nucypher.crypto.utils import keccak_digest
 
@@ -48,8 +48,8 @@ def test_decentralized_grant(blockchain_alice, blockchain_bob, blockchain_ursula
 
     # Let's look at the destinations.
     for ursula in blockchain_ursulas:
-        if ursula.checksum_address in treasure_map.destinations:
-            kfrag_kit = treasure_map.destinations[ursula.checksum_address]
+        if ursula.canonical_address in treasure_map.destinations:
+            kfrag_kit = treasure_map.destinations[ursula.canonical_address]
 
             # TODO: try to decrypt?
             assert isinstance(kfrag_kit, EncryptedKeyFrag)

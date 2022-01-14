@@ -22,11 +22,12 @@ from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
 from ipaddress import ip_address
 
+from nucypher_core.umbral import PublicKey
+
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
-from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.utilities.networking import validate_worker_ip, InvalidWorkerIP
 
 

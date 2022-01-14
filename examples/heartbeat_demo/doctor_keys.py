@@ -18,7 +18,7 @@
 import json
 from pathlib import Path
 
-from nucypher.crypto.umbral_adapter import SecretKey, PublicKey
+from nucypher_core.umbral import SecretKey, PublicKey
 
 DOCTOR_PUBLIC_JSON = Path('doctor.public.json')
 DOCTOR_PRIVATE_JSON = Path('doctor.private.json')

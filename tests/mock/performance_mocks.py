@@ -18,7 +18,8 @@
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from nucypher.crypto.umbral_adapter import PublicKey, Signature
+from nucypher_core.umbral import PublicKey, Signature
+
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
 
@@ -173,8 +174,7 @@ class NotARestApp:
     def actual_rest_app(self):
         if self._actual_rest_app is None:
             self._actual_rest_app, self._datastore = make_rest_app(db_filepath=self.db_filepath,
-                                                                   this_node=self.this_node,
-                                                                   domain=None)
+                                                                   this_node=self.this_node)
             _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)
             self._actual_rest_app.view_functions = _new_view_functions
             self._actual_rest_apps.append(
@@ -215,13 +215,6 @@ def mock_secret_source(*args, **kwargs):
     with patch("nucypher.crypto.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
         with patch("nucypher.crypto.keypairs.Signer", new=lambda *args, **kwargs: NotASigner(*args, **kwargs)):
             yield
-    NotAPublicKey.reset()
-
-
-@contextmanager
-def mock_pubkey_from_bytes(*args, **kwargs):
-    with patch('nucypher.crypto.umbral_adapter.PublicKey.from_bytes', NotAPublicKey.from_bytes):
-        yield
     NotAPublicKey.reset()
 
 

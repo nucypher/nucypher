@@ -23,4 +23,3 @@ from nucypher.characters.control.specifications.fields.label import *
 from nucypher.characters.control.specifications.fields.cleartext import *
 from nucypher.characters.control.specifications.fields.misc import *
 from nucypher.characters.control.specifications.fields.file import *
-from nucypher.characters.control.specifications.fields.signature import *

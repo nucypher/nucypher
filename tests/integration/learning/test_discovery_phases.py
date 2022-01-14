@@ -25,9 +25,10 @@ import maya
 import pytest
 from flask import Response
 
+from nucypher_core.umbral import SecretKey, Signer, PublicKey
+
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.crypto.umbral_adapter import SecretKey, Signer, PublicKey, encrypt
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci
@@ -39,7 +40,6 @@ from tests.mock.performance_mocks import (
     mock_cert_storage,
     mock_message_verification,
     mock_metadata_validation,
-    mock_pubkey_from_bytes,
     mock_secret_source,
     mock_verify_node
 )
@@ -65,7 +65,7 @@ performance bottlenecks.
 """
 
 
-@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
+#@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
 def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # During the fixture execution, Alice verified one node.
     # TODO: Consider changing this - #1449
@@ -102,24 +102,16 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 _POLICY_PRESERVER = []
 
 
-@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
+#@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):
 
-    def mock_encrypt(public_key, plaintext):
-        if not isinstance(public_key, PublicKey):
-            public_key = public_key.i_want_to_be_a_real_boy()
-        return encrypt(public_key, plaintext)
-
     mocks = (
-        patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True),
-        mock_pubkey_from_bytes(),
         mock_secret_source(),
         mock_cert_loading,
         mock_metadata_validation,
         mock_message_verification,
-        patch('nucypher.crypto.umbral_adapter.encrypt', new=mock_encrypt),
         )
 
     with contextlib.ExitStack() as stack:

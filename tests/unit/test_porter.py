@@ -17,14 +17,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from base64 import b64encode
+from eth_utils import to_canonical_address
 
 import pytest
 
-from nucypher.core import RetrievalKit as RetrievalKitClass
+from nucypher_core import RetrievalKit as RetrievalKitClass, MessageKit
+from nucypher_core.umbral import SecretKey
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import StringList
-from nucypher.crypto.umbral_adapter import SecretKey, encrypt
 from nucypher.utilities.porter.control.specifications.fields import UrsulaChecksumAddress
 from nucypher.utilities.porter.control.specifications.fields.retrieve import RetrievalKit
 
@@ -103,14 +104,14 @@ def test_retrieval_kit_field(get_random_checksum_address):
 
     # kit with list of ursulas
     encrypting_key = SecretKey.random().public_key()
-    capsule, _ = encrypt(encrypting_key, b'testing retrieval kit with 2 ursulas')
+    capsule = MessageKit(encrypting_key, b'testing retrieval kit with 2 ursulas').capsule
     ursulas = [get_random_checksum_address(), get_random_checksum_address()]
-    run_tests_on_kit(kit=RetrievalKitClass(capsule, ursulas))
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, {to_canonical_address(ursula) for ursula in ursulas}))
 
     # kit with no ursulas
     encrypting_key = SecretKey.random().public_key()
-    capsule, _ = encrypt(encrypting_key, b'testing retrieval kit with no ursulas')
-    run_tests_on_kit(kit=RetrievalKitClass(capsule, []))
+    capsule = MessageKit(encrypting_key, b'testing retrieval kit with no ursulas').capsule
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, set()))
 
     with pytest.raises(InvalidInputData):
         field._deserialize(value=b"non_base_64_data", attr=None, data=None)

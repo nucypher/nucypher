@@ -19,7 +19,7 @@ import tempfile
 
 import pytest
 
-from nucypher.core import NodeMetadata
+from nucypher_core import NodeMetadata
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -30,6 +30,15 @@ from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 ADDITIONAL_NODES_TO_LEARN_ABOUT = 10
 MOCK_URSULA_DB_FILEPATH = tempfile.mkdtemp()
+
+
+def make_header(brand: bytes, major: int, minor: int) -> bytes:
+    # Hardcoding this since it's too much trouble to expose it all the way from Rust
+    assert len(brand) == 4
+    major_bytes = major.to_bytes(2, 'big')
+    minor_bytes = minor.to_bytes(2, 'big')
+    header = brand + major_bytes + minor_bytes
+    return header
 
 
 class BaseTestNodeStorageBackends:
@@ -112,7 +121,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
         # Let's break the metadata (but not the version)
         metadata_path = self.storage_backend.metadata_dir / some_node
         with open(metadata_path, 'wb') as file:
-            file.write(NodeMetadata._header() + b'invalid')
+            file.write(make_header(b'NdMd', 1, 0) + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
             self.storage_backend.get(stamp=some_node.name[:-5],
@@ -122,7 +131,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
         # Let's break the metadata, by putting a completely wrong version
         metadata_path = self.storage_backend.metadata_dir / another_node
         with open(metadata_path, 'wb') as file:
-            full_header = NodeMetadata._header()
+            full_header = make_header(b'NdMd', 1, 0)
             file.write(full_header[:-1])  # Not even a valid header
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):

@@ -22,11 +22,12 @@ from typing import List, Optional, Tuple
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
 
+from nucypher_core.umbral import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
+
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair
-from nucypher.crypto.umbral_adapter import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
 
 
 class PowerUpError(TypeError):
@@ -234,7 +235,7 @@ class SigningPower(KeyPairBasedPower):
 class DecryptingPower(KeyPairBasedPower):
     _keypair_class = DecryptingKeypair
     not_found_error = NoDecryptingPower
-    provides = ("decrypt",)
+    provides = ("decrypt_message_kit", "decrypt_kfrag", "decrypt_treasure_map")
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):

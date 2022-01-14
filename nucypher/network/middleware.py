@@ -20,9 +20,10 @@ from http import HTTPStatus
 import socket
 import ssl
 import time
+from typing import Sequence
 import requests
 
-from nucypher.core import MetadataRequest
+from nucypher_core import MetadataRequest, FleetStateChecksum, NodeMetadata
 
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
@@ -235,8 +236,8 @@ class RestMiddleware:
 
     def get_nodes_via_rest(self,
                            node,
-                           fleet_state_checksum: str,
-                           announce_nodes=None):
+                           fleet_state_checksum: FleetStateChecksum,
+                           announce_nodes: Sequence[NodeMetadata]):
 
         request = MetadataRequest(fleet_state_checksum=fleet_state_checksum,
                                   announce_nodes=announce_nodes)
