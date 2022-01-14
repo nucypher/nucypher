@@ -104,4 +104,4 @@ web3==5.12.3
 websockets==8.1; python_full_version >= '3.6.1'
 werkzeug==2.0.1; python_version >= '3.6'
 zope.interface==5.4.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-nucypher_core @ git+https://github.com/nucypher/nucypher-core.git#subdirectory=nucypher-core-python
+nucypher-core==0.0.1;  python_version >= '3.7'

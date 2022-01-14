@@ -79,7 +79,7 @@ class FleetState:
 
         return cls(nodes={},
                    this_node_ref=this_node_ref,
-                   this_node_metadata=None)
+                   this_node_metadata=this_node_metadata)
 
     def __init__(self,
                  nodes: Dict[ChecksumAddress, 'Ursula'],
