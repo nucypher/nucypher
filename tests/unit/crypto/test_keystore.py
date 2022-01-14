@@ -117,6 +117,14 @@ def test_keystore_invalid_password(tmpdir):
         _keystore = Keystore.generate('short', keystore_dir=tmpdir)
 
 
+def test_keystore_generate_report_interactive_false(tmpdir):
+    _keystore, words = Keystore.generate(
+        INSECURE_DEVELOPMENT_PASSWORD,
+        keystore_dir=tmpdir,
+        interactive=False)
+    assert len(words.split(" ")) == 24
+
+
 def test_keystore_derive_crypto_power_without_unlock(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     with pytest.raises(Keystore.Locked):
