@@ -135,7 +135,7 @@ contract Intermediary {
     }
 
     function bondWorker(address _worker) external {
-        preApplication.bondWorker(_worker);
+        preApplication.bondWorker(address(this), _worker);
     }
 
     function confirmWorkerAddress() external {
