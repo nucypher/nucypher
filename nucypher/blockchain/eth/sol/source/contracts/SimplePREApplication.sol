@@ -64,11 +64,15 @@ contract SimplePREApplication {
     }
 
     /**
-    * @dev Checks the existence of an operator in the contract
+    * @dev Checks caller is an operator or stake owner
     */
-    modifier onlyOperator()
+    modifier onlyOwnerOrOperator(address _operator)
     {
-        require(isAuthorized(msg.sender), "Caller is not the operator");
+        require(isAuthorized(_operator), "Not owner or operator");
+        if (_operator != msg.sender) {
+            (address owner,,) = tStaking.rolesOf(_operator);
+            require(owner == msg.sender, "Not owner or operator");
+        }
         _;
     }
 
@@ -165,10 +169,11 @@ contract SimplePREApplication {
 
     /**
     * @notice Bond worker
+    * @param _operator Operator address
     * @param _worker Worker address. Must be a real address, not a contract
     */
-    function bondWorker(address _worker) external onlyOperator {
-        OperatorInfo storage info = operatorInfo[msg.sender];
+    function bondWorker(address _operator, address _worker) external onlyOwnerOrOperator(_operator) {
+        OperatorInfo storage info = operatorInfo[_operator];
         require(_worker != info.worker, "Specified worker is already bonded with this operator");
         // If this staker had a worker ...
         if (info.worker != address(0)) {
@@ -183,22 +188,22 @@ contract SimplePREApplication {
         if (_worker != address(0)) {
             require(_operatorFromWorker[_worker] == address(0), "Specified worker is already in use");
             require(
-                _worker == msg.sender || getBeneficiary(_worker) == address(0),
+                _worker == _operator || getBeneficiary(_worker) == address(0),
                 "Specified worker is an operator"
             );
             // Set new worker->operator relation
-            _operatorFromWorker[_worker] = msg.sender;
+            _operatorFromWorker[_worker] = _operator;
         }
 
         if (info.workerStartTimestamp == 0) {
-            operators.push(msg.sender);
+            operators.push(_operator);
         }
 
         // Bond new worker (or unbond if _worker == address(0))
         info.worker = _worker;
         info.workerStartTimestamp = block.timestamp;
         info.workerConfirmed = false;
-        emit WorkerBonded(msg.sender, _worker, block.timestamp);
+        emit WorkerBonded(_operator, _worker, block.timestamp);
     }
 
     /**
