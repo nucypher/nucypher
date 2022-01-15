@@ -26,6 +26,8 @@ from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.primitives._serialization import Encoding
 from mnemonic.mnemonic import Mnemonic
 
+from nucypher_core.umbral import SecretKey, SecretKeyFactory
+
 from nucypher.crypto.keystore import (
     Keystore,
     InvalidPassword,
@@ -41,7 +43,6 @@ from nucypher.crypto.keystore import (
     _read_keystore
 )
 from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower, TLSHostingPower
-from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -114,6 +115,14 @@ def test_keystore_generation_defaults(tmp_path_factory):
 def test_keystore_invalid_password(tmpdir):
     with pytest.raises(InvalidPassword):
         _keystore = Keystore.generate('short', keystore_dir=tmpdir)
+
+
+def test_keystore_generate_report_interactive_false(tmpdir):
+    _keystore, words = Keystore.generate(
+        INSECURE_DEVELOPMENT_PASSWORD,
+        keystore_dir=tmpdir,
+        interactive=False)
+    assert len(words.split(" ")) == 24
 
 
 def test_keystore_derive_crypto_power_without_unlock(tmpdir):

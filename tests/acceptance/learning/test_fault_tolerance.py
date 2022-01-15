@@ -19,7 +19,7 @@ import pytest
 from twisted.logger import LogLevel, globalLogPublisher
 from constant_sorrow.constants import NOT_SIGNED
 
-from nucypher.core import MetadataResponse
+from nucypher_core import MetadataResponse, MetadataResponsePayload
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -74,8 +74,10 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
 
     def bad_bytestring_of_known_nodes():
         # Signing with the learner's signer instead of the teacher's signer
-        response = MetadataResponse.author(signer=lonely_blockchain_learner.stamp.as_umbral_signer(),
-                                           timestamp_epoch=blockchain_teacher.known_nodes.timestamp.epoch)
+        response_payload = MetadataResponsePayload(timestamp_epoch=blockchain_teacher.known_nodes.timestamp.epoch,
+                                                   announce_nodes=[])
+        response = MetadataResponse(signer=lonely_blockchain_learner.stamp.as_umbral_signer(),
+                                    payload=response_payload)
         return bytes(response)
 
     mocker.patch.object(blockchain_teacher, 'bytestring_of_known_nodes', bad_bytestring_of_known_nodes)
@@ -87,7 +89,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     assert len(warnings) == 2
     warning = warnings[1]['log_format']
     assert str(blockchain_teacher) in warning
-    assert "Invalid signature received from teacher" in warning  # TODO: Cleanup logging templates
+    assert "Failed to verify MetadataResponse from Teacher" in warning  # TODO: Cleanup logging templates
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075

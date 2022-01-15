@@ -29,7 +29,7 @@ import pytest
 from twisted.internet import threads
 from web3 import Web3
 
-from nucypher.core import MessageKit, EncryptedTreasureMap
+from nucypher_core import MessageKit, EncryptedTreasureMap
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration

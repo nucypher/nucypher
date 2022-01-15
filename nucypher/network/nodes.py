@@ -39,7 +39,8 @@ from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 
-from nucypher.core import NodeMetadata, MetadataResponse
+from nucypher_core import NodeMetadata, MetadataResponse, MetadataResponsePayload
+from nucypher_core.umbral import Signature
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -57,7 +58,6 @@ from nucypher.crypto.powers import (
     SigningPower,
 )
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
-from nucypher.crypto.umbral_adapter import Signature
 from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -81,8 +81,9 @@ class NodeSprout:
     """
     verified_node = False
 
-    def __init__(self, node_metadata):
-        self._metadata = node_metadata
+    def __init__(self, metadata: NodeMetadata):
+        self._metadata = metadata
+        self._metadata_payload = metadata.payload
 
         # cached properties
         self._checksum_address = None
@@ -114,8 +115,12 @@ class NodeSprout:
     @property
     def checksum_address(self):
         if not self._checksum_address:
-            self._checksum_address = to_checksum_address(self._metadata.public_address)
+            self._checksum_address = to_checksum_address(self.canonical_address)
         return self._checksum_address
+
+    @property
+    def canonical_address(self):
+        return self._metadata_payload.canonical_address
 
     @property
     def nickname(self):
@@ -126,7 +131,7 @@ class NodeSprout:
     @property
     def rest_interface(self):
         if not self._rest_interface:
-            self._rest_interface = InterfaceInfo(self._metadata.host, self._metadata.port)
+            self._rest_interface = InterfaceInfo(self._metadata_payload.host, self._metadata_payload.port)
         return self._rest_interface
 
     def rest_url(self):
@@ -137,48 +142,44 @@ class NodeSprout:
 
     @property
     def verifying_key(self):
-        return self._metadata.verifying_key
+        return self._metadata_payload.verifying_key
 
     @property
     def encrypting_key(self):
-        return self._metadata.encrypting_key
+        return self._metadata_payload.encrypting_key
 
     @property
     def decentralized_identity_evidence(self):
-        return self._metadata.decentralized_identity_evidence or NOT_SIGNED
-
-    @property
-    def public_address(self):
-        return self._metadata.public_address
+        return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
 
     @property
     def timestamp(self):
-        return maya.MayaDT(self._metadata.timestamp_epoch)
+        return maya.MayaDT(self._metadata_payload.timestamp_epoch)
 
     @property
     def stamp(self) -> SignatureStamp:
-        return SignatureStamp(self._metadata.verifying_key)
+        return SignatureStamp(self._metadata_payload.verifying_key)
 
     @property
     def domain(self) -> str:
-        return self._metadata.domain
+        return self._metadata_payload.domain
 
     def finish(self):
         from nucypher.characters.lawful import Ursula
 
         crypto_power = CryptoPower()
-        crypto_power.consume_power_up(SigningPower(public_key=self._metadata.verifying_key))
-        crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata.encrypting_key))
+        crypto_power.consume_power_up(SigningPower(public_key=self._metadata_payload.verifying_key))
+        crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata_payload.encrypting_key))
 
         return Ursula(is_me=False,
                       crypto_power=crypto_power,
-                      rest_host=self._metadata.host,
-                      rest_port=self._metadata.port,
+                      rest_host=self._metadata_payload.host,
+                      rest_port=self._metadata_payload.port,
                       checksum_address=self.checksum_address,
-                      domain=self._metadata.domain,
+                      domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
                       decentralized_identity_evidence=self.decentralized_identity_evidence,
-                      certificate=load_pem_x509_certificate(self._metadata.certificate_bytes, backend=default_backend()),
+                      certificate=load_pem_x509_certificate(self._metadata_payload.certificate_bytes, backend=default_backend()),
                       metadata=self._metadata
                       )
 
@@ -787,7 +788,7 @@ class Learner:
         if isinstance(self, Teacher):
             announce_nodes = [self.metadata()]
         else:
-            announce_nodes = None
+            announce_nodes = []
 
         unresponsive_nodes = set()
 
@@ -855,18 +856,18 @@ class Learner:
             return
 
         try:
-            metadata.verify(current_teacher.stamp.as_umbral_pubkey())
-        except InvalidSignature:
+            metadata_payload = metadata.verify(current_teacher.stamp.as_umbral_pubkey())
+        except Exception as e:
             # TODO (#567): bucket the node as suspicious
             self.log.warn(
-                f"Invalid signature received from teacher {current_teacher} for MetadataResponse {response.content}")
+                f"Failed to verify MetadataResponse from Teacher {current_teacher} ({e}): {response.content}")
             return
 
         # End edge case handling.
 
-        fleet_state_updated = maya.MayaDT(metadata.timestamp_epoch)
+        fleet_state_updated = maya.MayaDT(metadata_payload.timestamp_epoch)
 
-        if not metadata.this_node and not metadata.other_nodes:
+        if not metadata_payload.announce_nodes:
             # The teacher had the same fleet state
             self.known_nodes.record_remote_fleet_state(
                 current_teacher.checksum_address,
@@ -876,15 +877,7 @@ class Learner:
 
             return FLEET_STATES_MATCH
 
-        # Note: There was previously a version check here, but that required iterating through node bytestrings twice,
-        # so it has been removed.  When we create a new Ursula bytestring version, let's put the check
-        # somewhere more performant, like mature() or verify_node().
-
-        nodes = (
-            ([metadata.this_node] if metadata.this_node else []) +
-            (metadata.other_nodes if metadata.other_nodes else [])
-            )
-        sprouts = [NodeSprout(node) for node in nodes]
+        sprouts = [NodeSprout(node) for node in metadata_payload.announce_nodes]
 
         for sprout in sprouts:
             try:
@@ -1037,11 +1030,10 @@ class Teacher:
     def bytestring_of_known_nodes(self):
         # TODO (#1537): FleetSensor does metadata-to-byte conversion as well,
         # we may be able to cache the results there.
-        response = MetadataResponse.author(signer=self.stamp.as_umbral_signer(),
-                                           timestamp_epoch=self.known_nodes.timestamp.epoch,
-                                           this_node=self.metadata(),
-                                           other_nodes=[node.metadata() for node in self.known_nodes],
-                                           )
+        announce_nodes = [self.metadata()] + [node.metadata() for node in self.known_nodes]
+        response_payload = MetadataResponsePayload(timestamp_epoch=self.known_nodes.timestamp.epoch,
+                                                   announce_nodes=announce_nodes)
+        response = MetadataResponse(self.stamp.as_umbral_signer(), response_payload)
         return bytes(response)
 
     #
@@ -1132,7 +1124,7 @@ class Teacher:
         """
         Checks that the interface info is valid for this node's canonical address.
         """
-        metadata_is_valid = self._metadata.verify()
+        metadata_is_valid = self.metadata().verify()
         self.verified_metadata = metadata_is_valid
         if metadata_is_valid:
             return True
@@ -1202,11 +1194,14 @@ class Teacher:
                                                                    port=self.rest_interface.port,
                                                                    certificate_filepath=certificate_filepath)
 
-        sprout = NodeSprout(NodeMetadata.from_bytes(response_data))
+        try:
+            sprout = self.from_metadata_bytes(response_data)
+        except Exception as e:
+            raise self.InvalidNode(str(e))
 
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
-        addresses_match = sprout.public_address == self.canonical_public_address
+        addresses_match = sprout.checksum_address == self.checksum_address
         evidence_matches = sprout.decentralized_identity_evidence == self.__decentralized_identity_evidence
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):

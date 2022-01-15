@@ -386,26 +386,29 @@ python_36_base: &python_36_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.6
+    - image: kprasch/rust-python:3.6.9
+      user: circleci
 
 python_37_base: &python_37_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.7
-
+    - image: kprasch/rust-python:3.7.9
+      user: circleci
 
 python_38_base: &python_38_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.8
+    - image: kprasch/rust-python:3.8.9
+      user: circleci
 
 python_39_base: &python_39_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: circleci/python:3.9
+    - image: kprasch/rust-python:3.9.9
+      user: circleci
 
 commands:
 
@@ -442,15 +445,34 @@ commands:
             source ~/.bashrc
             nucypher --help
 
+  chown_system_paths:
+    description: "Set ownership of system binaries and site-packages"
+    steps:
+      - run:
+          name: Chown system site-packages
+          command: sudo chown circleci:circleci -R /usr/local/lib/python3.7/site-packages/
+      - run:
+          name: Chown system binaries
+          command: sudo chown circleci:circleci -R /usr/local/bin
+
+  chown_user_paths:
+    steps:
+      - run:
+          name: Set user-local permissions of site-packages and binaries
+          command: |
+            sudo chown -R circleci:circleci ~/.local/bin
+            sudo chown -R circleci:circleci ~/.local/lib/python3.7/site-packages
+
   pip_install:
     description: "Install NuCypher with Pip"
     steps:
+      - chown_system_paths
       - run:
           name: Install Python Development Dependencies with Pip
-          command: pip3 install --user -e .[dev]
+          command: python3 -m pip install --user -e .[dev]
       - run:
           name: Check that pip installed package is importable
-          command: python -c "import nucypher"
+          command: python3 -c "import nucypher"
       - run:
           name: Install Solidity Compiler
           command: python3 ./scripts/installation/install_solc.py
@@ -459,10 +481,9 @@ commands:
   save_dependency_cache:
     description: "Cache python installation files"
     steps:
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
+      - chown_user_paths
       - save_cache:
-          key: pip-v9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v3-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           paths:
             - "~/.local/bin"
             - "~/.local/lib/python3.7/site-packages"
@@ -472,12 +493,10 @@ commands:
             - "~/.solcx/"
 
   restore_dependency_cache:
-    description: "Own and restore cached python installation files"
+    description: "Restore cached python installation files"
     steps:
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:  # ensure this step occurs *before* installing dependencies
-          key: pip-v9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
+          key: pip-v3-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
       - restore_cache:
           key: solc-v2-{{ checksum "nucypher/blockchain/eth/sol/__conf__.py" }}
 
@@ -497,7 +516,7 @@ commands:
           name: Running Test Suite
           command: |
             cat test-names.tmp | tr '\n' ' ' > test-names.txt
-            pytest -c .circleci/pytest.ini `cat test-names.txt`
+            python3 -m pytest -c .circleci/pytest.ini `cat test-names.txt`
 
   prepare_dev_docker:
     description: "access pre-build docker image"
@@ -548,8 +567,6 @@ jobs:
     <<: *python_36_base
     steps:
       - checkout
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.6/site-packages
       - pip_install
 
   pipenv_install_36:
@@ -564,7 +581,6 @@ jobs:
     <<: *python_37_base
     steps:
       - checkout
-      - restore_dependency_cache  # Depends on above checkout
       - pip_install
       - save_dependency_cache
 
@@ -579,8 +595,6 @@ jobs:
     <<: *python_38_base
     steps:
       - checkout
-      - run: sudo chown -R circleci:circleci /usr/local/bin
-      - run: sudo chown -R circleci:circleci /usr/local/lib/python3.8/site-packages
       - pip_install
 
   pipenv_install_38:
@@ -594,8 +608,6 @@ jobs:
     <<: *python_39_base
     steps:
     - checkout
-    - run: sudo chown -R circleci:circleci /usr/local/bin
-    - run: sudo chown -R circleci:circleci /usr/local/lib/python3.9/site-packages
     - pip_install
 
   pipenv_install_39:
@@ -793,12 +805,13 @@ jobs:
     <<: *python_37_base
     steps:
       - prepare_environment
+      - chown_system_paths
       - run:
           name: Install Nucypher
-          command: pip3 install --user -e .[benchmark]
+          command: python3 -m pip install --user -e .[benchmark]
       - run:
           name: Estimate Gas
-          command: python tests/metrics/estimate_gas.py
+          command: python3 tests/metrics/estimate_gas.py
       - store_artifacts:
           path: tests/metrics/results/
 
@@ -806,12 +819,10 @@ jobs:
     <<: *python_37_base
     steps:
       - prepare_environment
+      - chown_system_paths
       - run:
-          name: Install Documentation Build Dependencies (Workaround for problem with pip resolver. See 2493)
-          command: |
-            python -m pip install pip==20.2.4
-            pip3 --version
-            pip3 install --user -r docs-requirements.txt .
+          name: Install Documentation Build Dependencies
+          command: python3 -m pip install --user .[docs]
       - run:
           name: Build Sphinx Documentation
           command: make docs
@@ -823,8 +834,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Twine
-          command: pip3 install --user twine
+          name: Install Build Dependencies
+          command: python3 -m pip install --user .[deploy]
       - run:
           name: Build Python Distribution
           command: make dist
@@ -896,8 +907,8 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Twine
-          command: pip3 install --user twine
+          name: Install Twine and Wheel
+          command: pip3 install twine wheel
       - run:
           name: Verify git tag == __version__
           command: python3 setup.py verify

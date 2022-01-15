@@ -31,6 +31,8 @@ import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from mnemonic.mnemonic import Mnemonic
 
+from nucypher_core.umbral import SecretKey, SecretKeyFactory
+
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
@@ -50,7 +52,6 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
-from nucypher.crypto.umbral_adapter import SecretKey, SecretKeyFactory
 
 # HKDF
 __INFO_BASE = b'NuCypher/'
@@ -342,7 +343,11 @@ class Keystore:
         return keystore
 
     @classmethod
-    def generate(cls, password: str, keystore_dir: Optional[Path] = None, interactive: bool = True) -> 'Keystore':
+    def generate(
+            cls, password: str,
+            keystore_dir: Optional[Path] = None,
+            interactive: bool = True,
+            ) -> Union['Keystore', Tuple['Keystore', str]]:
         """Generate a new nucypher keystore for use with characters"""
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
@@ -351,7 +356,11 @@ class Keystore:
         __secret = bytes(mnemonic.to_entropy(__words))
         path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
-        return keystore
+
+        if interactive:
+            return keystore
+
+        return keystore, __words
 
     @staticmethod
     def _confirm_generate(__words: str) -> None:

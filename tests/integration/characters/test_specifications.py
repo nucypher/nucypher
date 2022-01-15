@@ -22,11 +22,12 @@ import datetime
 import maya
 import pytest
 
-from nucypher.core import (
+from nucypher_core import (
     MessageKit,
     EncryptedTreasureMap as EncryptedTreasureMapClass,
     TreasureMap as TreasureMapClass,
     )
+from nucypher_core.umbral import PublicKey
 
 from nucypher.characters.control.specifications import fields
 from nucypher.characters.control.specifications.alice import GrantPolicy
@@ -34,7 +35,15 @@ from nucypher.characters.control.specifications.fields.treasuremap import Encryp
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import PublicKey
+
+
+def make_header(brand: bytes, major: int, minor: int) -> bytes:
+    # Hardcoding this since it's too much trouble to expose it all the way from Rust
+    assert len(brand) == 4
+    major_bytes = major.to_bytes(2, 'big')
+    minor_bytes = minor.to_bytes(2, 'big')
+    header = brand + major_bytes + minor_bytes
+    return header
 
 
 def test_various_field_validations_by_way_of_alice_grant(federated_bob):
@@ -94,14 +103,14 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Invalid base64-encoded string" in str(e)
 
     # valid base64 but invalid treasuremap
-    bad_map = EncryptedTreasureMapClass._header() + b"your face looks like a treasure map"
+    bad_map = make_header(b'EMap', 1, 0) + b"your face looks like a treasure map"
     bad_map_b64 = base64.b64encode(bad_map).decode()
 
     with pytest.raises(InvalidInputData) as e:
         EncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to an EncryptedTreasureMap" in str(e)
-    assert "Can't split a message with more bytes than the original splittable." in str(e)
+    assert "Failed to deserialize" in str(e)
 
     # a valid treasuremap for once...
     tmap_bytes = bytes(enacted_federated_policy.treasure_map)
@@ -124,14 +133,14 @@ def test_treasure_map_validation(enacted_federated_policy,
     assert "Invalid base64-encoded string" in str(e)
 
     # valid base64 but invalid treasuremap
-    bad_map = TreasureMapClass._header() + b"your face looks like a treasure map"
+    bad_map = make_header(b'TMap', 1, 0) + b"your face looks like a treasure map"
     bad_map_b64 = base64.b64encode(bad_map).decode()
 
     with pytest.raises(InvalidInputData) as e:
         UnenncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
 
     assert "Could not convert input for tmap to a TreasureMap" in str(e)
-    assert "Can't split a message with more bytes than the original splittable." in str(e)
+    assert "Failed to deserialize" in str(e)
 
     # a valid treasuremap
     decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
@@ -158,14 +167,14 @@ def test_messagekit_validation(capsule_side_channel):
     assert "Incorrect padding" in str(e)
 
     # valid base64 but invalid messagekit
-    bad_kit = MessageKit._header() + b"I got a message for you"
+    bad_kit = make_header(b'MKit', 1, 0) + b"I got a message for you"
     bad_kit_b64 = base64.b64encode(bad_kit).decode()
 
     with pytest.raises(SpecificationError) as e:
         MessageKitsOnly().load({'mkit': bad_kit_b64})
 
     assert "Could not parse mkit" in str(e)
-    assert "Can't split a message with more bytes than the original splittable." in str(e)
+    assert "Failed to deserialize" in str(e)
 
     # test a valid messagekit
     valid_kit = capsule_side_channel.messages[0][0]

@@ -19,13 +19,13 @@ from typing import Union, List
 
 import maya
 
-from nucypher.core import MessageKit, HRAC, EncryptedTreasureMap
+from nucypher_core import MessageKit, HRAC, EncryptedTreasureMap
+from nucypher_core.umbral import PublicKey
 
 from nucypher.characters.base import Character
 from nucypher.characters.control.specifications import alice, bob, enrico
 from nucypher.control.interfaces import attach_schema, ControlInterface
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 
 
@@ -105,7 +105,7 @@ class AliceInterface(CharacterPublicInterface):
     def revoke(self, label: bytes, bob_verifying_key: PublicKey) -> dict:
 
         # TODO: Move deeper into characters
-        policy_hrac = HRAC.derive(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
+        policy_hrac = HRAC(self.implementer.stamp.as_umbral_pubkey(), bob_verifying_key, label)
         policy = self.implementer.active_policies[policy_hrac]
 
         receipt, failed_revocations = self.implementer.revoke(policy)

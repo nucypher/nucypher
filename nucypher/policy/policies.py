@@ -22,9 +22,10 @@ from typing import Sequence, Optional, Iterable, List
 import maya
 from eth_typing.evm import ChecksumAddress
 
-from nucypher.core import HRAC, TreasureMap
+from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
+
+from nucypher_core import HRAC, TreasureMap
 from nucypher.crypto.powers import DecryptingPower
-from nucypher.crypto.umbral_adapter import PublicKey, VerifiedKeyFrag
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
@@ -97,9 +98,9 @@ class Policy(ABC):
         self.kfrags = kfrags
         self.public_key = public_key
         self.expiration = expiration
-        self.hrac = HRAC.derive(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
-                                bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
-                                label=self.label)
+        self.hrac = HRAC(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
+                         bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
+                         label=self.label)
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{bytes(self.hrac).hex()[:6]}"
@@ -181,15 +182,15 @@ class Policy(ABC):
         self._publish(ursulas=ursulas)
 
         assigned_kfrags = {
-            ursula.checksum_address: (ursula.public_keys(DecryptingPower), vkfrag)
+            ursula.canonical_address: (ursula.public_keys(DecryptingPower), vkfrag)
             for ursula, vkfrag in zip(ursulas, self.kfrags)
         }
 
-        treasure_map = TreasureMap.construct_by_publisher(signer=self.publisher.stamp.as_umbral_signer(),
-                                                          hrac=self.hrac,
-                                                          policy_encrypting_key=self.public_key,
-                                                          assigned_kfrags=assigned_kfrags,
-                                                          threshold=self.threshold)
+        treasure_map = TreasureMap(signer=self.publisher.stamp.as_umbral_signer(),
+                                   hrac=self.hrac,
+                                   policy_encrypting_key=self.public_key,
+                                   assigned_kfrags=assigned_kfrags,
+                                   threshold=self.threshold)
 
         enc_treasure_map = treasure_map.encrypt(signer=self.publisher.stamp.as_umbral_signer(),
                                                 recipient_key=self.bob.public_keys(DecryptingPower))

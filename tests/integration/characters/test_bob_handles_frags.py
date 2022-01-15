@@ -19,7 +19,7 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 
-from nucypher.core import RetrievalKit
+from nucypher_core import RetrievalKit
 
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -52,7 +52,7 @@ def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
     messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
     capsule = message_kits[0].capsule
-    addresses = [ursula.checksum_address for ursula in list(federated_ursulas)[:2]]
+    addresses = {ursula.canonical_address for ursula in list(federated_ursulas)[:2]}
 
     retrieval_kit = RetrievalKit(capsule, addresses)
     serialized = bytes(retrieval_kit)

@@ -27,11 +27,12 @@ from bytestring_splitter import BytestringKwargifier, VariableLengthBytestring
 from constant_sorrow.constants import ALICE, BOB, NO_SIGNATURE
 from hexbytes.main import HexBytes
 
+from nucypher_core.umbral import PublicKey
+
 from nucypher.characters.base import Character
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.crypto.umbral_adapter import PublicKey
 
 
 class Card:

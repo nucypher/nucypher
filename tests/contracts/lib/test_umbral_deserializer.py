@@ -17,9 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import pytest
+
 from eth_tester.exceptions import TransactionFailed
-from nucypher.crypto.umbral_adapter import Signer, SecretKey, generate_kfrags, encrypt, reencrypt
+import pytest
+
+from nucypher_core import MessageKit
+from nucypher_core.umbral import Signer, SecretKey, generate_kfrags, reencrypt
 
 
 @pytest.fixture()
@@ -44,7 +47,7 @@ def fragments():
                              sign_delegating_key=False,
                              sign_receiving_key=False)
 
-    capsule, _ciphertext = encrypt(delegating_pubkey, b'unused')
+    capsule = MessageKit(delegating_pubkey, b'unused').capsule
     cfrag = reencrypt(capsule, kfrags[0])
     return capsule, cfrag
 

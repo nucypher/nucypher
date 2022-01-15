@@ -15,7 +15,8 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nucypher.crypto.umbral_adapter import PublicKey
+from nucypher_core.umbral import PublicKey
+
 from nucypher.datastore.base import DatastoreRecord, RecordField
 
 

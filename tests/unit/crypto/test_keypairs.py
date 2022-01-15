@@ -18,8 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
 
+from nucypher_core.umbral import SecretKey
+
 from nucypher.crypto import keypairs
-from nucypher.crypto.umbral_adapter import SecretKey
 
 
 def test_gen_keypair_if_needed():

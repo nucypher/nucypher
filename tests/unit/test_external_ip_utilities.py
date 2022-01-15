@@ -15,9 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+from eth_utils import to_checksum_address
 import pytest
 
+from nucypher_core import NodeMetadata, NodeMetadataPayload
+from nucypher_core.umbral import SecretKey, Signer
+
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.characters.lawful import Ursula
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import NucypherMiddlewareClient
@@ -37,8 +42,9 @@ MOCK_NETWORK = 'holodeck'
 
 class Dummy:  # Teacher
 
-    def __init__(self, checksum_address):
-        self.checksum_address = checksum_address
+    def __init__(self, canonical_address):
+        self.canonical_address = canonical_address
+        self.checksum_address = to_checksum_address(canonical_address)
         self.certificate_filepath = None
         self.domain = MOCK_NETWORK
 
@@ -61,7 +67,19 @@ class Dummy:  # Teacher
         return MOCK_IP_ADDRESS
 
     def metadata(self):
-        return self.checksum_address.encode()
+        signer = Signer(SecretKey.random())
+        payload = NodeMetadataPayload(canonical_address=self.canonical_address,
+                                      domain=':dummy:',
+                                      timestamp_epoch=0,
+                                      decentralized_identity_evidence=b'\x00' * LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+                                      verifying_key=signer.verifying_key(),
+                                      encrypting_key=SecretKey.random().public_key(),
+                                      certificate_bytes=b'not a certificate',
+                                      host='127.0.0.1',
+                                      port=1111,
+                                      )
+        return NodeMetadata(signer=signer,
+                            payload=payload)
 
 
 @pytest.fixture(autouse=True)
@@ -97,7 +115,7 @@ def test_get_external_ip_from_empty_known_nodes(mock_requests):
 
 def test_get_external_ip_from_known_nodes_with_one_known_node(mock_requests):
     sensor = FleetSensor(domain=MOCK_NETWORK)
-    sensor.record_node(Dummy('0xdeadbeef'))
+    sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_fleet_state()
     assert len(sensor) == 1
     get_external_ip_from_known_nodes(known_nodes=sensor)
@@ -110,9 +128,9 @@ def test_get_external_ip_from_known_nodes(mock_client):
     # Setup FleetSensor
     sensor = FleetSensor(domain=MOCK_NETWORK)
     sample_size = 3
-    sensor.record_node(Dummy('0xdeadbeef'))
-    sensor.record_node(Dummy('0xdeadllama'))
-    sensor.record_node(Dummy('0xdeadmouse'))
+    sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
+    sensor.record_node(Dummy(b'deadllamadeadllamade'))
+    sensor.record_node(Dummy(b'deadmousedeadmousede'))
     sensor.record_fleet_state()
     assert len(sensor) == sample_size
 
@@ -132,14 +150,14 @@ def test_get_external_ip_from_known_nodes_client(mocker, mock_client):
     # Setup FleetSensor
     sensor = FleetSensor(domain=MOCK_NETWORK)
     sample_size = 3
-    sensor.record_node(Dummy('0xdeadbeef'))
-    sensor.record_node(Dummy('0xdeadllama'))
-    sensor.record_node(Dummy('0xdeadmouse'))
+    sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
+    sensor.record_node(Dummy(b'deadllamadeadllamade'))
+    sensor.record_node(Dummy(b'deadmousedeadmousede'))
     sensor.record_fleet_state()
     assert len(sensor) == sample_size
 
     # Setup HTTP Client
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy('0xdeadpork'))
+    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy(b'deadporkdeadporkdead'))
     teacher_uri = TEACHER_NODES[MOCK_NETWORK][0]
 
     get_external_ip_from_known_nodes(known_nodes=sensor, sample_size=sample_size)
@@ -162,7 +180,7 @@ def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests
 
     mock_client.return_value = Dummy.GoodResponse
     teacher_uri = TEACHER_NODES[MOCK_NETWORK][0]
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy('0xdeadbeef'))
+    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy(b'deadbeefdeadbeefdead'))
 
     # "Success"
     ip = get_external_ip_from_default_teacher(network=MOCK_NETWORK)
@@ -195,7 +213,7 @@ def test_get_external_ip_cascade_failure(mocker, mock_requests):
     third = mocker.patch('nucypher.utilities.networking.get_external_ip_from_centralized_source', return_value=None)
 
     sensor = FleetSensor(domain=MOCK_NETWORK)
-    sensor.record_node(Dummy('0xdeadbeef'))
+    sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_fleet_state()
 
     with pytest.raises(UnknownIPAddress, match='External IP address detection failed'):
