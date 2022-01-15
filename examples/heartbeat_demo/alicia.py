@@ -14,12 +14,13 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import base64
 import datetime
 import sys
 import json
 import os
 import shutil
+from pathlib import Path
 
 import maya
 
@@ -38,7 +39,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
 
-TEMP_ALICE_DIR = os.path.join('/', 'tmp', 'heartbeat-demo-alice')
+TEMP_ALICE_DIR = Path('/', 'tmp', 'heartbeat-demo-alice')
 
 
 # if your ursulas are NOT running on your current host,
@@ -72,7 +73,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
                                          minimum_stake=0)
 
 alice_config = AliceConfiguration(
-    config_root=os.path.join(TEMP_ALICE_DIR),
+    config_root=TEMP_ALICE_DIR,
     domain=TEMPORARY_DOMAIN,
     known_nodes={ursula},
     start_learning_now=False,
@@ -82,7 +83,7 @@ alice_config = AliceConfiguration(
 
 alice_config.initialize(password=passphrase)
 
-alice_config.keyring.unlock(password=passphrase)
+alice_config.keystore.unlock(password=passphrase)
 alicia = alice_config.produce()
 
 # We will save Alicia's config to a file for later use
@@ -102,7 +103,7 @@ label = label.encode()
 policy_pubkey = alicia.get_policy_encrypting_key_from_label(label)
 
 print("The policy public key for "
-      "label '{}' is {}".format(label.decode("utf-8"), policy_pubkey.to_bytes().hex()))
+      "label '{}' is {}".format(label.decode("utf-8"), bytes(policy_pubkey).hex()))
 
 # Data Sources can produce encrypted data for access policies
 # that **don't exist yet**.
@@ -130,7 +131,7 @@ doctor_strange = Bob.from_public_keys(verifying_key=doctor_pubkeys['sig'],
 policy_end_datetime = maya.now() + datetime.timedelta(days=1)
 # - m-out-of-n: This means Alicia splits the re-encryption key in 5 pieces and
 #               she requires Bob to seek collaboration of at least 3 Ursulas
-m, n = 2, 3
+threshold, shares = 2, 3
 
 
 # With this information, Alicia creates a policy granting access to Bob.
@@ -138,18 +139,18 @@ m, n = 2, 3
 print("Creating access policy for the Doctor...")
 policy = alicia.grant(bob=doctor_strange,
                       label=label,
-                      m=m,
-                      n=n,
+                      threshold=threshold,
+                      shares=shares,
                       expiration=policy_end_datetime)
-policy.treasure_map_publisher.block_until_complete()
 print("Done!")
 
 # For the demo, we need a way to share with Bob some additional info
 # about the policy, so we store it in a JSON file
 policy_info = {
-    "policy_pubkey": policy.public_key.to_bytes().hex(),
+    "policy_pubkey": bytes(policy.public_key).hex(),
     "alice_sig_pubkey": bytes(alicia.stamp).hex(),
     "label": label.decode("utf-8"),
+    "treasure_map": base64.b64encode(bytes(policy.treasure_map)).decode()
 }
 
 filename = POLICY_FILENAME

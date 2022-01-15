@@ -161,7 +161,7 @@ def test_handle_missing_configuration_file_cli_action(config):
     message = MISSING_CONFIGURATION_FILE.format(name=name, init_command=init_command)
     assert not config_file.exists()
     with pytest.raises(click.exceptions.FileError, match=message):
-        handle_missing_configuration_file(config_file=str(config_file),
+        handle_missing_configuration_file(config_file=config_file,
                                           character_config_class=config_class)
 
 

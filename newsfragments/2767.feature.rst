@@ -1,0 +1,1 @@
+Uniform versioning of bytes serializable protocol entities.

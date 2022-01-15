@@ -14,10 +14,10 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
-import os
+import json
+from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Optional
 
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -28,12 +28,10 @@ from eth_utils import is_checksum_address
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
-    DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
-from nucypher.config.keyring import NucypherKeyring
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 
@@ -50,12 +48,14 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+    MNEMONIC_KEYSTORE = True
 
     def __init__(self,
                  rest_host: str = None,
                  worker_address: str = None,
                  dev_mode: bool = False,
-                 db_filepath: str = None,
+                 db_filepath: Optional[Path] = None,
+                 keystore_path: Optional[Path] = None,
                  rest_port: int = None,
                  certificate: Certificate = None,
                  availability_check: bool = None,
@@ -77,14 +77,13 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.worker_address = worker_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
-        super().__init__(dev_mode=dev_mode, *args, **kwargs)
+        super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
 
     @classmethod
-    def checksum_address_from_filepath(cls, filepath: str) -> str:
+    def checksum_address_from_filepath(cls, filepath: Path) -> str:
         """
         Extracts worker address by "peeking" inside the ursula configuration file.
         """
-
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
         federated = bool(cls.peek(filepath=filepath, field='federated_only'))
         if not federated:
@@ -94,14 +93,14 @@ class UrsulaConfiguration(CharacterConfiguration):
             raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
         return checksum_address
 
-    def generate_runtime_filepaths(self, config_root: str) -> dict:
+    def generate_runtime_filepaths(self, config_root: Path) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)
-        filepaths = dict(db_filepath=os.path.join(config_root, self.DEFAULT_DB_NAME))
+        filepaths = dict(db_filepath=config_root / self.DEFAULT_DB_NAME)
         base_filepaths.update(filepaths)
         return base_filepaths
 
-    def generate_filepath(self, modifier: str = None, *args, **kwargs) -> str:
-        filepath = super().generate_filepath(modifier=modifier or self.keyring.signing_public_key.hex()[:8], *args, **kwargs)
+    def generate_filepath(self, modifier: str = None, *args, **kwargs) -> Path:
+        filepath = super().generate_filepath(modifier=modifier or self.keystore.id[:8], *args, **kwargs)
         return filepath
 
     def static_payload(self) -> dict:
@@ -119,8 +118,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         payload = dict(
             network_middleware=self.network_middleware,
             certificate=self.certificate,
-            interface_signature=self.interface_signature,
-            timestamp=None
         )
         return {**super().dynamic_payload, **payload}
 
@@ -138,26 +135,22 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         return ursula
 
-    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        if self.federated_only:
-            account = checksum_address or self.checksum_address
-        else:
-            account = checksum_address or self.worker_address
-        return super().attach_keyring(checksum_address=account)
-
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        keyring = super().write_keyring(password=password,
-                                        encrypting=True,
-                                        rest=True,
-                                        host=self.rest_host,
-                                        checksum_address=self.worker_address,
-                                        **generation_kwargs)
-        return keyring
-
     def destroy(self) -> None:
-        if os.path.isfile(self.db_filepath):
-            os.remove(self.db_filepath)
+        if self.db_filepath.is_file():
+            self.db_filepath.unlink()
         super().destroy()
+
+    @classmethod
+    def deserialize(cls, payload: str, deserializer=json.loads, payload_label: Optional[str] = None) -> dict:
+        deserialized_payload = super().deserialize(payload, deserializer, payload_label)
+        deserialized_payload['db_filepath'] = Path(deserialized_payload['db_filepath'])
+        return deserialized_payload
+
+    @classmethod
+    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
+        payload = super().assemble(filepath, **overrides)
+        payload['db_filepath'] = Path(payload['db_filepath'])
+        return payload
 
 
 class AliceConfiguration(CharacterConfiguration):
@@ -169,8 +162,8 @@ class AliceConfiguration(CharacterConfiguration):
     DEFAULT_CONTROLLER_PORT = 8151
 
     # TODO: Best (Sane) Defaults
-    DEFAULT_M = 2
-    DEFAULT_N = 3
+    DEFAULT_THRESHOLD = 2
+    DEFAULT_SHARES = 3
 
     DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
@@ -184,8 +177,8 @@ class AliceConfiguration(CharacterConfiguration):
     )
 
     def __init__(self,
-                 m: int = None,
-                 n: int = None,
+                 threshold: int = None,
+                 shares: int = None,
                  rate: int = None,
                  payment_periods: int = None,
                  store_policies: bool = DEFAULT_STORE_POLICIES,
@@ -193,8 +186,8 @@ class AliceConfiguration(CharacterConfiguration):
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.m = m or self.DEFAULT_M
-        self.n = n or self.DEFAULT_N
+        self.threshold = threshold or self.DEFAULT_THRESHOLD
+        self.shares = shares or self.DEFAULT_SHARES
 
         # if not self.federated_only:  # TODO: why not?
         self.rate = rate
@@ -205,8 +198,8 @@ class AliceConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            m=self.m,
-            n=self.n,
+            threshold=self.threshold,
+            shares=self.shares,
             store_policies=self.store_policies,
             store_cards=self.store_cards
         )
@@ -217,12 +210,6 @@ class AliceConfiguration(CharacterConfiguration):
                 payload['payment_periods'] = self.payment_periods
         return {**super().static_payload(), **payload}
 
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=False,
-                                     **generation_kwargs)
-
 
 class BobConfiguration(CharacterConfiguration):
     from nucypher.characters.lawful import Bob
@@ -230,7 +217,7 @@ class BobConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
     DEFAULT_CONTROLLER_PORT = 7151
-    DEFFAULT_STORE_POLICIES = True
+    DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 
@@ -241,18 +228,12 @@ class BobConfiguration(CharacterConfiguration):
     )
 
     def __init__(self,
-                 store_policies: bool = DEFFAULT_STORE_POLICIES,
+                 store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.store_policies = store_policies
         self.store_cards = store_cards
-
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        return super().write_keyring(password=password,
-                                     encrypting=True,
-                                     rest=False,
-                                     **generation_kwargs)
 
     def static_payload(self) -> dict:
         payload = dict(
@@ -270,14 +251,13 @@ class FelixConfiguration(CharacterConfiguration):
     NAME = CHARACTER_CLASS.__name__.lower()
 
     DEFAULT_DB_NAME = '{}.db'.format(NAME)
-    DEFAULT_DB_FILEPATH = os.path.join(DEFAULT_CONFIG_ROOT, DEFAULT_DB_NAME)
     DEFAULT_REST_PORT = 6151
     DEFAULT_LEARNER_PORT = 9151
     DEFAULT_REST_HOST = LOOPBACK_ADDRESS
     __DEFAULT_TLS_CURVE = ec.SECP384R1
 
     def __init__(self,
-                 db_filepath: str = None,
+                 db_filepath: Optional[Path] = None,
                  rest_host: str = None,
                  rest_port: int = None,
                  tls_curve: EllipticCurve = None,
@@ -291,24 +271,16 @@ class FelixConfiguration(CharacterConfiguration):
         self.rest_host = rest_host or self.DEFAULT_REST_HOST
         self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
         self.certificate = certificate
-        self.db_filepath = db_filepath or os.path.join(self.config_root, self.DEFAULT_DB_NAME)
+        self.db_filepath = db_filepath or self.config_root / self.DEFAULT_DB_NAME
 
     def static_payload(self) -> dict:
         payload = dict(
          rest_host=self.rest_host,
          rest_port=self.rest_port,
-         db_filepath=self.db_filepath,
+         db_filepath=self.db_filepath.absolute(),
          signer_uri=self.signer_uri
         )
         return {**super().static_payload(), **payload}
-
-    def write_keyring(self, password: str, **generation_kwargs) -> NucypherKeyring:
-        return super().write_keyring(password=password,
-                                     encrypting=True,  # TODO: #668
-                                     rest=True,
-                                     host=self.rest_host,
-                                     curve=self.tls_curve,
-                                     **generation_kwargs)
 
 
 class StakeHolderConfiguration(CharacterConfiguration):
@@ -350,7 +322,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
         pass
 
     @classmethod
-    def assemble(cls, filepath: str = None, **overrides) -> dict:
+    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         payload = cls._read_configuration_file(filepath=filepath)
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
@@ -359,19 +331,19 @@ class StakeHolderConfiguration(CharacterConfiguration):
         return payload
 
     @classmethod
-    def generate_runtime_filepaths(cls, config_root: str) -> dict:
+    def generate_runtime_filepaths(cls, config_root: Path) -> dict:
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
-                         config_file_location=os.path.join(config_root, cls.generate_filename()))
+                         config_file_location=config_root / cls.generate_filename())
         return filepaths
 
-    def initialize(self, password: str = None) -> str:
+    def initialize(self, password: Optional[str] = None) -> Path:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
         if self.dev_mode:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
-            self.config_root = self.__temp_dir.name
+            self.config_root = Path(self.__temp_dir.name)
 
         # Persistent
         else:
@@ -395,5 +367,5 @@ class StakeHolderConfiguration(CharacterConfiguration):
         node_config.initialize()
         return node_config
 
-    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> str:
+    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> Path:
         return super().to_configuration_file(override=True, *args, **kwargs)

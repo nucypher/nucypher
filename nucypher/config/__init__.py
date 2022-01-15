@@ -16,6 +16,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from constant_sorrow.constants import NO_KEYRING_ATTACHED
+from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 
-NO_KEYRING_ATTACHED.bool_value(False)
+NO_KEYSTORE_ATTACHED.bool_value(False)

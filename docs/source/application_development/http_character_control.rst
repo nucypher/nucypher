@@ -63,8 +63,8 @@ The character control API uses JSON for all its endpoints. A request may look li
         'bob_verifying_key': '02ce770f45fecbbee0630129cce0da4fffc0c4276093bdb3f83ecf1ed824e2696c',
         'bob_encrypting_key': '0324df67664e6ea40f2eea8037c994debd4caa42117fe86cdb8cab6ac7728751ad',
         'label': 'spın̈al-tap-covers',
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': '2019-02-14T22:23:10.771093Z',
     }
 
@@ -73,7 +73,7 @@ The character control API endpoints expect `all` keys to be encoded as hex.
 
 Now, look at ``label``. Notice that it's a unicode string. How else could you properly write important stuff like "`Spın̈al Tap`"?
 
-Integers, in our case ``m`` and ``n`` can be passed as is without encoding.
+Integers, in our case ``threshold`` and ``shares`` can be passed as is without encoding.
 
 A datetime, like ``expiration``, must be passed in as an ISO-8601 formatted datetime string.
 
@@ -125,35 +125,34 @@ This endpoint controls the ``Alice.grant`` method.
     - ``bob_verifying_key`` -- encoded as hex
     - ``bob_encrypting_key`` -- encoded as hex
     - ``label`` -- a unicode string
-    - ``m`` -- an integer
-    - ``n`` -- an integer
+    - ``threshold`` -- an integer
+    - ``shares`` -- an integer
     - ``expiration`` -- an ISO-8601 formatted datetime string
     - ``value``-- an integer
 - Returns:
     - ``treasure_map`` -- encoded as base64
-    - ``policy_encrypting_pubkey`` -- encoded as hex
-    - ``alice_verifying_pubkey`` -- encoded as hex
+    - ``policy_encrypting_key`` -- encoded as hex
+    - ``alice_verifying_key`` -- encoded as hex
 
 For more details on these arguments, see the nucypher documentation on the ``Alice.grant`` Python API method.
 
 Bob
 ~~~
 
-retrieve
-********
+retrieve_and_decrypt
+********************
 
-This endpoint controls the ``Bob.retrieve`` method.
+This endpoint controls the ``Bob.retrieve_and_decrypt`` method.
 
-- URL: ``/retrieve``
+- URL: ``/retrieve_and_decrypt``
 - HTTP Method: ``POST``
 - Required arguments:
-    - ``policy_encrypting_pubkey`` -- encoded as hex
-    - ``alice_verifying_pubkey`` -- encoded as hex
-    - ``label`` -- a unicode string
-    - ``message_kit`` -- encoded as base64
+    - ``alice_verifying_key`` -- encoded as hex
+    - ``encrypted_treasure_map`` -- encoded as base64
+    - ``message_kits`` -- list of message kits each encoded as base64
 - Returns: a JSON-array of base64-encoded decrypted plaintexts as ``cleartexts``
 
-For more details on these arguments, see the nucypher documentation on the ``Bob.retrieve`` Python API method.
+For more details on these arguments, see the nucypher documentation on the ``Bob.retrieve_and_decrypt`` Python API method.
 
 Enrico (DataSource)
 ~~~~~~~~~~~~~~~~~~~
@@ -167,6 +166,6 @@ This endpoint controls the ``Enrico.encrypt_message`` method.
 - HTTP Method: ``POST``
 - Required arguments:
     - ``message`` -- encoded as base64
-- Returns: ``message_kit`` and ``signature`` encoded as base64
+- Returns: ``message_kit`` encoded as base64
 
 For more details on these arguments, see the nucypher documentation on the ``Enrico.encrypt_message`` Python API method.

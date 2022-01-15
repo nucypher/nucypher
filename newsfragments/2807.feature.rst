@@ -1,0 +1,3 @@
+CORS, NGINX support for Porter:
+- Added opt-in CORS origins support to Porter; no origins allowed by default when running Porter directly.
+- Provided docker-compose execution for Porter to run behind an NGINX reverse proxy server - all origins allowed by default for CORS, but can be customized. NGINX allows for the potential for more complex infrastructure configurations.

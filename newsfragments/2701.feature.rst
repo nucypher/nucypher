@@ -1,0 +1,1 @@
+Characters use mnemonic seed words to derive deterministic keystore, taking the place of the "keyring".

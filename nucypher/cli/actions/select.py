@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
@@ -208,9 +208,9 @@ def select_network(emitter: StdoutEmitter) -> str:
 
 def select_config_file(emitter: StdoutEmitter,
                        config_class: Type[CharacterConfiguration],
-                       config_root: str = None,
+                       config_root: Optional[Path] = None,
                        checksum_address: str = None,
-                       ) -> str:
+                       ) -> Path:
     """
     Selects a nucypher character configuration file from the disk automatically or interactively.
 
@@ -295,7 +295,7 @@ def select_config_file(emitter: StdoutEmitter,
 def select_card(emitter, card_identifier: str) -> Card:
     if not card_identifier:
         cards = []
-        for filename in os.listdir(Card.CARD_DIR):
+        for filename in Card.CARD_DIR.iterdir():
             filepath = Card.CARD_DIR / filename
             card = Card.load(filepath=filepath)
             cards.append(card)

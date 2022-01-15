@@ -14,18 +14,19 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import click
 from cryptography.exceptions import InternalError
 from decimal import Decimal, DecimalException
 from eth_utils import to_checksum_address
 from ipaddress import ip_address
-from umbral.keys import UmbralPublicKey
 
 from nucypher.blockchain.economics import StandardTokenEconomics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.utilities.networking import validate_worker_ip, InvalidWorkerIP
 
 
@@ -127,7 +128,7 @@ class UmbralPublicKeyHex(click.ParamType):
     def convert(self, value, param, ctx):
         if self.validate:
             try:
-                _key = UmbralPublicKey.from_hex(value)
+                _key = PublicKey.from_bytes(bytes.fromhex(value))
             except (InternalError, ValueError):
                 self.fail(f"'{value}' is not a valid nucypher public key.")
         return value
@@ -143,8 +144,8 @@ MIN_ALLOWED_LOCKED_TOKENS = Decimal(__min_allowed_locked)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_allowed_locked)
 
 # Filesystem
-EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True)
-EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True)
+EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True, path_type=Path)
+EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True, path_type=Path)
 
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)

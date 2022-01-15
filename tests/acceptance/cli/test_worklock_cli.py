@@ -55,7 +55,7 @@ def bids(testerchain):
 
 def test_status(click_runner, testerchain, agency_local_registry, token_economics):
     command = ('status',
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
@@ -72,7 +72,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
     testerchain.time_travel(seconds=90)
 
     base_command = ('escrow',
-                    '--registry-filepath', agency_local_registry.filepath,
+                    '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                     '--provider', TEST_PROVIDER_URI,
                     '--signer', TEST_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
@@ -107,7 +107,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
 
     command = ('cancel-escrow',
                '--participant-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -124,7 +124,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     bidder = bidders[-2]
     command = ('cancel-escrow',
                '--participant-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -148,7 +148,7 @@ def test_enable_claiming(click_runner, testerchain, agency_local_registry, token
 
     command = ('enable-claiming',
                '--participant-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--force',
@@ -168,7 +168,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
     bidder = testerchain.client.accounts[2]
     command = ('claim',
                '--participant-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -182,7 +182,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
     assert agent.get_available_compensation(checksum_address=whale) > 0
     command = ('claim',
                '--participant-address', whale,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -206,7 +206,7 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
 
     command = ('remaining-work',
                '--participant-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
@@ -263,7 +263,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
     command = ('refund',
                '--participant-address', bidder,
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
@@ -287,7 +287,7 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
                     registry=agency_local_registry)
 
     command = ('status',
-               '--registry-filepath', agency_local_registry.filepath,
+               '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--participant-address', bidder.checksum_address,
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,

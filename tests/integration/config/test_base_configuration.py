@@ -18,6 +18,8 @@
 import json
 
 import os
+from pathlib import Path
+
 import pytest
 import shutil
 
@@ -32,32 +34,32 @@ configuration_name = 'something'
 expected_extension = 'json'
 configuration_value = 're-emerging llamas'
 modifier = '1'
-manual_expected_default_filepath = os.path.join('/', 'tmp', 'something.json')
-manual_expected_modified_filepath = os.path.join('/', 'tmp', 'something-1.json')
+manual_expected_default_filepath = Path('/', 'tmp', 'something.json')
+manual_expected_modified_filepath = Path('/', 'tmp', 'something-1.json')
 
 
 @pytest.fixture(scope='function', autouse=True)
 def expected_configuration_filepaths():
 
     # Setup
-    if os.path.exists(manual_expected_default_filepath):
-        os.remove(manual_expected_default_filepath)
-    if os.path.exists(manual_expected_modified_filepath):
-        os.remove(manual_expected_modified_filepath)
+    if manual_expected_default_filepath.exists():
+        manual_expected_default_filepath.unlink()
+    if manual_expected_modified_filepath.exists():
+        manual_expected_modified_filepath.unlink()
 
     yield manual_expected_default_filepath, manual_expected_modified_filepath
 
     # Teardown
-    if os.path.exists(manual_expected_default_filepath):
-        os.remove(manual_expected_default_filepath)
-    if os.path.exists(manual_expected_modified_filepath):
-        os.remove(manual_expected_modified_filepath)
+    if manual_expected_default_filepath.exists():
+        manual_expected_default_filepath.unlink()
+    if manual_expected_modified_filepath.exists():
+        manual_expected_modified_filepath.unlink()
 
 
 class RestorableTestItem(BaseConfiguration):
 
     NAME = 'something'
-    DEFAULT_CONFIG_ROOT = '/tmp'
+    DEFAULT_CONFIG_ROOT = Path('/tmp')
     VERSION = 1
 
     def __init__(self, item: str, *args, **kwargs):
@@ -133,7 +135,7 @@ def test_configuration_filepath_utilities():
     expected_default_filename = f'{RestorableTestItem.NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
     assert RestorableTestItem.generate_filename() == expected_default_filename
 
-    expected_default_filepath = os.path.join(RestorableTestItem.DEFAULT_CONFIG_ROOT, expected_default_filename)
+    expected_default_filepath = RestorableTestItem.DEFAULT_CONFIG_ROOT / expected_default_filename
     assert expected_default_filepath == manual_expected_default_filepath
     assert RestorableTestItem.default_filepath() == expected_default_filepath
 
@@ -149,7 +151,7 @@ def test_configuration_filepath_utilities():
     modified_filename = restorable_item.generate_filename(modifier=modifier)
     assert modified_filename == expected_modified_filename
 
-    expected_modified_filepath = os.path.join(RestorableTestItem.DEFAULT_CONFIG_ROOT, expected_modified_filename)
+    expected_modified_filepath = RestorableTestItem.DEFAULT_CONFIG_ROOT / expected_modified_filename
     modified_filepath = restorable_item.generate_filepath(override=False, modifier=modifier)
     assert modified_filepath == expected_modified_filepath
 
@@ -164,11 +166,11 @@ def test_configuration_preservation():
     restorable_item = RestorableTestItem(item=configuration_value)
 
     expected_default_filename = f'{RestorableTestItem.NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
-    expected_default_filepath = os.path.join(RestorableTestItem.DEFAULT_CONFIG_ROOT, expected_default_filename)
+    expected_default_filepath = RestorableTestItem.DEFAULT_CONFIG_ROOT / expected_default_filename
 
     # Serialize
-    serialized_item = restorable_item.serialize()
-    serialized_payload = json.dumps(restorable_item.static_payload(), indent=BaseConfiguration.INDENTATION)
+    assert restorable_item.serialize()
+    assert restorable_item.static_payload()
 
     # Write to JSON file
     filepath = restorable_item.to_configuration_file()
@@ -192,6 +194,7 @@ def test_configuration_preservation():
         # Ensure file contents are JSON deserializable
         deserialized_file_contents = json.loads(contents)
         del deserialized_file_contents['version']  # do not test version of config serialization here.
+        deserialized_file_contents['config_root'] = Path(deserialized_file_contents['config_root'])
 
         deserialized_payload = RestorableTestItem.deserialize(payload=contents)
         assert deserialized_payload == deserialized_file_contents

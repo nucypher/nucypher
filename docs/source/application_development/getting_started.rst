@@ -101,7 +101,7 @@ Setup Alice Keys
 ^^^^^^^^^^^^^^^^
 
 Alice uses an ethereum wallet to create publish access control policies to the ethereum blockchain,
-and a set of related keys called a *"nucypher keyring"*.
+and a set of related keys derived from a *"nucypher keystore"*.
 
 First, instantiate a ``Signer`` to use for signing transactions. This is an API for Alice's ethereum
 wallet, which can be an keystore file, trezor, ethereum node, or clef.  The signer type and address
@@ -136,44 +136,38 @@ If you are using a software wallet, be sure to unlock it:
     >>> software_wallet.unlock_account(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D', password=<ETH_PASSWORD>)
 
 
-Next, create a NuCypher Keyring. This step will generate a new set of related private keys used for nucypher cryptography operations,
+Next, create a NuCypher Keystore. This step will generate a new set of related private keys used for nucypher cryptography operations,
 which can be integrated into your application's user on-boarding or setup logic. These keys will be stored on the disk,
-encrypted-at-rest using the supplied password. Use the same account as the signer; Keyrings are labeled and associated
-with ethereum accounts, so be sure to specify an account you control with a ``Signer``.
+encrypted-at-rest using the supplied password. Use the same account as the signer; Keystores are timestamped and named by public key,
+so be sure to specify an account you control with a ``Signer``.
 
 .. code-block:: python
 
-   from nucypher.config.keyring import NucypherKeyring
+   from nucypher.crypto.keystore import Keystore
 
-   keyring = NucypherKeyring.generate(
-       checksum_address='0x287A817426DD1AE78ea23e9918e2273b6733a43D',
-       password=NEW_PASSWORD  # used to encrypt nucypher private keys
-   )
+   keystore = Keystore.generate(password=NEW_PASSWORD)  # used to encrypt nucypher private keys
 
-   # The keyring identifier
-   >>> keyring.checksum_address
-   0x287A817426DD1AE78ea23e9918e2273b6733a43D
-
-   # Be sure to use an address controlled by your signer!
-   >>> keyring.checksum_address in signer.accounts
-   True
+   # Public Key
+   >>> keystore.id
+   e76f101f35846f18d80bfda5c61e9ec2
 
    # The root directory containing the private keys
-   >>> keyring.keyring_root
-   '/home/user/.local/share/nucypher/keyring'
+   >>> keystore.keystore_dir
+   '/home/user/.local/share/nucypher/keystore'
 
 
-After generating a keyring, any future usage can decrypt the keys from the disk:
+After generating a keystore, any future usage can decrypt the keys from the disk:
 
 .. code-block:: python
 
-   from nucypher.config.keyring import NucypherKeyring
+   from nucypher.crypto.keystore import Keystore
 
-   # Restore an existing Alice keyring
-   keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
+   # Restore an existing Alice keystore
+   path = '/home/user/.local/share/nucypher/keystore/1621399628-e76f101f35846f18d80bfda5c61e9ec2.priv'
+   keystore = Keystore(path)
 
-   # Unlock Alice's keyring
-   keyring.unlock(password=NUCYPHER_PASSWORD)
+   # Unlock Alice's keystore
+   keystore.unlock(password=NUCYPHER_PASSWORD)
 
 
 .. code-block:: python
@@ -185,7 +179,7 @@ After generating a keyring, any future usage can decrypt the keys from the disk:
 
    # Instantiate Alice
    alice = Alice(
-       keyring=keyring,              # NuCypher Keyring
+       keystore=keystore,            # NuCypher Keystore
        known_nodes=[ursula],         # Peers (Optional)
        signer=signer,                # Alice Wallet
        provider_uri=<RPC ENDPOINT>,  # Ethereum RPC endpoint
@@ -236,8 +230,8 @@ Alice can grant access to Bob using his public keys:
    policy = alice.grant(
        bob,
        label=b'my-secret-stuff',   # Send to Bob via side channel
-       m=2,                        # Threshold shares for access
-       n=3,                        # Total nodes with shares
+       threshold=2,                # Threshold shares for access
+       shares=3,               # Total nodes with shares
        rate=Web3.toWei(50, 'gwei'),  # 50 Gwei is the minimum rate (per node per period)
        expiration= maya.now() + timedelta(days=5)  # Five days from now
     )
@@ -247,12 +241,12 @@ Alice can grant access to Bob using his public keys:
 
 
 Putting it all together, here's an example starter script for granting access using a
-software wallet and an existing keyring:
+software wallet and an existing keystore:
 
 .. code-block:: python
 
     from nucypher.blockchain.eth.signers import Signer
-    from nucypher.config.keyring import NucypherKeyring
+    from nucypher.crypto.keystore import Keystore
     from nucypher.characters.lawful import Alice, Bob
     from umbral.keys import UmbralPublicKey
     from datetime import timedelta
@@ -260,9 +254,9 @@ software wallet and an existing keyring:
     import maya
 
 
-    # Restore Existing NuCypher Keyring
-    keyring = NucypherKeyring(account='0x287A817426DD1AE78ea23e9918e2273b6733a43D')
-    keyring.unlock('KEYRING PASSWORD')
+    # Restore Existing NuCypher Keystore
+    keystore = Keystore(keystore_path=path)
+    keystore.unlock('YOUR KEYSTORE PASSWORD')
 
     # Ethereum Software Wallet
     wallet = Signer.from_signer_uri("keystore:///home/user/.ethereum/goerli/keystore/UTC--2021...0278ad02...')
@@ -272,7 +266,7 @@ software wallet and an existing keyring:
     alice = Alice(
         domain='lynx',  # testnet
         provider_uri='GOERLI RPC ENDPOINT',
-        keyring=keyring,
+        keystore=keystore,
         signer=wallet,
     )
 
@@ -287,8 +281,8 @@ software wallet and an existing keyring:
     policy = alice.grant(
         bob,
         label=b'my-secret-stuff',     # Send to Bob via side channel
-        m=2,                          # Threshold shares for access
-        n=3,                          # Total nodes with shares
+        threshold=2,                  # Threshold shares for access
+        shares=3,                 # Total nodes with shares
         rate=Web3.toWei(50, 'gwei'),  # 50 Gwei is the minimum rate (per node per period)
         expiration= maya.now() + timedelta(days=5)  # Five days from now
      )
@@ -308,10 +302,10 @@ Encrypt
    from nucypher.characters.lawful import Enrico
 
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
-   ciphertext, signature = enrico.encrypt_message(plaintext=b'Peace at dawn.')
+   message_kit = enrico.encrypt_message(plaintext=b'Peace at dawn.')
 
 
-The ciphertext can then be sent to Bob via the application side channel.
+The message kit can then be sent to Bob via the application side channel.
 
 Note that Alice can get the public key even before creating the policy.
 From this moment on, any Data Source (Enrico) that knows the public key
@@ -323,7 +317,7 @@ any Bob that Alice grants access.
 Bob: Decrypt a Secret
 ---------------------
 
-For Bob to retrieve a secret, the ciphertext, label, policy encrypting key, and Alice's verifying key must all
+For Bob to retrieve a secret, the message kit, label, policy encrypting key, and Alice's verifying key must all
 be fetched from the application side channel.  Then, Bob constructs his perspective of the policy's network actors:
 
 Setup Bob
@@ -337,8 +331,8 @@ Bob's setup is similar to Alice's above.
 
    # Application Side-Channel
    # --------------------------
-   # label = <Side Channel>
-   # ciphertext = <Side Channel>
+   # encrypted_treasure_map = <Side Channel>
+   # message_kit = <Side Channel>
    # policy_encrypting_key = <Side Channel>
    # alice_verifying_key = <Side Channel>
 
@@ -347,47 +341,27 @@ Bob's setup is similar to Alice's above.
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
-   # Restore Existing Bob keyring
-   keyring = NucypherKeyring(account='0xC080708026a3A280894365Efd51Bb64521c45147')
+   # Restore Existing Bob keystore
+   keystore = Keystore(keystore_path=path)
 
-   # Unlock keyring and make Bob
-   keyring.unlock(PASSWORD)
+   # Unlock keystore and make Bob
+   keystore.unlock(PASSWORD)
    bob = Bob(
-       keyring=keyring,
+       keystore=keystore,
        known_nodes=[ursula],
        domain='lynx'
-   )
-
-
-Join a Policy
-^^^^^^^^^^^^^
-
-Next, Bob needs to join the policy using the policy label and alice's public key.  Bob needs
-to retrieve both of these from the application side channel first.
-
-.. code-block:: python
-
-   # Make alice from known public key (from application side channel)
-   alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
-
-   # Use alice's public key and the label to join the access policy
-   alice_public_key = alice.public_keys(SigningPower)
-   bob.join_policy(
-       label=label,
-       alice_verifying_key=alice_public_key,
    )
 
 
 Retrieve and Decrypt
 ^^^^^^^^^^^^^^^^^^^^
 
-Then Bob can retrieve and decrypt the ciphertext:
+Then Bob can retrieve and decrypt the message kit:
 
 .. code-block:: python
 
-   cleartexts = bob.retrieve(
-       label=label,
-       message_kit=ciphertext,
-       data_source=enrico,
-       alice_verifying_key=alice_public_key
+   cleartexts = bob.retrieve_and_decrypt(
+       message_kits=[message_kit],
+       alice_verifying_key=alice_public_key,
+       encrypted_treasure_map=policy.treasure_map,
    )

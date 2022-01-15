@@ -29,7 +29,8 @@ from nucypher.cli.commands import (
     ursula,
     worklock,
     cloudworkers,
-    contacts
+    contacts,
+    porter
 )
 from nucypher.cli.painting.help import echo_version, echo_config_root_path, echo_logging_root_path
 
@@ -86,6 +87,7 @@ ENTRY_POINTS = (
     felix.felix,        # Faucet
     cloudworkers.cloudworkers,  # Remote Worker node management
     contacts.contacts,          # Character "card" management
+    porter.porter
 )
 
 for entry_point in ENTRY_POINTS:

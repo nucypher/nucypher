@@ -14,10 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 from typing import List
 
-from tests.constants import MOCK_IP_ADDRESS
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration

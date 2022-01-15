@@ -14,15 +14,20 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import maya
-import pytest
+
+
+import contextlib
 import time
 from datetime import datetime
-from flask import Response
-from umbral.keys import UmbralPublicKey
 from unittest.mock import patch
 
+import maya
+import pytest
+from flask import Response
+
 from nucypher.characters.lawful import Ursula
+from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import SecretKey, Signer, PublicKey, encrypt
 from nucypher.datastore.base import RecordField
 from nucypher.network.nodes import Teacher
 from tests.markers import skip_on_circleci
@@ -36,8 +41,6 @@ from tests.mock.performance_mocks import (
     mock_metadata_validation,
     mock_pubkey_from_bytes,
     mock_secret_source,
-    mock_signature_bytes,
-    mock_stamp_call,
     mock_verify_node
 )
 from tests.utils.middleware import SluggishLargeFleetMiddleware
@@ -69,6 +72,12 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     assert VerificationTracker.node_verifications == 1
 
     _teacher = highperf_mocked_alice.current_teacher_node()
+
+    # Ursulas in the fleet have mocked keys,
+    # but we need the teacher to be able to sign the MetadataResponse.
+    signer = Signer(SecretKey.random())
+    _teacher._stamp = SignatureStamp(verifying_key=signer.verifying_key(), signer=signer)
+
     actual_ursula = MOCK_KNOWN_URSULAS_CACHE[_teacher.rest_interface.port]
 
     # A quick setup so that the bytes casting of Ursulas (on what in the real world will be the remote node)
@@ -77,12 +86,12 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     actual_ursula.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
     with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
-        with mock_pubkey_from_bytes(), mock_stamp_call, mock_signature_bytes:
-            started = time.time()
-            highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
-            ended = time.time()
-            elapsed = ended - started
+        started = time.time()
+        highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
+        ended = time.time()
+        elapsed = ended - started
 
+    # TODO: probably can be brought down a lot when the core is moved to Rust
     assert elapsed < 6  # 6 seconds is still a little long to discover 4000 out of 5000 nodes, but before starting the optimization that went with this test, this operation took about 18 minutes on jMyles' laptop.
     assert VerificationTracker.node_verifications == 1  # We have only verified the first Ursula.
     assert sum(
@@ -92,125 +101,38 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 
 _POLICY_PRESERVER = []
 
+
 @skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):
-    # Patch the Datastore PolicyArrangement model with the highperf
-    # NotAPublicKey
-    not_public_key_record_field = RecordField(NotAPublicKey, encode=bytes,
-                                              decode=NotAPublicKey.from_bytes)
 
-    _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
+    def mock_encrypt(public_key, plaintext):
+        if not isinstance(public_key, PublicKey):
+            public_key = public_key.i_want_to_be_a_real_boy()
+        return encrypt(public_key, plaintext)
 
-    def actual_random_key_instead(*args, **kwargs):
-        _previous_bytes = args[0]
-        serial = _previous_bytes[-5:]
-        pubkey = NotAPublicKey(serial=serial)
-        return pubkey
+    mocks = (
+        patch('nucypher.crypto.umbral_adapter.PublicKey.__eq__', lambda *args, **kwargs: True),
+        mock_pubkey_from_bytes(),
+        mock_secret_source(),
+        mock_cert_loading,
+        mock_metadata_validation,
+        mock_message_verification,
+        patch('nucypher.crypto.umbral_adapter.encrypt', new=mock_encrypt),
+        )
 
-    def mock_set_policy(id_as_hex):
-        return ""
+    with contextlib.ExitStack() as stack:
+        for mock in mocks:
+            stack.enter_context(mock)
 
-    def mock_receive_treasure_map():
-        return Response(bytes(), status=201)
+        policy = highperf_mocked_alice.grant(
+            highperf_mocked_bob, b"any label", threshold=20, shares=30,
+            expiration=maya.when('next week'))
 
-    with NotARestApp.replace_route("receive_treasure_map", mock_receive_treasure_map):
-        with NotARestApp.replace_route("set_policy", mock_set_policy):
-            with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True):
-                with patch('umbral.keys.UmbralPublicKey.from_bytes',
-                           new=actual_random_key_instead):
-                    with patch("nucypher.datastore.models.PolicyArrangement._alice_verifying_key",
-                               new=not_public_key_record_field):
-                        with mock_cert_loading, mock_metadata_validation, mock_message_verification:
-                            with mock_secret_source():
-                                policy = highperf_mocked_alice.grant(
-                                    highperf_mocked_bob, b"any label", m=20, n=30,
-                                    expiration=maya.when('next week'),
-                                    publish_treasure_map=False)
     # TODO: Make some assertions about policy.
     total_verified = sum(node.verified_node for node in highperf_mocked_alice.known_nodes)
     # Alice may be able to verify more than `n`, but certainly not less,
     # otherwise `grant()` would fail.
     assert total_verified >= 30
     _POLICY_PRESERVER.append(policy)
-
-
-# @pytest_twisted.inlineCallbacks   # TODO: Why does this, in concert with yield policy.treasure_map_publisher.when_complete, hang?
-@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
-def test_mass_treasure_map_placement(fleet_of_highperf_mocked_ursulas,
-                                     highperf_mocked_alice,
-                                     highperf_mocked_bob):
-    """
-    Large-scale map placement with a middleware that simulates network latency.
-
-    In three parts.
-    """
-    # The nodes who match the map distribution criteria.
-    nodes_we_expect_to_have_the_map = highperf_mocked_bob.matching_nodes_among(fleet_of_highperf_mocked_ursulas)
-
-    Teacher.verify_node = lambda *args, **kwargs: None
-
-    # # # Loop through and instantiate actual rest apps so as not to pollute the time measurement (doesn't happen in real world).
-    for node in nodes_we_expect_to_have_the_map:
-        # Causes rest app to be made (happens JIT in other testS)
-        highperf_mocked_alice.network_middleware.client.parse_node_or_host_and_port(node)
-
-        # Setup a dict to "store" treasure maps to skip over the datastore
-        node.treasure_maps = dict()
-
-        def _partial_rest_app(node):
-            def faster_receive_map(*args, **kwargs):
-                node._its_down_there_somewhere_let_me_take_another_look = True
-                return Response(bytes(b"Sure, we stored it."), status=201)
-            return faster_receive_map
-        node.rest_app._actual_rest_app.view_functions._view_functions_registry['receive_treasure_map'] = _partial_rest_app(node)
-
-    highperf_mocked_alice.network_middleware = SluggishLargeFleetMiddleware()
-
-    policy = _POLICY_PRESERVER.pop()
-
-    with patch('umbral.keys.UmbralPublicKey.__eq__', lambda *args, **kwargs: True), mock_metadata_validation:
-
-        started = datetime.now()
-
-        # PART I: The function returns sychronously and quickly.
-
-        # defer.setDebugging(False)  # Debugging messes up the timing here; comment this line out if you actually need it.
-
-        policy.publish_treasure_map()  # returns quickly.
-
-        # defer.setDebugging(True)
-
-        # PART II: We block for a little while to ensure that the distribution is going well.
-        nodes_that_have_the_map_when_we_unblock = policy.treasure_map_publisher.block_until_success_is_reasonably_likely()
-        little_while_ended_at = datetime.now()
-
-        # The number of nodes having the map is at least the minimum to have unblocked.
-        assert len(nodes_that_have_the_map_when_we_unblock) >= policy.treasure_map_publisher._block_until_this_many_are_complete
-
-        # The number of nodes having the map is approximately the number you'd expect from full utilization of Alice's publication threadpool.
-        # TODO: This line fails sometimes because the loop goes too fast.
-        # assert len(nodes_that_have_the_map_when_we_unblock) == pytest.approx(policy.treasure_map_publisher._block_until_this_many_are_complete, .2)
-
-        # PART III: Having made proper assertions about the publication call and the first block, we allow the rest to
-        # happen in the background and then ensure that each phase was timely.
-
-        # This will block until the distribution is complete.
-        policy.treasure_map_publisher.block_until_complete()
-        complete_distribution_time = datetime.now() - started
-        partial_blocking_duration = little_while_ended_at - started
-        # Before Treasure Island (1741), this process took about 3 minutes.
-        if partial_blocking_duration.total_seconds() > 10:
-            pytest.fail(
-                f"Took too long ({partial_blocking_duration}) to contact {len(nodes_that_have_the_map_when_we_unblock)} nodes ({complete_distribution_time} total.)")
-
-        # TODO: Assert that no nodes outside those expected received the map.
-        assert complete_distribution_time.total_seconds() < 20
-        # But with debuggers and other processes running on laptops, we give a little leeway.
-
-        # We have the same number of successful responses as nodes we expected to have the map.
-        assert len(policy.treasure_map_publisher.completed) == len(nodes_we_expect_to_have_the_map)
-        nodes_that_got_the_map = sum(
-            u._its_down_there_somewhere_let_me_take_another_look is True for u in nodes_we_expect_to_have_the_map)
-        assert nodes_that_got_the_map == len(nodes_we_expect_to_have_the_map)

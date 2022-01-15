@@ -1,0 +1,1 @@
+Cloudworkers: ignore errors on stopping of ursula containers

@@ -35,13 +35,13 @@ import shutil
 import time
 from eth_typing.evm import ChecksumAddress
 from typing import Set, Optional, List, Tuple
-from umbral.keys import UmbralPrivateKey
 from web3.main import Web3
 from web3.types import Wei
 
 from nucypher.network.middleware import RestMiddleware
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
+from nucypher.crypto.umbral_adapter import SecretKey
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -72,11 +72,11 @@ DEFAULT_SEEDNODE_URIS: List[str] = [
     *TEACHER_NODES[DOMAIN],
 ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
-TEMP_ALICE_DIR: str = Path('/', 'tmp', 'grant-metrics')
+TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
-M: int = 1
-N: int = 1
+THRESHOLD: int = 1
+SHARES: int = 1
 RATE: Wei = Web3.toWei(50, 'gwei')
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
@@ -94,10 +94,10 @@ HANDPICKED_URSULA_URIS: List[str] = [
 
 def make_random_bob():
     """Generates a random ephemeral Bob instance."""
-    bob_verifying_secret = UmbralPrivateKey.gen_key()
-    bob_verifying_key = bob_verifying_secret.pubkey
-    decrypting_secret = UmbralPrivateKey.gen_key()
-    decrypting_key = decrypting_secret.pubkey
+    bob_verifying_secret = SecretKey.random()
+    bob_verifying_key = bob_verifying_secret.public_key()
+    decrypting_secret = SecretKey.random()
+    decrypting_key = decrypting_secret.public_key()
     bob = Bob.from_public_keys(verifying_key=bob_verifying_key,
                                encrypting_key=decrypting_key,
                                federated_only=False)
@@ -108,12 +108,13 @@ def make_random_bob():
 BOB = make_random_bob()
 
 
-def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Policy:
+def metric_grant(alice, ursulas: Optional[Set[Ursula]] = None) -> Policy:
     """Perform a granting operation for metrics collection."""
     label = f'{LABEL_PREFIX}{LABEL_SUFFIXER()}'.encode()
     policy_end_datetime = maya.now() + DURATION
-    policy = alice.grant(m=M, n=N,
-                         handpicked_ursulas=handpicked_ursulas,
+    policy = alice.grant(threshold=THRESHOLD,
+                         shares=SHARES,
+                         ursulas=handpicked_ursulas,
                          expiration=policy_end_datetime,
                          bob=BOB,
                          label=label,
@@ -122,7 +123,7 @@ def metric_grant(alice, handpicked_ursulas: Optional[Set[Ursula]] = None) -> Pol
 
 
 def collect(alice: Alice,
-            handpicked_ursulas: Optional[Set[Ursula]] = None,
+            ursulas: Optional[Set[Ursula]] = None,
             iterations: Optional[int] = DEFAULT_ITERATIONS,
             ) -> None:
     """Collects grant success and failure rates."""
@@ -131,14 +132,14 @@ def collect(alice: Alice,
         print(f"Attempt {i+1} of {iterations if iterations is not None else 'infinite'}")
         start = maya.now()
         try:
-            policy = metric_grant(alice=alice, handpicked_ursulas=handpicked_ursulas)
+            policy = metric_grant(alice=alice, ursulas=ursulas)
         except Exception as e:
             fail += 1
             print(f'GRANT FAIL\n{e}')
         else:
             success += 1
-            policies[policy.public_key.hex()] = policy  # track
-            print(f"PEK:{policy.public_key.hex()} | HRAC {policy.hrac.hex()}")
+            policies[bytes(policy.public_key).hex()] = policy  # track
+            print(f"PEK:{bytes(policy.public_key).hex()} | {policy.hrac}")
 
         # timeit
         end = maya.now()
@@ -166,7 +167,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
         provider_uri=ETHEREUM_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
-        config_root=os.path.join(TEMP_ALICE_DIR),
+        config_root=TEMP_ALICE_DIR,
         domain=DOMAIN,
         known_nodes=known_nodes,
         start_learning_now=False,
@@ -177,7 +178,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     )
 
     alice_config.initialize(password=INSECURE_PASSWORD)
-    alice_config.keyring.unlock(password=INSECURE_PASSWORD)
+    alice_config.keystore.unlock(password=INSECURE_PASSWORD)
     alice = alice_config.produce()
     alice.signer.unlock(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
     alice.start_learning_loop(now=True)
@@ -200,17 +201,17 @@ def aggregate_nodes() -> Tuple[Set[Ursula], Set[Ursula]]:
             ursula = Ursula.from_seed_and_stake_info(seed_uri=uri, federated_only=False)
             seednodes.add(ursula)
 
-    handpicked_ursulas = set()
+    ursulas = set()
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
             ursula = Ursula.from_seed_and_stake_info(seed_uri=uri, federated_only=False)
-            handpicked_ursulas.add(ursula)
+            ursulas.add(ursula)
 
-    return seednodes, handpicked_ursulas
+    return seednodes, ursulas
 
 
 if __name__ == '__main__':
     setup()
-    seednodes, handpicked_ursulas = aggregate_nodes()
+    seednodes, ursulas = aggregate_nodes()
     alice = make_alice(known_nodes=seednodes)
-    collect(alice=alice, handpicked_ursulas=handpicked_ursulas)
+    collect(alice=alice, ursulas=ursulas)

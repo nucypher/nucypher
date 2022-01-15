@@ -18,7 +18,7 @@
 
 import pytest
 from eth_account import Account
-from eth_account._utils.transactions import Transaction
+from eth_account._utils.legacy_transactions import Transaction
 from eth_account.account import Account
 from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
@@ -43,7 +43,7 @@ TRANSACTION_DICT = {
 @pytest.fixture(scope='module')
 def mock_account():
     key = Account.create(extra_entropy='M*A*S*H* DIWOKNECNECENOE#@!')
-    account = Account.from_key(private_key=key.privateKey)
+    account = Account.from_key(private_key=key.key)
     return account
 
 

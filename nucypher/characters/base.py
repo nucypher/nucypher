@@ -16,48 +16,40 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import contextlib
-from constant_sorrow import default_constant_splitter
+from contextlib import suppress
+from pathlib import Path
+from typing import ClassVar, Dict, List, Optional, Union
+
 from constant_sorrow.constants import (
-    DO_NOT_SIGN,
     NO_BLOCKCHAIN_CONNECTION,
     NO_CONTROL_PROTOCOL,
-    NO_DECRYPTION_PERFORMED,
     NO_NICKNAME,
     NO_SIGNING_POWER,
-    SIGNATURE_IS_ON_CIPHERTEXT,
-    SIGNATURE_TO_FOLLOW,
     STRANGER
 )
-from contextlib import suppress
-from cryptography.exceptions import InvalidSignature
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address, to_checksum_address
-from typing import ClassVar, Dict, List, Optional, Union
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
+
+from nucypher.core import MessageKit
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.characters.control.controllers import CLIController, JSONRPCController
-from nucypher.config.keyring import NucypherKeyring
-from nucypher.crypto.api import encrypt_and_sign
-from nucypher.crypto.kits import UmbralMessageKit
+from nucypher.characters.control.controllers import CharacterCLIController
+from nucypher.control.controllers import JSONRPCController
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
     CryptoPower,
     CryptoPowerUp,
     DecryptingPower,
-    DelegatingPower,
     NoSigningPower,
     SigningPower
 )
 from nucypher.crypto.signing import (
     SignatureStamp,
     StrangerStamp,
-    signature_splitter
 )
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 
@@ -68,7 +60,6 @@ class Character(Learner):
     _display_name_template = "({})⇀{}↽ ({})"  # Used in __repr__ and in cls.from_bytes
     _default_crypto_powerups = None
     _stamp = None
-    _crashed = False
 
     def __init__(self,
                  domain: str = None,
@@ -77,7 +68,7 @@ class Character(Learner):
                  federated_only: bool = False,
                  checksum_address: str = None,
                  network_middleware: RestMiddleware = None,
-                 keyring: NucypherKeyring = None,
+                 keystore: Keystore = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
                  provider_uri: str = None,
@@ -139,18 +130,12 @@ class Character(Learner):
         # Keys & Powers
         #
 
-        if keyring:
-            keyring_root, keyring_checksum_address = keyring.keyring_root, keyring.checksum_address
-            if checksum_address and (keyring_checksum_address != checksum_address):
-                raise ValueError(f"Provided checksum address {checksum_address} "
-                                 f"does not match character's keyring checksum address {keyring_checksum_address}")
-            checksum_address = keyring_checksum_address
-
+        if keystore:
             crypto_power_ups = list()
             for power_up in self._default_crypto_powerups:
-                power = keyring.derive_crypto_power(power_class=power_up)
+                power = keystore.derive_crypto_power(power_class=power_up)
                 crypto_power_ups.append(power)
-        self.keyring = keyring
+        self.keystore = keystore
 
         if crypto_power and crypto_power_ups:
             raise ValueError("Pass crypto_power or crypto_power_ups (or neither), but not both.")
@@ -204,6 +189,7 @@ class Character(Learner):
                 try:
                     derived_federated_address = self.derive_federated_address()
                 except NoSigningPower:
+                    # TODO: Why allow such a character (without signing power) to be created at all?
                     derived_federated_address = NO_SIGNING_POWER.bool_value(False)
 
                 if checksum_address and (checksum_address != derived_federated_address):
@@ -226,7 +212,7 @@ class Character(Learner):
 
             verifying_key = self.public_keys(SigningPower)
             self._stamp = StrangerStamp(verifying_key)
-            self.keyring_root = STRANGER
+            self.keystore_dir = STRANGER
             self.network_middleware = STRANGER
             self.checksum_address = checksum_address
 
@@ -305,14 +291,14 @@ class Character(Learner):
     @classmethod
     def from_public_keys(cls,
                          powers_and_material: Dict = None,
-                         verifying_key: Union[bytes, UmbralPublicKey] = None,
-                         encrypting_key: Union[bytes, UmbralPublicKey] = None,
+                         verifying_key: Optional[PublicKey] = None,
+                         encrypting_key: Optional[PublicKey] = None,
                          *args, **kwargs) -> 'Character':
         """
         Sometimes we discover a Character and, at the same moment,
         learn the public parts of more of their powers. Here, we take a Dict
         (powers_and_material) in the format {CryptoPowerUp class: material},
-        where material can be bytes or UmbralPublicKey.
+        where material can be bytes or umbral.PublicKey.
 
         Each item in the collection will have the CryptoPowerUp instantiated
         with the given material, and the resulting CryptoPowerUp instance
@@ -333,7 +319,7 @@ class Character(Learner):
 
         for power_up, public_key in powers_and_material.items():
             try:
-                umbral_key = UmbralPublicKey.from_bytes(public_key)
+                umbral_key = PublicKey.from_bytes(public_key)
             except TypeError:
                 umbral_key = public_key
 
@@ -351,7 +337,7 @@ class Character(Learner):
         known_node_class.set_federated_mode(federated_only)
 
     # TODO: Unused
-    def store_metadata(self, filepath: str) -> str:
+    def store_metadata(self, filepath: Path) -> Path:
         """
         Save this node to the disk.
         :param filepath: Output filepath to save node metadata.
@@ -363,133 +349,24 @@ class Character(Learner):
     def encrypt_for(self,
                     recipient: 'Character',
                     plaintext: bytes,
-                    sign: bool = True,
-                    sign_plaintext=True,
-                    ) -> tuple:
+                    ) -> MessageKit:
         """
         Encrypts plaintext for recipient actor. Optionally signs the message as well.
 
         :param recipient: The character whose public key will be used to encrypt
             cleartext.
         :param plaintext: The secret to be encrypted.
-        :param sign: Whether or not to sign the message.
-        :param sign_plaintext: When signing, the cleartext is signed if this is
+        :param sign_plaintext: the cleartext is signed if this is
             True,  Otherwise, the resulting ciphertext is signed.
 
-        :return: A tuple, (ciphertext, signature).  If sign==False,
-            then signature will be NOT_SIGNED.
-        """
-        signer = self.stamp if sign else DO_NOT_SIGN
-
-        message_kit, signature = encrypt_and_sign(recipient_pubkey_enc=recipient.public_keys(DecryptingPower),
-                                                  plaintext=plaintext,
-                                                  signer=signer,
-                                                  sign_plaintext=sign_plaintext
-                                                  )
-        return message_kit, signature
-
-    def verify_from(self,
-                    stranger: 'Character',
-                    message_kit: Union[UmbralMessageKit, bytes],
-                    signature: Signature = None,
-                    decrypt=False,
-                    label=None,
-                    ) -> bytes:
-        """
-        Inverse of encrypt_for.
-
-        :param stranger: A Character instance representing
-            the actor whom the sender claims to be.  We check the public key
-            owned by this Character instance to verify.
-        :param message_kit: the message to be (perhaps decrypted and) verified.
-        :param signature: The signature to check.
-        :param decrypt: Whether or not to decrypt the messages.
-        :param label: A label used for decrypting messages encrypted under its associated policy encrypting key
-
-        :return: Whether or not the signature is valid, the decrypted plaintext or NO_DECRYPTION_PERFORMED
+        :return: the message kit.
         """
 
-        #
-        # Optional Sanity Check
-        #
+        # TODO: who even uses this method except for tests?
 
-        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
-        # If the higher-order object MessageKit is passed, we can perform an additional
-        # eager sanity check before performing decryption.
-
-        with contextlib.suppress(AttributeError):
-            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
-            if message_kit.sender_verifying_key:
-                if not message_kit.sender_verifying_key == sender_verifying_key:
-                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
-
-        #
-        # Decrypt
-        #
-
-        signature_from_kit = None
-        if decrypt:
-
-            # We are decrypting the message; let's do that first and see what the sig header says.
-            cleartext_with_sig_header = self.decrypt(message_kit=message_kit, label=label)
-            sig_header, cleartext = default_constant_splitter(cleartext_with_sig_header, return_remainder=True)
-
-            if sig_header == SIGNATURE_IS_ON_CIPHERTEXT:
-                # The ciphertext is what is signed - note that for later.
-                message = message_kit.ciphertext
-                if not signature:
-                    raise ValueError("Can't check a signature on the ciphertext if don't provide one.")
-
-            elif sig_header == SIGNATURE_TO_FOLLOW:
-                # The signature follows in this cleartext - split it off.
-                signature_from_kit, cleartext = signature_splitter(cleartext, return_remainder=True)
-                message = cleartext
-
-        else:
-            # Not decrypting - the message is the object passed in as a message kit.  Cast it.
-            message = bytes(message_kit)
-            cleartext = NO_DECRYPTION_PERFORMED
-
-        #
-        # Verify Signature
-        #
-
-        if signature and signature_from_kit:
-            if signature != signature_from_kit:
-                raise ValueError(
-                    "The MessageKit has a Signature, but it's not the same one you provided.  Something's up.")
-
-        signature_to_use = signature or signature_from_kit
-        if signature_to_use:
-            is_valid = signature_to_use.verify(message, sender_verifying_key)  # FIXME: Message is undefined here
-            if not is_valid:
-                try:
-                    node_on_the_other_end = self.known_node_class.from_seednode_metadata(stranger.seed_node_metadata(),
-                                                                                         network_middleware=self.network_middleware)
-                    if node_on_the_other_end != stranger:
-                        raise self.known_node_class.InvalidNode(
-                            f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
-                    else:
-                        raise InvalidSignature("Signature for message isn't valid: {}".format(signature_to_use))
-                except (TypeError, AttributeError) as e:
-                    raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
-        else:
-            raise InvalidSignature("No signature provided -- signature presumed invalid.")
-
-        return cleartext
-
-    def decrypt(self,
-                message_kit: UmbralMessageKit,
-                label: Optional[bytes] = None) -> bytes:
-        if label and DelegatingPower in self._default_crypto_powerups:
-            delegating_power = self._crypto_power.power_ups(DelegatingPower)
-            decrypting_power = delegating_power.get_decrypting_power_from_label(label)
-        else:
-            decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt(message_kit)
-
-    def sign(self, message):
-        return self._crypto_power.power_ups(SigningPower).sign(message)
+        message_kit = MessageKit.author(policy_encrypting_key=recipient.public_keys(DecryptingPower),
+                                        plaintext=plaintext)
+        return message_kit
 
     def public_keys(self, power_up_class: ClassVar):
         """
@@ -505,9 +382,7 @@ class Character(Learner):
     def derive_federated_address(self):
         if self.federated_only:
             verifying_key = self.public_keys(SigningPower)
-            uncompressed_bytes = verifying_key.to_bytes(is_compressed=False)
-            without_prefix = uncompressed_bytes[1:]
-            verifying_key_as_eth_key = EthKeyAPI.PublicKey(without_prefix)
+            verifying_key_as_eth_key = EthKeyAPI.PublicKey.from_compressed_bytes(bytes(verifying_key))
             federated_address = verifying_key_as_eth_key.to_checksum_address()
         else:
             raise RuntimeError('Federated address can only be derived for federated characters.')
@@ -524,9 +399,9 @@ class Character(Learner):
 
     def make_cli_controller(self, crash_on_error: bool = False):
         app_name = bytes(self.stamp).hex()[:6]
-        controller = CLIController(app_name=app_name,
-                                   crash_on_error=crash_on_error,
-                                   interface=self.interface)
+        controller = CharacterCLIController(app_name=app_name,
+                                            crash_on_error=crash_on_error,
+                                            interface=self.interface)
 
         self.controller = controller
         return controller

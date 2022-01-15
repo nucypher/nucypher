@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
 import click
 
@@ -24,7 +25,6 @@ from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.utils import get_registry
 from nucypher.cli.commands.stake import option_signer_uri
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -49,6 +49,7 @@ from nucypher.cli.options import (
 from nucypher.cli.painting.multisig import paint_multisig_contract_info, paint_multisig_proposed_transaction
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EXISTING_READABLE_FILE
+from nucypher.cli.utils import get_registry
 
 
 # TODO: Same option group in nucypher status (called RegistryOptions). Make something generic
@@ -201,7 +202,7 @@ def propose(general_config, blockchain_options, multisig_options):
 
     paint_multisig_proposed_transaction(emitter=emitter, proposal=proposal, registry=registry)
 
-    filepath = f'proposal-changeThreshold-{trustee.multisig_agent.contract_address[:8]}-TX-{proposal.nonce}.json'
+    filepath = Path(f'proposal-changeThreshold-{trustee.multisig_agent.contract_address[:8]}-TX-{proposal.nonce}.json')
     proposal.write(filepath=filepath)
     emitter.echo(SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL.format(filepath=filepath), color='blue', bold=True)
 

@@ -19,14 +19,13 @@ import os
 import pytest
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_wei
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import BaseEconomics
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.crypto.api import sha256_digest
+from nucypher.blockchain.eth.constants import NULL_ADDRESS, POLICY_ID_LENGTH
+from nucypher.crypto.utils import sha256_digest
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.utilities.ethereum import to_32byte_hex
 
 
@@ -194,8 +193,8 @@ def escrow(testerchain, escrow_bare, escrow_dispatcher):
 
 
 def mock_ursula(testerchain, account, mocker):
-    ursula_privkey = UmbralPrivateKey.gen_key()
-    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+    ursula_privkey = SecretKey.random()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.public_key(),
                                   signer=Signer(ursula_privkey))
 
     signed_stamp = testerchain.client.sign_message(account=account,
@@ -674,7 +673,7 @@ def test_policy(testerchain,
 
     # Create first policy
     # In the same period as staker's deposit
-    policy_id_1 = os.urandom(16)
+    policy_id_1 = os.urandom(POLICY_ID_LENGTH)
     number_of_periods = 5
     one_period = 60 * 60
     rate = 200
@@ -746,7 +745,7 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
 
     # Create other policies
-    policy_id_1 = os.urandom(16)
+    policy_id_1 = os.urandom(POLICY_ID_LENGTH)
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     tx = policy_manager.functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1, staker2]) \
@@ -754,28 +753,28 @@ def test_policy(testerchain,
     testerchain.wait_for_receipt(tx)
     policy_manager_balance += value
 
-    policy_id_2 = os.urandom(16)
+    policy_id_2 = os.urandom(POLICY_ID_LENGTH)
     tx = policy_manager.functions.createPolicy(
         policy_id_2, alice2, end_timestamp, [staker2, preallocation_escrow_1.address]) \
         .transact({'from': alice1, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     policy_manager_balance += value
 
-    policy_id_3 = os.urandom(16)
+    policy_id_3 = os.urandom(POLICY_ID_LENGTH)
     tx = policy_manager.functions.createPolicy(
         policy_id_3, NULL_ADDRESS, end_timestamp, [staker1, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     policy_manager_balance += value
 
-    policy_id_4 = os.urandom(16)
+    policy_id_4 = os.urandom(POLICY_ID_LENGTH)
     tx = policy_manager.functions.createPolicy(
         policy_id_4, alice1, end_timestamp, [staker2, preallocation_escrow_1.address]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
     policy_manager_balance += value
 
-    policy_id_5 = os.urandom(16)
+    policy_id_5 = os.urandom(POLICY_ID_LENGTH)
     tx = policy_manager.functions.createPolicy(
         policy_id_5, alice1, end_timestamp, [staker1, staker2]) \
         .transact({'from': alice2, 'value': value, 'gas_price': 0})

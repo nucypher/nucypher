@@ -14,11 +14,9 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
-import lmdb
-import os
 import pytest
-from contextlib import contextmanager
 from eth_account.account import Account
 
 from nucypher.blockchain.economics import EconomicsFactory
@@ -34,7 +32,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.config.characters import UrsulaConfiguration, StakeHolderConfiguration
+from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
@@ -213,8 +211,8 @@ def worker_address(worker_account):
 
 
 @pytest.fixture(scope='module')
-def custom_config_filepath(custom_filepath):
-    filepath = os.path.join(custom_filepath, UrsulaConfiguration.generate_filename())
+def custom_config_filepath(custom_filepath: Path):
+    filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     return filepath
 
 
@@ -234,7 +232,7 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
             raise FileNotFoundError(f"No such file {full_path}")
         return account.address, dict(version=3, address=account.address)
 
-    mocker.patch('os.listdir', return_value=list(mock_accounts.keys()))
+    mocker.patch('pathlib.Path.iterdir', return_value=[Path(key) for key in mock_accounts.keys()])
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
     yield
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
@@ -242,8 +240,7 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
 
 @pytest.fixture(scope='function')
 def patch_stakeholder_configuration(mock_accounts, monkeypatch):
-
-    def mock_read_configuration_file(filepath: str) -> dict:
+    def mock_read_configuration_file(filepath: Path) -> dict:
         return dict()
 
     monkeypatch.setattr(StakeHolderConfiguration, '_read_configuration_file', mock_read_configuration_file)

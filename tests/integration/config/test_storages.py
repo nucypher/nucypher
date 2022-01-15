@@ -15,13 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-import pytest
 import tempfile
+
+import pytest
+
+from nucypher.core import NodeMetadata
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage, TemporaryFileBasedNodeStorage
+from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.network.nodes import Learner
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
@@ -50,7 +52,7 @@ class BaseTestNodeStorageBackends:
         node_storage.store_node_metadata(node=ursula)
 
         # Read Node
-        node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
+        node_from_storage = node_storage.get(stamp=ursula.stamp,
                                              federated_only=True)
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
@@ -78,34 +80,14 @@ class BaseTestNodeStorageBackends:
         # Read random nodes
         for i in range(3):
             random_node = all_known_nodes.pop()
-            random_node_from_storage = node_storage.get(checksum_address=random_node.checksum_address,
-                                                        federated_only=True)
+            random_node_from_storage = node_storage.get(stamp=random_node.stamp, federated_only=True)
             assert random_node.checksum_address == random_node_from_storage.checksum_address
 
-        return True
-
-    def _write_and_delete_metadata(self, ursula, node_storage):
-        # Write Node
-        node_storage.store_node_metadata(node=ursula)
-
-        # Delete Node
-        node_storage.remove(checksum_address=ursula.checksum_address, certificate=False)
-
-        # Read Node
-        with pytest.raises(NodeStorage.UnknownNode):
-            _node_from_storage = node_storage.get(checksum_address=ursula.checksum_address,
-                                                  federated_only=True)
-
-        # Read all nodes from storage
-        all_stored_nodes = node_storage.all(federated_only=True)
-        assert all_stored_nodes == set()
         return True
 
     #
     # Storage Backend Tests
     #
-    def test_delete_node_in_storage(self, light_ursula):
-        assert self._write_and_delete_metadata(ursula=light_ursula, node_storage=self.storage_backend)
 
     def test_read_and_write_to_storage(self, light_ursula):
         assert self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
@@ -125,25 +107,26 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
 
     def test_invalid_metadata(self, light_ursula):
         self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend)
-        some_node, another_node, *other = os.listdir(self.storage_backend.metadata_dir)
+        some_node, another_node, *other = list(self.storage_backend.metadata_dir.iterdir())
 
         # Let's break the metadata (but not the version)
-        metadata_path = os.path.join(self.storage_backend.metadata_dir, some_node)
+        metadata_path = self.storage_backend.metadata_dir / some_node
         with open(metadata_path, 'wb') as file:
-            file.write(Learner.LEARNER_VERSION.to_bytes(4, 'big') + b'invalid')
+            file.write(NodeMetadata._header() + b'invalid')
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(checksum_address=some_node[:-5],
+            self.storage_backend.get(stamp=some_node.name[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 
         # Let's break the metadata, by putting a completely wrong version
-        metadata_path = os.path.join(self.storage_backend.metadata_dir, another_node)
+        metadata_path = self.storage_backend.metadata_dir / another_node
         with open(metadata_path, 'wb') as file:
-            file.write(b'meh')  # Versions are expected to be 4 bytes, but this is 3 bytes
+            full_header = NodeMetadata._header()
+            file.write(full_header[:-1])  # Not even a valid header
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(checksum_address=another_node[:-5],
+            self.storage_backend.get(stamp=another_node.name[:-5],
                                      federated_only=True,
                                      certificate_only=False)
 

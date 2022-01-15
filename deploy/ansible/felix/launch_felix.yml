@@ -27,7 +27,7 @@
         dest: /etc/systemd/system/felix_faucet.service
         mode: 0755
       vars:
-        keyring_password: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        keystore_password: "{{ lookup('env', 'NUCYPHER_FELIX_KEYSTORE_PASSWORD') }}"
         db_secret: "{{ lookup('env', 'NUCYPHER_FELIX_DB_SECRET') }}"
         virtualenv_path: '/home/ubuntu/venv'
         nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"

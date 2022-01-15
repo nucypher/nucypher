@@ -15,15 +15,12 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import tempfile
 from contextlib import contextmanager
 from unittest.mock import patch
 
+from nucypher.crypto.umbral_adapter import PublicKey, Signature
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
-from umbral.config import default_params
-from umbral.keys import UmbralPublicKey
-from umbral.signing import Signature
 
 mock_cert_storage = patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
                           new=lambda *args, **kwargs: "this_might_normally_be_a_filepath")
@@ -54,7 +51,7 @@ class NotAPublicKey:
     _serial_bytes_length = 5
     _serial = 10000
 
-    _umbral_pubkey_from_bytes = UmbralPublicKey.from_bytes
+    _umbral_pubkey_from_bytes = PublicKey.from_bytes
 
     def _tick():
         for serial in good_serials:
@@ -69,7 +66,7 @@ class NotAPublicKey:
             self.serial = serial
 
     def __bytes__(self):
-        return b"\x03\ not a compress publickey:" + self.serial
+        return b"\x03  not a compress publickey:" + self.serial
 
     @classmethod
     def reset(cls):
@@ -83,54 +80,34 @@ class NotAPublicKey:
     def from_int(cls, serial):
         return cls(serial.to_bytes(cls._serial_bytes_length, byteorder="big"))
 
-    def to_bytes(self, *args, **kwargs):
-        return b"this is not a public key... but it is 64 bytes.. so, ya know" + self.serial
-
     def i_want_to_be_a_real_boy(self):
-        _umbral_pubkey = self._umbral_pubkey_from_bytes(bytes(self))
-        self.__dict__ = _umbral_pubkey.__dict__
-        self.__class__ = _umbral_pubkey.__class__
-
-    def to_cryptography_pubkey(self):
-        self.i_want_to_be_a_real_boy()
-        return self.to_cryptography_pubkey()
-
-    @property
-    def params(self):
-        # Holy heck, metamock hacking.
-        self.i_want_to_be_a_real_boy()
-        return self.params
+        return self._umbral_pubkey_from_bytes(bytes(self))
 
     def __eq__(self, other):
         return bytes(self) == bytes(other)
 
 
 class NotAPrivateKey:
-    params = default_params()
-
-    fake_signature = Signature.from_bytes(
-        b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
-    )
 
     def public_key(self):
         return NotAPublicKey()
 
-    def get_pubkey(self, *args, **kwargs):
-        return self.public_key()
 
-    def to_cryptography_privkey(self, *args, **kwargs):
-        return self
+class NotASignature:
 
-    def sign(self, *args, **kwargs):
-        return b'0D\x02 @\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaap\x02 ON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+    fake_signature_bytes = b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
 
-    @classmethod
-    def stamp(cls, *args, **kwargs):
-        return cls.fake_signature
+    def __bytes__(self):
+        return self.fake_signature_bytes
 
-    @classmethod
-    def signature_bytes(cls, *args, **kwargs):
-        return b'@\xbfS&\x97\xb3\x9e\x9e\xd3\\j\x9f\x0e\x8fY\x0c\xbeS\x08d\x0b%s\xf6\x17\xe2\xb6\xcd\x95u\xaapON\xd9E\xb3\x10M\xe1\xf4u\x0bL\x99q\xd6\r\x8e_\xe5I\x1e\xe5\xa2\xcf\xe5\x8be_\x077Gz'
+
+class NotASigner:
+
+    def __init__(self, secret_key):
+        self._secret_key = secret_key
+
+    def sign(self, message):
+        return NotASignature()
 
 
 class NotACert:
@@ -150,7 +127,7 @@ class NotACert:
         return NotAPublicKey()
 
 
-mock_cert_loading = patch("nucypher.characters.lawful.load_pem_x509_certificate",
+mock_cert_loading = patch("nucypher.network.nodes.load_pem_x509_certificate",
                           new=lambda *args, **kwargs: NotACert())
 
 
@@ -222,7 +199,7 @@ class VerificationTracker:
         cls.metadata_verifications += 1
 
 
-mock_cert_generation = patch("nucypher.crypto.api.generate_self_signed_certificate", new=do_not_create_cert)
+mock_cert_generation = patch("nucypher.crypto.tls.generate_self_signed_certificate", new=do_not_create_cert)
 mock_rest_app_creation = patch("nucypher.characters.lawful.make_rest_app",
                                new=NotARestApp.create_with_not_a_datastore)
 
@@ -236,19 +213,16 @@ mock_metadata_validation = patch("nucypher.network.nodes.Teacher.validate_metada
 @contextmanager
 def mock_secret_source(*args, **kwargs):
     with patch("nucypher.crypto.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
-        yield
+        with patch("nucypher.crypto.keypairs.Signer", new=lambda *args, **kwargs: NotASigner(*args, **kwargs)):
+            yield
     NotAPublicKey.reset()
 
 
 @contextmanager
 def mock_pubkey_from_bytes(*args, **kwargs):
-    with patch('umbral.keys.UmbralPublicKey.from_bytes', NotAPublicKey.from_bytes):
+    with patch('nucypher.crypto.umbral_adapter.PublicKey.from_bytes', NotAPublicKey.from_bytes):
         yield
     NotAPublicKey.reset()
-
-
-mock_stamp_call = patch('nucypher.crypto.signing.SignatureStamp.__call__', new=NotAPrivateKey.stamp)
-mock_signature_bytes = patch('umbral.signing.Signature.__bytes__', new=NotAPrivateKey.signature_bytes)
 
 
 def _determine_good_serials(start, end):

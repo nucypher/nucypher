@@ -127,7 +127,7 @@ Export Worker Environment Variables
 .. code:: bash
 
     # Passwords used for both creation and unlocking
-    export NUCYPHER_KEYRING_PASSWORD=<YOUR KEYRING_PASSWORD>
+    export NUCYPHER_KEYSTORE_PASSWORD=<YOUR KEYSTORE_PASSWORD>
     export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
 
 Initialize a new Worker
@@ -140,7 +140,7 @@ Initialize a new Worker
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
     -v ~/.ethereum/:/root/.ethereum               \
     -p 9151:9151                                  \
-    -e NUCYPHER_KEYRING_PASSWORD                  \
+    -e NUCYPHER_KEYSTORE_PASSWORD                  \
     nucypher/nucypher:latest                      \
     nucypher ursula init                          \
     --signer keystore:///root/.ethereum/keystore  \
@@ -166,7 +166,7 @@ Launch the worker
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
     -v ~/.ethereum/:/root/.ethereum  \
     -p 9151:9151                     \
-    -e NUCYPHER_KEYRING_PASSWORD     \
+    -e NUCYPHER_KEYSTORE_PASSWORD     \
     -e NUCYPHER_WORKER_ETH_PASSWORD  \
     nucypher/nucypher:latest         \
     nucypher ursula run              \
@@ -253,7 +253,7 @@ The configuration settings will be stored in an ursula configuration file.
    User=<YOUR USER>
    Type=simple
    Environment="NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ADDRESS PASSWORD>"
-   Environment="NUCYPHER_KEYRING_PASSWORD=<YOUR PASSWORD>"
+   Environment="NUCYPHER_KEYSTORE_PASSWORD=<YOUR PASSWORD>"
    ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
 
    [Install]
@@ -264,7 +264,7 @@ Replace the following values with your own:
 
    * ``<YOUR USER>`` - The host system's username to run the process with (best practice is to use a dedicated user)
    * ``<YOUR WORKER ADDRESS PASSWORD>`` - Worker's ETH account password
-   * ``<YOUR PASSWORD>`` - Ursula's keyring password
+   * ``<YOUR PASSWORD>`` - Ursula's keystore password
    * ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable
 
 

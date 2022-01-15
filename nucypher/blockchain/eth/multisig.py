@@ -17,11 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 from collections import namedtuple
+from pathlib import Path
+from typing import Any, Dict, Tuple
 
 from bytestring_splitter import BytestringSplitter
 from eth_abi.packed import encode_single_packed
 from eth_account import Account
-from typing import Any, Dict, Tuple
 from web3 import Web3
 from web3.contract import Contract, ContractFunction
 
@@ -93,7 +94,7 @@ class Proposal:
         else:
             raise ValueError("This proposed TX doesn't have data")
 
-    def write(self, filepath: str = None) -> str:
+    def write(self, filepath: Path) -> Path:
         elements = vars(self)  # TODO: @kprasch, @jmyles  wdyt of using vars here?
         elements['data'] = elements['data'].hex()
         elements['digest'] = elements['digest'].hex()
@@ -102,7 +103,7 @@ class Proposal:
         return filepath
 
     @classmethod
-    def from_file(cls, filepath: str = None) -> 'Proposal':
+    def from_file(cls, filepath: Path) -> 'Proposal':
         with open(filepath) as json_file:
             elements = json.load(json_file)
         elements['data'] = bytes.fromhex(elements['data'])
@@ -149,13 +150,13 @@ class Authorization:
         bytestr = Web3.toBytes(hexstr=hexstr)
         return cls.deserialize(bytestr)
 
-    def _write(self, filepath: str) -> str:
+    def _write(self, filepath: Path) -> Path:
         with open(filepath, 'wb') as file:
             file.write(self.serialize())
         return filepath
 
     @classmethod
-    def from_file(cls, filepath: str) -> 'Authorization':
+    def from_file(cls, filepath: Path) -> 'Authorization':
         with open(filepath, 'rb') as file:
             data = file.read()
         return cls.deserialize(data=data)

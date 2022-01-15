@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from bytestring_splitter import VariableLengthBytestring
 from eth_utils import is_checksum_address
 from urllib.parse import urlparse
 
@@ -62,7 +61,6 @@ def parse_node_uri(uri: str):
 
 
 class InterfaceInfo:
-    expected_bytes_length = lambda: VariableLengthBytestring
 
     def __init__(self, host, port) -> None:
         loopback, localhost = LOOPBACK_ADDRESS, 'localhost'
@@ -73,13 +71,6 @@ class InterfaceInfo:
         yield self.host
         yield self.port
 
-    @classmethod
-    def from_bytes(cls, url_string):
-        host_bytes, port_bytes = url_string.split(b':', 1)
-        port = int.from_bytes(port_bytes, "big")
-        host = host_bytes.decode("utf-8")
-        return cls(host=host, port=port)
-
     @property
     def uri(self):
         return u"{}:{}".format(self.host, self.port)
@@ -87,15 +78,6 @@ class InterfaceInfo:
     @property
     def formal_uri(self):
         return u"{}://{}".format('https', self.uri)
-
-    def __bytes__(self):
-        return bytes(self.host, encoding="utf-8") + b":" + self.port.to_bytes(4, "big")
-
-    def __add__(self, other):
-        return bytes(self) + bytes(other)
-
-    def __radd__(self, other):
-        return bytes(other) + bytes(self)
 
     def __repr__(self):
         return self.uri

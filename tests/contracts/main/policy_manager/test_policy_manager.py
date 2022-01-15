@@ -22,7 +22,7 @@ from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.constants import NULL_ADDRESS, POLICY_ID_LENGTH
 
 DISABLED_FIELD = 0
 SPONSOR_FIELD = 1
@@ -35,8 +35,6 @@ FEE_FIELD = 0
 PREVIOUS_FEE_PERIOD_FIELD = 1
 FEE_RATE_FIELD = 2
 MIN_FEE_RATE_FIELD = 3
-
-POLICY_ID_LENGTH = 16
 
 
 def test_create_revoke(testerchain, escrow, policy_manager):

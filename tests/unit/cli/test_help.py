@@ -87,14 +87,14 @@ def test_echo_config_root(click_runner):
     version_args = ('--config-path', )
     result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert DEFAULT_CONFIG_ROOT in result.output, 'Configuration path text was not produced.'
+    assert str(DEFAULT_CONFIG_ROOT.absolute()) in result.output, 'Configuration path text was not produced.'
 
 
 def test_echo_logging_root(click_runner):
     version_args = ('--logging-path', )
     result = click_runner.invoke(nucypher_cli, version_args, catch_exceptions=False)
     assert result.exit_code == 0
-    assert USER_LOG_DIR in result.output, 'Log path text was not produced.'
+    assert str(USER_LOG_DIR.absolute()) in result.output, 'Log path text was not produced.'
 
 
 def test_contacts_help(click_runner):

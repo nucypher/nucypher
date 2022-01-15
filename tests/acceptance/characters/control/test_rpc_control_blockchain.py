@@ -14,34 +14,13 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 from base64 import b64encode
 
 import pytest
 
 from nucypher.characters.control.interfaces import AliceInterface
-from nucypher.characters.control.interfaces import BobInterface, EnricoInterface
-from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.policy.collections import SignedTreasureMap
+from nucypher.characters.control.interfaces import EnricoInterface
 from tests.utils.controllers import get_fields, validate_json_rpc_response_data
-
-
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
-    for ursula in blockchain_ursulas:
-        if ursula.checksum_address in enacted_blockchain_policy.treasure_map.destinations:
-            # Simulate passing in a teacher-uri
-            blockchain_bob.remember_node(ursula)
-            break
-    else:
-        # Shouldn't happen
-        raise Exception("No known Ursulas present in the treasure map destinations")
-
-    method_name, params = join_control_request
-    request_data = {'method': method_name, 'params': params}
-    response = bob_rpc_controller.send(request_data)
-    assert validate_json_rpc_response_data(response=response,
-                                           method_name=method_name,
-                                           interface=BobInterface)
 
 
 def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test_client, encrypt_control_request):
@@ -53,34 +32,28 @@ def test_enrico_rpc_character_control_encrypt_message(enrico_rpc_controller_test
                                            interface=EnricoInterface)
 
 
-def test_bob_rpc_character_control_retrieve_with_tmap(
-        enacted_blockchain_policy, blockchain_bob, blockchain_alice,
-        bob_rpc_controller, retrieve_control_request):
-
+def test_bob_rpc_character_control_retrieve_with_tmap(enacted_blockchain_policy,
+                                                      blockchain_bob,
+                                                      bob_rpc_controller,
+                                                      retrieve_control_request):
     # So that this test can run even independently.
     if not blockchain_bob.done_seeding:
         blockchain_bob.learn_from_teacher_node()
 
     tmap_64 = b64encode(bytes(enacted_blockchain_policy.treasure_map)).decode()
     method_name, params = retrieve_control_request
-    params['treasure_map'] = tmap_64
+    params['encrypted_treasure_map'] = tmap_64
     request_data = {'method': method_name, 'params': params}
     response = bob_rpc_controller.send(request_data)
     assert response.data['result']['cleartexts'][0] == 'Welcome to flippering number 1.'
 
-    # Make a wrong (empty) treasure map
+    # Make a wrong treasure map
+    enc_wrong_tmap = bytes(enacted_blockchain_policy.treasure_map)[1:-1]
 
-    wrong_tmap = SignedTreasureMap(m=0)
-    wrong_tmap.prepare_for_publication(
-        blockchain_bob.public_keys(DecryptingPower),
-        blockchain_bob.public_keys(SigningPower),
-        blockchain_alice.stamp,
-        b'Wrong!')
-    wrong_tmap._blockchain_signature = b"this is not a signature, but we don't need one for this test....."  # ...because it only matters when Ursula looks at it.
-    tmap_bytes = bytes(wrong_tmap)
+    tmap_bytes = bytes(enc_wrong_tmap)
     tmap_64 = b64encode(tmap_bytes).decode()
-    request_data['params']['treasure_map'] = tmap_64
-    with pytest.raises(SignedTreasureMap.IsDisorienting):
+    request_data['params']['encrypted_treasure_map'] = tmap_64
+    with pytest.raises(ValueError):
         bob_rpc_controller.send(request_data)
 
 

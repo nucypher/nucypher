@@ -14,11 +14,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from base64 import b64decode
+from pathlib import Path
 
 import click
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import BobInterface
 from nucypher.characters.lawful import Alice
 from nucypher.cli.actions.auth import get_nucypher_password
@@ -32,6 +35,7 @@ from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
+    option_alice_verifying_key,
     option_checksum_address,
     option_config_file,
     option_config_root,
@@ -49,7 +53,8 @@ from nucypher.cli.options import (
     option_signer_uri,
     option_teacher_uri,
     option_lonely,
-    option_max_gas_price
+    option_max_gas_price,
+    option_key_material
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -68,7 +73,7 @@ class BobConfigOptions:
     def __init__(self, 
                  provider_uri: str,
                  network: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  checksum_address: str,
                  discovery_port: int,
                  dev: bool,
@@ -93,7 +98,7 @@ class BobConfigOptions:
         self.federated_only = federated_only
         self.lonely = lonely
 
-    def create_config(self, emitter: StdoutEmitter, config_file: str) -> BobConfiguration:
+    def create_config(self, emitter: StdoutEmitter, config_file: Path) -> BobConfiguration:
         if self.dev:
             return BobConfiguration(
                 emitter=emitter,
@@ -132,7 +137,7 @@ class BobConfigOptions:
                 handle_missing_configuration_file(character_config_class=BobConfiguration,
                                                   config_file=config_file)
 
-    def generate_config(self, emitter: StdoutEmitter, config_root: str) -> BobConfiguration:
+    def generate_config(self, emitter: StdoutEmitter, config_root: Path, key_material: str) -> BobConfiguration:
 
         checksum_address = self.checksum_address
         if not checksum_address and not self.federated_only:
@@ -142,6 +147,7 @@ class BobConfigOptions:
 
         return BobConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
+            key_material=bytes.fromhex(key_material) if key_material else None,
             config_root=config_root,
             checksum_address=checksum_address,
             domain=self.domain,
@@ -200,7 +206,7 @@ class BobCharacterOptions:
         config = self.config_options.create_config(emitter, config_file)
         BOB = make_cli_character(character_config=config,
                                  emitter=emitter,
-                                 unlock_keyring=not self.config_options.dev,
+                                 unlock_keystore=not self.config_options.dev,
                                  unlock_signer=not config.federated_only and config.signer_uri,
                                  teacher_uri=self.teacher_uri,
                                  min_stake=self.min_stake,
@@ -226,12 +232,15 @@ def bob():
 @option_federated_only
 @option_config_root
 @group_general_config
-def init(general_config, config_options, config_root):
+@option_key_material
+def init(general_config, config_options, config_root, key_material):
     """Create a brand new persistent Bob."""
     emitter = setup_emitter(general_config)
     if not config_root:
         config_root = general_config.config_root
-    new_bob_config = config_options.generate_config(emitter, config_root)
+    new_bob_config = config_options.generate_config(emitter=emitter,
+                                                    config_root=config_root,
+                                                    key_material=key_material)
     filepath = new_bob_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=new_bob_config, filepath=filepath)
 
@@ -265,7 +274,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
     # Start Controller
     controller = BOB.make_web_controller(crash_on_error=general_config.debug)
     BOB.log.info('Starting HTTP Character Web Controller')
-    return controller.start(http_port=controller_port, dry_run=dry_run)
+    return controller.start(port=controller_port, dry_run=dry_run)
 
 
 @bob.command()
@@ -335,43 +344,34 @@ def make_card(general_config, character_options, config_file, nickname):
 @option_config_file
 @group_general_config
 @option_force
-@BobInterface.connect_cli('retrieve')
+@BobInterface.connect_cli('retrieve_and_decrypt', exclude={'alice_verifying_key'})  # indicate that alice_verifying_key should be excluded as an option
+@option_alice_verifying_key(required=False)  # alice verifying key overridden to be not required, to allow Alice card to be possibly specified instead (#2115)
 @click.option('--alice', type=click.STRING, help="The card id or nickname of a stored Alice card.")
 @click.option('--ipfs', help="Download an encrypted message from IPFS at the specified gateway URI")
 @click.option('--decode', help="Decode base64 plaintext messages", is_flag=True)
-def retrieve(general_config,
-             character_options,
-             config_file,
-             label,
-             policy_encrypting_key,
-             alice_verifying_key,
-             message_kit,
-             ipfs,
-             alice,
-             decode,
-             force):
+def retrieve_and_decrypt(general_config,
+                         character_options,
+                         config_file,
+                         alice_verifying_key,
+                         treasure_map,
+                         message_kit,
+                         ipfs,
+                         alice,
+                         decode,
+                         force):
     """Obtain plaintext from encrypted data, if access was granted."""
+    # 'message_kit' is a required and a "multiple" value click option  - the option name was kept singular so that
+    # it makes sense when specifying many of them i.e. `--message-kit <message_kit_1> --message-kit <message_kit_2> ...`
+    message_kits = list(message_kit)
 
     # Setup
     emitter = setup_emitter(general_config)
     BOB = character_options.create_character(emitter, config_file, json_ipc=general_config.json_ipc)
 
-    if not message_kit:
-        if ipfs:
-            prompt = "Enter IPFS CID for encrypted data"
-        else:
-            prompt = "Enter encrypted data (base64)"
-        message_kit = click.prompt(prompt, type=click.STRING)
-
-    if ipfs:
-        import ipfshttpclient
-        # TODO: #2108
-        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
-        ipfs_client = ipfshttpclient.connect(ipfs)
-        cid = message_kit  # Understand the message kit value as an IPFS hash.
-        raw_message_kit = ipfs_client.cat(cid)  # cat the contents at the hash reference
-        emitter.message(f"Downloaded message kit from IPFS (CID {cid})", color='green')
-        message_kit = raw_message_kit.decode()  # cast to utf-8
+    if not (bool(alice_verifying_key) ^ bool(alice)):
+        message = f"Pass either '--alice_verifying_key' or '--alice'; " \
+                  f"got {'both' if alice_verifying_key else 'neither'}"
+        raise click.BadOptionUsage(option_name='--alice_verifying_key, --alice', message=message)
 
     if not alice_verifying_key:
         if alice:  # from storage
@@ -379,31 +379,39 @@ def retrieve(general_config,
             if card.character is not Alice:
                 emitter.error('Grantee card is not an Alice.')
                 raise click.Abort
-            alice_verifying_key = card.verifying_key.hex()
+            alice_verifying_key = bytes(card.verifying_key).hex()
             emitter.message(f'{card.nickname or ("Alice #"+card.id.hex())}\n'
-                            f'Verifying Key  | {card.verifying_key.hex()}',
+                            f'Verifying Key  | {bytes(card.verifying_key).hex()}',
                             color='green')
             if not force:
                 click.confirm('Is this the correct Granter (Alice)?', abort=True)
-        else:  # interactive
-            alice_verifying_key = click.prompt("Enter Alice's verifying key", click.STRING)
 
-    if not force:
-        if not policy_encrypting_key:
-            policy_encrypting_key = click.prompt("Enter policy public key", type=click.STRING)
+    if ipfs:
+        # '--message_kit' option was repurposed to specify ipfs cids (#2098)
+        cids = []
+        for cid in message_kits:
+            cids.append(cid)
 
-        if not label:
-            label = click.prompt("Enter label to retrieve", type=click.STRING)
+        # populate message_kits list with actual message_kits
+        message_kits = []
+        import ipfshttpclient
+        # TODO: #2108
+        emitter.message(f"Connecting to IPFS Gateway {ipfs}")
+        ipfs_client = ipfshttpclient.connect(ipfs)
+        for cid in cids:
+            raw_message_kit = ipfs_client.cat(cid)  # cat the contents at the hash reference
+            emitter.message(f"Downloaded message kit from IPFS (CID {cid})", color='green')
+            message_kit = raw_message_kit.decode()  # cast to utf-8
+            message_kits.append(message_kit)
 
     # Request
     bob_request_data = {
-        'label': label,
-        'policy_encrypting_key': policy_encrypting_key,
         'alice_verifying_key': alice_verifying_key,
-        'message_kit': message_kit,
+        'message_kits': message_kits,
+        'encrypted_treasure_map': treasure_map
     }
 
-    response = BOB.controller.retrieve(request=bob_request_data)
+    response = BOB.controller.retrieve_and_decrypt(request=bob_request_data)
     if decode:
         messages = list([b64decode(r).decode() for r in response['cleartexts']])
         emitter.echo('----------Messages----------')

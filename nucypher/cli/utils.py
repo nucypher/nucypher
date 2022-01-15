@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import os
 import shutil
 from distutils.util import strtobool
@@ -39,10 +38,10 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry
 )
 from nucypher.characters.base import Character
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_nucypher_password,
-    unlock_nucypher_keyring,
+    unlock_nucypher_keystore,
     unlock_signer_account
 )
 from nucypher.cli.literature import (
@@ -68,7 +67,7 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
 
 def make_cli_character(character_config,
                        emitter,
-                       unlock_keyring: bool = True,
+                       unlock_keystore: bool = True,
                        unlock_signer: bool = True,
                        teacher_uri: str = None,
                        min_stake: int = 0,
@@ -80,11 +79,11 @@ def make_cli_character(character_config,
     # Pre-Init
     #
 
-    # Handle Keyring
-    if unlock_keyring:
-        unlock_nucypher_keyring(emitter,
-                                character_configuration=character_config,
-                                password=get_nucypher_password(emitter=emitter, confirm=False))
+    # Handle KEYSTORE
+    if unlock_keystore:
+        unlock_nucypher_keystore(emitter,
+                                 character_configuration=character_config,
+                                 password=get_nucypher_password(emitter=emitter, confirm=False))
 
     # Handle Signer/Wallet
     if unlock_signer:
@@ -130,13 +129,12 @@ def make_cli_character(character_config,
 
 def establish_deployer_registry(emitter,
                                 network: str = None,
-                                registry_infile: str = None,
-                                registry_outfile: str = None,
+                                registry_infile: Optional[Path] = None,
+                                registry_outfile: Optional[Path] = None,
                                 use_existing_registry: bool = False,
                                 download_registry: bool = False,
                                 dev: bool = False
                                 ) -> BaseContractRegistry:
-
     if download_registry:
         registry = InMemoryContractRegistry.from_latest_publication(network=network)
         emitter.message(PRODUCTION_REGISTRY_ADVISORY.format(source=registry.source))
@@ -144,7 +142,7 @@ def establish_deployer_registry(emitter,
 
     # Establish a contract registry from disk if specified
     filepath = registry_infile
-    default_registry_filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.REGISTRY_NAME)
+    default_registry_filepath = DEFAULT_CONFIG_ROOT / BaseContractRegistry.REGISTRY_NAME
     if registry_outfile:
         # mutative usage of existing registry
         registry_infile = registry_infile or default_registry_filepath
@@ -157,7 +155,7 @@ def establish_deployer_registry(emitter,
 
     if dev:
         # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        filepath = os.path.join(DEFAULT_CONFIG_ROOT, BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME)
+        filepath = DEFAULT_CONFIG_ROOT / BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME
 
     registry_filepath = filepath or default_registry_filepath
 
@@ -167,7 +165,7 @@ def establish_deployer_registry(emitter,
     return registry
 
 
-def get_registry(network: str, registry_filepath: str = None) -> BaseContractRegistry:
+def get_registry(network: str, registry_filepath: Optional[Path] = None) -> BaseContractRegistry:
     if registry_filepath:
         registry = LocalContractRegistry(filepath=registry_filepath)
     else:
@@ -175,7 +173,7 @@ def get_registry(network: str, registry_filepath: str = None) -> BaseContractReg
     return registry
 
 
-def connect_to_blockchain(emitter: StdoutEmitter, 
+def connect_to_blockchain(emitter: StdoutEmitter,
                           provider_uri: str,
                           debug: bool = False,
                           light: bool = False
@@ -203,7 +201,6 @@ def initialize_deployer_interface(emitter: StdoutEmitter,
                                   gas_strategy: str = None,
                                   max_gas_price: int = None
                                   ) -> BlockchainDeployerInterface:
-    
     if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
         deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
                                                          poa=poa,
@@ -225,11 +222,11 @@ def get_env_bool(var_name: str, default: bool) -> bool:
         return default
 
 
-def ensure_config_root(config_root: str) -> None:
+def ensure_config_root(config_root: Path) -> None:
     """Ensure config root exists, because we need a default place to put output files."""
     config_root = config_root or DEFAULT_CONFIG_ROOT
-    if not os.path.exists(config_root):
-        os.makedirs(config_root)
+    if not config_root.exists():
+        config_root.mkdir(parents=True)
 
 
 def deployer_pre_launch_warnings(emitter: StdoutEmitter, etherscan: bool, hw_wallet: bool) -> None:
@@ -267,9 +264,9 @@ def retrieve_events(emitter: StdoutEmitter,
                     from_block: BlockIdentifier,
                     to_block: BlockIdentifier,
                     argument_filters: Dict,
-                    csv_output_file: Optional[str] = None) -> None:
+                    csv_output_file: Optional[Path] = None) -> None:
     if csv_output_file:
-        if Path(csv_output_file).exists():
+        if csv_output_file.exists():
             click.confirm(CONFIRM_OVERWRITE_EVENTS_CSV_FILE.format(csv_file=csv_output_file), abort=True)
         available_events = write_events_to_csv_file(csv_file=csv_output_file,
                                                     agent=agent,

@@ -18,6 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import secrets
+from pathlib import Path
 
 import pytest
 from eth_account import Account
@@ -28,7 +29,7 @@ from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_KEYRING_PASSWORD,
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
 )
@@ -75,13 +76,13 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     #
 
     init_args = ('stake', 'init-stakeholder',
-                 '--config-root', config_root_path,
+                 '--config-root', str(config_root_path.absolute()),
                  '--provider', TEST_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN)
     click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
 
     stake_args = ('stake', 'create',
-                  '--config-file', stakeholder_config_path,
+                  '--config-file', str(stakeholder_config_path.absolute()),
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
                   '--lock-periods', token_economics.minimum_locked_periods,
@@ -91,7 +92,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
 
     init_args = ('stake', 'bond-worker',
-                 '--config-file', stakeholder_config_path,
+                 '--config-file', str(stakeholder_config_path.absolute()),
                  '--staking-address', manual_staker,
                  '--worker-address', worker_account.address,
                  '--force')
@@ -112,7 +113,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--worker-address', worker_account.address,
-                 '--config-root', config_root_path,
+                 '--config-root', str(config_root_path.absolute()),
                  '--provider', TEST_PROVIDER_URI,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port,
@@ -121,7 +122,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--signer', mock_signer_uri)
 
     cli_env = {
-        NUCYPHER_ENVVAR_KEYRING_PASSWORD:    password,
+        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD:    password,
         NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: password,
     }
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=cli_env)
@@ -138,10 +139,9 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula_config = UrsulaConfiguration.from_configuration_file(ursula_config_path)
     assert ursula_config.signer_uri == mock_signer_uri
 
-    # Mock decryption of web3 client keyring
-    mocker.patch.object(Account, 'decrypt', return_value=worker_account.privateKey)
-    ursula_config.attach_keyring(checksum_address=worker_account.address)
-    ursula_config.keyring.unlock(password=password)
+    # Mock decryption of web3 client keystore
+    mocker.patch.object(Account, 'decrypt', return_value=worker_account.key)
+    ursula_config.keystore.unlock(password=password)
 
     # Produce an Ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
     mocker.patch.object(StakeList, 'refresh', autospec=True)
@@ -151,8 +151,8 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     try:
         # Verify the keystore path is still preserved
         assert isinstance(ursula.signer, KeystoreSigner)
-        assert isinstance(ursula.signer.path, str), "Use str"
-        assert ursula.signer.path == str(mock_keystore_path)
+        assert isinstance(ursula.signer.path, Path), "Use Path"
+        assert ursula.signer.path.absolute() == mock_keystore_path.absolute()
 
         # Show that we can produce the exact same signer as pre-config...
         assert pre_config_signer.path == ursula.signer.path

@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
 import maya
-import os
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
@@ -27,9 +26,9 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
+def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     # Create a non-learning AliceConfiguration
-    config_root = os.path.join(tmpdir, 'nucypher-custom-alice-config')
+    config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
         config_root=config_root,
         network_middleware=MockRestMiddleware(),
@@ -43,8 +42,8 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     # Generate keys and write them the disk
     alice_config.initialize(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    # Unlock Alice's keyring
-    alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    # Unlock Alice's keystore
+    alice_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     # Produce an Alice
     alice = alice_config()  # or alice_config.produce()
@@ -65,14 +64,14 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     policy_pubkey = alice.get_policy_encrypting_key_from_label(label)
 
     # Now, let's create a policy for some Bob.
-    m, n = 3, 4
+    threshold, shares = 3, 4
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 
     bob = Bob(federated_only=True,
               start_learning_now=False,
               network_middleware=MockRestMiddleware())
 
-    bob_policy = alice.grant(bob, label, m=m, n=n, expiration=policy_end_datetime)
+    bob_policy = alice.grant(bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     assert policy_pubkey == bob_policy.public_key
 
@@ -98,9 +97,8 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
         config_root=config_root
     )
 
-    # Alice unlocks her restored keyring from disk
-    new_alice_config.attach_keyring()
-    new_alice_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    # Alice unlocks her restored keystore from disk
+    new_alice_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     new_alice = new_alice_config()
 
     # First, we check that her public keys are correctly restored
@@ -115,9 +113,9 @@ def test_alices_powers_are_persistent(federated_ursulas, tmpdir):
     # Alice creates a new policy for Roberto. Note how all the parameters
     # except for the label (i.e., recipient, m, n, policy_end) are different
     # from previous policy
-    m, n = 2, 5
+    threshold, shares = 2, 5
     policy_end_datetime = maya.now() + datetime.timedelta(days=3)
-    roberto_policy = new_alice.grant(roberto, label, m=m, n=n, expiration=policy_end_datetime)
+    roberto_policy = new_alice.grant(roberto, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
     # Both policies must share the same public key (i.e., the policy public key)
     assert policy_pubkey == roberto_policy.public_key

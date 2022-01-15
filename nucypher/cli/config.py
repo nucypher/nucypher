@@ -15,14 +15,14 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-import click
 import os
 
-from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
-from nucypher.cli.utils import get_env_bool
+import click
+
+from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.cli.options import group_options
-from nucypher.config.constants import NUCYPHER_SENTRY_ENDPOINT
+from nucypher.cli.utils import get_env_bool
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
@@ -32,7 +32,7 @@ class GroupGeneralConfig:
     verbosity = 0
 
     # Environment Variables
-    config_root = os.environ.get('NUCYPHER_CONFIG_ROOT')
+    config_root = DEFAULT_CONFIG_ROOT
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
     log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", False)
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)

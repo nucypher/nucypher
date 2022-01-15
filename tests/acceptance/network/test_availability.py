@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import maya
 import pytest
 import pytest_twisted as pt
@@ -112,7 +113,7 @@ def test_availability_tracker_integration(blockchain_ursulas, monkeypatch):
             if ursula_were_looking_for:
                 raise RestMiddleware.NotFound("Fake Reason")  # Make this node unreachable
             else:
-                response = Response(response=bytes(ursula), mimetype='application/octet-stream')
+                response = Response(response=bytes(ursula.metadata()), mimetype='application/octet-stream')
                 return response
 
         # apply the monkeypatch for requests.get to mock_get

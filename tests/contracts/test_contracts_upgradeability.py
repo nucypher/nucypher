@@ -15,12 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import contextlib
-import os
+from pathlib import Path
+
 import requests
 from constant_sorrow import constants
-from pathlib import Path
 from web3.exceptions import ValidationError
 
 from nucypher.blockchain.eth.deployers import (
@@ -41,7 +40,6 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.fixtures import make_token_economics
 from tests.utils.blockchain import free_gas_price_strategy
 
-
 USER = "nucypher"
 REPO = "nucypher"
 BRANCH = "main"
@@ -52,22 +50,22 @@ BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_
                                               'free': free_gas_price_strategy}
 
 
-def download_github_dir(source_link: str, target_folder: str):
+def download_github_dir(source_link: str, target_folder: Path):
     response = requests.get(source_link)
     if response.status_code != 200:
         error = f"Failed to call api {source_link} with status code {response.status_code}"
         raise RuntimeError(error)
 
     for content in response.json():
-        path = os.path.join(target_folder, content["name"])
+        path = target_folder / content["name"]
         if content["type"] == "dir":
-            os.mkdir(path)
+            path.mkdir()
             download_github_dir(content["url"], path)
         else:
             download_github_file(content["download_url"], path)
 
 
-def download_github_file(source_link: str, target_folder: str):
+def download_github_file(source_link: str, target_folder: Path):
     response = requests.get(source_link)
     if response.status_code != 200:
         error = f"Failed to call api {source_link} with status code {response.status_code}"

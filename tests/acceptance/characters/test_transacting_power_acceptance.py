@@ -15,12 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from eth_account._utils.transactions import Transaction
+
+from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
-from nucypher.crypto.api import verify_eip_191
+from nucypher.crypto.utils import verify_eip_191
 from nucypher.crypto.powers import (TransactingPower)
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
 

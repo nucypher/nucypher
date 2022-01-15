@@ -93,8 +93,8 @@ def create_policy_control_request(federated_bob):
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
         'label': b64encode(bytes(b'test')).decode(),
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
     return method_name, params
@@ -108,34 +108,22 @@ def grant_control_request(federated_bob):
         'bob_encrypting_key': bytes(bob_pubkey_enc).hex(),
         'bob_verifying_key': bytes(federated_bob.stamp).hex(),
         'label': 'test',
-        'm': 2,
-        'n': 3,
+        'threshold': 2,
+        'shares': 3,
         'expiration': (maya.now() + datetime.timedelta(days=3)).iso8601(),
     }
     return method_name, params
 
 
 @pytest.fixture(scope='module')
-def join_control_request(federated_bob, enacted_federated_policy):
-    method_name = 'join_policy'
-
-    params = {
-        'label': enacted_federated_policy.label.decode(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice_verifying_key).hex(),
-    }
-    return method_name, params
-
-
-@pytest.fixture(scope='module')
 def retrieve_control_request(federated_bob, enacted_federated_policy, capsule_side_channel):
-    method_name = 'retrieve'
+    method_name = 'retrieve_and_decrypt'
     message_kit = capsule_side_channel()
 
     params = {
-        'label': enacted_federated_policy.label.decode(),
-        'policy_encrypting_key': bytes(enacted_federated_policy.public_key).hex(),
-        'alice_verifying_key': bytes(enacted_federated_policy.alice_verifying_key).hex(),
-        'message_kit': b64encode(message_kit.to_bytes()).decode(),
+        'alice_verifying_key': bytes(enacted_federated_policy.publisher_verifying_key).hex(),
+        'message_kits': [b64encode(bytes(message_kit)).decode()],
+        'encrypted_treasure_map': b64encode(bytes(enacted_federated_policy.treasure_map)).decode()
     }
     return method_name, params
 

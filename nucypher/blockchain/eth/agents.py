@@ -14,11 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-from bisect import bisect_right
+import os
 
 import random
 import sys
+from bisect import bisect_right
+from itertools import accumulate
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator
+
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
@@ -28,8 +31,6 @@ from eth_typing.encoding import HexStr
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
-from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
 
@@ -54,7 +55,12 @@ from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.crypto.api import sha256_digest
+from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.utils import sha256_digest
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE_LIGHT_NODE,
+    NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE
+)
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import (
     Agent,
@@ -68,6 +74,8 @@ from nucypher.types import (
     StakerInfo,
     PeriodDelta,
     StakingEscrowParameters,
+    PolicyInfo,
+    ArrangementInfo
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -250,7 +258,10 @@ class StakingEscrowAgent(EthereumContractAgent):
         'finishUpgrade'
     )
 
-    DEFAULT_PAGINATION_SIZE: int = 30    # TODO: Use dynamic pagination size (see #1424)
+    DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE: int = int(os.environ.get(
+        NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
+
+    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE, default=1000))
 
     class NotEnoughStakers(Exception):
         """Raised when the are not enough stakers available to complete an operation"""
@@ -299,6 +310,10 @@ class StakingEscrowAgent(EthereumContractAgent):
             elif last_committed_period == current_period:
                 pending_stakers.append(staker)
             else:
+                locked_stake = self.non_withdrawable_stake(staker_address=staker)
+                if locked_stake == 0:
+                    # don't include stakers with expired stakes
+                    continue
                 missing_stakers.append(staker)
 
         return active_stakers, pending_stakers, missing_stakers
@@ -310,7 +325,8 @@ class StakingEscrowAgent(EthereumContractAgent):
             raise ValueError("Period must be > 0")
 
         if pagination_size is None:
-            pagination_size = StakingEscrowAgent.DEFAULT_PAGINATION_SIZE if self.blockchain.is_light else 0
+            pagination_size = self.DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE if self.blockchain.is_light else self.DEFAULT_STAKER_PAGINATION_SIZE
+            self.log.debug(f"Defaulting to pagination size {pagination_size}")
         elif pagination_size < 0:
             raise ValueError("Pagination size must be >= 0")
 
@@ -319,15 +335,34 @@ class StakingEscrowAgent(EthereumContractAgent):
             start_index: int = 0
             n_tokens: int = 0
             stakers: Dict[int, int] = dict()
-            active_stakers: Tuple[NuNits, List[List[int]]]
+            attempts = 0
             while start_index < num_stakers:
-                active_stakers = self.contract.functions.getActiveStakers(periods, start_index, pagination_size).call()
-                temp_locked_tokens, temp_stakers = active_stakers
-                # temp_stakers is a list of length-2 lists (address -> locked tokens)
-                temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
-                n_tokens = n_tokens + temp_locked_tokens
-                stakers.update(temp_stakers_map)
-                start_index += pagination_size
+                try:
+                    attempts += 1
+                    active_stakers = self.contract.functions.getActiveStakers(periods,
+                                                                              start_index,
+                                                                              pagination_size).call()
+                except Exception as e:
+                    if 'timeout' not in str(e):
+                        # exception unrelated to pagination size and timeout
+                        raise e
+                    elif pagination_size == 1 or attempts >= 3:
+                        # we tried
+                        raise e
+                    else:
+                        # reduce pagination size and retry
+                        old_pagination_size = pagination_size
+                        pagination_size = old_pagination_size // 2
+                        self.log.debug(f"Failed stakers sampling using pagination size = {old_pagination_size}. "
+                                       f"Retrying with size {pagination_size}")
+                else:
+                    temp_locked_tokens, temp_stakers = active_stakers
+                    # temp_stakers is a list of length-2 lists (address -> locked tokens)
+                    temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
+                    n_tokens = n_tokens + temp_locked_tokens
+                    stakers.update(temp_stakers_map)
+                    start_index += pagination_size
+
         else:
             n_tokens, temp_stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
             stakers = {address: locked_tokens for address, locked_tokens in temp_stakers}
@@ -794,7 +829,7 @@ class PolicyManagerAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def create_policy(self,
-                      policy_id: str,
+                      policy_id: bytes,
                       transacting_power: TransactingPower,
                       value: Wei,
                       end_timestamp: Timestamp,
@@ -814,29 +849,21 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy(self, policy_id: str, with_owner=False) -> Union[tuple, list]:
+    def fetch_policy(self, policy_id: bytes) -> PolicyInfo:
         """
         Fetch raw stored blockchain data regarding the policy with the given policy ID.
         If `with_owner=True`, this method executes the equivalent of `getPolicyOwner`
         to avoid another call.
         """
-        blockchain_record = self.contract.functions.policies(policy_id).call()
-        if with_owner:
-            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-            owner_checksum_addr = blockchain_record[1] if blockchain_record[2] == NULL_ADDRESS else blockchain_record[2]
-            return blockchain_record, owner_checksum_addr
-        return blockchain_record
-
-    def fetch_arrangement_addresses_from_policy_txid(self, txhash: Union[str, bytes], timeout: int = 600) -> Iterable:
-        # TODO: Won't it be great when this is impossible?  #1274
-        _receipt = self.blockchain.client.wait_for_receipt(txhash, timeout=timeout)
-        transaction = self.blockchain.client.w3.eth.getTransaction(txhash)
-        try:
-            _signature, parameters = self.contract.decode_function_input(
-                self.blockchain.client.parse_transaction_data(transaction))
-        except AttributeError:
-            raise RuntimeError(f"Eth Client incompatibility issue: {self.blockchain.client} could not extract data from {transaction}")
-        return parameters['_nodes']
+        record = self.contract.functions.policies(policy_id).call()
+        policy = PolicyInfo(disabled=record[0],
+                            sponsor=record[1],
+                            # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
+                            owner=record[1] if record[2] == NULL_ADDRESS else record[2],
+                            fee_rate=record[3],
+                            start_timestamp=record[4],
+                            end_timestamp=record[5])
+        return policy
 
     @contract_api(TRANSACTION)
     def revoke_policy(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
@@ -853,26 +880,28 @@ class PolicyManagerAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(CONTRACT_CALL)
-    def fetch_policy_arrangements(self, policy_id: str) -> Iterable[Tuple[ChecksumAddress, int, int]]:
+    def fetch_policy_arrangements(self, policy_id: bytes) -> Iterator[ArrangementInfo]:
         record_count = self.contract.functions.getArrangementsLength(policy_id).call()
         for index in range(record_count):
             arrangement = self.contract.functions.getArrangementInfo(policy_id, index).call()
-            yield arrangement
+            yield ArrangementInfo(node=arrangement[0],
+                                  downtime_index=arrangement[1],
+                                  last_refunded_period=arrangement[2])
 
     @contract_api(TRANSACTION)
-    def revoke_arrangement(self, policy_id: str, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def revoke_arrangement(self, policy_id: bytes, node_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.revokeArrangement(policy_id, node_address)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def calculate_refund(self, policy_id: str, transacting_power: TransactingPower) -> TxReceipt:
+    def calculate_refund(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.calculateRefundValue(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def collect_refund(self, policy_id: str, transacting_power: TransactingPower) -> TxReceipt:
+    def collect_refund(self, policy_id: bytes, transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.refund(policy_id)
         receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
@@ -916,7 +945,7 @@ class AdjudicatorAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
         """Submits proof that a worker created wrong CFrag"""
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth.
+        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
         contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power,

@@ -1,0 +1,1 @@
+TreasureMap split into TreasureMap and EncryptedTreasureMap; external methods of Bob and Porter now take the latter, with the parameter named 'encrypted_treasure_map'. SignedTreasureMap is merged with TreasureMap.

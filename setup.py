@@ -49,6 +49,7 @@ PYPI_CLASSIFIERS = [
       "Programming Language :: Python :: 3.6",
       "Programming Language :: Python :: 3.7",
       "Programming Language :: Python :: 3.8",
+      "Programming Language :: Python :: 3.9",
       "Topic :: Security"
 ]
 
@@ -99,7 +100,7 @@ class PostDevelopCommand(develop):
 #
 
 def read_requirements(path):
-    with open(os.path.join(BASE_DIR, path)) as f:
+    with open(BASE_DIR / path) as f:
         _pipenv_flags, *lines = f.read().split('\n')
 
     # TODO remove when will be no more git dependencies in requirements.txt
@@ -135,18 +136,20 @@ DEPLOY_REQUIRES = [
 URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
 ALICE_REQUIRES = ['qrcode']
 BOB_REQUIRES = ['qrcode']
+PORTER_REQUIRES = ['flask-htpasswd', 'flask-cors']  # needed for basic authentication, cors
 
 EXTRAS = {
 
     # Admin
-    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES,
+    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES + PORTER_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DEPLOY_REQUIRES,
 
     # User
     'ursula': URSULA_REQUIRES,
     'alice': ALICE_REQUIRES,
-    'bob': BOB_REQUIRES
+    'bob': BOB_REQUIRES,
+    'porter': PORTER_REQUIRES
 }
 
 

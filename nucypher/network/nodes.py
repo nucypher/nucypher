@@ -15,36 +15,31 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import contextlib
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
+from pathlib import Path
 from queue import Queue
-from typing import Iterable, List, Set, Tuple, Union
+from typing import Callable, List, Optional, Set, Tuple, Union
 
 import maya
 import requests
-from bytestring_splitter import (
-    BytestringSplitter,
-    PartiallyKwargifiedBytes,
-    VariableLengthBytestring
-)
 from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
     CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
     NOT_SIGNED,
-    NO_KNOWN_NODES,
     NO_STORAGE_AVAILABLE,
     RELAX,
-    UNKNOWN_VERSION
 )
-from cryptography.x509 import Certificate
+from cryptography.x509 import Certificate, load_pem_x509_certificate
+from cryptography.hazmat.backends import default_backend
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
-from umbral.signing import Signature
+
+from nucypher.core import NodeMetadata, MetadataResponse
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
@@ -55,14 +50,18 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
-from nucypher.crypto.api import InvalidNodeCertificate, recover_address_eip_191, verify_eip_191
-from nucypher.crypto.kits import UmbralMessageKit
-from nucypher.crypto.powers import DecryptingPower, NoSigningPower, SigningPower
-from nucypher.crypto.signing import signature_splitter
-from nucypher.network import LEARNING_LOOP_VERSION
+from nucypher.crypto.powers import (
+    CryptoPower,
+    DecryptingPower,
+    NoSigningPower,
+    SigningPower,
+)
+from nucypher.crypto.signing import SignatureStamp, InvalidSignature
+from nucypher.crypto.umbral_adapter import Signature
+from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import SuspiciousActivity
+from nucypher.network.protocols import SuspiciousActivity, InterfaceInfo
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
@@ -75,20 +74,23 @@ TEACHER_NODES = {
     NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
 }
 
-class NodeSprout(PartiallyKwargifiedBytes):
+
+class NodeSprout:
     """
     An abridged node class designed for optimization of instantiation of > 100 nodes simultaneously.
     """
     verified_node = False
 
     def __init__(self, node_metadata):
-        super().__init__(node_metadata)
+        self._metadata = node_metadata
+
+        # cached properties
         self._checksum_address = None
         self._nickname = None
         self._hash = None
-        self.timestamp = maya.MayaDT(
-            self.timestamp)  # Weird for this to be in init. maybe this belongs in the splitter also.
         self._repr = None
+        self._rest_interface = None
+
         self._is_finishing = False
         self._finishing_mutex = Queue()
 
@@ -100,35 +102,19 @@ class NodeSprout(PartiallyKwargifiedBytes):
         return bytes(self.stamp) == bytes(other_stamp)
 
     def __hash__(self):
-        return int.from_bytes(bytes(self.stamp), byteorder="big")
+        if not self._hash:
+            self._hash = int.from_bytes(bytes(self.stamp), byteorder="big")
+        return self._hash
 
     def __repr__(self):
         if not self._repr:
             self._repr = f"({self.__class__.__name__})⇀{self.nickname}↽ ({self.checksum_address})"
         return self._repr
 
-    def __bytes__(self):
-        b = super().__bytes__()
-
-        # We assume that the TEACHER_VERSION of this codebase is the version for this NodeSprout.
-        # This is probably true, right?  Might need to be re-examined someday if we have
-        # different node types of different versions.
-        version = Teacher.TEACHER_VERSION.to_bytes(2, "big")
-        return version + b
-
-    @property
-    def stamp(self) -> bytes:
-        return self.processed_objects['verifying_key'][0]
-
-    @property
-    def domain(self) -> str:
-        domain_bytes = PartiallyKwargifiedBytes.__getattr__(self, "domain")
-        return domain_bytes.decode("utf-8")
-
     @property
     def checksum_address(self):
         if not self._checksum_address:
-            self._checksum_address = to_checksum_address(self.public_address)
+            self._checksum_address = to_checksum_address(self._metadata.public_address)
         return self._checksum_address
 
     @property
@@ -137,8 +123,64 @@ class NodeSprout(PartiallyKwargifiedBytes):
             self._nickname = Nickname.from_seed(self.checksum_address)
         return self._nickname
 
+    @property
+    def rest_interface(self):
+        if not self._rest_interface:
+            self._rest_interface = InterfaceInfo(self._metadata.host, self._metadata.port)
+        return self._rest_interface
+
     def rest_url(self):
         return self.rest_interface.uri
+
+    def metadata(self):
+        return self._metadata
+
+    @property
+    def verifying_key(self):
+        return self._metadata.verifying_key
+
+    @property
+    def encrypting_key(self):
+        return self._metadata.encrypting_key
+
+    @property
+    def decentralized_identity_evidence(self):
+        return self._metadata.decentralized_identity_evidence or NOT_SIGNED
+
+    @property
+    def public_address(self):
+        return self._metadata.public_address
+
+    @property
+    def timestamp(self):
+        return maya.MayaDT(self._metadata.timestamp_epoch)
+
+    @property
+    def stamp(self) -> SignatureStamp:
+        return SignatureStamp(self._metadata.verifying_key)
+
+    @property
+    def domain(self) -> str:
+        return self._metadata.domain
+
+    def finish(self):
+        from nucypher.characters.lawful import Ursula
+
+        crypto_power = CryptoPower()
+        crypto_power.consume_power_up(SigningPower(public_key=self._metadata.verifying_key))
+        crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata.encrypting_key))
+
+        return Ursula(is_me=False,
+                      crypto_power=crypto_power,
+                      rest_host=self._metadata.host,
+                      rest_port=self._metadata.port,
+                      checksum_address=self.checksum_address,
+                      domain=self._metadata.domain,
+                      timestamp=self.timestamp,
+                      decentralized_identity_evidence=self.decentralized_identity_evidence,
+                      certificate=load_pem_x509_certificate(self._metadata.certificate_bytes, backend=default_backend()),
+                      metadata=self._metadata
+                      )
 
     def mature(self):
         if self._is_finishing:
@@ -152,7 +194,7 @@ class NodeSprout(PartiallyKwargifiedBytes):
         self.__dict__ = mature_node.__dict__
 
         # As long as we're doing egregious workarounds, here's another one.  # TODO: 1481
-        filepath = mature_node._cert_store_function(certificate=mature_node.certificate)
+        filepath = mature_node._cert_store_function(certificate=mature_node.certificate, port=mature_node.rest_interface.port)
         mature_node.certificate_filepath = filepath
 
         _finishing_mutex.put(self)
@@ -188,11 +230,8 @@ class Learner:
     __DEFAULT_NODE_STORAGE = ForgetfulNodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
-    LEARNER_VERSION = LEARNING_LOOP_VERSION
-    LOWEST_COMPATIBLE_VERSION = 2   # Disallow versions lower than this
+    _crashed = False  # moved from Character - why was this in Character and not Learner before
 
-    node_splitter = BytestringSplitter(VariableLengthBytestring)
-    version_splitter = BytestringSplitter((int, 2, {"byteorder": "big"}))
     tracker_class = FleetSensor
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
@@ -214,9 +253,6 @@ class Learner:
         it does not have the proper attributes for learning or verification.
         """
 
-    class InvalidSignature(Exception):
-        pass
-
     def __init__(self,
                  domain: str,
                  node_class: object = None,
@@ -235,8 +271,6 @@ class Learner:
 
         self.log = Logger("learning-loop")  # type: Logger
 
-        self.suspicious_activities_witnessed = defaultdict(list)  # TODO: Combine with buckets / node labeling
-
         self.learning_deferred = Deferred()
         self.domain = domain
         if not self.federated_only:
@@ -249,8 +283,6 @@ class Learner:
         self.learn_on_same_thread = learn_on_same_thread
 
         self._abort_on_learning_error = abort_on_learning_error
-        self._learning_listeners = defaultdict(list)
-        self._node_ids_to_learn_about_immediately = set()
 
         self.__known_nodes = self.tracker_class(domain=domain, this_node=self if include_self_in_the_state else None)
         self._verify_node_bonding = verify_node_bonding
@@ -268,7 +300,8 @@ class Learner:
 
         from nucypher.characters.lawful import Ursula
         self.node_class = node_class or Ursula
-        self.node_class.set_cert_storage_function(node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
+        self.node_class.set_cert_storage_function(
+            node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
@@ -302,7 +335,6 @@ class Learner:
         self._learning_round = 0  # type: int
         self._rounds_without_new_nodes = 0  # type: int
         self._seed_nodes = seed_nodes or []
-        self.unresponsive_seed_nodes = set()
 
         if self.start_learning_now and not self.lonely:
             self.start_learning_loop(now=self.learn_on_same_thread)
@@ -332,36 +364,35 @@ class Learner:
                                                                        federated_only=self.federated_only,
                                                                        network_middleware=self.network_middleware,
                                                                        registry=self.registry)
-                except NodeSeemsToBeDown:
-                    self.unresponsive_seed_nodes.add(uri)
+                except Exception as e:
+                    # TODO: log traceback here?
+                    # TODO: distinguish between versioning errors and other errors?
+                    self.log.warn(f"Failed to instantiate a node at {uri}: {e}")
                 else:
-                    if maybe_sage_node is UNKNOWN_VERSION:
-                        continue
-                    else:
-                        new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
-                        discovered.append(new_node)
+                    new_node = self.remember_node(maybe_sage_node, record_fleet_state=False)
+                    discovered.append(new_node)
 
         for seednode_metadata in self._seed_nodes:
 
-            self.log.debug(
-                "Seeding from: {}|{}:{}".format(seednode_metadata.checksum_address,
-                                                seednode_metadata.rest_host,
-                                                seednode_metadata.rest_port))
+            node_tag = "{}|{}:{}".format(seednode_metadata.checksum_address,
+                                         seednode_metadata.rest_host,
+                                         seednode_metadata.rest_port)
 
-            seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
-                                                               network_middleware=self.network_middleware,
-                                                               )
-            if seed_node is False:
-                self.unresponsive_seed_nodes.add(seednode_metadata)
-            elif seed_node is UNKNOWN_VERSION:
-                continue  # TODO: Bucket this?  We already emitted a warning.
+            self.log.debug(f"Seeding from: {node_tag}")
+
+            try:
+                seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
+                                                                   network_middleware=self.network_middleware,
+                                                                   )
+            except Exception as e:
+                # TODO: log traceback here?
+                # TODO: distinguish between versioning errors and other errors?
+                self.log.warn(f"Failed to instantiate a node {node_tag}: {e}")
             else:
-                self.unresponsive_seed_nodes.discard(seednode_metadata)
                 new_node = self.remember_node(seed_node, record_fleet_state=False)
                 discovered.append(new_node)
 
-        if not self.unresponsive_seed_nodes:
-            self.log.info("Finished learning about all seednodes.")
+        self.log.info("Finished learning about all seednodes.")
 
         self.done_seeding = True
 
@@ -414,7 +445,7 @@ class Learner:
                 # This node is already known.  We can safely return.
                 return False
 
-        self.known_nodes.record_node(node) # FIXME - dont always remember nodes, bucket them.
+        self.known_nodes.record_node(node)  # FIXME - dont always remember nodes, bucket them.
 
         if self.save_metadata:
             self.node_storage.store_node_metadata(node=node)
@@ -424,10 +455,7 @@ class Learner:
             stranger_certificate = node.certificate
 
             # Store node's certificate - It has been seen.
-            try:
-                certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate)
-            except InvalidNodeCertificate:
-                return False  # that was easy
+            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate, port=node.rest_interface.port)
 
             # In some cases (seed nodes or other temp stored certs),
             # this will update the filepath from the temp location to this one.
@@ -458,12 +486,6 @@ class Learner:
                 return False
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
-
-        listeners = self._learning_listeners.pop(node.checksum_address, tuple())
-
-        for listener in listeners:
-            listener.add(node.checksum_address)
-        self._node_ids_to_learn_about_immediately.discard(node.checksum_address)
 
         if record_fleet_state:
             self.known_nodes.record_fleet_state()
@@ -596,11 +618,6 @@ class Learner:
         reactor.callInThread(self._learning_deferred.callback, None)
         return self._learning_deferred
 
-    def learn_about_specific_nodes(self, addresses: Iterable):
-        if len(addresses) > 0:
-            self._node_ids_to_learn_about_immediately.update(addresses)  # hmmmm
-            self.learn_about_nodes_now()
-
     # TODO: Dehydrate these next two methods.  NRN
 
     def block_until_number_of_known_nodes_is(self,
@@ -653,8 +670,7 @@ class Learner:
                                              addresses: Set,
                                              timeout=LEARNING_TIMEOUT,
                                              allow_missing=0,
-                                             learn_on_this_thread=False,
-                                             verify_now=False):
+                                             learn_on_this_thread=False):
         start = maya.now()
         starting_round = self._learning_round
 
@@ -706,14 +722,6 @@ class Learner:
                     self._LONG_LEARNING_DELAY))
                 self._learning_task.interval = self._LONG_LEARNING_DELAY
 
-    def _push_certain_newly_discovered_nodes_here(self, queue_to_push, node_addresses):
-        """
-        If any node_addresses are discovered, push them to queue_to_push.
-        """
-        for node_address in node_addresses:
-            self.log.info("Adding listener for {}".format(node_address))
-            self._learning_listeners[node_address].append(queue_to_push)
-
     def network_bootstrap(self, node_list: list) -> None:
         for node_addr, port in node_list:
             new_nodes = self.learn_about_nodes_now(node_addr, port)
@@ -735,34 +743,22 @@ class Learner:
         return self.node_storage.store_node_metadata(node=node)
 
     def verify_from(self,
-                    stranger: 'Teacher',
-                    message_kit: Union[UmbralMessageKit, bytes],
-                    signature: Signature):
-        #
-        # Optional Sanity Check
-        #
+                    stranger: 'Character',
+                    message: bytes,
+                    signature: Signature
+                    ):
 
-        # In the spirit of duck-typing, we want to accept a message kit object, or bytes
-        # If the higher-order object MessageKit is passed, we can perform an additional
-        # eager sanity check before performing decryption.
-
-        with contextlib.suppress(AttributeError):
-            sender_verifying_key = stranger.stamp.as_umbral_pubkey()
-            if message_kit.sender_verifying_key:
-                if not message_kit.sender_verifying_key == sender_verifying_key:
-                    raise ValueError("This MessageKit doesn't appear to have come from {}".format(stranger))
-        message = bytes(message_kit)
-
-        #
-        # Verify Signature
-        #
-
-        if signature:
-            is_valid = signature.verify(message, sender_verifying_key)
-            if not is_valid:
-                raise self.InvalidSignature("Signature for message isn't valid: {}".format(signature))
-        else:
-            raise self.InvalidSignature("No signature provided -- signature presumed invalid.")
+        if not signature.verify(verifying_pk=stranger.stamp.as_umbral_pubkey(), message=message):
+            try:
+                node_on_the_other_end = self.node_class.from_seednode_metadata(stranger.seed_node_metadata(),
+                                                                               network_middleware=self.network_middleware)
+                if node_on_the_other_end != stranger:
+                    raise self.node_class.InvalidNode(
+                        f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
+                else:
+                    raise InvalidSignature("Signature for message isn't valid: {}".format(signature))
+            except (TypeError, AttributeError):
+                raise InvalidSignature(f"Unable to verify message from stranger: {stranger}")
 
     def learn_from_teacher_node(self, eager=False, canceller=None):
         """
@@ -789,7 +785,7 @@ class Learner:
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
         if isinstance(self, Teacher):
-            announce_nodes = [self]
+            announce_nodes = [self.metadata()]
         else:
             announce_nodes = None
 
@@ -803,21 +799,21 @@ class Learner:
 
         try:
             response = self.network_middleware.get_nodes_via_rest(node=current_teacher,
-                                                                  nodes_i_need=self._node_ids_to_learn_about_immediately,
                                                                   announce_nodes=announce_nodes,
-                                                                  fleet_checksum=self.known_nodes.checksum)
+                                                                  fleet_state_checksum=self.known_nodes.checksum)
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info(f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
+            self.log.info(
+                f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
             # TODO: Bucket separately and report.
             unresponsive_nodes.add(current_teacher)  # This does nothing.
             self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
-            self.log.warn(f"Teacher {str(current_teacher)} is invalid: {bytes(current_teacher)}:{e}.")
-            self.suspicious_activities_witnessed['vladimirs'].append(current_teacher)
+            self.log.warn(f"Teacher {str(current_teacher)} is invalid (hex={bytes(current_teacher.metadata()).hex()}):{e}.")
+            # TODO (#567): bucket the node as suspicious
             return
         except RuntimeError as e:
             if canceller and canceller.stop_now:
@@ -825,27 +821,25 @@ class Learner:
                 # TODO: Sort this out.
                 return RELAX
             else:
-                self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")
+                self.log.warn(
+                    f"Unhandled error while learning from {str(current_teacher)} "
+                    f"(hex={bytes(current_teacher.metadata()).hex()}):{e}.")
                 raise
         except Exception as e:
-            self.log.warn(f"Unhandled error while learning from {str(current_teacher)}: {bytes(current_teacher)}:{e}.")  # To track down 2345 / 1698
+            self.log.warn(
+                f"Unhandled error while learning from {str(current_teacher)} "
+                f"(hex={bytes(current_teacher.metadata()).hex()}):{e}.")  # To track down 2345 / 1698
             raise
         finally:
             # Is cycling happening in the right order?
             self.cycle_teacher_node()
 
-        # Before we parse the response, let's handle some edge cases.
-        if response.status_code == 204:
-            # In this case, this node knows about no other nodes.  Hopefully we've taught it something.
-            if response.content == b"":
-                return NO_KNOWN_NODES
-            # In the other case - where the status code is 204 but the repsonse isn't blank - we'll keep parsing.
-            # It's possible that our fleet states match, and we'll check for that later.
-
-        elif response.status_code != 200:
+        if response.status_code != 200:
             self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
             return
 
+        # TODO: we really should be checking this *before* we ask it for a node list,
+        # but currently we may not know this before the REST request (which may mature the node)
         if self.domain != current_teacher.domain:
             self.log.debug(f"{current_teacher} is serving '{current_teacher.domain}', "
                            f"ignore since we are learning about '{self.domain}'")
@@ -855,27 +849,28 @@ class Learner:
         # Deserialize
         #
         try:
-            signature, node_payload = signature_splitter(response.content, return_remainder=True)
-        except BytestringSplittingError:
-            self.log.warn("No signature prepended to Teacher {} payload: {}".format(current_teacher, response.content))
+            metadata = MetadataResponse.from_bytes(response.content)
+        except Exception as e:
+            self.log.warn(f"Failed to deserialize MetadataResponse from Teacher {current_teacher} ({e}): {response.content}")
             return
 
         try:
-            self.verify_from(current_teacher, node_payload, signature=signature)
-        except Learner.InvalidSignature:  # TODO: Ensure wev've got the right InvalidSignature exception here
-            self.suspicious_activities_witnessed['vladimirs'].append(
-                ('Node payload improperly signed', node_payload, signature))
+            metadata.verify(current_teacher.stamp.as_umbral_pubkey())
+        except InvalidSignature:
+            # TODO (#567): bucket the node as suspicious
             self.log.warn(
-                f"Invalid signature ({signature}) received from teacher {current_teacher} for payload {node_payload}")
+                f"Invalid signature received from teacher {current_teacher} for MetadataResponse {response.content}")
+            return
 
         # End edge case handling.
 
-        fleet_state_checksum, fleet_state_updated, node_payload = FleetSensor.unpack_snapshot(node_payload)
+        fleet_state_updated = maya.MayaDT(metadata.timestamp_epoch)
 
-        if constant_or_bytes(node_payload) is FLEET_STATES_MATCH:
+        if not metadata.this_node and not metadata.other_nodes:
+            # The teacher had the same fleet state
             self.known_nodes.record_remote_fleet_state(
                 current_teacher.checksum_address,
-                fleet_state_checksum,
+                self.known_nodes.checksum,
                 fleet_state_updated,
                 self.known_nodes.population)
 
@@ -885,10 +880,13 @@ class Learner:
         # so it has been removed.  When we create a new Ursula bytestring version, let's put the check
         # somewhere more performant, like mature() or verify_node().
 
-        sprouts = self.node_class.batch_from_bytes(node_payload)
+        nodes = (
+            ([metadata.this_node] if metadata.this_node else []) +
+            (metadata.other_nodes if metadata.other_nodes else [])
+            )
+        sprouts = [NodeSprout(node) for node in nodes]
 
         for sprout in sprouts:
-            fail_fast = True  # TODO  NRN
             try:
                 node_or_false = self.remember_node(sprout,
                                                    record_fleet_state=False,
@@ -936,13 +934,6 @@ class Learner:
                           f"Propagated by: {current_teacher}"
                 self.log.warn(message)
 
-        # Is cycling happening in the right order?
-        self.known_nodes.record_remote_fleet_state(
-            current_teacher.checksum_address,
-            fleet_state_checksum,
-            fleet_state_updated,
-            len(sprouts))
-
         ###################
 
         learning_round_log_message = "Learning round {}.  Teacher: {} knew about {} nodes, {} were new."
@@ -952,12 +943,22 @@ class Learner:
                                                         len(remembered)))
         if remembered:
             self.known_nodes.record_fleet_state()
+
+        # Now that we updated all our nodes with the teacher's,
+        # our fleet state checksum should be the same as the teacher's checksum.
+
+        # Is cycling happening in the right order?
+        self.known_nodes.record_remote_fleet_state(
+            current_teacher.checksum_address,
+            self.known_nodes.checksum,
+            fleet_state_updated,
+            len(sprouts))
+
         return sprouts
 
 
 class Teacher:
-    TEACHER_VERSION = LEARNING_LOOP_VERSION
-    _interface_info_splitter = (int, 4, {'byteorder': 'big'})
+
     log = Logger("teacher")
     synchronous_query_timeout = 20  # How long to wait during REST endpoints for blockchain queries to resolve
     __DEFAULT_MIN_SEED_STAKE = 0
@@ -965,9 +966,7 @@ class Teacher:
     def __init__(self,
                  domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
-                 certificate_filepath: str,
-                 interface_signature=NOT_SIGNED.bool_value(False),
-                 timestamp=NOT_SIGNED,
+                 certificate_filepath: Path,
                  decentralized_identity_evidence=NOT_SIGNED,
                  ) -> None:
 
@@ -977,16 +976,14 @@ class Teacher:
         # Identity
         #
 
-        self._timestamp = timestamp
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.__interface_signature = interface_signature
         self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
 
         # Assume unverified
         self.verified_stamp = False
         self.verified_worker = False
-        self.verified_interface = False
+        self.verified_metadata = False
         self.verified_node = False
         self.__worker_address = None
 
@@ -1011,21 +1008,8 @@ class Teacher:
     class WrongMode(TypeError):
         """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
 
-    class UnexpectedVersion(TypeError):
-        """Raised when deserializing a Character from a unexpected and incompatible version."""
-
-    class IsFromTheFuture(UnexpectedVersion):
-        """Raised when deserializing a Character from a future version."""
-
-    class AreYouFromThePast(UnexpectedVersion):
-        """Raised when deserializing a Character from a previous, now unsupported version."""
-
-    unknown_version_message = "{} purported to be of version {}, but we're version {}."
-    really_unknown_version_message = "Unable to glean address from node that purported to be version {}. " \
-                                     "We're version {}."
-
     @classmethod
-    def set_cert_storage_function(cls, node_storage_function):
+    def set_cert_storage_function(cls, node_storage_function: Callable):
         cls._cert_store_function = node_storage_function
 
     def mature(self, *args, **kwargs):
@@ -1050,18 +1034,15 @@ class Teacher:
             self.rest_server.rest_interface.port
         )
 
-    def sorted_nodes(self):
-        nodes_to_consider = list(self.known_nodes.values()) + [self]
-        return sorted(nodes_to_consider, key=lambda n: n.checksum_address)
-
     def bytestring_of_known_nodes(self):
-        payload = self.known_nodes.snapshot()
-        ursulas_as_vbytes = (VariableLengthBytestring(n) for n in self.known_nodes)
-        ursulas_as_bytes = bytes().join(bytes(u) for u in ursulas_as_vbytes)
-        ursulas_as_bytes += VariableLengthBytestring(bytes(self))
-
-        payload += ursulas_as_bytes
-        return payload
+        # TODO (#1537): FleetSensor does metadata-to-byte conversion as well,
+        # we may be able to cache the results there.
+        response = MetadataResponse.author(signer=self.stamp.as_umbral_signer(),
+                                           timestamp_epoch=self.known_nodes.timestamp.epoch,
+                                           this_node=self.metadata(),
+                                           other_nodes=[node.metadata() for node in self.known_nodes],
+                                           )
+        return bytes(response)
 
     #
     # Stamp
@@ -1126,8 +1107,6 @@ class Teacher:
 
         # Decentralized
         else:
-            if self.__decentralized_identity_evidence is NOT_SIGNED:
-                raise self.StampNotSigned
 
             # Off-chain signature verification
             if not self._stamp_has_valid_signature_by_worker():
@@ -1149,11 +1128,22 @@ class Teacher:
 
             self.verified_stamp = True
 
+    def validate_metadata_signature(self) -> bool:
+        """
+        Checks that the interface info is valid for this node's canonical address.
+        """
+        metadata_is_valid = self._metadata.verify()
+        self.verified_metadata = metadata_is_valid
+        if metadata_is_valid:
+            return True
+        else:
+            raise self.InvalidNode("Metadata signature is invalid")
+
     def validate_metadata(self, registry: BaseContractRegistry = None):
 
-        # Verify the interface signature
-        if not self.verified_interface:
-            self.validate_interface()
+        # Verify the metadata signature
+        if not self.verified_metadata:
+            self.validate_metadata_signature()
 
         # Verify the identity evidence
         if self.verified_stamp:
@@ -1169,7 +1159,7 @@ class Teacher:
     def verify_node(self,
                     network_middleware_client,
                     registry: BaseContractRegistry = None,
-                    certificate_filepath: str = None,
+                    certificate_filepath: Optional[Path] = None,
                     force: bool = False
                     ) -> bool:
         """
@@ -1187,7 +1177,7 @@ class Teacher:
         """
 
         if force:
-            self.verified_interface = False
+            self.verified_metadata = False
             self.verified_node = False
             self.verified_stamp = False
             self.verified_worker = False
@@ -1200,25 +1190,19 @@ class Teacher:
                            "on-chain Staking verification will not be performed.")
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        try:
-            self.validate_metadata(registry=registry)
-        except self.UnbondedWorker:  # TODO: Why are we specifically catching this and not other reasons for invalidity, eg StampNotSigned?
-            self.verified_node = False
-            return False
+        self.validate_metadata(registry=registry)
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
             if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
-                self.certificate_filepath = self._cert_store_function(self.certificate)
+                self.certificate_filepath = self._cert_store_function(self.certificate, port=self.rest_interface.port)
             certificate_filepath = self.certificate_filepath
 
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,
                                                                    port=self.rest_interface.port,
                                                                    certificate_filepath=certificate_filepath)
 
-        version, node_bytes = self.version_splitter(response_data, return_remainder=True)
-
-        sprout = self.payload_splitter(node_bytes, partial=True)
+        sprout = NodeSprout(NodeMetadata.from_bytes(response_data))
 
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
@@ -1251,50 +1235,3 @@ class Teacher:
             self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
                                                             signature=self.decentralized_identity_evidence)
         return self.__worker_address
-
-    #
-    # Interface
-    #
-
-    def validate_interface(self) -> bool:
-        """
-        Checks that the interface info is valid for this node's canonical address.
-        """
-        interface_info_message = self._signable_interface_info_message()  # Contains canonical address.
-        message = self.timestamp_bytes() + interface_info_message
-        interface_is_valid = self._interface_signature.verify(message, self.public_keys(SigningPower))
-        self.verified_interface = interface_is_valid
-        if interface_is_valid:
-            return True
-        else:
-            raise self.InvalidNode("Interface is not valid")
-
-    def _signable_interface_info_message(self):
-        message = self.canonical_public_address + self.rest_interface
-        return message
-
-    def _sign_and_date_interface_info(self):
-        message = self._signable_interface_info_message()
-        self._timestamp = maya.now()
-        self.__interface_signature = self.stamp(self.timestamp_bytes() + message)
-
-    @property
-    def _interface_signature(self):
-        if not self.__interface_signature:
-            try:
-                self._sign_and_date_interface_info()
-            except NoSigningPower:
-                raise NoSigningPower("This Ursula is a stranger and cannot be used to verify.")
-        return self.__interface_signature
-
-    @property
-    def timestamp(self):
-        if not self._timestamp:
-            try:
-                self._sign_and_date_interface_info()
-            except NoSigningPower:
-                raise NoSigningPower("This Node is a Stranger; you didn't init with a timestamp, so you can't verify.")
-        return self._timestamp
-
-    def timestamp_bytes(self):
-        return self.timestamp.epoch.to_bytes(4, 'big')

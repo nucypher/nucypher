@@ -20,6 +20,7 @@
 import base64
 import json
 import os
+from pathlib import Path
 
 import click
 
@@ -44,18 +45,18 @@ def mario_box_cli(plaintext_dir, alice_config, label, outfile):
     policy_encrypting_key_hex = bytes(policy_encrypting_key).hex()
 
     output = list()
-    paths = list(os.listdir(plaintext_dir))
+    paths = list(plaintext_dir.iterdir())
     click.secho(f"Encrypting {len(paths)} files for policy {policy_encrypting_key_hex}", fg='blue')
 
     with click.progressbar(paths) as bar:
         for path in bar:
-            filepath = os.path.join(plaintext_dir, path)
+            filepath = Path(plaintext_dir, path)
             with open(filepath, 'rb') as file:
                 plaintext = file.read()
                 encoded_plaintext = base64.b64encode(plaintext)
 
                 enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
-                message_kit, _signature = enrico.encrypt_message(plaintext=encoded_plaintext)
+                message_kit = enrico.encrypt_message(plaintext=encoded_plaintext)
                 base64_message_kit = base64.b64encode(bytes(message_kit)).decode()
 
                 # Collect Bob Retrieve JSON Requests

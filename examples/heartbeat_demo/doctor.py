@@ -14,23 +14,23 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import base64
 import json
-import traceback
+from pathlib import Path
 from timeit import default_timer as timer
 
 import maya
 import msgpack
-import os
 import shutil
 import sys
-from umbral.keys import UmbralPublicKey
+
+from nucypher.core import MessageKit, EncryptedTreasureMap
 
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.umbral_adapter import PublicKey
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -46,8 +46,7 @@ except IndexError:
     SEEDNODE_URI = "localhost:11500"
 
 
-# TODO: path joins?
-TEMP_DOCTOR_DIR = "{}/doctor-files".format(os.path.dirname(os.path.abspath(__file__)))
+TEMP_DOCTOR_DIR = Path(__file__).parent.absolute() / "doctor-files"
 
 # Remove previous demo files and create new ones
 shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)
@@ -86,35 +85,25 @@ print("Doctor = ", doctor)
 with open("policy-metadata.json", 'r') as f:
     policy_data = json.load(f)
 
-policy_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"]))
-alices_sig_pubkey = UmbralPublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
+policy_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"]))
+alices_sig_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
 label = policy_data["label"].encode()
+treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["treasure_map"].encode()))
 
-print("The Doctor joins policy for label '{}'".format(label.decode("utf-8")))
-doctor.join_policy(label, alices_sig_pubkey)
-
-# Now that the Doctor joined the policy in the NuCypher network,
-# he can retrieve encrypted data which he can decrypt with his private key.
+# The Doctor can retrieve encrypted data which he can decrypt with his private key.
 # But first we need some encrypted data!
 # Let's read the file produced by the heart monitor and unpack the MessageKits,
 # which are the individual ciphertexts.
 data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
-message_kits = (UmbralMessageKit.from_bytes(k) for k in data['kits'])
-
-# The doctor also needs to create a view of the Data Source from its public keys
-data_source = Enrico.from_public_keys(
-    verifying_key=data['data_source'],
-    policy_encrypting_key=policy_pubkey
-)
+message_kits = (MessageKit.from_bytes(k) for k in data['kits'])
 
 # Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
 for message_kit in message_kits:
     start = timer()
-    retrieved_plaintexts = doctor.retrieve(
-        message_kit,
-        label=label,
-        enrico=data_source,
-        alice_verifying_key=alices_sig_pubkey
+    retrieved_plaintexts = doctor.retrieve_and_decrypt(
+        [message_kit],
+        alice_verifying_key=alices_sig_pubkey,
+        encrypted_treasure_map=treasure_map
     )
     end = timer()
 

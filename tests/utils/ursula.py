@@ -15,22 +15,18 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import contextlib
 import socket
-from cryptography.x509 import Certificate
 from typing import Iterable, List, Optional, Set
-from umbral import pre
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+
+from cryptography.x509 import Certificate
 
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Bob
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.utils import canonical_address_from_umbral_key
-from nucypher.policy.collections import WorkOrder
+from nucypher.crypto.umbral_adapter import SecretKey, Signer, encrypt, generate_kfrags, reencrypt
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.mock.datastore import MOCK_DB
 
@@ -66,9 +62,7 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
         starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
 
     federated_ursulas = set()
-
     for port in range(starting_port, starting_port+quantity):
-
         ursula = ursula_config.produce(rest_port=port + 100,
                                        db_filepath=MOCK_DB,
                                        **ursula_overrides)
@@ -162,43 +156,3 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
 MOCK_URSULA_STARTING_PORT = 51000  # select_test_port()
-
-
-def _mock_ursula_reencrypts(ursula):
-    delegating_privkey = UmbralPrivateKey.gen_key()
-    _symmetric_key, capsule = pre._encapsulate(delegating_privkey.get_pubkey())
-    signing_privkey = UmbralPrivateKey.gen_key()
-    signing_pubkey = signing_privkey.get_pubkey()
-    signer = Signer(signing_privkey)
-    priv_key_bob = UmbralPrivateKey.gen_key()
-    pub_key_bob = priv_key_bob.get_pubkey()
-    kfrags = pre.generate_kfrags(delegating_privkey=delegating_privkey,
-                                 signer=signer,
-                                 receiving_pubkey=pub_key_bob,
-                                 threshold=2,
-                                 N=4,
-                                 sign_delegating_key=False,
-                                 sign_receiving_key=False)
-    capsule.set_correctness_keys(delegating_privkey.get_pubkey(), pub_key_bob, signing_pubkey)
-
-    ursula_pubkey = ursula.stamp.as_umbral_pubkey()
-
-    alice_address = canonical_address_from_umbral_key(signing_pubkey)
-    blockhash = bytes(32)
-
-    specification = b''.join((bytes(capsule),
-                              bytes(ursula_pubkey),
-                              bytes(ursula.decentralized_identity_evidence),
-                              alice_address,
-                              blockhash))
-
-    bobs_signer = Signer(priv_key_bob)
-    task_signature = bytes(bobs_signer(specification))
-
-    metadata = bytes(ursula.stamp(task_signature))
-
-    cfrag = pre.reencrypt(kfrags[0], capsule, metadata=metadata)
-    cfrag_signature = ursula.stamp(bytes(cfrag))
-
-    bob = Bob.from_public_keys(verifying_key=pub_key_bob)
-    return WorkOrder.PRETask(capsule, task_signature, cfrag, cfrag_signature)

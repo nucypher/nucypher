@@ -17,11 +17,14 @@
 
 import pytest
 from twisted.logger import LogLevel, globalLogPublisher
-
 from constant_sorrow.constants import NOT_SIGNED
+
+from nucypher.core import MetadataResponse
+
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import Learner
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
@@ -40,10 +43,10 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
         if event['log_level'] == LogLevel.warn:
             warnings.append(event)
 
-    #
-    # Attempt to verify unsigned stamp
-    #
-    unsigned._Teacher__decentralized_identity_evidence = NOT_SIGNED
+    # Make a bad identity evidence
+    unsigned._Teacher__decentralized_identity_evidence = unsigned._Teacher__decentralized_identity_evidence[:-5] + (b'\x00' * 5)
+    # Reset the metadata cache
+    unsigned._metadata = None
 
     # Wipe known nodes!
     lonely_blockchain_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
@@ -68,9 +71,23 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     assert blockchain_teacher in lonely_blockchain_learner.known_nodes
 
     # Learn about a node with a badly signed payload
-    mocker.patch.object(lonely_blockchain_learner, 'verify_from', side_effect=Learner.InvalidSignature)
+
+    def bad_bytestring_of_known_nodes():
+        # Signing with the learner's signer instead of the teacher's signer
+        response = MetadataResponse.author(signer=lonely_blockchain_learner.stamp.as_umbral_signer(),
+                                           timestamp_epoch=blockchain_teacher.known_nodes.timestamp.epoch)
+        return bytes(response)
+
+    mocker.patch.object(blockchain_teacher, 'bytestring_of_known_nodes', bad_bytestring_of_known_nodes)
+
+    globalLogPublisher.addObserver(warning_trapper)
     lonely_blockchain_learner.learn_from_teacher_node(eager=True)
-    assert len(lonely_blockchain_learner.suspicious_activities_witnessed['vladimirs']) == 1
+    globalLogPublisher.removeObserver(warning_trapper)
+
+    assert len(warnings) == 2
+    warning = warnings[1]['log_format']
+    assert str(blockchain_teacher) in warning
+    assert "Invalid signature received from teacher" in warning  # TODO: Cleanup logging templates
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075

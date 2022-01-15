@@ -51,7 +51,7 @@
     - name: "update Ursula worker config"
       become: yes
       become_user: nucypher
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYRING_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} {{signer_options}} --config-file /root/.local/share/nucypher/ursula.json"
+      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYSTORE_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }}  nucypher ursula config --provider {{ blockchain_provider }} --worker-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} {{signer_options}} --config-file /root/.local/share/nucypher/ursula.json"
       environment: "{{runtime_envvars}}"
 
     - name: "Backup Worker Nucypher Keystore locally to: {{deployer_config_path}}/remote_worker_backups/"
@@ -129,7 +129,7 @@
         msg:
           "{{ursula_logs['stdout']}}"
 
-    - name: "Wait until we see that Ursula has decrypted her keyring and gotten started"
+    - name: "Wait until we see that Ursula has decrypted her keystore and gotten started"
       become: yes
       ignore_errors: yes
       wait_for:

@@ -40,9 +40,17 @@ When Alice wants to share this information with Bob, she can create a
 policy in the NuCypher Network to grant access to him. To grant access to Bob, Alice must:
 
 #. Create a re-encryption key based on the asymmetric private key and Bob's public key
-#. Configure the conditions of the policy e.g. *expiration time, m-of-n threshold values*
-#. Deploy the policy including associated fees to the blockchain
-#. Deploy `n` policy arrangements, each containing a re-encryption key fragment, `kFrag`, to `n` nodes on the NuCypher Network
+#. Determine `n` Ursulas from the NuCypher Network to use in the policy
+#. Configure the conditions of the policy, e.g. *expiration time, m-of-n threshold values*
+#. Deploy the policy to the blockchain and escrow associated policy fees
+#. Create a `treasure map`, encrypted for Bob that contains the list of `n` Ursulas in the policy,
+   and the `n` re-encryption key fragments (`kFrags`), each encrypted for a different Ursula in
+   the policy.
+
+   .. note::
+
+      Bob can decrypt the encrypted treasure map, but since each re-encryption fragment is encrypted
+      for a specific Ursula, Bob never has access to any re-encryption fragment in plaintext form.
 
 
 Enrico::Encrypt
@@ -70,20 +78,22 @@ Bob::Retrieve
 When Bob wants to access the data, he must first obtain the encrypted data and `capsule` from encrypted storage.
 However, this data is currently encrypted and inaccessible to Bob.
 
-In order to gain access, Bob must request re-encryption of the `capsule` by the `n` Ursulas that Alice previously
-distributed `kFrags` to. Remember that when Alice granted access to Bob, she distributed `n`
-`kFrags` of a re-encryption key for Bob to `n` Ursulas on the network. Therefore, Bob sends his `capsule` to `n`
-Ursulas in the NuCypher Network that have a corresponding `kFrag` for that policy. Those Ursulas
-will use their `kFrag` to perform a partial re-encryption operation on the `capsule` and produce a corresponding
-ciphertext fragment, `cFrag`. In the same way a `kFrag` is a fragment of a key, a `cFrag` is a fragment of ciphertext.
-The `cFrag` is returned to Bob, who collects `cFrags` until he obtains a threshold, `m`, number of `cFrags`.
-Bob attaches `m` received `cFrags` to the original `capsule` to obtain the fully re-encrypted `capsule` that is now
-encrypted under his public key. Note that the generation of a complete re-encrypted `capsule` is possible from a
-smaller number of `cFrags` than the number of `kFrags` originally sent out to Ursulas (m-of-n threshold scheme). Bob
-can now decrypt the `capsule` to obtain the symmetric key originally used to encrypt the bulk data.
+To gain access, Bob must request re-encryption of the `capsule` by the `n` Ursulas that participated in the policy.
+Remember that when Alice granted access to Bob, she created a `treasure map` that contained
+this list of `n` Ursulas in the policy, and the associated encrypted re-encryption key fragments (`kFrags`) for Bob to
+give to the Ursulas for the re-encryption operation. Therefore, Bob sends his `capsule` and the relevant encrypted
+`kFrag` to the various Ursulas in the NuCypher Network associated with the policy. Those Ursulas
+will decrypt the encrypted `kFrag` and use it to perform a partial re-encryption operation on the `capsule` to
+produce a corresponding ciphertext fragment, `cFrag`. In the same way a `kFrag` is a fragment of a key, a `cFrag`
+is a fragment of ciphertext. The `cFrag` is returned to Bob, who collects `cFrags` until he obtains a threshold, `m`,
+number of `cFrags`. Bob attaches `m` received `cFrags` to the original `capsule` to obtain the fully re-encrypted
+`capsule` that is now encrypted under his public key. Note that the generation of a complete re-encrypted `capsule`
+is possible from a smaller number of `cFrags` than the number of `kFrags` included in the `treasure map`
+(m-of-n threshold scheme). Bob can now decrypt the `capsule` to obtain the symmetric key originally used to
+encrypt the bulk data.
 
 Once Bob has the symmetric key, he can use it to decrypt the bulk data. This process can be repeated as more data is
-shared with Bob that is associated with `label` for the policy.
+shared with Bob that is associated with the `label` for the policy.
 
 Ultimately, because of the KEM/DEM approach, only the `capsule` needs to be re-encrypted for Bob.
 Subsequently, the size of the actual bulk data is irrelevant - whether 1KB or 1GB the re-encryption operation only
@@ -96,7 +106,7 @@ Ursula::Reencrypt
 .. image:: ../.static/img/ursula_reencrypt.svg
     :target: ../.static/img/ursula_reencrypt.svg
 
-Having previously received a `kFrag` from Alice when the policy arrangement was issued, Ursula can now partially
-re-encrypt data for Bob. Ursulas use their `kFrag` on the `capsule` provided by Bob and return a
-corresponding `cFrag`. Bob will require `m` of these interactions with `m` different Ursulas to obtain a fully
-re-encrypted `capsule`.
+Having received an encrypted `kFrag` and a `capsule` from Bob as part of the re-encryption request,
+Ursula can now partially re-encrypt data for Bob. Ursulas decrypt the encrypted `kFrag` using their private key, and
+use it to perform a re-encryption operation on the `capsule` to return a corresponding `cFrag`. Bob will
+require `m` of these interactions with `m` different Ursulas to obtain a fully re-encrypted `capsule`.

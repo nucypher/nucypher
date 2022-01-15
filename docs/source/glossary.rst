@@ -56,6 +56,10 @@ Glossary
     PKE
       Public-key encryption.
 
+    Porter
+      A web service that is the conduit between applications (platform-agnostic) and the nucypher network, that
+      performs nucypher protocol operations on behalf of Alice and Bob.
+
     PRE
       Proxy re-encryption.
 
@@ -72,7 +76,7 @@ Glossary
       The public key for a :term:`Character`'s signing key pair.
 
     Treasure Map
-      The locations of :term:`Ursulas<Ursula>` that have the relevant :term:`kFrags<kFrag>` for a policy. :term:`Bob` will use the treasure map to determine which :term:`Ursulas<Ursula>` to contact to re-encrypt the data :term:`Alice` has shared with him.
+      The locations of :term:`Ursulas<Ursula>` and associated encrypted :term:`kFrags<kFrag>` for a policy. :term:`Bob` will use the treasure map to determine which :term:`Ursulas<Ursula>` to contact to re-encrypt the data :term:`Alice` has shared with him.
 
     Umbral
       NuCypher's threshold proxy re-encryption scheme - it takes standard :term:`PRE` and increases security and performance. See Umbral_.

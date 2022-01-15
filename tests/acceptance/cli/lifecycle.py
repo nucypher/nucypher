@@ -22,17 +22,19 @@ import shutil
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError
+from pathlib import Path
 
 import maya
 import pytest
 from twisted.internet import threads
 from web3 import Web3
 
+from nucypher.core import MessageKit, EncryptedTreasureMap
+
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN, \
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
-from nucypher.crypto.kits import UmbralMessageKit
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
 
@@ -52,13 +54,14 @@ class MockSideChannel:
     def __init__(self):
         self.__message_kits = []
         self.__policies = []
+        self.__treasure_map = []
         self.__alice_public_keys = []
         self.__bob_public_keys = []
 
     def save_message_kit(self, message_kit: str) -> None:
         self.__message_kits.append(message_kit)
 
-    def fetch_message_kit(self) -> UmbralMessageKit:
+    def fetch_message_kit(self) -> MessageKit:
         if self.__message_kits:
             message_kit = self.__message_kits.pop()
             return message_kit
@@ -87,6 +90,13 @@ class MockSideChannel:
         policy = self.__bob_public_keys.pop()
         return policy
 
+    def save_treasure_map(self, treasure_map: EncryptedTreasureMap):
+        self.__treasure_map.append(treasure_map)
+
+    def fetch_treasure_map(self) -> EncryptedTreasureMap:
+        tmap = self.__treasure_map.pop()
+        return tmap
+
 
 def run_entire_cli_lifecycle(click_runner,
                              random_policy_label,
@@ -104,9 +114,9 @@ def run_entire_cli_lifecycle(click_runner,
     federated = list(ursulas)[0].federated_only
 
     # Boring Setup Stuff
-    alice_config_root = str(custom_filepath)
-    bob_config_root = str(custom_filepath_2)
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    alice_config_root = custom_filepath
+    bob_config_root = custom_filepath_2
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_BOB_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
@@ -123,13 +133,13 @@ def run_entire_cli_lifecycle(click_runner,
     # Alice performs an installation for the first time
     alice_init_args = ('alice', 'init',
                        '--network', TEMPORARY_DOMAIN,
-                       '--config-root', alice_config_root)
+                       '--config-root', str(alice_config_root.absolute()))
     if federated:
         alice_init_args += ('--federated-only',)
     else:
         alice_init_args += ('--provider', TEST_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
-                            '--registry-filepath', str(registry_filepath))
+                            '--registry-filepath', str(registry_filepath.absolute()))
 
     alice_init_response = click_runner.invoke(nucypher_cli, alice_init_args, catch_exceptions=False, env=envvars)
     assert alice_init_response.exit_code == 0
@@ -138,10 +148,10 @@ def run_entire_cli_lifecycle(click_runner,
     GlobalLoggerSettings.stop_console_logging()
 
     # Alice uses her configuration file to run the character "view" command
-    alice_configuration_file_location = os.path.join(alice_config_root, AliceConfiguration.generate_filename())
+    alice_configuration_file_location = alice_config_root / AliceConfiguration.generate_filename()
     alice_view_args = ('alice', 'public-keys',
                        '--json-ipc',
-                       '--config-file', alice_configuration_file_location)
+                       '--config-file', str(alice_configuration_file_location.absolute()))
 
     alice_view_result = click_runner.invoke(nucypher_cli,
                                             alice_view_args,
@@ -166,24 +176,24 @@ def run_entire_cli_lifecycle(click_runner,
     """
     bob_init_args = ('bob', 'init',
                      '--network', TEMPORARY_DOMAIN,
-                     '--config-root', bob_config_root)
+                     '--config-root', str(bob_config_root.absolute()))
     if federated:
         bob_init_args += ('--federated-only',)
     else:
         bob_init_args += ('--provider', TEST_PROVIDER_URI,
-                          '--registry-filepath', str(registry_filepath),
+                          '--registry-filepath', str(registry_filepath.absolute()),
                           '--checksum-address', testerchain.bob_account)
 
     bob_init_response = click_runner.invoke(nucypher_cli, bob_init_args, catch_exceptions=False, env=envvars)
     assert bob_init_response.exit_code == 0
 
     # Alice uses her configuration file to run the character "view" command
-    bob_configuration_file_location = os.path.join(bob_config_root, BobConfiguration.generate_filename())
+    bob_configuration_file_location = bob_config_root / BobConfiguration.generate_filename()
     bob_view_args = ('bob', 'public-keys',
                      '--json-ipc',
                      '--mock-networking',  # TODO: It's absurd for this public-keys command to connect at all.  1710
                      '--lonely',  # TODO: This needs to be implied by `public-keys`.
-                     '--config-file', bob_configuration_file_location)
+                     '--config-file', str(bob_configuration_file_location.absolute()))
 
     bob_view_result = click_runner.invoke(nucypher_cli, bob_view_args, catch_exceptions=False, env=envvars)
     assert bob_view_result.exit_code == 0
@@ -204,7 +214,7 @@ def run_entire_cli_lifecycle(click_runner,
     derive_args = ('alice', 'derive-policy-pubkey',
                    '--mock-networking',
                    '--json-ipc',
-                   '--config-file', alice_configuration_file_location,
+                   '--config-file', str(alice_configuration_file_location.absolute()),
                    '--label', random_label)
 
     derive_response = click_runner.invoke(nucypher_cli, derive_args, catch_exceptions=False, env=envvars)
@@ -254,7 +264,7 @@ def run_entire_cli_lifecycle(click_runner,
             'alice', 'decrypt',
             '--mock-networking',
             '--json-ipc',
-            '--config-file', alice_configuration_file_location,
+            '--config-file', str(alice_configuration_file_location.absolute()),
             '--message-kit', message_kit,
             '--label', policy.label,
         )
@@ -309,9 +319,9 @@ def run_entire_cli_lifecycle(click_runner,
                       '--json-ipc',
                       '--network', TEMPORARY_DOMAIN,
                       '--teacher', teacher_uri,
-                      '--config-file', alice_configuration_file_location,
-                      '--m', 2,
-                      '--n', 3,
+                      '--config-file', str(alice_configuration_file_location.absolute()),
+                      '-m', 2,
+                      '-n', 3,
                       '--expiration', expiration,
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,
@@ -328,9 +338,8 @@ def run_entire_cli_lifecycle(click_runner,
 
         grant_result = json.loads(grant_result.output)
 
-        # TODO: Expand test to consider manual treasure map handing
-        # # Alice puts the Treasure Map somewhere Bob can get it.
-        # side_channel.save_treasure_map(treasure_map=grant_result['result']['treasure_map'])
+        # Alice puts the Treasure Map somewhere Bob can get it.
+        side_channel.save_treasure_map(treasure_map=grant_result['result']['treasure_map'])
 
         return grant_result
 
@@ -347,19 +356,14 @@ def run_entire_cli_lifecycle(click_runner,
 
         alice_signing_key = side_channel.fetch_alice_pubkey()
 
-        retrieve_args = ('bob', 'retrieve',
+        retrieve_args = ('bob', 'retrieve-and-decrypt',
                          '--mock-networking',
                          '--json-ipc',
                          '--teacher', teacher_uri,
-                         '--config-file', bob_configuration_file_location,
+                         '--config-file', str(bob_configuration_file_location.absolute()),
                          '--message-kit', ciphertext_message_kit,
-                         '--label', label,
-                         '--policy-encrypting-key', policy_encrypting_key,
+                         '--treasure-map', side_channel.fetch_treasure_map(),
                          '--alice-verifying-key', alice_signing_key)
-
-        # TODO: Remove - Federated not used for retrieve any more
-        # if federated:
-        #    retrieve_args += ('--federated-only',)
 
         retrieve_response = click_runner.invoke(nucypher_cli, retrieve_args, catch_exceptions=False, env=envvars)
         assert retrieve_response.exit_code == 0

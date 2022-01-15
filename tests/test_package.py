@@ -92,6 +92,6 @@ def test_rpc_test_client_without_development_installation(import_mocker, mocker)
     del JSONRPCTestClient
 
     with import_mocker:
-        from nucypher.characters.control.controllers import JSONRPCController  # Import OK
+        from nucypher.control.controllers import JSONRPCController
         with pytest.raises(DevelopmentInstallationRequired, match=message):    # Expect lazy failure
             JSONRPCController.test_client(self=mocker.Mock())

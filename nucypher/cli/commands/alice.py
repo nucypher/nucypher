@@ -14,11 +14,11 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import click
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.control.interfaces import AliceInterface
 from nucypher.cli.actions.auth import get_nucypher_password
 from nucypher.cli.actions.collect import collect_bob_public_keys, collect_policy_parameters
@@ -44,28 +44,27 @@ from nucypher.cli.options import (
     option_force,
     option_hw_wallet,
     option_light,
-    option_m,
     option_middleware,
     option_min_stake,
-    option_n,
     option_network,
+    option_shares,
     option_poa,
     option_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
+    option_threshold,
     option_lonely,
-    option_max_gas_price
+    option_max_gas_price,
+    option_key_material
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import (
-    TEMPORARY_DOMAIN,
-)
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.keystore import Keystore
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
 
@@ -84,7 +83,7 @@ class AliceConfigOptions:
                  federated_only: bool,
                  discovery_port: int,
                  pay_with: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  middleware: RestMiddleware,
                  gas_strategy: str,
                  max_gas_price: int,  # gwei
@@ -177,15 +176,15 @@ class AliceFullConfigOptions:
 
     __option_name__ = 'full_config_options'
 
-    def __init__(self, config_options, poa: bool, light: bool, m: int, n: int, payment_periods: int):
+    def __init__(self, config_options, poa: bool, light: bool, threshold: int, shares: int, payment_periods: int):
         self.config_options = config_options
         self.poa = poa
         self.light = light
-        self.m = m
-        self.n = n
+        self.threshold = threshold
+        self.shares = shares
         self.payment_periods = payment_periods
 
-    def generate_config(self, emitter: StdoutEmitter, config_root: str) -> AliceConfiguration:
+    def generate_config(self, emitter: StdoutEmitter, config_root: Path, key_material: str) -> AliceConfiguration:
 
         opts = self.config_options
 
@@ -207,6 +206,7 @@ class AliceFullConfigOptions:
 
         return AliceConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
+            key_material=bytes.fromhex(key_material) if key_material else None,
             config_root=config_root,
             checksum_address=pay_with,
             domain=opts.domain,
@@ -216,8 +216,8 @@ class AliceFullConfigOptions:
             registry_filepath=opts.registry_filepath,
             poa=self.poa,
             light=self.light,
-            m=self.m,
-            n=self.n,
+            threshold=self.threshold,
+            shares=self.shares,
             payment_periods=self.payment_periods)
 
     def get_updates(self) -> dict:
@@ -230,8 +230,8 @@ class AliceFullConfigOptions:
                        registry_filepath=opts.registry_filepath,
                        poa=self.poa,
                        light=self.light,
-                       m=self.m,
-                       n=self.n,
+                       threshold=self.threshold,
+                       shares=self.shares,
                        payment_periods=self.payment_periods)
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
@@ -243,8 +243,8 @@ group_full_config_options = group_options(
     config_options=group_config_options,
     poa=option_poa,
     light=option_light,
-    m=option_m,
-    n=option_n,
+    threshold=option_threshold,
+    shares=option_shares,
     payment_periods=option_payment_periods
 )
 
@@ -264,7 +264,7 @@ class AliceCharacterOptions:
         try:
             ALICE = make_cli_character(character_config=config,
                                        emitter=emitter,
-                                       unlock_keyring=not config.dev_mode,
+                                       unlock_keystore=not config.dev_mode,
                                        unlock_signer=not config.federated_only,
                                        teacher_uri=self.teacher_uri,
                                        min_stake=self.min_stake,
@@ -272,7 +272,7 @@ class AliceCharacterOptions:
                                        lonely=self.config_options.lonely,
                                        json_ipc=json_ipc)
             return ALICE
-        except NucypherKeyring.AuthenticationFailed as e:
+        except Keystore.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             click.get_current_context().exit(1)
 
@@ -295,12 +295,15 @@ def alice():
 @group_full_config_options
 @option_config_root
 @group_general_config
-def init(general_config, full_config_options, config_root):
+@option_key_material
+def init(general_config, full_config_options, config_root, key_material):
     """Create a brand new persistent Alice."""
     emitter = setup_emitter(general_config)
     if not config_root:
         config_root = general_config.config_root
-    new_alice_config = full_config_options.generate_config(emitter, config_root)
+    new_alice_config = full_config_options.generate_config(emitter=emitter,
+                                                           config_root=config_root,
+                                                           key_material=key_material)
     filepath = new_alice_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=new_alice_config, filepath=filepath)
 
@@ -362,7 +365,7 @@ def run(general_config, character_options, config_file, controller_port, dry_run
             controller = ALICE.make_web_controller(crash_on_error=general_config.debug)
             ALICE.log.info('Starting HTTP Character Web Controller')
             emitter.message(f'Running HTTP Alice Controller at http://localhost:{controller_port}')
-            return controller.start(http_port=controller_port, dry_run=dry_run)
+            return controller.start(port=controller_port, dry_run=dry_run)
 
     # Handle Crash
     except Exception as e:
@@ -434,7 +437,8 @@ def grant(general_config,
           value,
           rate,
           expiration,
-          m, n,
+          threshold,
+          shares,
           character_options,
           config_file,
           force):
@@ -475,8 +479,8 @@ def grant(general_config,
             force=force,
             bob_identifier=bob_public_keys.verifying_key[:8],
             label=label,
-            m=m,
-            n=n,
+            threshold=threshold,
+            shares=shares,
             rate=rate,
             value=value,
             expiration=expiration
@@ -486,8 +490,8 @@ def grant(general_config,
         'bob_encrypting_key': bob_public_keys.encrypting_key,
         'bob_verifying_key': bob_public_keys.verifying_key,
         'label': policy.label,
-        'm': policy.m,
-        'n': policy.n,
+        'threshold': policy.threshold,
+        'shares': policy.shares,
         'expiration': policy.expiration,
     }
     if not ALICE.federated_only:

@@ -92,3 +92,25 @@ class StakerInfo(NamedTuple):
     # downtime: Tuple[Downtime, ...]
     # substake_info: Tuple[RawSubStakeInfo, ...]
     # history: Tuple[NuNits, ...]
+
+
+class PolicyInfo(NamedTuple):
+    disabled: bool
+    sponsor: ChecksumAddress
+    owner: ChecksumAddress
+    fee_rate: Wei
+    start_timestamp: int
+    end_timestamp: int
+
+    # reserved but unused fields in the corresponding Solidity structure below
+    # reserved_slot_1
+    # reserved_slot_2
+    # reserved_slot_3
+    # reserved_slot_4
+    # reserved_slot_5
+
+
+class ArrangementInfo(NamedTuple):
+    node: ChecksumAddress
+    downtime_index: int
+    last_refunded_period: int

@@ -50,7 +50,7 @@ from typing import List
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PolicyManagerAgent, WorkLockAgent
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent, WorkLockAgent
 
 
 class PrometheusMetricsConfig:
@@ -229,7 +229,6 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
 def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     """Create collectors for staking-related events."""
     collectors: List[MetricsCollector] = []
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=ursula.registry)
 
     staker_address = ursula.checksum_address
 
@@ -242,7 +241,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
             "period": (Gauge, f'{metrics_prefix}_activity_confirmed_period', 'Commitment made for period')
         },
         staker_address=staker_address,
-        contract_agent=staking_agent))
+        contract_agent_class=StakingEscrowAgent,
+        contract_registry=ursula.registry
+    ))
 
     # Minted
     collectors.append(EventMetricsCollector(
@@ -253,7 +254,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
             "block_number": (Gauge, f'{metrics_prefix}_mined_block_number', 'Minted block number')
         },
         argument_filters={'staker': staker_address},
-        contract_agent=staking_agent))
+        contract_agent_class=StakingEscrowAgent,
+        contract_registry=ursula.registry
+    ))
 
     # Slashed
     collectors.append(EventMetricsCollector(
@@ -265,7 +268,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
                              'Slashed penalty block number')
         },
         argument_filters={'staker': staker_address},
-        contract_agent=staking_agent))
+        contract_agent_class=StakingEscrowAgent,
+        contract_registry=ursula.registry
+    ))
 
     # RestakeSet
     collectors.append(ReStakeEventMetricsCollector(
@@ -273,7 +278,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
             "reStake": (Gauge, f'{metrics_prefix}_restaking', 'Restake set')
         },
         staker_address=staker_address,
-        contract_agent=staking_agent))
+        contract_agent_class=StakingEscrowAgent,
+        contract_registry=ursula.registry
+    ))
 
     # WindDownSet
     collectors.append(WindDownEventMetricsCollector(
@@ -281,7 +288,9 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
             "windDown": (Gauge, f'{metrics_prefix}_wind_down', 'is windDown')
         },
         staker_address=staker_address,
-        contract_agent=staking_agent))
+        contract_agent_class=StakingEscrowAgent,
+        contract_registry=ursula.registry
+    ))
 
     # WorkerBonded
     collectors.append(WorkerBondedEventMetricsCollector(
@@ -291,42 +300,40 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         },
         staker_address=staker_address,
         worker_address=ursula.worker_address,
-        contract_agent=staking_agent))
+        contract_agent_class=StakingEscrowAgent,
+        contract_registry=ursula.registry
+    ))
 
     return collectors
 
 
 def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     """Create collectors for worklock-related events."""
-    collectors: List[MetricsCollector] = []
-    worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=ursula.registry)
-    staker_address = ursula.checksum_address
-
     # Refund
-    collectors.append(WorkLockRefundEventMetricsCollector(
+    collectors: List[MetricsCollector] = [WorkLockRefundEventMetricsCollector(
         event_args_config={
             "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH',
                           'Refunded ETH'),
         },
-        staker_address=staker_address,
-        contract_agent=worklock_agent,
-    ))
+        staker_address=ursula.checksum_address,
+        contract_agent_class=WorkLockAgent,
+        contract_registry=ursula.registry
+    )]
 
     return collectors
 
 
 def create_policy_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
     """Create collectors for policy-related events."""
-    collectors: List[MetricsCollector] = []
-    policy_manager_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=ursula.registry)
-
     # Withdrawn
-    collectors.append(EventMetricsCollector(
+    collectors: List[MetricsCollector] = [EventMetricsCollector(
         event_name='Withdrawn',
         event_args_config={
             "value": (Gauge, f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward')
         },
         argument_filters={"recipient": ursula.checksum_address},
-        contract_agent=policy_manager_agent))
+        contract_agent_class=PolicyManagerAgent,
+        contract_registry=ursula.registry
+    )]
 
     return collectors

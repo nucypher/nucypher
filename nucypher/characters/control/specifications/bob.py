@@ -15,61 +15,34 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
-
-from nucypher.characters.control.specifications import fields
-from nucypher.characters.control.specifications.base import BaseSchema
+import nucypher.control.specifications.fields as base_fields
+from nucypher.characters.control.specifications import fields as character_fields
+from nucypher.characters.control.specifications.fields.treasuremap import EncryptedTreasureMap
 from nucypher.cli import options
+from nucypher.control.specifications.base import BaseSchema
 
 
-class JoinPolicy(BaseSchema):  #TODO:  this doesn't have a cli implementation
+class RetrieveAndDecrypt(BaseSchema):
 
-    label = fields.Label(
-        load_only=True, required=True,
-        click=options.option_label(required=True))
-    alice_verifying_key = fields.Key(
-        load_only=True, required=True,
-        click=click.option(
-            '--alice-verifying-key',
-            '-avk',
-            help="Alice's verifying key as a hexadecimal string",
-            required=False, type=click.STRING,))
-
-    policy_encrypting_key = fields.String(dump_only=True)
-    # this should be a Key Field
-    # but bob.join_policy outputs {'policy_encrypting_key': 'OK'}
-
-
-class Retrieve(BaseSchema):
-    label = fields.Label(
+    alice_verifying_key = character_fields.Key(
         required=True,
         load_only=True,
-        click=options.option_label(required=False)
+        click=options.option_alice_verifying_key(required=True)
     )
-    policy_encrypting_key = fields.Key(
+    message_kits = base_fields.StringList(
+        character_fields.MessageKit(),
         required=True,
         load_only=True,
-        click=options.option_policy_encrypting_key(required=False)
+        click=options.option_message_kit(required=True, multiple=True)
     )
-    alice_verifying_key = fields.Key(
-        required=False,
-        load_only=True,
-        click=click.option(
-            '--alice-verifying-key',
-            '-avk',
-            help="Alice's verifying key as a hexadecimal string",
-            type=click.STRING,
-            required=False)
-    )
-    message_kit = fields.UmbralMessageKit(
-        required=True,
-        load_only=True,
-        click=options.option_message_kit(required=False)
-    )
+    encrypted_treasure_map = EncryptedTreasureMap(required=True,
+                                                  load_only=True,
+                                                  click=options.option_treasure_map)
 
-    cleartexts = fields.List(fields.Cleartext(), dump_only=True)
+    # output
+    cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
 
 
 class PublicKeys(BaseSchema):
-    bob_encrypting_key = fields.Key(dump_only=True)
-    bob_verifying_key = fields.Key(dump_only=True)
+    bob_encrypting_key = character_fields.Key(dump_only=True)
+    bob_verifying_key = character_fields.Key(dump_only=True)

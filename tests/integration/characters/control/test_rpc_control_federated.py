@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
 
 from nucypher.characters.control.interfaces import BobInterface
@@ -69,23 +70,6 @@ def test_alice_rpc_character_control_grant(alice_rpc_test_client, grant_control_
     method_name, params = grant_control_request
     request_data = {'method': method_name, 'params': params}
     response = alice_rpc_test_client.send(request_data)
-    assert 'jsonrpc' in response.data
-
-
-def test_bob_rpc_character_control_join_policy(bob_rpc_controller, join_control_request, enacted_federated_policy, federated_bob, federated_ursulas):
-
-    for ursula in federated_ursulas:
-        if ursula.checksum_address in enacted_federated_policy.treasure_map.destinations:
-            # Simulate passing in a teacher-uri
-            federated_bob.remember_node(ursula)
-            break
-    else:
-        # Shouldn't happen
-        raise Exception("No known Ursulas present in the treasure map destinations")
-
-    method_name, params = join_control_request
-    request_data = {'method': method_name, 'params': params}
-    response = bob_rpc_controller.send(request_data)
     assert 'jsonrpc' in response.data
 
 

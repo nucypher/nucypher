@@ -17,7 +17,7 @@
 
 
 import rlp
-from eth_account._utils.transactions import assert_valid_fields, Transaction
+from eth_account._utils.legacy_transactions import assert_valid_fields, Transaction
 from eth_utils.address import to_canonical_address
 from eth_utils.applicators import apply_key_map, apply_formatters_to_dict
 from eth_utils.conversions import to_int
@@ -33,7 +33,7 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 
 
 def handle_trezor_call(device_func):

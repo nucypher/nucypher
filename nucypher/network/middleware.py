@@ -16,18 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import requests
+from http import HTTPStatus
 import socket
 import ssl
 import time
-from bytestring_splitter import VariableLengthBytestring
+import requests
+
+from nucypher.core import MetadataRequest
+
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 
-from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.crypto.signing import signature_splitter
-from nucypher.crypto.splitters import cfrag_splitter
 from nucypher.utilities.logging import Logger
 
 EXEMPT_FROM_VERIFICATION.bool_value(False)
@@ -121,14 +121,19 @@ class NucypherMiddlewareClient:
             response = self.invoke_method(method, url, verify=certificate_filepath, *args, **kwargs)
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
-                if cleaned_response.status_code == 400:
+                if cleaned_response.status_code == HTTPStatus.BAD_REQUEST:
                     raise RestMiddleware.BadRequest(reason=cleaned_response.json)
-                elif cleaned_response.status_code == 404:
+                elif cleaned_response.status_code == HTTPStatus.NOT_FOUND:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
                     raise RestMiddleware.NotFound(m)
+                elif cleaned_response.status_code == HTTPStatus.PAYMENT_REQUIRED:
+                    # TODO: Use this as a hook to prompt Bob's payment for policy sponsorship
+                    # https://getyarn.io/yarn-clip/ce0d37ba-4984-4210-9a40-c9c9859a3164
+                    raise RestMiddleware.PaymentRequired(cleaned_response.content)
+                elif cleaned_response.status_code == HTTPStatus.FORBIDDEN:
+                    raise RestMiddleware.Unauthorized(cleaned_response.content)
                 else:
-                    m = f"Unexpected response while trying to {method_name} {args},{kwargs}: {cleaned_response.status_code} {cleaned_response.content}"
-                    raise RestMiddleware.UnexpectedResponse(m, status=cleaned_response.status_code)
+                    raise RestMiddleware.UnexpectedResponse(cleaned_response.content, status=cleaned_response.status_code)
             return cleaned_response
 
         return method_wrapper
@@ -152,12 +157,22 @@ class RestMiddleware:
 
     class NotFound(UnexpectedResponse):
         def __init__(self, *args, **kwargs):
-            super().__init__(status=404, *args, **kwargs)
+            super().__init__(status=HTTPStatus.NOT_FOUND, *args, **kwargs)
 
     class BadRequest(UnexpectedResponse):
         def __init__(self, reason, *args, **kwargs):
             self.reason = reason
-            super().__init__(message=reason, status=400, *args, **kwargs)
+            super().__init__(message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs)
+
+    class PaymentRequired(UnexpectedResponse):
+        """Raised for HTTP 402"""
+        def __init__(self, *args, **kwargs):
+            super().__init__(status=HTTPStatus.PAYMENT_REQUIRED, *args, **kwargs)
+
+    class Unauthorized(UnexpectedResponse):
+        """Raised for HTTP 403"""
+        def __init__(self, *args, **kwargs):
+            super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
     def __init__(self, registry=None):
         self.client = self._client_class(registry)
@@ -188,96 +203,45 @@ class RestMiddleware:
                                                          backend=default_backend())
             return certificate
 
-    def propose_arrangement(self, node, arrangement):
-        response = self.client.post(node_or_sprout=node,
-                                    path="consider_arrangement",
-                                    data=bytes(arrangement),
-                                    timeout=2)
-        return response
-
-    def enact_policy(self, ursula, kfrag_id, payload):
-        response = self.client.post(node_or_sprout=ursula,
-                                    path=f'kFrag/{kfrag_id.hex()}',
-                                    data=payload,
-                                    timeout=2)
-        return response
-
-    def reencrypt(self, work_order):
-        ursula_rest_response = self.send_work_order_payload_to_ursula(work_order)
-        splitter = cfrag_splitter + signature_splitter
-        cfrags_and_signatures = splitter.repeat(ursula_rest_response.content)
-        return cfrags_and_signatures
-
-    def revoke_arrangement(self, ursula, revocation):
-        # TODO: Implement revocation confirmations
-        response = self.client.delete(
+    def request_revocation(self, ursula, revocation):
+        # TODO: Implement offchain revocation #2787
+        response = self.client.post(
             node_or_sprout=ursula,
-            path=f"kFrag/{revocation.arrangement_id.hex()}",
+            path=f"revoke",
             data=bytes(revocation),
         )
         return response
 
-    def get_competitive_rate(self):
-        return NotImplemented
-
-    def get_treasure_map_from_node(self, node, map_identifier):
-        response = self.client.get(node_or_sprout=node,
-                                   path=f"treasure_map/{map_identifier}",
-                                   timeout=2)
-        return response
-
-    def put_treasure_map_on_node(self, node, map_payload):
-        response = self.client.post(node_or_sprout=node,
-                                    path=f"treasure_map/",
-                                    data=map_payload,
-                                    timeout=2)
-        return response
-
-    def send_work_order_payload_to_ursula(self, work_order):
-        payload = work_order.payload()
-        id_as_hex = work_order.arrangement_id.hex()
+    def reencrypt(self, ursula: 'Ursula', reencryption_request_bytes: bytes):
         response = self.client.post(
-            node_or_sprout=work_order.ursula,
-            path=f"kFrag/{id_as_hex}/reencrypt",
-            data=payload,
+            node_or_sprout=ursula,
+            path=f"reencrypt",
+            data=reencryption_request_bytes,
             timeout=2
         )
         return response
 
-    def check_rest_availability(self, initiator, responder):
+    def check_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,
-                                    data=bytes(initiator),
-                                    path="ping",
+                                    data=bytes(initiator.metatada()),
+                                    path="check_availability",
                                     timeout=6,  # Two round trips are expected
                                     )
         return response
 
+    def ping(self, node):
+        response = self.client.get(node_or_sprout=node, path="ping", timeout=2)
+        return response
+
     def get_nodes_via_rest(self,
                            node,
-                           announce_nodes=None,
-                           nodes_i_need=None,
-                           fleet_checksum=None):
-        if nodes_i_need:
-            # TODO: This needs to actually do something.  NRN
-            # Include node_ids in the request; if the teacher node doesn't know about the
-            # nodes matching these ids, then it will ask other nodes.
-            pass
+                           fleet_state_checksum: str,
+                           announce_nodes=None):
 
-        if fleet_checksum:
-            params = {'fleet': fleet_checksum}
-        else:
-            params = {}
-
-        if announce_nodes:
-            payload = bytes().join(bytes(VariableLengthBytestring(n)) for n in announce_nodes)
-            response = self.client.post(node_or_sprout=node,
-                                        path="node_metadata",
-                                        params=params,
-                                        data=payload,
-                                        )
-        else:
-            response = self.client.get(node_or_sprout=node,
-                                       path="node_metadata",
-                                       params=params)
-
+        request = MetadataRequest(fleet_state_checksum=fleet_state_checksum,
+                                  announce_nodes=announce_nodes)
+        response = self.client.post(node_or_sprout=node,
+                                    path="node_metadata",
+                                    data=bytes(request),
+                                    )
         return response

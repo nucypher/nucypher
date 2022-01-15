@@ -57,7 +57,7 @@
       args:
         chdir: ./code
       environment:
-        NUCYPHER_KEYRING_PASSWORD: "{{ ursula_password.stdout }}"
+        NUCYPHER_KEYSTORE_PASSWORD: "{{ ursula_password.stdout }}"
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
       ignore_errors: yes

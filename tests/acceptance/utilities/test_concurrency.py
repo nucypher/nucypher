@@ -17,11 +17,28 @@
 
 import random
 import time
-from typing import Iterable, Tuple, List, Callable
+from typing import Iterable, Tuple
 
 import pytest
 
-from nucypher.utilities.concurrency import WorkerPool, AllAtOnceFactory
+from nucypher.utilities.concurrency import WorkerPool
+
+
+class AllAtOnceFactory:
+    """
+    A simple value factory that returns all its values in a single batch.
+    """
+
+    def __init__(self, values):
+        self.values = values
+        self._produced = False
+
+    def __call__(self, _successes):
+        if self._produced:
+            return None
+        else:
+            self._produced = True
+            return self.values
 
 
 @pytest.fixture(scope='function')
@@ -131,12 +148,31 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
 
     t_start = time.monotonic()
     pool.start()
-    with pytest.raises(WorkerPool.OutOfValues):
+    with pytest.raises(WorkerPool.OutOfValues) as exc_info:
         successes = pool.block_until_target_successes()
     t_end = time.monotonic()
 
     # We have roughly 2 workers per thread, so it shouldn't take longer than 1.5s (max timeout) * 2
     assert t_end - t_start < 4
+
+    message = str(exc_info.value)
+
+    assert "Execution stopped before completion - not enough available values" in message
+
+    # We had 20 workers set up to fail
+    num_expected_failures = 20
+    assert f"{num_expected_failures} failures recorded" in message
+
+    # check tracebacks
+    tracebacks = exc_info.value.get_tracebacks()
+    assert len(tracebacks) == num_expected_failures
+    for value, traceback in tracebacks.items():
+        assert 'raise Exception(f"Worker for {value} failed")' in traceback
+        assert f'Worker for {value} failed' in traceback
+
+    # This will be the last line in the displayed traceback;
+    # That's where the worker actually failed. (Worker for {value} failed)
+    assert 'raise Exception(f"Worker for {value} failed")' in message
 
 
 def test_wait_for_successes_timed_out(join_worker_pool):
@@ -153,17 +189,23 @@ def test_wait_for_successes_timed_out(join_worker_pool):
         seed=123)
 
     factory = AllAtOnceFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=1, threadpool_size=30)
+    timeout = 1
+    pool = WorkerPool(worker, factory, target_successes=10, timeout=timeout, threadpool_size=30)
     join_worker_pool(pool)
 
     t_start = time.monotonic()
     pool.start()
-    with pytest.raises(WorkerPool.TimedOut):
+    with pytest.raises(WorkerPool.TimedOut) as exc_info:
         successes = pool.block_until_target_successes()
     t_end = time.monotonic()
 
     # Even though timeout is 1, there are long-running workers which we can't interupt.
     assert t_end - t_start < 3
+
+    message = str(exc_info.value)
+
+    # None of the workers actually failed, they just timed out
+    assert f"Execution timed out after {timeout}s" == message
 
 
 def test_join(join_worker_pool):

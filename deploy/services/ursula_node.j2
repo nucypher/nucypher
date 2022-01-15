@@ -4,7 +4,7 @@ Description="Run 'Ursula', A NuCypher Staking Node."
 [Service]
 User=ubuntu
 Type=simple
-Environment="NUCYPHER_KEYRING_PASSWORD={{ursula_password.stdout}}"
+Environment="NUCYPHER_KEYSTORE_PASSWORD={{ursula_password.stdout}}"
 ExecStart={{ virtualenv_path }}/bin/nucypher ursula run --debug --network {{ nucypher_network_domain }} --federated-only --teacher {{ seed_node_metadata.checksum_address }}@https://{{ seed_node_metadata.rest_host }}:{{seed_node_metadata.rest_port}}
 
 [Install]

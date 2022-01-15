@@ -4,7 +4,7 @@ Description="Run 'Lonely Ursula' -  The Original Network Node."
 [Service]
 User=ubuntu
 Type=simple
-Environment="NUCYPHER_KEYRING_PASSWORD={{ ursula_password.stdout }}"
+Environment="NUCYPHER_KEYSTORE_PASSWORD={{ ursula_password.stdout }}"
 ExecStart={{ virtualenv_path }}/bin/nucypher ursula run --debug --lonely --network {{ nucypher_network_domain }}
 
 [Install]

@@ -20,11 +20,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-from os.path import abspath, dirname
 
 import io
 import os
 import re
+from pathlib import Path
+
 import tabulate
 import time
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
@@ -33,8 +34,7 @@ from web3.contract import Contract
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from umbral.keys import UmbralPrivateKey
-from umbral.signing import Signer
+
 from unittest.mock import Mock
 from zope.interface import provider
 
@@ -45,8 +45,9 @@ from nucypher.blockchain.eth.agents import (
     PolicyManagerAgent,
     StakingEscrowAgent
 )
-from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS
+from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS, POLICY_ID_LENGTH
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import SecretKey, Signer
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
@@ -69,7 +70,7 @@ class AnalyzeGas:
     # Logging
     LOG_NAME = 'estimate-gas'
     LOG_FILENAME = '{}.log.json'.format(LOG_NAME)
-    OUTPUT_DIR = os.path.join(abspath(dirname(__file__)), 'results')
+    OUTPUT_DIR = Path(__file__).parent / 'results'
     JSON_OUTPUT_FILENAME = '{}.json'.format(LOG_NAME)
 
     _PATTERN = re.compile(r'''
@@ -87,8 +88,8 @@ class AnalyzeGas:
         self.log = Logger(self.__class__.__name__)
         self.gas_estimations = dict()
 
-        if not os.path.isdir(self.OUTPUT_DIR):
-            os.mkdir(self.OUTPUT_DIR)
+        if not self.OUTPUT_DIR.is_dir():
+            self.OUTPUT_DIR.mkdir()
 
     @provider(ILogObserver)
     def __call__(self, event, *args, **kwargs) -> None:
@@ -115,14 +116,14 @@ class AnalyzeGas:
 
         epoch_time = str(int(time.time()))
         timestamped_filename = '{}-{}'.format(epoch_time, self.JSON_OUTPUT_FILENAME)
-        filepath = os.path.join(self.OUTPUT_DIR, timestamped_filename)
+        filepath = self.OUTPUT_DIR / timestamped_filename
         with open(filepath, 'w') as file:
             file.write(json.dumps(self.gas_estimations, indent=4))
 
     def start_collection(self) -> None:
         print("Starting Data Collection...")
 
-        json_filepath = os.path.join(self.OUTPUT_DIR, AnalyzeGas.LOG_FILENAME)
+        json_filepath = self.OUTPUT_DIR / AnalyzeGas.LOG_FILENAME
         json_io = io.open(json_filepath, "w")
         json_observer = jsonFileLogObserver(json_io)
         globalLogPublisher.addObserver(json_observer)
@@ -130,8 +131,8 @@ class AnalyzeGas:
 
 
 def mock_ursula(testerchain, account):
-    ursula_privkey = UmbralPrivateKey.gen_key()
-    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.pubkey,
+    ursula_privkey = SecretKey.random()
+    ursula_stamp = SignatureStamp(verifying_key=ursula_privkey.public_key(),
                                   signer=Signer(ursula_privkey))
 
     signed_stamp = testerchain.client.sign_message(account=account,
@@ -288,8 +289,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 10
     rate = 100
     one_period = economics.hours_per_period * 60 * 60
@@ -364,9 +365,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy with multiple pre-committed nodes
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     value = 3 * number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
@@ -393,9 +394,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Create policy again without pre-committed nodes
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_3 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     value = number_of_periods * rate
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
@@ -444,8 +445,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     # Batch granting
     #
-    policy_id_1 = os.urandom(int(Policy.POLICY_ID_LENGTH))
-    policy_id_2 = os.urandom(int(Policy.POLICY_ID_LENGTH))
+    policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
+    policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
     current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     value = 3 * number_of_periods * rate

@@ -18,7 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from cryptography.hazmat.primitives import hashes
 
-HRAC_LENGTH = 16
+# Policy component sizes
+SIGNATURE_SIZE = 64
 
 # Digest Lengths
 KECCAK_DIGEST_LENGTH = 32
@@ -27,7 +28,3 @@ BLAKE2B_DIGEST_LENGTH = 64
 # Hashes
 SHA256 = hashes.SHA256()
 BLAKE2B = hashes.BLAKE2b(64)
-
-# SECP256K1
-CAPSULE_LENGTH = 98
-PUBLIC_KEY_LENGTH = 33

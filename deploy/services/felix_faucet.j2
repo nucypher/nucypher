@@ -4,7 +4,7 @@ Description="Run 'Felix', A NuCypher Test-ERC20 Faucet."
 [Service]
 User=root
 Type=simple
-Environment="NUCYPHER_KEYRING_PASSWORD={{ keyring_password }}"
+Environment="NUCYPHER_KEYSTORE_PASSWORD={{ keystore_password }}"
 Environment="NUCYPHER_FELIX_DB_SECRET={{ db_secret }}"
 ExecStart={{ virtualenv_path }}/bin/nucypher felix run --debug --network {{ nucypher_network_domain }} --geth
 

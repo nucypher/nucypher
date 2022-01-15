@@ -14,53 +14,49 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import base64
 
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
-from umbral.keys import UmbralPrivateKey
 
 from nucypher.crypto import keypairs
+from nucypher.crypto.umbral_adapter import SecretKey
 
 
 def test_gen_keypair_if_needed():
     new_dec_keypair = keypairs.DecryptingKeypair()
     assert new_dec_keypair._privkey is not None
     assert new_dec_keypair.pubkey is not None
-    assert new_dec_keypair.pubkey == new_dec_keypair._privkey.get_pubkey()
+    assert new_dec_keypair.pubkey == new_dec_keypair._privkey.public_key()
 
     new_sig_keypair = keypairs.SigningKeypair()
     assert new_sig_keypair._privkey is not None
     assert new_sig_keypair.pubkey is not None
-    assert new_sig_keypair.pubkey == new_sig_keypair._privkey.get_pubkey()
+    assert new_sig_keypair.pubkey == new_sig_keypair._privkey.public_key()
 
 
 def test_keypair_with_umbral_keys():
-    umbral_privkey = UmbralPrivateKey.gen_key()
-    umbral_pubkey = umbral_privkey.get_pubkey()
+    umbral_privkey = SecretKey.random()
+    umbral_pubkey = umbral_privkey.public_key()
 
     new_keypair_from_priv = keypairs.Keypair(umbral_privkey)
-    assert new_keypair_from_priv._privkey.bn_key.to_bytes() == umbral_privkey.bn_key.to_bytes()
-    assert new_keypair_from_priv.pubkey.to_bytes() == umbral_pubkey.to_bytes()
+    assert new_keypair_from_priv._privkey == umbral_privkey
+    assert bytes(new_keypair_from_priv.pubkey) == bytes(umbral_pubkey)
 
     new_keypair_from_pub = keypairs.Keypair(public_key=umbral_pubkey)
-    assert new_keypair_from_pub.pubkey.to_bytes() == umbral_pubkey.to_bytes()
+    assert bytes(new_keypair_from_pub.pubkey) == bytes(umbral_pubkey)
     assert new_keypair_from_pub._privkey == PUBLIC_ONLY
 
 
 def test_keypair_serialization():
-    umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
+    umbral_pubkey = SecretKey.random().public_key()
     new_keypair = keypairs.Keypair(public_key=umbral_pubkey)
 
-    pubkey_bytes = new_keypair.serialize_pubkey()
+    pubkey_bytes = bytes(new_keypair.pubkey)
     assert pubkey_bytes == bytes(umbral_pubkey)
-
-    pubkey_b64 = new_keypair.serialize_pubkey(as_b64=True)
-    assert pubkey_b64 == base64.urlsafe_b64encode(umbral_pubkey.to_bytes())
 
 
 def test_keypair_fingerprint():
-    umbral_pubkey = UmbralPrivateKey.gen_key().get_pubkey()
+    umbral_pubkey = SecretKey.random().public_key()
     new_keypair = keypairs.Keypair(public_key=umbral_pubkey)
 
     fingerprint = new_keypair.fingerprint()
@@ -71,15 +67,15 @@ def test_keypair_fingerprint():
 
 
 def test_signing():
-    umbral_privkey = UmbralPrivateKey.gen_key()
+    umbral_privkey = SecretKey.random()
     sig_keypair = keypairs.SigningKeypair(umbral_privkey)
 
     msg = b'peace at dawn'
     signature = sig_keypair.sign(msg)
-    assert signature.verify(msg, sig_keypair.pubkey)
+    assert signature.verify(sig_keypair.pubkey, msg)
 
     bad_msg = b'bad message'
-    assert not signature.verify(bad_msg, sig_keypair.pubkey)
+    assert not signature.verify(sig_keypair.pubkey, bad_msg)
 
 
 # TODO: Add test for DecryptingKeypair.decrypt

@@ -18,11 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 from constant_sorrow import constants
-from cryptography.exceptions import InvalidSignature
 
 from nucypher.characters.lawful import Alice, Bob, Character
-from nucypher.crypto import api
 from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower)
+from nucypher.crypto.signing import InvalidSignature
 
 """
 Chapter 1: SIGNING
@@ -62,9 +61,8 @@ def test_actor_with_signing_power_can_sign():
     signature = stamp_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.
-    # (note: we use the private _der_encoded_bytes here to test directly against the API, instead of Character)
-    verification = api.verify_ecdsa(message, signature._der_encoded_bytes(),
-                                    stamp_of_the_signer.as_umbral_pubkey())
+    # (note: we verify directly using Umbral API, skipping Character)
+    verification = signature.verify(stamp_of_the_signer.as_umbral_pubkey(), message)
 
     assert verification is True
 
@@ -86,26 +84,23 @@ def test_anybody_can_verify():
     signature = alice.stamp(message)
 
     # Our everyman can verify it.
-    cleartext = somebody.verify_from(alice, message, signature, decrypt=False)
-    assert cleartext is constants.NO_DECRYPTION_PERFORMED
+    somebody.verify_from(alice, message, signature)
 
     # Of course, verification fails with any fake message
     with pytest.raises(InvalidSignature):
         fake = b"McLovin      892 Momona St.  Honolulu, HI 96820"
-        _ = somebody.verify_from(alice, fake, signature, decrypt=False)
+        somebody.verify_from(alice, fake, signature)
 
     # Signature verification also works when Alice is not living with our
     # everyman in the same process, and he only knows her by her public key
     alice_pubkey_bytes = bytes(alice.stamp)
     hearsay_alice = Character.from_public_keys({SigningPower: alice_pubkey_bytes})
 
-    cleartext = somebody.verify_from(hearsay_alice, message, signature, decrypt=False)
-    assert cleartext is constants.NO_DECRYPTION_PERFORMED
+    somebody.verify_from(hearsay_alice, message, signature)
 
     hearsay_alice = Character.from_public_keys(verifying_key=alice_pubkey_bytes)
 
-    cleartext = somebody.verify_from(hearsay_alice, message, signature, decrypt=False)
-    assert cleartext is constants.NO_DECRYPTION_PERFORMED
+    somebody.verify_from(hearsay_alice, message, signature)
     alice.disenchant()
 
 
@@ -118,12 +113,11 @@ def test_anybody_can_encrypt():
     """
     Similar to anybody_can_verify() above; we show that anybody can encrypt.
     """
-    someone = Character(start_learning_now=False, federated_only=True)
-    bob = Bob(is_me=False, federated_only=True)
+    someone = Character(start_learning_now=False, federated_only=True, crypto_power_ups=[SigningPower])
+    bob = Bob(is_me=False, federated_only=True,)
 
     cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
 
-    ciphertext, signature = someone.encrypt_for(bob, cleartext, sign=False)
+    ciphertext = someone.encrypt_for(bob, cleartext)
 
-    assert signature == constants.NOT_SIGNED
     assert ciphertext is not None

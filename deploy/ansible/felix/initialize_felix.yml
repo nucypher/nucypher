@@ -67,7 +67,7 @@
       become_flags: "-H -S"
       shell: "{{ nucypher_exec }} felix init --geth --network {{ network }}"
       environment:
-        NUCYPHER_KEYRING_PASSWORD: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        NUCYPHER_KEYSTORE_PASSWORD: "{{ lookup('env', 'NUCYPHER_FELIX_KEYSTORE_PASSWORD') }}"
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
       vars:
@@ -87,7 +87,7 @@
       become_flags: "-H -S"
       shell: "{{ nucypher_exec }} felix createdb --geth --network {{ network }}"
       environment:
-        NUCYPHER_KEYRING_PASSWORD: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        NUCYPHER_KEYSTORE_PASSWORD: "{{ lookup('env', 'NUCYPHER_FELIX_KEYSTORE_PASSWORD') }}"
         NUCYPHER_FELIX_DB_SECRET: "{{ lookup('env', 'NUCYPHER_FELIX_DB_SECRET') }}"
         LC_ALL: en_US.UTF-8
         LANG: en_US.UTF-8
@@ -111,7 +111,7 @@
         dest: /etc/systemd/system/felix_faucet.service
         mode: 0755
       vars:
-        keyring_password: "{{ lookup('env', 'NUCYPHER_FELIX_KEYRING_PASSWORD') }}"
+        keystore_password: "{{ lookup('env', 'NUCYPHER_FELIX_KEYSTORE_PASSWORD') }}"
         db_secret: "{{ lookup('env', 'NUCYPHER_FELIX_DB_SECRET') }}"
         virtualenv_path: '/home/ubuntu/venv'
         nucypher_network_domain: "{{ lookup('env', 'NUCYPHER_NETWORK_NAME') }}"

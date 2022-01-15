@@ -14,8 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+from pathlib import Path
 from unittest import mock
 
 import os
@@ -32,11 +31,11 @@ from nucypher.characters.chaotic import Felix
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH_2, TEST_PROVIDER_URI)
 
 
-@mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value='/non/existent/file')
+@mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value=Path('/non/existent/file'))
 def test_missing_configuration_file(default_filepath_mock, click_runner):
     cmd_args = ('felix', 'view')
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
@@ -58,7 +57,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     os.environ['NUCYPHER_FELIX_DB_SECRET'] = INSECURE_DEVELOPMENT_PASSWORD
 
     # Test subproc (Click)
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_WORKER_ETH_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
                'FLASK_DEBUG': '1'}
@@ -66,21 +65,21 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     # Felix creates a system configuration
     init_args = ('felix', 'init',
                  '--debug',
-                 '--registry-filepath', str(agency_local_registry.filepath),
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  '--checksum-address', testerchain.client.accounts[0],
-                 '--config-root', MOCK_CUSTOM_INSTALLATION_PATH_2,
+                 '--config-root', str(MOCK_CUSTOM_INSTALLATION_PATH_2.absolute()),
                  '--provider', TEST_PROVIDER_URI)
     _original_read_function = LocalContractRegistry.read
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
-    configuration_file_location = os.path.join(MOCK_CUSTOM_INSTALLATION_PATH_2, FelixConfiguration.generate_filename())
+    configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH_2 / FelixConfiguration.generate_filename()
 
     # Felix Creates a Database
     db_args = ('felix', 'createdb',
                '--debug',
-               '--config-file', configuration_file_location,
+               '--config-file', str(configuration_file_location.absolute()),
                '--provider', TEST_PROVIDER_URI)
 
     result = click_runner.invoke(nucypher_cli, db_args, catch_exceptions=False, env=envvars)
@@ -90,7 +89,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     def run_felix():
         args = ('felix', 'run',
                 '--debug',
-                '--config-file', configuration_file_location,
+                '--config-file', str(configuration_file_location.absolute()),
                 '--provider', TEST_PROVIDER_URI,
                 '--dry-run')
 
@@ -105,8 +104,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
         felix_config = FelixConfiguration.from_configuration_file(filepath=configuration_file_location,
                                                                   registry_filepath=agency_local_registry.filepath)
 
-        felix_config.attach_keyring()
-        felix_config.keyring.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+        felix_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
         felix = felix_config.produce()
 
         # Make a flask app
@@ -157,7 +155,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Felix view
     view_args = ('felix', 'view',
-                 '--config-file', configuration_file_location,
+                 '--config-file', str(configuration_file_location.absolute()),
                  '--provider', TEST_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, view_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -167,7 +165,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Felix accounts
     accounts_args = ('felix', 'accounts',
-                     '--config-file', configuration_file_location,
+                     '--config-file', str(configuration_file_location.absolute()),
                      '--provider', TEST_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, accounts_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
@@ -175,10 +173,10 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
 
     # Felix destroy
     destroy_args = ('felix', 'destroy',
-                    '--config-file', configuration_file_location,
+                    '--config-file', str(configuration_file_location.absolute()),
                     '--provider', TEST_PROVIDER_URI,
                     '--force')
     result = click_runner.invoke(nucypher_cli, destroy_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
     assert SUCCESSFUL_DESTRUCTION in result.output
-    assert not os.path.exists(configuration_file_location), "Felix configuration file was deleted"
+    assert not configuration_file_location.exists(), "Felix configuration file was deleted"

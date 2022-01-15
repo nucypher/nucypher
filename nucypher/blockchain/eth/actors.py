@@ -17,21 +17,24 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import os
-from decimal import Decimal
-from typing import Callable, Union
-from typing import Dict, Iterable, List, Optional, Tuple
 
 import maya
+import os
 import time
 from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
+from datetime import datetime
+from decimal import Decimal
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
+from typing import Callable, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
+
+from nucypher.core import HRAC
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import (
@@ -62,7 +65,7 @@ from nucypher.blockchain.eth.constants import (
     DAO_AGENT,
     POLICY_MANAGER_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME
+    STAKING_ESCROW_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -100,9 +103,10 @@ from nucypher.blockchain.eth.utils import (
     prettify_eth_amount
 )
 from nucypher.characters.banners import STAKEHOLDER_BANNER
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.policies import Policy
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
 
@@ -120,7 +124,8 @@ class BaseActor:
                  domain: Optional[str],
                  registry: BaseContractRegistry,
                  transacting_power: Optional[TransactingPower] = None,
-                 checksum_address: Optional[ChecksumAddress] = None):
+                 checksum_address: Optional[ChecksumAddress] = None,
+                 economics: Optional[BaseEconomics] = None):
 
         if not (bool(checksum_address) ^ bool(transacting_power)):
             error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
@@ -138,6 +143,7 @@ class BaseActor:
             else:
                 self.checksum_address = checksum_address
 
+        self.economics = economics or StandardTokenEconomics()
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
@@ -224,9 +230,8 @@ class ContractAdministrator(BaseActor):
     class UnknownContract(ValueError):
         pass
 
-    def __init__(self, economics: BaseEconomics = None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         self.log = Logger("Deployment-Actor")
-        self.economics = economics or StandardTokenEconomics()
         self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
         super().__init__(*args, **kwargs)
 
@@ -322,8 +327,8 @@ class ContractAdministrator(BaseActor):
     def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
         config_root = DEFAULT_CONFIG_ROOT  # We force the use of the default here.
         filename = f'{filename_prefix}-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
-        filepath = os.path.join(config_root, filename)
-        os.makedirs(config_root, exist_ok=True)
+        filepath = config_root / filename
+        config_root.mkdir(parents=True, exist_ok=True)
         with open(filepath, 'w') as file:
             data = dict()
             for contract_name, contract_receipts in receipts.items():
@@ -1202,6 +1207,26 @@ class Worker(NucypherTokenActor):
         missing = self.staking_agent.get_missing_commitments(checksum_address=staker_address)
         return missing
 
+    def verify_policy_payment(self, hrac: HRAC) -> None:
+        arrangements = self.policy_agent.fetch_policy_arrangements(policy_id=bytes(hrac))
+        members = set()
+        for arrangement in arrangements:
+            members.add(arrangement.node)
+            if self.checksum_address == arrangement.node:
+                return
+        else:
+            if not members:
+                raise Policy.Unknown(f'{hrac} is not a published policy.')
+            raise Policy.Unpaid(f"{hrac} is unpaid.")
+
+    def verify_active_policy(self, hrac: HRAC) -> None:
+        policy = self.policy_agent.fetch_policy(policy_id=bytes(hrac))
+        if policy.disabled:
+            raise Policy.Inactive(f'{hrac} is a disabled policy.')
+        expired = datetime.utcnow() >= datetime.utcfromtimestamp(policy.end_timestamp)
+        if expired:
+            raise Policy.Expired(f'{hrac} is an expired policy.')
+
 
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
@@ -1264,7 +1289,7 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
             payment_periods += 1  # Number of all included periods
 
         from nucypher.policy.policies import BlockchainPolicy
-        blockchain_payload = BlockchainPolicy.generate_policy_parameters(n=number_of_ursulas,
+        blockchain_payload = BlockchainPolicy.generate_policy_parameters(shares=number_of_ursulas,
                                                                          payment_periods=payment_periods,
                                                                          value=value,
                                                                          rate=rate)
@@ -1274,22 +1299,13 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
         payload = {**blockchain_payload, **policy_end_time}
         return payload
 
-    def get_stakers_reservoir(self, **options) -> StakersReservoir:
-        """
-        Get a sampler object containing the currently registered stakers.
-        """
-        return self.staking_agent.get_stakers_reservoir(**options)
-
     def create_policy(self, *args, **kwargs):
         """
         Hence the name, a BlockchainPolicyAuthor can create
         a BlockchainPolicy with themself as the author.
-
-        :return: Returns a newly authored BlockchainPolicy with n proposed arrangements.
-
         """
         from nucypher.policy.policies import BlockchainPolicy
-        blockchain_policy = BlockchainPolicy(alice=self, *args, **kwargs)
+        blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)
         return blockchain_policy
 
 

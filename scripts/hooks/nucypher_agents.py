@@ -26,7 +26,7 @@ from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION

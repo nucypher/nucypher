@@ -1,0 +1,1 @@
+``StakingEscrow.partition_stakers_by_activity()`` no longer includes stakers with expired stakes in the ``missing_stakers`` value returned, thereby no longer overstating the number of inactive stakers.

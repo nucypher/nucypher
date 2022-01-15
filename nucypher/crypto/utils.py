@@ -15,35 +15,111 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from coincurve import PublicKey
+from secrets import SystemRandom
+from typing import Union
+
+import sha3
+from cryptography.hazmat.backends.openssl.backend import backend
+from cryptography.hazmat.primitives import hashes
+from eth_account.account import Account
+from eth_account.messages import encode_defunct
 from eth_keys import KeyAPI as EthKeyAPI
-from typing import Any, Union
-from umbral.keys import UmbralPublicKey
+from eth_utils.address import to_checksum_address
 
-from nucypher.crypto.api import keccak_digest
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.crypto.umbral_adapter import PublicKey
+
+SYSTEM_RAND = SystemRandom()
 
 
-def fingerprint_from_key(public_key: Any):
-    """
-    Hashes a key using keccak-256 and returns the hexdigest in bytes.
-    :return: Hexdigest fingerprint of key (keccak-256) in bytes
-    """
-    return keccak_digest(bytes(public_key)).hex().encode()
-
-
-def construct_policy_id(label: bytes, stamp: bytes) -> bytes:
-    """
-    Forms an ID unique to the policy per label and Bob's signing pubkey via
-    a keccak hash of the two.
-    """
-    return keccak_digest(label + stamp)
-
-
-def canonical_address_from_umbral_key(public_key: Union[UmbralPublicKey, SignatureStamp]) -> bytes:
+def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStamp]) -> bytes:
     if isinstance(public_key, SignatureStamp):
         public_key = public_key.as_umbral_pubkey()
-    pubkey_compressed_bytes = public_key.to_bytes(is_compressed=True)
+    pubkey_compressed_bytes = bytes(public_key)
     eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address
+
+
+def secure_random(num_bytes: int) -> bytes:
+    """
+    Returns an amount `num_bytes` of data from the OS's random device.
+    If a randomness source isn't found, returns a `NotImplementedError`.
+    In this case, a secure random source most likely doesn't exist and
+    randomness will have to found elsewhere.
+
+    :param num_bytes: Number of bytes to return.
+
+    :return: bytes
+    """
+    # TODO: Should we just use os.urandom or avoid the import w/ this?
+    return SYSTEM_RAND.getrandbits(num_bytes * 8).to_bytes(num_bytes, byteorder='big')
+
+
+def secure_random_range(min: int, max: int) -> int:
+    """
+    Returns a number from a secure random source betwee the range of
+    `min` and `max` - 1.
+
+    :param min: Minimum number in the range
+    :param max: Maximum number in the range
+
+    :return: int
+    """
+    return SYSTEM_RAND.randrange(min, max)
+
+
+def keccak_digest(*messages: bytes) -> bytes:
+    """
+    Accepts an iterable containing bytes and digests it returning a
+    Keccak digest of 32 bytes (keccak_256).
+
+    Although we use SHA256 in many cases, we keep keccak handy in order
+    to provide compatibility with the Ethereum blockchain.
+
+    :param bytes: Data to hash
+
+    :rtype: bytes
+    :return: bytestring of digested data
+    """
+    _hash = sha3.keccak_256()
+    for message in messages:
+        _hash.update(bytes(message))
+    digest = _hash.digest()
+    return digest
+
+
+def sha256_digest(*messages: bytes) -> bytes:
+    """
+    Accepts an iterable containing bytes and digests it returning a
+    SHA256 digest of 32 bytes
+
+    :param bytes: Data to hash
+
+    :rtype: bytes
+    :return: bytestring of digested data
+    """
+    _hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    for message in messages:
+        _hash_ctx.update(bytes(message))
+    digest = _hash_ctx.finalize()
+    return digest
+
+
+def recover_address_eip_191(message: bytes, signature: bytes) -> str:
+    """
+    Recover checksum address from EIP-191 signature
+    """
+    signable_message = encode_defunct(primitive=message)
+    recovery = Account.recover_message(signable_message=signable_message, signature=signature)
+    recovered_address = to_checksum_address(recovery)
+    return recovered_address
+
+
+def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
+    """
+    EIP-191 Compatible signature verification for usage with w3.eth.sign.
+    """
+    recovered_address = recover_address_eip_191(message=message, signature=signature)
+    signature_is_valid = recovered_address == to_checksum_address(address)
+    return signature_is_valid

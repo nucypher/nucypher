@@ -15,15 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import json
-from pathlib import Path
+import shutil
 
 import pytest
-import shutil
 from cytoolz.dicttoolz import assoc
 from eth_account import Account
-from eth_account._utils.transactions import Transaction
+from eth_account._utils.legacy_transactions import Transaction
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
 
@@ -54,7 +52,7 @@ def mock_key():
 
 @pytest.fixture(scope='module')
 def mock_account(mock_key):
-    account = Account.from_key(private_key=mock_key.privateKey)
+    account = Account.from_key(private_key=mock_key.key)
     return account
 
 
@@ -89,7 +87,7 @@ def unknown_address():
 
 def test_invalid_keystore(tmp_path):
     with pytest.raises(Signer.InvalidSignerURI) as e:
-        Signer.from_signer_uri(uri=f'keystore:{tmp_path/"nonexistent"}', testnet=True)
+        Signer.from_signer_uri(uri=f'keystore:{tmp_path.absolute()/"nonexistent"}', testnet=True)
 
     empty_path = tmp_path / 'empty_file'
     open(empty_path, 'x+t').close()
@@ -110,15 +108,15 @@ def test_invalid_keystore(tmp_path):
         Signer.from_signer_uri(uri=f'keystore:{bad_address}', testnet=True)
 
 
-def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
+def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path):
 
     # Test reading a keyfile from the disk via KeystoreSigner since
     # it is mocked for the rest of this test module
-    fake_ethereum = Path(tmpdir) / '.fake-ethereum'
+    fake_ethereum = temp_dir_path / '.fake-ethereum'
     try:
         fake_ethereum.mkdir()
 
-        tmp_keystore = Path(tmpdir) / '.fake-ethereum' / 'keystore'
+        tmp_keystore = temp_dir_path / '.fake-ethereum' / 'keystore'
         tmp_keystore.mkdir()
 
         mock_keyfile_path = tmp_keystore / MOCK_KEYFILE_NAME
@@ -130,7 +128,7 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, tmpdir):
         mock_keystore_uri = f'keystore://{tmp_keystore}'
         signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)
 
-        assert signer.path == str(tmp_keystore)
+        assert signer.path == tmp_keystore
         assert len(signer.accounts) == 1
         assert MOCK_KEYFILE['address'] in signer.accounts
 
@@ -145,7 +143,7 @@ def test_create_signer_from_keystore_directory(mock_account, mock_keystore):
 
     # Return a "real" account address from the keyfile
     signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
-    assert signer.path == str(mock_keystore_path)
+    assert signer.path == mock_keystore_path
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
@@ -156,7 +154,7 @@ def test_create_signer_from_keystore_file(mock_account, mock_keystore):
 
     # Return a "real" account address from the keyfile
     signer = Signer.from_signer_uri(uri=mock_keystore_uri, testnet=True)  # type: KeystoreSigner
-    assert signer.path == str(mock_keystore_path)
+    assert signer.path == mock_keystore_path
     assert len(signer.accounts) == 1
     assert mock_account.address in signer.accounts
 
@@ -207,7 +205,7 @@ def test_keystore_sign_message(mocker, good_signer, mock_account, mock_key):
 
     # unlock
     mock_decrypt = mocker.patch.object(Account, 'decrypt', autospec=True)
-    mock_decrypt.return_value = mock_key.privateKey
+    mock_decrypt.return_value = mock_key.key
     successful_unlock = good_signer.unlock_account(account=mock_account.address, password=INSECURE_DEVELOPMENT_PASSWORD)
     assert successful_unlock
 

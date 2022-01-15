@@ -16,12 +16,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import time
 import random
+import os
 
 import requests
 import socket
-from bytestring_splitter import VariableLengthBytestring
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from flask import Response
+
+from nucypher.core import MetadataRequest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -109,12 +111,10 @@ class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
 
     def get_nodes_via_rest(self,
                            node,
-                           announce_nodes=None,
-                           nodes_i_need=None,
-                           fleet_checksum=None):
-        known_nodes_bytestring = node.bytestring_of_known_nodes()
-        signature = node.stamp(known_nodes_bytestring)
-        r = Response(bytes(signature) + known_nodes_bytestring)
+                           fleet_state_checksum,
+                           announce_nodes=None):
+        response_bytes = node.bytestring_of_known_nodes()
+        r = Response(response_bytes)
         r.content = r.data
         return r
 
@@ -182,13 +182,15 @@ class EvilMiddleWare(MockRestMiddleware):
     Middleware for assholes.
     """
 
-    def propagate_shitty_interface_id(self, ursula, shitty_interface_id):
+    def propagate_shitty_interface_id(self, ursula, shitty_metadata):
         """
         Try to get Ursula to propagate a malicious (or otherwise shitty) interface ID.
         """
+        fleet_state_checksum = os.urandom(32).hex()
+        request = MetadataRequest(fleet_state_checksum=fleet_state_checksum, announce_nodes=[shitty_metadata])
         response = self.client.post(node_or_sprout=ursula,
                                     path="node_metadata",
-                                    data=bytes(VariableLengthBytestring(shitty_interface_id))
+                                    data=bytes(request)
                                     )
         return response
 

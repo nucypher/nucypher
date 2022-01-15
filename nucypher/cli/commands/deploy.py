@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
+from pathlib import Path
 
 import click
 from constant_sorrow import constants
@@ -37,7 +38,7 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment, verify_upgrade_details
 from nucypher.cli.actions.select import select_client_account
@@ -100,7 +101,8 @@ from nucypher.crypto.powers import TransactingPower
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
 option_registry_infile = click.option('--registry-infile', help="Input path for contract registry file", type=EXISTING_READABLE_FILE)
-option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file", type=click.Path(file_okay=True))
+option_registry_outfile = click.option('--registry-outfile', help="Output path for contract registry file",
+                                       type=click.Path(dir_okay=False, path_type=Path))
 option_target_address = click.option('--target-address', help="Address of the target contract", type=EIP55_CHECKSUM_ADDRESS)
 option_gas = click.option('--gas', help="Operate with a specified gas per-transaction limit", type=click.IntRange(min=1))
 option_ignore_deployed = click.option('--ignore-deployed', help="Ignore already deployed contracts if exist.", is_flag=True)
@@ -116,13 +118,13 @@ class ActorOptions:
                  provider_uri: str,
                  deployer_address: str,
                  contract_name: str,
-                 registry_infile: str,
-                 registry_outfile: str,
+                 registry_infile: Path,
+                 registry_outfile: Path,
                  hw_wallet: bool,
                  dev: bool,
                  force: bool,
                  poa: bool,
-                 config_root: str,
+                 config_root: Path,
                  etherscan: bool,
                  ignore_solidity_check,
                  gas_strategy: str,
@@ -391,7 +393,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
         emitter.message(message, color='green')
         paint_multisig_proposed_transaction(emitter, transaction_proposal)  # TODO: Show decoded function too
 
-        filepath = f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json'
+        filepath = Path(f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json')
         transaction_proposal.write(filepath=filepath)
         emitter.echo(SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL.format(filepath=filepath), color='blue', bold=True)
         return  # Exit

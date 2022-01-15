@@ -17,11 +17,12 @@
 import glob
 import json
 from json.decoder import JSONDecodeError
+from pathlib import Path
 from typing import Optional, Type, List
 
 import click
 
-from nucypher.characters.control.emitters import StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (
@@ -50,25 +51,26 @@ def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> Non
     emitter.message(SUCCESSFUL_FORGET_NODES, color='red')
 
 
-def get_config_filepaths(config_class: Type[CharacterConfiguration], config_root: str = None) -> List:
+def get_config_filepaths(config_class: Type[CharacterConfiguration], config_root: Optional[Path] = None) -> List:
     #
     # Scrape disk for configuration files
     #
     config_root = config_root or DEFAULT_CONFIG_ROOT
-    default_config_file = glob.glob(config_class.default_filepath(config_root=config_root))
+    default_config_file = glob.glob(str(config_class.default_filepath(config_root=config_root)))
 
     # updated glob pattern for secondary configuration files accommodates for:
     # 1. configuration files with "0x..." checksum address as suffix - including older ursula config files
     # 2. newer (ursula) configuration files which use signing_pub_key[:8] as hex as the suffix
-    glob_pattern = f'{config_root}/{config_class.NAME}-[0-9a-fA-F]*.{config_class._CONFIG_FILE_EXTENSION}'
+    glob_pattern = f'{config_root.absolute()}/{config_class.NAME}-[0-9a-fA-F]*.{config_class._CONFIG_FILE_EXTENSION}'
 
     secondary_config_files = sorted(glob.glob(glob_pattern))  # sort list to make order deterministic
     config_files = [*default_config_file, *secondary_config_files]
+    config_files = [Path(f) for f in config_files]
     return config_files
 
 
 def get_or_update_configuration(emitter: StdoutEmitter,
-                                filepath: str,
+                                filepath: Path,
                                 config_class: Type[CharacterConfiguration],
                                 updates: Optional[dict] = None) -> None:
     """
@@ -104,7 +106,7 @@ def destroy_configuration(emitter: StdoutEmitter,
 
 def handle_missing_configuration_file(character_config_class: Type[CharacterConfiguration],
                                       init_command_hint: str = None,
-                                      config_file: str = None) -> None:
+                                      config_file: Optional[Path] = None) -> None:
     """Display a message explaining there is no configuration file to use and abort the current operation."""
     config_file_location = config_file or character_config_class.default_filepath()
     init_command = init_command_hint or f"{character_config_class.NAME} init"
@@ -112,12 +114,12 @@ def handle_missing_configuration_file(character_config_class: Type[CharacterConf
     if name == StakeHolderConfiguration.NAME.capitalize():
         init_command = 'stake init-stakeholder'
     message = MISSING_CONFIGURATION_FILE.format(name=name, init_command=init_command)
-    raise click.FileError(filename=config_file_location, hint=message)
+    raise click.FileError(filename=str(config_file_location.absolute()), hint=message)
 
 
 def handle_invalid_configuration_file(emitter: StdoutEmitter,
                                       config_class: Type[CharacterConfiguration],
-                                      filepath: str) -> None:
+                                      filepath: Path) -> None:
     """
     Attempt to deserialize a config file that is not a valid nucypher character configuration
     as a means of user-friendly debugging. :-)  I hope this helps!

@@ -55,7 +55,7 @@ ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI, federated_only=T
 
 # Here are our Policy details.
 policy_end_datetime = maya.now() + datetime.timedelta(days=1)
-m, n = 2, 3
+threshold, shares = 2, 3
 label = b"secret/files/and/stuff"
 
 
@@ -90,13 +90,12 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 
 # Alice grant access to Bob. She already knows Bob's public keys from a side-channel.
 remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
-policy = alice.grant(remote_bob, label, m=m, n=n, expiration=policy_end_datetime)
+policy = alice.grant(remote_bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
 assert policy.public_key == policy_public_key
-policy.treasure_map_publisher.block_until_complete()
 
 # Alice puts her public key somewhere for Bob to find later...
-alice_verifying_key = bytes(alice.stamp)
+alice_verifying_key = alice.stamp.as_umbral_pubkey()
 
 # ...and then disappears from the internet.
 #
@@ -118,9 +117,7 @@ del alice
 # Bob the BUIDLer  ##
 #####################
 
-bob.join_policy(label, alice_verifying_key)
-
-# Now that Bob has joined the Policy, let's show how Enrico the Encryptor
+# Now let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
 # In order to avoid re-encrypting the entire book in this demo, we only read some lines.
 with open(BOOK_PATH, 'rb') as file:
@@ -143,8 +140,8 @@ for counter, plaintext in enumerate(finnegans_wake):
     # single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
-    single_passage_ciphertext, _signature = enrico.encrypt_message(plaintext)
-    data_source_public_key = bytes(enrico.stamp)
+    single_passage_message_kit = enrico.encrypt_message(plaintext)
+    data_source_public_key = enrico.stamp.as_umbral_pubkey()
     del enrico
 
     ###############
@@ -152,10 +149,9 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message.
-    delivered_cleartexts = bob.retrieve(single_passage_ciphertext,
-                                        policy_encrypting_key=policy_public_key,
-                                        alice_verifying_key=alice_verifying_key,
-                                        label=label)
+    delivered_cleartexts = bob.retrieve_and_decrypt([single_passage_message_kit],
+                                                    alice_verifying_key=alice_verifying_key,
+                                                    encrypted_treasure_map=policy.treasure_map)
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == delivered_cleartexts[0]

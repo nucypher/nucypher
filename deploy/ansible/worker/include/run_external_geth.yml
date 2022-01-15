@@ -10,6 +10,7 @@
         name: geth
         state: started
         restart: yes
+        pull: true
         image: ethereum/client-go:stable
         restart_policy: "unless-stopped"
         command: "{{geth_options}} --http --http.addr 0.0.0.0 --http.api eth,web3,net --nousb --syncmode fast --rpcvhosts=* --cache 2000"

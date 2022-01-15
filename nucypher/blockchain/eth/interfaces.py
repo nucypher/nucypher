@@ -15,9 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import math
 import os
 import pprint
+from pathlib import Path
+
 from eth.typing import TransactionDict
 from typing import Callable, NamedTuple, Tuple, Union, Optional
 from typing import List
@@ -60,7 +63,7 @@ from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
 from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
-from nucypher.characters.control.emitters import JSONRPCStdoutEmitter, StdoutEmitter
+from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.utilities.ethereum import encode_constructor_arguments
 from nucypher.utilities.gas_strategies import (
     construct_datafeed_median_strategy,
@@ -380,7 +383,7 @@ class BlockchainInterface:
 
             # auto-detect for file based ipc
             if not provider_scheme:
-                if os.path.exists(provider_uri):
+                if Path(provider_uri).is_file():
                     # file is available - assume ipc/file scheme
                     provider_scheme = 'file'
                     self.log.info(f"Auto-detected provider scheme as 'file://' for provider {provider_uri}")

@@ -14,4 +14,3 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-LEARNING_LOOP_VERSION = 2  # TODO: Rename to DISCOVERY_LOOP_VERSION

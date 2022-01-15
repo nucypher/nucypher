@@ -14,12 +14,12 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import click
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.cli.actions.auth import get_client_password, get_nucypher_password
+from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, recover_keystore
 from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
@@ -53,7 +53,8 @@ from nucypher.cli.options import (
     option_signer_uri,
     option_teacher_uri,
     option_lonely,
-    option_max_gas_price
+    option_max_gas_price,
+    option_key_material
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
@@ -63,7 +64,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
-from nucypher.config.keyring import NucypherKeyring
+from nucypher.crypto.keystore import Keystore
 
 
 class UrsulaConfigOptions:
@@ -76,9 +77,9 @@ class UrsulaConfigOptions:
                  federated_only: bool,
                  rest_host: str,
                  rest_port: int,
-                 db_filepath: str,
+                 db_filepath: Path,
                  network: str,
-                 registry_filepath: str,
+                 registry_filepath: Path,
                  dev: bool,
                  poa: bool,
                  light: bool,
@@ -156,12 +157,12 @@ class UrsulaConfigOptions:
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
-            except NucypherKeyring.AuthenticationFailed as e:
+            except Keystore.AuthenticationFailed as e:
                 emitter.echo(str(e), color='red', bold=True)
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
-    def generate_config(self, emitter, config_root, force):
+    def generate_config(self, emitter, config_root, force, key_material):
 
         if self.dev:
             raise RuntimeError('Persistent configurations cannot be created in development mode.')
@@ -180,6 +181,7 @@ class UrsulaConfigOptions:
             self.rest_host = collect_worker_ip_address(emitter, network=self.domain, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(emitter=emitter, confirm=True),
+                                            key_material=bytes.fromhex(key_material) if key_material else None,
                                             config_root=config_root,
                                             rest_host=self.rest_host,
                                             rest_port=self.rest_port,
@@ -202,7 +204,7 @@ class UrsulaConfigOptions:
                        db_filepath=self.db_filepath,
                        domain=self.domain,
                        federated_only=self.federated_only,
-                       checksum_address=self.worker_address,
+                       worker_address=self.worker_address,
                        registry_filepath=self.registry_filepath,
                        provider_uri=self.provider_uri,
                        signer_uri=self.signer_uri,
@@ -263,7 +265,7 @@ class UrsulaCharacterOptions:
                                         emitter=emitter,
                                         min_stake=self.min_stake,
                                         teacher_uri=self.teacher_uri,
-                                        unlock_keyring=not self.config_options.dev,
+                                        unlock_keystore=not self.config_options.dev,
                                         client_password=__password,
                                         unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
                                         lonely=self.config_options.lonely,
@@ -271,7 +273,7 @@ class UrsulaCharacterOptions:
                                         json_ipc=json_ipc)
             return ursula_config, URSULA
 
-        except NucypherKeyring.AuthenticationFailed as e:
+        except Keystore.AuthenticationFailed as e:
             emitter.echo(str(e), color='red', bold=True)
             # TODO: Exit codes (not only for this, but for other exceptions)
             return click.get_current_context().exit(1)
@@ -295,7 +297,8 @@ def ursula():
 @option_force
 @option_config_root
 @group_general_config
-def init(general_config, config_options, force, config_root):
+@option_key_material
+def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config, config_options.worker_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
@@ -305,9 +308,22 @@ def init(general_config, config_options, force, config_root):
         raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter)
-    ursula_config = config_options.generate_config(emitter, config_root, force)
+    ursula_config = config_options.generate_config(emitter=emitter,
+                                                   config_root=config_root,
+                                                   force=force,
+                                                   key_material=key_material)
     filepath = ursula_config.to_configuration_file()
     paint_new_installation_help(emitter, new_configuration=ursula_config, filepath=filepath)
+
+
+@ursula.command()
+@group_config_options
+@group_general_config
+def recover(general_config, config_options):
+    # TODO: Combine with work in PR #2682
+    # TODO: Integrate regeneration of configuration files
+    emitter = setup_emitter(general_config, config_options.worker_address)
+    recover_keystore(emitter=emitter)
 
 
 @ursula.command()

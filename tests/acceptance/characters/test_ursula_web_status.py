@@ -16,6 +16,8 @@
 """
 
 import os
+from pathlib import Path
+
 import pytest
 import tempfile
 
@@ -28,12 +30,13 @@ def ursula(blockchain_ursulas):
 
 @pytest.fixture(scope='module')
 def client(ursula):
-    db_fd, ursula.rest_app.config['DATABASE'] = tempfile.mkstemp()
+    db_fd, db_path = tempfile.mkstemp()
+    ursula.rest_app.config['DATABASE'] = Path(db_path)
     ursula.rest_app.config['TESTING'] = True
     with ursula.rest_app.test_client() as client:
         yield client
     os.close(db_fd)
-    os.unlink(ursula.rest_app.config['DATABASE'])
+    ursula.rest_app.config['DATABASE'].unlink()
 
 
 def test_ursula_html_renders(ursula, client):

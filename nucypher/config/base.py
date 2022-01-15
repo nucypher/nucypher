@@ -17,24 +17,22 @@
 
 
 import json
-import os
 import re
 from abc import ABC, abstractmethod
 from decimal import Decimal
+from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Callable, Optional, List
+from typing import Callable, List, Optional, Union
 
 from constant_sorrow.constants import (
-    UNKNOWN_VERSION,
-    UNINITIALIZED_CONFIGURATION,
-    NO_KEYRING_ATTACHED,
-    NO_BLOCKCHAIN_CONNECTION,
-    FEDERATED_ADDRESS,
     DEVELOPMENT_CONFIGURATION,
-    LIVE_CONFIGURATION
+    LIVE_CONFIGURATION,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_KEYSTORE_ATTACHED,
+    UNINITIALIZED_CONFIGURATION,
+    UNKNOWN_VERSION
 )
 from eth_utils.address import is_checksum_address
-from umbral.signing import Signature
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -46,12 +44,13 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
-from nucypher.config.keyring import NucypherKeyring
 from nucypher.config.storages import (
     ForgetfulNodeStorage,
     LocalFileBasedNodeStorage,
     NodeStorage
 )
+from nucypher.config.util import cast_paths_from
+from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
@@ -133,8 +132,8 @@ class BaseConfiguration(ABC):
         pass
 
     def __init__(self,
-                 config_root: str = None,
-                 filepath: str = None,
+                 config_root: Optional[Path] = None,
+                 filepath: Optional[Path] = None,
                  *args, **kwargs):
 
         if self.NAME is NotImplemented:
@@ -143,7 +142,7 @@ class BaseConfiguration(ABC):
 
         self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
         if not filepath:
-            filepath = os.path.join(self.config_root, self.generate_filename())
+            filepath = self.config_root / self.generate_filename()
         self.filepath = filepath
 
         super().__init__()
@@ -188,17 +187,17 @@ class BaseConfiguration(ABC):
         return filename
 
     @classmethod
-    def default_filepath(cls, config_root: str = None) -> str:
+    def default_filepath(cls, config_root: Optional[Path] = None) -> Path:
         """
         Generates the default configuration filepath for the class.
 
         :return: The generated filepath string
         """
         filename = cls.generate_filename()
-        default_path = os.path.join(config_root or cls.DEFAULT_CONFIG_ROOT, filename)
+        default_path = (config_root or cls.DEFAULT_CONFIG_ROOT) / filename
         return default_path
 
-    def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
+    def generate_filepath(self, filepath: Optional[Path] = None, modifier: str = None, override: bool = False) -> Path:
         """
         Generates a filepath for saving to writing to a configuration file.
 
@@ -217,12 +216,12 @@ class BaseConfiguration(ABC):
         """
         if not filepath:
             filename = self.generate_filename()
-            filepath = os.path.join(self.config_root, filename)
-        if os.path.exists(filepath) and not override:
+            filepath = self.config_root / filename
+        if filepath.exists() and not override:
             if not modifier:
                 raise FileExistsError(f"{filepath} exists and no filename modifier supplied.")
             filename = self.generate_filename(modifier=modifier)
-            filepath = os.path.join(self.config_root, filename)
+            filepath = self.config_root / filename
         self.filepath = filepath
         return filepath
 
@@ -233,14 +232,14 @@ class BaseConfiguration(ABC):
 
         :return: None.
         """
-        if not os.path.exists(self.config_root):
+        if not self.config_root.exists():
             try:
-                os.mkdir(self.config_root, mode=0o755)
+                self.config_root.mkdir(mode=0o755)
             except FileNotFoundError:
-                os.makedirs(self.config_root, mode=0o755)
+                self.config_root.mkdir(parents=True, mode=0o755)
 
     @classmethod
-    def peek(cls, filepath: str, field: str) -> Union[str, None]:
+    def peek(cls, filepath: Path, field: str) -> Union[str, None]:
         payload = cls._read_configuration_file(filepath=filepath)
         try:
             result = payload[field]
@@ -248,30 +247,30 @@ class BaseConfiguration(ABC):
             raise cls.ConfigurationError(f"Cannot peek; No such configuration field '{field}', options are {list(payload.keys())}")
         return result
 
-    def to_configuration_file(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
+    def to_configuration_file(self, filepath: Optional[Path] = None, modifier: str = None, override: bool = False) -> Path:
         filepath = self.generate_filepath(filepath=filepath, modifier=modifier, override=override)
         self._ensure_config_root_exists()
         filepath = self._write_configuration_file(filepath=filepath, override=override)
         return filepath
 
     @classmethod
-    def from_configuration_file(cls, filepath: str = None, **overrides) -> 'BaseConfiguration':
+    def from_configuration_file(cls, filepath: Optional[Path] = None, **overrides) -> 'BaseConfiguration':
         filepath = filepath or cls.default_filepath()
         payload = cls._read_configuration_file(filepath=filepath)
         instance = cls(filepath=filepath, **payload, **overrides)
         return instance
 
     @classmethod
-    def _read_configuration_file(cls, filepath: str) -> dict:
+    def _read_configuration_file(cls, filepath: Path) -> dict:
         """Reads `filepath` and returns the deserialized JSON payload dict."""
         with open(filepath, 'r') as file:
             raw_contents = file.read()
-            payload = cls.deserialize(raw_contents, payload_label=filepath)
+            payload = cls.deserialize(raw_contents, payload_label=str(filepath))
         return payload
 
-    def _write_configuration_file(self, filepath: str, override: bool = False) -> str:
+    def _write_configuration_file(self, filepath: Path, override: bool = False) -> Path:
         """Writes to `filepath` and returns the written filepath.  Raises `FileExistsError` if the file exists."""
-        if os.path.exists(str(filepath)) and not override:
+        if filepath.exists() and not override:
             raise FileExistsError(f"{filepath} exists and no filename modifier supplied.")
         with open(filepath, 'w') as file:
             file.write(self.serialize())
@@ -279,7 +278,15 @@ class BaseConfiguration(ABC):
 
     def serialize(self, serializer=json.dumps) -> str:
         """Returns the JSON serialized output of `static_payload`"""
+        def _stringify_paths(d: dict):
+            for key, value in d.items():
+                if isinstance(value, Path):
+                    d[key] = str(value)
+                if isinstance(value, dict):
+                    _stringify_paths(value)
+
         payload = self.static_payload()
+        _stringify_paths(payload)
         payload['version'] = self.VERSION
         serialized_payload = serializer(payload, indent=self.INDENTATION)
         return serialized_payload
@@ -291,11 +298,13 @@ class BaseConfiguration(ABC):
         version = deserialized_payload.pop('version', UNKNOWN_VERSION)
         if version != cls.VERSION:
             label = f"'{payload_label}' " if payload_label else ""
-            raise cls.OldVersion(f"Configuration {label}is the wrong version "
+            raise cls.OldVersion(f"Configuration {label} is the wrong version "
                                  f"Expected version {cls.VERSION}; Got version {version}")
+
+        deserialized_payload = cast_paths_from(cls, deserialized_payload)
         return deserialized_payload
 
-    def update(self, filepath: str = None, **updates) -> None:
+    def update(self, filepath: Optional[Path] = None, **updates) -> None:
         for field, value in updates.items():
             try:
                 getattr(self, field)
@@ -312,16 +321,18 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 2  # bump when static payload scheme changes
+    VERSION = 3  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
+    MNEMONIC_KEYSTORE = False
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     SIGNER_ENVVAR = None
 
-    # When we begin to support other threshold schemes, this will be one of the concepts that makes us want a factory.  #571
+    # When we begin to support other threshold schemes,
+    # this will be one of the concepts that makes us want a factory.  #571
     known_node_class = Ursula
 
     # Gas
@@ -336,15 +347,15 @@ class CharacterConfiguration(BaseConfiguration):
                       'gas_strategy',
                       'max_gas_price',  # gwei
                       'signer_uri',
-                      'keyring_root'
+                      'keystore_path'
                       )
 
     def __init__(self,
 
                  # Base
                  emitter=None,
-                 config_root: str = None,
-                 filepath: str = None,
+                 config_root: Optional[Path] = None,
+                 filepath: Optional[Path] = None,
 
                  # Mode
                  dev_mode: bool = False,
@@ -354,9 +365,9 @@ class CharacterConfiguration(BaseConfiguration):
                  checksum_address: str = None,
                  crypto_power: CryptoPower = None,
 
-                 # Keyring
-                 keyring: NucypherKeyring = None,
-                 keyring_root: str = None,
+                 # Keystore
+                 keystore: Keystore = None,
+                 keystore_path: Optional[Path] = None,
 
                  # Learner
                  learn_on_same_thread: bool = False,
@@ -366,7 +377,6 @@ class CharacterConfiguration(BaseConfiguration):
                  # Network
                  controller_port: int = None,
                  domain: str = DEFAULT_DOMAIN,
-                 interface_signature: Signature = None,
                  network_middleware: RestMiddleware = None,
                  lonely: bool = False,
 
@@ -386,7 +396,7 @@ class CharacterConfiguration(BaseConfiguration):
 
                  # Registry
                  registry: BaseContractRegistry = None,
-                 registry_filepath: str = None,
+                 registry_filepath: Optional[Path] = None,
 
                  # Deployed Workers
                  worker_data: dict = None
@@ -402,15 +412,18 @@ class CharacterConfiguration(BaseConfiguration):
         self.is_me = True
         self.checksum_address = checksum_address
 
-        # Keyring
+        # Keystore
         self.crypto_power = crypto_power
-        self.keyring = keyring or NO_KEYRING_ATTACHED
-        self.keyring_root = keyring_root or UNINITIALIZED_CONFIGURATION
+        if keystore_path and not keystore:
+            keystore = Keystore(keystore_path=keystore_path)
+        self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(False)
+        self.keystore_dir = Path(keystore.keystore_path).parent if keystore else UNINITIALIZED_CONFIGURATION
 
         # Contract Registry
         if registry and registry_filepath:
             if registry.filepath != registry_filepath:
-                error = f"Inconsistent registry filepaths for '{registry.filepath}' and '{registry_filepath}'."
+                error = f"Inconsistent registry filepaths for '{registry.filepath.absolute()}'" \
+                        f" and '{registry_filepath.absolute()}'."
                 raise ValueError(error)
             else:
                 self.log.warn(f"Registry and registry filepath were both passed.")
@@ -514,23 +527,29 @@ class CharacterConfiguration(BaseConfiguration):
         # Network
         self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(registry=self.registry)
-        self.interface_signature = interface_signature
 
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
 
+    @property
+    def keystore(self) -> Keystore:
+        return self.__keystore
+
+    def attach_keystore(self, keystore: Keystore) -> None:
+        self.__keystore = keystore
+
     @classmethod
-    def checksum_address_from_filepath(cls, filepath: str) -> str:
+    def checksum_address_from_filepath(cls, filepath: Path) -> str:
         pattern = re.compile(r'''
                              (^\w+)-
-                             (0x{1}         # Then, 0x the start of the string, exactly once
+                             (0x{1}           # Then, 0x the start of the string, exactly once
                              [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
                              ''',
                              re.VERBOSE)
 
-        filename = os.path.basename(filepath)
+        filename = filepath.name
         match = pattern.match(filename)
 
         if match:
@@ -557,10 +576,10 @@ class CharacterConfiguration(BaseConfiguration):
         return super().update(filepath=self.config_file_location, **kwargs)
 
     @classmethod
-    def generate(cls, password: str, *args, **kwargs):
+    def generate(cls, password: str, key_material: Optional[bytes] = None, *args, **kwargs):
         """Shortcut: Hook-up a new initial installation and configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
-        node_config.initialize(password=password)
+        node_config.initialize(key_material=key_material, password=password)
         return node_config
 
     def cleanup(self) -> None:
@@ -587,9 +606,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
-        self.attach_keyring()
-        self.keyring.destroy()
-        os.remove(self.config_file_location)
+        self.config_file_location.unlink()
 
     def generate_parameters(self, **overrides) -> dict:
         """
@@ -606,20 +623,21 @@ class CharacterConfiguration(BaseConfiguration):
         return character
 
     @classmethod
-    def assemble(cls, filepath: str = None, **overrides) -> dict:
+    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         """
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         payload = cls._read_configuration_file(filepath=filepath)
         node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
                                              federated_only=payload['federated_only'])
-        domain = payload['domain']
         max_gas_price = payload.get('max_gas_price')  # gwei
         if max_gas_price:
             max_gas_price = Decimal(max_gas_price)
 
         # Assemble
-        payload.update(dict(node_storage=node_storage, domain=domain, max_gas_price=max_gas_price))
+        payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
+        payload = cast_paths_from(cls, payload)
+
         # Filter out None values from **overrides to detect, well, overrides...
         # Acts as a shim for optional CLI flags.
         overrides = {k: v for k, v in overrides.items() if v is not None}
@@ -628,7 +646,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     @classmethod
     def from_configuration_file(cls,
-                                filepath: str = None,
+                                filepath: Optional[Path] = None,
                                 **overrides  # < ---- Inlet for CLI Flags
                                 ) -> 'CharacterConfiguration':
         """Initialize a CharacterConfiguration from a JSON file."""
@@ -640,13 +658,13 @@ class CharacterConfiguration(BaseConfiguration):
     def validate(self) -> bool:
 
         # Top-level
-        if not os.path.exists(self.config_root):
+        if not self.config_root.exists():
             raise self.ConfigurationError(f'No configuration directory found at {self.config_root}.')
 
         # Sub-paths
         filepaths = self.runtime_filepaths
         for field, path in filepaths.items():
-            if path and not os.path.exists(path):
+            if path and not path.exists():
                 message = 'Missing configuration file or directory: {}.'
                 if 'registry' in path:
                     message += ' Did you mean to pass --federated-only?'
@@ -655,13 +673,13 @@ class CharacterConfiguration(BaseConfiguration):
 
     def static_payload(self) -> dict:
         """Exported static configuration values for initializing Ursula"""
-
+        keystore_path = str(self.keystore.keystore_path) if self.keystore else None
         payload = dict(
 
             # Identity
             federated_only=self.federated_only,
             checksum_address=self.checksum_address,
-            keyring_root=self.keyring_root,
+            keystore_path=keystore_path,
 
             # Behavior
             domain=self.domain,
@@ -695,9 +713,12 @@ class CharacterConfiguration(BaseConfiguration):
 
         return payload
 
-    @property  # TODO: Graduate to a method and "derive" dynamic from static payload.
+    @property
     def dynamic_payload(self) -> dict:
-        """Exported dynamic configuration values for initializing Ursula"""
+        """
+        Exported dynamic configuration values for initializing Ursula.
+        These values are used to init a character instance but are not saved to the JSON configuration.
+        """
         payload = dict()
         if not self.federated_only:
             payload.update(dict(registry=self.registry, signer=self.signer))
@@ -705,12 +726,12 @@ class CharacterConfiguration(BaseConfiguration):
         payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
                             known_nodes=self.known_nodes,
                             node_storage=self.node_storage,
-                            keyring=self.keyring,
+                            keystore=self.keystore,
                             crypto_power_ups=self.derive_node_power_ups()))
 
         return payload
 
-    def generate_filepath(self, filepath: str = None, modifier: str = None, override: bool = False) -> str:
+    def generate_filepath(self, filepath: Optional[Path] = None, modifier: str = None, override: bool = False) -> Path:
         modifier = modifier or self.checksum_address
         filepath = super().generate_filepath(filepath=filepath, modifier=modifier, override=override)
         return filepath
@@ -718,16 +739,16 @@ class CharacterConfiguration(BaseConfiguration):
     @property
     def runtime_filepaths(self) -> dict:
         filepaths = dict(config_root=self.config_root,
-                         keyring_root=self.keyring_root,
+                         keystore_dir=self.keystore_dir,
                          registry_filepath=self.registry_filepath)
         return filepaths
 
     @classmethod
-    def generate_runtime_filepaths(cls, config_root: str) -> dict:
+    def generate_runtime_filepaths(cls, config_root: Path) -> dict:
         """Dynamically generate paths based on configuration root directory"""
         filepaths = dict(config_root=config_root,
-                         config_file_location=os.path.join(config_root, cls.generate_filename()),
-                         keyring_root=os.path.join(config_root, 'keyring'))
+                         config_file_location=config_root / cls.generate_filename(),
+                         keystore_dir=config_root / 'keystore')
         return filepaths
 
     def _cache_runtime_filepaths(self) -> None:
@@ -737,36 +758,28 @@ class CharacterConfiguration(BaseConfiguration):
             if getattr(self, field) is UNINITIALIZED_CONFIGURATION:
                 setattr(self, field, filepath)
 
-    def attach_keyring(self, checksum_address: str = None, *args, **kwargs) -> None:
-        account = checksum_address or self.checksum_address
-        if not account:
-            raise self.ConfigurationError("No account specified to unlock keyring")
-        if self.keyring is not NO_KEYRING_ATTACHED:
-            if self.keyring.checksum_address != account:
-                raise self.ConfigurationError("There is already a keyring attached to this configuration.")
-            return
-        self.keyring = NucypherKeyring(keyring_root=self.keyring_root, account=account, *args, **kwargs)
-
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
         if self.is_me and not self.dev_mode:
             for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
-                power_up = self.keyring.derive_crypto_power(power_class)
+                power_up = self.keystore.derive_crypto_power(power_class)
                 power_ups.append(power_up)
         return power_ups
 
-    def initialize(self, password: str) -> str:
+    def initialize(self, password: str, key_material: Optional[bytes] = None) -> str:
         """Initialize a new configuration and write installation files to disk."""
 
         # Development
         if self.dev_mode:
             self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
-            self.config_root = self.__temp_dir.name
+            self.config_root = Path(self.__temp_dir.name)
 
         # Persistent
         else:
             self._ensure_config_root_exists()
-            self.write_keyring(password=password)
+            self.write_keystore(key_material=key_material,
+                                password=password,
+                                interactive=self.MNEMONIC_KEYSTORE)
 
         self._cache_runtime_filepaths()
         self.node_storage.initialize()
@@ -778,29 +791,18 @@ class CharacterConfiguration(BaseConfiguration):
         # Success
         message = "Created nucypher installation files at {}".format(self.config_root)
         self.log.debug(message)
-        return self.config_root
+        return Path(self.config_root)
 
-    def write_keyring(self, password: str, checksum_address: str = None, **generation_kwargs) -> NucypherKeyring:
-
-        # Configure checksum address
-        checksum_address = checksum_address or self.checksum_address
-        if self.federated_only:
-            checksum_address = FEDERATED_ADDRESS
-        elif not checksum_address:
-            raise self.ConfigurationError(f'No checksum address provided for decentralized configuration.')
-
-        # Generate new keys
-        self.keyring = NucypherKeyring.generate(password=password,
-                                                keyring_root=self.keyring_root,
-                                                checksum_address=checksum_address,
-                                                **generation_kwargs)
-
-        # In the case of a federated keyring generation,
-        # the generated federated address must be set here.
-        if self.federated_only:
-            self.checksum_address = self.keyring.checksum_address
-
-        return self.keyring
+    def write_keystore(self, password: str, key_material: Optional[bytes] = None, interactive: bool = True) -> Keystore:
+        if key_material:
+            self.__keystore = Keystore.import_secure(key_material=key_material,
+                                                     password=password,
+                                                     keystore_dir=self.keystore_dir)
+        else:
+            self.__keystore = Keystore.generate(password=password,
+                                                keystore_dir=self.keystore_dir,
+                                                interactive=interactive)
+        return self.keystore
 
     @classmethod
     def load_node_storage(cls, storage_payload: dict, federated_only: bool):

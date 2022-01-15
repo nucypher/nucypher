@@ -215,7 +215,7 @@ def test_geth_web3_client():
 
 def test_autodetect_provider_type_file(tempfile_path):
 
-    interface = ProviderTypeTestClient(provider_uri=tempfile_path,  # existing file for test
+    interface = ProviderTypeTestClient(provider_uri=str(tempfile_path),  # existing file for test
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
     interface.connect()

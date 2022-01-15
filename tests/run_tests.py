@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from pathlib import Path
 
 import maya
 import os
@@ -22,7 +22,7 @@ import pytest
 
 
 class NucypherPytestRunner:
-    TEST_PATH = os.path.join('tests', 'cli')
+    TEST_PATH = Path('tests') / 'cli'
     PYTEST_ARGS = ['--verbose', TEST_PATH]
 
     def pytest_sessionstart(self):

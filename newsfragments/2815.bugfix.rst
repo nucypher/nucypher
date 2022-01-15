@@ -1,0 +1,1 @@
+Avoid crashing the learning loop if there is a problem in the metadata returned by seed nodes.

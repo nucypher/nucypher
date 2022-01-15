@@ -14,22 +14,19 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import os
 import time
 from unittest import mock
 
 import pytest
 import pytest_twisted as pt
-from click import BadOptionUsage
 from twisted.internet import threads
 
-from nucypher import utilities
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYRING_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
 from nucypher.network.nodes import Teacher
 from nucypher.utilities.networking import LOOPBACK_ADDRESS, UnknownIPAddress
 from tests.constants import (
@@ -39,11 +36,11 @@ from tests.constants import (
     TEST_PROVIDER_URI,
     YES_ENTER
 )
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, start_pytest_ursula_services, select_test_port
+from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 
 @mock.patch('glob.glob', return_value=list())
-def test_missing_configuration_file(default_filepath_mock, click_runner):
+def test_missing_configuration_file(_default_filepath_mock, click_runner):
     cmd_args = ('ursula', 'run', '--network', TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
@@ -162,8 +159,7 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
     assert deploy_port not in reserved_ports
 
     # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
-    assert teacher.checksum_address in result.output
-    assert f"Saved TLS certificate for {teacher.nickname}" in result.output
+    assert f"Saved TLS certificate for {LOOPBACK_ADDRESS}" in result.output
 
     federated_ursulas.clear()
 
@@ -177,18 +173,18 @@ def test_persistent_node_storage_integration(click_runner,
 
     alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
     filename = UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
+    another_ursula_configuration_file_location = custom_filepath / filename
 
     init_args = ('ursula', 'init',
                  '--provider', TEST_PROVIDER_URI,
                  '--worker-address', another_ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--config-root', custom_filepath,
-                 '--registry-filepath', agency_local_registry.filepath,
+                 '--config-root', str(custom_filepath.absolute()),
+                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  )
 
-    envvars = {NUCYPHER_ENVVAR_KEYRING_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
@@ -203,7 +199,7 @@ def test_persistent_node_storage_integration(click_runner,
                 '--dry-run',
                 '--debug',
                 '--interactive',
-                '--config-file', another_ursula_configuration_file_location,
+                '--config-file', str(another_ursula_configuration_file_location.absolute()),
                 '--teacher', teacher_uri)
 
     Worker.READY_TIMEOUT = 1
@@ -221,7 +217,7 @@ def test_persistent_node_storage_integration(click_runner,
                 '--dry-run',
                 '--debug',
                 '--interactive',
-                '--config-file', another_ursula_configuration_file_location)
+                '--config-file',  str(another_ursula_configuration_file_location.absolute()))
 
     with pytest.raises(Teacher.UnbondedWorker):
         # Worker init success, but not bonded.
@@ -248,20 +244,20 @@ def test_ursula_run_ip_checkup(testerchain, custom_filepath, click_runner, mocke
     staker = blockchain_ursulas.pop()
 
     def set_staker_address(worker, *args, **kwargs):
-        worker._checksum_address = staker.checksum_address
+        worker.checksum_address = staker.checksum_address
         return True
     monkeypatch.setattr(Worker, 'block_until_ready', set_staker_address)
 
     # Setup
     teacher = blockchain_ursulas.pop()
     filename = UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = os.path.join(custom_filepath, filename)
+    another_ursula_configuration_file_location = custom_filepath / filename
 
     # manual teacher
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--debug',
-                '--config-file', another_ursula_configuration_file_location,
+                '--config-file', str(another_ursula_configuration_file_location.absolute()),
                 '--teacher', teacher.rest_url())
     result = click_runner.invoke(nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.output
@@ -270,7 +266,7 @@ def test_ursula_run_ip_checkup(testerchain, custom_filepath, click_runner, mocke
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--debug',
-                '--config-file', another_ursula_configuration_file_location)
+                '--config-file', str(another_ursula_configuration_file_location.absolute()))
     result = click_runner.invoke(nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
     assert result.exit_code == 0, result.output
 

@@ -1,0 +1,2 @@
+Add disclaimers to ``nucypher stake increase`` and ``nucypher stake merge`` CLI operations to provide warning about
+potential reduced rewards for the first period after stake increase due to a known bug, and the workaround.

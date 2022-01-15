@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import maya
 
 from nucypher.config.constants import SEEDNODES
-from nucypher.datastore.queries import get_work_orders
+from nucypher.datastore.queries import get_reencryption_requests
 
 
 def build_fleet_state_status(ursula) -> str:
@@ -41,8 +41,8 @@ def paint_node_status(emitter, ursula, start_time):
     # Build FleetState status line
     fleet_state = build_fleet_state_status(ursula=ursula)
 
-    work_orders = get_work_orders(ursula.datastore)
-    num_work_orders = len(work_orders)
+    reenc_requests = get_reencryption_requests(ursula.datastore)
+    num_reenc_requests = len(reenc_requests)
 
     stats = ['⇀URSULA {}↽'.format(ursula.nickname.icon),
              '{}'.format(ursula),
@@ -55,7 +55,7 @@ def paint_node_status(emitter, ursula, start_time):
              'Rest Interface ...... {}'.format(ursula.rest_url()),
              'Node Storage Type ... {}'.format(ursula.node_storage._name.capitalize()),
              'Known Nodes ......... {}'.format(len(ursula.known_nodes)),
-             'Work Orders ......... {}'.format(num_work_orders),
+             'Reencryption Requests {}'.format(num_reenc_requests),
              teacher]
 
     if not ursula.federated_only:

@@ -17,16 +17,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import inspect
+from typing import List, Optional, Tuple
+
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
-from typing import List, Optional, Tuple
-from umbral import pre
-from umbral.keys import UmbralKeyingMaterial, UmbralPrivateKey, UmbralPublicKey
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
-from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair
+from nucypher.crypto.umbral_adapter import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
 
 
 class PowerUpError(TypeError):
@@ -187,22 +187,22 @@ class TransactingPower(CryptoPowerUp):
 class KeyPairBasedPower(CryptoPowerUp):
     confers_public_key = True
     _keypair_class = keypairs.Keypair
-    _default_private_key_class = UmbralPrivateKey
+    _default_private_key_class = SecretKey
 
-    def __init__(self, public_key: UmbralPublicKey = None, keypair: keypairs.Keypair = None):
+    def __init__(self, public_key: PublicKey = None, keypair: keypairs.Keypair = None):
         if keypair and public_key:
             raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:
             self.keypair = keypair
         else:
             # They didn't pass a keypair; we'll make one with the bytes or
-            # UmbralPublicKey if they provided such a thing.
+            # Umbral PublicKey if they provided such a thing.
             if public_key:
                 try:
                     public_key = public_key.as_umbral_pubkey()
                 except AttributeError:
                     try:
-                        public_key = UmbralPublicKey.from_bytes(public_key)
+                        public_key = PublicKey.from_bytes(public_key)
                     except TypeError:
                         public_key = public_key
                 self.keypair = self._keypair_class(
@@ -221,7 +221,7 @@ class KeyPairBasedPower(CryptoPowerUp):
         else:
             raise PowerUpError("This {} doesn't provide {}.".format(self.__class__, item))
 
-    def public_key(self) -> 'UmbralPublicKey':
+    def public_key(self) -> 'PublicKey':
         return self.keypair.pubkey
 
 
@@ -246,51 +246,73 @@ class DerivedKeyBasedPower(CryptoPowerUp):
 
 class DelegatingPower(DerivedKeyBasedPower):
 
-    def __init__(self,
-                 keying_material: Optional[bytes] = None,
-                 password: Optional[bytes] = None) -> None:
-        if keying_material is None:
-            self.__umbral_keying_material = UmbralKeyingMaterial()
-        else:
-            self.__umbral_keying_material = UmbralKeyingMaterial.from_bytes(key_bytes=keying_material,
-                                                                            password=password)
+    def __init__(self, secret_key_factory: Optional[SecretKeyFactory] = None):
+        if not secret_key_factory:
+            secret_key_factory = SecretKeyFactory.random()
+        self.__secret_key_factory = secret_key_factory
 
     def _get_privkey_from_label(self, label):
-        return self.__umbral_keying_material.derive_privkey_by_label(label)
+        return self.__secret_key_factory.make_key(label)
 
     def get_pubkey_from_label(self, label):
-        return self._get_privkey_from_label(label).get_pubkey()
+        return self._get_privkey_from_label(label).public_key()
 
     def generate_kfrags(self,
                         bob_pubkey_enc,
                         signer,
                         label: bytes,
-                        m: int,
-                        n: int
-                        ) -> Tuple[UmbralPublicKey, List]:
+                        threshold: int,
+                        shares: int
+                        ) -> Tuple[PublicKey, List]:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
         :param bob_pubkey_enc: Bob's public key
-        :param m: Minimum number of KFrags needed to rebuild ciphertext
-        :param n: Total number of KFrags to generate
+        :param threshold: Minimum number of KFrags needed to rebuild ciphertext
+        :param shares: Total number of KFrags to generate
         """
 
         __private_key = self._get_privkey_from_label(label)
-        kfrags = pre.generate_kfrags(delegating_privkey=__private_key,
-                                     receiving_pubkey=bob_pubkey_enc,
-                                     threshold=m,
-                                     N=n,
-                                     signer=signer,
-                                     sign_delegating_key=False,
-                                     sign_receiving_key=False,
-                                     )
-        return __private_key.get_pubkey(), kfrags
+        kfrags = generate_kfrags(delegating_sk=__private_key,
+                                 receiving_pk=bob_pubkey_enc,
+                                 threshold=threshold,
+                                 shares=shares,
+                                 signer=signer,
+                                 sign_delegating_key=False,
+                                 sign_receiving_key=False,
+                                 )
+        return __private_key.public_key(), kfrags
 
     def get_decrypting_power_from_label(self, label):
         label_privkey = self._get_privkey_from_label(label)
         label_keypair = keypairs.DecryptingKeypair(private_key=label_privkey)
         decrypting_power = DecryptingPower(keypair=label_keypair)
         return decrypting_power
+
+
+class TLSHostingPower(KeyPairBasedPower):
+    _keypair_class = HostingKeypair
+    provides = ("get_deployer",)
+
+    class NoHostingPower(PowerUpError):
+        pass
+
+    not_found_error = NoHostingPower
+
+    def __init__(self,
+                 host: str,
+                 public_certificate=None,
+                 public_certificate_filepath=None,
+                 *args, **kwargs) -> None:
+
+        if public_certificate and public_certificate_filepath:
+            # TODO: Design decision here: if they do pass both, and they're identical, do we let that slide?  NRN
+            raise ValueError("Pass either a public_certificate or a public_certificate_filepath, not both.")
+
+        if public_certificate:
+            kwargs['keypair'] = HostingKeypair(certificate=public_certificate, host=host)
+        elif public_certificate_filepath:
+            kwargs['keypair'] = HostingKeypair(certificate_filepath=public_certificate_filepath, host=host)
+        super().__init__(*args, **kwargs)
