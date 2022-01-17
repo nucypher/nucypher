@@ -106,7 +106,7 @@ contract SimplePREApplication {
     * @param _maxOperators Max operators for looking, if set 0 then all will be used
     * @return allAuthorizedTokens Sum of authorized tokens for active operators
     * @return activeOperators Array of operators and their authorized tokens. Operators addresses stored as uint256
-    * @dev Note that activeOperators[0] in an array of uint256, but you want addresses. Careful when used directly!
+    * @dev Note that activeOperators[0] is an array of uint256, but you want addresses. Careful when used directly!
     */
     function getActiveOperators(uint256 _startIndex, uint256 _maxOperators)
         external view returns (uint256 allAuthorizedTokens, uint256[2][] memory activeOperators)
