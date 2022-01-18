@@ -67,7 +67,7 @@ Registry ................. {registry.filepath}
     staking = f"""
 | Staking |
 Current Period ........... {staking_agent.get_current_period()}
-Actively Staked Tokens ... {NU.from_nunits(staking_agent.get_global_locked_tokens())}
+Actively Staked Tokens ... {NU.from_units(staking_agent.get_global_locked_tokens())}
 Stakers population ....... {staking_agent.get_staker_population()}
    Confirmed ............. {len(confirmed)}
    Pending confirmation .. {len(pending)}
@@ -90,11 +90,11 @@ def paint_preallocation_status(emitter, preallocation_agent, token_agent) -> Non
 
     staking_address = preallocation_agent.principal_contract.address
 
-    token_balance = NU.from_nunits(token_agent.get_balance(staking_address))
+    token_balance = NU.from_units(token_agent.get_balance(staking_address))
     eth_balance = Web3.fromWei(blockchain.client.get_balance(staking_address), 'ether')
-    initial_locked_amount = NU.from_nunits(preallocation_agent.initial_locked_amount)
-    current_locked_amount = NU.from_nunits(preallocation_agent.unvested_tokens)
-    available_amount = NU.from_nunits(preallocation_agent.available_balance)
+    initial_locked_amount = NU.from_units(preallocation_agent.initial_locked_amount)
+    current_locked_amount = NU.from_units(preallocation_agent.unvested_tokens)
+    available_amount = NU.from_units(preallocation_agent.available_balance)
     end_timestamp = preallocation_agent.end_timestamp
 
     width = 64
@@ -145,7 +145,7 @@ def paint_locked_tokens_status(emitter, agent, periods) -> None:
         bucket_range = f"{bucket_start} - {bucket_end}"
         box_plot = f"{int(bucket_min * scale) * '■'}{int(delta * scale) * '□'}"
         emitter.echo(f"{bucket_range:>9}: {box_plot:60}"
-                     f"Min: {NU.from_nunits(bucket_min)} - Max: {NU.from_nunits(bucket_max)}")
+                     f"Min: {NU.from_units(bucket_min)} - Max: {NU.from_units(bucket_max)}")
 
 
 def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -> None:
@@ -175,7 +175,7 @@ def paint_stakers(emitter, stakers: List[str], registry: BaseContractRegistry) -
         owned_in_nu = round(owned_tokens, 2)
         current_locked_tokens = round(staker.locked_tokens(periods=0), 2)
         next_locked_tokens = round(staker.locked_tokens(periods=1), 2)
-        reward_amount = round(NU.from_nunits(staking_agent.calculate_staking_reward(staker_address=staker_address)), 2)
+        reward_amount = round(NU.from_units(staking_agent.calculate_staking_reward(staker_address=staker_address)), 2)
 
         emitter.echo(f"{tab}  {'Owned:':10} {owned_in_nu}")
         emitter.echo(f"{tab}  Staked in current period: {current_locked_tokens}")

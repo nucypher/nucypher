@@ -62,7 +62,7 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert str(NU.from_nunits(token_economics.worklock_supply)) in result.output
+    assert str(NU.from_units(token_economics.worklock_supply)) in result.output
     assert str(Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')) in result.output
 
 
@@ -303,4 +303,4 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
 
     # Worklock economics are displayed
     assert str(token_economics.worklock_boosting_refund_rate) in result.output
-    assert str(NU.from_nunits(token_economics.worklock_supply)) in result.output
+    assert str(NU.from_units(token_economics.worklock_supply)) in result.output

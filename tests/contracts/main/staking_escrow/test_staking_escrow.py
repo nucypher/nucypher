@@ -37,7 +37,7 @@ def test_staking_from_worklock(testerchain, token, worklock, escrow):
     deposit_log = escrow.events.Deposited.createFilter(fromBlock='latest')
 
     # Give WorkLock and Staker some coins
-    value = NU(15_000, 'NU').to_nunits()
+    value = NU(15_000, 'NU').to_units()
     tx = token.functions.transfer(worklock.address, 10 * value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
@@ -109,7 +109,7 @@ def test_slashing(testerchain, token, worklock, threshold_staking, escrow):
     slashing_log = escrow.events.Slashed.createFilter(fromBlock='latest')
 
     # Staker deposits some tokens
-    stake = NU(15_000, 'NU').to_nunits()
+    stake = NU(15_000, 'NU').to_units()
     tx = token.functions.transfer(worklock.address, 10 * stake).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker, stake, 0).transact()
@@ -278,7 +278,7 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     withdrawal_log = escrow.events.Withdrawn.createFilter(fromBlock='latest')
 
     # Deposit some tokens
-    value = NU(ONE_HOUR, 'NU').to_nunits()  # Exclude rounding error
+    value = NU(ONE_HOUR, 'NU').to_units()  # Exclude rounding error
     tx = token.functions.transfer(worklock.address, 10 * value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker, value + 1, 0).transact()
@@ -391,7 +391,7 @@ def test_vesting(testerchain, token, worklock, escrow):
     creator, staker1, staker2, staker3, staker4 = testerchain.client.accounts[0:5]
     vesting_log = escrow.events.VestingSet.createFilter(fromBlock='latest')
 
-    value = NU(15_000, 'NU').to_nunits()
+    value = NU(15_000, 'NU').to_units()
     tx = token.functions.transfer(worklock.address, 10 * value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker1, value, 0).transact()
@@ -468,7 +468,7 @@ def test_vesting(testerchain, token, worklock, escrow):
         testerchain.wait_for_receipt(tx)
 
     # Try again with three other stakers
-    value = NU(ONE_HOUR, 'NU').to_nunits()  # Exclude rounding error
+    value = NU(ONE_HOUR, 'NU').to_units()  # Exclude rounding error
     tx = worklock.functions.depositFromWorkLock(staker2, value, 0).transact()
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker3, value, 0).transact()

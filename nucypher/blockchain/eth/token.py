@@ -40,12 +40,12 @@ from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
-from nucypher.types import SubStakeInfo, NuNits, StakerInfo, Period
+from nucypher.types import SubStakeInfo, ERC20UNits, NuNits, TuNits, StakerInfo, Period
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
 
 
-class NU:
+class ERC20:
     """
     An amount of NuCypher tokens that doesn't hurt your eyes.
     Wraps the eth_utils currency conversion methods.
@@ -53,7 +53,7 @@ class NU:
     The easiest way to use NU, is to pass an int, Decimal, or str, and denomination string:
 
     Int:    nu = NU(100, 'NU')
-    Int:    nu = NU(15000000000000000000000, 'NuNit')
+    Int:    nu = NU(15000000000000000000000, self._unit_name)
 
     Decimal:  nu = NU(Decimal('15042.445'), 'NU')
     String: nu = NU('10002.302', 'NU')
@@ -61,7 +61,7 @@ class NU:
     ...or alternately...
 
     Decimal: nu = NU.from_tokens(Decimal('100.50'))
-    Int: nu = NU.from_nunits(15000000000000000000000)
+    Int: nu = NU.from_units(15000000000000000000000)
 
     Token quantity is stored internally as an int in the smallest denomination,
     and all arithmetic operations use this value.
@@ -70,8 +70,9 @@ class NU:
     as floats don't have enough precision to represent some quantities.
     """
 
-    __symbol = 'NU'
-    __denominations = {'NuNit': 'wei', 'NU': 'ether'}
+    _symbol = None
+    _denominations = {}
+    _unit_name = None
 
     class InvalidAmount(ValueError):
         """Raised when an invalid input amount is provided"""
@@ -80,10 +81,10 @@ class NU:
         """Raised when an unknown denomination string is passed into __init__"""
 
     def __init__(self, value: Union[int, Decimal, str], denomination: str):
-
+        # super().__init__()
         # Lookup Conversion
         try:
-            wrapped_denomination = self.__denominations[denomination]
+            wrapped_denomination = self._denominations[denomination]
         except KeyError:
             raise self.InvalidDenomination(f'"{denomination}"')
 
@@ -91,27 +92,27 @@ class NU:
         try:
             self.__value = currency.to_wei(number=value, unit=wrapped_denomination)
         except ValueError as e:
-            raise NU.InvalidAmount(f"{value} is an invalid amount of tokens: {str(e)}")
+            raise self.__class__.InvalidAmount(f"{value} is an invalid amount of tokens: {str(e)}")
 
     @classmethod
-    def ZERO(cls) -> 'NU':
-        return cls(0, 'NuNit')
+    def ZERO(cls) -> 'ERC20':
+        return cls(0, cls._unit_name)
 
     @classmethod
-    def from_nunits(cls, value: int) -> 'NU':
-        return cls(value, denomination='NuNit')
+    def from_units(cls, value: int) -> 'ERC20':
+        return cls(value, denomination=cls._unit_name)
 
     @classmethod
-    def from_tokens(cls, value: Union[int, Decimal, str]) -> 'NU':
-        return cls(value, denomination='NU')
+    def from_tokens(cls, value: Union[int, Decimal, str]) -> 'ERC20':
+        return cls(value, denomination=cls._symbol)
 
     def to_tokens(self) -> Decimal:
         """Returns a decimal value of NU"""
         return currency.from_wei(self.__value, unit='ether')
 
-    def to_nunits(self) -> NuNits:
-        """Returns an int value in NuNit"""
-        return NuNits(self.__value)
+    def to_units(self) -> ERC20UNits:
+        """Returns an int value in the Unit class for this token"""
+        return self.__class__._unit(self.__value)
 
     def __eq__(self, other) -> bool:
         return int(self) == int(other)
@@ -122,23 +123,23 @@ class NU:
         else:
             return True
 
-    def __radd__(self, other) -> 'NU':
-        return NU(int(self) + int(other), 'NuNit')
+    def __radd__(self, other) -> 'ERC20':
+        return self.__class__(int(self) + int(other), self._unit_name)
 
-    def __add__(self, other) -> 'NU':
-        return NU(int(self) + int(other), 'NuNit')
+    def __add__(self, other) -> 'ERC20':
+        return self.__class__(int(self) + int(other), self._unit_name)
 
-    def __sub__(self, other) -> 'NU':
-        return NU(int(self) - int(other), 'NuNit')
+    def __sub__(self, other) -> 'ERC20':
+        return self.__class__(int(self) - int(other), self._unit_name)
 
-    def __rmul__(self, other) -> 'NU':
-        return NU(int(self) * int(other), 'NuNit')
+    def __rmul__(self, other) -> 'ERC20':
+        return self.__class__(int(self) * int(other), self._unit_name)
 
-    def __mul__(self, other) -> 'NU':
-        return NU(int(self) * int(other), 'NuNit')
+    def __mul__(self, other) -> 'ERC20':
+        return self.__class__(int(self) * int(other), self._unit_name)
 
-    def __floordiv__(self, other) -> 'NU':
-        return NU(int(self) // int(other), 'NuNit')
+    def __floordiv__(self, other) -> 'ERC20':
+        return self.__class__(int(self) // int(other), self._unit_name)
 
     def __gt__(self, other) -> bool:
         return int(self) > int(other)
@@ -154,17 +155,31 @@ class NU:
 
     def __int__(self) -> int:
         """Cast to smallest denomination"""
-        return int(self.to_nunits())
+        return int(self.to_units())
 
     def __round__(self, decimals: int = 0):
-        return NU.from_tokens(round(self.to_tokens(), decimals))
+        return self.__class__.from_tokens(round(self.to_tokens(), decimals))
 
     def __repr__(self) -> str:
-        r = f'{self.__symbol}(value={str(self.__value)})'
+        r = f'{self._symbol}(value={str(self.__value)})'
         return r
 
     def __str__(self) -> str:
-        return f'{str(self.to_tokens())} {self.__symbol}'
+        return f'{str(self.to_tokens())} {self._symbol}'
+
+
+class NU(ERC20):
+    _symbol = 'NU'
+    _denominations = {'NuNit': 'wei', 'NU': 'ether'}
+    _unit_name = 'NuNit'
+    _unit = NuNits
+
+
+class T(ERC20):
+    _symbol = 'T'
+    _denominations = {'TuNit': 'wei', 'T': 'ether'}
+    _unit_name = 'TuNit'
+    _unit = TuNits
 
 
 class Stake:
@@ -227,8 +242,8 @@ class Stake:
 
         # Economics
         self.economics = economics
-        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), 'NuNit')
-        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), 'NuNit')
+        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), self._unit_name)
+        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), self._unit_name)
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
@@ -326,7 +341,7 @@ class Stake:
                        index=index,
                        first_locked_period=stake_info.first_period,
                        final_locked_period=stake_info.last_period,
-                       value=NU(stake_info.locked_value, 'NuNit'),
+                       value=NU(stake_info.locked_value, self._unit_name),
                        economics=economics,
                        *args, **kwargs)
 
@@ -334,7 +349,7 @@ class Stake:
 
     def to_stake_info(self) -> SubStakeInfo:
         """Returns a tuple representing the blockchain record of a stake"""
-        return SubStakeInfo(self.first_locked_period, self.final_locked_period, self.value.to_nunits())
+        return SubStakeInfo(self.first_locked_period, self.final_locked_period, self.value.to_units())
 
     #
     # Duration
@@ -413,7 +428,7 @@ class Stake:
 
         # Mutate the instance with the on-chain values
         self.final_locked_period = stake_info.last_period
-        self.value = NU.from_nunits(stake_info.locked_value)
+        self.value = NU.from_units(stake_info.locked_value)
         self._status = None
 
     @classmethod
@@ -425,7 +440,7 @@ class Stake:
                          lock_periods: int) -> 'Stake':
 
         # Value
-        amount = NU(int(amount), 'NuNit')
+        amount = NU(int(amount), self._unit_name)
 
         # Duration
         current_period = staking_agent.get_current_period()

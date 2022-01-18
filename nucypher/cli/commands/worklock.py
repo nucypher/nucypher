@@ -228,8 +228,8 @@ def escrow(general_config: GroupGeneralConfig,
     receipt = bidder.place_bid(value=value)
     emitter.message("Publishing WorkLock Escrow...")
 
-    maximum = NU.from_nunits(bidder.economics.maximum_allowed_locked)
-    available_claim = NU.from_nunits(bidder.available_claim)
+    maximum = NU.from_units(bidder.economics.maximum_allowed_locked)
+    available_claim = NU.from_units(bidder.available_claim)
     message = f'\nCurrent escrow: {prettify_eth_amount(bidder.get_deposited_eth)} | Allocation: {available_claim}\n'
     if available_claim > maximum:
         message += f"\nThis allocation is currently above the allowed max ({maximum}), " \
@@ -298,7 +298,7 @@ def claim(general_config: GroupGeneralConfig, worklock_options: WorkLockOptions,
         emitter.echo(CLAIM_ALREADY_PLACED.format(bidder_address=bidder.checksum_address), color='red')
         raise click.Abort()
 
-    tokens = NU.from_nunits(bidder.available_claim)
+    tokens = NU.from_units(bidder.available_claim)
     emitter.echo(AVAILABLE_CLAIM_NOTICE.format(tokens=tokens), color='green', bold=True)
     if not force:
         lock_duration = bidder.worklock_agent.worklock_parameters()[-2]

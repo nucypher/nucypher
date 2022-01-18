@@ -36,7 +36,7 @@ def paint_bidding_notice(emitter, bidder):
 
 def paint_worklock_claim(emitter, bidder_address: str, network: str, provider_uri: str):
     message = SUCCESSFUL_WORKLOCK_CLAIM.format(bidder_address=bidder_address,
-                                               network=network, 
+                                               network=network,
                                                provider_uri=provider_uri)
     emitter.echo(message, color='green')
 
@@ -77,21 +77,21 @@ Allocations Available . {'Yes' if worklock_agent.is_claiming_available() else 'N
 Start Date ............ {bidding_start}
 End Date .............. {bidding_end}
 Duration .............. {bidding_duration}
-Time Remaining ........ {bidding_remaining} 
+Time Remaining ........ {bidding_remaining}
 
 Cancellation Period ({'Open' if cancellation_open else 'Closed'})
 ------------------------------------------------------
 End Date .............. {cancellation_end}
 Duration .............. {cancellation_duration}
 Time Remaining ........ {cancellation_remaining}
- 
- 
+
+
 Economics
 ══════════════════════════════════════════════════════
 
 Participation
 ------------------------------------------------------
-Lot Size .............. {NU.from_nunits(worklock_agent.lot_value)} 
+Lot Size .............. {NU.from_units(worklock_agent.lot_value)}
 Min. Allowed Escrow ... {prettify_eth_amount(worklock_agent.minimum_allowed_bid)}
 Participants .......... {worklock_agent.get_bidders_population()}
 ETH Supply ............ {prettify_eth_amount(worklock_agent.get_eth_supply())}
@@ -104,7 +104,7 @@ Base Deposit Rate ..... {worklock_agent.get_base_deposit_rate()} NU per base ETH
 Bonus (surplus over minimum escrow)
 ------------------------------------------------------
 Bonus ETH Supply ...... {prettify_eth_amount(worklock_agent.get_bonus_eth_supply())}
-Bonus Lot Size ........ {NU.from_nunits(worklock_agent.get_bonus_lot_value())}
+Bonus Lot Size ........ {NU.from_units(worklock_agent.get_bonus_lot_value())}
 Bonus Deposit Rate .... {worklock_agent.get_bonus_deposit_rate()} NU per bonus ETH
 
 Refunds
@@ -119,7 +119,7 @@ Base Refund Rate ...... {worklock_agent.get_base_refund_rate()} units of work to
 
 
 def paint_bidder_status(emitter, bidder):
-    claim = NU.from_nunits(bidder.available_claim)
+    claim = NU.from_units(bidder.available_claim)
     if claim > bidder.economics.maximum_allowed_locked:
         claim = f"{claim} (Above the allowed max. The escrow will be partially refunded)"
 

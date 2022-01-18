@@ -54,7 +54,8 @@ from nucypher.blockchain.eth.agents import (
     VotingAgent,
     VotingAggregatorAgent,
     WorkLockAgent,
-    AragonAgent
+    AragonAgent,
+    PREApplicationAgent
 )
 from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry, Action
 from nucypher.blockchain.eth.constants import (
@@ -88,6 +89,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import (
     NU,
+    T,
     Stake,
     StakeList,
     WorkTracker,
@@ -185,6 +187,18 @@ class NucypherTokenActor(BaseActor):
         balance = int(self.token_agent.get_balance(address=self.checksum_address))
         nu_balance = NU(balance, 'NuNit')
         return nu_balance
+
+class ThresholdTokenActor(BaseActor):
+
+    """
+    Actor to interface with the ThresholdToken contract
+    """
+
+    token_class = T
+    token_unit = 'TuNit'
+
+    def __init__(self, registry: BaseContractRegistry, **kwargs):
+        super().__init__(registry=registry, **kwargs)
 
 
 class ContractAdministrator(BaseActor):
@@ -539,13 +553,13 @@ class Staker(NucypherTokenActor):
         Returns all tokens that belong to the staker, including locked, unlocked and rewards.
         """
         raw_value = self.staking_agent.owned_tokens(staker_address=self.checksum_address)
-        value = NU.from_nunits(raw_value)
+        value = NU.from_units(raw_value)
         return value
 
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this staker has locked for a given duration in periods."""
         raw_value = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address, periods=periods)
-        value = NU.from_nunits(raw_value)
+        value = NU.from_units(raw_value)
         return value
 
     @property
@@ -628,9 +642,9 @@ class Staker(NucypherTokenActor):
 
         # Create stake on-chain
         if from_unlocked:
-            receipt = self._lock_and_create(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+            receipt = self._lock_and_create(amount=new_stake.value.to_units(), lock_periods=new_stake.duration)
         else:
-            receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+            receipt = self._deposit(amount=new_stake.value.to_units(), lock_periods=new_stake.duration)
 
         # Log and return receipt
         self.log.info(f"{self.checksum_address} initialized new stake: {amount} tokens for {lock_periods} periods")
@@ -926,7 +940,7 @@ class Staker(NucypherTokenActor):
 
     def non_withdrawable_stake(self) -> NU:
         staked_amount: NuNits = self.staking_agent.non_withdrawable_stake(staker_address=self.checksum_address)
-        return NU.from_nunits(staked_amount)
+        return NU.from_units(staked_amount)
 
     @property
     def last_committed_period(self) -> int:
@@ -991,7 +1005,7 @@ class Staker(NucypherTokenActor):
 
     def calculate_staking_reward(self) -> NU:
         staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
-        return NU.from_nunits(staking_reward)
+        return NU.from_units(staking_reward)
 
     def calculate_policy_fee(self) -> int:
         policy_fee = self.policy_agent.get_fee_amount(staker_address=self.checksum_address)
@@ -1228,6 +1242,86 @@ class Worker(NucypherTokenActor):
             raise Policy.Expired(f'{hrac} is an expired policy.')
 
 
+class ThresholdWorker(BaseActor):
+
+    class WorkerError(ThresholdTokenActor.ActorError):
+        pass
+
+    @property
+    def token_balance(self):
+        return 0
+
+    def __init__(self,
+                 is_me: bool,
+                 work_tracker: WorkTracker = None,
+                 worker_address: str = None,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.log = Logger("worker")
+
+        self.is_me = is_me
+
+        self.__worker_address = worker_address
+
+        # PRE Application
+        self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+
+    @property
+    def worker_address(self):
+        return self.__worker_address
+
+    def get_operator_address(self):
+        return self.pre_application_agent.get_operator_from_worker(self.worker_address)
+
+    @property
+    def is_confirmed(self):
+        return self.pre_application_agent.is_worker_confirmed(self.worker_address)
+
+    def confirm_worker_address(self):
+        return self.pre_application_agent.confirm_worker_address(self.transacting_power)
+
+
+class ThresholdWorker(BaseActor):
+
+    class WorkerError(ThresholdTokenActor.ActorError):
+        pass
+
+    @property
+    def token_balance(self):
+        return 0
+
+    def __init__(self,
+                 is_me: bool,
+                 work_tracker: WorkTracker = None,
+                 worker_address: str = None,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.log = Logger("worker")
+
+        self.is_me = is_me
+
+        self.__worker_address = worker_address
+
+        # PRE Application
+        self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+
+    @property
+    def worker_address(self):
+        return self.__worker_address
+
+    def get_operator_address(self):
+        return self.pre_application_agent.get_operator_from_worker(self.worker_address)
+
+    @property
+    def is_confirmed(self):
+        return self.pre_application_agent.is_worker_confirmed(self.worker_address)
+
+    def confirm_worker_address(self):
+        return self.pre_application_agent.confirm_worker_address(self.transacting_power)
+
+
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
@@ -1398,7 +1492,7 @@ class StakeHolder:
         """
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         stake = sum(staking_agent.owned_tokens(staker_address=account) for account in self.signer.accounts)
-        nu_stake = NU.from_nunits(stake)
+        nu_stake = NU.from_units(stake)
         return nu_stake
 
 

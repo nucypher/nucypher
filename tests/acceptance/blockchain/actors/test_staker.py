@@ -82,7 +82,7 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid'
 
     # Provided stake must be part of current stakes
-    new_stake_value = NU.from_nunits(token_economics.minimum_allowed_locked)
+    new_stake_value = NU.from_units(token_economics.minimum_allowed_locked)
     with pytest.raises(ValueError):
         staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
     stake = staker.stakes[stake_index + 1]
@@ -171,7 +171,7 @@ def test_staker_prolongs_stake(staker, token_economics):
 def test_staker_increases_stake(staker, token_economics):
     stake_index = 0
     origin_stake = staker.stakes[stake_index]
-    additional_amount = NU.from_nunits(token_economics.minimum_allowed_locked // 100)
+    additional_amount = NU.from_units(token_economics.minimum_allowed_locked // 100)
 
     with pytest.raises(ValueError):
         staker.increase_stake(stake=origin_stake)

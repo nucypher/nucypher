@@ -87,9 +87,9 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
     assert result.exit_code == 0
 
-    owned_tokens = NU.from_nunits(staking_agent.owned_tokens(staking_address))
-    current_locked_tokens = NU.from_nunits(staking_agent.get_locked_tokens(staking_address))
-    next_locked_tokens = NU.from_nunits(staking_agent.get_locked_tokens(staking_address, 1))
+    owned_tokens = NU.from_units(staking_agent.owned_tokens(staking_address))
+    current_locked_tokens = NU.from_units(staking_agent.get_locked_tokens(staking_address))
+    next_locked_tokens = NU.from_units(staking_agent.get_locked_tokens(staking_address, 1))
 
     assert re.search(f"^Current period: {staking_agent.get_current_period()}", result.output, re.MULTILINE)
     assert re.search(r"Worker:\s+" + some_dude.worker_address, result.output, re.MULTILINE)
@@ -139,7 +139,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
         assert result.exit_code == 0
 
         current_period = staking_agent.get_current_period()
-        all_locked = NU.from_nunits(staking_agent.get_global_locked_tokens(at_period=current_period))
+        all_locked = NU.from_units(staking_agent.get_global_locked_tokens(at_period=current_period))
         assert re.search(f"Locked Tokens for next {periods} periods", result.output, re.MULTILINE)
         assert re.search(f"Min: {all_locked} - Max: {all_locked}", result.output, re.MULTILINE)
 

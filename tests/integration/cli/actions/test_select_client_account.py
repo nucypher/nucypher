@@ -205,7 +205,7 @@ def test_select_client_account_with_balance_display(mock_stdin,
 
         if show_tokens:
             balance = mock_token_agent.get_balance(address=account)
-            assert str(NU.from_nunits(balance)) in captured.out
+            assert str(NU.from_units(balance)) in captured.out
 
         if show_eth:
             balance = mock_testerchain.client.get_balance(account=account)

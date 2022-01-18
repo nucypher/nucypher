@@ -119,10 +119,10 @@ def test_staker_metrics_collector(test_registry, stakers):
            staker.staking_agent.contract.functions.getSubStakesLength(staker.checksum_address).call()
 
     locked_tokens = collector_registry.get_sample_value(f'{prefix}_active_stake')
-    assert locked_tokens == float(staker.locked_tokens().to_nunits())
+    assert locked_tokens == float(staker.locked_tokens().to_units())
 
     owned_tokens = collector_registry.get_sample_value(f'{prefix}_owned_tokens')
-    assert owned_tokens == float(staker.owned_tokens().to_nunits())
+    assert owned_tokens == float(staker.owned_tokens().to_units())
 
     unlocked_tokens = collector_registry.get_sample_value(f'{prefix}_unlocked_tokens')
     assert unlocked_tokens == (owned_tokens - locked_tokens)
