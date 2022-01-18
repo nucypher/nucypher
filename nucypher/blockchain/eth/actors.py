@@ -54,7 +54,8 @@ from nucypher.blockchain.eth.agents import (
     VotingAgent,
     VotingAggregatorAgent,
     WorkLockAgent,
-    AragonAgent
+    AragonAgent,
+    PREApplicationAgent
 )
 from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry, Action
 from nucypher.blockchain.eth.constants import (
@@ -185,6 +186,18 @@ class NucypherTokenActor(BaseActor):
         balance = int(self.token_agent.get_balance(address=self.checksum_address))
         nu_balance = NU(balance, 'NuNit')
         return nu_balance
+
+class ThresholdTokenActor(BaseActor):
+
+    """
+    Actor to interface with the ThresholdToken contract
+    """
+
+    token_class = T
+    token_unit = 'TuNit'
+
+    def __init__(self, registry: BaseContractRegistry, **kwargs):
+        super().__init__(registry=registry, **kwargs)
 
 
 class ContractAdministrator(BaseActor):
@@ -1228,6 +1241,39 @@ class Worker(NucypherTokenActor):
             raise Policy.Expired(f'{hrac} is an expired policy.')
 
 
+<<<<<<< HEAD
+=======
+class ThresholdWorker(BaseActor):
+
+    class WorkerError(ThresholdTokenActor.ActorError):
+        pass
+
+    @property
+    def token_balance(self):
+        return 0
+
+    def __init__(self,
+                 is_me: bool,
+                 work_tracker: WorkTracker = None,
+                 worker_address: str = None,
+                 *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        self.log = Logger("worker")
+
+        self.is_me = is_me
+
+        self.__worker_address = worker_address
+
+        # PRE Application
+        self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+
+    @property
+    def worker_address(self):
+        return self.__worker_address
+
+
+>>>>>>> 519d7a03f (ursula pre_application_agent working)
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
