@@ -70,7 +70,7 @@ def test_upgrading(testerchain, token, deploy_contract):
         tx = contract_library_v1.functions.verifyState(contract.address).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
-    value = NU(100_000, 'NU').to_nunits()
+    value = NU(100_000, 'NU').to_units()
     tx = token.functions.transfer(worklock.address, value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker, value, 0).transact({'from': staker})
@@ -152,7 +152,7 @@ def test_measure_work(testerchain, token, worklock, escrow, token_economics):
     assert escrow.functions.getCompletedWork(staker).call() == token_economics.total_supply
 
     # Same behaviour after depositing tokens
-    value = NU(15_000, 'NU').to_nunits()
+    value = NU(15_000, 'NU').to_units()
     tx = token.functions.transfer(worklock.address, value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.depositFromWorkLock(staker, value, 0).transact()
@@ -173,7 +173,7 @@ def test_snapshots(testerchain, token, escrow, worklock, threshold_staking, toke
     assert escrow.functions.totalStakedAt(now).call() == token_economics.total_supply
 
     # Staker deposits some tokens
-    value = NU(15_000, 'NU').to_nunits()
+    value = NU(15_000, 'NU').to_units()
     tx = token.functions.transfer(worklock.address, value).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     initial_deposit = value // 100

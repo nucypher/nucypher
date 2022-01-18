@@ -21,7 +21,10 @@ from typing import TypeVar, NewType, Tuple, NamedTuple, Union
 from eth_typing.evm import ChecksumAddress
 from web3.types import Wei, Timestamp, TxReceipt
 
-NuNits = NewType("NuNits", int)
+ERC20UNits = NewType("ERC20UNits", int)
+NuNits = NewType("NuNits", ERC20UNits)
+TuNits = NewType("TuNits", ERC20UNits)
+
 Work = NewType("Work", int)
 Agent = TypeVar('Agent', bound='EthereumContractAgent')
 Period = NewType('Period', int)

@@ -243,7 +243,7 @@ def paint_staking_accounts(emitter, signer, registry, domain):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
     for account in signer.accounts:
         eth = str(Web3.fromWei(blockchain.client.get_balance(account), 'ether')) + " ETH"
-        nu = str(NU.from_nunits(token_agent.get_balance(account)))
+        nu = str(NU.from_units(token_agent.get_balance(account)))
 
         staker = Staker(checksum_address=account,
                         domain=domain,

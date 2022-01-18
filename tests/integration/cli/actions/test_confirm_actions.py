@@ -137,7 +137,7 @@ def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, capsys):
     confirmation = CONFIRM_STAGED_STAKE.format(staker_address=staking_address,
                                                lock_periods=lock_periods,
                                                tokens=value,
-                                               nunits=value.to_nunits())
+                                               nunits=value.to_units())
 
     # Positive Case
     mock_stdin.line(YES)
@@ -172,9 +172,9 @@ MIN_ALLOWED_LOCKED = STANDARD_ECONOMICS.minimum_allowed_locked
         (NU.from_tokens(1), 1, False, False),
         (NU.from_tokens(1), STANDARD_ECONOMICS.minimum_locked_periods + 1, False, False),
         (NU.from_tokens(15), STANDARD_ECONOMICS.minimum_locked_periods + 1, False, False),
-        (((NU.from_nunits(MIN_ALLOWED_LOCKED) * 10) + 1), STANDARD_ECONOMICS.minimum_locked_periods + 1, True, False),
-        (NU.from_nunits(MIN_ALLOWED_LOCKED) * 10, STANDARD_ECONOMICS.maximum_rewarded_periods + 1, False, True),
-        (((NU.from_nunits(MIN_ALLOWED_LOCKED) * 10) + 1), STANDARD_ECONOMICS.maximum_rewarded_periods + 1, True, True),
+        (((NU.from_units(MIN_ALLOWED_LOCKED) * 10) + 1), STANDARD_ECONOMICS.minimum_locked_periods + 1, True, False),
+        (NU.from_units(MIN_ALLOWED_LOCKED) * 10, STANDARD_ECONOMICS.maximum_rewarded_periods + 1, False, True),
+        (((NU.from_units(MIN_ALLOWED_LOCKED) * 10) + 1), STANDARD_ECONOMICS.maximum_rewarded_periods + 1, True, True),
 ))
 def test_confirm_large_stake_cli_action(test_emitter,
                                         mock_stdin,

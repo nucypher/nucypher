@@ -88,7 +88,7 @@ def confirm_disable_snapshots(emitter: StdoutEmitter, staking_address: str) -> b
 
 def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> bool:
     """Interactively confirm a new stake reviewing all staged stake details."""
-    click.confirm(CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+    click.confirm(CONFIRM_STAGED_STAKE.format(nunits=str(value.to_units()),
                                               tokens=value,
                                               staker_address=staker_address,
                                               lock_periods=lock_periods), abort=True)
@@ -97,7 +97,7 @@ def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> b
 
 def confirm_large_and_or_long_stake(value: NU = None, lock_periods: int = None, economics: BaseEconomics = None) -> bool:
     """Interactively confirm a large stake and/or a long stake duration."""
-    if economics and value and (value > (NU.from_nunits(economics.minimum_allowed_locked) * 10)):  # > 10x min stake
+    if economics and value and (value > (NU.from_units(economics.minimum_allowed_locked) * 10)):  # > 10x min stake
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
     if economics and lock_periods and (lock_periods > economics.maximum_rewarded_periods):  # > 1 year
         lock_days = (lock_periods * economics.hours_per_period) // 24
