@@ -700,12 +700,6 @@ As a first step, you need to bond a worker to your stake by running:
 """
 
 #
-# Felix
-#
-
-FELIX_RUN_MESSAGE = "Running Felix on {host}:{port}"
-
-#
 # Ursula
 #
 

@@ -23,7 +23,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Worker
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
+from nucypher.config.characters import AliceConfiguration, UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
@@ -77,7 +77,7 @@ def test_coexisting_configurations(click_runner,
 
     # Parse node addresses
     # TODO: Is testerchain & Full contract deployment needed here (causes massive slowdown)?
-    alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staker, *all_yall = testerchain.unassigned_accounts
 
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
@@ -106,25 +106,8 @@ def test_coexisting_configurations(click_runner,
     #
 
     # Expected config files
-    felix_file_location = custom_filepath / FelixConfiguration.generate_filename()
     alice_file_location = custom_filepath / AliceConfiguration.generate_filename()
     ursula_file_location = custom_filepath / UrsulaConfiguration.generate_filename()
-
-    # Felix creates a system configuration
-    felix_init_args = ('felix', 'init',
-                       '--config-root', str(custom_filepath.absolute()),
-                       '--network', TEMPORARY_DOMAIN,
-                       '--provider', TEST_PROVIDER_URI,
-                       '--checksum-address', felix,
-                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
-                       '--debug')
-
-    result = click_runner.invoke(nucypher_cli, felix_init_args, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
-
-    # All configuration files still exist.
-    assert custom_filepath.is_dir()
-    assert felix_file_location.is_file()
 
     # Use a custom local filepath to init a persistent Alice
     alice_init_args = ('alice', 'init',
@@ -138,7 +121,6 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert felix_file_location.is_file()
     assert alice_file_location.is_file()
 
     # Use the same local filepath to init a persistent Ursula
@@ -154,7 +136,6 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0, result.output
 
     # All configuration files still exist.
-    assert felix_file_location.is_file()
     assert alice_file_location.is_file()
     assert ursula_file_location.is_file()
 
@@ -174,7 +155,6 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
 
     # All configuration files still exist.
-    assert felix_file_location.is_file()
     assert alice_file_location.is_file()
 
     kid = key_spy.spy_return.id[:8]
@@ -204,7 +184,6 @@ def test_coexisting_configurations(click_runner,
     Worker.READY_TIMEOUT = None
 
     # All configuration files still exist.
-    assert felix_file_location.is_file()
     assert alice_file_location.is_file()
     assert another_ursula_configuration_file_location.is_file()
     assert ursula_file_location.is_file()
@@ -234,11 +213,6 @@ def test_coexisting_configurations(click_runner,
     assert result.exit_code == 0
     assert not alice_file_location.is_file()
 
-    felix_destruction_args = ('felix', 'destroy', '--force', '--config-file', str(felix_file_location.absolute()))
-    result = click_runner.invoke(nucypher_cli, felix_destruction_args, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
-    assert not felix_file_location.is_file()
-
 
 def test_corrupted_configuration(click_runner,
                                  custom_filepath,
@@ -254,7 +228,7 @@ def test_corrupted_configuration(click_runner,
         shutil.rmtree(custom_filepath, ignore_errors=True)
     assert not custom_filepath.exists()
     
-    alice, ursula, another_ursula, felix, staker, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staker, *all_yall = testerchain.unassigned_accounts
 
     #
     # Chaos
