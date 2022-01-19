@@ -175,7 +175,7 @@ class NU(ERC20):
     _unit = NuNits
 
 
-class T(ERC20):
+class TToken(ERC20):
     _symbol = 'T'
     _denominations = {'TuNit': 'wei', 'T': 'ether'}
     _unit_name = 'TuNit'
