@@ -63,7 +63,7 @@ from nucypher_core.umbral import (
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Worker, ThresholdWorker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -647,7 +647,7 @@ class Bob(Character):
         return controller
 
 
-class Ursula(Teacher, Character, Worker):
+class Ursula(Teacher, Character, ThresholdWorker):
 
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -747,7 +747,7 @@ class Ursula(Teacher, Character, Worker):
                 decentralized_identity_evidence = self.__decentralized_identity_evidence
 
                 try:
-                    Worker.__init__(self,
+                    ThresholdWorker.__init__(self,
                                     is_me=is_me,
                                     domain=self.domain,
                                     transacting_power=self.transacting_power,

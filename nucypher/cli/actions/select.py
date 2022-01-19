@@ -154,7 +154,7 @@ def select_client_account(emitter,
             row.append(f'{ether_balance} ETH')
         if show_nu_balance:
             token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
-            token_balance = NU.from_nunits(token_agent.get_balance(account, registry))
+            token_balance = NU.from_units(token_agent.get_balance(account, registry))
             row.append(token_balance)
         rows.append(row)
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))

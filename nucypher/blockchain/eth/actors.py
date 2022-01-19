@@ -89,6 +89,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import (
     NU,
+    T,
     Stake,
     StakeList,
     WorkTracker,
@@ -552,13 +553,13 @@ class Staker(NucypherTokenActor):
         Returns all tokens that belong to the staker, including locked, unlocked and rewards.
         """
         raw_value = self.staking_agent.owned_tokens(staker_address=self.checksum_address)
-        value = NU.from_nunits(raw_value)
+        value = NU.from_units(raw_value)
         return value
 
     def locked_tokens(self, periods: int = 0) -> NU:
         """Returns the amount of tokens this staker has locked for a given duration in periods."""
         raw_value = self.staking_agent.get_locked_tokens(staker_address=self.checksum_address, periods=periods)
-        value = NU.from_nunits(raw_value)
+        value = NU.from_units(raw_value)
         return value
 
     @property
@@ -641,9 +642,9 @@ class Staker(NucypherTokenActor):
 
         # Create stake on-chain
         if from_unlocked:
-            receipt = self._lock_and_create(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+            receipt = self._lock_and_create(amount=new_stake.value.to_units(), lock_periods=new_stake.duration)
         else:
-            receipt = self._deposit(amount=new_stake.value.to_nunits(), lock_periods=new_stake.duration)
+            receipt = self._deposit(amount=new_stake.value.to_units(), lock_periods=new_stake.duration)
 
         # Log and return receipt
         self.log.info(f"{self.checksum_address} initialized new stake: {amount} tokens for {lock_periods} periods")
@@ -939,7 +940,7 @@ class Staker(NucypherTokenActor):
 
     def non_withdrawable_stake(self) -> NU:
         staked_amount: NuNits = self.staking_agent.non_withdrawable_stake(staker_address=self.checksum_address)
-        return NU.from_nunits(staked_amount)
+        return NU.from_units(staked_amount)
 
     @property
     def last_committed_period(self) -> int:
@@ -1004,7 +1005,7 @@ class Staker(NucypherTokenActor):
 
     def calculate_staking_reward(self) -> NU:
         staking_reward = self.staking_agent.calculate_staking_reward(staker_address=self.checksum_address)
-        return NU.from_nunits(staking_reward)
+        return NU.from_units(staking_reward)
 
     def calculate_policy_fee(self) -> int:
         policy_fee = self.policy_agent.get_fee_amount(staker_address=self.checksum_address)
@@ -1241,8 +1242,6 @@ class Worker(NucypherTokenActor):
             raise Policy.Expired(f'{hrac} is an expired policy.')
 
 
-<<<<<<< HEAD
-=======
 class ThresholdWorker(BaseActor):
 
     class WorkerError(ThresholdTokenActor.ActorError):
@@ -1283,7 +1282,6 @@ class ThresholdWorker(BaseActor):
         return self.pre_application_agent.confirm_worker_address(self.transacting_power)
 
 
->>>>>>> 519d7a03f (ursula pre_application_agent working)
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
@@ -1454,7 +1452,7 @@ class StakeHolder:
         """
         staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         stake = sum(staking_agent.owned_tokens(staker_address=account) for account in self.signer.accounts)
-        nu_stake = NU.from_nunits(stake)
+        nu_stake = NU.from_units(stake)
         return nu_stake
 
 

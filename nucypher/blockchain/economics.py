@@ -64,8 +64,8 @@ class BaseEconomics:
     _default_minimum_locked_periods = 4  # 28 days
 
     # Value Constraints
-    _default_minimum_allowed_locked = NU(15_000, 'NU').to_nunits()
-    _default_maximum_allowed_locked = NU(30_000_000, 'NU').to_nunits()
+    _default_minimum_allowed_locked = NU(15_000, 'NU').to_units()
+    _default_maximum_allowed_locked = NU(30_000_000, 'NU').to_units()
 
     # Slashing parameters
     HASH_ALGORITHM_KECCAK256 = 0
@@ -82,7 +82,7 @@ class BaseEconomics:
     # Worklock
     from maya import MayaDT
     from web3 import Web3
-    _default_worklock_supply: int = NU(225_000_000, 'NU').to_nunits()
+    _default_worklock_supply: int = NU(225_000_000, 'NU').to_units()
     _default_bidding_start_date: int = MayaDT.from_iso8601('2020-09-01T00:00:00.0Z').epoch
     _default_bidding_end_date: int = MayaDT.from_iso8601('2020-09-28T23:59:59.0Z').epoch
     _default_cancellation_end_date: int = MayaDT.from_iso8601('2020-09-30T23:59:59.0Z').epoch
@@ -316,8 +316,8 @@ class StandardTokenEconomics(BaseEconomics):
     _precision = 28
 
     # Supply
-    __default_initial_supply = NU(int(1_000_000_000), 'NU').to_nunits()
-    __default_first_phase_supply = NU(int(1_829_579_800), 'NU').to_nunits()
+    __default_initial_supply = NU(int(1_000_000_000), 'NU').to_units()
+    __default_first_phase_supply = NU(int(1_829_579_800), 'NU').to_units()
     __default_first_phase_duration = 5  # years
 
     __default_decay_half_life = 2    # years

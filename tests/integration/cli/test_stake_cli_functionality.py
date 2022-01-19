@@ -245,8 +245,8 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
     # Collect some reward
     reward = NU(1, 'NU')
     staked = NU(100, 'NU')
-    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
-    mock_staking_agent.non_withdrawable_stake.return_value = staked.to_nunits()
+    mock_staking_agent.calculate_staking_reward.return_value = reward.to_units()
+    mock_staking_agent.non_withdrawable_stake.return_value = staked.to_units()
 
     collection_args = ('rewards',
                        'withdraw',
@@ -274,7 +274,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
 
     # Collect last portion of NU with warning about periods to mint
     reward = NU(1, 'NU')
-    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
+    mock_staking_agent.calculate_staking_reward.return_value = reward.to_units()
     mock_staking_agent.non_withdrawable_stake.return_value = 0
     mock_staking_agent.get_current_period.return_value = 10
     mock_staking_agent.get_current_committed_period.return_value = 8
@@ -310,7 +310,7 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
 
     # Collect last portion of NU without warning
     reward = NU(1, 'NU')
-    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
+    mock_staking_agent.calculate_staking_reward.return_value = reward.to_units()
     mock_staking_agent.non_withdrawable_stake.return_value = 0
     mock_staking_agent.get_current_committed_period.return_value = 0
     mock_staking_agent.get_next_committed_period.return_value = 0
@@ -414,7 +414,7 @@ def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, 
     mock_staking_agent.get_current_period.return_value = 10
     mock_staking_agent.get_current_committed_period.return_value = 9
     mock_staking_agent.get_next_committed_period.return_value = 8
-    mock_staking_agent.non_withdrawable_stake.return_value = NU(1, 'NU').to_nunits()
+    mock_staking_agent.non_withdrawable_stake.return_value = NU(1, 'NU').to_units()
 
     mint_command = ('mint',
                     '--provider', MOCK_PROVIDER_URI,
@@ -573,14 +573,14 @@ def test_divide_interactive(click_runner,
 
     user_input = '\n'.join((str(selected_index),
                             str(sub_stake_index),
-                            str(NU.from_nunits(target_value).to_tokens()),
+                            str(NU.from_units(target_value).to_tokens()),
                             str(lock_periods),
                             YES,
                             INSECURE_DEVELOPMENT_PASSWORD))
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert PROMPT_STAKE_DIVIDE_VALUE.format(minimum=NU.from_nunits(min_allowed_locked),
-                                            maximum=NU.from_nunits(min_allowed_locked + 1)) in result.output
+    assert PROMPT_STAKE_DIVIDE_VALUE.format(minimum=NU.from_units(min_allowed_locked),
+                                            maximum=NU.from_units(min_allowed_locked + 1)) in result.output
     assert PROMPT_STAKE_EXTEND_VALUE in result.output
     assert CONFIRM_BROADCAST_STAKE_DIVIDE in result.output
     assert SUCCESSFUL_STAKE_DIVIDE in result.output
@@ -621,14 +621,14 @@ def test_divide_non_interactive(click_runner,
                '--staking-address', surrogate_stakers[0],
                '--index', sub_stake_index,
                '--lock-periods', lock_periods,
-               '--value', NU.from_nunits(target_value).to_tokens(),
+               '--value', NU.from_units(target_value).to_tokens(),
                '--force')
 
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert PROMPT_STAKE_DIVIDE_VALUE.format(minimum=NU.from_nunits(min_allowed_locked),
-                                            maximum=NU.from_nunits(min_allowed_locked + 1)) not in result.output
+    assert PROMPT_STAKE_DIVIDE_VALUE.format(minimum=NU.from_units(min_allowed_locked),
+                                            maximum=NU.from_units(min_allowed_locked + 1)) not in result.output
     assert PROMPT_STAKE_EXTEND_VALUE not in result.output
     assert CONFIRM_BROADCAST_STAKE_DIVIDE not in result.output
     assert SUCCESSFUL_STAKE_DIVIDE in result.output
@@ -659,7 +659,7 @@ def test_increase_interactive(click_runner,
 
     selected_index = 0
     sub_stake_index = 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
+    additional_value = NU.from_units(token_economics.minimum_allowed_locked // 10 + 12345)
 
     mock_token_agent.get_balance.return_value = 0
 
@@ -697,7 +697,7 @@ def test_increase_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(balance)
+    upper_limit = NU.from_units(balance)
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is use staker address
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
     assert CONFIRM_INCREASING_STAKE_DISCLAIMER in result.output
@@ -709,7 +709,7 @@ def test_increase_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.deposit_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                     stake_index=sub_stake_index,
-                                                                    amount=additional_value.to_nunits())
+                                                                    amount=additional_value.to_units())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
@@ -717,7 +717,7 @@ def test_increase_interactive(click_runner,
                                                            spender=mock_staking_agent.contract.address)
     mock_token_agent.increase_allowance.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                 spender_address=mock_staking_agent.contract.address,
-                                                                increase=additional_value.to_nunits() - current_allowance)
+                                                                increase=additional_value.to_units() - current_allowance)
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 
@@ -734,7 +734,7 @@ def test_increase_non_interactive(click_runner,
     mock_refresh_stakes = mocker.spy(Staker, 'refresh_stakes')
 
     sub_stake_index = 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
+    additional_value = NU.from_units(token_economics.minimum_allowed_locked // 10 + 12345)
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
     mock_staking_agent.get_locked_tokens.return_value = locked_tokens
@@ -754,7 +754,7 @@ def test_increase_non_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
+    upper_limit = NU.from_units(token_economics.maximum_allowed_locked - locked_tokens)
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
     assert CONFIRM_INCREASING_STAKE_DISCLAIMER not in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) not in result.output
@@ -766,7 +766,7 @@ def test_increase_non_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.deposit_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                     stake_index=sub_stake_index,
-                                                                    amount=additional_value.to_nunits())
+                                                                    amount=additional_value.to_units())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.deposit_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[0],
                                                                  stake_index=sub_stake_index)
@@ -774,7 +774,7 @@ def test_increase_non_interactive(click_runner,
                                                            spender=mock_staking_agent.contract.address)
     mock_token_agent.increase_allowance.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                 spender_address=mock_staking_agent.contract.address,
-                                                                increase=additional_value.to_nunits() - current_allowance)
+                                                                increase=additional_value.to_units() - current_allowance)
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 
@@ -791,7 +791,7 @@ def test_increase_lock_interactive(click_runner,
 
     selected_index = 0
     sub_stake_index = len(surrogate_stakes) - 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
+    additional_value = NU.from_units(token_economics.minimum_allowed_locked // 10 + 12345)
 
     mock_staking_agent.calculate_staking_reward.return_value = 0
 
@@ -830,7 +830,7 @@ def test_increase_lock_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
+    upper_limit = NU.from_units(token_economics.maximum_allowed_locked - locked_tokens)
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) in result.output
     assert CONFIRM_INCREASING_STAKE_DISCLAIMER in result.output
     assert CONFIRM_INCREASING_STAKE.format(stake_index=sub_stake_index, value=additional_value) in result.output
@@ -842,7 +842,7 @@ def test_increase_lock_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.lock_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                  stake_index=sub_stake_index,
-                                                                 amount=additional_value.to_nunits())
+                                                                 amount=additional_value.to_units())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                                  stake_index=sub_stake_index)
@@ -861,7 +861,7 @@ def test_increase_lock_non_interactive(click_runner,
 
     selected_index = 0
     sub_stake_index = len(surrogate_stakes) - 1
-    additional_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10 + 12345)
+    additional_value = NU.from_units(token_economics.minimum_allowed_locked // 10 + 12345)
 
     mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 2
     unlocked_tokens = token_economics.minimum_allowed_locked * 5
@@ -880,7 +880,7 @@ def test_increase_lock_non_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(unlocked_tokens)
+    upper_limit = NU.from_units(unlocked_tokens)
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # value provided so not prompted
     assert PROMPT_STAKE_INCREASE_VALUE.format(upper_limit=upper_limit) not in result.output
     assert CONFIRM_INCREASING_STAKE_DISCLAIMER not in result.output
@@ -892,7 +892,7 @@ def test_increase_lock_non_interactive(click_runner,
     mock_refresh_stakes.assert_called()
     mock_staking_agent.lock_and_increase.assert_called_once_with(transacting_power=surrogate_transacting_power,
                                                                  stake_index=sub_stake_index,
-                                                                 amount=additional_value.to_nunits())
+                                                                 amount=additional_value.to_units())
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_increase])
     mock_staking_agent.get_substake_info.assert_called_once_with(staker_address=surrogate_stakers[selected_index],
                                                                  stake_index=sub_stake_index)
@@ -912,7 +912,7 @@ def test_create_interactive(click_runner,
 
     selected_index = 0
     lock_periods = 366
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11 + 12345)
+    value = NU.from_units(token_economics.minimum_allowed_locked * 11 + 12345)
 
     command = ('create',
                '--provider', MOCK_PROVIDER_URI,
@@ -950,7 +950,7 @@ def test_create_interactive(click_runner,
     # successfully stake minimum allowed which equals available balance
     mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked
     mock_token_agent.get_balance.return_value = token_economics.minimum_allowed_locked
-    min_stake_value = NU.from_nunits(token_economics.minimum_allowed_locked)
+    min_stake_value = NU.from_units(token_economics.minimum_allowed_locked)
     min_amount_user_input = '\n'.join((str(selected_index),
                                        YES,
                                        str(min_stake_value.to_tokens()),
@@ -964,7 +964,7 @@ def test_create_interactive(click_runner,
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is to use staker address
     assert INSUFFICIENT_BALANCE_TO_CREATE not in result.output
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=min_stake_value, upper_limit=min_stake_value) in result.output
-    assert CONFIRM_STAGED_STAKE.format(nunits=str(min_stake_value.to_nunits()),
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(min_stake_value.to_units()),
                                        tokens=min_stake_value,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
@@ -976,15 +976,15 @@ def test_create_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(balance)
-    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    upper_limit = NU.from_units(balance)
+    lower_limit = NU.from_units(token_economics.minimum_allowed_locked)
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is to use staker address
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
-    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_units()),
                                        tokens=value,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
@@ -996,7 +996,7 @@ def test_create_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_token_agent.approve_and_call.assert_called_with(amount=value.to_nunits(),
+    mock_token_agent.approve_and_call.assert_called_with(amount=value.to_units(),
                                                          target_address=mock_staking_agent.contract_address,
                                                          transacting_power=surrogate_transacting_power,
                                                          call_data=Web3.toBytes(lock_periods))
@@ -1019,7 +1019,7 @@ def test_create_non_interactive(click_runner,
     selected_index = 0
 
     lock_periods = token_economics.minimum_locked_periods
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2 + 12345)
+    value = NU.from_units(token_economics.minimum_allowed_locked * 2 + 12345)
 
     locked_tokens = token_economics.minimum_allowed_locked * 5
     mock_staking_agent.get_locked_tokens.return_value = locked_tokens
@@ -1037,15 +1037,15 @@ def test_create_non_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
-    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    upper_limit = NU.from_units(token_economics.maximum_allowed_locked - locked_tokens)
+    lower_limit = NU.from_units(token_economics.minimum_allowed_locked)
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # default is to use staker address
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) not in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
-    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_units()),
                                        tokens=value,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) not in result.output
@@ -1058,7 +1058,7 @@ def test_create_non_interactive(click_runner,
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
     mock_token_agent.get_allowance.assert_called()
-    mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_nunits(),
+    mock_token_agent.approve_and_call.assert_called_once_with(amount=value.to_units(),
                                                               target_address=mock_staking_agent.contract_address,
                                                               transacting_power=surrogate_transacting_power,
                                                               call_data=Web3.toBytes(lock_periods))
@@ -1079,7 +1079,7 @@ def test_create_lock_interactive(click_runner,
 
     selected_index = 0
     lock_periods = 366
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 2 + 12345)
+    value = NU.from_units(token_economics.minimum_allowed_locked * 2 + 12345)
 
     mock_staking_agent.calculate_staking_reward.return_value = token_economics.minimum_allowed_locked - 1
 
@@ -1118,15 +1118,15 @@ def test_create_lock_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(token_economics.maximum_allowed_locked - locked_tokens)
-    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    upper_limit = NU.from_units(token_economics.maximum_allowed_locked - locked_tokens)
+    lower_limit = NU.from_units(token_economics.minimum_allowed_locked)
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
     assert CONFIRM_STAKE_USE_UNLOCKED in result.output  # value not provided but --from-unlocked specified so prompted
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) in result.output
-    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_units()),
                                        tokens=value,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) in result.output
@@ -1138,7 +1138,7 @@ def test_create_lock_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
+    mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_units(),
                                                                lock_periods=lock_periods,
                                                                transacting_power=surrogate_transacting_power)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
@@ -1158,7 +1158,7 @@ def test_create_lock_non_interactive(click_runner,
     selected_index = 0
 
     lock_periods = token_economics.minimum_locked_periods
-    value = NU.from_nunits(token_economics.minimum_allowed_locked * 11 + 12345)
+    value = NU.from_units(token_economics.minimum_allowed_locked * 11 + 12345)
 
     mock_staking_agent.get_locked_tokens.return_value = token_economics.minimum_allowed_locked * 5
     unlocked_tokens = token_economics.maximum_allowed_locked // 2
@@ -1177,15 +1177,15 @@ def test_create_lock_non_interactive(click_runner,
     result = click_runner.invoke(stake, command, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
 
-    upper_limit = NU.from_nunits(unlocked_tokens)
-    lower_limit = NU.from_nunits(token_economics.minimum_allowed_locked)
+    upper_limit = NU.from_units(unlocked_tokens)
+    lower_limit = NU.from_units(token_economics.minimum_allowed_locked)
     min_locktime = token_economics.minimum_locked_periods
     max_locktime = MAX_UINT16 - 10  # MAX_UINT16 - current period
 
     assert CONFIRM_STAKE_USE_UNLOCKED not in result.output  # value provided so not prompted
     assert PROMPT_STAKE_CREATE_VALUE.format(lower_limit=lower_limit, upper_limit=upper_limit) not in result.output
     assert PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime, max_locktime=max_locktime) not in result.output
-    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_nunits()),
+    assert CONFIRM_STAGED_STAKE.format(nunits=str(value.to_units()),
                                        tokens=value,
                                        staker_address=surrogate_stakers[selected_index],
                                        lock_periods=lock_periods) not in result.output
@@ -1197,7 +1197,7 @@ def test_create_lock_non_interactive(click_runner,
     mock_staking_agent.get_all_stakes.assert_called()
     mock_staking_agent.get_current_period.assert_called()
     mock_refresh_stakes.assert_called()
-    mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_nunits(),
+    mock_staking_agent.lock_and_create.assert_called_once_with(amount=value.to_units(),
                                                                lock_periods=lock_periods,
                                                                transacting_power=surrogate_transacting_power)
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
@@ -1378,7 +1378,7 @@ def test_stake_list_active(click_runner,
     for stakes in surrogate_stakes:
         for index, sub_stake_info in enumerate(stakes):
 
-            value = NU.from_nunits(sub_stake_info.locked_value)
+            value = NU.from_units(sub_stake_info.locked_value)
 
             sub_stake = Stake(staking_agent=mock_staking_agent,
                               checksum_address=get_random_checksum_address(),
@@ -1443,7 +1443,7 @@ def test_stake_list_all(click_runner,
 
     for stakes in surrogate_stakes:
         for index, sub_stake_info in enumerate(stakes):
-            value = NU.from_nunits(sub_stake_info.locked_value)
+            value = NU.from_units(sub_stake_info.locked_value)
 
             sub_stake = Stake(staking_agent=mock_staking_agent,
                               checksum_address=get_random_checksum_address(),
@@ -1477,7 +1477,7 @@ def test_stake_list_all(click_runner,
 def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
     reward_amount = 1
     reward = NU(reward_amount, 'NU')
-    mock_staking_agent.calculate_staking_reward.return_value = reward.to_nunits()
+    mock_staking_agent.calculate_staking_reward.return_value = reward.to_units()
 
     command = ('rewards',
                'show',
@@ -1504,7 +1504,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
     nr_of_events = 3
     events = [{
         'args': {
-            'value': NU(Decimal(reward_amount + i/100*i), 'NU').to_nunits(),
+            'value': NU(Decimal(reward_amount + i/100*i), 'NU').to_units(),
             'period': latest_period - i,
         },
         'blockNumber': estimate_block_number_for_period(latest_period - i,

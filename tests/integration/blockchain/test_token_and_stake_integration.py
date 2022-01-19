@@ -84,7 +84,7 @@ def test_stake_status(mock_testerchain, token_economics, mock_staking_agent):
                      economics=token_economics)
 
     # Prepare unlocked sub-stake
-    nu = NU.from_nunits(2 * token_economics.minimum_allowed_locked - 1)
+    nu = NU.from_units(2 * token_economics.minimum_allowed_locked - 1)
     stake = make_sub_stake(nu, current_period - 2, current_period - 1)
     assert stake.status() == Stake.Status.UNLOCKED
 
@@ -107,7 +107,7 @@ def test_stake_status(mock_testerchain, token_economics, mock_staking_agent):
     assert stake.status() == Stake.Status.EDITABLE
 
     # Prepare divisible sub-stake
-    nu = NU.from_nunits(2 * token_economics.minimum_allowed_locked)
+    nu = NU.from_units(2 * token_economics.minimum_allowed_locked)
     stake = make_sub_stake(nu, current_period - 2, current_period + 1)
     assert stake.status() == Stake.Status.DIVISIBLE
 
@@ -130,7 +130,7 @@ def test_stake_sync(mock_testerchain, token_economics, mock_staking_agent):
     mock_staking_agent.get_staker_info.return_value = staker_info
 
     # Prepare sub-stake
-    nu = NU.from_nunits(2 * token_economics.minimum_allowed_locked - 1)
+    nu = NU.from_units(2 * token_economics.minimum_allowed_locked - 1)
     stake = Stake(checksum_address=address,
                   first_locked_period=current_period - 2,
                   final_locked_period=current_period + 1,
@@ -148,7 +148,7 @@ def test_stake_sync(mock_testerchain, token_economics, mock_staking_agent):
 
     stake.sync()
     assert stake.status() == Stake.Status.DIVISIBLE
-    assert stake.value == NU.from_nunits(nunits)
+    assert stake.value == NU.from_units(nunits)
 
     # Update current period and sync
     mock_staking_agent.get_current_period.return_value = current_period + 1
@@ -221,7 +221,7 @@ def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent)
                      staking_agent=mock_staking_agent,
                      economics=token_economics)
 
-    nu = NU.from_nunits(2 * token_economics.minimum_allowed_locked - 1)
+    nu = NU.from_units(2 * token_economics.minimum_allowed_locked - 1)
     stake = make_sub_stake(first_locked_period=current_period - 2,
                            final_locked_period=current_period + 1,
                            value=nu)
@@ -270,8 +270,8 @@ def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent)
                            value=nu)
     stake.staking_agent.get_locked_tokens.return_value = nu
     with pytest.raises(Stake.StakingError):
-        validate_increase(stake=stake, amount=NU.from_nunits(token_economics.maximum_allowed_locked - int(nu) + 1))
-    validate_increase(stake=stake, amount=NU.from_nunits(token_economics.maximum_allowed_locked - int(nu)))
+        validate_increase(stake=stake, amount=NU.from_units(token_economics.maximum_allowed_locked - int(nu) + 1))
+    validate_increase(stake=stake, amount=NU.from_units(token_economics.maximum_allowed_locked - int(nu)))
 
     # Validate merge method
     stake_1 = make_sub_stake(first_locked_period=current_period - 1,

@@ -227,7 +227,7 @@ def test_stake_increase(click_runner,
     assert stakes_length > 0
 
     selection = 0
-    new_value = NU.from_nunits(token_economics.minimum_allowed_locked // 10)
+    new_value = NU.from_units(token_economics.minimum_allowed_locked // 10)
     origin_stake = stakes[selection]
 
     stake_args = ('stake', 'increase',

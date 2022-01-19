@@ -508,7 +508,7 @@ def create(general_config: GroupGeneralConfig,
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
-    stake_value_range = DecimalRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
+    stake_value_range = DecimalRange(min=NU.from_units(min_locked).to_tokens(), clamp=False)
     stake_duration_range = click.IntRange(min=economics.minimum_locked_periods, clamp=False)
 
     #
@@ -520,9 +520,9 @@ def create(general_config: GroupGeneralConfig,
             click.confirm(CONFIRM_STAKE_USE_UNLOCKED, abort=True)
 
         token_balance = STAKEHOLDER.staker.calculate_staking_reward() if from_unlocked else STAKEHOLDER.staker.token_balance
-        lower_limit = NU.from_nunits(economics.minimum_allowed_locked)
-        locked_tokens = STAKEHOLDER.staker.locked_tokens(periods=1).to_nunits()
-        upper_limit = min(token_balance, NU.from_nunits(economics.maximum_allowed_locked - locked_tokens))
+        lower_limit = NU.from_units(economics.minimum_allowed_locked)
+        locked_tokens = STAKEHOLDER.staker.locked_tokens(periods=1).to_units()
+        upper_limit = min(token_balance, NU.from_units(economics.maximum_allowed_locked - locked_tokens))
 
         if token_balance < lower_limit:
             emitter.echo(INSUFFICIENT_BALANCE_TO_CREATE, color='red')
@@ -618,8 +618,8 @@ def increase(general_config: GroupGeneralConfig,
             click.confirm(CONFIRM_STAKE_USE_UNLOCKED, abort=True)
 
         token_balance = STAKEHOLDER.staker.calculate_staking_reward() if from_unlocked else STAKEHOLDER.staker.token_balance
-        locked_tokens = STAKEHOLDER.staker.locked_tokens(periods=1).to_nunits()
-        upper_limit = min(token_balance, NU.from_nunits(STAKEHOLDER.staker.economics.maximum_allowed_locked - locked_tokens))
+        locked_tokens = STAKEHOLDER.staker.locked_tokens(periods=1).to_units()
+        upper_limit = min(token_balance, NU.from_units(STAKEHOLDER.staker.economics.maximum_allowed_locked - locked_tokens))
 
         if token_balance == 0:
             emitter.echo(INSUFFICIENT_BALANCE_TO_INCREASE, color='red')
@@ -859,7 +859,7 @@ def divide(general_config: GroupGeneralConfig,
 
     # Dynamic click types (Economics)
     min_locked = economics.minimum_allowed_locked
-    stake_value_range = DecimalRange(min=NU.from_nunits(min_locked).to_tokens(), clamp=False)
+    stake_value_range = DecimalRange(min=NU.from_units(min_locked).to_tokens(), clamp=False)
 
     if index is not None:  # 0 is valid.
         current_stake = STAKEHOLDER.staker.stakes[index]
@@ -872,7 +872,7 @@ def divide(general_config: GroupGeneralConfig,
 
     # Value
     if not value:
-        min_allowed_locked = NU.from_nunits(economics.minimum_allowed_locked)
+        min_allowed_locked = NU.from_units(economics.minimum_allowed_locked)
         max_divide_value = max(min_allowed_locked, current_stake.value - min_allowed_locked)
         prompt = PROMPT_STAKE_DIVIDE_VALUE.format(minimum=min_allowed_locked, maximum=str(max_divide_value))
         value = click.prompt(prompt, type=stake_value_range)

@@ -836,7 +836,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
                                          signer=Web3Signer(testerchain.client),
                                          password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+    token_agent.transfer(amount=NU(200_000, 'NU').to_units(),
                          transacting_power=transacting_power,
                          target_address=address)
 
@@ -880,7 +880,7 @@ def manual_staker(testerchain, agency, test_registry):
     txhash = testerchain.client.w3.eth.sendTransaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
 
-    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+    token_agent.transfer(amount=NU(200_000, 'NU').to_units(),
                          transacting_power=tpower,
                          target_address=address)
 

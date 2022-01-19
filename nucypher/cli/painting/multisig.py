@@ -41,7 +41,7 @@ Registry  ................ {registry.filepath}
 
 {multisig_agent.contract_name} ................. {multisig_agent.contract_address}
     ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(multisig_agent.contract_address), 'ether')} ETH
-    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(multisig_agent.contract_address))}"""
+    ~ Tokens ............. {NU.from_units(token_agent.get_balance(multisig_agent.contract_address))}"""
     emitter.echo(contract_payload)
 
     emitter.echo(f"Nonce .................... {multisig_agent.nonce}")

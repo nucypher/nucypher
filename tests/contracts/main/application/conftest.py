@@ -19,15 +19,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from web3.contract import Contract
 
-<<<<<<< HEAD
-=======
 from tests.constants import (
     TEST_PROVIDER_URI,
 )
 from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 from tests.utils.config import make_ursula_test_configuration
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
->>>>>>> 519d7a03f (ursula pre_application_agent working)
 
 # @pytest.fixture()
 # def token(deploy_contract, token_economics):

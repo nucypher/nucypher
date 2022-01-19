@@ -623,7 +623,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         staker_address = transacting_power.account
         reward_amount: NuNits = self.calculate_staking_reward(staker_address=staker_address)
         from nucypher.blockchain.eth.token import NU
-        self.log.debug(f"Withdrawing staking reward ({NU.from_nunits(reward_amount)}) to {staker_address}")
+        self.log.debug(f"Withdrawing staking reward ({NU.from_units(reward_amount)}) to {staker_address}")
         receipt: TxReceipt = self.withdraw(transacting_power=transacting_power, amount=reward_amount, replace=replace)
         return receipt
 

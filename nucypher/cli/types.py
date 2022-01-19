@@ -140,7 +140,7 @@ EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 GWEI = DecimalRange(min=0)
 
-__min_allowed_locked = NU.from_nunits(StandardTokenEconomics._default_minimum_allowed_locked).to_tokens()
+__min_allowed_locked = NU.from_units(StandardTokenEconomics._default_minimum_allowed_locked).to_tokens()
 MIN_ALLOWED_LOCKED_TOKENS = Decimal(__min_allowed_locked)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_allowed_locked)
 
