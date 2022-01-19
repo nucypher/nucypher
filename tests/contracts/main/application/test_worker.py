@@ -406,7 +406,7 @@ def test_ursula_contract_interactions(ursula_decentralized_test_config, testerch
     assert blockchain_ursula.get_operator_address() == NULL_ADDRESS
 
     # now lets visit stake.nucypher.network and bond this worker
-    tx = pre_application.functions.bondWorker(worker_address).transact({'from': operator})
+    tx = pre_application.functions.bondWorker(operator, worker_address).transact({'from': operator})
     testerchain.wait_for_receipt(tx)
 
     # now the worker has an operator
