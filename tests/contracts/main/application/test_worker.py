@@ -21,6 +21,7 @@ from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from eth_utils import to_checksum_address
 from constant_sorrow.constants import MOCK_DB
+from tests.utils.ursula import start_pytest_ursula_services
 
 CONFIRMATION_SLOT = 1
 
@@ -382,13 +383,39 @@ def test_confirm_address(testerchain, threshold_staking, pre_application, token_
         testerchain.wait_for_receipt(tx)
 
 
-def test_ursula_startup(ursula_decentralized_test_config, testerchain, threshold_staking, pre_application, token_economics, deploy_contract):
+def test_ursula_contract_interactions(ursula_decentralized_test_config, testerchain, threshold_staking, pre_application, token_economics, deploy_contract):
     creator, operator, worker_address, *everyone_else = testerchain.client.accounts
+    min_authorization = token_economics.minimum_allowed_locked
 
+    # make an operators and some stakes
+    tx = threshold_staking.functions.setRoles(operator).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakes(operator, min_authorization, 0, 0).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # make an ursula.
     blockchain_ursula = ursula_decentralized_test_config.produce(
         worker_address=worker_address,
         db_filepath=MOCK_DB,
         rest_port=9151)
 
-    assert blockchain_ursula.pre_application_agent.is_worker_confirmed(blockchain_ursula.worker_address) is False
-    # blockchain_ursula.confirm_worker(blockchain_ursula.worker_address)
+    # it's not confirmed
+    assert blockchain_ursula.is_confirmed is False
+
+    # it has no operator
+    assert blockchain_ursula.get_operator_address() == NULL_ADDRESS
+
+    # now lets visit stake.nucypher.network and bond this worker
+    tx = pre_application.functions.bondWorker(worker_address).transact({'from': operator})
+    testerchain.wait_for_receipt(tx)
+
+    # now the worker has an operator
+    assert blockchain_ursula.get_operator_address() == operator
+    # but it still isn't confirmed
+    assert blockchain_ursula.is_confirmed is False
+
+    # lets confirm it.  It will probably do this automatically in real life...
+    tx = blockchain_ursula.confirm_worker_address()
+    testerchain.wait_for_receipt(tx.transactionHash)
+
+    assert blockchain_ursula.is_confirmed is True
