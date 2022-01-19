@@ -89,7 +89,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import (
     NU,
-    T,
+    TToken,
     Stake,
     StakeList,
     WorkTracker,
@@ -194,7 +194,7 @@ class ThresholdTokenActor(BaseActor):
     Actor to interface with the ThresholdToken contract
     """
 
-    token_class = T
+    token_class = TToken
     token_unit = 'TuNit'
 
     def __init__(self, registry: BaseContractRegistry, **kwargs):
