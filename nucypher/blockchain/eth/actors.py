@@ -1272,6 +1272,16 @@ class ThresholdWorker(BaseActor):
     def worker_address(self):
         return self.__worker_address
 
+    def get_operator_address(self):
+        return self.pre_application_agent.get_operator_from_worker(self.worker_address)
+
+    @property
+    def is_confirmed(self):
+        return self.pre_application_agent.is_worker_confirmed(self.worker_address)
+
+    def confirm_worker_address(self):
+        return self.pre_application_agent.confirm_worker_address(self.transacting_power)
+
 
 >>>>>>> 519d7a03f (ursula pre_application_agent working)
 class BlockchainPolicyAuthor(NucypherTokenActor):
