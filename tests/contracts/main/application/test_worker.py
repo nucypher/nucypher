@@ -21,12 +21,12 @@ from eth_tester.exceptions import TransactionFailed
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from eth_utils import to_checksum_address
 
-
 CONFIRMATION_SLOT = 1
 
 
 def test_bond_worker(testerchain, threshold_staking, pre_application, token_economics):
-    creator, operator1, operator2, operator3, operator4, worker1, worker2, worker3, owner3, *everyone_else = \
+    creator, operator1, operator2, operator3, operator4, \
+    worker1, worker2, worker3, owner3, beneficiary, authorizer, *everyone_else = \
         testerchain.client.accounts
     min_authorization = token_economics.minimum_allowed_locked
     min_worker_seconds = 24 * 60 * 60
@@ -43,7 +43,7 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     tx = threshold_staking.functions.setStakes(
         operator2, min_authorization // 3, min_authorization // 3, min_authorization // 3 - 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setRoles(operator3, owner3, everyone_else[0], everyone_else[1]).transact()
+    tx = threshold_staking.functions.setRoles(operator3, owner3, beneficiary, authorizer).transact()
     testerchain.wait_for_receipt(tx)
     tx = threshold_staking.functions.setStakes(operator3, 0, min_authorization, 0).transact()
     testerchain.wait_for_receipt(tx)
