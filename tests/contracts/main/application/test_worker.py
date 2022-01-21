@@ -275,8 +275,9 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert pre_application.functions.getWorkerFromOperator(worker1).call() == NULL_ADDRESS
     assert pre_application.functions.operatorFromWorker(worker1).call() == NULL_ADDRESS
 
-    # Operator can't bond the first worker again because worker is an operator now
     testerchain.time_travel(seconds=min_worker_seconds)
+
+    # Operator can't bond the first worker again because worker is an operator now
     with pytest.raises((TransactionFailed, ValueError)):
         tx = pre_application.functions.bondWorker(operator4, worker1).transact({'from': operator4})
         testerchain.wait_for_receipt(tx)
