@@ -1068,11 +1068,13 @@ class PREApplicationAgent(EthereumContractAgent):
     #
 
     @contract_api(TRANSACTION)
-    def confirm_worker_address(self, transacting_power: TransactingPower) -> TxReceipt:
+    def confirm_worker_address(self, transacting_power: TransactingPower, fire_and_forget: bool = True) -> TxReceipt:
         """Confirm the sender's account as a worker"""
         contract_function: ContractFunction = self.contract.functions.confirmWorkerAddress()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+                                                   transacting_power=transacting_power,
+                                                   fire_and_forget=fire_and_forget
+                                                   )
         return receipt
 
     @contract_api(TRANSACTION)

@@ -1241,6 +1241,17 @@ class Worker(NucypherTokenActor):
         if expired:
             raise Policy.Expired(f'{hrac} is an expired policy.')
 
+    def get_work_is_needed_check(self):
+
+        # we have stakes that have active substakes
+        def func(self):
+            self.stakes.checksum_address = self.checksum_address
+            self.stakes.refresh()
+            if not self.stakes.has_active_substakes:
+                return False
+
+        return func
+
 
 class ThresholdWorker(BaseActor):
 
@@ -1263,6 +1274,7 @@ class ThresholdWorker(BaseActor):
         self.is_me = is_me
 
         self.__worker_address = worker_address
+        self.__operator_address = None
 
         # PRE Application
         self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
@@ -1271,15 +1283,48 @@ class ThresholdWorker(BaseActor):
     def worker_address(self):
         return self.__worker_address
 
+    @property
+    def operator_address(self):
+        if not self.__operator_address:
+            self.__operator_address = self.get_operator_address()
+        return self.__operator_address
+
     def get_operator_address(self):
-        return self.pre_application_agent.get_operator_from_worker(self.worker_address)
+        self.__operator_address = self.pre_application_agent.get_operator_from_worker(self.worker_address)
+        return self.__operator_address
 
     @property
     def is_confirmed(self):
         return self.pre_application_agent.is_worker_confirmed(self.worker_address)
 
-    def confirm_worker_address(self):
-        return self.pre_application_agent.confirm_worker_address(self.transacting_power)
+    def confirm_worker_address(self, fire_and_forget: bool = True) -> Union[TxReceipt, HexBytes]:
+        txhash_or_receipt =  self.pre_application_agent.confirm_worker_address(self.transacting_power, fire_and_forget=fire_and_forget)
+        return txhash_or_receipt
+
+    def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
+
+        client = self.pre_application_agent.blockchain.client
+        emitter = StdoutEmitter()
+
+        funded, bonded = False, False
+        while not funded and bonded:
+
+            ether_balance = client.get_balance(self.worker_address)
+            if ether_balance and (not funded):
+                funded, balance = True, Web3.fromWei(ether_balance, 'ether')
+                emitter.message(f"✓ Worker is funded with {balance} ETH", color='green')
+
+            if (not bonded) and (self.get_operator_address() != NULL_ADDRESS):
+                bonded = True
+                emitter.message(f"✓ Worker is bonded to {staking_address}", color='green')
+
+        time.sleep(poll_rate)
+
+
+    def get_work_is_needed_check(self):
+        def func(self):
+            # we have not confirmed yet
+            return not self.is_confirmed
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

@@ -579,14 +579,11 @@ class WorkTracker:
 
     ALLOWED_DEVIATION = 0.5  # i.e., up to +50% from the expected confirmation time
 
-    def __init__(self, worker, stakes, *args, **kwargs):
+    def __init__(self, worker, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.worker = worker
-        self.stakes = stakes
-        self.staking_agent = self.worker.staking_agent
-        self.client = self.staking_agent.blockchain.client
 
         self.gas_strategy = self.staking_agent.blockchain.gas_strategy
 
@@ -595,12 +592,20 @@ class WorkTracker:
 
         self.__pending = dict()  # TODO: Prime with pending worker transactions
         self.__requirement = None
-        self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
         self._abort_on_error = False
 
         self._consecutive_fails = 0
+
+        self.__configure(*args)
+
+    def __configure(self, stakes):
+        self.stakes = stakes
+        self.staking_agent = self.worker.staking_agent
+        self.client = self.staking_agent.blockchain.client
+        self.__uptime_period = self.staking_agent.get_current_period()
+        self.__current_period = self.__uptime_period
 
     @classmethod
     def random_interval(cls, fails=None) -> int:
@@ -670,7 +675,7 @@ class WorkTracker:
             self.start(commit_now=commit_now)
 
 
-    def __work_requirement_is_satisfied(self) -> bool:
+    def __should_do_work_now(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
             return True
@@ -763,14 +768,8 @@ class WorkTracker:
         self.__pending.clear()  # Forget the past. This is a new beginning.
         self._consecutive_fails = 0
 
-    def _do_work(self) -> None:
-        """
-        Async working task for Ursula  # TODO: Split into multiple async tasks
-        """
 
-        # Call once here, and inject later for temporal consistency
-        current_block_number = self.client.block_number
-
+    def __prep_work_state(self):
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
@@ -794,10 +793,28 @@ class WorkTracker:
                 self.log.warn(f"PERIOD MIGRATION DETECTED - proceeding with commitment.")
             else:
                 self.__reset_tracker_state()
-                return  # No need to commit to this period.  Save the gas.
+                return False# No need to commit to this period.  Save the gas.
         elif interval > 0:
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
+
+    def __final_work_prep_before_transaction(self):
+
+        self.stakes.refresh()
+        if not self.stakes.has_active_substakes:
+            self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
+            return False
+
+    def _do_work(self) -> None:
+        """
+        Async working task for Ursula  # TODO: Split into multiple async tasks
+        """
+
+        # Call once here, and inject later for temporal consistency
+        current_block_number = self.client.block_number
+
+        if self.__prep_work_state() is False:
+            return
 
         # Commitment tracking
         unmined_transactions = self.__track_pending_commitments()
@@ -811,15 +828,13 @@ class WorkTracker:
             self._tracking_task.interval = self.random_interval(fails=self._consecutive_fails)
 
         # Only perform work this round if the requirements are met
-        if not self.__work_requirement_is_satisfied():
+        if not self.__should_do_work_now():
             self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
-                          f'There are unmet commit requirements.')
+                          f'Situation does not call for doing work now.')
             # TODO: Follow-up actions for failed requirements
             return
 
-        self.stakes.refresh()
-        if not self.stakes.has_active_substakes:
-            self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
+        if self.__final_work_prep_before_transaction() is False:
             return
 
         txhash = self.__fire_commitment()
@@ -832,6 +847,28 @@ class WorkTracker:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
         self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
         return txhash
+
+
+class SimplePREAppWorkTracker(WorkTracker):
+
+    def __configure(self, *args):
+        self.staking_agent = self.worker.pre_application_agent
+        self.client = self.staking_agent.blockchain.client
+
+    def __prep_work_state(self):
+        return True
+
+    def __final_work_prep_before_transaction(self):
+        return True
+
+    def __fire_commitment(self):
+        """Makes an initial/replacement worker commitment transaction"""
+        transacting_power = self.worker.transacting_power
+        with transacting_power:
+            txhash = self.worker.confirm_worker_address(fire_and_forget=True)  # < --- blockchain WRITE
+        self.log.info(f"Confirming worker address {self.worker.worker_address} with operator {self.worker.operator_address} - TxHash: {txhash.hex()}")
+        return txhash
+
 
 
 class StakeList(UserList):
