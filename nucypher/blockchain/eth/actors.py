@@ -1342,46 +1342,6 @@ class ThresholdWorker(BaseActor):
         return func
 
 
-class ThresholdWorker(BaseActor):
-
-    class WorkerError(ThresholdTokenActor.ActorError):
-        pass
-
-    @property
-    def token_balance(self):
-        return 0
-
-    def __init__(self,
-                 is_me: bool,
-                 work_tracker: WorkTracker = None,
-                 worker_address: str = None,
-                 *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-        self.log = Logger("worker")
-
-        self.is_me = is_me
-
-        self.__worker_address = worker_address
-
-        # PRE Application
-        self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
-
-    @property
-    def worker_address(self):
-        return self.__worker_address
-
-    def get_operator_address(self):
-        return self.pre_application_agent.get_operator_from_worker(self.worker_address)
-
-    @property
-    def is_confirmed(self):
-        return self.pre_application_agent.is_worker_confirmed(self.worker_address)
-
-    def confirm_worker_address(self):
-        return self.pre_application_agent.confirm_worker_address(self.transacting_power)
-
-
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 

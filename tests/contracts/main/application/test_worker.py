@@ -420,7 +420,7 @@ def test_ursula_contract_interactions(ursula_decentralized_test_config, testerch
 
     # lets confirm it.  It will probably do this automatically in real life...
     tx = blockchain_ursula.confirm_worker_address()
-    testerchain.wait_for_receipt(tx.transactionHash)
+    testerchain.wait_for_receipt(tx)
 
     assert blockchain_ursula.is_confirmed is True
 
