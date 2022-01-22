@@ -876,17 +876,15 @@ class Ursula(Teacher, Character, ThresholdWorker):
             if block_until_ready:
                 # Sets (staker's) checksum address; Prevent worker startup before bonding
                 self.block_until_ready()
-            self.stakes.checksum_address = self.checksum_address
-            self.stakes.refresh()
-            if not self.stakes.has_active_substakes:
-                msg = "No active stakes found for worker."
-                if emitter:
-                    emitter.message(f"✗ {msg}", color='red')
-                self.log.error(msg)
-                return
-            self.work_tracker.start(commit_now=True)  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+
+            work_is_needed = self.get_work_is_needed_check()(self)
+            if work_is_needed:
+                message = "✓ Work Tracking"
+                self.work_tracker.start(commit_now=True, requirement_func=self.work_tracker.worker.get_work_is_needed_check())  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+            else:
+                message = "✓ Worker already confirmed.  Not starting worktracker."
             if emitter:
-                emitter.message(f"✓ Work Tracking", color='green')
+                emitter.message(message, color='green')
 
         #
         # Non-order dependant services
