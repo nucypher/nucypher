@@ -22,7 +22,7 @@ from twisted.internet.task import Clock
 from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
 from nucypher.blockchain.eth.actors import Worker
-from nucypher.blockchain.eth.token import NU, WorkTracker
+from nucypher.blockchain.eth.token import NU, ClassicPREWorkTracker
 from nucypher.utilities.logging import Logger
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
@@ -52,13 +52,13 @@ def test_worker_auto_commitments(mocker,
 
     # Control time
     clock = Clock()
-    WorkTracker.CLOCK = clock
+    ClassicPREWorkTracker.CLOCK = clock
 
     # Bond the Worker and Staker
     staker.bond_worker(worker_address=worker_address)
 
     commit_spy = mocker.spy(Worker, 'commit_to_next_period')
-    replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
+    replacement_spy = mocker.spy(ClassicPREWorkTracker, '_ClassicPREWorkTracker__fire_replacement_commitment')
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
@@ -82,7 +82,7 @@ def test_worker_auto_commitments(mocker,
     def advance_one_period(_):
         log('Advancing one period')
         testerchain.time_travel(periods=1)
-        clock.advance(WorkTracker.INTERVAL_CEIL + 1)
+        clock.advance(ClassicPREWorkTracker.INTERVAL_CEIL + 1)
 
     def check_pending_commitments(number_of_commitments):
         def _check_pending_commitments(_):
@@ -102,8 +102,8 @@ def test_worker_auto_commitments(mocker,
         last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
         log("Advancing until replacement is indicated")
         testerchain.time_travel(periods=1)
-        clock.advance(WorkTracker.INTERVAL_CEIL + 1)
-        mocker.patch.object(WorkTracker, 'max_confirmation_time', return_value=1.0)
+        clock.advance(ClassicPREWorkTracker.INTERVAL_CEIL + 1)
+        mocker.patch.object(ClassicPREWorkTracker, 'max_confirmation_time', return_value=1.0)
         mock_last_committed_period = mocker.PropertyMock(return_value=last_committed_period)
         mocker.patch.object(Worker, 'last_committed_period', new_callable=mock_last_committed_period)
         clock.advance(ursula.work_tracker.max_confirmation_time() + 1)

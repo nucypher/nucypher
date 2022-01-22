@@ -36,7 +36,7 @@ from twisted.internet import reactor, task
 from web3.exceptions import TransactionNotFound
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS, NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -571,7 +571,7 @@ def validate_increase(stake: Stake, amount: NU) -> None:
     validate_max_value(stake=stake, amount=amount)
 
 
-class WorkTracker:
+class WorkTrackerBaseClass:
 
     CLOCK = reactor
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
@@ -579,28 +579,25 @@ class WorkTracker:
 
     ALLOWED_DEVIATION = 0.5  # i.e., up to +50% from the expected confirmation time
 
-    def __init__(self, worker, stakes, *args, **kwargs):
+    def __init__(self, worker, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
         self.worker = worker
-        self.stakes = stakes
-        self.staking_agent = self.worker.staking_agent
-        self.client = self.staking_agent.blockchain.client
-
-        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
 
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
         self.__pending = dict()  # TODO: Prime with pending worker transactions
         self.__requirement = None
-        self.__current_period = None
         self.__start_time = NOT_STAKING
         self.__uptime_period = NOT_STAKING
         self._abort_on_error = False
 
         self._consecutive_fails = 0
+
+        self._configure(*args)
+        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
 
     @classmethod
     def random_interval(cls, fails=None) -> int:
@@ -628,6 +625,7 @@ class WorkTracker:
         to be safely called at any time - For example, it is okay to call
         this function multiple times within the same period.
         """
+
         if self._tracking_task.running and not force:
             return
 
@@ -636,8 +634,6 @@ class WorkTracker:
 
         # Record the start time and period
         self.__start_time = maya.now()
-        self.__uptime_period = self.staking_agent.get_current_period()
-        self.__current_period = self.__uptime_period
 
         self.log.info(f"START WORK TRACKING (immediate action: {commit_now})")
         d = self._tracking_task.start(interval=self.random_interval(fails=self._consecutive_fails), now=commit_now)
@@ -670,11 +666,11 @@ class WorkTracker:
             self.start(commit_now=commit_now)
 
 
-    def __work_requirement_is_satisfied(self) -> bool:
+    def __should_do_work_now(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
             return True
-        r = self.__requirement()
+        r = self.__requirement(self.worker)
         if not isinstance(r, bool):
             raise ValueError(f"'requirement' must return a boolean.")
         return r
@@ -732,12 +728,12 @@ class WorkTracker:
 
         return bool(self.__pending)
 
-    def __fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
-        replacement_txhash = self.__fire_commitment()  # replace
+    def _fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
+        replacement_txhash = self._fire_commitment()  # replace
         self.__pending[current_block_number] = replacement_txhash  # track this transaction
         del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
 
-    def __handle_replacement_commitment(self, current_block_number: int) -> None:
+    def _handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
         if txhash is UNTRACKED_PENDING_TRANSACTION:
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
@@ -768,9 +764,67 @@ class WorkTracker:
         Async working task for Ursula  # TODO: Split into multiple async tasks
         """
 
+        self.log.info("doing work")
+
         # Call once here, and inject later for temporal consistency
         current_block_number = self.client.block_number
 
+        if self._prep_work_state() is False:
+            return
+
+        # Commitment tracking
+        unmined_transactions = self.__track_pending_commitments()
+        if unmined_transactions:
+            self.__handle_replacement_commitment(current_block_number=current_block_number)
+            # while there are known pending transactions, remain in fast interval mode
+            self._tracking_task.interval = self.INTERVAL_FLOOR
+            return  # This cycle is finished.
+        else:
+            # Randomize the next task interval over time, within bounds.
+            self._tracking_task.interval = self.random_interval(fails=self._consecutive_fails)
+
+        # Only perform work this round if the requirements are met
+        if not self.__should_do_work_now():
+            self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
+                          f'Situation does not call for doing work now.')
+            # TODO: Follow-up actions for failed requirements
+            return
+
+        if self._final_work_prep_before_transaction() is False:
+            return
+
+        txhash = self._fire_commitment()
+        self.__pending[current_block_number] = txhash
+
+    #  the following four methods are specific to PRE network schemes and must be implemented as below
+    def _configure(self, stakes):
+        """ post __init__ configuration dealing with contracts or state specific to this PRE flavor"""
+        raise NotImplementedError
+
+    def _prep_work_state(self):
+        """ configuration perfomed before transaction management in task execution """
+        raise NotImplementedError
+
+    def _final_work_prep_before_transaction(self):
+        """ configuration perfomed after transaction management in task execution right before transaction firing"""
+        raise NotImplementedError()
+
+    def _fire_commitment(self):
+        """ actually fire the tranasction """
+        raise NotImplementedError
+
+
+class ClassicPREWorkTracker(WorkTrackerBaseClass):
+
+    def _configure(self, *args):
+        self.stakes = stakes
+        self.staking_agent = self.worker.staking_agent
+        self.client = self.staking_agent.blockchain.client
+        self.__uptime_period = self.staking_agent.get_current_period()
+        self.__current_period = self.__uptime_period
+
+
+    def _prep_work_state(self):
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
@@ -794,43 +848,51 @@ class WorkTracker:
                 self.log.warn(f"PERIOD MIGRATION DETECTED - proceeding with commitment.")
             else:
                 self.__reset_tracker_state()
-                return  # No need to commit to this period.  Save the gas.
+                return False# No need to commit to this period.  Save the gas.
         elif interval > 0:
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
-        # Commitment tracking
-        unmined_transactions = self.__track_pending_commitments()
-        if unmined_transactions:
-            self.__handle_replacement_commitment(current_block_number=current_block_number)
-            # while there are known pending transactions, remain in fast interval mode
-            self._tracking_task.interval = self.INTERVAL_FLOOR
-            return  # This cycle is finished.
-        else:
-            # Randomize the next task interval over time, within bounds.
-            self._tracking_task.interval = self.random_interval(fails=self._consecutive_fails)
-
-        # Only perform work this round if the requirements are met
-        if not self.__work_requirement_is_satisfied():
-            self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
-                          f'There are unmet commit requirements.')
-            # TODO: Follow-up actions for failed requirements
-            return
-
+    def _final_work_prep_before_transaction(self):
         self.stakes.refresh()
         if not self.stakes.has_active_substakes:
             self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
-            return
+            return False
 
-        txhash = self.__fire_commitment()
-        self.__pending[current_block_number] = txhash
-
-    def __fire_commitment(self):
+    def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
         self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
+        return txhash
+
+
+class SimplePREAppWorkTracker(WorkTrackerBaseClass):
+
+    INTERVAL_FLOOR = 1
+    INTERVAL_CEIL = 2
+
+    def _configure(self, *args):
+        self.staking_agent = self.worker.pre_application_agent
+        self.client = self.staking_agent.blockchain.client
+
+    def _prep_work_state(self):
+        return True
+
+    def _final_work_prep_before_transaction(self):
+        should_continue = self.worker.get_operator_address() != NULL_ADDRESS
+        if should_continue:
+            return True
+        self.log.warn('COMMIT PREVENTED - Worker is not bonded to an operator.')
+        return False
+
+    def _fire_commitment(self):
+        """Makes an initial/replacement worker commitment transaction"""
+        transacting_power = self.worker.transacting_power
+        with transacting_power:
+            txhash = self.worker.confirm_worker_address(fire_and_forget=True)  # < --- blockchain WRITE
+        self.log.info(f"Confirming worker address {self.worker.worker_address} with operator {self.worker.operator_address} - TxHash: {txhash.hex()}")
         return txhash
 
 
