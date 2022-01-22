@@ -11,13 +11,9 @@ docker-compose -f $COMPOSE_FILE up -d
 echo "Wait for Ursula learning to occur"
 sleep 5
 
-# Download book text
-echo "Download Book Text"
-docker-compose -f $COMPOSE_FILE run -w $DEMO_DIR nucypher-dev bash download_finnegans_wake.sh
-
 # Run demo
 echo "Starting Demo"
-docker-compose -f $COMPOSE_FILE run -w $DEMO_DIR nucypher-dev python finnegans-wake-demo.py 172.28.1.3:11500
+docker-compose -f $COMPOSE_FILE run -w $DEMO_DIR nucypher-dev python finnegans-wake-demo-federated.py 172.28.1.3:11500
 
 # tear it down
 docker-compose -f $COMPOSE_FILE stop
