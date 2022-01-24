@@ -96,26 +96,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
 }
 
 
-///**
-//* @notice Intermediary contract for testing worker
-//*/
-//contract Intermediary { // TODO move to app tests
-//
-//    NuCypherToken immutable token;
-//    StakingEscrow immutable escrow;
-//
-//    constructor(NuCypherToken _token, StakingEscrow _escrow) {
-//        token = _token;
-//        escrow = _escrow;
-//    }
-//
-//    function bondWorker(address _worker) external {
-//        escrow.bondWorker(_worker);
-//    }
-//
-//}
-
-
 /**
 * @notice Contract for testing staking escrow contract
 */
