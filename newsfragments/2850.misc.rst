@@ -1,0 +1,1 @@
+Move some cryptographic operations inside the Rust extension. Remove dependency on `umbral` and `coincurve`.
