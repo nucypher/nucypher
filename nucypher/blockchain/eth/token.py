@@ -585,8 +585,6 @@ class WorkTracker:
         self.log = Logger('stake-tracker')
         self.worker = worker
 
-        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
-
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
 
@@ -598,9 +596,10 @@ class WorkTracker:
 
         self._consecutive_fails = 0
 
-        self.__configure(*args)
+        self._configure(*args)
+        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
 
-    def __configure(self, stakes):
+    def _configure(self, stakes):
         self.stakes = stakes
         self.staking_agent = self.worker.staking_agent
         self.client = self.staking_agent.blockchain.client
@@ -633,6 +632,7 @@ class WorkTracker:
         to be safely called at any time - For example, it is okay to call
         this function multiple times within the same period.
         """
+
         if self._tracking_task.running and not force:
             return
 
@@ -641,8 +641,6 @@ class WorkTracker:
 
         # Record the start time and period
         self.__start_time = maya.now()
-        self.__uptime_period = self.staking_agent.get_current_period()
-        self.__current_period = self.__uptime_period
 
         self.log.info(f"START WORK TRACKING (immediate action: {commit_now})")
         d = self._tracking_task.start(interval=self.random_interval(fails=self._consecutive_fails), now=commit_now)
@@ -679,7 +677,7 @@ class WorkTracker:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
             return True
-        r = self.__requirement()
+        r = self.__requirement(self.worker)
         if not isinstance(r, bool):
             raise ValueError(f"'requirement' must return a boolean.")
         return r
@@ -738,7 +736,7 @@ class WorkTracker:
         return bool(self.__pending)
 
     def __fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
-        replacement_txhash = self.__fire_commitment()  # replace
+        replacement_txhash = self._fire_commitment()  # replace
         self.__pending[current_block_number] = replacement_txhash  # track this transaction
         del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
 
@@ -769,7 +767,7 @@ class WorkTracker:
         self._consecutive_fails = 0
 
 
-    def __prep_work_state(self):
+    def _prep_work_state(self):
         # Update on-chain status
         self.log.info(f"Checking for new period. Current period is {self.__current_period}")
         onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
@@ -798,7 +796,7 @@ class WorkTracker:
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
-    def __final_work_prep_before_transaction(self):
+    def _final_work_prep_before_transaction(self):
 
         self.stakes.refresh()
         if not self.stakes.has_active_substakes:
@@ -810,10 +808,12 @@ class WorkTracker:
         Async working task for Ursula  # TODO: Split into multiple async tasks
         """
 
+        self.log.info("doing work")
+
         # Call once here, and inject later for temporal consistency
         current_block_number = self.client.block_number
 
-        if self.__prep_work_state() is False:
+        if self._prep_work_state() is False:
             return
 
         # Commitment tracking
@@ -834,13 +834,13 @@ class WorkTracker:
             # TODO: Follow-up actions for failed requirements
             return
 
-        if self.__final_work_prep_before_transaction() is False:
+        if self._final_work_prep_before_transaction() is False:
             return
 
-        txhash = self.__fire_commitment()
+        txhash = self._fire_commitment()
         self.__pending[current_block_number] = txhash
 
-    def __fire_commitment(self):
+    def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:
@@ -851,17 +851,17 @@ class WorkTracker:
 
 class SimplePREAppWorkTracker(WorkTracker):
 
-    def __configure(self, *args):
+    def _configure(self, *args):
         self.staking_agent = self.worker.pre_application_agent
         self.client = self.staking_agent.blockchain.client
 
-    def __prep_work_state(self):
+    def _prep_work_state(self):
         return True
 
-    def __final_work_prep_before_transaction(self):
+    def _final_work_prep_before_transaction(self):
         return True
 
-    def __fire_commitment(self):
+    def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:

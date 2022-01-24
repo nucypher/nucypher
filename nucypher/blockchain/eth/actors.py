@@ -93,6 +93,7 @@ from nucypher.blockchain.eth.token import (
     Stake,
     StakeList,
     WorkTracker,
+    SimplePREAppWorkTracker,
     validate_prolong,
     validate_increase,
     validate_divide,
@@ -1113,6 +1114,8 @@ class Worker(NucypherTokenActor):
 
         if is_me:
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
+            self.stakes.checksum_address = self.checksum_address
+            self.stakes.refresh()
             self.work_tracker = work_tracker or WorkTracker(worker=self, stakes=self.stakes)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
@@ -1279,6 +1282,9 @@ class ThresholdWorker(BaseActor):
         # PRE Application
         self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
 
+        if is_me:
+            self.work_tracker = work_tracker or SimplePREAppWorkTracker(worker=self)
+
     @property
     def worker_address(self):
         return self.__worker_address
@@ -1325,6 +1331,7 @@ class ThresholdWorker(BaseActor):
         def func(self):
             # we have not confirmed yet
             return not self.is_confirmed
+        return func
 
 
 class BlockchainPolicyAuthor(NucypherTokenActor):

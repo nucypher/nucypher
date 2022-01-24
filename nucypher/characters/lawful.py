@@ -877,12 +877,10 @@ class Ursula(Teacher, Character, ThresholdWorker):
                 # Sets (staker's) checksum address; Prevent worker startup before bonding
                 self.block_until_ready()
 
-            work_is_needed = self.get_work_is_needed_check()()
-            self.stakes.checksum_address = self.checksum_address
-            self.stakes.refresh()
+            work_is_needed = self.get_work_is_needed_check()(self)
             if not work_is_needed:
                 return
-            self.work_tracker.start(commit_now=True, requirement_func=self.worker.get_work_completed_verifier())  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+            self.work_tracker.start(commit_now=True, requirement_func=self.work_tracker.worker.get_work_is_needed_check())  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             if emitter:
                 emitter.message(f"✓ Work Tracking", color='green')
 
