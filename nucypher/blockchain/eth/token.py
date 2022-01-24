@@ -853,13 +853,11 @@ class ClassicPREWorkTracker(WorkTrackerBaseClass):
             # TODO: #1516 Follow-up actions for missed commitments
             self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
 
-
     def _final_work_prep_before_transaction(self):
         self.stakes.refresh()
         if not self.stakes.has_active_substakes:
             self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
             return False
-
 
     def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
