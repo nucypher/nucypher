@@ -25,7 +25,7 @@ CONFIRMATION_SLOT = 1
 
 
 def test_bond_worker(testerchain, threshold_staking, pre_application, token_economics):
-    creator, operator1, operator2, operator3, operator4, \
+    creator, staking_provider_1, staking_provider_2, staking_provider_3, staking_provider_4, \
     worker1, worker2, worker3, owner3, beneficiary, authorizer, *everyone_else = \
         testerchain.client.accounts
     min_authorization = token_economics.minimum_allowed_locked
@@ -33,99 +33,99 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
 
     worker_log = pre_application.events.WorkerBonded.createFilter(fromBlock='latest')
 
-    # Prepare operators: two with intermediary contract and two just an operator
-    tx = threshold_staking.functions.setRoles(operator1).transact()
+    # Prepare staking providers: two with intermediary contract and two just a staking provider
+    tx = threshold_staking.functions.setRoles(staking_provider_1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(operator1, min_authorization, 0, 0).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider_1, min_authorization, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setRoles(operator2).transact()
+    tx = threshold_staking.functions.setRoles(staking_provider_2).transact()
     testerchain.wait_for_receipt(tx)
     tx = threshold_staking.functions.setStakes(
-        operator2, min_authorization // 3, min_authorization // 3, min_authorization // 3 - 1).transact()
+        staking_provider_2, min_authorization // 3, min_authorization // 3, min_authorization // 3 - 1).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setRoles(operator3, owner3, beneficiary, authorizer).transact()
+    tx = threshold_staking.functions.setRoles(staking_provider_3, owner3, beneficiary, authorizer).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(operator3, 0, min_authorization, 0).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider_3, 0, min_authorization, 0).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setRoles(operator4).transact()
+    tx = threshold_staking.functions.setRoles(staking_provider_4).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(operator4, 0, 0, min_authorization).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider_4, 0, 0, min_authorization).transact()
     testerchain.wait_for_receipt(tx)
 
-    assert pre_application.functions.getWorkerFromOperator(operator1).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(operator1).call() == NULL_ADDRESS
-    assert pre_application.functions.getWorkerFromOperator(operator2).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(operator2).call() == NULL_ADDRESS
-    assert pre_application.functions.getWorkerFromOperator(operator3).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(operator3).call() == NULL_ADDRESS
-    assert pre_application.functions.getWorkerFromOperator(operator4).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(operator4).call() == NULL_ADDRESS
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_1).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(staking_provider_1).call() == NULL_ADDRESS
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_2).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(staking_provider_2).call() == NULL_ADDRESS
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_3).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(staking_provider_3).call() == NULL_ADDRESS
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_4).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(staking_provider_4).call() == NULL_ADDRESS
 
-    # Operator can't confirm worker address because there is no worker by default
+    # Staking provider can't confirm worker address because there is no worker by default
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator1})
+        tx = pre_application.functions.confirmWorkerAddress().transact({'from': staking_provider_1})
         testerchain.wait_for_receipt(tx)
 
-    # Operator can't bond another operator as worker
+    # Staking provider can't bond another staking provider as worker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator1, operator2).transact({'from': operator1})
+        tx = pre_application.functions.bondWorker(staking_provider_1, staking_provider_2).transact({'from': staking_provider_1})
         testerchain.wait_for_receipt(tx)
 
-    # Operator can't bond worker if stake is less than minimum
+    # Staking provider can't bond worker if stake is less than minimum
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator2, worker1).transact({'from': operator2})
+        tx = pre_application.functions.bondWorker(staking_provider_2, worker1).transact({'from': staking_provider_2})
         testerchain.wait_for_receipt(tx)
 
-    # Only operator or stake owner can bond worker
+    # Only staking provider or stake owner can bond worker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': beneficiary})
+        tx = pre_application.functions.bondWorker(staking_provider_3, worker1).transact({'from': beneficiary})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': authorizer})
+        tx = pre_application.functions.bondWorker(staking_provider_3, worker1).transact({'from': authorizer})
         testerchain.wait_for_receipt(tx)
 
-    # Operator bonds worker and now worker can make a confirmation
-    tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': owner3})
+    # Staking provider bonds worker and now worker can make a confirmation
+    tx = pre_application.functions.bondWorker(staking_provider_3, worker1).transact({'from': owner3})
     testerchain.wait_for_receipt(tx)
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
-    assert pre_application.functions.getWorkerFromOperator(operator3).call() == worker1
-    assert pre_application.functions.operatorFromWorker(worker1).call() == operator3
-    assert not pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_3).call() == worker1
+    assert pre_application.functions.stakingProviderFromWorker(worker1).call() == staking_provider_3
+    assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
-    assert pre_application.functions.getOperatorsLength().call() == 1
-    assert pre_application.functions.operators(0).call() == operator3
+    assert pre_application.functions.getStakingProvidersLength().call() == 1
+    assert pre_application.functions.stakingProviders(0).call() == staking_provider_3
 
-    # No active operators before confirmation
-    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    # No active stakingProviders before confirmation
+    all_locked, staking_providers = pre_application.functions.getActiveStakingProviders(0, 0).call()
     assert all_locked == 0
-    assert len(operators) == 0
+    assert len(staking_providers) == 0
 
     tx = pre_application.functions.confirmWorkerAddress().transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
-    assert pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert pre_application.functions.isWorkerConfirmed(worker1).call()
 
     number_of_events = 1
     events = worker_log.get_all_entries()
     assert len(events) == number_of_events
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator3
+    assert event_args['stakingProvider'] == staking_provider_3
     assert event_args['worker'] == worker1
     assert event_args['startTimestamp'] == timestamp
 
     # After confirmation worker is becoming active
-    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    all_locked, staking_providers = pre_application.functions.getActiveStakingProviders(0, 0).call()
     assert all_locked == min_authorization
-    assert len(operators) == 1
-    assert to_checksum_address(operators[0][0]) == operator3
-    assert operators[0][1] == min_authorization
+    assert len(staking_providers) == 1
+    assert to_checksum_address(staking_providers[0][0]) == staking_provider_3
+    assert staking_providers[0][1] == min_authorization
 
-    # Worker is in use so other operators can't bond him
+    # Worker is in use so other stakingProviders can't bond him
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator4, worker1).transact({'from': operator4})
+        tx = pre_application.functions.bondWorker(staking_provider_4, worker1).transact({'from': staking_provider_4})
         testerchain.wait_for_receipt(tx)
 
-    # # Worker can't be an operator
+    # # Worker can't be a staking provider
     # tx = threshold_staking.functions.setRoles(worker1).transact()
     # testerchain.wait_for_receipt(tx)
     # tx = threshold_staking.functions.setStakes(worker1, min_authorization, 0, 0).transact()
@@ -137,58 +137,58 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
 
     # Can't bond worker twice too soon
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator3, worker2).transact({'from': operator3})
+        tx = pre_application.functions.bondWorker(staking_provider_3, worker2).transact({'from': staking_provider_3})
         testerchain.wait_for_receipt(tx)
 
     # She can't unbond her worker too, until enough time has passed
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator3, NULL_ADDRESS).transact({'from': operator3})
+        tx = pre_application.functions.bondWorker(staking_provider_3, NULL_ADDRESS).transact({'from': staking_provider_3})
         testerchain.wait_for_receipt(tx)
 
     # Let's advance some time and unbond the worker
     testerchain.time_travel(seconds=min_worker_seconds)
-    tx = pre_application.functions.bondWorker(operator3, NULL_ADDRESS).transact({'from': operator3})
+    tx = pre_application.functions.bondWorker(staking_provider_3, NULL_ADDRESS).transact({'from': staking_provider_3})
     testerchain.wait_for_receipt(tx)
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
-    assert pre_application.functions.getWorkerFromOperator(operator3).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(operator3).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(worker1).call() == NULL_ADDRESS
-    assert not pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_3).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(staking_provider_3).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(worker1).call() == NULL_ADDRESS
+    assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
-    assert pre_application.functions.getOperatorsLength().call() == 1
-    assert pre_application.functions.operators(0).call() == operator3
+    assert pre_application.functions.getStakingProvidersLength().call() == 1
+    assert pre_application.functions.stakingProviders(0).call() == staking_provider_3
 
     # Resetting worker removes from active list before next confirmation
-    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    all_locked, staking_providers = pre_application.functions.getActiveStakingProviders(0, 0).call()
     assert all_locked == 0
-    assert len(operators) == 0
+    assert len(staking_providers) == 0
 
     number_of_events += 1
     events = worker_log.get_all_entries()
     assert len(events) == number_of_events
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator3
+    assert event_args['stakingProvider'] == staking_provider_3
     # Now the worker has been unbonded ...
     assert event_args['worker'] == NULL_ADDRESS
     # ... with a new starting period.
     assert event_args['startTimestamp'] == timestamp
 
-    # The operator can bond now a new worker, without waiting additional time.
-    tx = pre_application.functions.bondWorker(operator3, worker2).transact({'from': operator3})
+    # The staking provider can bond now a new worker, without waiting additional time.
+    tx = pre_application.functions.bondWorker(staking_provider_3, worker2).transact({'from': staking_provider_3})
     testerchain.wait_for_receipt(tx)
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
-    assert pre_application.functions.getWorkerFromOperator(operator3).call() == worker2
-    assert pre_application.functions.operatorFromWorker(worker2).call() == operator3
-    assert not pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_3).call() == worker2
+    assert pre_application.functions.stakingProviderFromWorker(worker2).call() == staking_provider_3
+    assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isWorkerConfirmed(worker2).call()
-    assert pre_application.functions.getOperatorsLength().call() == 1
-    assert pre_application.functions.operators(0).call() == operator3
+    assert pre_application.functions.getStakingProvidersLength().call() == 1
+    assert pre_application.functions.stakingProviders(0).call() == staking_provider_3
 
     number_of_events += 1
     events = worker_log.get_all_entries()
     assert len(events) == number_of_events
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator3
+    assert event_args['stakingProvider'] == staking_provider_3
     assert event_args['worker'] == worker2
     assert event_args['startTimestamp'] == timestamp
 
@@ -201,28 +201,28 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     testerchain.wait_for_receipt(tx)
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
     assert pre_application.functions.isWorkerConfirmed(worker2).call()
-    assert pre_application.functions.operatorInfo(operator3).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
 
     # Another staker can bond a free worker
-    tx = pre_application.functions.bondWorker(operator4, worker1).transact({'from': operator4})
+    tx = pre_application.functions.bondWorker(staking_provider_4, worker1).transact({'from': staking_provider_4})
     testerchain.wait_for_receipt(tx)
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
-    assert pre_application.functions.getWorkerFromOperator(operator4).call() == worker1
-    assert pre_application.functions.operatorFromWorker(worker1).call() == operator4
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_4).call() == worker1
+    assert pre_application.functions.stakingProviderFromWorker(worker1).call() == staking_provider_4
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
-    assert not pre_application.functions.operatorInfo(operator4).call()[CONFIRMATION_SLOT]
-    assert pre_application.functions.getOperatorsLength().call() == 2
-    assert pre_application.functions.operators(1).call() == operator4
+    assert not pre_application.functions.stakingProviderInfo(staking_provider_4).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getStakingProvidersLength().call() == 2
+    assert pre_application.functions.stakingProviders(1).call() == staking_provider_4
 
     number_of_events += 1
     events = worker_log.get_all_entries()
     assert len(events) == number_of_events
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator4
+    assert event_args['stakingProvider'] == staking_provider_4
     assert event_args['worker'] == worker1
     assert event_args['startTimestamp'] == timestamp
 
-    # # The first worker still can't be an operator
+    # # The first worker still can't be a staking provider
     # tx = threshold_staking.functions.setRoles(worker1).transact()
     # testerchain.wait_for_receipt(tx)
     # tx = threshold_staking.functions.setStakes(worker1, min_authorization, 0, 0).transact()
@@ -236,30 +236,30 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     tx = pre_application.functions.confirmWorkerAddress().transact({'from': worker1})
     testerchain.wait_for_receipt(tx)
     assert pre_application.functions.isWorkerConfirmed(worker1).call()
-    assert pre_application.functions.operatorInfo(operator4).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.stakingProviderInfo(staking_provider_4).call()[CONFIRMATION_SLOT]
     testerchain.time_travel(seconds=min_worker_seconds)
-    tx = pre_application.functions.bondWorker(operator4, worker3).transact({'from': operator4})
+    tx = pre_application.functions.bondWorker(staking_provider_4, worker3).transact({'from': staking_provider_4})
     testerchain.wait_for_receipt(tx)
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
-    assert pre_application.functions.getWorkerFromOperator(operator4).call() == worker3
-    assert pre_application.functions.operatorFromWorker(worker3).call() == operator4
-    assert pre_application.functions.operatorFromWorker(worker1).call() == NULL_ADDRESS
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_4).call() == worker3
+    assert pre_application.functions.stakingProviderFromWorker(worker3).call() == staking_provider_4
+    assert pre_application.functions.stakingProviderFromWorker(worker1).call() == NULL_ADDRESS
     assert not pre_application.functions.isWorkerConfirmed(worker3).call()
     assert not pre_application.functions.isWorkerConfirmed(worker1).call()
-    assert not pre_application.functions.operatorInfo(operator4).call()[CONFIRMATION_SLOT]
-    assert pre_application.functions.getOperatorsLength().call() == 2
-    assert pre_application.functions.operators(1).call() == operator4
+    assert not pre_application.functions.stakingProviderInfo(staking_provider_4).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.getStakingProvidersLength().call() == 2
+    assert pre_application.functions.stakingProviders(1).call() == staking_provider_4
 
     # Resetting worker removes from active list before next confirmation
-    all_locked, operators = pre_application.functions.getActiveOperators(1, 0).call()
+    all_locked, staking_providers = pre_application.functions.getActiveStakingProviders(1, 0).call()
     assert all_locked == 0
-    assert len(operators) == 0
+    assert len(staking_providers) == 0
 
     number_of_events += 1
     events = worker_log.get_all_entries()
     assert len(events) == number_of_events
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator4
+    assert event_args['stakingProvider'] == staking_provider_4
     assert event_args['worker'] == worker3
     assert event_args['startTimestamp'] == timestamp
 
@@ -272,109 +272,110 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     # tx = threshold_staking.functions.increaseAuthorization(
     #     worker1, min_authorization, pre_application.address).transact({'from': worker1})
     # testerchain.wait_for_receipt(tx)
-    assert pre_application.functions.getWorkerFromOperator(worker1).call() == NULL_ADDRESS
-    assert pre_application.functions.operatorFromWorker(worker1).call() == NULL_ADDRESS
+    assert pre_application.functions.getWorkerFromStakingProvider(worker1).call() == NULL_ADDRESS
+    assert pre_application.functions.stakingProviderFromWorker(worker1).call() == NULL_ADDRESS
 
     testerchain.time_travel(seconds=min_worker_seconds)
 
-    # Operator can't bond the first worker again because worker is an operator now
+    # Staking provider can't bond the first worker again because worker is a provider now
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator4, worker1).transact({'from': operator4})
+        tx = pre_application.functions.bondWorker(staking_provider_4, worker1).transact({'from': staking_provider_4})
         testerchain.wait_for_receipt(tx)
 
-    # Operator without intermediary contract can bond itself as worker
+    # Provider without intermediary contract can bond itself as worker
     # (Probably not best idea, but whatever)
-    tx = pre_application.functions.bondWorker(operator1, operator1).transact({'from': operator1})
+    tx = pre_application.functions.bondWorker(
+        staking_provider_1, staking_provider_1).transact({'from': staking_provider_1})
     testerchain.wait_for_receipt(tx)
     timestamp = testerchain.w3.eth.getBlock('latest').timestamp
-    assert pre_application.functions.getWorkerFromOperator(operator1).call() == operator1
-    assert pre_application.functions.operatorFromWorker(operator1).call() == operator1
-    assert pre_application.functions.getOperatorsLength().call() == 3
-    assert pre_application.functions.operators(2).call() == operator1
+    assert pre_application.functions.getWorkerFromStakingProvider(staking_provider_1).call() == staking_provider_1
+    assert pre_application.functions.stakingProviderFromWorker(staking_provider_1).call() == staking_provider_1
+    assert pre_application.functions.getStakingProvidersLength().call() == 3
+    assert pre_application.functions.stakingProviders(2).call() == staking_provider_1
 
     number_of_events += 1
     events = worker_log.get_all_entries()
     assert len(events) == number_of_events
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator1
-    assert event_args['worker'] == operator1
+    assert event_args['stakingProvider'] == staking_provider_1
+    assert event_args['worker'] == staking_provider_1
     assert event_args['startTimestamp'] == timestamp
 
     # If stake will be less than minimum then confirmation is not possible
-    tx = threshold_staking.functions.setStakes(operator1, 0, min_authorization - 1, 0).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider_1, 0, min_authorization - 1, 0).transact()
     testerchain.wait_for_receipt(tx)
 
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator1})
+        tx = pre_application.functions.confirmWorkerAddress().transact({'from': staking_provider_1})
         testerchain.wait_for_receipt(tx)
 
-    # Now operator can make a confirmation
-    tx = threshold_staking.functions.setStakes(operator1, 0, 0, min_authorization).transact()
+    # Now provider can make a confirmation
+    tx = threshold_staking.functions.setStakes(staking_provider_1, 0, 0, min_authorization).transact()
     testerchain.wait_for_receipt(tx)
-    tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator1})
+    tx = pre_application.functions.confirmWorkerAddress().transact({'from': staking_provider_1})
     testerchain.wait_for_receipt(tx)
 
-    # If stake will be less than minimum then operator is not active
-    all_locked, operators = pre_application.functions.getActiveOperators(0, 0).call()
+    # If stake will be less than minimum then provider is not active
+    all_locked, staking_providers = pre_application.functions.getActiveStakingProviders(0, 0).call()
     assert all_locked == 2 * min_authorization
-    assert len(operators) == 2
-    assert to_checksum_address(operators[0][0]) == operator3
-    assert operators[0][1] == min_authorization
-    assert to_checksum_address(operators[1][0]) == operator1
-    assert operators[1][1] == min_authorization
-    tx = threshold_staking.functions.setStakes(operator1, 0, min_authorization - 1, 0).transact()
+    assert len(staking_providers) == 2
+    assert to_checksum_address(staking_providers[0][0]) == staking_provider_3
+    assert staking_providers[0][1] == min_authorization
+    assert to_checksum_address(staking_providers[1][0]) == staking_provider_1
+    assert staking_providers[1][1] == min_authorization
+    tx = threshold_staking.functions.setStakes(staking_provider_1, 0, min_authorization - 1, 0).transact()
     testerchain.wait_for_receipt(tx)
-    all_locked, operators = pre_application.functions.getActiveOperators(1, 0).call()
+    all_locked, staking_providers = pre_application.functions.getActiveStakingProviders(1, 0).call()
     assert all_locked == 0
-    assert len(operators) == 0
+    assert len(staking_providers) == 0
 
 
 def test_confirm_address(testerchain, threshold_staking, pre_application, token_economics, deploy_contract):
-    creator, operator, worker, *everyone_else = testerchain.client.accounts
+    creator, staking_provider, worker, *everyone_else = testerchain.client.accounts
     min_authorization = token_economics.minimum_allowed_locked
     min_worker_seconds = 24 * 60 * 60
 
     confirmations_log = pre_application.events.WorkerConfirmed.createFilter(fromBlock='latest')
 
-    # Worker must be associated with operator that has minimum amount of tokens
+    # Worker must be associated with provider that has minimum amount of tokens
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator})
+        tx = pre_application.functions.confirmWorkerAddress().transact({'from': staking_provider})
         testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setRoles(operator).transact()
+    tx = threshold_staking.functions.setRoles(staking_provider).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(operator, min_authorization - 1, 0, 0).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider, min_authorization - 1, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.confirmWorkerAddress().transact({'from': operator})
+        tx = pre_application.functions.confirmWorkerAddress().transact({'from': staking_provider})
         testerchain.wait_for_receipt(tx)
 
     # Deploy intermediary contract
     intermediary, _ = deploy_contract('Intermediary', pre_application.address)
 
     # Bond contract as a worker
-    tx = threshold_staking.functions.setStakes(operator, min_authorization, 0, 0).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider, min_authorization, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
-    tx = pre_application.functions.bondWorker(operator, intermediary.address).transact({'from': operator})
+    tx = pre_application.functions.bondWorker(staking_provider, intermediary.address).transact({'from': staking_provider})
     testerchain.wait_for_receipt(tx)
 
     # But can't make a confirmation using an intermediary contract
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = intermediary.functions.confirmWorkerAddress().transact({'from': operator})
+        tx = intermediary.functions.confirmWorkerAddress().transact({'from': staking_provider})
         testerchain.wait_for_receipt(tx)
 
     # Bond worker again and make confirmation
     testerchain.time_travel(seconds=min_worker_seconds)
-    tx = pre_application.functions.bondWorker(operator, worker).transact({'from': operator})
+    tx = pre_application.functions.bondWorker(staking_provider, worker).transact({'from': staking_provider})
     testerchain.wait_for_receipt(tx)
     tx = pre_application.functions.confirmWorkerAddress().transact({'from': worker})
     testerchain.wait_for_receipt(tx)
     assert pre_application.functions.isWorkerConfirmed(worker).call()
-    assert pre_application.functions.operatorInfo(operator).call()[CONFIRMATION_SLOT]
+    assert pre_application.functions.stakingProviderInfo(staking_provider).call()[CONFIRMATION_SLOT]
 
     events = confirmations_log.get_all_entries()
     assert len(events) == 1
     event_args = events[-1]['args']
-    assert event_args['operator'] == operator
+    assert event_args['stakingProvider'] == staking_provider
     assert event_args['worker'] == worker
 
     # Can't confirm twice
