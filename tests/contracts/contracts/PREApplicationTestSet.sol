@@ -56,6 +56,10 @@ contract ThresholdStakingForPREApplicationMock {
         info.authorizer = _authorizer;
     }
 
+    /**
+    * @dev If the function is called with only the _operator parameter,
+    * we presume that the caller wants that address set for the other roles as well.
+    */
     function setRoles(address _operator) external {
         OperatorInfo storage info = operatorInfo[_operator];
         info.owner = _operator;

@@ -78,10 +78,10 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
 
     # Only operator or stake owner can bond worker
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': everyone_else[0]})
+        tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': beneficiary})
         testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
-        tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': everyone_else[1]})
+        tx = pre_application.functions.bondWorker(operator3, worker1).transact({'from': authorizer})
         testerchain.wait_for_receipt(tx)
 
     # Operator bonds worker and now worker can make a confirmation
@@ -222,7 +222,7 @@ def test_bond_worker(testerchain, threshold_staking, pre_application, token_econ
     assert event_args['worker'] == worker1
     assert event_args['startTimestamp'] == timestamp
 
-    # # The first worker still can't be a staker
+    # # The first worker still can't be an operator
     # tx = threshold_staking.functions.setRoles(worker1).transact()
     # testerchain.wait_for_receipt(tx)
     # tx = threshold_staking.functions.setStakes(worker1, min_authorization, 0, 0).transact()
