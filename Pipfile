@@ -12,7 +12,6 @@ constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=3.4"
 lmdb = "*"
-umbral = ">=0.3"
 # Cryptography
 pyopenssl = "*"
 cryptography = ">=3.2"
