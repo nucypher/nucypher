@@ -130,27 +130,27 @@ contract ThresholdStakingForStakingEscrowMock {
 
     StakingEscrow public escrow;
 
-    struct OperatorInfo {
+    struct StakingProviderInfo {
         uint256 staked;
         uint96 minStaked;
     }
 
-    mapping(address => OperatorInfo) public operators;
+    mapping(address => StakingProviderInfo) public stakingProviders;
 
     function setStakingEscrow(StakingEscrow _escrow) external {
         escrow = _escrow;
     }
 
-    function stakedNu(address _operator) external view returns (uint256) {
-        return operators[_operator].staked;
+    function stakedNu(address _stakingProvider) external view returns (uint256) {
+        return stakingProviders[_stakingProvider].staked;
     }
 
-    function getMinStaked(address _operator, IStaking.StakeType _stakeTypes) external view returns (uint96) {
+    function getMinStaked(address _stakingProvider, IStaking.StakeType _stakeTypes) external view returns (uint96) {
         require(_stakeTypes == IStaking.StakeType.NU);
-        return operators[_operator].minStaked;
+        return stakingProviders[_stakingProvider].minStaked;
     }
 
-    function stakes(address _operator) external view returns
+    function stakes(address _stakingProvider) external view returns
     (
         uint96 tStake,
         uint96 keepInTStake,
@@ -158,7 +158,7 @@ contract ThresholdStakingForStakingEscrowMock {
     ) {
         tStake = 0;
         keepInTStake = 0;
-        nuInTStake = uint96(operators[_operator].staked);
+        nuInTStake = uint96(stakingProviders[_stakingProvider].staked);
     }
 
     function slashStaker(
@@ -172,17 +172,17 @@ contract ThresholdStakingForStakingEscrowMock {
         escrow.slashStaker(_staker, _penalty, _investigator, _reward);
     }
 
-    function requestMerge(address _staker, address _operator) external {
-        operators[_operator].staked = escrow.requestMerge(_staker, _operator);
+    function requestMerge(address _staker, address _stakingProvider) external {
+        stakingProviders[_stakingProvider].staked = escrow.requestMerge(_staker, _stakingProvider);
     }
 
-    function setStakedNu(address _operator, uint256 _staked) external {
-        require(_staked <= operators[_operator].staked);
-        operators[_operator].staked = _staked;
+    function setStakedNu(address _stakingProvider, uint256 _staked) external {
+        require(_staked <= stakingProviders[_stakingProvider].staked);
+        stakingProviders[_stakingProvider].staked = _staked;
     }
 
-    function setMinStaked(address _operator, uint96 _minStaked) external {
-        require(_minStaked <= operators[_operator].staked);
-        operators[_operator].minStaked = _minStaked;
+    function setMinStaked(address _stakingProvider, uint96 _minStaked) external {
+        require(_minStaked <= stakingProviders[_stakingProvider].staked);
+        stakingProviders[_stakingProvider].minStaked = _minStaked;
     }
 }
