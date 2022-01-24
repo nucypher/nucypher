@@ -31,7 +31,6 @@ flask = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
-coincurve = "*"
 web3 = "<=5.12.3"
 eth-utils = "<1.10"
 py-geth = "*"
