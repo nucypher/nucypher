@@ -1332,7 +1332,7 @@ class ThresholdWorker(BaseActor):
             else:
                 emitter.message(f"✓ Worker {self.worker_address }is not bonded.", color='yellow')
 
-        time.sleep(poll_rate)
+            time.sleep(poll_rate)
 
     def get_work_is_needed_check(self):
         def func(self):
