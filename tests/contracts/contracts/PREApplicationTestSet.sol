@@ -128,7 +128,7 @@ contract ThresholdStakingForPREApplicationMock {
 
 
 /**
-* @notice Intermediary contract for testing worker
+* @notice Intermediary contract for testing operator
 */
 contract Intermediary {
 
@@ -138,12 +138,12 @@ contract Intermediary {
         preApplication = _preApplication;
     }
 
-    function bondWorker(address _worker) external {
-        preApplication.bondWorker(address(this), _worker);
+    function bondOperator(address _operator) external {
+        preApplication.bondOperator(address(this), _operator);
     }
 
-    function confirmWorkerAddress() external {
-        preApplication.confirmWorkerAddress();
+    function confirmOperatorAddress() external {
+        preApplication.confirmOperatorAddress();
     }
 
 }

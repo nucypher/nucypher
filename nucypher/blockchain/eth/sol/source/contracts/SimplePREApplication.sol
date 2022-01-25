@@ -13,46 +13,46 @@ import "threshold/IStaking.sol";
 contract SimplePREApplication {
 
     /**
-    * @notice Signals that a worker was bonded to the staking provider
+    * @notice Signals that an operator was bonded to the staking provider
     * @param stakingProvider Staking provider address
-    * @param worker Worker address
+    * @param operator Operator address
     * @param startTimestamp Timestamp bonding occurred
     */
-    event WorkerBonded(address indexed stakingProvider, address indexed worker, uint256 startTimestamp);
+    event OperatorBonded(address indexed stakingProvider, address indexed operator, uint256 startTimestamp);
 
     /**
-    * @notice Signals that a worker address is confirmed
+    * @notice Signals that an operator address is confirmed
     * @param stakingProvider Staking provider address
-    * @param worker Worker address
+    * @param operator Operator address
     */
-    event WorkerConfirmed(address indexed stakingProvider, address indexed worker);
+    event OperatorConfirmed(address indexed stakingProvider, address indexed operator);
 
     struct StakingProviderInfo {
-        address worker;
-        bool workerConfirmed;
-        uint256 workerStartTimestamp;
+        address operator;
+        bool operatorConfirmed;
+        uint256 operatorStartTimestamp;
     }
 
     uint256 public immutable minAuthorization;
-    uint256 public immutable minWorkerSeconds;
+    uint256 public immutable minOperatorSeconds;
 
     IStaking public immutable tStaking;
 
     mapping (address => StakingProviderInfo) public stakingProviderInfo;
     address[] public stakingProviders;
-    mapping(address => address) internal _stakingProviderFromWorker;
+    mapping(address => address) internal _stakingProviderFromOperator;
 
 
     /**
     * @notice Constructor sets address of token contract and parameters for staking
     * @param _tStaking T token staking contract
     * @param _minAuthorization Amount of minimum allowable authorization
-    * @param _minWorkerSeconds Min amount of seconds while a worker can't be changed
+    * @param _minOperatorSeconds Min amount of seconds while an operator can't be changed
     */
     constructor(
         IStaking _tStaking,
         uint256 _minAuthorization,
-        uint256 _minWorkerSeconds
+        uint256 _minOperatorSeconds
     ) {
         require(
             _tStaking.authorizedStake(address(this), address(this)) == 0,
@@ -60,7 +60,7 @@ contract SimplePREApplication {
         );
         minAuthorization = _minAuthorization;
         tStaking = _tStaking;
-        minWorkerSeconds = _minWorkerSeconds;
+        minOperatorSeconds = _minOperatorSeconds;
     }
 
     /**
@@ -79,17 +79,17 @@ contract SimplePREApplication {
 
     //-------------------------Main-------------------------
     /**
-    * @notice Returns staking provider for specified worker
+    * @notice Returns staking provider for specified operator
     */
-    function stakingProviderFromWorker(address _worker) public view returns (address) {
-        return _stakingProviderFromWorker[_worker];
+    function stakingProviderFromOperator(address _operator) public view returns (address) {
+        return _stakingProviderFromOperator[_operator];
     }
 
     /**
-    * @notice Returns worker for specified staking provider
+    * @notice Returns operator for specified staking provider
     */
-    function getWorkerFromStakingProvider(address _stakingProvider) public view returns (address) {
-        return stakingProviderInfo[_stakingProvider].worker;
+    function getOperatorFromStakingProvider(address _stakingProvider) public view returns (address) {
+        return stakingProviderInfo[_stakingProvider].operator;
     }
 
     /**
@@ -126,7 +126,7 @@ contract SimplePREApplication {
             address stakingProvider = stakingProviders[i];
             StakingProviderInfo storage info = stakingProviderInfo[stakingProvider];
             uint256 eligibleAmount = authorizedStake(stakingProvider);
-            if (eligibleAmount < minAuthorization || !info.workerConfirmed) {
+            if (eligibleAmount < minAuthorization || !info.operatorConfirmed) {
                 continue;
             }
             activeStakingProviders[resultIndex][0] = uint256(uint160(stakingProvider));
@@ -153,13 +153,13 @@ contract SimplePREApplication {
     }
 
     /**
-    * @notice Returns true if worker has confirmed address
+    * @notice Returns true if operator has confirmed address
     */
-    // TODO maybe _stakingProvider instead of _worker?
-    function isWorkerConfirmed(address _worker) public view returns (bool) {
-        address stakingProvider = _stakingProviderFromWorker[_worker];
+    // TODO maybe _stakingProvider instead of _operator as input?
+    function isOperatorConfirmed(address _operator) public view returns (bool) {
+        address stakingProvider = _stakingProviderFromOperator[_operator];
         StakingProviderInfo storage info = stakingProviderInfo[stakingProvider];
-        return info.workerConfirmed;
+        return info.operatorConfirmed;
     }
 
     /**
@@ -170,57 +170,57 @@ contract SimplePREApplication {
     }
 
     /**
-    * @notice Bond worker
+    * @notice Bond operator
     * @param _stakingProvider Staking provider address
-    * @param _worker Worker address. Must be a real address, not a contract
+    * @param _operator Operator address. Must be a real address, not a contract
     */
-    function bondWorker(address _stakingProvider, address _worker)
+    function bondOperator(address _stakingProvider, address _operator)
         external onlyOwnerOrStakingProvider(_stakingProvider)
     {
         StakingProviderInfo storage info = stakingProviderInfo[_stakingProvider];
-        require(_worker != info.worker, "Specified worker is already bonded with this provider");
-        // If this staker had a worker ...
-        if (info.worker != address(0)) {
+        require(_operator != info.operator, "Specified operator is already bonded with this provider");
+        // If this staker had a operator ...
+        if (info.operator != address(0)) {
             require(
-                block.timestamp >= info.workerStartTimestamp + minWorkerSeconds,
-                "Not enough time passed to change worker"
+                block.timestamp >= info.operatorStartTimestamp + minOperatorSeconds,
+                "Not enough time passed to change operator"
             );
-            // Remove the old relation "worker->stakingProvider"
-            _stakingProviderFromWorker[info.worker] = address(0);
+            // Remove the old relation "operator->stakingProvider"
+            _stakingProviderFromOperator[info.operator] = address(0);
         }
 
-        if (_worker != address(0)) {
-            require(_stakingProviderFromWorker[_worker] == address(0), "Specified worker is already in use");
+        if (_operator != address(0)) {
+            require(_stakingProviderFromOperator[_operator] == address(0), "Specified operator is already in use");
             require(
-                _worker == _stakingProvider || getBeneficiary(_worker) == address(0),
-                "Specified worker is a provider"
+                _operator == _stakingProvider || getBeneficiary(_operator) == address(0),
+                "Specified operator is a provider"
             );
-            // Set new worker->stakingProvider relation
-            _stakingProviderFromWorker[_worker] = _stakingProvider;
+            // Set new operator->stakingProvider relation
+            _stakingProviderFromOperator[_operator] = _stakingProvider;
         }
 
-        if (info.workerStartTimestamp == 0) {
+        if (info.operatorStartTimestamp == 0) {
             stakingProviders.push(_stakingProvider);
         }
 
-        // Bond new worker (or unbond if _worker == address(0))
-        info.worker = _worker;
-        info.workerStartTimestamp = block.timestamp;
-        info.workerConfirmed = false;
-        emit WorkerBonded(_stakingProvider, _worker, block.timestamp);
+        // Bond new operator (or unbond if _operator == address(0))
+        info.operator = _operator;
+        info.operatorStartTimestamp = block.timestamp;
+        info.operatorConfirmed = false;
+        emit OperatorBonded(_stakingProvider, _operator, block.timestamp);
     }
 
     /**
-    * @notice Make a confirmation by worker
+    * @notice Make a confirmation by operator
     */
-    function confirmWorkerAddress() external {
-        address stakingProvider = _stakingProviderFromWorker[msg.sender];
-        require(isAuthorized(stakingProvider), "No stake associated with the worker");
+    function confirmOperatorAddress() external {
+        address stakingProvider = _stakingProviderFromOperator[msg.sender];
+        require(isAuthorized(stakingProvider), "No stake associated with the operator");
         StakingProviderInfo storage info = stakingProviderInfo[stakingProvider];
-        require(!info.workerConfirmed, "Worker address is already confirmed");
-        require(msg.sender == tx.origin, "Only worker with real address can make a confirmation");
-        info.workerConfirmed = true;
-        emit WorkerConfirmed(stakingProvider, msg.sender);
+        require(!info.operatorConfirmed, "Operator address is already confirmed");
+        require(msg.sender == tx.origin, "Only operator with real address can make a confirmation");
+        info.operatorConfirmed = true;
+        emit OperatorConfirmed(stakingProvider, msg.sender);
     }
 
 }
