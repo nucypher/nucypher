@@ -47,6 +47,7 @@ from nucypher.blockchain.eth.interfaces import (
     VersionedContract,
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import TToken
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -1147,6 +1148,7 @@ class PREApplicationDeployer(BaseContractDeployer):
                confirmations: int = 0,
                deployment_mode=FULL,
                ignore_deployed: bool = False,
+               progress=None,
                emitter=None):
 
         constructor_args = (
