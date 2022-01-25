@@ -1332,11 +1332,10 @@ class ThresholdWorker(BaseActor):
 
         time.sleep(poll_rate)
 
-
     def get_work_is_needed_check(self):
         def func(self):
             # we have not confirmed yet
-            return not self.is_confirmed
+            return self.operator_address != NULL_ADDRESS and not self.is_confirmed
         return func
 
 
