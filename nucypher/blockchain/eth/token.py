@@ -895,7 +895,6 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         return txhash
 
 
-
 class StakeList(UserList):
 
     @validate_checksum_address
