@@ -179,7 +179,7 @@ contract SimplePREApplication {
     {
         StakingProviderInfo storage info = stakingProviderInfo[_stakingProvider];
         require(_operator != info.operator, "Specified operator is already bonded with this provider");
-        // If this staker had a operator ...
+        // If this staker had an operator ...
         if (info.operator != address(0)) {
             require(
                 block.timestamp >= info.operatorStartTimestamp + minOperatorSeconds,
