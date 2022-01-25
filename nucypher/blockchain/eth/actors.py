@@ -81,7 +81,7 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     StakingEscrowDeployer,
     StakingInterfaceDeployer,
-    WorklockDeployer
+    WorklockDeployer, PREApplicationDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
@@ -211,6 +211,7 @@ class ContractAdministrator(BaseActor):
 
     standard_deployer_classes = (
         NucypherTokenDeployer,
+        PREApplicationDeployer,
     )
 
     dispatched_upgradeable_deployer_classes = (
