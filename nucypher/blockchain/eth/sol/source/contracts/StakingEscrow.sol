@@ -107,9 +107,9 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /**
     * @notice Signals that the staker requested merge with T staking contract
     * @param staker Staker address
-    * @param operator Operator address
+    * @param stakingProvider Staking provider address
     */
-    event MergeRequested(address indexed staker, address indexed operator);
+    event MergeRequested(address indexed staker, address indexed stakingProvider);
 
     struct StakerInfo {
         uint256 value;
@@ -126,7 +126,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
 
         uint256 vestingReleaseTimestamp;
         uint256 vestingReleaseRate;
-        address operator;
+        address stakingProvider;
 
         uint256 reservedSlot4;
         uint256 reservedSlot5;
@@ -272,7 +272,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(_value > 0, "Value must be specified");
         StakerInfo storage info = stakerInfo[msg.sender];
         require(
-            _value + tStaking.stakedNu(info.operator) <= info.value,
+            _value + tStaking.stakedNu(info.stakingProvider) <= info.value,
             "Not enough tokens unstaked in T staking contract"
         );
         require(
@@ -331,22 +331,22 @@ contract StakingEscrow is Upgradeable, IERC900History {
     /**
     * @notice Request migration to threshold network
     * @param _staker Staker address
-    * @param _operator Operator address
+    * @param _stakingProvider Staking provider address
     * @return Amount of tokens
     */
-    function requestMerge(address _staker, address _operator)
+    function requestMerge(address _staker, address _stakingProvider)
         external onlyTStakingContract returns (uint256)
     {
         StakerInfo storage info = stakerInfo[_staker];
         require(
-            info.operator == address(0) ||
-            info.operator == _operator ||
-            tStaking.stakedNu(info.operator) == 0,
-            "Operator already set for the staker"
+            info.stakingProvider == address(0) ||
+            info.stakingProvider == _stakingProvider ||
+            tStaking.stakedNu(info.stakingProvider) == 0,
+            "Staking provider already set for the staker"
         );
-        if (info.operator != _operator) {
-            info.operator = _operator;
-            emit MergeRequested(_staker, _operator);
+        if (info.stakingProvider != _stakingProvider) {
+            info.stakingProvider = _stakingProvider;
+            emit MergeRequested(_staker, _stakingProvider);
         }
         return info.value;
     }
@@ -434,7 +434,7 @@ contract StakingEscrow is Upgradeable, IERC900History {
         require(infoToCheck.value == info.value &&
             infoToCheck.vestingReleaseTimestamp == info.vestingReleaseTimestamp &&
             infoToCheck.vestingReleaseRate == info.vestingReleaseRate &&
-            infoToCheck.operator == info.operator &&
+            infoToCheck.stakingProvider == info.stakingProvider &&
             infoToCheck.flags == info.flags
         );
     }
