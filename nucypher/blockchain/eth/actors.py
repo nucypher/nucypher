@@ -1331,7 +1331,7 @@ class ThresholdWorker(BaseActor):
                 bonded = True
                 emitter.message(f"✓ Worker is bonded to {self.operator_address}", color='green')
             else:
-                emitter.message(f"✓ Worker {self.worker_address }is not bonded.", color='yellow')
+                emitter.message(f"✓ Worker {self.worker_address } is not bonded to an operator.", color='yellow')
 
             time.sleep(poll_rate)
 
