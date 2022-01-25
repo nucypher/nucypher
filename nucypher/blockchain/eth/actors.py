@@ -1319,7 +1319,7 @@ class ThresholdWorker(BaseActor):
         poll_rate = poll_rate or self.READY_POLL_RATE
 
         funded, bonded = False, False
-        while not funded and bonded:
+        while not (funded and bonded):
 
             ether_balance = client.get_balance(self.worker_address)
             if ether_balance and (not funded):
@@ -1335,7 +1335,7 @@ class ThresholdWorker(BaseActor):
     def get_work_is_needed_check(self):
         def func(self):
             # we have not confirmed yet
-            return self.operator_address != NULL_ADDRESS and not self.is_confirmed
+            return not self.is_confirmed
         return func
 
 

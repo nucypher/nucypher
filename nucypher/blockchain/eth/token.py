@@ -36,7 +36,7 @@ from twisted.internet import reactor, task
 from web3.exceptions import TransactionNotFound
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS, NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import datetime_at_period
@@ -880,7 +880,7 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         return True
 
     def _final_work_prep_before_transaction(self):
-        return True
+        return self.worker.get_operator_address() != NULL_ADDRESS
 
     def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
