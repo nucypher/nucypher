@@ -885,6 +885,7 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         if should_continue:
             return True
         self.log.warn('COMMIT PREVENTED - Worker is not bonded to an operator.')
+        return False
 
     def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
