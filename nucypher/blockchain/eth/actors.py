@@ -92,7 +92,7 @@ from nucypher.blockchain.eth.token import (
     TToken,
     Stake,
     StakeList,
-    WorkTracker,
+    ClassicPREWorkTracker,
     SimplePREAppWorkTracker,
     validate_prolong,
     validate_increase,
@@ -1089,7 +1089,7 @@ class Worker(NucypherTokenActor):
 
     def __init__(self,
                  is_me: bool,
-                 work_tracker: WorkTracker = None,
+                 work_tracker: ClassicPREWorkTracker = None,
                  worker_address: str = None,
                  *args, **kwargs):
 
@@ -1116,7 +1116,7 @@ class Worker(NucypherTokenActor):
             self.stakes = StakeList(registry=self.registry, checksum_address=self.checksum_address)
             self.stakes.checksum_address = self.checksum_address
             self.stakes.refresh()
-            self.work_tracker = work_tracker or WorkTracker(worker=self, stakes=self.stakes)
+            self.work_tracker = work_tracker or ClassicPREWorkTracker(worker=self, stakes=self.stakes)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
         """
@@ -1258,6 +1258,10 @@ class Worker(NucypherTokenActor):
 
 class ThresholdWorker(BaseActor):
 
+    READY_TIMEOUT = None  # (None or 0) == indefinite
+    READY_POLL_RATE = 10
+    READY_CLI_FEEDBACK_RATE = 60  # provide feedback to CLI every 60s
+
     class WorkerError(ThresholdTokenActor.ActorError):
         pass
 
@@ -1267,7 +1271,7 @@ class ThresholdWorker(BaseActor):
 
     def __init__(self,
                  is_me: bool,
-                 work_tracker: WorkTracker = None,
+                 work_tracker: ClassicPREWorkTracker = None,
                  worker_address: str = None,
                  *args, **kwargs):
 

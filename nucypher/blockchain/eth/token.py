@@ -571,7 +571,7 @@ def validate_increase(stake: Stake, amount: NU) -> None:
     validate_max_value(stake=stake, amount=amount)
 
 
-class WorkTracker:
+class WorkTrackerBaseClass:
 
     CLOCK = reactor
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
@@ -598,13 +598,6 @@ class WorkTracker:
 
         self._configure(*args)
         self.gas_strategy = self.staking_agent.blockchain.gas_strategy
-
-    def _configure(self, stakes):
-        self.stakes = stakes
-        self.staking_agent = self.worker.staking_agent
-        self.client = self.staking_agent.blockchain.client
-        self.__uptime_period = self.staking_agent.get_current_period()
-        self.__current_period = self.__uptime_period
 
     @classmethod
     def random_interval(cls, fails=None) -> int:
@@ -735,12 +728,12 @@ class WorkTracker:
 
         return bool(self.__pending)
 
-    def __fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
+    def _fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
         replacement_txhash = self._fire_commitment()  # replace
         self.__pending[current_block_number] = replacement_txhash  # track this transaction
         del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
 
-    def __handle_replacement_commitment(self, current_block_number: int) -> None:
+    def _handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
         if txhash is UNTRACKED_PENDING_TRANSACTION:
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
@@ -765,43 +758,6 @@ class WorkTracker:
     def __reset_tracker_state(self) -> None:
         self.__pending.clear()  # Forget the past. This is a new beginning.
         self._consecutive_fails = 0
-
-
-    def _prep_work_state(self):
-        # Update on-chain status
-        self.log.info(f"Checking for new period. Current period is {self.__current_period}")
-        onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
-        if self.current_period != onchain_period:
-            self.__current_period = onchain_period
-            self.log.info(f"New period is {self.__current_period}")
-            self.__reset_tracker_state()
-
-            # TODO: #1515 and #1517 - Shut down at end of terminal stake
-            # This slows down tests substantially and adds additional
-            # RPC calls, but might be acceptable in production
-            # self.worker.stakes.refresh()
-
-        # Measure working interval
-        interval = onchain_period - self.worker.last_committed_period
-        if interval < 0:
-            # Handle period migrations
-            last_commitment = self.worker.last_committed_period
-            next_period = onchain_period + 1
-            if last_commitment > next_period:
-                self.log.warn(f"PERIOD MIGRATION DETECTED - proceeding with commitment.")
-            else:
-                self.__reset_tracker_state()
-                return False# No need to commit to this period.  Save the gas.
-        elif interval > 0:
-            # TODO: #1516 Follow-up actions for missed commitments
-            self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
-
-    def _final_work_prep_before_transaction(self):
-
-        self.stakes.refresh()
-        if not self.stakes.has_active_substakes:
-            self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
-            return False
 
     def _do_work(self) -> None:
         """
@@ -840,6 +796,71 @@ class WorkTracker:
         txhash = self._fire_commitment()
         self.__pending[current_block_number] = txhash
 
+    #  the following four methods are specific to PRE network schemes and must be implemented as below
+    def _configure(self, stakes):
+        """ post __init__ configuration dealing with contracts or state specific to this PRE flavor"""
+        raise NotImplementedError
+
+    def _prep_work_state(self):
+        """ configuration perfomed before transaction management in task execution """
+        raise NotImplementedError
+
+    def _final_work_prep_before_transaction(self):
+        """ configuration perfomed after transaction management in task execution right before transaction firing"""
+        raise NotImplementedError()
+
+    def _fire_commitment(self):
+        """ actually fire the tranasction """
+        raise NotImplementedError
+
+
+class ClassicPREWorkTracker(WorkTrackerBaseClass):
+
+    def _configure(self, *args):
+        self.stakes = stakes
+        self.staking_agent = self.worker.staking_agent
+        self.client = self.staking_agent.blockchain.client
+        self.__uptime_period = self.staking_agent.get_current_period()
+        self.__current_period = self.__uptime_period
+
+
+    def _prep_work_state(self):
+        # Update on-chain status
+        self.log.info(f"Checking for new period. Current period is {self.__current_period}")
+        onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
+        if self.current_period != onchain_period:
+            self.__current_period = onchain_period
+            self.log.info(f"New period is {self.__current_period}")
+            self.__reset_tracker_state()
+
+            # TODO: #1515 and #1517 - Shut down at end of terminal stake
+            # This slows down tests substantially and adds additional
+            # RPC calls, but might be acceptable in production
+            # self.worker.stakes.refresh()
+
+        # Measure working interval
+        interval = onchain_period - self.worker.last_committed_period
+        if interval < 0:
+            # Handle period migrations
+            last_commitment = self.worker.last_committed_period
+            next_period = onchain_period + 1
+            if last_commitment > next_period:
+                self.log.warn(f"PERIOD MIGRATION DETECTED - proceeding with commitment.")
+            else:
+                self.__reset_tracker_state()
+                return False# No need to commit to this period.  Save the gas.
+        elif interval > 0:
+            # TODO: #1516 Follow-up actions for missed commitments
+            self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
+
+
+    def _final_work_prep_before_transaction(self):
+        self.stakes.refresh()
+        if not self.stakes.has_active_substakes:
+            self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
+            return False
+
+
     def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
@@ -849,7 +870,7 @@ class WorkTracker:
         return txhash
 
 
-class SimplePREAppWorkTracker(WorkTracker):
+class SimplePREAppWorkTracker(WorkTrackerBaseClass):
 
     def _configure(self, *args):
         self.staking_agent = self.worker.pre_application_agent
