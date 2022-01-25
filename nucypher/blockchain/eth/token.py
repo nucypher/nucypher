@@ -872,6 +872,9 @@ class ClassicPREWorkTracker(WorkTrackerBaseClass):
 
 class SimplePREAppWorkTracker(WorkTrackerBaseClass):
 
+    INTERVAL_FLOOR = 1
+    INTERVAL_CEIL = 2
+
     def _configure(self, *args):
         self.staking_agent = self.worker.pre_application_agent
         self.client = self.staking_agent.blockchain.client
@@ -880,7 +883,10 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         return True
 
     def _final_work_prep_before_transaction(self):
-        return self.worker.get_operator_address() != NULL_ADDRESS
+        should_continue = self.worker.get_operator_address() != NULL_ADDRESS
+        if should_continue:
+            return True
+        self.log.warn('COMMIT PREVENTED - Worker is not bonded to an operator.')
 
     def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
