@@ -1316,6 +1316,8 @@ class ThresholdWorker(BaseActor):
         client = self.pre_application_agent.blockchain.client
         emitter = StdoutEmitter()
 
+        poll_rate = poll_rate or self.READY_POLL_RATE
+
         funded, bonded = False, False
         while not funded and bonded:
 
@@ -1326,7 +1328,7 @@ class ThresholdWorker(BaseActor):
 
             if (not bonded) and (self.get_operator_address() != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"✓ Worker is bonded to {staking_address}", color='green')
+                emitter.message(f"✓ Worker is bonded to {self.operator_address}", color='green')
 
         time.sleep(poll_rate)
 
