@@ -242,8 +242,8 @@ class Stake:
 
         # Economics
         self.economics = economics
-        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), self._unit_name)
-        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), self._unit_name)
+        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), NU._unit_name)
+        self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), NU._unit_name)
 
         # Time
         self.start_datetime = datetime_at_period(period=first_locked_period,
@@ -341,7 +341,7 @@ class Stake:
                        index=index,
                        first_locked_period=stake_info.first_period,
                        final_locked_period=stake_info.last_period,
-                       value=NU(stake_info.locked_value, self._unit_name),
+                       value=NU(stake_info.locked_value, NU._unit_name),
                        economics=economics,
                        *args, **kwargs)
 
@@ -440,7 +440,7 @@ class Stake:
                          lock_periods: int) -> 'Stake':
 
         # Value
-        amount = NU(int(amount), self._unit_name)
+        amount = NU(int(amount), NU._unit_name)
 
         # Duration
         current_period = staking_agent.get_current_period()
