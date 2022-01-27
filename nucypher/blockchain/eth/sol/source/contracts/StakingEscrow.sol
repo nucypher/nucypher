@@ -66,7 +66,7 @@ contract StakingEscrowStub is Upgradeable {
 * @title StakingEscrow
 * @notice Contract holds and locks stakers tokens.
 * Each staker that locks their tokens will receive some compensation
-* @dev |v6.2.1|
+* @dev |v6.2.2|
 */
 contract StakingEscrow is Upgradeable, IERC900History {
 
