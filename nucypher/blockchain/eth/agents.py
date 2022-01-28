@@ -1029,8 +1029,8 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_staking_provider_from_operator(self, worker_address: ChecksumAddress) -> ChecksumAddress:
-        result = self.contract.functions.stakingProviderFromOperator(worker_address).call()
+    def get_staking_provider_from_operator(self, operator_address: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.stakingProviderFromOperator(operator_address).call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -1044,8 +1044,8 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def is_operator_confirmed(self, worker: ChecksumAddress) -> bool:
-        result = self.contract.functions.isOperatorConfirmed(worker).call()
+    def is_operator_confirmed(self, operator: ChecksumAddress) -> bool:
+        result = self.contract.functions.isOperatorConfirmed(operator).call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -1069,8 +1069,8 @@ class PREApplicationAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def confirm_operator_address(self, transacting_power: TransactingPower, fire_and_forget: bool = True) -> TxReceipt:
-        """Confirm the sender's account as a worker"""
-        contract_function: ContractFunction = self.contract.functions.confirmWorkerAddress()
+        """Confirm the sender's account as a operator"""
+        contract_function: ContractFunction = self.contract.functions.confirmOperatorAddress()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power,
                                                    fire_and_forget=fire_and_forget
@@ -1078,9 +1078,9 @@ class PREApplicationAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def bond_worker(self, worker: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def bond_operator(self, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.bondWorker(worker)
+        contract_function: ContractFunction = self.contract.functions.bondOperator(operator)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
