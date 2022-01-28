@@ -1029,13 +1029,13 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_operator_from_worker(self, worker_address: ChecksumAddress) -> ChecksumAddress:
-        result = self.contract.functions.operatorFromWorker(worker_address).call()
+    def get_staking_provider_from_operator(self, worker_address: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.stakingProviderFromOperator(worker_address).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_worker_from_operator(self, operator: ChecksumAddress) -> ChecksumAddress:
-        result = self.contract.functions.getWorkerFromOperator(operator).call()
+    def get_operator_from_staking_provider(self, operator: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.getOperatorFromStakingProvider(operator).call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -1044,8 +1044,8 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def is_worker_confirmed(self, worker: ChecksumAddress) -> bool:
-        result = self.contract.functions.isWorkerConfirmed(worker).call()
+    def is_operator_confirmed(self, worker: ChecksumAddress) -> bool:
+        result = self.contract.functions.isOperatorConfirmed(worker).call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -1068,7 +1068,7 @@ class PREApplicationAgent(EthereumContractAgent):
     #
 
     @contract_api(TRANSACTION)
-    def confirm_worker_address(self, transacting_power: TransactingPower, fire_and_forget: bool = True) -> TxReceipt:
+    def confirm_operator_address(self, transacting_power: TransactingPower, fire_and_forget: bool = True) -> TxReceipt:
         """Confirm the sender's account as a worker"""
         contract_function: ContractFunction = self.contract.functions.confirmWorkerAddress()
         receipt = self.blockchain.send_transaction(contract_function=contract_function,

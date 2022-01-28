@@ -1282,7 +1282,6 @@ class ThresholdWorker(BaseActor):
         self.is_me = is_me
 
         self.__worker_address = worker_address
-        self.__operator_address = None
 
         # PRE Application
         self.pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
@@ -1295,21 +1294,21 @@ class ThresholdWorker(BaseActor):
         return self.__worker_address
 
     @property
-    def operator_address(self):
-        if not self.__operator_address:
-            self.__operator_address = self.get_operator_address()
-        return self.__operator_address
+    def staking_provider_address(self):
+        if not self.__staking_provider_address:
+            self.__staking_provider_address = self.get_staking_provider_address()
+        return self.__staking_provider_address
 
-    def get_operator_address(self):
-        self.__operator_address = self.pre_application_agent.get_operator_from_worker(self.worker_address)
-        return self.__operator_address
+    def get_staking_provider_address(self):
+        self.__staking_provider_address = self.pre_application_agent.get_staking_provider_from_operator(self.worker_address)
+        return self.__staking_provider_address
 
     @property
     def is_confirmed(self):
-        return self.pre_application_agent.is_worker_confirmed(self.worker_address)
+        return self.pre_application_agent.is_operator_confirmed(self.worker_address)
 
-    def confirm_worker_address(self, fire_and_forget: bool = True) -> Union[TxReceipt, HexBytes]:
-        txhash_or_receipt =  self.pre_application_agent.confirm_worker_address(self.transacting_power, fire_and_forget=fire_and_forget)
+    def confirm_operator_address(self, fire_and_forget: bool = True) -> Union[TxReceipt, HexBytes]:
+        txhash_or_receipt =  self.pre_application_agent.confirm_operator_address(self.transacting_power, fire_and_forget=fire_and_forget)
         return txhash_or_receipt
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None, feedback_rate: int = None):
@@ -1327,11 +1326,11 @@ class ThresholdWorker(BaseActor):
                 funded, balance = True, Web3.fromWei(ether_balance, 'ether')
                 emitter.message(f"✓ Worker is funded with {balance} ETH", color='green')
 
-            if (not bonded) and (self.get_operator_address() != NULL_ADDRESS):
+            if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"✓ Worker is bonded to {self.operator_address}", color='green')
+                emitter.message(f"✓ Worker is bonded to {self.worker_address}", color='green')
             else:
-                emitter.message(f"✓ Worker {self.worker_address } is not bonded to an operator.", color='yellow')
+                emitter.message(f"✓ Operator {self.worker_address } is not bonded to a staking provider.", color='yellow')
 
             time.sleep(poll_rate)
 

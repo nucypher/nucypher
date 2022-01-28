@@ -881,7 +881,7 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         return True
 
     def _final_work_prep_before_transaction(self):
-        should_continue = self.worker.get_operator_address() != NULL_ADDRESS
+        should_continue = self.worker.get_staking_provider_address() != NULL_ADDRESS
         if should_continue:
             return True
         self.log.warn('COMMIT PREVENTED - Worker is not bonded to an operator.')
@@ -891,9 +891,9 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            txhash = self.worker.confirm_worker_address(fire_and_forget=True)  # < --- blockchain WRITE
-        self.log.info(f"Confirming worker address {self.worker.worker_address} with operator {self.worker.operator_address} - TxHash: {txhash.hex()}")
-        return txhash
+            txhash = self.worker.confirm_operator_address(fire_and_forget=True)  # < --- blockchain WRITE
+            self.log.info(f"Confirming worker address {self.worker.worker_address} with staking provider {self.worker.staking_provider_address} - TxHash: {txhash.hex()}")
+            return txhash
 
 
 class StakeList(UserList):
