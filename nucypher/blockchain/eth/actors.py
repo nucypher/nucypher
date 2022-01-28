@@ -1328,7 +1328,7 @@ class ThresholdWorker(BaseActor):
 
             if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
                 bonded = True
-                emitter.message(f"✓ Worker is bonded to {self.worker_address}", color='green')
+                emitter.message(f"✓ Operator {self.worker_address} is bonded to Staking Provider {self.staking_provider_address}", color='green')
             else:
                 emitter.message(f"✓ Operator {self.worker_address } is not bonded to a staking provider.", color='yellow')
 
