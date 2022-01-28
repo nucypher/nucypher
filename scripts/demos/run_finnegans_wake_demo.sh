@@ -8,10 +8,6 @@ echo "Starting Up Finnegans Wake Demo Test..."
 # Move to demo directory
 cd "${0%/*}"/../../examples/finnegans_wake_demo/
 
-# Download book text
-echo "Download Book Text"
-./download_finnegans_wake.sh
-
 # Run demo
 echo "Starting Demo"
-python3 finnegans-wake-demo.py
+python3 finnegans-wake-demo-federated.py

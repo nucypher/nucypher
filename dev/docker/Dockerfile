@@ -1,4 +1,4 @@
-FROM python:3.8.7
+FROM nucypher/rust-python:3.9.9
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH /code
 
