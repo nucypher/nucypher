@@ -94,6 +94,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == staking_provider_3
     assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isOperatorConfirmed(operator1).call()
+    assert not pre_application.functions.isOperatorConfirmed(staking_provider_3).call()
     assert pre_application.functions.getStakingProvidersLength().call() == 1
     assert pre_application.functions.stakingProviders(0).call() == staking_provider_3
 
@@ -157,6 +158,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == NULL_ADDRESS
     assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isOperatorConfirmed(operator1).call()
+    assert not pre_application.functions.isOperatorConfirmed(staking_provider_3).call()
     assert pre_application.functions.getStakingProvidersLength().call() == 1
     assert pre_application.functions.stakingProviders(0).call() == staking_provider_3
 
@@ -183,6 +185,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     assert pre_application.functions.stakingProviderFromOperator(operator2).call() == staking_provider_3
     assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
     assert not pre_application.functions.isOperatorConfirmed(operator2).call()
+    assert not pre_application.functions.isOperatorConfirmed(staking_provider_3).call()
     assert pre_application.functions.getStakingProvidersLength().call() == 1
     assert pre_application.functions.stakingProviders(0).call() == staking_provider_3
 
@@ -203,6 +206,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     testerchain.wait_for_receipt(tx)
     assert not pre_application.functions.isOperatorConfirmed(operator1).call()
     assert pre_application.functions.isOperatorConfirmed(operator2).call()
+    assert pre_application.functions.isOperatorConfirmed(staking_provider_3).call()
     assert pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
 
     # Another staker can bond a free operator
@@ -212,6 +216,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_4).call() == operator1
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == staking_provider_4
     assert not pre_application.functions.isOperatorConfirmed(operator1).call()
+    assert not pre_application.functions.isOperatorConfirmed(staking_provider_4).call()
     assert not pre_application.functions.stakingProviderInfo(staking_provider_4).call()[CONFIRMATION_SLOT]
     assert pre_application.functions.getStakingProvidersLength().call() == 2
     assert pre_application.functions.stakingProviders(1).call() == staking_provider_4
@@ -238,6 +243,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     tx = pre_application.functions.confirmOperatorAddress().transact({'from': operator1})
     testerchain.wait_for_receipt(tx)
     assert pre_application.functions.isOperatorConfirmed(operator1).call()
+    assert pre_application.functions.isOperatorConfirmed(staking_provider_4).call()
     assert pre_application.functions.stakingProviderInfo(staking_provider_4).call()[CONFIRMATION_SLOT]
     testerchain.time_travel(seconds=min_operator_seconds)
     tx = pre_application.functions.bondOperator(staking_provider_4, operator3).transact({'from': staking_provider_4})
@@ -248,6 +254,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == NULL_ADDRESS
     assert not pre_application.functions.isOperatorConfirmed(operator3).call()
     assert not pre_application.functions.isOperatorConfirmed(operator1).call()
+    assert not pre_application.functions.isOperatorConfirmed(staking_provider_4).call()
     assert not pre_application.functions.stakingProviderInfo(staking_provider_4).call()[CONFIRMATION_SLOT]
     assert pre_application.functions.getStakingProvidersLength().call() == 2
     assert pre_application.functions.stakingProviders(1).call() == staking_provider_4
@@ -372,6 +379,7 @@ def test_confirm_address(testerchain, threshold_staking, pre_application, token_
     tx = pre_application.functions.confirmOperatorAddress().transact({'from': operator})
     testerchain.wait_for_receipt(tx)
     assert pre_application.functions.isOperatorConfirmed(operator).call()
+    assert pre_application.functions.isOperatorConfirmed(staking_provider).call()
     assert pre_application.functions.stakingProviderInfo(staking_provider).call()[CONFIRMATION_SLOT]
 
     events = confirmations_log.get_all_entries()

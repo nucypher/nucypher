@@ -155,9 +155,11 @@ contract SimplePREApplication {
     /**
     * @notice Returns true if operator has confirmed address
     */
-    // TODO maybe _stakingProvider instead of _operator as input?
-    function isOperatorConfirmed(address _operator) public view returns (bool) {
-        address stakingProvider = _stakingProviderFromOperator[_operator];
+    function isOperatorConfirmed(address _stakingProviderOrOperator) public view returns (bool) {
+        if (stakingProviderInfo[_stakingProviderOrOperator].operatorConfirmed) {
+            return true;
+        }
+        address stakingProvider = _stakingProviderFromOperator[_stakingProviderOrOperator];
         StakingProviderInfo storage info = stakingProviderInfo[stakingProvider];
         return info.operatorConfirmed;
     }
