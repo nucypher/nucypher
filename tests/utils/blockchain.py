@@ -26,7 +26,7 @@ from web3 import Web3
 
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import Economics, Economics
 from nucypher.blockchain.eth.actors import ContractAdministrator
 from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
@@ -105,7 +105,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
     __ACCOUNT_CACHE = list()
 
     # Defaults
-    DEFAULT_ECONOMICS = StandardTokenEconomics()
+    DEFAULT_ECONOMICS = Economics()
 
     def __init__(self,
                  test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
@@ -222,7 +222,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
     @classmethod
     def bootstrap_network(cls,
                           registry: Optional[BaseContractRegistry] = None,
-                          economics: BaseEconomics = None
+                          economics: Economics = None
                           ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 

@@ -40,8 +40,8 @@ def threshold_staking(deploy_contract):
 
 
 @pytest.fixture(scope='module')
-def pre_application(testerchain, threshold_staking, deploy_contract, token_economics):
-    min_authorization = token_economics.minimum_allowed_locked
+def pre_application(testerchain, threshold_staking, deploy_contract, application_economics):
+    min_authorization = application_economics.min_authorization
     min_worker_seconds = 24 * 60 * 60
 
     # Creator deploys the PRE application

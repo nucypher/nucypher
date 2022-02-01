@@ -69,9 +69,9 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
 
 
 @pytest.mark.skip()
-def test_upgrade(testerchain, test_registry, token_economics, transacting_power):
+def test_upgrade(testerchain, test_registry, application_economics, transacting_power):
 
-    deployer = StakingEscrowDeployer(registry=test_registry,economics=token_economics)
+    deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
 
     receipts = deployer.upgrade(ignore_deployed=True, confirmations=0, transacting_power=transacting_power)
     for title, receipt in receipts.items():
@@ -106,8 +106,8 @@ def test_rollback(testerchain, test_registry, transacting_power):
 
 
 @pytest.mark.skip()
-def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry, token_economics, transacting_power):
-    deployer = StakingEscrowDeployer(registry=test_registry, economics=token_economics)
+def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry, application_economics, transacting_power):
+    deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
 
     enrolled_names = list(test_registry.enrolled_names)
     old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
@@ -129,8 +129,8 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
 
 
 @pytest.mark.skip()
-def test_deployer_version_management(testerchain, test_registry, token_economics):
-    deployer = StakingEscrowDeployer(registry=test_registry, economics=token_economics)
+def test_deployer_version_management(testerchain, test_registry, application_economics):
+    deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
 
     untargeted_deployment = deployer.get_latest_enrollment()
     latest_targeted_deployment = deployer.get_principal_contract()
@@ -142,9 +142,9 @@ def test_deployer_version_management(testerchain, test_registry, token_economics
 
 
 @pytest.mark.skip()
-def test_manual_proxy_retargeting(testerchain, test_registry, token_economics, transacting_power):
+def test_manual_proxy_retargeting(testerchain, test_registry, application_economics, transacting_power):
 
-    deployer = StakingEscrowDeployer(registry=test_registry, economics=token_economics)
+    deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
 
     # Get Proxy-Direct
     proxy_deployer = deployer.get_proxy_deployer()

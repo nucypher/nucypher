@@ -141,7 +141,7 @@ class Felix(Character, NucypherTokenActor):
 
         self.economics = EconomicsFactory.get_economics(registry=registry)
         self.MAXIMUM_DISBURSEMENT = self.economics.maximum_allowed_locked
-        self.INITIAL_DISBURSEMENT = self.economics.minimum_allowed_locked * 3
+        self.INITIAL_DISBURSEMENT = self.economics.min_authorization * 3
 
         # Optionally send ether with each token transaction
         self.distribute_ether = distribute_ether

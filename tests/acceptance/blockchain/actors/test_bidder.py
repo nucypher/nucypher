@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 @pytest.mark.skip()
-def test_create_bidder(testerchain, test_registry, agency, token_economics):
+def test_create_bidder(testerchain, test_registry, agency, application_economics):
     bidder_address = testerchain.unassigned_accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(domain=TEMPORARY_DOMAIN,
@@ -46,8 +46,8 @@ def test_create_bidder(testerchain, test_registry, agency, token_economics):
 
 
 @pytest.mark.skip()
-def test_bidding(testerchain, agency, token_economics, test_registry):
-    min_allowed_bid = token_economics.worklock_min_allowed_bid
+def test_bidding(testerchain, agency, application_economics, test_registry):
+    min_allowed_bid = application_economics.worklock_min_allowed_bid
     max_bid = 2000 * min_allowed_bid
     small_bids = [random.randrange(min_allowed_bid, 2 * min_allowed_bid) for _ in range(10)]
     total_small_bids = sum(small_bids)
@@ -69,9 +69,9 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_cancel_bid(testerchain, agency, token_economics, test_registry):
+def test_cancel_bid(testerchain, agency, application_economics, test_registry):
     # Wait until the bidding window closes...
-    testerchain.time_travel(seconds=token_economics.bidding_duration+1)
+    testerchain.time_travel(seconds=application_economics.bidding_duration + 1)
 
     bidder_address = testerchain.client.accounts[1]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -89,7 +89,7 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
+def test_get_remaining_work(testerchain, agency, application_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(registry=test_registry,
@@ -100,7 +100,7 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
 
 
 @pytest.mark.skip()
-def test_verify_correctness_before_refund(testerchain, agency, token_economics, test_registry):
+def test_verify_correctness_before_refund(testerchain, agency, application_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(registry=test_registry,
@@ -112,7 +112,7 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
         _receipt = bidder.claim()
 
     # Wait until the cancellation window closes...
-    testerchain.time_travel(seconds=token_economics.cancellation_window_duration+1)
+    testerchain.time_travel(seconds=application_economics.cancellation_window_duration + 1)
 
     with pytest.raises(Bidder.BidderError):
         _receipt = bidder.verify_bidding_correctness(gas_limit=100000)
@@ -122,7 +122,7 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
 
 
 @pytest.mark.skip()
-def test_force_refund(testerchain, agency, token_economics, test_registry):
+def test_force_refund(testerchain, agency, application_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(registry=test_registry,
@@ -150,14 +150,14 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
     assert not worklock_agent.bidders_checked()
 
     # Compare off-chain and on-chain calculations
-    min_bid = token_economics.worklock_min_allowed_bid
+    min_bid = application_economics.worklock_min_allowed_bid
     for whale, bonus in whales.items():
         contract_bid = worklock_agent.get_deposited_eth(whale)
         assert bonus == contract_bid - min_bid
 
 
 @pytest.mark.skip()
-def test_verify_correctness(testerchain, agency, token_economics, test_registry):
+def test_verify_correctness(testerchain, agency, application_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(registry=test_registry,
@@ -177,7 +177,7 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
 
 
 @pytest.mark.skip()
-def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
+def test_withdraw_compensation(testerchain, agency, application_economics, test_registry):
     bidder_address = testerchain.client.accounts[12]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(registry=test_registry,
@@ -192,7 +192,7 @@ def test_withdraw_compensation(testerchain, agency, token_economics, test_regist
 
 
 @pytest.mark.skip()
-def test_claim(testerchain, agency, token_economics, test_registry):
+def test_claim(testerchain, agency, application_economics, test_registry):
     bidder_address = testerchain.client.accounts[11]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
     bidder = Bidder(registry=test_registry,
@@ -212,14 +212,14 @@ def test_claim(testerchain, agency, token_economics, test_registry):
     with pytest.raises(Bidder.ClaimError):
         _receipt = bidder.claim()
 
-    assert bidder.get_deposited_eth > token_economics.worklock_min_allowed_bid
+    assert bidder.get_deposited_eth > application_economics.worklock_min_allowed_bid
     assert bidder.completed_work == 0
-    assert bidder.remaining_work <= token_economics.maximum_allowed_locked // 2
+    assert bidder.remaining_work <= application_economics.maximum_allowed_locked // 2
     assert bidder.refunded_work == 0
 
     # Ensure that the claimant is now the holder of an unbonded stake.
     locked_tokens = staking_agent.get_locked_tokens(staker_address=bidder.checksum_address, periods=10)
-    assert locked_tokens <= token_economics.maximum_allowed_locked
+    assert locked_tokens <= application_economics.maximum_allowed_locked
 
     # Confirm the stake is unbonded
     worker_address = staking_agent.get_worker_from_staker(staker_address=bidder.checksum_address)

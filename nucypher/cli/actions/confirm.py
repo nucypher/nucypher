@@ -24,7 +24,7 @@ from tabulate import tabulate
 from typing import Type, Union, Dict
 from web3.main import Web3
 
-from nucypher.blockchain.economics import BaseEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract, BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
@@ -95,9 +95,9 @@ def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> b
     return True
 
 
-def confirm_large_and_or_long_stake(value: NU = None, lock_periods: int = None, economics: BaseEconomics = None) -> bool:
+def confirm_large_and_or_long_stake(value: NU = None, lock_periods: int = None, economics: Economics = None) -> bool:
     """Interactively confirm a large stake and/or a long stake duration."""
-    if economics and value and (value > (NU.from_units(economics.minimum_allowed_locked) * 10)):  # > 10x min stake
+    if economics and value and (value > (NU.from_units(economics.min_authorization) * 10)):  # > 10x min stake
         click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
     if economics and lock_periods and (lock_periods > economics.maximum_rewarded_periods):  # > 1 year
         lock_days = (lock_periods * economics.hours_per_period) // 24

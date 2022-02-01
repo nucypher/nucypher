@@ -20,12 +20,7 @@ import pytest
 from nucypher.blockchain.economics import EconomicsFactory
 
 
-@pytest.mark.skip()
 @pytest.mark.usefixtures('agency')
-def test_retrieving_from_blockchain(token_economics, test_registry):
-
+def test_retrieving_from_blockchain(application_economics, test_registry):
     economics = EconomicsFactory.get_economics(registry=test_registry)
-
-    assert economics.staking_deployment_parameters == token_economics.staking_deployment_parameters
-    assert economics.slashing_deployment_parameters == token_economics.slashing_deployment_parameters
-    assert economics.worklock_deployment_parameters == token_economics.worklock_deployment_parameters
+    assert economics.pre_application_deployment_parameters == application_economics.pre_application_deployment_parameters

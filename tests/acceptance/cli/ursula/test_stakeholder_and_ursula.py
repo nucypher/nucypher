@@ -93,7 +93,7 @@ def test_new_stakeholder(click_runner,
 def test_stake_init(click_runner,
                     stakeholder_configuration_file_location,
                     stake_value,
-                    token_economics,
+                    application_economics,
                     testerchain,
                     agency_local_registry,
                     manual_staker):
@@ -107,7 +107,7 @@ def test_stake_init(click_runner,
                   '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
-                  '--lock-periods', token_economics.minimum_locked_periods,
+                  '--lock-periods', application_economics.min_operator_seconds,
                   '--force')
 
     # TODO: This test is writing to the default system directory and ignoring updates to the passed filepath
@@ -127,16 +127,16 @@ def test_stake_init(click_runner,
     # Test integration with NU
     start_period, end_period, value = stakes[0]
     assert NU(int(value), 'NuNit') == stake_value
-    assert (end_period - start_period) == token_economics.minimum_locked_periods - 1
+    assert (end_period - start_period) == application_economics.min_operator_seconds - 1
 
     # Test integration with Stake
     stake = Stake.from_stake_info(index=0,
                                   checksum_address=manual_staker,
                                   stake_info=stakes[0],
                                   staking_agent=staking_agent,
-                                  economics=token_economics)
+                                  economics=application_economics)
     assert stake.value == stake_value
-    assert stake.duration == token_economics.minimum_locked_periods
+    assert stake.duration == application_economics.min_operator_seconds
 
 
 @pytest.mark.skip()
@@ -160,7 +160,7 @@ def test_stake_list(click_runner,
 @pytest.mark.skip()
 def test_staker_divide_stakes(click_runner,
                               stakeholder_configuration_file_location,
-                              token_economics,
+                              application_economics,
                               manual_staker,
                               testerchain,
                               agency_local_registry):
@@ -170,7 +170,7 @@ def test_staker_divide_stakes(click_runner,
                    '--force',
                    '--staking-address', manual_staker,
                    '--index', 0,
-                   '--value', NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens(),
+                   '--value', NU(application_economics.min_authorization, 'NuNit').to_tokens(),
                    '--lock-periods', 10)
 
     result = click_runner.invoke(nucypher_cli,
@@ -184,7 +184,7 @@ def test_staker_divide_stakes(click_runner,
     user_input = INSECURE_DEVELOPMENT_PASSWORD
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
+    assert str(NU(application_economics.min_authorization, 'NuNit').to_tokens()) in result.output
 
 
 @pytest.mark.skip()
@@ -225,7 +225,7 @@ def test_stake_prolong(click_runner,
 @pytest.mark.skip()
 def test_stake_increase(click_runner,
                         stakeholder_configuration_file_location,
-                        token_economics,
+                        application_economics,
                         testerchain,
                         agency_local_registry,
                         manual_staker):
@@ -235,7 +235,7 @@ def test_stake_increase(click_runner,
     assert stakes_length > 0
 
     selection = 0
-    new_value = NU.from_units(token_economics.minimum_allowed_locked // 10)
+    new_value = NU.from_units(application_economics.min_authorization // 10)
     origin_stake = stakes[selection]
 
     stake_args = ('stake', 'increase',
@@ -263,7 +263,7 @@ def test_stake_increase(click_runner,
 @pytest.mark.skip()
 def test_merge_stakes(click_runner,
                       stakeholder_configuration_file_location,
-                      token_economics,
+                      application_economics,
                       testerchain,
                       agency_local_registry,
                       manual_staker,
@@ -273,7 +273,7 @@ def test_merge_stakes(click_runner,
                   '--config-file', str(stakeholder_configuration_file_location.absolute()),
                   '--staking-address', manual_staker,
                   '--value', stake_value.to_tokens(),
-                  '--lock-periods', token_economics.minimum_locked_periods + 1,
+                  '--lock-periods', application_economics.min_operator_seconds + 1,
                   '--force')
     user_input = f'0\n' + f'{INSECURE_DEVELOPMENT_PASSWORD}\n' + YES_ENTER
     result = click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
@@ -576,10 +576,10 @@ def test_collect_rewards_integration(click_runner,
                                      random_policy_label,
                                      manual_staker,
                                      manual_worker,
-                                     token_economics,
+                                     application_economics,
                                      policy_value):
 
-    half_stake_time = 2 * token_economics.minimum_locked_periods  # Test setup
+    half_stake_time = 2 * application_economics.min_operator_seconds  # Test setup
     logger = Logger("Test-CLI")  # Enter the Teacher's Logger, and
     current_period = 0  # State the initial period for incrementing
 
@@ -630,7 +630,7 @@ def test_collect_rewards_integration(click_runner,
 
     threshold, shares = 1, 1
     duration_in_periods = 3
-    days = (duration_in_periods - 1) * (token_economics.hours_per_period // 24)
+    days = (duration_in_periods - 1) * (application_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days)
     blockchain_policy = blockchain_alice.grant(bob=blockchain_bob,
@@ -700,7 +700,7 @@ def test_collect_rewards_integration(click_runner,
     logger.debug(f">>>>>>>>>>> TEST PERIOD {current_period} <<<<<<<<<<<<<<<<")
 
     # At least half of the tokens are unlocked (restaking was enabled for some prior periods)
-    assert staker.locked_tokens() >= token_economics.minimum_allowed_locked
+    assert staker.locked_tokens() >= application_economics.min_authorization
 
     # Collect Policy Fee
     collection_args = ('stake', 'rewards', 'withdraw',

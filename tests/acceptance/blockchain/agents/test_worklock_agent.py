@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
 
 @pytest.mark.skip()
-def test_create_worklock_agent(testerchain, test_registry, agency, token_economics):
+def test_create_worklock_agent(testerchain, test_registry, agency, application_economics):
     agent = WorkLockAgent(registry=test_registry)
     assert agent.contract_address
     same_agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -35,9 +35,9 @@ def test_create_worklock_agent(testerchain, test_registry, agency, token_economi
 
 
 @pytest.mark.skip()
-def test_bidding(testerchain, agency, token_economics, test_registry):
-    small_bid = token_economics.worklock_min_allowed_bid
-    big_bid = 5 * token_economics.worklock_min_allowed_bid
+def test_bidding(testerchain, agency, application_economics, test_registry):
+    small_bid = application_economics.worklock_min_allowed_bid
+    big_bid = 5 * application_economics.worklock_min_allowed_bid
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
 
     # Round 1
@@ -56,8 +56,8 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_get_deposited_eth(testerchain, agency, token_economics, test_registry):
-    small_bid = token_economics.worklock_min_allowed_bid
+def test_get_deposited_eth(testerchain, agency, application_economics, test_registry):
+    small_bid = application_economics.worklock_min_allowed_bid
     small_bidder = testerchain.client.accounts[-1]
     tpower = TransactingPower(account=small_bidder, signer=Web3Signer(testerchain.client))
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
@@ -68,24 +68,24 @@ def test_get_deposited_eth(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_get_base_deposit_rate(agency, token_economics, test_registry):
+def test_get_base_deposit_rate(agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     base_deposit_rate = agent.get_base_deposit_rate()
-    assert base_deposit_rate == token_economics.minimum_allowed_locked / token_economics.worklock_min_allowed_bid
+    assert base_deposit_rate == application_economics.min_authorization / application_economics.worklock_min_allowed_bid
 
 
 @pytest.mark.skip()
-def test_get_base_refund_rate(testerchain, agency, token_economics, test_registry):
+def test_get_base_refund_rate(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     base_refund_rate = agent.get_base_refund_rate()
 
     slowing_refund = agent.contract.functions.SLOWING_REFUND().call()
-    assert base_refund_rate == (token_economics.minimum_allowed_locked / token_economics.worklock_min_allowed_bid) * \
-           (slowing_refund / token_economics.worklock_boosting_refund_rate)
+    assert base_refund_rate == (application_economics.min_authorization / application_economics.worklock_min_allowed_bid) * \
+           (slowing_refund / application_economics.worklock_boosting_refund_rate)
 
 
 @pytest.mark.skip()
-def test_cancel_bid(testerchain, agency, token_economics, test_registry):
+def test_cancel_bid(testerchain, agency, application_economics, test_registry):
     bidder = testerchain.client.accounts[1]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
@@ -101,7 +101,7 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
+def test_get_remaining_work(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.client.accounts[0]
     remaining = agent.get_remaining_work(checksum_address=bidder)
@@ -109,7 +109,7 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
 
 
 @pytest.mark.skip()
-def test_early_claim(testerchain, agency, token_economics, test_registry):
+def test_early_claim(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
@@ -118,10 +118,10 @@ def test_early_claim(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_cancel_after_bidding(testerchain, agency, token_economics, test_registry):
+def test_cancel_after_bidding(testerchain, agency, application_economics, test_registry):
 
     # Wait until the bidding window closes...
-    testerchain.time_travel(seconds=token_economics.bidding_duration+1)
+    testerchain.time_travel(seconds=application_economics.bidding_duration + 1)
 
     bidder = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
@@ -135,7 +135,7 @@ def test_cancel_after_bidding(testerchain, agency, token_economics, test_registr
 
 
 @pytest.mark.skip()
-def test_claim_before_checking(testerchain, agency, token_economics, test_registry):
+def test_claim_before_checking(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.client.accounts[2]
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
@@ -145,7 +145,7 @@ def test_claim_before_checking(testerchain, agency, token_economics, test_regist
         _receipt = agent.claim(transacting_power=tpower)
 
     # Wait until the cancellation window closes...
-    testerchain.time_travel(seconds=token_economics.cancellation_end_date+1)
+    testerchain.time_travel(seconds=application_economics.cancellation_end_date + 1)
 
     assert not agent.is_claiming_available()
     with pytest.raises(TransactionFailed):
@@ -153,7 +153,7 @@ def test_claim_before_checking(testerchain, agency, token_economics, test_regist
 
 
 @pytest.mark.skip()
-def test_force_refund(testerchain, agency, token_economics, test_registry):
+def test_force_refund(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     caller = testerchain.client.accounts[0]
     tpower = TransactingPower(account=caller, signer=Web3Signer(testerchain.client))
@@ -167,7 +167,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_verify_correctness(testerchain, agency, token_economics, test_registry):
+def test_verify_correctness(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)  # type: WorkLockAgent
     caller = testerchain.client.accounts[0]
     tpower = TransactingPower(account=caller, signer=Web3Signer(testerchain.client))
@@ -180,7 +180,7 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
 
 
 @pytest.mark.skip()
-def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
+def test_withdraw_compensation(testerchain, agency, application_economics, test_registry):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     bidder = testerchain.client.accounts[2]
     tpower = TransactingPower(account=bidder, signer=Web3Signer(testerchain.client))
@@ -192,7 +192,7 @@ def test_withdraw_compensation(testerchain, agency, token_economics, test_regist
 
 
 @pytest.mark.skip()
-def test_successful_claim(testerchain, agency, token_economics, test_registry):
+def test_successful_claim(testerchain, agency, application_economics, test_registry):
 
     agent = ContractAgency.get_agent(WorkLockAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)

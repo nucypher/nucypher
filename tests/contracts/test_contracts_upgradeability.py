@@ -18,13 +18,14 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 from pathlib import Path
 
+import pytest
 import requests
 from eth_utils import to_wei
 
 from constant_sorrow import constants
 from web3.exceptions import ValidationError
 
-from nucypher.blockchain.economics import BaseEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,

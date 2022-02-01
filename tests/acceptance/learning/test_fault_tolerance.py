@@ -99,7 +99,7 @@ def test_invalid_workers_tolerance(testerchain,
                                    blockchain_ursulas,
                                    agency,
                                    idle_staker,
-                                   token_economics,
+                                   application_economics,
                                    ursula_decentralized_test_config
                                    ):
     #
@@ -119,8 +119,8 @@ def test_invalid_workers_tolerance(testerchain,
 
     # Now let's create an active worker for this staker.
     # First, stake something (e.g. the bare minimum)
-    amount = token_economics.minimum_allowed_locked
-    periods = token_economics.minimum_locked_periods
+    amount = application_economics.min_authorization
+    periods = application_economics.min_operator_seconds
 
     idle_staker.initialize_stake(amount=amount, lock_periods=periods)
 

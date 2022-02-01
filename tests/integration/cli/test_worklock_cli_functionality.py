@@ -110,8 +110,8 @@ def test_account_selection(click_runner, mocker, mock_testerchain, mock_worklock
 
 
 @pytest.fixture()
-def bidding_command(token_economics, surrogate_bidder):
-    minimum = token_economics.worklock_min_allowed_bid
+def bidding_command(application_economics, surrogate_bidder):
+    minimum = application_economics.worklock_min_allowed_bid
     bid_value = random.randint(minimum, minimum*100)
     command = ('escrow',
                '--participant-address', surrogate_bidder.checksum_address,
@@ -127,7 +127,7 @@ def bidding_command(token_economics, surrogate_bidder):
 def test_bid_too_soon(click_runner,
                       mocker,
                       mock_worklock_agent,
-                      token_economics,
+                      application_economics,
                       test_registry_source_manager,
                       surrogate_bidder,
                       mock_testerchain,
@@ -156,7 +156,7 @@ def test_bid_too_soon(click_runner,
 def test_bid_too_late(click_runner,
                       mocker,
                       mock_worklock_agent,
-                      token_economics,
+                      application_economics,
                       test_registry_source_manager,
                       surrogate_bidder,
                       mock_testerchain,
@@ -185,7 +185,7 @@ def test_bid_too_late(click_runner,
 def test_valid_bid(click_runner,
                    mocker,
                    mock_worklock_agent,
-                   token_economics,
+                   application_economics,
                    test_registry_source_manager,
                    surrogate_bidder,
                    mock_testerchain,
@@ -195,7 +195,7 @@ def test_valid_bid(click_runner,
     sometime_later = now + 100
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
 
-    minimum = token_economics.worklock_min_allowed_bid
+    minimum = application_economics.worklock_min_allowed_bid
     bid_value = random.randint(minimum, minimum * 100)
     bid_value_in_eth = Web3.fromWei(bid_value, 'ether')
 
@@ -283,7 +283,7 @@ def test_enable_claiming(click_runner,
                          mocker,
                          mock_worklock_agent,
                          surrogate_bidder,
-                         token_economics,
+                         application_economics,
                          mock_testerchain,
                          surrogate_transacting_power):
 
@@ -300,14 +300,14 @@ def test_enable_claiming(click_runner,
     # Prepare bidders
     bidders = mock_testerchain.client.accounts[0:10]
     num_bidders = len(bidders)
-    bonus_lot_value = token_economics.worklock_supply - token_economics.minimum_allowed_locked * num_bidders
+    bonus_lot_value = application_economics.worklock_supply - application_economics.min_authorization * num_bidders
 
     bids_before = [to_wei(50_000, 'ether')]
     min_bid_eth_value = to_wei(1, 'ether')
     max_bid_eth_value = to_wei(10, 'ether')
     for i in range(num_bidders - 1):
         bids_before.append(random.randrange(min_bid_eth_value, max_bid_eth_value))
-    bonus_eth_supply_before = sum(bids_before) - token_economics.worklock_min_allowed_bid * num_bidders
+    bonus_eth_supply_before = sum(bids_before) - application_economics.worklock_min_allowed_bid * num_bidders
 
     bids_after = [min_bid_eth_value] * num_bidders
     bonus_eth_supply_after = 0
@@ -585,7 +585,7 @@ def test_participant_status(click_runner,
 def test_interactive_new_bid(click_runner,
                              mocker,
                              mock_worklock_agent,
-                             token_economics,
+                             application_economics,
                              test_registry_source_manager,
                              surrogate_bidder,
                              mock_testerchain):
@@ -593,7 +593,7 @@ def test_interactive_new_bid(click_runner,
     sometime_later = now + 100
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
 
-    minimum = token_economics.worklock_min_allowed_bid
+    minimum = application_economics.worklock_min_allowed_bid
     bid_value = random.randint(minimum, minimum * 100)
     bid_value_in_eth = Web3.fromWei(bid_value, 'ether')
     wrong_bid = random.randint(1, minimum - 1)
@@ -638,7 +638,7 @@ def test_interactive_new_bid(click_runner,
 def test_interactive_increase_bid(click_runner,
                                   mocker,
                                   mock_worklock_agent,
-                                  token_economics,
+                                  application_economics,
                                   test_registry_source_manager,
                                   surrogate_bidder,
                                   mock_testerchain):
@@ -647,7 +647,7 @@ def test_interactive_increase_bid(click_runner,
     sometime_later = now + 100
     mocker.patch.object(BlockchainInterface, 'get_blocktime', return_value=sometime_later)
 
-    minimum = token_economics.worklock_min_allowed_bid
+    minimum = application_economics.worklock_min_allowed_bid
     bid_value = random.randint(1, minimum - 1)
     bid_value_in_eth = Web3.fromWei(bid_value, 'ether')
 

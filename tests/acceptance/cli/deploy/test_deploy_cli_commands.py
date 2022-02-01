@@ -234,13 +234,13 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 # TODO: test to validate retargetting via multisig, specifically, building the transaction
 
 @pytest.mark.skip()
-def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_economics):
+def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, application_economics):
 
     # A local, alternate filepath registry exists
     assert ALTERNATE_REGISTRY_FILEPATH.exists()
     local_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH)
     deployer = StakingEscrowDeployer(registry=local_registry,
-                                     economics=token_economics)
+                                     economics=application_economics)
     proxy_deployer = deployer.get_proxy_deployer()
 
     # Un-targeted enrollment is indeed un targeted by the proxy

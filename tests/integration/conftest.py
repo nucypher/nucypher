@@ -39,7 +39,6 @@ from tests.constants import (
     MOCK_PROVIDER_URI,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
-from tests.fixtures import make_token_economics
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
@@ -52,23 +51,23 @@ from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_contract_agency(monkeypatch, module_mocker, token_economics):
+def mock_contract_agency(monkeypatch, module_mocker, application_economics):
     monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
-    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
+    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
     mock_agency = MockContractAgency()
     yield mock_agency
     mock_agency.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_token_agent(mock_testerchain, token_economics, mock_contract_agency):
+def mock_token_agent(mock_testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(NucypherTokenAgent)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_staking_agent(mock_testerchain, token_economics, mock_contract_agency, mocker):
+def mock_staking_agent(mock_testerchain, application_economics, mock_contract_agency, mocker):
     mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
 
     # Handle the special case of commit_to_next_period, which returns a txhash due to the fire_and_forget option
@@ -139,11 +138,6 @@ def mock_testerchain(_mock_testerchain) -> MockBlockchain:
     yield _mock_testerchain
 
 
-@pytest.fixture(scope='module')
-def token_economics(mock_testerchain):
-    return make_token_economics(blockchain=mock_testerchain)
-
-
 @pytest.fixture(scope='module', autouse=True)
 def mock_interface(module_mocker):
     mock_transaction_sender = module_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
@@ -164,10 +158,10 @@ def test_registry_source_manager(mock_testerchain, test_registry):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_contract_agency(module_mocker, token_economics):
+def mock_contract_agency(module_mocker, application_economics):
 
     # Patch
-    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=token_economics)
+    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?
     get_agent = ContractAgency.get_agent

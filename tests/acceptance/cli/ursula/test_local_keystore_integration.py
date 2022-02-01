@@ -62,7 +62,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       tmp_path,
                                                       manual_staker,
                                                       stake_value,
-                                                      token_economics,
+                                                      application_economics,
                                                       mocker,
                                                       mock_funded_account_password_keystore,
                                                       testerchain):

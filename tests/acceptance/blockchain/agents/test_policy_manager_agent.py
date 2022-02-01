@@ -33,7 +33,7 @@ MockPolicyMetadata = collections.namedtuple('MockPolicyMetadata', 'policy_id aut
 
 
 @pytest.fixture(scope='function')
-def policy_meta(testerchain, agency, token_economics, blockchain_ursulas, test_registry):
+def policy_meta(testerchain, agency, application_economics, blockchain_ursulas, test_registry):
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     _policy_id = os.urandom(POLICY_ID_LENGTH)
@@ -44,7 +44,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas, test_r
     _txhash = policy_agent.create_policy(policy_id=_policy_id,
                                          transacting_power=tpower,
                                          value=to_wei(1, 'gwei') * len(staker_addresses) * number_of_periods,
-                                         end_timestamp=now + (number_of_periods - 1) * token_economics.hours_per_period * 60 * 60,
+                                         end_timestamp=now + (number_of_periods - 1) * application_economics.hours_per_period * 60 * 60,
                                          node_addresses=staker_addresses)
 
     return MockPolicyMetadata(policy_id=_policy_id, author=tpower, addresses=staker_addresses)
@@ -52,7 +52,7 @@ def policy_meta(testerchain, agency, token_economics, blockchain_ursulas, test_r
 
 @pytest.mark.skip()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_create_policy(testerchain, agency, token_economics, test_registry):
+def test_create_policy(testerchain, agency, application_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     policy_id = os.urandom(POLICY_ID_LENGTH)
@@ -61,8 +61,8 @@ def test_create_policy(testerchain, agency, token_economics, test_registry):
     tpower = TransactingPower(account=testerchain.alice_account, signer=Web3Signer(testerchain.client))
     receipt = policy_agent.create_policy(policy_id=policy_id,
                                          transacting_power=tpower,
-                                         value=token_economics.minimum_allowed_locked,
-                                         end_timestamp=now + 10 * token_economics.hours_per_period * 60,
+                                         value=application_economics.min_authorization,
+                                         end_timestamp=now + 10 * application_economics.hours_per_period * 60,
                                          node_addresses=node_addresses)
 
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -145,7 +145,7 @@ def test_set_min_fee_rate(testerchain, test_registry, agency, policy_meta):
 
 @pytest.mark.skip()
 @pytest.mark.usefixtures('blockchain_ursulas')
-def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, test_registry):
+def test_collect_policy_fee(testerchain, agency, policy_meta, application_economics, test_registry):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
@@ -156,7 +156,7 @@ def test_collect_policy_fee(testerchain, agency, policy_meta, token_economics, t
 
 
     old_eth_balance = token_agent.blockchain.client.get_balance(staker)
-    for _ in range(token_economics.minimum_locked_periods):
+    for _ in range(application_economics.min_operator_seconds):
         testerchain.time_travel(periods=1)
         staking_agent.commit_to_next_period(transacting_power=worker_power)
 

@@ -20,7 +20,7 @@ import pytest
 from eth_tester.exceptions import TransactionFailed
 
 
-def test_create_token(testerchain, token_economics, deploy_contract):
+def test_create_token(testerchain, application_economics, deploy_contract):
     """
     These are tests for standard tokens taken from Consensys github:
     https://github.com/ConsenSys/Tokens/
@@ -34,11 +34,11 @@ def test_create_token(testerchain, token_economics, deploy_contract):
     assert creator == testerchain.client.coinbase
 
     # Create an ERC20 token
-    token, txhash = deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
+    token, txhash = deploy_contract('NuCypherToken', application_economics.erc20_total_supply)
     assert txhash is not None
 
     # Account balances
-    assert token_economics.erc20_total_supply == token.functions.balanceOf(creator).call()
+    assert application_economics.erc20_total_supply == token.functions.balanceOf(creator).call()
     assert 0 == token.functions.balanceOf(account1).call()
 
     # Basic properties
@@ -58,7 +58,7 @@ def test_create_token(testerchain, token_economics, deploy_contract):
     tx = token.functions.transfer(account1, 10000).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     assert 10000 == token.functions.balanceOf(account1).call()
-    assert token_economics.erc20_total_supply - 10000 == token.functions.balanceOf(creator).call()
+    assert application_economics.erc20_total_supply - 10000 == token.functions.balanceOf(creator).call()
     tx = token.functions.transfer(account2, 10).transact({'from': account1})
     testerchain.wait_for_receipt(tx)
     assert 10000 - 10 == token.functions.balanceOf(account1).call()
@@ -68,12 +68,12 @@ def test_create_token(testerchain, token_economics, deploy_contract):
     assert 10 == token.functions.balanceOf(token.address).call()
 
 
-def test_approve_and_call(testerchain, token_economics, deploy_contract):
+def test_approve_and_call(testerchain, application_economics, deploy_contract):
     creator = testerchain.client.accounts[0]
     account1 = testerchain.client.accounts[1]
     account2 = testerchain.client.accounts[2]
 
-    token, _ = deploy_contract('NuCypherToken', token_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', application_economics.erc20_total_supply)
     mock, _ = deploy_contract('ReceiveApprovalMethodMock')
 
     # Approve some value and check allowance

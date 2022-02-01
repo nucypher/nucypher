@@ -23,7 +23,7 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.skip()
-def test_stake(testerchain, token_economics, agency, test_registry):
+def test_stake(testerchain, application_economics, agency, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     class FakeUrsula:
@@ -43,7 +43,7 @@ def test_stake(testerchain, token_economics, agency, test_registry):
                   value=NU(100, 'NU'),
                   index=0,
                   staking_agent=staking_agent,
-                  economics=token_economics)
+                  economics=application_economics)
 
     assert stake.value, 'NU' == NU(100, 'NU')
 
@@ -53,7 +53,7 @@ def test_stake(testerchain, token_economics, agency, test_registry):
 
 
 @pytest.mark.skip()
-def test_stake_equality(token_economics, get_random_checksum_address, mocker):
+def test_stake_equality(application_economics, get_random_checksum_address, mocker):
     address = get_random_checksum_address()
     a_different_address = get_random_checksum_address()
 
@@ -65,7 +65,7 @@ def test_stake_equality(token_economics, get_random_checksum_address, mocker):
                   value=NU(100, 'NU'),
                   index=0,
                   staking_agent=mock_agent,
-                  economics=token_economics)
+                  economics=application_economics)
 
     assert stake == stake
 
@@ -83,7 +83,7 @@ def test_stake_equality(token_economics, get_random_checksum_address, mocker):
                               value=NU(100, 'NU'),
                               index=1,
                               staking_agent=mock_agent,
-                              economics=token_economics)
+                              economics=application_economics)
 
     assert stake != a_different_stake
 
@@ -94,7 +94,7 @@ def test_stake_equality(token_economics, get_random_checksum_address, mocker):
                                     value=NU(100, 'NU'),
                                     index=0,
                                     staking_agent=undercover_agent,
-                                    economics=token_economics)
+                                    economics=application_economics)
 
     assert stake != another_different_stake
 

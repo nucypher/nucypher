@@ -19,8 +19,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from decimal import Decimal, localcontext
 from math import log
 
-from nucypher.blockchain.economics import LOG2, StandardTokenEconomics
+import pytest
 
+from nucypher.blockchain.economics import Economics
 
 
 @pytest.mark.skip("remove me")
@@ -82,7 +83,7 @@ def test_exact_economics():
 
     # Use same precision as economics class
     with localcontext() as ctx:
-        ctx.prec = StandardTokenEconomics._precision
+        ctx.prec = Economics._precision
 
         # Sanity check expected testing outputs
         assert Decimal(expected_total_supply) / expected_initial_supply == expected_supply_ratio
@@ -111,10 +112,10 @@ def test_exact_economics():
     #
 
     # Check creation
-    e = StandardTokenEconomics()
+    e = Economics()
 
     with localcontext() as ctx:
-        ctx.prec = StandardTokenEconomics._precision
+        ctx.prec = Economics._precision
         one_year_in_periods = Decimal(one_year_in_periods)
 
         # Check that total_supply calculated correctly
@@ -136,7 +137,7 @@ def test_exact_economics():
         assert e.reward_supply == expected_total_supply - expected_initial_supply
 
         # Check deployment parameters
-        assert e.staking_deployment_parameters == expected_deployment_parameters
+        assert e.pre_application_deployment_parameters == expected_deployment_parameters
         assert e.erc20_initial_supply == expected_initial_supply
         assert e.erc20_reward_supply == expected_reward_supply
 

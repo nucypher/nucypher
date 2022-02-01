@@ -44,9 +44,10 @@ def log(message):
     print(message)
 
 
-def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, testerchain, threshold_staking, pre_application, token_economics, deploy_contract):
-    creator, staking_provider, worker_address, *everyone_else = testerchain.client.accounts
-    min_authorization = token_economics.minimum_allowed_locked
+def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, testerchain, threshold_staking, pre_application,
+                                             application_economics, deploy_contract, test_registry_source_manager):
+    creator, staking_provider, operator_address, *everyone_else = testerchain.client.accounts
+    min_authorization = application_economics.min_authorization
 
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider).transact()

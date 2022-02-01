@@ -24,19 +24,19 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
 @pytest.fixture()
-def token(testerchain, token_economics, deploy_contract):
-    contract, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
+def token(testerchain, application_economics, deploy_contract):
+    contract, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=application_economics.erc20_total_supply)
     return contract
 
 
 @pytest.fixture()
-def escrow(testerchain, token_economics, deploy_contract, token):
+def escrow(testerchain, application_economics, deploy_contract, token):
     contract, _ = deploy_contract(
         contract_name='StakingEscrowForWorkLockMock',
         _token=token.address,
-        _minAllowableLockedTokens=token_economics.minimum_allowed_locked,
-        _maxAllowableLockedTokens=token_economics.maximum_allowed_locked,
-        _minLockedPeriods=token_economics.minimum_locked_periods
+        _minAllowableLockedTokens=application_economics.min_authorization,
+        _maxAllowableLockedTokens=application_economics.maximum_allowed_locked,
+        _minLockedPeriods=application_economics.min_operator_seconds
     )
     return contract
 
@@ -47,14 +47,14 @@ MIN_ALLOWED_BID = to_wei(1, 'ether')
 
 
 @pytest.fixture()
-def worklock_factory(testerchain, token, escrow, token_economics, deploy_contract):
+def worklock_factory(testerchain, token, escrow, application_economics, deploy_contract):
     def deploy_worklock(supply, bidding_delay, additional_time_to_cancel, boosting_refund):
 
         now = testerchain.w3.eth.getBlock('latest').timestamp
         start_bid_date = now + bidding_delay
         end_bid_date = start_bid_date + BIDDING_DURATION
         end_cancellation_date = end_bid_date + additional_time_to_cancel
-        staking_periods = 2 * token_economics.minimum_locked_periods
+        staking_periods = 2 * application_economics.min_operator_seconds
 
         contract, _ = deploy_contract(
             contract_name='WorkLock',
@@ -87,7 +87,7 @@ def do_bids(testerchain, worklock, bidders, amount):
         testerchain.wait_for_receipt(tx)
 
 
-def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, worklock_factory):
+def test_worklock(testerchain, application_economics, deploy_contract, token, escrow, worklock_factory):
     creator, staker1, staker2, staker3, staker4, *everyone_else = testerchain.w3.eth.accounts
     gas_to_save_state = 30000
 
@@ -97,7 +97,7 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     end_bid_date = start_bid_date + ONE_HOUR
     end_cancellation_date = end_bid_date + ONE_HOUR
     slowing_refund = 100
-    staking_periods = 2 * token_economics.minimum_locked_periods
+    staking_periods = 2 * application_economics.min_operator_seconds
     boosting_refund = 50
 
     worklock = worklock_factory(supply=0,
@@ -111,8 +111,8 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     assert worklock.functions.boostingRefund().call() == boosting_refund
     assert worklock.functions.SLOWING_REFUND().call() == slowing_refund
     assert worklock.functions.stakingPeriods().call() == staking_periods
-    assert worklock.functions.maxAllowableLockedTokens().call() == token_economics.maximum_allowed_locked
-    assert worklock.functions.minAllowableLockedTokens().call() == token_economics.minimum_allowed_locked
+    assert worklock.functions.maxAllowableLockedTokens().call() == application_economics.maximum_allowed_locked
+    assert worklock.functions.minAllowableLockedTokens().call() == application_economics.min_authorization
 
     deposit_log = worklock.events.Deposited.createFilter(fromBlock='latest')
     bidding_log = worklock.events.Bid.createFilter(fromBlock='latest')
@@ -124,8 +124,8 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     compensation_log = worklock.events.CompensationWithdrawn.createFilter(fromBlock='latest')
 
     # Transfer tokens to WorkLock
-    worklock_supply_1 = token_economics.minimum_allowed_locked
-    worklock_supply_2 = 2 * token_economics.maximum_allowed_locked
+    worklock_supply_1 = application_economics.min_authorization
+    worklock_supply_2 = 2 * application_economics.maximum_allowed_locked
     worklock_supply = worklock_supply_1 + worklock_supply_2
     tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
@@ -148,8 +148,8 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
     # Give stakers some ETH
     deposit_eth_1 = 4 * MIN_ALLOWED_BID
     deposit_eth_2 = MIN_ALLOWED_BID
-    min_stake = token_economics.minimum_allowed_locked
-    max_stake = token_economics.maximum_allowed_locked
+    min_stake = application_economics.min_authorization
+    max_stake = application_economics.maximum_allowed_locked
     staker1_balance = 100 * deposit_eth_1
     tx = testerchain.w3.eth.sendTransaction(
         {'from': testerchain.etherbase_account, 'to': staker1, 'value': staker1_balance})
@@ -675,10 +675,10 @@ def test_worklock(testerchain, token_economics, deploy_contract, token, escrow, 
         testerchain.wait_for_receipt(tx)
 
 
-def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, worklock_factory):
+def test_reentrancy(testerchain, application_economics, deploy_contract, escrow, worklock_factory):
     # Deploy WorkLock
     boosting_refund = 100
-    worklock_supply = 2 * token_economics.maximum_allowed_locked
+    worklock_supply = 2 * application_economics.maximum_allowed_locked
     max_bid = 2 * MIN_ALLOWED_BID
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
@@ -767,13 +767,13 @@ def test_reentrancy(testerchain, token_economics, deploy_contract, escrow, workl
     assert len(refund_log.get_all_entries()) == 0
 
 
-def test_verifying_correctness(testerchain, token_economics, escrow, deploy_contract, worklock_factory):
+def test_verifying_correctness(testerchain, application_economics, escrow, deploy_contract, worklock_factory):
     creator, bidder1, bidder2, bidder3, *everyone_else = testerchain.w3.eth.accounts
     gas_to_save_state = 30000
     boosting_refund = 100
 
     # Test: bidder has too much tokens to claim
-    worklock_supply = token_economics.maximum_allowed_locked + 1
+    worklock_supply = application_economics.maximum_allowed_locked + 1
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
@@ -793,7 +793,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
         testerchain.wait_for_receipt(tx)
 
     # Test: bidder will get tokens as much as possible without force refund
-    worklock_supply = 3 * token_economics.maximum_allowed_locked
+    worklock_supply = 3 * application_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
@@ -802,7 +802,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
 
     # Bids
     do_bids(testerchain, worklock, [bidder1, bidder2, bidder3], MIN_ALLOWED_BID)
-    assert worklock.functions.ethToTokens(MIN_ALLOWED_BID).call() == token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(MIN_ALLOWED_BID).call() == application_economics.maximum_allowed_locked
 
     # Wait end of bidding
     testerchain.time_travel(seconds=ONE_HOUR)
@@ -828,7 +828,7 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     assert event_args['endIndex'] == 3
 
     # Test: partial verification with low amount of gas limit
-    worklock_supply = 3 * token_economics.maximum_allowed_locked
+    worklock_supply = 3 * application_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
@@ -885,13 +885,13 @@ def test_verifying_correctness(testerchain, token_economics, escrow, deploy_cont
     assert event_args['endIndex'] == 3
 
 
-def test_force_refund(testerchain, token_economics, deploy_contract, worklock_factory, token):
+def test_force_refund(testerchain, application_economics, deploy_contract, worklock_factory, token):
     creator, *bidders = testerchain.w3.eth.accounts
     boosting_refund = 100
     gas_to_save_state = 30000
 
     # All bids are allowed, can't do force refund
-    worklock_supply = len(bidders) * token_economics.maximum_allowed_locked
+    worklock_supply = len(bidders) * application_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
@@ -924,7 +924,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     normal_bidders = bidders[6:8]
     bidders = normal_bidders + hidden_whales + whales
 
-    worklock_supply = len(bidders) * token_economics.maximum_allowed_locked
+    worklock_supply = len(bidders) * application_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
@@ -941,9 +941,9 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     testerchain.time_travel(seconds=ONE_HOUR)
 
     # Verification founds whales
-    assert worklock.functions.ethToTokens(normal_bid).call() < token_economics.maximum_allowed_locked
-    assert worklock.functions.ethToTokens(hidden_whales_bid).call() < token_economics.maximum_allowed_locked
-    assert worklock.functions.ethToTokens(whales_bid).call() > token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(normal_bid).call() < application_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(hidden_whales_bid).call() < application_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(whales_bid).call() > application_economics.maximum_allowed_locked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
         testerchain.wait_for_receipt(tx)
@@ -970,7 +970,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     refund = whales_bid - bid
     assert refund > 0
     assert bid > normal_bid
-    assert worklock.functions.ethToTokens(bid).call() <= token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(bid).call() <= application_economics.maximum_allowed_locked
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert testerchain.w3.eth.getBalance(whale_1) == whale_1_balance
     assert worklock.functions.compensation(whale_1).call() == refund
@@ -983,7 +983,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert event_args['refundETH'] == refund
 
     # Can't verify yet
-    assert worklock.functions.ethToTokens(whales_bid).call() > token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(whales_bid).call() > application_economics.maximum_allowed_locked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
         testerchain.wait_for_receipt(tx)
@@ -1024,7 +1024,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     refund = whales_bid - bid
     assert refund > 0
     assert bid > normal_bid
-    assert worklock.functions.ethToTokens(bid).call() <= token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(bid).call() <= application_economics.maximum_allowed_locked
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert testerchain.w3.eth.getBalance(whale_2) == whale_2_balance
     assert testerchain.w3.eth.getBalance(whale_3) == whale_3_balance
@@ -1043,7 +1043,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert event_args['refundETH'] == refund
 
     # Can't verify yet
-    assert worklock.functions.ethToTokens(hidden_whales_bid).call() > token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(hidden_whales_bid).call() > application_economics.maximum_allowed_locked
     with pytest.raises((TransactionFailed, ValueError)):
         tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
         testerchain.wait_for_receipt(tx)
@@ -1063,7 +1063,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
 
     tx = worklock.functions.forceRefund(group).transact({'from': whale_1})
     testerchain.wait_for_receipt(tx)
-    assert worklock.functions.ethToTokens(normal_bid).call() == token_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(normal_bid).call() == application_economics.maximum_allowed_locked
     events = refund_log.get_all_entries()
     assert len(events) == 3 + len(group)
 
@@ -1088,7 +1088,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
 
     # Test extreme case with random values
     bidders = testerchain.w3.eth.accounts[1:]
-    worklock_supply = 10 * token_economics.maximum_allowed_locked
+    worklock_supply = 10 * application_economics.maximum_allowed_locked
     max_bid = 2000 * MIN_ALLOWED_BID
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
@@ -1121,12 +1121,12 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     # Bids are correct now
     for whale in whales:
         bid = worklock.functions.workInfo(whale).call()[0]
-        assert worklock.functions.ethToTokens(bid).call() <= token_economics.maximum_allowed_locked
+        assert worklock.functions.ethToTokens(bid).call() <= application_economics.maximum_allowed_locked
     tx = worklock.functions.verifyBiddingCorrectness(gas_to_save_state).transact()
     testerchain.wait_for_receipt(tx)
 
     # Special case: there are less bidders than n, where n is `worklock_supply // maximum_allowed_locked`
-    worklock_supply = 10 * token_economics.maximum_allowed_locked
+    worklock_supply = 10 * application_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=0,
@@ -1172,7 +1172,7 @@ def test_force_refund(testerchain, token_economics, deploy_contract, worklock_fa
     assert event_args['sender'] == bidder1
 
 
-def test_shutdown(testerchain, token_economics, deploy_contract, worklock_factory, token):
+def test_shutdown(testerchain, application_economics, deploy_contract, worklock_factory, token):
     creator, bidder, *everyone_else = testerchain.w3.eth.accounts
     boosting_refund = 100
     gas_to_save_state = 30000
@@ -1220,7 +1220,7 @@ def test_shutdown(testerchain, token_economics, deploy_contract, worklock_factor
     start_bid_date = now
     end_bid_date = start_bid_date + ONE_HOUR
     end_cancellation_date = end_bid_date + ONE_HOUR
-    worklock_supply = token_economics.maximum_allowed_locked
+    worklock_supply = application_economics.maximum_allowed_locked
     worklock = worklock_factory(supply=worklock_supply,
                                 bidding_delay=0,
                                 additional_time_to_cancel=ONE_HOUR,

@@ -18,27 +18,23 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import time
-from datetime import datetime
 from decimal import Decimal
 from typing import Callable, Union
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import maya
-from constant_sorrow.constants import FULL, WORKER_NOT_RUNNING
+from constant_sorrow.constants import FULL
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from nucypher_core import HRAC
 from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
-from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import (
-    BaseEconomics,
+    Economics,
     EconomicsFactory,
-    StandardTokenEconomics
 )
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -124,7 +120,7 @@ class BaseActor:
                  registry: BaseContractRegistry,
                  transacting_power: Optional[TransactingPower] = None,
                  checksum_address: Optional[ChecksumAddress] = None,
-                 economics: Optional[BaseEconomics] = None):
+                 economics: Optional[Economics] = None):
 
         if not (bool(checksum_address) ^ bool(transacting_power)):
             error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
@@ -142,7 +138,7 @@ class BaseActor:
             else:
                 self.checksum_address = checksum_address
 
-        self.economics = economics or StandardTokenEconomics()
+        self.economics = economics or Economics()
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
@@ -1560,7 +1556,7 @@ class Bidder(NucypherTokenActor):
 
     def _get_max_bonus_bid_from_max_stake(self) -> int:
         """Returns maximum allowed bid calculated from maximum allowed locked tokens"""
-        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.minimum_allowed_locked
+        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.min_authorization
         bonus_eth_supply = sum(
             self._all_bonus_bidders.values()) if self._all_bonus_bidders else self.worklock_agent.get_bonus_eth_supply()
         bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
@@ -1603,7 +1599,7 @@ class Bidder(NucypherTokenActor):
 
         bonus_eth_supply = sum(self._all_bonus_bidders.values())
         bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
-        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.minimum_allowed_locked
+        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.min_authorization
         if (min_whale_bonus_bid * bonus_worklock_supply) // bonus_eth_supply <= max_bonus_tokens:
             raise self.WhaleError(f"At least one of bidders {whales} has allowable bid")
 
