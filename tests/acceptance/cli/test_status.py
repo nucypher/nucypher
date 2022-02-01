@@ -19,6 +19,8 @@ import random
 import re
 from pathlib import Path
 
+import pytest
+
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.agents import (
@@ -34,6 +36,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import FEE_RATE_RANGE, TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 
+@pytest.mark.skip()
 def test_nucypher_status_network(click_runner, testerchain, agency_local_registry):
 
     network_command = ('network',
@@ -58,6 +61,7 @@ def test_nucypher_status_network(click_runner, testerchain, agency_local_registr
     assert re.search(f"^Current Period \\.+ {staking_agent.get_current_period()}", result.output, re.MULTILINE)
 
 
+@pytest.mark.skip()
 def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
 
     # Get all stakers info
@@ -100,6 +104,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     assert f"Min fee rate: {default} wei" in result.output
 
 
+@pytest.mark.skip()
 def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers):
 
     # Get information about global fee range (minimum rate, default rate, maximum rate)
@@ -116,6 +121,7 @@ def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers)
     assert f"{maximum} wei" in result.output
 
 
+@pytest.mark.skip()
 def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, stakers):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
@@ -144,6 +150,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
         assert re.search(f"Min: {all_locked} - Max: {all_locked}", result.output, re.MULTILINE)
 
 
+@pytest.mark.skip()
 def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, temp_dir_path):
     # All workers make a commitment
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)

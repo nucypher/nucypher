@@ -18,6 +18,8 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from unittest.mock import patch
 
+import pytest
+
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -25,6 +27,7 @@ from nucypher.blockchain.eth.actors import Trustee
 from nucypher.blockchain.eth.deployers import MultiSigDeployer
 
 
+@pytest.mark.skip()
 def test_trustee_proposes_multisig_management_operations(testerchain, test_registry):
     origin = testerchain.etherbase_account
     tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))

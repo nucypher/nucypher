@@ -54,6 +54,7 @@ def bids(testerchain):
     return bids_distribution
 
 
+@pytest.mark.skip()
 def test_status(click_runner, testerchain, agency_local_registry, token_economics):
     command = ('status',
                '--registry-filepath', str(agency_local_registry.filepath.absolute()),
@@ -67,6 +68,7 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     assert str(Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')) in result.output
 
 
+@pytest.mark.skip()
 def test_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
 
     # Wait until biding window starts
@@ -99,6 +101,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
         assert testerchain.client.get_balance(worklock_agent.contract_address) == total_bids
 
 
+@pytest.mark.skip()
 def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
 
     bidders = list(bids.keys())
@@ -137,6 +140,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
 
+@pytest.mark.skip()
 def test_enable_claiming(click_runner, testerchain, agency_local_registry, token_economics):
 
     # Wait until the end of the cancellation period
@@ -163,6 +167,7 @@ def test_enable_claiming(click_runner, testerchain, agency_local_registry, token
     assert agent.bidders_checked()
 
 
+@pytest.mark.skip()
 def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
@@ -197,6 +202,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
     # TODO: Check successful new stake in StakingEscrow
 
 
+@pytest.mark.skip()
 def test_remaining_work(click_runner, testerchain, agency_local_registry, token_economics):
     bidder = testerchain.client.accounts[2]
 
@@ -280,6 +286,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
     assert new_remaining_work < remaining_work
 
 
+@pytest.mark.skip()
 def test_participant_status(click_runner, testerchain, agency_local_registry, token_economics):
 
     tpower = TransactingPower(account=testerchain.client.accounts[2],

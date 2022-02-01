@@ -84,6 +84,7 @@ def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
             spy_from_signer_uri.assert_called_with(TEST_PROVIDER_URI, testnet=False)  # the "real" deal
 
 
+@pytest.mark.skip()
 def test_upgrade_contracts(click_runner, test_registry_source_manager, test_registry,
                            testerchain, registry_filepath, agency):
 
@@ -221,6 +222,7 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
         assert targeted_address == new_address
 
 
+@pytest.mark.skip()
 def test_rollback(click_runner, testerchain, registry_filepath, agency):
     """Roll 'em back!"""
 

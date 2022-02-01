@@ -36,6 +36,7 @@ def test_unknown_contract(testerchain, test_registry):
     assert exception.value.args[0] == StakingEscrowAgent.contract_name
 
 
+@pytest.mark.skip()
 def test_deposit_tokens(testerchain, agency, token_economics, test_registry):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -79,6 +80,7 @@ def test_deposit_tokens(testerchain, agency, token_economics, test_registry):
     assert staking_agent.get_locked_tokens(staker_address=staker_account) == locked_tokens
 
 
+@pytest.mark.skip()
 def test_locked_tokens(testerchain, agency, token_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
@@ -86,6 +88,7 @@ def test_locked_tokens(testerchain, agency, token_economics, test_registry):
     assert token_economics.maximum_allowed_locked >= locked_amount >= token_economics.minimum_allowed_locked
 
 
+@pytest.mark.skip()
 def test_get_all_stakes(testerchain, agency, token_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
@@ -99,6 +102,7 @@ def test_get_all_stakes(testerchain, agency, token_economics, test_registry):
     assert token_economics.maximum_allowed_locked > value > token_economics.minimum_allowed_locked
 
 
+@pytest.mark.skip()
 def test_stakers_and_workers_relationships(testerchain, agency, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
@@ -120,6 +124,7 @@ def test_stakers_and_workers_relationships(testerchain, agency, test_registry):
     assert NULL_ADDRESS == staking_agent.get_staker_from_worker(worker_address=random_address)
 
 
+@pytest.mark.skip()
 def test_get_staker_population(agency, stakers, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
@@ -127,6 +132,7 @@ def test_get_staker_population(agency, stakers, test_registry):
     assert staking_agent.get_staker_population() == len(stakers) + 1
 
 
+@pytest.mark.skip()
 def test_get_swarm(agency, blockchain_ursulas, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
@@ -140,6 +146,7 @@ def test_get_swarm(agency, blockchain_ursulas, test_registry):
     assert is_address(staker_addr)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("blockchain_ursulas")
 def test_sample_stakers(agency, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -165,6 +172,7 @@ def test_sample_stakers(agency, test_registry):
     staking_agent.blockchain.is_light = light
 
 
+@pytest.mark.skip()
 def test_get_current_period(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     start_period = staking_agent.get_current_period()
@@ -173,6 +181,7 @@ def test_get_current_period(agency, testerchain, test_registry):
     assert end_period > start_period
 
 
+@pytest.mark.skip()
 def test_commit_to_next_period(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -183,6 +192,7 @@ def test_commit_to_next_period(agency, testerchain, test_registry):
     assert receipt['logs'][0]['address'] == staking_agent.contract_address
 
 
+@pytest.mark.skip()
 def test_get_staker_info(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -191,6 +201,7 @@ def test_get_staker_info(agency, testerchain, test_registry):
     assert info.worker == worker_account
 
 
+@pytest.mark.skip()
 def test_divide_stake(agency, testerchain, token_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
@@ -226,6 +237,7 @@ def test_divide_stake(agency, testerchain, token_economics, test_registry):
     assert stakes[-1].last_period == origin_stake.last_period + 1
 
 
+@pytest.mark.skip()
 def test_prolong_stake(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -243,6 +255,7 @@ def test_prolong_stake(agency, testerchain, test_registry):
     assert new_termination == original_termination + 1
 
 
+@pytest.mark.skip()
 def test_deposit_and_increase(agency, testerchain, test_registry, token_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -265,6 +278,7 @@ def test_deposit_and_increase(agency, testerchain, test_registry, token_economic
     assert staking_agent.get_locked_tokens(staker_account, 1) == locked_tokens + amount
 
 
+@pytest.mark.skip()
 def test_disable_restaking(agency, testerchain, test_registry):
     staker_account, worker_account, *other = testerchain.unassigned_accounts
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -275,6 +289,7 @@ def test_disable_restaking(agency, testerchain, test_registry):
     assert not staking_agent.is_restaking(staker_account)
 
 
+@pytest.mark.skip()
 def test_collect_staking_reward(agency, testerchain, test_registry):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -303,6 +318,7 @@ def test_collect_staking_reward(agency, testerchain, test_registry):
     assert staking_agent.owned_tokens(staker_address=staker_account) == staked
 
 
+@pytest.mark.skip()
 def test_winding_down(agency, testerchain, test_registry, token_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -341,6 +357,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
     check_last_period()
 
 
+@pytest.mark.skip()
 def test_lock_and_create(agency, testerchain, test_registry, token_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -369,6 +386,7 @@ def test_lock_and_create(agency, testerchain, test_registry, token_economics):
     assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
 
 
+@pytest.mark.skip()
 def test_lock_and_increase(agency, testerchain, test_registry, token_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
@@ -393,6 +411,7 @@ def test_lock_and_increase(agency, testerchain, test_registry, token_economics):
     assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
 
 
+@pytest.mark.skip()
 def test_merge(agency, testerchain, test_registry, token_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
@@ -419,6 +438,7 @@ def test_merge(agency, testerchain, test_registry, token_economics):
     assert staking_agent.get_locked_tokens(staker_account, 0) == current_locked_tokens
 
 
+@pytest.mark.skip()
 def test_remove_inactive_stake(agency, testerchain, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]

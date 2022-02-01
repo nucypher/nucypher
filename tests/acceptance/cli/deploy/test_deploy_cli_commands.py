@@ -19,6 +19,8 @@
 import os
 from pathlib import Path
 
+import pytest
+
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
@@ -57,6 +59,7 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_l
     assert 'not enrolled' in result.output
 
 
+@pytest.mark.skip()
 def test_set_range(click_runner, testerchain, agency_local_registry):
 
     minimum, default, maximum = 10, 20, 30
@@ -81,6 +84,7 @@ def test_set_range(click_runner, testerchain, agency_local_registry):
     assert f"default value {default}" in result.output
 
 
+@pytest.mark.skip()
 def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_registry):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
@@ -107,6 +111,7 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
     assert f"{maximum} wei" in result.output
 
 
+@pytest.mark.skip()
 def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
@@ -166,6 +171,7 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     # Test transfer ownersh
 
 
+@pytest.mark.skip()
 def test_transfer_ownership_staking_interface_router(click_runner, testerchain, agency_local_registry):
 
     maclane = testerchain.unassigned_accounts[0]
@@ -227,6 +233,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
 
 # TODO: test to validate retargetting via multisig, specifically, building the transaction
 
+@pytest.mark.skip()
 def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_economics):
 
     # A local, alternate filepath registry exists
@@ -265,6 +272,7 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, token_
     assert proxy_deployer.target_contract.address == untargeted_deployment.address
 
 
+@pytest.mark.skip()
 def test_manual_deployment_of_idle_network(click_runner):
 
     if ALTERNATE_REGISTRY_FILEPATH_2.exists():

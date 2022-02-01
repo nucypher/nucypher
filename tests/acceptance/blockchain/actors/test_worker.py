@@ -35,6 +35,7 @@ def log(message):
     print(message)
 
 
+@pytest.mark.skip()
 @pytest_twisted.inlineCallbacks
 def test_worker_auto_commitments(mocker,
                                  testerchain,

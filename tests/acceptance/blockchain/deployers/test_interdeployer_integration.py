@@ -36,6 +36,7 @@ from nucypher.blockchain.eth.deployers import (
 )
 
 
+@pytest.mark.skip()
 def test_deploy_ethereum_contracts(testerchain,
                                    deployment_progress,
                                    test_registry):

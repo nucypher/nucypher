@@ -29,6 +29,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, W
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 
 
+@pytest.mark.skip()
 def test_create_bidder(testerchain, test_registry, agency, token_economics):
     bidder_address = testerchain.unassigned_accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -44,6 +45,7 @@ def test_create_bidder(testerchain, test_registry, agency, token_economics):
     assert not bidder.refunded_work
 
 
+@pytest.mark.skip()
 def test_bidding(testerchain, agency, token_economics, test_registry):
     min_allowed_bid = token_economics.worklock_min_allowed_bid
     max_bid = 2000 * min_allowed_bid
@@ -66,6 +68,7 @@ def test_bidding(testerchain, agency, token_economics, test_registry):
         assert bidder.get_deposited_eth == bid
 
 
+@pytest.mark.skip()
 def test_cancel_bid(testerchain, agency, token_economics, test_registry):
     # Wait until the bidding window closes...
     testerchain.time_travel(seconds=token_economics.bidding_duration+1)
@@ -85,6 +88,7 @@ def test_cancel_bid(testerchain, agency, token_economics, test_registry):
         _receipt = bidder.cancel_bid()
 
 
+@pytest.mark.skip()
 def test_get_remaining_work(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -95,6 +99,7 @@ def test_get_remaining_work(testerchain, agency, token_economics, test_registry)
     assert remaining
 
 
+@pytest.mark.skip()
 def test_verify_correctness_before_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -116,6 +121,7 @@ def test_verify_correctness_before_refund(testerchain, agency, token_economics, 
     assert not worklock_agent.is_claiming_available()
 
 
+@pytest.mark.skip()
 def test_force_refund(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -150,6 +156,7 @@ def test_force_refund(testerchain, agency, token_economics, test_registry):
         assert bonus == contract_bid - min_bid
 
 
+@pytest.mark.skip()
 def test_verify_correctness(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[0]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -169,6 +176,7 @@ def test_verify_correctness(testerchain, agency, token_economics, test_registry)
         assert receipt['status'] == 1
 
 
+@pytest.mark.skip()
 def test_withdraw_compensation(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[12]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))
@@ -183,6 +191,7 @@ def test_withdraw_compensation(testerchain, agency, token_economics, test_regist
     assert worklock_agent.get_available_compensation(checksum_address=bidder_address) == 0
 
 
+@pytest.mark.skip()
 def test_claim(testerchain, agency, token_economics, test_registry):
     bidder_address = testerchain.client.accounts[11]
     tpower = TransactingPower(account=bidder_address, signer=Web3Signer(testerchain.client))

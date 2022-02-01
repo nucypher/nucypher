@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, NucypherTokenAgent
@@ -22,6 +22,7 @@ from nucypher.blockchain.eth.token import NU, Stake
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
+@pytest.mark.skip()
 def test_stake(testerchain, token_economics, agency, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
@@ -51,6 +52,7 @@ def test_stake(testerchain, token_economics, agency, test_registry):
     assert isinstance(slang_remaining, str)
 
 
+@pytest.mark.skip()
 def test_stake_equality(token_economics, get_random_checksum_address, mocker):
     address = get_random_checksum_address()
     a_different_address = get_random_checksum_address()
@@ -97,6 +99,7 @@ def test_stake_equality(token_economics, get_random_checksum_address, mocker):
     assert stake != another_different_stake
 
 
+@pytest.mark.skip()
 def test_stake_integration(stakers):
     staker = list(stakers)[1]
     stakes = staker.stakes

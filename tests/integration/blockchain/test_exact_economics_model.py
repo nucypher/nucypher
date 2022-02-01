@@ -22,6 +22,8 @@ from math import log
 from nucypher.blockchain.economics import LOG2, StandardTokenEconomics
 
 
+
+@pytest.mark.skip("remove me")
 def test_exact_economics():
     """
     Formula for staking in one period:
