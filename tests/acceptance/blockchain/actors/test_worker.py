@@ -42,11 +42,11 @@ def test_worker_auto_commitments(mocker,
                                  test_registry,
                                  staker,
                                  agency,
-                                 token_economics,
+                                 application_economics,
                                  ursula_decentralized_test_config):
 
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
-                            lock_periods=int(token_economics.minimum_locked_periods))
+    staker.initialize_stake(amount=NU(application_economics.min_authorization, 'NuNit'),
+                            lock_periods=int(application_economics.min_operator_seconds))
 
     # Get an unused address and create a new worker
     worker_address = testerchain.unassigned_accounts[-1]

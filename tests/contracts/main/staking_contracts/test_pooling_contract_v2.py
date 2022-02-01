@@ -49,7 +49,7 @@ def pooling_contract_interface(testerchain, staking_interface, pooling_contract)
         ContractFactoryClass=Contract)
 
 
-def test_staking(testerchain, token_economics, token, escrow, pooling_contract, pooling_contract_interface):
+def test_staking(testerchain, application_economics, token, escrow, pooling_contract, pooling_contract_interface):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
     worker_owner = testerchain.client.accounts[2]
@@ -72,7 +72,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
 
     # Give some tokens to delegators
     for index, delegator in enumerate(delegators):
-        tokens = token_economics.minimum_allowed_locked // (index + 1) * 2
+        tokens = application_economics.min_authorization // (index + 1) * 2
         tx = token.functions.transfer(delegator, tokens).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
 
@@ -159,7 +159,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert not pooling_contract.functions.isWithdrawAllAllowed().call()
 
     # Can't deposit after stake was created
-    tokens = token_economics.minimum_allowed_locked
+    tokens = application_economics.min_authorization
     tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     with pytest.raises((TransactionFailed, ValueError)):
@@ -170,7 +170,7 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
 
     # Give some tokens as a reward
     assert pooling_contract.functions.getAvailableReward().call() == 0
-    reward = token_economics.minimum_allowed_locked
+    reward = application_economics.min_authorization
     tx = token.functions.approve(escrow.address, reward).transact()
     testerchain.wait_for_receipt(tx)
     tx = escrow.functions.deposit(pooling_contract.address, reward).transact()
@@ -476,14 +476,14 @@ def test_staking(testerchain, token_economics, token, escrow, pooling_contract, 
     assert pooling_contract.functions.isDepositAllowed().call()
     assert pooling_contract.functions.isWithdrawAllAllowed().call()
     delegator = delegators[0]
-    tokens = token_economics.minimum_allowed_locked
+    tokens = application_economics.min_authorization
     tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = pooling_contract.functions.depositTokens(tokens).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
 
 
-def test_fee(testerchain, token_economics, token, policy_manager, pooling_contract, pooling_contract_interface):
+def test_fee(testerchain, application_economics, token, policy_manager, pooling_contract, pooling_contract_interface):
     creator = testerchain.client.accounts[0]
     owner = testerchain.client.accounts[1]
     delegators = testerchain.client.accounts[2:5]
@@ -496,7 +496,7 @@ def test_fee(testerchain, token_economics, token, policy_manager, pooling_contra
 
     # Give some tokens to delegators and deposit them
     for index, delegator in enumerate(delegators):
-        tokens = token_economics.minimum_allowed_locked // (index + 1)
+        tokens = application_economics.min_authorization // (index + 1)
         tx = token.functions.transfer(delegator, tokens).transact({'from': creator})
         testerchain.wait_for_receipt(tx)
         tx = token.functions.approve(pooling_contract.address, tokens).transact({'from': delegator})

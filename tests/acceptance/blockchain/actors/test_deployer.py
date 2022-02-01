@@ -33,7 +33,7 @@ from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
 
 @pytest.mark.skip()
 @pytest.mark.usefixtures('testerchain')
-def test_rapid_deployment(token_economics, test_registry, temp_dir_path, get_random_checksum_address):
+def test_rapid_deployment(application_economics, test_registry, temp_dir_path, get_random_checksum_address):
 
     blockchain = _TesterBlockchain(eth_airdrop=False, test_accounts=4)
 
@@ -49,23 +49,23 @@ def test_rapid_deployment(token_economics, test_registry, temp_dir_path, get_ran
 
     # Start with some hard-coded cases...
     allocation_data = [{'checksum_address': all_yall[1],
-                        'amount': token_economics.maximum_allowed_locked,
-                        'lock_periods': token_economics.minimum_locked_periods},
+                        'amount': application_economics.maximum_allowed_locked,
+                        'lock_periods': application_economics.min_operator_seconds},
 
                        {'checksum_address': all_yall[2],
-                        'amount': token_economics.minimum_allowed_locked,
-                        'lock_periods': token_economics.minimum_locked_periods},
+                        'amount': application_economics.min_authorization,
+                        'lock_periods': application_economics.min_operator_seconds},
 
                        {'checksum_address': all_yall[3],
-                        'amount': token_economics.minimum_allowed_locked*100,
-                        'lock_periods': token_economics.minimum_locked_periods},
+                        'amount': application_economics.min_authorization * 100,
+                        'lock_periods': application_economics.min_operator_seconds},
                        ]
 
     # Pile on the rest
     for _ in range(NUMBER_OF_ALLOCATIONS_IN_TESTS - len(allocation_data)):
         checksum_address = get_random_checksum_address()
-        amount = random.randint(token_economics.minimum_allowed_locked, token_economics.maximum_allowed_locked)
-        duration = random.randint(token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods)
+        amount = random.randint(application_economics.min_authorization, application_economics.maximum_allowed_locked)
+        duration = random.randint(application_economics.min_operator_seconds, application_economics.maximum_rewarded_periods)
         random_allocation = {'checksum_address': checksum_address, 'amount': amount, 'lock_periods': duration}
         allocation_data.append(random_allocation)
 

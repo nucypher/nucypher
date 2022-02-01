@@ -66,7 +66,7 @@ def test_software_stakeholder_configuration(testerchain,
 def test_initialize_stake_with_existing_account(testerchain,
                                                 software_stakeholder,
                                                 stake_value,
-                                                token_economics,
+                                                application_economics,
                                                 test_registry):
 
     assert len(software_stakeholder.staker.stakes) == 0
@@ -83,7 +83,7 @@ def test_initialize_stake_with_existing_account(testerchain,
     # sending tokens and ethers from the funding account
     # to the staker's account, then initializing a new stake.
     software_stakeholder.staker.initialize_stake(amount=stake_value,
-                                                 lock_periods=token_economics.minimum_locked_periods)
+                                                 lock_periods=application_economics.min_operator_seconds)
     stake = software_stakeholder.staker.stakes[0]
 
     # Wait for stake to begin
@@ -94,17 +94,17 @@ def test_initialize_stake_with_existing_account(testerchain,
 
     # Ensure common stake perspective between stakeholder and stake
     assert stake.value == stake_value
-    assert stake.duration == token_economics.minimum_locked_periods
+    assert stake.duration == application_economics.min_operator_seconds
 
     stakes = list(staking_agent.get_all_stakes(staker_address=stake.staker_address))
     assert len(stakes) == 1
 
 
 @pytest.mark.skip()
-def test_divide_stake(software_stakeholder, token_economics, test_registry):
+def test_divide_stake(software_stakeholder, application_economics, test_registry):
     stake = software_stakeholder.staker.stakes[0]
 
-    target_value = token_economics.minimum_allowed_locked
+    target_value = application_economics.min_authorization
     pre_divide_stake_value = stake.value
 
     software_stakeholder.staker.divide_stake(stake=stake, additional_periods=10, target_value=target_value)

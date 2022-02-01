@@ -255,13 +255,13 @@ def federated_treasure_map(enacted_federated_policy, federated_bob):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
+def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
     """
     Creates a Policy, in a manner typical of how Alice might do it, with a unique label
     """
     random_label = generate_random_label()
-    periods = token_economics.minimum_locked_periods // 2
-    days = periods * (token_economics.hours_per_period // 24)
+    periods = application_economics.min_operator_seconds // 2
+    days = periods * (application_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days - 1)
     shares = 3
@@ -301,10 +301,10 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
 
 
 @pytest.fixture(scope="function")
-def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
+def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
     random_label = generate_random_label()
-    periods = token_economics.minimum_locked_periods // 2
-    days = periods * (token_economics.hours_per_period // 24)
+    periods = application_economics.min_operator_seconds // 2
+    days = periods * (application_economics.hours_per_period // 24)
     now = testerchain.w3.eth.getBlock('latest').timestamp
     expiration = maya.MayaDT(now).add(days=days - 1)
     shares = 3
@@ -491,34 +491,11 @@ def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
 # Blockchain
 #
 
-def make_token_economics(blockchain):
-    # Get current blocktime
-    now = blockchain.w3.eth.getBlock('latest').timestamp
-
-    # Calculate instant start time
-    one_hour_in_seconds = (60 * 60)
-    start_date = now
-    bidding_start_date = start_date
-
-    # Ends in one hour
-    bidding_end_date = start_date + one_hour_in_seconds
-    cancellation_end_date = bidding_end_date + one_hour_in_seconds
-
-    economics = StandardTokenEconomics(
-        worklock_boosting_refund_rate=200,
-        worklock_commitment_duration=60,  # genesis periods
-        worklock_supply=10 * BaseEconomics._default_maximum_allowed_locked,
-        bidding_start_date=bidding_start_date,
-        bidding_end_date=bidding_end_date,
-        cancellation_end_date=cancellation_end_date,
-        worklock_min_allowed_bid=Web3.toWei(1, "ether")
-    )
-    return economics
-
 
 @pytest.fixture(scope='module')
-def token_economics(testerchain):
-    return make_token_economics(blockchain=testerchain)
+def application_economics():
+    economics = Economics()
+    return economics
 
 
 @pytest.fixture(scope='module')
@@ -766,8 +743,8 @@ def idle_staker(testerchain, agency, test_registry):
 
 
 @pytest.fixture(scope='module')
-def stake_value(token_economics):
-    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
+def stake_value(application_economics):
+    value = NU(application_economics.min_authorization * 2, 'NuNit')
     return value
 
 
@@ -778,13 +755,13 @@ def policy_rate():
 
 
 @pytest.fixture(scope='module')
-def policy_value(token_economics, policy_rate):
-    value = policy_rate * token_economics.minimum_locked_periods
+def policy_value(application_economics, policy_rate):
+    value = policy_rate * application_economics.min_operator_seconds
     return value
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, agency, token_economics, test_registry):
+def funded_blockchain(testerchain, agency, application_economics, test_registry):
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
@@ -798,7 +775,7 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
     token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
                   transacting_power=transacting_power,
                   addresses=everyone_else,
-                  amount=token_economics.minimum_allowed_locked * 5)
+                  amount=application_economics.min_authorization * 5)
 
     # HERE YOU GO
     yield testerchain, deployer_address
@@ -1051,12 +1028,12 @@ def nominal_federated_configuration_fields():
 
 # TODO: Not used?
 @pytest.fixture(scope='module')
-def mock_allocation_infile(testerchain, token_economics, get_random_checksum_address):
+def mock_allocation_infile(testerchain, application_economics, get_random_checksum_address):
     accounts = [get_random_checksum_address() for _ in range(10)]
     # accounts = testerchain.unassigned_accounts
     allocation_data = list()
-    amount = 2 * token_economics.minimum_allowed_locked
-    min_periods = token_economics.minimum_locked_periods
+    amount = 2 * application_economics.min_authorization
+    min_periods = application_economics.min_operator_seconds
     for account in accounts:
         substake = [{'checksum_address': account, 'amount': amount, 'lock_periods': min_periods + i} for i in range(24)]
         allocation_data.extend(substake)

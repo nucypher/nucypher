@@ -520,7 +520,7 @@ def create(general_config: GroupGeneralConfig,
             click.confirm(CONFIRM_STAKE_USE_UNLOCKED, abort=True)
 
         token_balance = STAKEHOLDER.staker.calculate_staking_reward() if from_unlocked else STAKEHOLDER.staker.token_balance
-        lower_limit = NU.from_units(economics.minimum_allowed_locked)
+        lower_limit = NU.from_units(economics.min_authorization)
         locked_tokens = STAKEHOLDER.staker.locked_tokens(periods=1).to_units()
         upper_limit = min(token_balance, NU.from_units(economics.maximum_allowed_locked - locked_tokens))
 
@@ -537,7 +537,7 @@ def create(general_config: GroupGeneralConfig,
     value = NU.from_tokens(value)
 
     if not lock_periods:
-        min_locktime = economics.minimum_locked_periods
+        min_locktime = economics.min_operator_seconds
         default_locktime = economics.maximum_rewarded_periods
         max_locktime = MAX_UINT16 - STAKEHOLDER.staker.staking_agent.get_current_period()
         lock_periods = click.prompt(PROMPT_STAKE_CREATE_LOCK_PERIODS.format(min_locktime=min_locktime,
@@ -872,7 +872,7 @@ def divide(general_config: GroupGeneralConfig,
 
     # Value
     if not value:
-        min_allowed_locked = NU.from_units(economics.minimum_allowed_locked)
+        min_allowed_locked = NU.from_units(economics.min_authorization)
         max_divide_value = max(min_allowed_locked, current_stake.value - min_allowed_locked)
         prompt = PROMPT_STAKE_DIVIDE_VALUE.format(minimum=min_allowed_locked, maximum=str(max_divide_value))
         value = click.prompt(prompt, type=stake_value_range)
@@ -960,7 +960,7 @@ def prolong(general_config: GroupGeneralConfig,
     if not lock_periods:
         max_extension = MAX_UINT16 - current_stake.final_locked_period
         # +1 because current period excluded
-        min_extension = economics.minimum_locked_periods - current_stake.periods_remaining + 1
+        min_extension = economics.min_operator_seconds - current_stake.periods_remaining + 1
         if min_extension < 1:
             min_extension = 1
         duration_extension_range = click.IntRange(min=min_extension, max=max_extension, clamp=False)

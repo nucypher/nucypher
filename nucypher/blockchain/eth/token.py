@@ -242,7 +242,7 @@ class Stake:
 
         # Economics
         self.economics = economics
-        self.minimum_nu = NU(int(self.economics.minimum_allowed_locked), NU._unit_name)
+        self.minimum_nu = NU(int(self.economics.min_authorization), NU._unit_name)
         self.maximum_nu = NU(int(self.economics.maximum_allowed_locked), NU._unit_name)
 
         # Time
@@ -318,7 +318,7 @@ class Stake:
                 self._status = Stake.Status.UNLOCKED
         elif self.final_locked_period == current_period:
             self._status = Stake.Status.LOCKED
-        elif self.value < 2 * self.economics.minimum_allowed_locked:
+        elif self.value < 2 * self.economics.min_authorization:
             self._status = Stake.Status.EDITABLE
         else:
             self._status = Stake.Status.DIVISIBLE
@@ -470,10 +470,10 @@ def validate_value(stake: Stake) -> None:
 
 def validate_duration(stake: Stake) -> None:
     """Validate a single staking lock-time against pre-defined requirements"""
-    if stake.economics.minimum_locked_periods > stake.duration:
+    if stake.economics.min_operator_seconds > stake.duration:
         raise Stake.StakingError(
             'Stake duration of {duration} periods is too short; must be at least {minimum} periods.'
-            .format(minimum=stake.economics.minimum_locked_periods, duration=stake.duration))
+            .format(minimum=stake.economics.min_operator_seconds, duration=stake.duration))
 
 
 def validate_divide(stake: Stake, target_value: NU, additional_periods: int = None) -> None:
@@ -541,10 +541,10 @@ def validate_prolong(stake: Stake, additional_periods: int) -> None:
         raise Stake.StakingError(f'Cannot prolong a non-editable stake. '
                                  f'Selected stake expired {stake.unlock_datetime}.')
     new_duration = stake.periods_remaining + additional_periods - 1
-    if new_duration < stake.economics.minimum_locked_periods:
+    if new_duration < stake.economics.min_operator_seconds:
         raise stake.StakingError(f'Sub-stake duration of {new_duration} periods after prolongation '
                                  f'is shorter than minimum allowed duration '
-                                 f'of {stake.economics.minimum_locked_periods} periods.')
+                                 f'of {stake.economics.min_operator_seconds} periods.')
 
 
 def validate_merge(stake_1: Stake, stake_2: Stake) -> None:

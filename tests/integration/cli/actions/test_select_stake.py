@@ -46,53 +46,53 @@ def empty_sub_stakes(_current_period, _token_economics) -> List[SubStakeInfo]:
 def inactive_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
     stakes = [SubStakeInfo(first_period=1,
                            last_period=current_period - 2,
-                           locked_value=token_economics.minimum_allowed_locked),
+                           locked_value=token_economics.min_authorization),
               SubStakeInfo(first_period=current_period - 4,
                            last_period=current_period - 3,
-                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
+                           locked_value=2 * token_economics.min_authorization + 1)]
     return stakes
 
 
 def unlocked_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
     stakes = [SubStakeInfo(first_period=1,
                            last_period=current_period - 1,
-                           locked_value=token_economics.minimum_allowed_locked),
+                           locked_value=token_economics.min_authorization),
               SubStakeInfo(first_period=current_period - 3,
                            last_period=current_period - 1,
-                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
+                           locked_value=2 * token_economics.min_authorization + 1)]
     return stakes
 
 
 def not_editable_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
     stakes = [SubStakeInfo(first_period=1,
                            last_period=current_period,
-                           locked_value=token_economics.minimum_allowed_locked),
+                           locked_value=token_economics.min_authorization),
               SubStakeInfo(first_period=current_period - 3,
                            last_period=current_period,
-                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
+                           locked_value=2 * token_economics.min_authorization + 1)]
     return stakes
 
 
 def non_divisible_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
     stakes = [SubStakeInfo(first_period=1,
                            last_period=current_period + 1,
-                           locked_value=token_economics.minimum_allowed_locked),
+                           locked_value=token_economics.min_authorization),
               SubStakeInfo(first_period=current_period - 3,
                            last_period=current_period + 2,
-                           locked_value=2 * token_economics.minimum_allowed_locked - 1),
+                           locked_value=2 * token_economics.min_authorization - 1),
               SubStakeInfo(first_period=current_period - 1,
                            last_period=current_period + 2,
-                           locked_value=token_economics.minimum_allowed_locked + 1)]
+                           locked_value=token_economics.min_authorization + 1)]
     return stakes
 
 
 def divisible_sub_stakes(current_period, token_economics) -> List[SubStakeInfo]:
     stakes = [SubStakeInfo(first_period=1,
                            last_period=current_period + 1,
-                           locked_value=2 * token_economics.minimum_allowed_locked),
+                           locked_value=2 * token_economics.min_authorization),
               SubStakeInfo(first_period=current_period - 3,
                            last_period=current_period + 2,
-                           locked_value=2 * token_economics.minimum_allowed_locked + 1)]
+                           locked_value=2 * token_economics.min_authorization + 1)]
     return stakes
 
 
@@ -147,9 +147,9 @@ def test_handle_selection_with_with_no_editable_stakes(test_emitter,
                                                        mock_stdin,  # used to assert user hasn't been prompted
                                                        capsys,
                                                        current_period,
-                                                       token_economics,
+                                                       application_economics,
                                                        sub_stakes_functions):
-    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+    mock_stakes = make_sub_stakes(current_period, application_economics, sub_stakes_functions)
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
@@ -185,9 +185,9 @@ def test_select_editable_stake(test_emitter,
                                mock_stdin,  # used to assert user hasn't been prompted
                                capsys,
                                current_period,
-                               token_economics,
+                               application_economics,
                                sub_stakes_functions):
-    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+    mock_stakes = make_sub_stakes(current_period, application_economics, sub_stakes_functions)
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
@@ -195,10 +195,10 @@ def test_select_editable_stake(test_emitter,
 
     selection = len(mock_stakes) - 1
     expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
-                                           staking_agent=mock_staking_agent,   # stakinator
+                                           staking_agent=mock_staking_agent,  # stakinator
                                            index=selection,
                                            checksum_address=stakeholder.checksum_address,
-                                           economics=token_economics)
+                                           economics=application_economics)
 
     # User's selection
     mock_stdin.line(str(selection))
@@ -224,10 +224,10 @@ def test_handle_selection_with_no_divisible_stakes(test_emitter,
                                                    mock_stdin,  # used to assert user hasn't been prompted
                                                    capsys,
                                                    current_period,
-                                                   token_economics):
+                                                   application_economics):
 
     # Setup
-    mock_stakes = make_sub_stakes(current_period, token_economics, [non_divisible_sub_stakes])
+    mock_stakes = make_sub_stakes(current_period, application_economics, [non_divisible_sub_stakes])
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
@@ -262,10 +262,10 @@ def test_select_divisible_stake(test_emitter,
                                 mock_stdin,  # used to assert user hasn't been prompted
                                 capsys,
                                 current_period,
-                                token_economics,
+                                application_economics,
                                 sub_stakes_functions):
     # Setup
-    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+    mock_stakes = make_sub_stakes(current_period, application_economics, sub_stakes_functions)
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
@@ -273,10 +273,10 @@ def test_select_divisible_stake(test_emitter,
 
     selection = len(mock_stakes) - 1
     expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
-                                           staking_agent=mock_staking_agent,   # stakinator
+                                           staking_agent=mock_staking_agent,  # stakinator
                                            index=selection,
                                            checksum_address=stakeholder.checksum_address,
-                                           economics=token_economics)
+                                           economics=application_economics)
 
     # SUCCESS: Display all divisible-only stakes and make a selection
     mock_stdin.line(str(selection))
@@ -309,10 +309,10 @@ def test_select_using_filter_function(test_emitter,
                                       mock_stdin,  # used to assert user hasn't been prompted
                                       capsys,
                                       current_period,
-                                      token_economics,
+                                      application_economics,
                                       sub_stakes_functions):
     # Setup
-    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+    mock_stakes = make_sub_stakes(current_period, application_economics, sub_stakes_functions)
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]
@@ -320,10 +320,10 @@ def test_select_using_filter_function(test_emitter,
 
     selection = len(mock_stakes) - 1
     expected_stake = Stake.from_stake_info(stake_info=mock_stakes[selection],
-                                           staking_agent=mock_staking_agent,   # stakinator
+                                           staking_agent=mock_staking_agent,  # stakinator
                                            index=selection,
                                            checksum_address=stakeholder.checksum_address,
-                                           economics=token_economics)
+                                           economics=application_economics)
 
     # SUCCESS: Display all editable-only stakes with specified final period
     mock_stdin.line(str(selection))
@@ -357,10 +357,10 @@ def test_no_stakes_with_filter_function(test_emitter,
                                         mock_stdin,  # used to assert user hasn't been prompted
                                         capsys,
                                         current_period,
-                                        token_economics,
+                                        application_economics,
                                         sub_stakes_functions):
     # Setup
-    mock_stakes = make_sub_stakes(current_period, token_economics, sub_stakes_functions)
+    mock_stakes = make_sub_stakes(current_period, application_economics, sub_stakes_functions)
 
     mock_staking_agent.get_all_stakes.return_value = mock_stakes
     staker = mock_testerchain.unassigned_accounts[0]

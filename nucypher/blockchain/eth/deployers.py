@@ -26,10 +26,9 @@ from constant_sorrow.constants import (
     INIT
 )
 from eth_typing.evm import ChecksumAddress
-from typing import Dict, List, Tuple
 from web3.contract import Contract
 
-from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
@@ -49,7 +48,6 @@ from nucypher.blockchain.eth.interfaces import (
     VersionedContract,
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.token import TToken
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -73,7 +71,7 @@ class BaseContractDeployer:
     class ContractNotDeployed(ContractDeploymentError):
         pass
 
-    def __init__(self, registry: BaseContractRegistry, economics: BaseEconomics = None):
+    def __init__(self, registry: BaseContractRegistry, economics: Economics = None):
 
         # Validate
         self.blockchain = BlockchainInterfaceFactory.get_interface()
@@ -85,10 +83,10 @@ class BaseContractDeployer:
         self.deployment_receipts = OrderedDict()
         self._contract = CONTRACT_NOT_DEPLOYED
         self.__proxy_contract = NotImplemented
-        self.__economics = economics or StandardTokenEconomics()
+        self.__economics = economics or Economics()
 
     @property
-    def economics(self) -> BaseEconomics:
+    def economics(self) -> Economics:
         """Read-only access for economics instance."""
         return self.__economics
 
@@ -572,7 +570,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                      confirmations: int = 0,
                      **overrides):
         constructor_kwargs = {
-            "_minAllowableLockedTokens": self.economics.minimum_allowed_locked,
+            "_minAllowableLockedTokens": self.economics.min_authorization,
             "_maxAllowableLockedTokens": self.economics.maximum_allowed_locked
         }
         constructor_kwargs.update(overrides)

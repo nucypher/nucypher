@@ -55,7 +55,7 @@ def bids(testerchain):
 
 
 @pytest.mark.skip()
-def test_status(click_runner, testerchain, agency_local_registry, token_economics):
+def test_status(click_runner, testerchain, agency_local_registry, application_economics):
     command = ('status',
                '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                '--provider', TEST_PROVIDER_URI,
@@ -64,12 +64,12 @@ def test_status(click_runner, testerchain, agency_local_registry, token_economic
     result = click_runner.invoke(worklock, command, catch_exceptions=False)
 
     assert result.exit_code == 0
-    assert str(NU.from_units(token_economics.worklock_supply)) in result.output
-    assert str(Web3.fromWei(token_economics.worklock_min_allowed_bid, 'ether')) in result.output
+    assert str(NU.from_units(application_economics.worklock_supply)) in result.output
+    assert str(Web3.fromWei(application_economics.worklock_min_allowed_bid, 'ether')) in result.output
 
 
 @pytest.mark.skip()
-def test_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
+def test_bid(click_runner, testerchain, agency_local_registry, application_economics, bids):
 
     # Wait until biding window starts
     testerchain.time_travel(seconds=90)
@@ -102,7 +102,7 @@ def test_bid(click_runner, testerchain, agency_local_registry, token_economics, 
 
 
 @pytest.mark.skip()
-def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_economics, bids):
+def test_cancel_bid(click_runner, testerchain, agency_local_registry, application_economics, bids):
 
     bidders = list(bids.keys())
 
@@ -123,7 +123,7 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
     assert not agent.get_deposited_eth(bidder)    # No more bid
 
     # Wait until the end of the bidding period
-    testerchain.time_travel(seconds=token_economics.bidding_duration + 2)
+    testerchain.time_travel(seconds=application_economics.bidding_duration + 2)
 
     bidder = bidders[-2]
     command = ('cancel-escrow',
@@ -141,10 +141,10 @@ def test_cancel_bid(click_runner, testerchain, agency_local_registry, token_econ
 
 
 @pytest.mark.skip()
-def test_enable_claiming(click_runner, testerchain, agency_local_registry, token_economics):
+def test_enable_claiming(click_runner, testerchain, agency_local_registry, application_economics):
 
     # Wait until the end of the cancellation period
-    testerchain.time_travel(seconds=token_economics.cancellation_window_duration+2)
+    testerchain.time_travel(seconds=application_economics.cancellation_window_duration + 2)
 
     bidder = testerchain.client.accounts[0]
     agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
@@ -168,7 +168,7 @@ def test_enable_claiming(click_runner, testerchain, agency_local_registry, token
 
 
 @pytest.mark.skip()
-def test_claim(click_runner, testerchain, agency_local_registry, token_economics):
+def test_claim(click_runner, testerchain, agency_local_registry, application_economics):
     agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
 
     bidder = testerchain.client.accounts[2]
@@ -203,7 +203,7 @@ def test_claim(click_runner, testerchain, agency_local_registry, token_economics
 
 
 @pytest.mark.skip()
-def test_remaining_work(click_runner, testerchain, agency_local_registry, token_economics):
+def test_remaining_work(click_runner, testerchain, agency_local_registry, application_economics):
     bidder = testerchain.client.accounts[2]
 
     # Ensure there is remaining work one layer below
@@ -226,13 +226,14 @@ def test_remaining_work(click_runner, testerchain, agency_local_registry, token_
     assert str(remaining_work) in result.output
 
 
-def test_refund(click_runner, testerchain, agency_local_registry, token_economics):
+@pytest.mark.skip()
+def test_refund(click_runner, testerchain, agency_local_registry, application_economics):
 
     bidder = testerchain.client.accounts[2]
-    worker_address = testerchain.unassigned_accounts[-1]
+    operator_address = testerchain.unassigned_accounts[-1]
 
     #
-    # WorkLock Staker-Worker
+    # WorkLock Staker-Operator
     #
 
     worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=agency_local_registry)
@@ -287,7 +288,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, token_economic
 
 
 @pytest.mark.skip()
-def test_participant_status(click_runner, testerchain, agency_local_registry, token_economics):
+def test_participant_status(click_runner, testerchain, agency_local_registry, application_economics):
 
     tpower = TransactingPower(account=testerchain.client.accounts[2],
                               signer=Web3Signer(testerchain.client))
@@ -311,5 +312,5 @@ def test_participant_status(click_runner, testerchain, agency_local_registry, to
     assert str(bidder.available_refund) in result.output
 
     # Worklock economics are displayed
-    assert str(token_economics.worklock_boosting_refund_rate) in result.output
-    assert str(NU.from_units(token_economics.worklock_supply)) in result.output
+    assert str(application_economics.worklock_boosting_refund_rate) in result.output
+    assert str(NU.from_units(application_economics.worklock_supply)) in result.output

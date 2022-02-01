@@ -37,11 +37,11 @@ def test_unknown_contract(testerchain, test_registry):
 
 
 @pytest.mark.skip()
-def test_deposit_tokens(testerchain, agency, token_economics, test_registry):
+def test_deposit_tokens(testerchain, agency, application_economics, test_registry):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
-    locked_tokens = token_economics.minimum_allowed_locked * 5
+    locked_tokens = application_economics.min_authorization * 5
 
     staker_account = testerchain.unassigned_accounts[0]
 
@@ -51,7 +51,7 @@ def test_deposit_tokens(testerchain, agency, token_economics, test_registry):
     # The staker receives an initial amount of tokens
     tpower = TransactingPower(account=testerchain.etherbase_account,
                               signer=Web3Signer(testerchain.client))
-    _txhash = token_agent.transfer(amount=token_economics.minimum_allowed_locked * 10,
+    _txhash = token_agent.transfer(amount=application_economics.min_authorization * 10,
                                    target_address=staker_account,
                                    transacting_power=tpower)
 
@@ -61,12 +61,12 @@ def test_deposit_tokens(testerchain, agency, token_economics, test_registry):
     #
 
     staker_power = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
-    _receipt = token_agent.approve_transfer(amount=token_economics.minimum_allowed_locked * 10,  # Approve
+    _receipt = token_agent.approve_transfer(amount=application_economics.min_authorization * 10,  # Approve
                                             spender_address=staking_agent.contract_address,
                                             transacting_power=staker_power)
 
     receipt = staking_agent.deposit_tokens(amount=locked_tokens,
-                                           lock_periods=token_economics.minimum_locked_periods,
+                                           lock_periods=application_economics.min_operator_seconds,
                                            transacting_power=staker_power,
                                            staker_address=staker_account)
 
@@ -81,15 +81,15 @@ def test_deposit_tokens(testerchain, agency, token_economics, test_registry):
 
 
 @pytest.mark.skip()
-def test_locked_tokens(testerchain, agency, token_economics, test_registry):
+def test_locked_tokens(testerchain, agency, application_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
     locked_amount = staking_agent.get_locked_tokens(staker_address=staker_account)
-    assert token_economics.maximum_allowed_locked >= locked_amount >= token_economics.minimum_allowed_locked
+    assert application_economics.maximum_allowed_locked >= locked_amount >= application_economics.min_authorization
 
 
 @pytest.mark.skip()
-def test_get_all_stakes(testerchain, agency, token_economics, test_registry):
+def test_get_all_stakes(testerchain, agency, application_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
 
@@ -99,7 +99,7 @@ def test_get_all_stakes(testerchain, agency, token_economics, test_registry):
     assert len(stake_info) == 3
     start_period, end_period, value = stake_info
     assert end_period > start_period
-    assert token_economics.maximum_allowed_locked > value > token_economics.minimum_allowed_locked
+    assert application_economics.maximum_allowed_locked > value > application_economics.min_authorization
 
 
 @pytest.mark.skip()
@@ -202,18 +202,18 @@ def test_get_staker_info(agency, testerchain, test_registry):
 
 
 @pytest.mark.skip()
-def test_divide_stake(agency, testerchain, token_economics, test_registry):
+def test_divide_stake(agency, testerchain, application_economics, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     agent = staking_agent
     staker_account = testerchain.unassigned_accounts[0]
 
-    locked_tokens = token_economics.minimum_allowed_locked * 2
+    locked_tokens = application_economics.min_authorization * 2
 
     # Deposit
     tpower = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
     _txhash = agent.deposit_tokens(amount=locked_tokens,
-                                   lock_periods=token_economics.minimum_locked_periods,
+                                   lock_periods=application_economics.min_operator_seconds,
                                    transacting_power=tpower,
                                    staker_address=staker_account)
 
@@ -223,7 +223,7 @@ def test_divide_stake(agency, testerchain, token_economics, test_registry):
 
     receipt = agent.divide_stake(transacting_power=tpower,
                                  stake_index=1,
-                                 target_value=token_economics.minimum_allowed_locked,
+                                 target_value=application_economics.min_authorization,
                                  periods=1)
 
     assert receipt['status'] == 1, "Transaction Rejected"
@@ -231,9 +231,9 @@ def test_divide_stake(agency, testerchain, token_economics, test_registry):
 
     stakes = list(agent.get_all_stakes(staker_address=staker_account))
     assert len(stakes) == stakes_length + 1
-    assert stakes[-2].locked_value == origin_stake.locked_value - token_economics.minimum_allowed_locked
+    assert stakes[-2].locked_value == origin_stake.locked_value - application_economics.min_authorization
     assert stakes[-2].last_period == origin_stake.last_period
-    assert stakes[-1].locked_value == token_economics.minimum_allowed_locked
+    assert stakes[-1].locked_value == application_economics.min_authorization
     assert stakes[-1].last_period == origin_stake.last_period + 1
 
 
@@ -256,7 +256,7 @@ def test_prolong_stake(agency, testerchain, test_registry):
 
 
 @pytest.mark.skip()
-def test_deposit_and_increase(agency, testerchain, test_registry, token_economics):
+def test_deposit_and_increase(agency, testerchain, test_registry, application_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
 
@@ -264,7 +264,7 @@ def test_deposit_and_increase(agency, testerchain, test_registry, token_economic
     original_stake = stakes[0]
     locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
 
-    amount = token_economics.minimum_allowed_locked // 2
+    amount = application_economics.min_authorization // 2
     tpower = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
     receipt = staking_agent.deposit_and_increase(transacting_power=tpower,
                                                  stake_index=0,
@@ -319,10 +319,10 @@ def test_collect_staking_reward(agency, testerchain, test_registry):
 
 
 @pytest.mark.skip()
-def test_winding_down(agency, testerchain, test_registry, token_economics):
+def test_winding_down(agency, testerchain, test_registry, application_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
-    duration = token_economics.minimum_locked_periods + 1
+    duration = application_economics.min_operator_seconds + 1
     worker_power = TransactingPower(account=worker_account, signer=Web3Signer(testerchain.client))
 
     def check_last_period():
@@ -358,7 +358,7 @@ def test_winding_down(agency, testerchain, test_registry, token_economics):
 
 
 @pytest.mark.skip()
-def test_lock_and_create(agency, testerchain, test_registry, token_economics):
+def test_lock_and_create(agency, testerchain, test_registry, application_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
     staker_power = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
@@ -368,9 +368,9 @@ def test_lock_and_create(agency, testerchain, test_registry, token_economics):
     current_locked_tokens = staking_agent.get_locked_tokens(staker_account, 0)
     next_locked_tokens = staking_agent.get_locked_tokens(staker_account, 1)
 
-    amount = token_economics.minimum_allowed_locked
+    amount = application_economics.min_authorization
     receipt = staking_agent.lock_and_create(transacting_power=staker_power,
-                                            lock_periods=token_economics.minimum_locked_periods,
+                                            lock_periods=application_economics.min_operator_seconds,
                                             amount=amount)
     assert receipt['status'] == 1
 
@@ -379,7 +379,7 @@ def test_lock_and_create(agency, testerchain, test_registry, token_economics):
     assert len(stakes) == stakes_length + 1
     new_stake = stakes[-1]
     current_period = staking_agent.get_current_period()
-    assert new_stake.last_period == current_period + token_economics.minimum_locked_periods
+    assert new_stake.last_period == current_period + application_economics.min_operator_seconds
     assert new_stake.first_period == current_period + 1
     assert new_stake.locked_value == amount
     assert staking_agent.get_locked_tokens(staker_account, 1) == next_locked_tokens + amount
@@ -387,7 +387,7 @@ def test_lock_and_create(agency, testerchain, test_registry, token_economics):
 
 
 @pytest.mark.skip()
-def test_lock_and_increase(agency, testerchain, test_registry, token_economics):
+def test_lock_and_increase(agency, testerchain, test_registry, application_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account, worker_account, *other = testerchain.unassigned_accounts
     staker_power = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
@@ -412,7 +412,7 @@ def test_lock_and_increase(agency, testerchain, test_registry, token_economics):
 
 
 @pytest.mark.skip()
-def test_merge(agency, testerchain, test_registry, token_economics):
+def test_merge(agency, testerchain, test_registry, application_economics):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     staker_account = testerchain.unassigned_accounts[0]
     staker_power = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))

@@ -24,11 +24,11 @@ from eth_utils import to_checksum_address
 CONFIRMATION_SLOT = 1
 
 
-def test_bond_operator(testerchain, threshold_staking, pre_application, token_economics):
+def test_bond_operator(testerchain, threshold_staking, pre_application, application_economics):
     creator, staking_provider_1, staking_provider_2, staking_provider_3, staking_provider_4, \
     operator1, operator2, operator3, owner3, beneficiary, authorizer, *everyone_else = \
         testerchain.client.accounts
-    min_authorization = token_economics.minimum_allowed_locked
+    min_authorization = application_economics.min_authorization
     min_operator_seconds = 24 * 60 * 60
 
     operator_log = pre_application.events.OperatorBonded.createFilter(fromBlock='latest')
@@ -332,9 +332,9 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, token_ec
     assert len(staking_providers) == 0
 
 
-def test_confirm_address(testerchain, threshold_staking, pre_application, token_economics, deploy_contract):
+def test_confirm_address(testerchain, threshold_staking, pre_application, application_economics, deploy_contract):
     creator, staking_provider, operator, *everyone_else = testerchain.client.accounts
-    min_authorization = token_economics.minimum_allowed_locked
+    min_authorization = application_economics.min_authorization
     min_operator_seconds = 24 * 60 * 60
 
     confirmations_log = pre_application.events.OperatorConfirmed.createFilter(fromBlock='latest')

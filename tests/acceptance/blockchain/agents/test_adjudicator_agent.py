@@ -51,7 +51,7 @@ def mock_ursula(testerchain, account, mocker):
 def test_adjudicator_slashes(agency,
                              testerchain,
                              #mock_ursula_reencrypts,
-                             token_economics,
+                             application_economics,
                              test_registry,
                              mocker):
 
@@ -63,7 +63,7 @@ def test_adjudicator_slashes(agency,
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
-    locked_tokens = token_economics.minimum_allowed_locked * 5
+    locked_tokens = application_economics.min_authorization * 5
 
     # The staker receives an initial amount of tokens
     tpower = TransactingPower(account=testerchain.etherbase_account, signer=Web3Signer(testerchain.client))
@@ -78,7 +78,7 @@ def test_adjudicator_slashes(agency,
                     transacting_power=tpower)
 
     staker.initialize_stake(amount=NU(locked_tokens, 'NuNit'),
-                            lock_periods=token_economics.minimum_locked_periods)
+                            lock_periods=application_economics.min_operator_seconds)
     assert staker.locked_tokens(periods=1) == locked_tokens
 
     # The staker hasn't bond a worker yet

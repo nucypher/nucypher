@@ -57,22 +57,22 @@ def test_token_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
-def test_get_balance(agent, token_economics):
+def test_get_balance(agent, application_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
-    assert balance == token_economics.erc20_total_supply
+    assert balance == application_economics.erc20_total_supply
 
 
-def test_approve_transfer(agent, token_economics):
+def test_approve_transfer(agent, application_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
     tpower = TransactingPower(account=someone, signer=Web3Signer(testerchain.client))
 
     # Approve
-    receipt = agent.approve_transfer(amount=token_economics.minimum_allowed_locked,
+    receipt = agent.approve_transfer(amount=application_economics.min_authorization,
                                      spender_address=agent.contract_address,
                                      transacting_power=tpower)
 
@@ -80,13 +80,13 @@ def test_approve_transfer(agent, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
-def test_transfer(agent, token_economics):
+def test_transfer(agent, application_economics):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.client.accounts
     tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
     old_balance = agent.get_balance(someone)
-    receipt = agent.transfer(amount=token_economics.minimum_allowed_locked,
+    receipt = agent.transfer(amount=application_economics.min_authorization,
                              target_address=someone,
                              transacting_power=tpower)
 
@@ -94,10 +94,10 @@ def test_transfer(agent, token_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     new_balance = agent.get_balance(someone)
-    assert new_balance == old_balance + token_economics.minimum_allowed_locked
+    assert new_balance == old_balance + application_economics.min_authorization
 
 
-def test_approve_and_call(agent, token_economics, deploy_contract):
+def test_approve_and_call(agent, application_economics, deploy_contract):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
 
@@ -106,7 +106,7 @@ def test_approve_and_call(agent, token_economics, deploy_contract):
     # Approve and call
     tpower = TransactingPower(account=someone, signer=Web3Signer(testerchain.client))
     call_data = b"Good morning, that's a nice tnetennba."
-    receipt = agent.approve_and_call(amount=token_economics.minimum_allowed_locked,
+    receipt = agent.approve_and_call(amount=application_economics.min_authorization,
                                      target_address=mock_target.address,
                                      transacting_power=tpower,
                                      call_data=call_data)
@@ -116,4 +116,4 @@ def test_approve_and_call(agent, token_economics, deploy_contract):
 
     assert mock_target.functions.extraData().call() == call_data
     assert mock_target.functions.sender().call() == someone
-    assert mock_target.functions.value().call() == token_economics.minimum_allowed_locked
+    assert mock_target.functions.value().call() == application_economics.min_authorization

@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 
 from constant_sorrow import constants
-from nucypher.blockchain.economics import EconomicsFactory, BaseEconomics
+from nucypher.blockchain.economics import EconomicsFactory, Economics
 from nucypher.blockchain.eth.agents import WorkLockAgent
 from nucypher.blockchain.eth.constants import WORKLOCK_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import WorklockDeployer
@@ -34,8 +34,8 @@ def baseline_deployment(staking_escrow_stub_deployer, transacting_power):
 def worklock_deployer(baseline_deployment,
                       testerchain,
                       test_registry,
-                      token_economics):
-    worklock_deployer = WorklockDeployer(registry=test_registry, economics=token_economics)
+                      application_economics):
+    worklock_deployer = WorklockDeployer(registry=test_registry, economics=application_economics)
     return worklock_deployer
 
 
@@ -77,16 +77,16 @@ def test_make_agent(worklock_deployer, test_registry):
     assert agent.contract_address == another_worklock_agent.contract_address
 
 
-def test_deployment_parameters(worklock_deployer, test_registry, token_economics):
+def test_deployment_parameters(worklock_deployer, test_registry, application_economics):
 
     # Ensure restoration of deployment parameters
     agent = worklock_deployer.make_agent()
     params = agent.worklock_parameters()
     supply, start, end, end_cancellation, boost, locktime, min_bid = params
-    assert token_economics.worklock_supply == supply
-    assert token_economics.bidding_start_date == start
-    assert token_economics.bidding_end_date == end
-    assert token_economics.cancellation_end_date == end_cancellation
-    assert token_economics.worklock_boosting_refund_rate == boost
-    assert token_economics.worklock_commitment_duration == locktime
-    assert token_economics.worklock_min_allowed_bid == min_bid
+    assert application_economics.worklock_supply == supply
+    assert application_economics.bidding_start_date == start
+    assert application_economics.bidding_end_date == end
+    assert application_economics.cancellation_end_date == end_cancellation
+    assert application_economics.worklock_boosting_refund_rate == boost
+    assert application_economics.worklock_commitment_duration == locktime
+    assert application_economics.worklock_min_allowed_bid == min_bid

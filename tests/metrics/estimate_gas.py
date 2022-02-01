@@ -37,7 +37,7 @@ from nucypher_core.umbral import SecretKey, Signer
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     NucypherTokenAgent,
@@ -53,8 +53,8 @@ from tests.utils.blockchain import TesterBlockchain
 
 
 ALGORITHM_SHA256 = 1
-TOKEN_ECONOMICS = StandardTokenEconomics()
-MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.minimum_allowed_locked
+TOKEN_ECONOMICS = Economics()
+MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.min_authorization
 LOCKED_PERIODS = 30
 MAX_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
 MAX_MINTING_PERIODS = TOKEN_ECONOMICS.maximum_rewarded_periods
@@ -160,7 +160,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     os.environ['GAS_ESTIMATOR_BACKEND_FUNC'] = 'eth.estimators.gas.binary_gas_search_exact'
 
     # Blockchain
-    economics = StandardTokenEconomics(
+    economics = Economics(
         base_penalty=MIN_ALLOWED_LOCKED - 1,
         penalty_history_coefficient=0,
         percentage_penalty_coefficient=2,
@@ -564,15 +564,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                                            *args,
                                            **kwargs)
 
-    token_economics = StandardTokenEconomics(genesis_hours_per_period=StandardTokenEconomics._default_hours_per_period,
-                                             hours_per_period=2 * StandardTokenEconomics._default_hours_per_period)
+    token_economics = Economics(genesis_hours_per_period=Economics._default_hours_per_period,
+                                             hours_per_period=2 * Economics._default_hours_per_period)
 
     token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
     # Deploy Adjudicator mock
     adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
 
     # Deploy old StakingEscrow contract
-    deploy_args = token_economics.staking_deployment_parameters
+    deploy_args = token_economics.pre_application_deployment_parameters
     deploy_args = (deploy_args[0], *deploy_args[2:])
     escrow_old_library, _ = deploy_contract(
         'StakingEscrowOld',
@@ -619,8 +619,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         testerchain.wait_for_receipt(tx)
 
     sub_stakes_1 = 2
-    duration = token_economics.minimum_locked_periods
-    stake_size = token_economics.minimum_allowed_locked
+    duration = token_economics.min_operator_seconds
+    stake_size = token_economics.min_authorization
     for staker in (staker1, staker3):
         for i in range(1, sub_stakes_1 + 1):
             tx = escrow.functions.deposit(staker, stake_size, duration * i).transact({'from': staker})
@@ -650,7 +650,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     ##########
     # Deploy new version of contracts
     ##########
-    deploy_args = token_economics.staking_deployment_parameters
+    deploy_args = token_economics.pre_application_deployment_parameters
     escrow_library, _ = deploy_contract(
         'StakingEscrow',
         token.address,

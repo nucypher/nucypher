@@ -31,18 +31,18 @@ from tests.utils.ursula import make_decentralized_ursulas
 
 
 @pytest.mark.skip()
-def test_staker_locking_tokens(testerchain, agency, staker, token_economics, test_registry):
+def test_staker_locking_tokens(testerchain, agency, staker, application_economics, test_registry):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
-    assert NU(token_economics.minimum_allowed_locked, 'NuNit') < staker.token_balance, "Insufficient staker balance"
+    assert NU(application_economics.min_authorization, 'NuNit') < staker.token_balance, "Insufficient staker balance"
 
     # Make sure staking handles existing token allowance
     staker.token_agent.approve_transfer(1000000000, staking_agent.contract_address, staker.transacting_power)
 
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),
+    staker.initialize_stake(amount=NU(application_economics.min_authorization, 'NuNit'),
                             # Lock the minimum amount of tokens
-                            lock_periods=token_economics.minimum_locked_periods)
+                            lock_periods=application_economics.min_operator_seconds)
 
     # Verify that the escrow is "approved" to receive tokens
     allowance = token_agent.contract.functions.allowance(
@@ -55,17 +55,17 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, tes
     assert 0 == locked_tokens
 
     locked_tokens = staker.locked_tokens(periods=1)
-    assert token_economics.minimum_allowed_locked == locked_tokens
+    assert application_economics.min_authorization == locked_tokens
 
 
 @pytest.mark.skip()
 @pytest.mark.usefixtures("agency")
-def test_staker_divides_stake(staker, token_economics):
-    stake_value = NU(token_economics.minimum_allowed_locked * 5, 'NuNit')
-    new_stake_value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
+def test_staker_divides_stake(staker, application_economics):
+    stake_value = NU(application_economics.min_authorization * 5, 'NuNit')
+    new_stake_value = NU(application_economics.min_authorization * 2, 'NuNit')
 
     stake_index = 0
-    duration = int(token_economics.minimum_locked_periods)
+    duration = int(application_economics.min_operator_seconds)
     staker.initialize_stake(amount=stake_value, lock_periods=duration)
     stake = staker.stakes[stake_index + 1]
 
@@ -84,7 +84,7 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_new_stake == staker.stakes[stake_index + 2].to_stake_info(), 'New stake values are invalid'
 
     # Provided stake must be part of current stakes
-    new_stake_value = NU.from_units(token_economics.minimum_allowed_locked)
+    new_stake_value = NU.from_units(application_economics.min_authorization)
     with pytest.raises(ValueError):
         staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
     stake = staker.stakes[stake_index + 1]
@@ -92,19 +92,19 @@ def test_staker_divides_stake(staker, token_economics):
     with pytest.raises(ValueError):
         staker.divide_stake(target_value=new_stake_value, stake=stake, additional_periods=2)
 
-    yet_another_stake_value = NU(token_economics.minimum_allowed_locked, 'NuNit')
+    yet_another_stake_value = NU(application_economics.min_authorization, 'NuNit')
     stake = staker.stakes[stake_index + 2]
 
     # New expiration date must extend stake duration
     origin_stake = stake
     new_expiration = datetime_at_period(period=origin_stake.final_locked_period,
-                                        seconds_per_period=token_economics.seconds_per_period,
+                                        seconds_per_period=application_economics.seconds_per_period,
                                         start_of_period=True)
     with pytest.raises(ValueError):
         staker.divide_stake(target_value=yet_another_stake_value, stake=stake, expiration=new_expiration)
 
     new_expiration = datetime_at_period(period=origin_stake.final_locked_period + 2,
-                                        seconds_per_period=token_economics.seconds_per_period,
+                                        seconds_per_period=application_economics.seconds_per_period,
                                         start_of_period=True)
     staker.divide_stake(target_value=yet_another_stake_value, stake=stake, expiration=new_expiration)
 
@@ -114,8 +114,8 @@ def test_staker_divides_stake(staker, token_economics):
                                        value=yet_another_stake_value,
                                        checksum_address=staker.checksum_address,
                                        index=3,
-                                       staking_agent=staker.staking_agent,
-                                       economics=token_economics)
+                                       staking_agent=staker.application_agent,
+                                       economics=application_economics)
 
     assert 4 == len(staker.stakes), 'A new stake was not added after two stake divisions'
     assert expected_old_stake == staker.stakes[
@@ -127,13 +127,13 @@ def test_staker_divides_stake(staker, token_economics):
 
 @pytest.mark.skip()
 @pytest.mark.usefixtures("agency")
-def test_staker_prolongs_stake(staker, token_economics):
+def test_staker_prolongs_stake(staker, application_economics):
     stake_index = 0
     origin_stake = staker.stakes[stake_index]
 
     # Can't use additional periods and expiration together
     new_expiration = datetime_at_period(period=origin_stake.final_locked_period + 3,
-                                        seconds_per_period=token_economics.seconds_per_period,
+                                        seconds_per_period=application_economics.seconds_per_period,
                                         start_of_period=True)
     with pytest.raises(ValueError):
         staker.prolong_stake(stake=origin_stake, additional_periods=3, expiration=new_expiration)
@@ -156,7 +156,7 @@ def test_staker_prolongs_stake(staker, token_economics):
     # New expiration date must extend stake duration
     origin_stake = stake
     new_expiration = datetime_at_period(period=origin_stake.final_locked_period,
-                                        seconds_per_period=token_economics.seconds_per_period,
+                                        seconds_per_period=application_economics.seconds_per_period,
                                         start_of_period=True)
     with pytest.raises(ValueError):
         staker.prolong_stake(stake=origin_stake, expiration=new_expiration)
@@ -172,10 +172,10 @@ def test_staker_prolongs_stake(staker, token_economics):
 
 @pytest.mark.skip()
 @pytest.mark.usefixtures("agency")
-def test_staker_increases_stake(staker, token_economics):
+def test_staker_increases_stake(staker, application_economics):
     stake_index = 0
     origin_stake = staker.stakes[stake_index]
-    additional_amount = NU.from_units(token_economics.minimum_allowed_locked // 100)
+    additional_amount = NU.from_units(application_economics.min_authorization // 100)
 
     with pytest.raises(ValueError):
         staker.increase_stake(stake=origin_stake)
@@ -265,7 +265,7 @@ def test_staker_collects_staking_reward(testerchain,
                                         staker,
                                         blockchain_ursulas,
                                         agency,
-                                        token_economics,
+                                        application_economics,
                                         ursula_decentralized_test_config):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
 
@@ -278,8 +278,8 @@ def test_staker_collects_staking_reward(testerchain,
                   addresses=[staker.checksum_address],
                   amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
 
-    staker.initialize_stake(amount=NU(token_economics.minimum_allowed_locked, 'NuNit'),  # Lock the minimum amount of tokens
-                            lock_periods=int(token_economics.minimum_locked_periods))    # ... for the fewest number of periods
+    staker.initialize_stake(amount=NU(application_economics.min_authorization, 'NuNit'),  # Lock the minimum amount of tokens
+                            lock_periods=int(application_economics.min_operator_seconds))    # ... for the fewest number of periods
 
     # Get an unused address for a new worker
     worker_address = testerchain.unassigned_accounts[-1]
@@ -324,17 +324,17 @@ def test_staker_collects_staking_reward(testerchain,
 def test_staker_manages_winding_down(testerchain,
                                      test_registry,
                                      staker,
-                                     token_economics,
+                                     application_economics,
                                      ursula_decentralized_test_config):
     # Get worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
                                         stakers_addresses=[staker.checksum_address],
-                                        workers_addresses=[staker.worker_address],
+                                        workers_addresses=[staker.operator_address],
                                         registry=test_registry).pop()
 
     # Enable winding down
     testerchain.time_travel(periods=1)
-    base_duration = token_economics.minimum_locked_periods + 4
+    base_duration = application_economics.min_operator_seconds + 4
     receipt = staker.enable_winding_down()
     assert receipt['status'] == 1
     assert staker.locked_tokens(base_duration) != 0
@@ -358,7 +358,7 @@ def test_staker_manages_winding_down(testerchain,
 def test_staker_manages_snapshots(testerchain,
                                   test_registry,
                                   staker,
-                                  token_economics,
+                                  application_economics,
                                   ursula_decentralized_test_config):
     # Disable taking snapshots
     testerchain.time_travel(periods=1)
