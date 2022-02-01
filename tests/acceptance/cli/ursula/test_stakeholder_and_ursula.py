@@ -24,6 +24,7 @@ from pathlib import Path
 from unittest import mock
 
 import maya
+import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Staker
@@ -61,6 +62,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "nucypher stake init-stakeholder" in result.output
 
 
+@pytest.mark.skip()
 def test_new_stakeholder(click_runner,
                          custom_filepath,
                          agency_local_registry,
@@ -87,6 +89,7 @@ def test_new_stakeholder(click_runner,
         assert config_data['provider_uri'] == TEST_PROVIDER_URI
 
 
+@pytest.mark.skip()
 def test_stake_init(click_runner,
                     stakeholder_configuration_file_location,
                     stake_value,
@@ -136,6 +139,7 @@ def test_stake_init(click_runner,
     assert stake.duration == token_economics.minimum_locked_periods
 
 
+@pytest.mark.skip()
 def test_stake_list(click_runner,
                     stakeholder_configuration_file_location,
                     stake_value,
@@ -153,6 +157,7 @@ def test_stake_list(click_runner,
     assert f"{default} wei" in result.output
 
 
+@pytest.mark.skip()
 def test_staker_divide_stakes(click_runner,
                               stakeholder_configuration_file_location,
                               token_economics,
@@ -182,6 +187,7 @@ def test_staker_divide_stakes(click_runner,
     assert str(NU(token_economics.minimum_allowed_locked, 'NuNit').to_tokens()) in result.output
 
 
+@pytest.mark.skip()
 def test_stake_prolong(click_runner,
                        testerchain,
                        agency_local_registry,
@@ -216,6 +222,7 @@ def test_stake_prolong(click_runner,
     assert new_termination == old_termination + 1
 
 
+@pytest.mark.skip()
 def test_stake_increase(click_runner,
                         stakeholder_configuration_file_location,
                         token_economics,
@@ -253,6 +260,7 @@ def test_stake_increase(click_runner,
     assert end_period == origin_stake.last_period
 
 
+@pytest.mark.skip()
 def test_merge_stakes(click_runner,
                       stakeholder_configuration_file_location,
                       token_economics,
@@ -300,6 +308,7 @@ def test_merge_stakes(click_runner,
     assert stakes[selection_2].last_period == 1
 
 
+@pytest.mark.skip()
 def test_remove_inactive(click_runner,
                        stakeholder_configuration_file_location,
                        token_economics,
@@ -327,6 +336,7 @@ def test_remove_inactive(click_runner,
     assert len(stakes) == len(original_stakes) - 1
 
 
+@pytest.mark.skip()
 def test_stake_bond_worker(click_runner,
                            testerchain,
                            agency_local_registry,
@@ -353,6 +363,7 @@ def test_stake_bond_worker(click_runner,
     assert staker.worker_address == manual_worker
 
 
+@pytest.mark.skip()
 def test_ursula_init(click_runner,
                      custom_filepath,
                      agency_local_registry,
@@ -394,6 +405,7 @@ def test_ursula_init(click_runner,
         assert TEMPORARY_DOMAIN == config_data['domain']
 
 
+@pytest.mark.skip()
 def test_ursula_run(click_runner,
                     manual_worker,
                     manual_staker,
@@ -415,6 +427,7 @@ def test_ursula_run(click_runner,
     assert result.exit_code == 0
 
 
+@pytest.mark.skip()
 def test_stake_restake(click_runner,
                        manual_staker,
                        custom_filepath,
@@ -469,6 +482,7 @@ def test_stake_restake(click_runner,
     assert result.exit_code == 0
 
 
+@pytest.mark.skip()
 def test_stake_winddown(click_runner,
                         manual_staker,
                         custom_filepath,
@@ -510,6 +524,7 @@ def test_stake_winddown(click_runner,
     assert "Successfully disabled" in result.output
 
 
+@pytest.mark.skip()
 def test_stake_snapshots(click_runner,
                          manual_staker,
                          custom_filepath,
@@ -551,6 +566,7 @@ def test_stake_snapshots(click_runner,
     assert "Successfully enabled" in result.output
 
 
+@pytest.mark.skip()
 def test_collect_rewards_integration(click_runner,
                                      testerchain,
                                      agency_local_registry,
@@ -734,6 +750,7 @@ def test_collect_rewards_integration(click_runner,
     assert staker.token_agent.get_balance(address=staker_address) > balance_before_collecting
 
 
+@pytest.mark.skip()
 def test_stake_unbond_worker(click_runner,
                              testerchain,
                              manual_staker,
@@ -768,6 +785,7 @@ def test_stake_unbond_worker(click_runner,
     assert staker.worker_address == NULL_ADDRESS
 
 
+@pytest.mark.skip()
 def test_set_min_rate(click_runner,
                       manual_staker,
                       testerchain,
@@ -806,6 +824,7 @@ def test_set_min_rate(click_runner,
     assert f"{prettify_eth_amount(min_rate)}" in result.output
 
 
+@pytest.mark.skip()
 def test_mint(click_runner,
               manual_staker,
               testerchain,

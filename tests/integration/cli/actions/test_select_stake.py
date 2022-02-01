@@ -132,6 +132,7 @@ def assert_stake_table_not_painted(output: str) -> None:
         assert column_name not in output
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize('sub_stakes_functions', [
     [empty_sub_stakes],
     [inactive_sub_stakes],
@@ -165,6 +166,7 @@ def test_handle_selection_with_with_no_editable_stakes(test_emitter,
     assert mock_stdin.empty()
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize('sub_stakes_functions', [
     [non_divisible_sub_stakes],
     [divisible_sub_stakes],
@@ -214,6 +216,7 @@ def test_select_editable_stake(test_emitter,
     assert mock_stdin.empty()
 
 
+@pytest.mark.skip()
 def test_handle_selection_with_no_divisible_stakes(test_emitter,
                                                    stakeholder,
                                                    mock_staking_agent,
@@ -243,6 +246,7 @@ def test_handle_selection_with_no_divisible_stakes(test_emitter,
     assert mock_stdin.empty()
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize('sub_stakes_functions', [
     [divisible_sub_stakes],
     [inactive_sub_stakes, divisible_sub_stakes],
@@ -289,6 +293,7 @@ def test_select_divisible_stake(test_emitter,
     assert mock_stdin.empty()
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize('sub_stakes_functions', [
     [not_editable_sub_stakes],
     [inactive_sub_stakes, not_editable_sub_stakes],
@@ -337,6 +342,7 @@ def test_select_using_filter_function(test_emitter,
     assert mock_stdin.empty()
 
 
+@pytest.mark.skip()
 @pytest.mark.parametrize('sub_stakes_functions', [
     [inactive_sub_stakes],
     [unlocked_sub_stakes],

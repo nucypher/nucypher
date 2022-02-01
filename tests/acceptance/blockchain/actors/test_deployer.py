@@ -31,6 +31,7 @@ from tests.constants import NUMBER_OF_ALLOCATIONS_IN_TESTS
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures('testerchain')
 def test_rapid_deployment(token_economics, test_registry, temp_dir_path, get_random_checksum_address):
 

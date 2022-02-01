@@ -17,7 +17,7 @@
 from pathlib import Path
 from unittest import mock
 
-import os
+import pytest
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
@@ -35,6 +35,7 @@ from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORA
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH_2, TEST_PROVIDER_URI)
 
 
+@pytest.mark.skip()
 @mock.patch('nucypher.config.characters.FelixConfiguration.default_filepath', return_value=Path('/non/existent/file'))
 def test_missing_configuration_file(default_filepath_mock, click_runner):
     cmd_args = ('felix', 'view')
@@ -44,6 +45,7 @@ def test_missing_configuration_file(default_filepath_mock, click_runner):
     assert "nucypher felix init" in result.output  # TODO: Move install hints to a constants
 
 
+@pytest.mark.skip()
 @pytest_twisted.inlineCallbacks
 def test_run_felix(click_runner, testerchain, agency_local_registry):
 

@@ -20,6 +20,7 @@ import pytest
 from nucypher.blockchain.economics import EconomicsFactory
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures('agency')
 def test_retrieving_from_blockchain(token_economics, test_registry):
 

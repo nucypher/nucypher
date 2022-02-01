@@ -84,6 +84,7 @@ def test_confirm_deployment_cli_action(mocker, mock_stdin, test_emitter, capsys,
     assert f"Type '{llamanet.upper()}' to continue: " in captured.out
 
 
+@pytest.mark.skip('remove me')
 def test_confirm_enable_restaking_cli_action(test_emitter, mock_stdin, capsys):
 
     # Positive Case
@@ -109,6 +110,7 @@ def test_confirm_enable_restaking_cli_action(test_emitter, mock_stdin, capsys):
     assert restake_agreement in captured.out
 
 
+@pytest.mark.skip('remove me')
 def test_confirm_enable_winding_down_cli_action(test_emitter, mock_stdin, capsys):
 
     # Positive Case
@@ -131,6 +133,7 @@ def test_confirm_enable_winding_down_cli_action(test_emitter, mock_stdin, capsys
     assert WINDING_DOWN_AGREEMENT in captured.out
 
 
+@pytest.mark.skip('remove me')
 def test_confirm_staged_stake_cli_action(test_emitter, mock_stdin, capsys):
 
     staking_address, value, lock_periods = '0xdeadbeef', NU.from_tokens(1), 1

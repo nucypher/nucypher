@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import pytest
 from constant_sorrow import constants
 
 from constant_sorrow.constants import BARE
@@ -24,6 +23,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import (DispatcherDeployer, StakingEscrowDeployer)
 
 
+@pytest.mark.skip()
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress, transacting_power):
     deployment_receipts = staking_escrow_deployer.deploy(progress=deployment_progress,
                                                          deployment_mode=constants.FULL,
@@ -36,6 +36,7 @@ def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress,
         assert deployment_receipts[step]['status'] == 1
 
 
+@pytest.mark.skip()
 def test_make_agent(staking_escrow_deployer, test_registry):
     # Create a StakingEscrowAgent instance
     staking_agent = staking_escrow_deployer.make_agent()
@@ -48,6 +49,7 @@ def test_make_agent(staking_escrow_deployer, test_registry):
     assert staking_agent.contract_address == same_staking_agent.contract_address
 
 
+@pytest.mark.skip()
 def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, test_registry, transacting_power):
 
     # Let's get the "bare" StakingEscrow contract (i.e., unwrapped, no dispatcher)
@@ -66,6 +68,7 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
+@pytest.mark.skip()
 def test_upgrade(testerchain, test_registry, token_economics, transacting_power):
 
     deployer = StakingEscrowDeployer(registry=test_registry,economics=token_economics)
@@ -75,6 +78,7 @@ def test_upgrade(testerchain, test_registry, token_economics, transacting_power)
         assert receipt['status'] == 1
 
 
+@pytest.mark.skip()
 def test_rollback(testerchain, test_registry, transacting_power):
 
     deployer = StakingEscrowDeployer(registry=test_registry)
@@ -101,6 +105,7 @@ def test_rollback(testerchain, test_registry, transacting_power):
     assert new_target == old_target
 
 
+@pytest.mark.skip()
 def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry, token_economics, transacting_power):
     deployer = StakingEscrowDeployer(registry=test_registry, economics=token_economics)
 
@@ -123,6 +128,7 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     assert new_number_of_proxy_enrollments == old_number_of_proxy_enrollments
 
 
+@pytest.mark.skip()
 def test_deployer_version_management(testerchain, test_registry, token_economics):
     deployer = StakingEscrowDeployer(registry=test_registry, economics=token_economics)
 
@@ -135,6 +141,7 @@ def test_deployer_version_management(testerchain, test_registry, token_economics
     assert untargeted_deployment.address != latest_targeted_deployment.address
 
 
+@pytest.mark.skip()
 def test_manual_proxy_retargeting(testerchain, test_registry, token_economics, transacting_power):
 
     deployer = StakingEscrowDeployer(registry=test_registry, economics=token_economics)

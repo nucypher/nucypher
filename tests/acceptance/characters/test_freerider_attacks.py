@@ -97,6 +97,7 @@ def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
                                             encrypted_treasure_map=bupkiss_policy.treasure_map)
 
 
+@pytest.mark.skip()
 def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
                                                      blockchain_bob,
                                                      blockchain_ursulas,

@@ -170,6 +170,7 @@ def surrogate_stakes(mock_staking_agent, token_economics, surrogate_stakers):
     return stakes_1, stakes_2
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain, mock_staking_agent):
 
@@ -215,6 +216,7 @@ def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain
     assert stakeholder_from_configuration.checksum_address == client_account
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
     # No tokens at all
@@ -238,6 +240,7 @@ def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
     mock_staking_agent.assert_no_transactions()
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_agent, mocker, surrogate_transacting_power):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
@@ -268,6 +271,7 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker, surrogate_transacting_power):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
@@ -304,6 +308,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker, surrogate_transacting_power):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
@@ -339,6 +344,7 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
     mock_staking_agent.assert_only_transactions([mock_staking_agent.collect_staking_reward])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agent):
     mock_policy_manager_agent.get_fee_amount.return_value = 0
@@ -361,6 +367,7 @@ def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agen
     mock_policy_manager_agent.assert_no_transactions()
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_agent):
     fee_amount_eth = 11
@@ -384,6 +391,7 @@ def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_age
     mock_policy_manager_agent.assert_only_transactions([mock_policy_manager_agent.collect_policy_fee])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_nothing_to_mint(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
@@ -408,6 +416,7 @@ def test_nothing_to_mint(click_runner, surrogate_stakers, mock_staking_agent, mo
     mock_staking_agent.assert_no_transactions()
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
@@ -435,6 +444,7 @@ def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, 
     mock_staking_agent.assert_only_transactions([mock_staking_agent.mint])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_mint_without_warning(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     mock_mintable_periods = mocker.spy(Staker, 'mintable_periods')
@@ -462,6 +472,7 @@ def test_mint_without_warning(click_runner, surrogate_stakers, mock_staking_agen
     mock_staking_agent.assert_only_transactions([mock_staking_agent.mint])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_prolong_interactive(click_runner,
                              mocker,
@@ -505,6 +516,7 @@ def test_prolong_interactive(click_runner,
                                                                  stake_index=sub_stake_index)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_prolong_non_interactive(click_runner,
                                  mocker,
@@ -548,6 +560,7 @@ def test_prolong_non_interactive(click_runner,
                                                                  stake_index=sub_stake_index)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_divide_interactive(click_runner,
                             mocker,
@@ -597,6 +610,7 @@ def test_divide_interactive(click_runner,
                                                                  stake_index=sub_stake_index)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_divide_non_interactive(click_runner,
                                 mocker,
@@ -645,6 +659,7 @@ def test_divide_non_interactive(click_runner,
                                                                  stake_index=sub_stake_index)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_interactive(click_runner,
                               mocker,
@@ -721,6 +736,7 @@ def test_increase_interactive(click_runner,
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_non_interactive(click_runner,
                                   mocker,
@@ -778,6 +794,7 @@ def test_increase_non_interactive(click_runner,
     mock_token_agent.assert_only_transactions([mock_token_agent.increase_allowance])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_lock_interactive(click_runner,
                                    mocker,
@@ -848,6 +865,7 @@ def test_increase_lock_interactive(click_runner,
                                                                  stake_index=sub_stake_index)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_increase_lock_non_interactive(click_runner,
                                        mocker,
@@ -898,6 +916,7 @@ def test_increase_lock_non_interactive(click_runner,
                                                                  stake_index=sub_stake_index)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_interactive(click_runner,
                             mocker,
@@ -1004,6 +1023,7 @@ def test_create_interactive(click_runner,
     mock_staking_agent.assert_no_transactions()
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_non_interactive(click_runner,
                                 mocker,
@@ -1066,6 +1086,7 @@ def test_create_non_interactive(click_runner,
     mock_staking_agent.assert_no_transactions()
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_lock_interactive(click_runner,
                                  mocker,
@@ -1144,6 +1165,7 @@ def test_create_lock_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_create_lock_non_interactive(click_runner,
                                      mocker,
@@ -1203,6 +1225,7 @@ def test_create_lock_non_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.lock_and_create])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_interactive(click_runner,
                            mocker,
@@ -1247,6 +1270,7 @@ def test_merge_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_partially_interactive(click_runner,
                                      mocker,
@@ -1299,6 +1323,7 @@ def test_merge_partially_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_merge_non_interactive(click_runner,
                                mocker,
@@ -1344,6 +1369,7 @@ def test_merge_non_interactive(click_runner,
     mock_staking_agent.assert_only_transactions([mock_staking_agent.merge_stakes])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_stake_list_active(click_runner,
                            surrogate_stakers,
@@ -1408,6 +1434,7 @@ def test_stake_list_active(click_runner,
                 assert not re.search(search, result.output, re.MULTILINE)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_stake_list_all(click_runner,
                         surrogate_stakers,
@@ -1473,6 +1500,7 @@ def test_stake_list_all(click_runner,
             assert re.search(search, result.output, re.MULTILINE)
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
     reward_amount = 1
@@ -1492,6 +1520,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
     mock_staking_agent.calculate_staking_reward.assert_called_once_with(staker_address=surrogate_stakers[0])
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_agent, token_economics, mocker):
     periods = 30
@@ -1551,6 +1580,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
     mock_staking_agent.contract.events[event_name].getLogs.assert_called()
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_show_rewards_not_found(click_runner, surrogate_stakers, mock_staking_agent, mocker):
     event_name = 'Minted'

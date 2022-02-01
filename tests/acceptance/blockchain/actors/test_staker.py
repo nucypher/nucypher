@@ -30,6 +30,7 @@ from tests.utils.blockchain import token_airdrop
 from tests.utils.ursula import make_decentralized_ursulas
 
 
+@pytest.mark.skip()
 def test_staker_locking_tokens(testerchain, agency, staker, token_economics, test_registry):
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
@@ -57,6 +58,7 @@ def test_staker_locking_tokens(testerchain, agency, staker, token_economics, tes
     assert token_economics.minimum_allowed_locked == locked_tokens
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("agency")
 def test_staker_divides_stake(staker, token_economics):
     stake_value = NU(token_economics.minimum_allowed_locked * 5, 'NuNit')
@@ -123,6 +125,7 @@ def test_staker_divides_stake(staker, token_economics):
     assert expected_yet_another_stake.value == staker.stakes[stake_index + 3].value, 'Third stake values are invalid'
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("agency")
 def test_staker_prolongs_stake(staker, token_economics):
     stake_index = 0
@@ -167,6 +170,7 @@ def test_staker_prolongs_stake(staker, token_economics):
     assert stake.value == origin_stake.value
 
 
+@pytest.mark.skip()
 @pytest.mark.usefixtures("agency")
 def test_staker_increases_stake(staker, token_economics):
     stake_index = 0
@@ -205,6 +209,7 @@ def test_staker_increases_stake(staker, token_economics):
     assert stake.value == origin_stake.value + balance
 
 
+@pytest.mark.skip()
 def test_staker_merges_stakes(agency, staker):
     stake_index_1 = 0
     stake_index_2 = 3
@@ -230,6 +235,7 @@ def test_staker_merges_stakes(agency, staker):
         staker.merge_stakes(stake_1=staker.stakes[1], stake_2=stake)
 
 
+@pytest.mark.skip()
 def test_remove_inactive_stake(agency, staker):
     stake_index = 3
     staker.refresh_stakes()
@@ -243,6 +249,7 @@ def test_remove_inactive_stake(agency, staker):
     assert stakes == original_stakes[:-1]
 
 
+@pytest.mark.skip()
 def test_staker_manages_restaking(testerchain, test_registry, staker):
     # Enable Restaking
     receipt = staker.enable_restaking()
@@ -252,6 +259,7 @@ def test_staker_manages_restaking(testerchain, test_registry, staker):
     assert receipt['status'] == 1
 
 
+@pytest.mark.skip()
 def test_staker_collects_staking_reward(testerchain,
                                         test_registry,
                                         staker,
@@ -312,6 +320,7 @@ def test_staker_collects_staking_reward(testerchain,
     assert final_balance == initial_balance + owned - staked
 
 
+@pytest.mark.skip()
 def test_staker_manages_winding_down(testerchain,
                                      test_registry,
                                      staker,
@@ -345,6 +354,7 @@ def test_staker_manages_winding_down(testerchain,
     assert staker.locked_tokens(base_duration) == 0
 
 
+@pytest.mark.skip()
 def test_staker_manages_snapshots(testerchain,
                                   test_registry,
                                   staker,
@@ -363,6 +373,7 @@ def test_staker_manages_snapshots(testerchain,
     assert staker.is_taking_snapshots
 
 
+@pytest.mark.skip()
 def test_set_min_fee_rate(testerchain, test_registry, staker):
     # Check before set
     _minimum, default, maximum = FEE_RATE_RANGE

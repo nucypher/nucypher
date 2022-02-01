@@ -14,13 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import pytest
 
 from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
 from nucypher.blockchain.eth.constants import POLICY_MANAGER_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import (DispatcherDeployer, PolicyManagerDeployer)
 
 
+@pytest.mark.skip()
 def test_policy_manager_deployment(policy_manager_deployer,
                                    staking_escrow_stub_deployer,
                                    deployment_progress,
@@ -42,6 +43,7 @@ def test_policy_manager_deployment(policy_manager_deployer,
     assert staking_escrow_stub_deployer.contract_address == staking_escrow_address
 
 
+@pytest.mark.skip()
 def test_make_agent(policy_manager_deployer, test_registry):
 
     # Create a PolicyManagerAgent
@@ -55,6 +57,7 @@ def test_make_agent(policy_manager_deployer, test_registry):
     assert policy_agent.contract_address == some_policy_agent.contract_address
 
 
+@pytest.mark.skip()
 def test_policy_manager_has_dispatcher(policy_manager_deployer, testerchain, test_registry):
 
     # Let's get the "bare" PolicyManager contract (i.e., unwrapped, no dispatcher)
@@ -73,6 +76,7 @@ def test_policy_manager_has_dispatcher(policy_manager_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
+@pytest.mark.skip()
 def test_upgrade(testerchain, test_registry, transacting_power):
     deployer = PolicyManagerDeployer(registry=test_registry)
 
@@ -100,6 +104,7 @@ def test_upgrade(testerchain, test_registry, transacting_power):
         assert receipts[tx]['status'] == 1
 
 
+@pytest.mark.skip()
 def test_rollback(testerchain, test_registry, transacting_power):
     deployer = PolicyManagerDeployer(registry=test_registry)
 
@@ -124,6 +129,7 @@ def test_rollback(testerchain, test_registry, transacting_power):
     assert new_target == old_target
 
 
+@pytest.mark.skip()
 def test_set_fee_range(policy_manager_deployer, test_registry, transacting_power):
     policy_agent: PolicyManagerAgent = ContractAgency.get_agent(PolicyManagerAgent, registry=test_registry)
     assert policy_agent.get_fee_rate_range() == (0, 0, 0)

@@ -57,7 +57,8 @@ def test_child_status():
     assert Stake.Status.DIVISIBLE.is_child(Stake.Status.EDITABLE)
 
 
-def test_stake_status(mock_testerchain, token_economics, mock_staking_agent):
+@pytest.mark.skip('reuse me')
+def test_stake_status(mock_testerchain, application_economics, mock_staking_agent):
 
     address = mock_testerchain.etherbase_account
     current_period = 3
@@ -112,7 +113,8 @@ def test_stake_status(mock_testerchain, token_economics, mock_staking_agent):
     assert stake.status() == Stake.Status.DIVISIBLE
 
 
-def test_stake_sync(mock_testerchain, token_economics, mock_staking_agent):
+@pytest.mark.skip('remove me')
+def test_stake_sync(mock_testerchain, application_economics, mock_staking_agent):
 
     address = mock_testerchain.etherbase_account
     current_period = 3
@@ -175,7 +177,8 @@ def test_stake_sync(mock_testerchain, token_economics, mock_staking_agent):
         stake.sync()
 
 
-def test_stake_validation(mock_testerchain, token_economics, mock_staking_agent):
+@pytest.mark.skip('remove me')
+def test_stake_validation(mock_testerchain, application_economics, mock_staking_agent):
 
     address = mock_testerchain.etherbase_account
 
