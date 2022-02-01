@@ -17,6 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 from collections import OrderedDict
+from typing import Dict, List, Tuple
 
 from constant_sorrow.constants import (
     BARE,
@@ -1161,15 +1162,9 @@ class PREApplicationDeployer(BaseContractDeployer):
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
 
-    def __init__(self,
-                 min_authorization: int = 0,  # TODO: Remove these args, use constants or economics
-                 min_seconds: int = 0,
-                 staking_interface: str = None,
-                 *args, **kwargs):
+    def __init__(self, staking_interface: str = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.threshold_staking_interface = staking_interface
-        self.min_authorization = min_authorization
-        self.min_seconds = min_seconds
 
     def deploy(self,
                transacting_power: TransactingPower,
@@ -1178,12 +1173,12 @@ class PREApplicationDeployer(BaseContractDeployer):
                deployment_mode=FULL,
                ignore_deployed: bool = False,
                progress=None,
-               emitter=None):
+               emitter=None,
+               **overrides):
 
         constructor_args = (
             self.threshold_staking_interface,
-            self.min_authorization,
-            self.min_seconds
+            *self.economics.pre_application_deployment_parameters
         )
 
         contract, receipt = self.blockchain.deploy_contract(
@@ -1192,7 +1187,8 @@ class PREApplicationDeployer(BaseContractDeployer):
             self.contract_name,
             *constructor_args,
             gas_limit=gas_limit,
-            confirmations=confirmations
+            confirmations=confirmations,
+            # **overrides  # TODO: Support CLI deployment params
         )
         self._contract = contract
         self.deployment_receipts = dict(zip(self.deployment_steps, (receipt, )))
