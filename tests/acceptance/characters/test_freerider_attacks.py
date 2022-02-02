@@ -24,7 +24,7 @@ import pytest
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Amonia
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.payment import PolicyManagerPayment
+from nucypher.policy.payment import SubscriptionManagerPayment
 from tests.constants import TEST_PROVIDER_URI
 
 
@@ -67,7 +67,7 @@ def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
                                                      testerchain):
 
     # This test only applies to the PolicyManager payment method.
-    payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    payment_method = SubscriptionManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
     blockchain_alice.payment_method = payment_method
 
     amonia = Amonia.from_lawful_alice(blockchain_alice)
