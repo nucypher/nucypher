@@ -202,6 +202,7 @@ class ContractAdministrator(BaseActor):
     standard_deployer_classes = (
         NucypherTokenDeployer,
         PREApplicationDeployer,
+        SubscriptionManagerDeployer  # TODO: Move to dispatched/upgradeable section
     )
 
     dispatched_upgradeable_deployer_classes = (

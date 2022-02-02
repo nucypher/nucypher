@@ -887,6 +887,8 @@ class SubscriptionManagerDeployer(BaseContractDeployer, OwnableContractMixin):
                progress=None,
                confirmations: int = 0,
                emitter=None,
+               ignore_deployed: bool = False,
+               deployment_mode=FULL,
                **overrides) -> dict:
 
         constructor_kwargs = {}  # placeholder for constructor kwargs
@@ -1162,7 +1164,7 @@ class PREApplicationDeployer(BaseContractDeployer):
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
 
-    def __init__(self, staking_interface: str = None, *args, **kwargs):
+    def __init__(self, staking_interface: ChecksumAddress, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.threshold_staking_interface = staking_interface
 
