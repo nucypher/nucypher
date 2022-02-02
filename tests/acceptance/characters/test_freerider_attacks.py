@@ -28,43 +28,6 @@ from nucypher.policy.payment import PolicyManagerPayment
 from tests.constants import TEST_PROVIDER_URI
 
 
-def test_policy_simple_sinpa_policy_manager(blockchain_ursulas,
-                                            blockchain_alice,
-                                            blockchain_bob,
-                                            agency,
-                                            testerchain):
-    """
-    Making a Policy without paying.
-    """
-
-    # This test only applies to the PolicyManager payment method
-    blockchain_alice.payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
-
-    amonia = Amonia.from_lawful_alice(blockchain_alice)
-
-    # Setup the policy details
-    shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
-    label = b"this_is_the_path_to_which_access_is_being_granted"
-
-    bupkiss_policy = amonia.grant_without_paying(bob=blockchain_bob,
-                                                 label=label,
-                                                 threshold=2,
-                                                 shares=shares,
-                                                 rate=int(1e18),  # one ether
-                                                 expiration=policy_end_datetime)
-
-    # Enrico becomes
-    enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
-    plaintext = b"A crafty campaign"
-    message_kit = enrico.encrypt_message(plaintext)
-
-    with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve_and_decrypt([message_kit],
-                                            alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
-                                            encrypted_treasure_map=bupkiss_policy.treasure_map)
-
-
 def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
                                                    blockchain_alice,
                                                    blockchain_bob,
@@ -83,7 +46,6 @@ def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
                                                                            label=label,
                                                                            threshold=2,
                                                                            shares=shares,
-                                                                           rate=int(1e18),  # one ether
                                                                            expiration=policy_end_datetime)
 
     # Enrico becomes
