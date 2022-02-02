@@ -21,7 +21,7 @@ from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency, PREApplicationAgent
 from nucypher.crypto.utils import verify_eip_191
 from nucypher.crypto.powers import TransactingPower
 from tests.conftest import LOCK_FUNCTION
@@ -88,11 +88,10 @@ def test_transacting_power_sign_transaction(testerchain):
         power.sign_transaction(transaction_dict=transaction_dict)
 
 
-
 def test_transacting_power_sign_agent_transaction(testerchain, agency, test_registry):
 
-    token_agent = NucypherTokenAgent(registry=test_registry)
-    contract_function = token_agent.contract.functions.approve(testerchain.etherbase_account, 100)
+    agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    contract_function = agent.contract.functions.confirmOperatorAddress()
 
     payload = {'chainId': int(testerchain.client.chain_id),
                'nonce': testerchain.client.w3.eth.getTransactionCount(testerchain.etherbase_account),

@@ -108,7 +108,7 @@ def test_stake_integration(stakers):
     stake = stakes[0]
     stake.sync()
 
-    blockchain_stakes = staker.staking_agent.get_all_stakes(staker_address=staker.checksum_address)
+    blockchain_stakes = staker.application_agent.get_all_stakes(staker_address=staker.checksum_address)
 
     stake_info = (stake.first_locked_period, stake.final_locked_period, int(stake.value))
     published_stake_info = list(blockchain_stakes)[0]

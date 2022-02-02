@@ -23,7 +23,7 @@ import pytest
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.blockchain.eth.actors import Worker
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.config.characters import StakeHolderConfiguration
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
@@ -122,7 +122,7 @@ def test_divide_stake(software_stakeholder, application_economics, test_registry
 def test_bond_worker(software_stakeholder, manual_operator, test_registry):
     software_stakeholder.staker.bond_worker(operator_address=manual_operator)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    assert staking_agent.get_worker_from_staker(staker_address=software_stakeholder.checksum_address) == manual_worker
+    assert staking_agent.get_worker_from_staker(staker_address=software_stakeholder.checksum_address) == manual_operator
 
 
 @pytest.mark.skip()
@@ -131,13 +131,13 @@ def test_collect_inflation_rewards(software_stakeholder, manual_operator, tester
     # Get stake
     stake = software_stakeholder.staker.stakes[1]
 
-    # Make bonded Worker
-    tpower = TransactingPower(account=manual_worker, signer=Web3Signer(testerchain.client))
+    # Make bonded Operator
+    tpower = TransactingPower(account=manual_operator, signer=Web3Signer(testerchain.client))
     tpower.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    worker = Worker(is_me=True,
+    worker = Operator(is_me=True,
                     transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN,
-                    worker_address=manual_worker,
+                    operator_address=manual_operator,
                     registry=test_registry)
 
     # Wait out stake lock periods, manually make a commitment once per period.

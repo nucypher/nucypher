@@ -44,7 +44,7 @@ def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
     signature_as_bytes = first_ursula.decentralized_identity_evidence
     signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
-    assert verify_eip_191(address=first_ursula.worker_address,
+    assert verify_eip_191(address=first_ursula.operator_address,
                           message=bytes(first_ursula.stamp),
                           signature=signature_as_bytes)
 
@@ -122,8 +122,8 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas,
                                substitute_verifying_key=True,
                                sign_metadata=True)
 
-    message = f"Worker {vladimir.worker_address} is not bonded"
-    with pytest.raises(vladimir.UnbondedWorker, match=message):
+    message = f"Operator {vladimir.operator_address} is not bonded"
+    with pytest.raises(vladimir.UnbondedOperator, match=message):
         vladimir.validate_metadata(registry=test_registry)
 
 

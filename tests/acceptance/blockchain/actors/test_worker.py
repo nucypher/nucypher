@@ -16,18 +16,17 @@
 """
 
 
+import pytest
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
-from nucypher.blockchain.eth.actors import Worker
-from nucypher.blockchain.eth.token import NU, ClassicPREWorkTracker
+from nucypher.blockchain.eth.token import NU
 from nucypher.utilities.logging import Logger
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
 
-logger = Logger("test-worker")
+logger = Logger("test-operator")
 
 
 def log(message):

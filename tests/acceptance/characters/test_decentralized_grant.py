@@ -23,7 +23,7 @@ import maya
 from nucypher_core import EncryptedKeyFrag
 
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.payment import PolicyManagerPayment, SubscriptionManagerPayment
+from nucypher.policy.payment import SubscriptionManagerPayment
 from tests.constants import TEST_PROVIDER_URI
 
 shares = 3

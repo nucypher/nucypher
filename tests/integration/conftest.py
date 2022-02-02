@@ -78,41 +78,22 @@ def mock_staking_agent(mock_testerchain, application_economics, mock_contract_ag
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_adjudicator_agent(mock_testerchain, token_economics, mock_contract_agency):
+def mock_adjudicator_agent(mock_testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_policy_manager_agent(mock_testerchain, token_economics, mock_contract_agency):
+def mock_policy_manager_agent(mock_testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(PolicyManagerAgent)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_multisig_agent(mock_testerchain, token_economics, mock_contract_agency):
+def mock_multisig_agent(mock_testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(MultiSigAgent)
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture(scope='function', autouse=True)
-def mock_worklock_agent(mock_testerchain, token_economics, mock_contract_agency):
-    economics = token_economics
-
-    mock_agent = mock_contract_agency.get_agent(WorkLockAgent)
-
-    # Customize the mock agent
-    mock_agent.boosting_refund = economics.worklock_boosting_refund_rate
-    mock_agent.slowing_refund = 100
-    mock_agent.start_bidding_date = economics.bidding_start_date
-    mock_agent.end_bidding_date = economics.bidding_end_date
-    mock_agent.end_cancellation_date = economics.cancellation_end_date
-    mock_agent.minimum_allowed_bid = economics.worklock_min_allowed_bid
-    mock_agent.lot_value = economics.worklock_supply
-
     yield mock_agent
     mock_agent.reset()
 
@@ -199,7 +180,7 @@ def worker_account(mock_accounts, mock_testerchain):
 
 
 @pytest.fixture(scope='module')
-def worker_address(worker_account):
+def operator_address(worker_account):
     address = worker_account.address
     return address
 

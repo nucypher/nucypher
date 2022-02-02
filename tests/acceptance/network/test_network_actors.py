@@ -20,9 +20,10 @@ import datetime
 
 import maya
 import pytest
+from eth_utils import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PREApplicationAgent
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
@@ -35,9 +36,10 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 
-    for address in staking_agent.swarm():
+    for record in application_agent.get_active_staking_providers(0, 10)[1]:
+        address = to_checksum_address(record[0])   #TODO: something better
         for propagating_ursula in blockchain_ursulas[:1]:  # Last Ursula is not staking
             if address == propagating_ursula.checksum_address:
                 continue

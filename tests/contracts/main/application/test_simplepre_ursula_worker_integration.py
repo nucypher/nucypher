@@ -15,22 +15,16 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
+
 import pytest_twisted
 from twisted.internet import threads
-from twisted.internet.task import Clock
-
-from eth_tester.exceptions import TransactionFailed
-from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
 
 from nucypher.utilities.logging import Logger
+
 logger = Logger("test-worker")
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.token import WorkTrackerBaseClass as WorkTracker
-from nucypher.blockchain.eth.actors import ThresholdWorker as Worker
-from nucypher.config.constants import USER_LOG_DIR
+from nucypher.blockchain.eth.actors import Operator as Operator
 
-from eth_utils import to_checksum_address
 from constant_sorrow.constants import MOCK_DB
 from tests.utils.ursula import start_pytest_ursula_services
 
@@ -57,7 +51,7 @@ def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, t
 
     # make an ursula.
     blockchain_ursula = ursula_decentralized_test_config.produce(
-        worker_address=worker_address,
+        operator_address=operator_address,
         db_filepath=MOCK_DB,
         rest_port=9151)
 
@@ -68,7 +62,7 @@ def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, t
     assert blockchain_ursula.get_staking_provider_address() == NULL_ADDRESS
 
     # now lets visit stake.nucypher.network and bond this worker
-    tx = pre_application.functions.bondOperator(staking_provider, worker_address).transact({'from': staking_provider})
+    tx = pre_application.functions.bondOperator(staking_provider, operator_address).transact({'from': staking_provider})
     testerchain.wait_for_receipt(tx)
 
     # now the worker has a staking provider
@@ -77,19 +71,20 @@ def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, t
     assert blockchain_ursula.is_confirmed is False
 
     # lets confirm it.  It will probably do this automatically in real life...
-    tx = blockchain_ursula.confirm_operator_address()
+    tx = blockchain_ursula.confirm_address()
     testerchain.wait_for_receipt(tx)
 
     assert blockchain_ursula.is_confirmed is True
 
 
 @pytest_twisted.inlineCallbacks
-def test_integration_of_ursula_contract_interaction(mocker, ursula_decentralized_test_config, testerchain, threshold_staking, pre_application, token_economics, deploy_contract):
+def test_integration_of_ursula_contract_interaction(mocker, ursula_decentralized_test_config, testerchain, threshold_staking, pre_application,
+                                                    application_economics, deploy_contract, test_registry_source_manager):
 
     creator, staking_provider, operator, staking_provider2, operator2, *everyone_else = testerchain.client.accounts
-    min_authorization = token_economics.minimum_allowed_locked
+    min_authorization = application_economics.min_authorization
 
-    commit_spy = mocker.spy(Worker, 'confirm_operator_address')
+    commit_spy = mocker.spy(Operator, 'confirm_operator_address')
     # replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
 
     # make an staking_providers and some stakes
@@ -102,9 +97,9 @@ def test_integration_of_ursula_contract_interaction(mocker, ursula_decentralized
     tx = pre_application.functions.bondOperator(staking_provider2, operator2).transact({'from': staking_provider2})
     testerchain.wait_for_receipt(tx)
 
-    # Make the Worker
+    # Make the Operator
     ursula = ursula_decentralized_test_config.produce(
-        worker_address=operator2,
+        operator_address=operator2,
         db_filepath=MOCK_DB,
         rest_port=9151)
 
@@ -116,9 +111,8 @@ def test_integration_of_ursula_contract_interaction(mocker, ursula_decentralized
                block_until_ready=True)  # "start" services
 
     def start():
-        log("Starting Worker for auto confirm address simulation")
+        log("Starting Operator for auto confirm address simulation")
         start_pytest_ursula_services(ursula=ursula)
-
 
     def verify_confirmed(_):
         # Verify that periods were committed on-chain automatically

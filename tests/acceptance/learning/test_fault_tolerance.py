@@ -16,16 +16,11 @@
 """
 
 import pytest
-from twisted.logger import LogLevel, globalLogPublisher
-from constant_sorrow.constants import NOT_SIGNED
-
 from nucypher_core import MetadataResponse, MetadataResponsePayload
+from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.signing import InvalidSignature
-from nucypher.network.nodes import Learner
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
 
@@ -130,7 +125,7 @@ def test_invalid_workers_tolerance(testerchain,
 
     # We create an active worker node for this staker
     worker = make_ursula_for_staker(staker=idle_staker,
-                                    worker_address=testerchain.unassigned_accounts[-1],
+                                    operator_address=testerchain.unassigned_accounts[-1],
                                     ursula_config=ursula_decentralized_test_config,
                                     blockchain=testerchain,
                                     ursulas_to_learn_about=None)
