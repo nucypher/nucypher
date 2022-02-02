@@ -40,6 +40,9 @@ all:
                   %if node.get('nucypher_image'):
                   nucypher_image: ${node['nucypher_image']}
                   %endif
+                  %if node.get('keymaterial'):
+                  keymaterial: ${node['keymaterial']}
+                  %endif
                   runtime_envvars:
                   %for key, val in node['runtime_envvars'].items():
                     ${key}: "${val}"

@@ -301,6 +301,7 @@ class WebController(InterfaceControlServer):
         hx_deployer.run()  # <--- Blocking Call to Reactor
 
     def __call__(self, *args, **kwargs):
+        print (args, kwargs)
         return self.handle_request(*args, **kwargs)
 
     def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
@@ -311,6 +312,10 @@ class WebController(InterfaceControlServer):
                            self.emitter.MethodNotFound)
 
         try:
+
+            print('data:', control_request.data)
+            print('args:', control_request.args)
+            print('kwargs:', kwargs)
             request_data = control_request.data
             request_body = json.loads(request_data) if request_data else dict()
 

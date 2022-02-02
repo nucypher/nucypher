@@ -1,0 +1,21 @@
+- name: "Run Porter"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+
+    - name: "run porter"
+      become: yes
+      docker_container:
+        name: porter
+        state: started
+        restart: yes
+        image: "{{ porter_image | default('nucypher/porter:latest') }}"
+        restart_policy: "unless-stopped"
+        command: 'nucypher porter run --provider {{ blockchain_provider }} --network {{network_name}} --allow-origins "{{PORTER_CORS_ALLOW_ORIGINS}}"'
+        container_default_behavior: "compatibility"
+        volumes:
+          - ~/nucypher/nucypher:/root/.local/share/nucypher
+        ports:
+          - "80:9155/tcp"
+          - "443:9155/tcp"

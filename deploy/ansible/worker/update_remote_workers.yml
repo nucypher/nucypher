@@ -3,6 +3,10 @@
   remote_user: "{{default_user}}"
 
 - import_playbook: include/stop_containers.yml
+- import_playbook: include/init_worker.yml
+  when: wipe_nucypher_config is not undefined and wipe_nucypher_config
+- import_playbook: include/init_ursula.yml
+  when: wipe_nucypher_config is not undefined and wipe_nucypher_config
 - import_playbook: include/update_existing_ursula.yml
 - import_playbook: include/check_running_ursula.yml
 - import_playbook: include/backup_ursula_data.yml

@@ -1,0 +1,10 @@
+- name: "Setup Ethereum"
+  hosts: "{{ play_hosts }}"
+  remote_user: "{{default_user}}"
+  gather_facts: no
+  tasks:
+    - name: "pull nucypher/porter:latest"
+      become: yes
+      docker_image:
+        name: nucypher/porter:latest
+        source: pull

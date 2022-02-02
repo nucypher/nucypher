@@ -272,7 +272,7 @@ def update(general_config, remote_provider, nucypher_image, seed_network, wipe,
         hostnames = include_hosts
     for name, hostdata in [(n, d) for n, d in deployer.config['instances'].items() if n in hostnames]:
         emitter.echo(f'\t{name}: {hostdata["publicaddress"]}', color="yellow")
-    deployer.update_nucypher_on_existing_nodes(hostnames)
+    deployer.update_nucypher_on_existing_nodes(hostnames, wipe_nucypher=wipe)
 
 
 @cloudworkers.command('status')
@@ -446,7 +446,6 @@ def restore(general_config, namespace, network, target_host, source_path):
     deployer = CloudDeployers.get_deployer('generic')(emitter, None, None, namespace=namespace, network=network)
 
     deployer.restore_from_backup(target_host, source_path)
-
 
 @cloudworkers.command('migrate')
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
