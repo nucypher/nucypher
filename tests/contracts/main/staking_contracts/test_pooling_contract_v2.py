@@ -343,7 +343,7 @@ def test_staking(testerchain, application_economics, token, escrow, pooling_cont
         assert abs(supposed_portion - reward_portion) <= 10
 
     # Increase reward for delegators and worker
-    new_reward = token_economics.minimum_allowed_locked // 2
+    new_reward = NU(15_000, 'NU').to_units() // 2
     tx = token.functions.transfer(pooling_contract.address, new_reward).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tokens_supply += new_reward
