@@ -43,6 +43,7 @@ tabulate = "*"
 # Felix
 flask_sqlalchemy = "*"
 sqlalchemy = "*"
+hdwallet="*"
 
 [dev-packages]
 # Pytest
