@@ -36,6 +36,7 @@ def agent(testerchain, test_registry) -> NucypherTokenAgent:
     return token_agent
 
 
+@pytest.mark.skip()
 def test_token_properties(agent):
     testerchain = agent.blockchain
 
@@ -57,6 +58,7 @@ def test_token_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
+@pytest.mark.skip()
 def test_get_balance(agent, application_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
@@ -66,6 +68,7 @@ def test_get_balance(agent, application_economics):
     assert balance == application_economics.erc20_total_supply
 
 
+@pytest.mark.skip()
 def test_approve_transfer(agent, application_economics):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
@@ -80,6 +83,7 @@ def test_approve_transfer(agent, application_economics):
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
+@pytest.mark.skip()
 def test_transfer(agent, application_economics):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.client.accounts
@@ -97,6 +101,7 @@ def test_transfer(agent, application_economics):
     assert new_balance == old_balance + application_economics.min_authorization
 
 
+@pytest.mark.skip()
 def test_approve_and_call(agent, application_economics, deploy_contract):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
