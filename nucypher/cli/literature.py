@@ -420,7 +420,7 @@ DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: 
 #
 
 PASSWORD_COLLECTION_NOTICE = f"""
-Please provide a password to lock Worker keys.
+Please provide a password to lock Operator keys.
 Do not forget this password, and ideally store it using a password manager.
 """
 

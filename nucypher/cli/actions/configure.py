@@ -36,11 +36,11 @@ from nucypher.cli.literature import (
     COLLECT_URSULA_IPV4_ADDRESS,
     CONFIRM_URSULA_IPV4_ADDRESS
 )
-from nucypher.cli.types import WORKER_IP
+from nucypher.cli.types import OPERATOR_IP
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
+from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
 
@@ -137,7 +137,7 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
         raise  # crash :-(
 
 
-def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
+def collect_operator_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
 
     # From node swarm
     try:
@@ -148,14 +148,14 @@ def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool 
         if force:
             raise
         emitter.message('Cannot automatically determine external IP address - input required')
-        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
+        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=OPERATOR_IP)
 
     # Confirmation
     if not force:
         if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
-            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
+            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=OPERATOR_IP)
 
-    validate_worker_ip(worker_ip=ip)
+    validate_operator_ip(ip=ip)
     return ip
 
 
@@ -172,9 +172,9 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
         return  # TODO: crash, or not to crash... that is the question
     rest_host = ursula.rest_interface.host
     try:
-        validate_worker_ip(worker_ip=rest_host)
-    except InvalidWorkerIP:
-        message = f'{rest_host} is not a valid or permitted worker IP address.  Set the correct external IP then try again\n' \
+        validate_operator_ip(ip=rest_host)
+    except InvalidOperatorIP:
+        message = f'{rest_host} is not a valid or permitted operator IP address.  Set the correct external IP then try again\n' \
                   f'automatic configuration -> nucypher ursula config ip-address\n' \
                   f'manual configuration    -> nucypher ursula config --rest-host <IP ADDRESS>'
         emitter.message(message)

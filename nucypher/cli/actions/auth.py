@@ -57,10 +57,10 @@ def get_client_password(checksum_address: str, envvar: str = None, confirm: bool
 
 def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> None:
 
-    # TODO: Remove this block after deprecating 'worker_address'
+    # TODO: Remove this block after deprecating 'operator_address'
     from nucypher.config.characters import UrsulaConfiguration
     if isinstance(config, UrsulaConfiguration):
-        account = config.worker_address
+        account = config.operator_address
     else:
         account = config.checksum_address
 

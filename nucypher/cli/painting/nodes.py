@@ -59,9 +59,9 @@ def paint_node_status(emitter, ursula, start_time):
              teacher]
 
     if not ursula.federated_only:
-        worker_address = 'Worker Address ...... {}'.format(ursula.worker_address)
-        current_period = f'Current Period ...... {ursula.staking_agent.get_current_period()}'
-        stats.extend([current_period, worker_address])
+        operator_address = 'Operator Address ...... {}'.format(ursula.operator_address)
+        current_period = f'Current Period ...... {ursula.application_agent.get_current_period()}'
+        stats.extend([current_period, operator_address])
 
     if ursula._availability_tracker:
         if ursula._availability_tracker.running:

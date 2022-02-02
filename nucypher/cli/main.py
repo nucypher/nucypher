@@ -83,7 +83,7 @@ ENTRY_POINTS = (
     status.status,      # Network Status
     dao.dao,            # NuCypher DAO
     multisig.multisig,  # MultiSig operations
-    cloudworkers.cloudworkers,  # Remote Worker node management
+    cloudworkers.cloudworkers,  # Remote Operator node management
     contacts.contacts,          # Character "card" management
     porter.porter
 )

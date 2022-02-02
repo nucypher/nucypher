@@ -177,7 +177,7 @@ def test_persistent_node_storage_integration(click_runner,
 
     init_args = ('ursula', 'init',
                  '--provider', TEST_PROVIDER_URI,
-                 '--worker-address', another_ursula,
+                 '--operator-address', another_ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,
                  '--rest-host', MOCK_IP_ADDRESS,

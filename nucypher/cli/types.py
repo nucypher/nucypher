@@ -25,12 +25,12 @@ from cryptography.exceptions import InternalError
 from eth_utils import to_checksum_address
 from nucypher_core.umbral import PublicKey
 
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.token import NU, TToken
 from nucypher.policy.payment import PAYMENT_METHODS
-from nucypher.utilities.networking import validate_worker_ip, InvalidWorkerIP
+from nucypher.utilities.networking import validate_operator_ip, InvalidOperatorIP
 
 
 class ChecksumAddress(click.ParamType):
@@ -57,14 +57,14 @@ class IPv4Address(click.ParamType):
             return value
 
 
-class WorkerIPAddress(IPv4Address):
-    name = 'worker_ip'
+class OperatorIPAddress(IPv4Address):
+    name = 'operator_ip'
 
     def convert(self, value, param, ctx):
         _ip = super().convert(value, param, ctx)
         try:
-            validate_worker_ip(worker_ip=_ip)
-        except InvalidWorkerIP as e:
+            validate_operator_ip(ip=_ip)
+        except InvalidOperatorIP as e:
             self.fail(str(e))
         return value
 
@@ -142,9 +142,9 @@ EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 GWEI = DecimalRange(min=0)
 
-__min_allowed_locked = NU.from_units(StandardTokenEconomics._default_minimum_allowed_locked).to_tokens()
-MIN_ALLOWED_LOCKED_TOKENS = Decimal(__min_allowed_locked)
-STAKED_TOKENS_RANGE = DecimalRange(min=__min_allowed_locked)
+__min_authorization = TToken.from_units(Economics._default_min_authorization).to_tokens()
+MIN_AUTHORIZATION = Decimal(__min_authorization)
+STAKED_TOKENS_RANGE = DecimalRange(min=__min_authorization)
 
 # Filesystem
 EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True, path_type=Path)
@@ -153,7 +153,7 @@ EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True,
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
-WORKER_IP = WorkerIPAddress()
+OPERATOR_IP = OperatorIPAddress()
 
 GAS_STRATEGY_CHOICES = click.Choice(list(BlockchainInterface.GAS_STRATEGIES.keys()))
 PAYMENT_METHOD_CHOICES = click.Choice(list(PAYMENT_METHODS))
