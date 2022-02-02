@@ -29,7 +29,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     operator1, operator2, operator3, owner3, beneficiary, authorizer, *everyone_else = \
         testerchain.client.accounts
     min_authorization = application_economics.min_authorization
-    min_operator_seconds = 24 * 60 * 60
+    min_operator_seconds = application_economics.min_operator_seconds
 
     operator_log = pre_application.events.OperatorBonded.createFilter(fromBlock='latest')
 
@@ -335,7 +335,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
 def test_confirm_address(testerchain, threshold_staking, pre_application, application_economics, deploy_contract):
     creator, staking_provider, operator, *everyone_else = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
-    min_operator_seconds = 24 * 60 * 60
+    min_operator_seconds = application_economics.min_operator_seconds
 
     confirmations_log = pre_application.events.OperatorConfirmed.createFilter(fromBlock='latest')
 
@@ -354,7 +354,7 @@ def test_confirm_address(testerchain, threshold_staking, pre_application, applic
     # Deploy intermediary contract
     intermediary, _ = deploy_contract('Intermediary', pre_application.address)
 
-    # Bond contract as a operator
+    # Bond contract as an operator
     tx = threshold_staking.functions.setStakes(staking_provider, min_authorization, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
     tx = pre_application.functions.bondOperator(staking_provider, intermediary.address).transact({'from': staking_provider})

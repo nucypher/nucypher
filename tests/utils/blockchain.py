@@ -184,29 +184,24 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     def time_travel(self,
                     hours: int = None,
-                    seconds: int = None,
-                    periods: int = None,
-                    periods_base: int = None):
+                    seconds: int = None):
         """
         Wait the specified number of wait_hours by comparing
         block timestamps and mines a single block.
         """
 
-        more_than_one_arg = sum(map(bool, (hours, seconds, periods))) > 1
+        more_than_one_arg = sum(map(bool, (hours, seconds))) > 1
         if more_than_one_arg:
             raise ValueError("Specify hours, seconds, or periods, not a combination")
 
-        if periods:
-            base = periods_base or self.DEFAULT_ECONOMICS.seconds_per_period
-            duration = base * periods
-        elif hours:
+        if hours:
             duration = hours * (60*60)
             base = 60 * 60
         elif seconds:
             duration = seconds
             base = 1
         else:
-            raise ValueError("Specify either hours, seconds, or periods.")
+            raise ValueError("Specify either hours, or seconds.")
 
         now = self.w3.eth.getBlock('latest').timestamp
         end_timestamp = ((now+duration)//base) * base
@@ -216,7 +211,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "
-                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self.DEFAULT_ECONOMICS.seconds_per_period)} "
                       f"| epoch {end_timestamp}")
 
     @classmethod

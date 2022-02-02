@@ -33,23 +33,23 @@ from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 #     return token
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def threshold_staking(deploy_contract):
     threshold_staking, _ = deploy_contract('ThresholdStakingForPREApplicationMock')
     return threshold_staking
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture()
 def pre_application(testerchain, threshold_staking, deploy_contract, application_economics):
     min_authorization = application_economics.min_authorization
-    min_worker_seconds = 24 * 60 * 60
+    min_operator_seconds = application_economics.min_operator_seconds
 
     # Creator deploys the PRE application
     contract, _ = deploy_contract(
         'SimplePREApplication',
         threshold_staking.address,
         min_authorization,
-        min_worker_seconds
+        min_operator_seconds
     )
 
     tx = threshold_staking.functions.setApplication(contract.address).transact()
