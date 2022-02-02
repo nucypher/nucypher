@@ -15,8 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
-import os
 from pathlib import Path
 
 import pytest
@@ -34,7 +32,11 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME, STAKING_ESCROW_STUB_CONTRACT_NAME
 )
-from nucypher.blockchain.eth.deployers import StakingEscrowDeployer, StakingInterfaceDeployer, NucypherTokenDeployer
+from nucypher.blockchain.eth.deployers import (
+    StakingEscrowDeployer,
+    StakingInterfaceDeployer,
+    SubscriptionManagerDeployer
+)
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -207,7 +209,7 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
     assert not ALTERNATE_REGISTRY_FILEPATH.exists()
 
     command = ('contracts',
-               '--contract-name', NucypherTokenDeployer.contract_name,  # FIXME
+               '--contract-name', SubscriptionManagerDeployer.contract_name,  # FIXME
                # '--mode', 'bare',  # FIXME
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,

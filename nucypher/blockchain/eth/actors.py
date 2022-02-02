@@ -75,7 +75,7 @@ from nucypher.blockchain.eth.deployers import (
     PolicyManagerDeployer,
     StakingEscrowDeployer,
     StakingInterfaceDeployer,
-    WorklockDeployer, PREApplicationDeployer
+    WorklockDeployer, PREApplicationDeployer, SubscriptionManagerDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.multisig import Authorization, Proposal
@@ -83,7 +83,6 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import (
     NU,
-    TToken,
     Stake,
     StakeList,
     WorkTracker,

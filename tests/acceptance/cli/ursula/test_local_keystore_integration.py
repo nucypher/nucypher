@@ -24,7 +24,9 @@ import pytest
 from eth_account import Account
 from web3 import Web3
 
+from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
 from nucypher.blockchain.eth.signers import KeystoreSigner
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
@@ -33,16 +35,20 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
 )
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI
+    TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 )
 from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='module')
-def mock_funded_account_password_keystore(tmp_path_factory, testerchain):
-    """Generate a random keypair & password and create a local keystore"""
+def mock_funded_account_password_keystore(tmp_path_factory, testerchain, threshold_staking, application_economics, test_registry):
+    """
+    Generate a random keypair & password and create a local keystore. Then prepare a staking provider
+    for ursula. Then check that the correct ursula ethereum key signs the commitment.
+    """
     keystore = tmp_path_factory.mktemp('keystore', numbered=True)
     password = secrets.token_urlsafe(12)
     account = Account.create()
@@ -54,6 +60,21 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain):
             'to': account.address,
             'from': testerchain.etherbase_account,
             'value': Web3.toWei('1', 'ether')}))
+
+    # initialize threshold stake
+    provider_address = testerchain.unassigned_accounts[0]
+    tx = threshold_staking.functions.setRoles(provider_address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakes(provider_address, application_economics.min_authorization, 0, 0).transact()
+    testerchain.wait_for_receipt(tx)
+
+    provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
+    provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    pre_application_agent.bond_operator(provider=provider_address,
+                                        operator=account.address,
+                                        transacting_power=provider_power)
 
     return account, password, keystore
 
