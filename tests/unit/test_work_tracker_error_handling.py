@@ -25,7 +25,7 @@ from twisted.logger import globalLogPublisher, LogLevel
 
 from nucypher.utilities.gas_strategies import GasStrategyError
 
-from nucypher.blockchain.eth.token import WorkTrackerBaseClass
+from nucypher.blockchain.eth.token import WorkTrackerBase
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 logger = Logger("test-logging")
@@ -35,7 +35,7 @@ def log(message):
     logger.debug(message)
 
 
-class WorkTrackerArbitraryFailureConditions(WorkTrackerBaseClass):
+class WorkTrackerArbitraryFailureConditions(WorkTrackerBase):
 
     def __init__(self, clock, abort_on_error, *args, **kwargs):
         self.workdone = 0

@@ -18,18 +18,18 @@
 import pytest
 from decimal import Decimal, InvalidOperation
 
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency
+from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.token import NU
 
 
-def test_get_agent_with_different_registries(token_economics, agency, test_registry, agency_local_registry):
+def test_get_agent_with_different_registries(application_economics, agency, test_registry, agency_local_registry):
     # Get agents using same registry instance
-    staking_agent_1 = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
-    staking_agent_2 = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
+    staking_agent_1 = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    staking_agent_2 = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     assert staking_agent_2.registry_str == staking_agent_1.registry_str == str(test_registry)
     assert staking_agent_2 is staking_agent_1
 
     # Same content but different classes of registries
-    staking_agent_2 = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
+    staking_agent_2 = ContractAgency.get_agent(PREApplicationAgent, registry=agency_local_registry)
     assert staking_agent_2.registry_str == str(test_registry)
     assert staking_agent_2 is staking_agent_1

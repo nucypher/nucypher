@@ -112,16 +112,16 @@ def test_stakers_and_workers_relationships(testerchain, agency, test_registry):
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
     tpower = TransactingPower(account=staker_account, signer=Web3Signer(testerchain.client))
-    _txhash = staking_agent.bond_worker(transacting_power=tpower, worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(transacting_power=tpower, operator_address=worker_account)
 
     # We can check the staker-worker relation from both sides
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)
-    assert staker_account == staking_agent.get_staker_from_worker(worker_address=worker_account)
+    assert staker_account == staking_agent.get_staker_from_worker(operator_address=worker_account)
 
     # No staker-worker relationship
     random_address = to_checksum_address(os.urandom(20))
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=random_address)
-    assert NULL_ADDRESS == staking_agent.get_staker_from_worker(worker_address=random_address)
+    assert NULL_ADDRESS == staking_agent.get_staker_from_worker(operator_address=random_address)
 
 
 @pytest.mark.skip()

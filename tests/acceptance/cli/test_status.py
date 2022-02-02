@@ -96,7 +96,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
     next_locked_tokens = NU.from_units(staking_agent.get_locked_tokens(staking_address, 1))
 
     assert re.search(f"^Current period: {staking_agent.get_current_period()}", result.output, re.MULTILINE)
-    assert re.search(r"Worker:\s+" + some_dude.worker_address, result.output, re.MULTILINE)
+    assert re.search(r"Operator:\s+" + some_dude.operator_address, result.output, re.MULTILINE)
     assert re.search(r"Owned:\s+" + str(round(owned_tokens, 2)), result.output, re.MULTILINE)
     assert re.search(r"Staked in current period: " + str(round(current_locked_tokens, 2)), result.output, re.MULTILINE)
     assert re.search(r"Staked in next period: " + str(round(next_locked_tokens, 2)), result.output, re.MULTILINE)

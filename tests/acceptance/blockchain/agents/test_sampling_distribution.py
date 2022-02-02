@@ -15,100 +15,53 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import random
 from collections import Counter
 from itertools import permutations
-import random
 
 import pytest
 
-from nucypher.blockchain.economics import BaseEconomics
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, WeightedSampler
-from nucypher.blockchain.eth.constants import NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.actors import Operator
+from nucypher.blockchain.eth.agents import WeightedSampler, ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 
 
-@pytest.fixture()
-def token_economics():
-    economics = BaseEconomics(initial_supply=10 ** 9,
-                              first_phase_supply=int(0.5 * 10 ** 9),
-                              first_phase_max_issuance=10 ** 6,
-                              total_supply=2 * 10 ** 9,
-                              issuance_decay_coefficient=10 ** 7,
-                              lock_duration_coefficient_1=4,
-                              lock_duration_coefficient_2=8,
-                              maximum_rewarded_periods=4,
-                              genesis_hours_per_period=1,
-                              hours_per_period=1,
-                              minimum_locked_periods=2,
-                              minimum_allowed_locked=100,
-                              maximum_allowed_locked=5 * 10 ** 8,
-                              minimum_worker_periods=1)
-    return economics
+# @pytest.mark.nightly
+@pytest.mark.usefixtures("agency")
+def test_sampling_distribution(testerchain, test_registry, threshold_staking, application_economics):
 
+    # setup
+    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    stake_provider_accounts = testerchain.stakers_accounts
+    amount = application_economics.min_authorization
+    all_locked_tokens = len(stake_provider_accounts) * amount
 
-@pytest.fixture()
-def token(token_economics, deploy_contract):
-    # Create an ERC20 token
-    contract, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
-    return contract
+    # providers and operators
+    for provider_address in stake_provider_accounts:
+        operator_address = provider_address
 
-
-@pytest.mark.nightly
-def test_sampling_distribution(testerchain, token, deploy_contract, token_economics):
-
-    #
-    # SETUP
-    #
-
-    policy_manager, _ = deploy_contract(
-        'PolicyManagerForStakingEscrowMock', NULL_ADDRESS, token_economics.seconds_per_period
-    )
-    adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
-
-    staking_escrow_contract, _ = deploy_contract(
-        STAKING_ESCROW_CONTRACT_NAME,
-        token.address,
-        policy_manager.address,
-        adjudicator.address,
-        NULL_ADDRESS,
-        *token_economics.staking_deployment_parameters
-    )
-    staking_agent = StakingEscrowAgent(registry=None, contract=staking_escrow_contract)
-
-    # Travel to the start of the next period to prevent problems with unexpected overflow first period
-    testerchain.time_travel(hours=1)
-
-    creator = testerchain.etherbase_account
-
-    # Give Escrow tokens for reward and initialize contract
-    tx = token.functions.approve(staking_escrow_contract.address, 10 ** 9).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
-    tx = staking_escrow_contract.functions.initialize(10 ** 9, creator).transact({'from': creator})
-    testerchain.wait_for_receipt(tx)
-
-    stakers = testerchain.stakers_accounts
-    amount = token.functions.balanceOf(creator).call() // len(stakers)
-
-    # Airdrop
-    for staker in stakers:
-        tx = token.functions.transfer(staker, amount).transact({'from': creator})
+        # initialize threshold stake
+        tx = threshold_staking.functions.setRoles(provider_address).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
         testerchain.wait_for_receipt(tx)
 
-    all_locked_tokens = len(stakers) * amount
-    for staker in stakers:
-        balance = token.functions.balanceOf(staker).call()
-        tx = token.functions.approve(staking_escrow_contract.address, balance).transact({'from': staker})
-        testerchain.wait_for_receipt(tx)
+        power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
 
-        staker_power = TransactingPower(account=staker, signer=Web3Signer(testerchain.client))
-        staking_agent.deposit_tokens(amount=balance, lock_periods=10, transacting_power=staker_power)
-        staking_agent.bond_worker(transacting_power=staker_power, worker_address=staker)
-        staking_agent.commit_to_next_period(transacting_power=staker_power)
+        # We assume that the staking provider knows in advance the account of her operator
+        application_agent.bond_operator(provider=provider_address,
+                                        operator=operator_address,
+                                        transacting_power=power)
 
-    # Wait next period and check all locked tokens
-    testerchain.time_travel(hours=1)
+        operator = Operator(is_me=True,
+                            operator_address=operator_address,
+                            domain=TEMPORARY_DOMAIN,
+                            registry=test_registry,
+                            transacting_power=power)
+        operator.confirm_address()
 
     #
     # Test sampling distribution
@@ -122,10 +75,10 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
     sampled, failed = 0, 0
     while sampled < SAMPLES:
         try:
-            reservoir = staking_agent.get_stakers_reservoir(periods=1)
+            reservoir = application_agent.get_staking_provider_reservoir()
             addresses = set(reservoir.draw(quantity))
             addresses.discard(NULL_ADDRESS)
-        except staking_agent.NotEnoughStakers:
+        except application_agent.NotEnoughStakingProviders:
             failed += 1
             continue
         else:
@@ -135,8 +88,8 @@ def test_sampling_distribution(testerchain, token, deploy_contract, token_econom
     total_times = sum(counter.values())
 
     expected = amount / all_locked_tokens
-    for staker in stakers:
-        times = counter[staker]
+    for stake_provider in stake_provider_accounts:
+        times = counter[stake_provider]
         sampled_ratio = times / total_times
         abs_error = abs(expected - sampled_ratio)
         assert abs_error < ERROR_TOLERANCE

@@ -310,12 +310,12 @@ def test_merge_stakes(click_runner,
 
 @pytest.mark.skip()
 def test_remove_inactive(click_runner,
-                       stakeholder_configuration_file_location,
-                       token_economics,
-                       testerchain,
-                       agency_local_registry,
-                       manual_staker,
-                       stake_value):
+                         stakeholder_configuration_file_location,
+                         application_economics,
+                         testerchain,
+                         agency_local_registry,
+                         manual_staker,
+                         stake_value):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     original_stakes = list(staking_agent.get_all_stakes(staker_address=manual_staker))

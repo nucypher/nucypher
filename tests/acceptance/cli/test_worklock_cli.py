@@ -243,7 +243,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, application_ec
     staker = Staker(transacting_power=tpower,
                     domain=TEMPORARY_DOMAIN,
                     registry=agency_local_registry)
-    receipt = staker.bond_worker(worker_address=worker_address)
+    receipt = staker.bond_worker(operator_address=operator_address)
     assert receipt['status'] == 1
 
     worker = Ursula(is_me=True,
@@ -252,7 +252,7 @@ def test_refund(click_runner, testerchain, agency_local_registry, application_ec
                     registry=agency_local_registry,
                     checksum_address=bidder,
                     signer=Web3Signer(testerchain.client),
-                    worker_address=worker_address,
+                    operator_address=operator_address,
                     rest_host=MOCK_IP_ADDRESS,
                     rest_port=select_test_port(),
                     db_filepath=tempfile.mkdtemp(),

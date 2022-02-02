@@ -60,7 +60,7 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain):
 
 def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       tmp_path,
-                                                      manual_staker,
+                                                      stakers,
                                                       stake_value,
                                                       application_economics,
                                                       mocker,
@@ -68,39 +68,10 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       testerchain):
     config_root_path = tmp_path
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()
-    stakeholder_config_path = config_root_path / StakeHolderConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_funded_account_password_keystore
 
     #
-    # Stakeholder Steps
-    #
-
-    init_args = ('stake', 'init-stakeholder',
-                 '--config-root', str(config_root_path.absolute()),
-                 '--provider', TEST_PROVIDER_URI,
-                 '--network', TEMPORARY_DOMAIN)
-    click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
-
-    stake_args = ('stake', 'create',
-                  '--config-file', str(stakeholder_config_path.absolute()),
-                  '--staking-address', manual_staker,
-                  '--value', stake_value.to_tokens(),
-                  '--lock-periods', token_economics.minimum_locked_periods,
-                  '--force')
-    # TODO: Is This test is writing to the default system directory and ignoring updates to the passed filepath?
-    user_input = f'0\n{password}\nY\n'
-    click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-
-    init_args = ('stake', 'bond-worker',
-                 '--config-file', str(stakeholder_config_path.absolute()),
-                 '--staking-address', manual_staker,
-                 '--worker-address', worker_account.address,
-                 '--force')
-    user_input = password
-    click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
-
-    #
-    # Worker Steps
+    # Operator Steps
     #
 
     # Good signer...
@@ -159,7 +130,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
         assert pre_config_signer.path == ursula.signer.path
 
         # ...and that transactions are signed by the keystore signer
-        txhash = ursula.commit_to_next_period()
+        txhash = ursula.confirm_address()
         receipt = testerchain.wait_for_receipt(txhash)
         transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
         assert transaction_data['from'] == worker_account.address

@@ -52,7 +52,7 @@ def test_validate_checksum_address(get_random_checksum_address):
 
     # Even more complex: there are multiple checksum addresses
     @validate_checksum_address
-    def multiple_checksum_addresses(whatever, worker_address, staking_address=None):
+    def multiple_checksum_addresses(whatever, operator_address, staking_address=None):
         return True
 
     with pytest.raises(InvalidChecksumAddress):
@@ -71,5 +71,5 @@ def test_validate_checksum_address(get_random_checksum_address):
     assert multiple_checksum_addresses(123, get_random_checksum_address())
 
     assert multiple_checksum_addresses(42,
-                                       worker_address=get_random_checksum_address(),
+                                       operator_address=get_random_checksum_address(),
                                        staking_address=get_random_checksum_address())

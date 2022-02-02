@@ -57,10 +57,12 @@ def pre_application(testerchain, threshold_staking, deploy_contract, application
 
     return contract
 
+
 @pytest.fixture(scope='module')
 def test_registry():
     registry = InMemoryContractRegistry()
     return registry
+
 
 @pytest.fixture()
 def ursula_decentralized_test_config(testerchain, test_registry):

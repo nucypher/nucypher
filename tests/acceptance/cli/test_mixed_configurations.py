@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from nucypher.blockchain.eth.actors import Worker
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, FelixConfiguration, UrsulaConfiguration
 from nucypher.config.constants import (
@@ -198,13 +198,13 @@ def test_coexisting_configurations(click_runner,
 
     user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n' * 2
 
-    Worker.READY_POLL_RATE = 1
-    Worker.READY_TIMEOUT = 1
-    with pytest.raises(Teacher.UnbondedWorker):
-        # Worker init success, but not bonded.
+    Operator.READY_POLL_RATE = 1
+    Operator.READY_TIMEOUT = 1
+    with pytest.raises(Operator.ActorError):
+        # Operator init success, but not bonded.
         result = click_runner.invoke(nucypher_cli, run_args, input=user_input, catch_exceptions=False)
     assert result.exit_code == 0
-    Worker.READY_TIMEOUT = None
+    Operator.READY_TIMEOUT = None
 
     # All configuration files still exist.
     assert felix_file_location.is_file()

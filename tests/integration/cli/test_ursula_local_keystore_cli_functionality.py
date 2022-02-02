@@ -28,7 +28,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
 from tests.constants import MOCK_IP_ADDRESS
@@ -75,7 +75,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port,
 
-                 '--worker-address', worker_account.address,
+                 '--operator-address', worker_account.address,
                  '--config-root', str(custom_filepath.absolute()),
 
                  # The bit we are testing here
@@ -83,7 +83,7 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     cli_env = {
         NUCYPHER_ENVVAR_KEYSTORE_PASSWORD:    password,
-        NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: password,
+        NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: password,
     }
     result = click_runner.invoke(nucypher_cli,
                                  init_args,

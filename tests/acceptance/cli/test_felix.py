@@ -14,6 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import os
 from pathlib import Path
 from unittest import mock
 
@@ -22,16 +23,17 @@ import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.registry import LocalContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.chaotic import Felix
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import FelixConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import (INSECURE_DEVELOPMENT_PASSWORD, MOCK_CUSTOM_INSTALLATION_PATH_2, TEST_PROVIDER_URI)
 
 
@@ -61,7 +63,7 @@ def test_run_felix(click_runner, testerchain, agency_local_registry):
     # Test subproc (Click)
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'NUCYPHER_FELIX_DB_SECRET': INSECURE_DEVELOPMENT_PASSWORD,
-               'NUCYPHER_WORKER_ETH_PASSWORD': INSECURE_DEVELOPMENT_PASSWORD,
+               NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                'FLASK_DEBUG': '1'}
 
     # Felix creates a system configuration

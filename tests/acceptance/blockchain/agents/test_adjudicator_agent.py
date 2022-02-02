@@ -84,10 +84,10 @@ def test_adjudicator_slashes(agency,
     # The staker hasn't bond a worker yet
     assert NULL_ADDRESS == staking_agent.get_worker_from_staker(staker_address=staker_account)
 
-    _txhash = staking_agent.bond_worker(transacting_power=tpower, worker_address=worker_account)
+    _txhash = staking_agent.bond_worker(transacting_power=tpower, operator_address=worker_account)
 
     assert worker_account == staking_agent.get_worker_from_staker(staker_address=staker_account)
-    assert staker_account == staking_agent.get_staker_from_worker(worker_address=worker_account)
+    assert staker_account == staking_agent.get_staker_from_worker(operator_address=worker_account)
 
     ###### END OF STAKING ESCROW STUFF ####
 
@@ -111,5 +111,5 @@ def test_adjudicator_slashes(agency,
     investigator_reward = bobby.token_balance - bobby_old_balance
 
     assert investigator_reward > 0
-    assert investigator_reward == token_economics.base_penalty / token_economics.reward_coefficient
+    assert investigator_reward == application_economics.base_penalty / application_economics.reward_coefficient
     assert staker.locked_tokens(periods=1) < locked_tokens

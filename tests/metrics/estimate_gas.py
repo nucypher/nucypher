@@ -250,9 +250,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': staker2})
     transact(staker_functions.deposit(staker3, MIN_ALLOWED_LOCKED * 3, LOCKED_PERIODS), {'from': staker3})
 
-    transact(staker_functions.bondWorker(staker1), {'from': staker1})
-    transact(staker_functions.bondWorker(staker2), {'from': staker2})
-    transact(staker_functions.bondWorker(staker3), {'from': staker3})
+    transact(staker_functions.bondOperator(staker1), {'from': staker1})
+    transact(staker_functions.bondOperator(staker2), {'from': staker2})
+    transact(staker_functions.bondOperator(staker3), {'from': staker3})
     transact(staker_functions.setReStake(False), {'from': staker1})
     transact(staker_functions.setReStake(False), {'from': staker2})
     transact(staker_functions.setWindDown(True), {'from': staker1})
@@ -530,7 +530,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     for i in range(number_of_sub_stakes):
         transact(staker_functions.deposit(staker4, MIN_ALLOWED_LOCKED, LOCKED_PERIODS),
                  {'from': origin})
-    transact(staker_functions.bondWorker(staker4), {'from': staker4})
+    transact(staker_functions.bondOperator(staker4), {'from': staker4})
     transact(staker_functions.setWindDown(True), {'from': staker4})
 
     # Used to remove spending for first call in a period for mint and commitToNextPeriod
@@ -632,7 +632,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
             testerchain.wait_for_receipt(tx)
 
     for staker in stakers:
-        tx = escrow.functions.bondWorker(staker).transact({'from': staker})
+        tx = escrow.functions.bondOperator(staker).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
     for i in range(duration):
