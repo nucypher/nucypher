@@ -19,12 +19,13 @@ from typing import List, NamedTuple, Optional, Sequence
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
+from eth_utils import to_checksum_address
 from flask import request, Response
 
 from nucypher_core import TreasureMap, RetrievalKit
 from nucypher_core.umbral import PublicKey
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters.lawful import Ursula
@@ -94,7 +95,7 @@ the Pipe for nucypher network operations
                 BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
 
             self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)
-            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
+            self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
         else:
             self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
             node_class.set_federated_mode(federated_only)
