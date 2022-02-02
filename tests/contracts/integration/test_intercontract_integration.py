@@ -31,6 +31,12 @@ from nucypher.crypto.signing import SignatureStamp
 from nucypher.utilities.ethereum import to_32byte_hex
 
 
+TOTAL_SUPPLY = NU(10_000_000_000, 'NU').to_units()
+MIN_ALLOWED_TOKENS = NU(15_000, 'NU').to_units()
+MAX_ALLOWED_TOKENS = 10 * MIN_ALLOWED_TOKENS
+MIN_LOCKED_PERIODS = 4
+
+
 def pytest_namespace():
     return {'escrow_supply': 0,
             'staker1_tokens': 0,
@@ -40,39 +46,31 @@ def pytest_namespace():
 
 
 @pytest.fixture(scope='module')
-def token_economics():
-    economics = Economics(
-        maximum_allowed_locked=Economics._default_minimum_allowed_locked * 10
-    )
-    return economics
-
-
-@pytest.fixture(scope='module')
-def token(application_economics, deploy_contract):
+def token(deploy_contract):
     # Create an ERC20 token
-    contract, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=application_economics.erc20_total_supply)
+    contract, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=TOTAL_SUPPLY)
     return contract
 
 
 @pytest.fixture(scope='module')
-def escrow_dispatcher(testerchain, token, application_economics, deploy_contract):
+def escrow_dispatcher(testerchain, token, deploy_contract):
     escrow_stub, _ = deploy_contract('StakingEscrowStub',
                                      token.address,
-                                     application_economics.min_authorization,
-                                     application_economics.maximum_allowed_locked)
+                                     MIN_ALLOWED_TOKENS,
+                                     MAX_ALLOWED_TOKENS)
     dispatcher, _ = deploy_contract('Dispatcher', escrow_stub.address)
     return dispatcher
 
 
 @pytest.fixture(scope='module')
-def worklock(testerchain, token, escrow_dispatcher, application_economics, deploy_contract):
+def worklock(testerchain, token, escrow_dispatcher, deploy_contract):
     # Creator deploys the worklock using test values
     now = testerchain.w3.eth.getBlock('latest').timestamp
     start_bid_date = ((now + 3600) // 3600 + 1) * 3600  # beginning of the next hour plus 1 hour
     end_bid_date = start_bid_date + 3600
     end_cancellation_date = end_bid_date + 3600
     boosting_refund = 100
-    staking_periods = application_economics.min_operator_seconds
+    staking_periods = MIN_LOCKED_PERIODS
     min_allowed_bid = to_wei(1, 'ether')
     contract, _ = deploy_contract(
         contract_name='WorkLock',
@@ -183,7 +181,6 @@ def simple_staking_contract_interface(testerchain, staking_interface, simple_sta
 
 
 def test_worklock_phases(testerchain,
-                         application_economics,
                          token,
                          escrow,
                          simple_staking_contract,
@@ -193,7 +190,7 @@ def test_worklock_phases(testerchain,
         testerchain.client.accounts
 
     # Initialize worklock
-    worklock_supply = 3 * application_economics.min_authorization + application_economics.maximum_allowed_locked
+    worklock_supply = 3 * MIN_ALLOWED_TOKENS + MAX_ALLOWED_TOKENS
     tx = token.functions.approve(worklock.address, worklock_supply).transact({'from': creator})
     testerchain.wait_for_receipt(tx)
     tx = worklock.functions.tokenDeposit(worklock_supply).transact({'from': creator})
@@ -215,7 +212,7 @@ def test_worklock_phases(testerchain,
     testerchain.time_travel(hours=2)
 
     # Staker does bid
-    min_stake = application_economics.min_authorization
+    min_stake = MIN_ALLOWED_TOKENS
     bonus_worklock_supply = worklock_supply - min_stake
     assert worklock.functions.workInfo(staker2).call()[0] == 0
     assert testerchain.w3.eth.getBalance(worklock.address) == 0
@@ -293,7 +290,7 @@ def test_worklock_phases(testerchain,
         testerchain.wait_for_receipt(tx)
 
     # Do force refund to whale
-    assert worklock.functions.ethToTokens(deposited_eth_1).call() > application_economics.maximum_allowed_locked
+    assert worklock.functions.ethToTokens(deposited_eth_1).call() > MAX_ALLOWED_TOKENS
     staker2_balance = testerchain.w3.eth.getBalance(staker2)
     tx = worklock.functions.forceRefund([staker2]).transact()
     testerchain.wait_for_receipt(tx)
@@ -301,7 +298,7 @@ def test_worklock_phases(testerchain,
     refund = deposited_eth_1 - staker2_bid
     assert refund > 0
     staker2_tokens = worklock.functions.ethToTokens(staker2_bid).call()
-    assert staker2_tokens <= application_economics.maximum_allowed_locked
+    assert staker2_tokens <= MAX_ALLOWED_TOKENS
     assert testerchain.w3.eth.getBalance(worklock.address) == worklock_balance
     assert testerchain.w3.eth.getBalance(staker2) == staker2_balance
     assert worklock.functions.compensation(staker2).call() == refund
@@ -334,7 +331,7 @@ def test_worklock_phases(testerchain,
     assert token.functions.balanceOf(worklock.address).call() == worklock_supply - staker2_tokens
     pytest.escrow_supply = staker2_tokens
     assert escrow.functions.getAllTokens(staker2).call() == staker2_tokens
-    assert escrow.functions.getCompletedWork(staker2).call() == application_economics.total_supply
+    assert escrow.functions.getCompletedWork(staker2).call() == TOTAL_SUPPLY
 
     tx = worklock.functions.claim().transact({'from': staker1, 'gas_price': 0})
     testerchain.wait_for_receipt(tx)
@@ -421,13 +418,13 @@ def test_upgrading_and_rollback(testerchain,
     assert staking_interface_v2.address == staking_interface_router.functions.target().call()
 
 
-def test_refund(testerchain, escrow, worklock, application_economics):
+def test_refund(testerchain, escrow, worklock):
     staker1, staker2, staker3, staker4 = testerchain.client.accounts[1:5]
     deposited_eth_2 = to_wei(1, 'ether')
     worklock_balance = testerchain.w3.eth.getBalance(worklock.address)
 
     # Full refund for staker
-    assert escrow.functions.getCompletedWork(staker1).call() == application_economics.total_supply
+    assert escrow.functions.getCompletedWork(staker1).call() == TOTAL_SUPPLY
     remaining_work = worklock.functions.getRemainingWork(staker1).call()
     assert remaining_work == 0
     assert worklock.functions.workInfo(staker1).call()[0] == 2 * deposited_eth_2

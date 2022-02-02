@@ -20,10 +20,13 @@ import pytest
 from nucypher.blockchain.eth.token import NU
 
 
+TOTAL_SUPPLY = NU(1_000_000_000, 'NU').to_units()
+
+
 @pytest.fixture()
-def token(testerchain, application_economics, deploy_contract):
+def token(testerchain, deploy_contract):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=application_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=TOTAL_SUPPLY)
     return token
 
 

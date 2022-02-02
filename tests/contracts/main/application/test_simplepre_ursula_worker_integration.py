@@ -30,7 +30,6 @@ from tests.utils.ursula import start_pytest_ursula_services
 
 
 CONFIRMATION_SLOT = 1
-MIN_WORKER_SECONDS = 24 * 60 * 60
 
 
 def log(message):
@@ -38,8 +37,13 @@ def log(message):
     print(message)
 
 
-def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, testerchain, threshold_staking, pre_application,
-                                             application_economics, deploy_contract, test_registry_source_manager):
+# FIXME: test doesn't belong here, probably should use agents instead of contracts
+def test_ursula_contract_interaction_methods(ursula_decentralized_test_config,
+                                             testerchain,
+                                             threshold_staking,
+                                             pre_application,
+                                             application_economics,
+                                             test_registry_source_manager):
     creator, staking_provider, operator_address, *everyone_else = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
@@ -78,9 +82,12 @@ def test_ursula_contract_interaction_methods(ursula_decentralized_test_config, t
 
 
 @pytest_twisted.inlineCallbacks
-def test_integration_of_ursula_contract_interaction(mocker, ursula_decentralized_test_config, testerchain, threshold_staking, pre_application,
-                                                    application_economics, deploy_contract, test_registry_source_manager):
-
+def test_integration_of_ursula_contract_interaction(mocker,
+                                                    ursula_decentralized_test_config,
+                                                    testerchain,
+                                                    threshold_staking,
+                                                    pre_application,
+                                                    application_economics):
     creator, staking_provider, operator, staking_provider2, operator2, *everyone_else = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
