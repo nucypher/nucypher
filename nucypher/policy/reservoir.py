@@ -19,7 +19,7 @@ from typing import Iterable, List, Optional
 from eth_typing import ChecksumAddress
 
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.agents import StakersReservoir, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import StakingProvidersReservoir, PREApplicationAgent
 
 
 def make_federated_staker_reservoir(known_nodes: FleetSensor,
@@ -39,14 +39,13 @@ def make_federated_staker_reservoir(known_nodes: FleetSensor,
         addresses[ursula.checksum_address] = 1
 
     # add include addresses
-    return MergedReservoir(include_addresses, StakersReservoir(addresses))
+    return MergedReservoir(include_addresses, StakingProvidersReservoir(addresses))
 
 
-def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
-                                        duration_periods: int,
-                                        exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
-                                        include_addresses: Optional[Iterable[ChecksumAddress]] = None,
-                                        pagination_size: int = None):
+def make_decentralized_staking_provider_reservoir(application_agent: PREApplicationAgent,
+                                                  exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
+                                                  include_addresses: Optional[Iterable[ChecksumAddress]] = None,
+                                                  pagination_size: int = None):
     """
     Get a sampler object containing the currently registered stakers.
     """
@@ -56,12 +55,10 @@ def make_decentralized_staker_reservoir(staking_agent: StakingEscrowAgent,
     include_addresses = include_addresses or ()
     without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
-        reservoir = staking_agent.get_stakers_reservoir(periods=duration_periods,
-                                                        without=without_set,
-                                                        pagination_size=pagination_size)
-    except StakingEscrowAgent.NotEnoughStakers:
+        reservoir = application_agent.get_staking_provider_reservoir(without=without_set, pagination_size=pagination_size)
+    except PREApplicationAgent.NotEnoughStakingProviders:
         # TODO: do that in `get_stakers_reservoir()`?
-        reservoir = StakersReservoir({})
+        reservoir = StakingProvidersReservoir({})
 
     # add include addresses
     return MergedReservoir(include_addresses, reservoir)
@@ -74,7 +71,7 @@ class MergedReservoir:
     then returns None on subsequent calls.
     """
 
-    def __init__(self, values: Iterable, reservoir: StakersReservoir):
+    def __init__(self, values: Iterable, reservoir: StakingProvidersReservoir):
         self.values = list(values)
         self.reservoir = reservoir
 

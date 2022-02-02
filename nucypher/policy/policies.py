@@ -31,7 +31,7 @@ from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     MergedReservoir,
     PrefetchStrategy,
-    make_decentralized_staker_reservoir
+    make_decentralized_staking_provider_reservoir
 )
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
@@ -133,12 +133,14 @@ class Policy(ABC):
         def worker(address) -> 'Ursula':
             return self._ping_node(address, network_middleware)
 
-        worker_pool = WorkerPool(worker=worker,
-                                 value_factory=value_factory,
-                                 target_successes=self.shares,
-                                 timeout=timeout,
-                                 stagger_timeout=1,
-                                 threadpool_size=self.shares)
+        worker_pool = WorkerPool(
+            worker=worker,
+            value_factory=value_factory,
+            target_successes=self.shares,
+            timeout=timeout,
+            stagger_timeout=1,
+            threadpool_size=self.shares
+        )
         worker_pool.start()
         try:
             successes = worker_pool.block_until_target_successes()

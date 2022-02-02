@@ -37,7 +37,7 @@ from ansible import context as ansible_context
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, \
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
 
 NODE_CONFIG_STORAGE_KEY = 'worker-configs'
 URSULA_PORT = 9151
