@@ -43,7 +43,6 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
     quantity = 10
     required_data = {
         'quantity': quantity,
-        'duration_periods': 4,
     }
 
     # required args
@@ -51,10 +50,6 @@ def test_alice_get_ursulas_schema(get_random_checksum_address):
 
     # missing required args
     updated_data = {k: v for k, v in required_data.items() if k != 'quantity'}
-    with pytest.raises(InvalidInputData):
-        AliceGetUrsulas().load(updated_data)
-
-    updated_data = {k: v for k, v in required_data.items() if k != 'duration_periods'}
     with pytest.raises(InvalidInputData):
         AliceGetUrsulas().load(updated_data)
 

@@ -295,17 +295,16 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
 @pytest.fixture(scope="function")
 def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
     random_label = generate_random_label()
-    periods = application_economics.min_operator_seconds // 2
-    days = periods * (application_economics.hours_per_period // 24)
+    seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
     now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days - 1)
+    expiration = maya.MayaDT(now).add(seconds=seconds)
     shares = 3
     threshold = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
                                             threshold=threshold,
                                             shares=shares,
-                                            value=shares * periods * 100,
+                                            value=shares * seconds * 100,  # calculation probably needs to incorporate actual cost per second
                                             expiration=expiration)
     return policy
 
@@ -667,7 +666,7 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
                                           workers_addresses=testerchain.ursulas_accounts)
     for u in _ursulas:
         u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
-    testerchain.time_travel(periods=1)
+    #testerchain.time_travel(periods=1)
 
     # Bootstrap the network
     for ursula_to_teach in _ursulas:

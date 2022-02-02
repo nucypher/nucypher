@@ -30,14 +30,12 @@ def test_get_ursulas(blockchain_porter_rpc_controller, blockchain_ursulas):
     expected_response_id = 0
 
     quantity = 4
-    duration = 2
     blockchain_ursulas_list = list(blockchain_ursulas)
     include_ursulas = [blockchain_ursulas_list[0].checksum_address, blockchain_ursulas_list[1].checksum_address]
     exclude_ursulas = [blockchain_ursulas_list[2].checksum_address, blockchain_ursulas_list[3].checksum_address]
 
     get_ursulas_params = {
         'quantity': quantity,
-        'duration_periods': duration,
         'include_ursulas': include_ursulas,
         'exclude_ursulas': exclude_ursulas
     }
