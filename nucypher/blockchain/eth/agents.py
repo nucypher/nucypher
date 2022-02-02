@@ -72,6 +72,7 @@ from nucypher.types import (
     WorklockParameters,
     StakerFlags,
     StakerInfo,
+    StakingProviderInfo,
     PeriodDelta,
     StakingEscrowParameters,
     PolicyInfo,
@@ -1128,6 +1129,12 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
+    def get_staking_provider_info(self, staking_provider: ChecksumAddress) -> StakingProviderInfo:
+        # remove reserved fields
+        info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
+        return StakingProviderInfo(*info[0:3])
+
+    @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
         result = self.contract.functions.authorizedStake(staking_provider).call()
         return result
@@ -1157,7 +1164,7 @@ class PREApplicationAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def swarm(self) -> Iterable[ChecksumAddress]:
         for index in range(self.get_staking_providers_population()):
-            address: ChecksumAddress = self.contract.functions.stakers(index).call()
+            address: ChecksumAddress = self.contract.functions.stakingProviders(index).call()
             yield address
 
     @contract_api(CONTRACT_CALL)

@@ -97,6 +97,12 @@ class StakerInfo(NamedTuple):
     # history: Tuple[NuNits, ...]
 
 
+class StakingProviderInfo(NamedTuple):
+    operator: ChecksumAddress
+    operator_confirmed: bool
+    operator_start_timestamp: int
+
+
 class PolicyInfo(NamedTuple):
     disabled: bool
     sponsor: ChecksumAddress
