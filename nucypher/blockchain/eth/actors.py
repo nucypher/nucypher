@@ -32,6 +32,7 @@ from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
+from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import (
     Economics,
     EconomicsFactory,
@@ -1101,6 +1102,7 @@ class Operator(BaseActor):
     def get_staking_provider_address(self):
         self.__staking_provider_address = self.application_agent.get_staking_provider_from_operator(self.operator_address)
         self.checksum_address = self.__staking_provider_address
+        self.nickname = Nickname.from_seed(self.checksum_address)
         return self.__staking_provider_address
 
     @property
