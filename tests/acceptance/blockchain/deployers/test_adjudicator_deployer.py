@@ -14,7 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import pytest
 
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (
@@ -26,6 +26,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
+@pytest.mark.skip()
 def test_adjudicator_deployer(testerchain,
                               application_economics,
                               deployment_progress,

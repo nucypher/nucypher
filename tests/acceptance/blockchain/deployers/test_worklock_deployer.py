@@ -39,6 +39,7 @@ def worklock_deployer(baseline_deployment,
     return worklock_deployer
 
 
+@pytest.mark.skip()
 def test_worklock_deployment(worklock_deployer,
                              baseline_deployment,
                              staking_escrow_stub_deployer,
@@ -65,6 +66,7 @@ def test_worklock_deployment(worklock_deployer,
     assert staking_escrow_stub_deployer.contract_address == staking_escrow_address
 
 
+@pytest.mark.skip()
 def test_make_agent(worklock_deployer, test_registry):
 
     agent = worklock_deployer.make_agent()
@@ -77,6 +79,7 @@ def test_make_agent(worklock_deployer, test_registry):
     assert agent.contract_address == another_worklock_agent.contract_address
 
 
+@pytest.mark.skip()
 def test_deployment_parameters(worklock_deployer, test_registry, application_economics):
 
     # Ensure restoration of deployment parameters

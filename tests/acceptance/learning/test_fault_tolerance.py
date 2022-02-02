@@ -25,7 +25,7 @@ from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staker
 
 
-@pytest.mark.skip()
+# @pytest.mark.skip()
 def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mocker):
     #
     # Setup
