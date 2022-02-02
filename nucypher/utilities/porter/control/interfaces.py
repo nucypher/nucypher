@@ -35,7 +35,6 @@ class PorterInterface(ControlInterface):
     @attach_schema(porter_schema.AliceGetUrsulas)
     def get_ursulas(self,
                     quantity: int,
-                    duration_periods: int,
                     exclude_ursulas: Optional[List[ChecksumAddress]] = None,
                     include_ursulas: Optional[List[ChecksumAddress]] = None) -> dict:
         ursulas_info = self.implementer.get_ursulas(quantity=quantity,

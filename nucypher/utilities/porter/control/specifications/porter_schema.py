@@ -58,14 +58,6 @@ class AliceGetUrsulas(BaseSchema):
             '-n',
             help="Total number of Ursulas needed",
             type=click.INT, required=True))
-    duration_periods = base_fields.PositiveInteger(
-        required=True,
-        load_only=True,
-        click=click.option(
-            '--periods',
-            '-p',
-            help="Required duration of service for Ursulas",
-            type=click.INT, required=True))
 
     # optional
     exclude_ursulas = base_fields.StringList(

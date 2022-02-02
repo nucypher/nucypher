@@ -22,7 +22,6 @@ from tests.utils.policy import retrieval_request_setup
 def test_get_ursulas(blockchain_porter, blockchain_ursulas):
     # simple
     quantity = 4
-    duration = 2
     ursulas_info = blockchain_porter.get_ursulas(quantity=quantity)
     returned_ursula_addresses = {ursula_info.checksum_address for ursula_info in ursulas_info}
     assert len(returned_ursula_addresses) == quantity  # ensure no repeats

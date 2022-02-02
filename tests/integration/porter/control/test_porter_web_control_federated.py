@@ -35,14 +35,12 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
     assert response.status_code == 400
 
     quantity = 4
-    duration = 2  # irrelevant for federated (but required)
     federated_ursulas_list = list(federated_ursulas)
     include_ursulas = [federated_ursulas_list[0].checksum_address, federated_ursulas_list[1].checksum_address]
     exclude_ursulas = [federated_ursulas_list[2].checksum_address, federated_ursulas_list[3].checksum_address]
 
     get_ursulas_params = {
         'quantity': quantity,
-        'duration_periods': duration,  # irrelevant for federated (but required)
         'include_ursulas': include_ursulas,
         'exclude_ursulas': exclude_ursulas
     }
@@ -66,7 +64,6 @@ def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
     # Test Query parameters
     #
     response = federated_porter_web_controller.get(f'/get_ursulas?quantity={quantity}'
-                                                   f'&duration_periods={duration}'
                                                    f'&include_ursulas={",".join(include_ursulas)}'
                                                    f'&exclude_ursulas={",".join(exclude_ursulas)}')
     assert response.status_code == 200
@@ -204,10 +201,8 @@ def test_endpoints_basic_auth(federated_porter_basic_auth_web_controller,
                               federated_alice):
     # /get_ursulas
     quantity = 4
-    duration = 2  # irrelevant for federated (but required)
     get_ursulas_params = {
         'quantity': quantity,
-        'duration_periods': duration,  # irrelevant for federated (but required)
     }
     response = federated_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))
     assert response.status_code == 401  # user unauthorized
