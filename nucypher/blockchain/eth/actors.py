@@ -159,8 +159,12 @@ class BaseActor:
     def eth_balance(self) -> Decimal:
         """Return this actor's current ETH balance"""
         blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
-        balance = blockchain.client.get_balance(self.checksum_address)
+        balance = blockchain.client.get_balance(self.wallet_address)
         return Web3.fromWei(balance, 'ether')
+
+    @property
+    def wallet_address(self):
+        return self.checksum_address
 
 
 class NucypherTokenActor(BaseActor):
@@ -1083,6 +1087,10 @@ class Operator(BaseActor):
     @property
     def operator_address(self):
         return self.__operator_address
+
+    @property
+    def wallet_address(self):
+        return self.operator_address
 
     @property
     def staking_provider_address(self):
