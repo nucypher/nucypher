@@ -134,13 +134,10 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         self.metrics["work_orders_gauge"].set(len(reencryption_requests))
 
         if not self.ursula.federated_only:
-            staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.ursula.registry)
-            locked = staking_agent.get_locked_tokens(staker_address=self.ursula.checksum_address, periods=1)
-            missing_commitments = staking_agent.get_missing_commitments(
-                checksum_address=self.ursula.checksum_address)
+            staking_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.ursula.registry)
+            authorized = staking_agent.get_authorized_stake(staking_provider=self.ursula.checksum_address)
             decentralized_payload = {'provider': str(self.ursula.provider_uri),
-                                     'active_stake': str(locked),
-                                     'missing_commitments': str(missing_commitments)}
+                                     'active_stake': str(authorized)}
             base_payload.update(decentralized_payload)
 
             # TODO: Arrangements are deprecated and Policies are no longer trackable by arrangement storage.
@@ -190,9 +187,6 @@ class StakerMetricsCollector(BaseMetricsCollector):
                                         'All tokens that belong to the staker, including '
                                         'locked, unlocked and rewards',
                                         registry=registry),
-            "missing_commitments_gauge": Gauge(f'{metrics_prefix}_missing_commitments',
-                                               'Currently missed commitments',
-                                               registry=registry),
         }
 
     def _collect_internal(self) -> None:
@@ -220,33 +214,29 @@ class StakerMetricsCollector(BaseMetricsCollector):
         self.metrics["unlocked_tokens_gauge"].set(unlocked_tokens)
         self.metrics["owned_tokens_gauge"].set(owned_tokens)
 
-        # missed commitments
-        missing_commitments = staking_agent.get_missing_commitments(checksum_address=self.staker_address)
-        self.metrics["missing_commitments_gauge"].set(missing_commitments)
 
-
-class WorkerMetricsCollector(BaseMetricsCollector):
-    """Collector for Worker specific metrics."""
-    def __init__(self, domain: str, worker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
+class OperatorMetricsCollector(BaseMetricsCollector):
+    """Collector for Operator specific metrics."""
+    def __init__(self, domain: str, operator_address: ChecksumAddress, contract_registry: BaseContractRegistry):
         super().__init__()
         self.domain = domain
-        self.worker_address = worker_address
+        self.operator_address = operator_address
         self.contract_registry = contract_registry
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
             "worker_eth_balance_gauge": Gauge(f'{metrics_prefix}_worker_eth_balance',
-                                              'Worker Ethereum balance',
+                                              'Operator Ethereum balance',
                                               registry=registry),
             "worker_token_balance_gauge": Gauge(f'{metrics_prefix}_worker_token_balance',
-                                                'Worker NuNit balance',
+                                                'Operator NuNit balance',
                                                 registry=registry),
         }
 
     def _collect_internal(self) -> None:
         nucypher_worker_token_actor = NucypherTokenActor(registry=self.contract_registry,
                                                          domain=self.domain,
-                                                         checksum_address=self.worker_address)
+                                                         checksum_address=self.operator_address)
         self.metrics["worker_eth_balance_gauge"].set(nucypher_worker_token_actor.eth_balance)
         self.metrics["worker_token_balance_gauge"].set(int(nucypher_worker_token_actor.token_balance))
 
@@ -355,35 +345,6 @@ class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        missing_commitments = contract_agent.get_missing_commitments(checksum_address=self.staker_address)
-        if missing_commitments == 0:
-            # has either already committed to this period or the next period
-
-            # use local event filter for initial data
-            last_committed_period = contract_agent.get_last_committed_period(staker_address=self.staker_address)
-            arg_filters = {'staker': self.staker_address, 'period': last_committed_period}
-            latest_block = contract_agent.blockchain.client.block_number
-            previous_period = contract_agent.get_current_period() - 1  # just in case
-            # we estimate the block number for the previous period to start search from since either
-            # - commitment made during previous period for current period, OR
-            # - commitment made during current period for next period
-            block_number_for_previous_period = estimate_block_number_for_period(
-                period=previous_period,
-                seconds_per_period=contract_agent.staking_parameters()[1],
-                latest_block=latest_block)
-
-            events_throttler = ContractEventsThrottler(agent=contract_agent,
-                                                       event_name=self.event_name,
-                                                       from_block=block_number_for_previous_period,
-                                                       to_block=latest_block,
-                                                       **arg_filters)
-            for event_record in events_throttler:
-                self._event_occurred(event_record.raw_event)
-
-            # update last block checked since we just looked for this event up to and including latest block
-            # block range is inclusive, hence the increment
-            self.filter_current_from_block = latest_block + 1
 
 
 class ReStakeEventMetricsCollector(EventMetricsCollector):
@@ -412,17 +373,17 @@ class WindDownEventMetricsCollector(EventMetricsCollector):
         self.metrics[metric_key].set(contract_agent.is_winding_down(self.staker_address))
 
 
-class WorkerBondedEventMetricsCollector(EventMetricsCollector):
-    """Collector for WorkerBonded event."""
+class OperatorBondedEventMetricsCollector(EventMetricsCollector):
+    """Collector for OperatorBonded event."""
     def __init__(self,
                  staker_address: ChecksumAddress,
-                 worker_address: ChecksumAddress,
-                 event_name: str = 'WorkerBonded',
+                 operator_address: ChecksumAddress,
+                 event_name: str = 'OperatorBonded',
                  *args,
                  **kwargs):
         super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
         self.staker_address = staker_address
-        self.worker_address = worker_address
+        self.operator_address = operator_address
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         super().initialize(metrics_prefix=metrics_prefix, registry=registry)
@@ -433,13 +394,13 @@ class WorkerBondedEventMetricsCollector(EventMetricsCollector):
 
         # set initial value
         self.metrics["current_worker_is_me_gauge"].set(
-            contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
+            contract_agent.get_worker_from_staker(self.staker_address) == self.operator_address)
 
     def _event_occurred(self, event) -> None:
         super()._event_occurred(event)
         contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
         self.metrics["current_worker_is_me_gauge"].set(
-            contract_agent.get_worker_from_staker(self.staker_address) == self.worker_address)
+            contract_agent.get_worker_from_staker(self.staker_address) == self.operator_address)
 
 
 class WorkLockRefundEventMetricsCollector(EventMetricsCollector):

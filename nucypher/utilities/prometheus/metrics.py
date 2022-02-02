@@ -36,12 +36,12 @@ from nucypher.utilities.prometheus.collector import (
     UrsulaInfoMetricsCollector,
     BlockchainMetricsCollector,
     StakerMetricsCollector,
-    WorkerMetricsCollector,
+    OperatorMetricsCollector,
     WorkLockMetricsCollector,
     EventMetricsCollector,
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
-    WorkerBondedEventMetricsCollector,
+    OperatorBondedEventMetricsCollector,
     CommitmentMadeEventMetricsCollector,
     WorkLockRefundEventMetricsCollector)
 
@@ -191,9 +191,9 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
                                                  staker_address=ursula.checksum_address,
                                                  contract_registry=ursula.registry))
 
-        # Worker prometheus
-        collectors.append(WorkerMetricsCollector(domain=ursula.domain,
-                                                 worker_address=ursula.worker_address,
+        # Operator prometheus
+        collectors.append(OperatorMetricsCollector(domain=ursula.domain,
+                                                 operator_address=ursula.operator_address,
                                                  contract_registry=ursula.registry))
 
         #
@@ -292,14 +292,14 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         contract_registry=ursula.registry
     ))
 
-    # WorkerBonded
-    collectors.append(WorkerBondedEventMetricsCollector(
+    # OperatorBonded
+    collectors.append(OperatorBondedEventMetricsCollector(
         event_args_config={
             "startPeriod": (Gauge, f'{metrics_prefix}_worker_set_start_period', 'New worker was bonded'),
-            "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'WorkerBonded block number')
+            "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'OperatorBonded block number')
         },
         staker_address=staker_address,
-        worker_address=ursula.worker_address,
+        operator_address=ursula.operator_address,
         contract_agent_class=StakingEscrowAgent,
         contract_registry=ursula.registry
     ))
