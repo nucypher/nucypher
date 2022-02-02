@@ -141,8 +141,8 @@ def test_invalid_workers_tolerance(testerchain,
     # The worker is valid and can be verified (even with the force option)
     worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
     # In particular, we know that it's bonded to a staker who is really staking.
-    assert worker._worker_is_bonded_to_staker(registry=test_registry)
-    assert worker._staker_is_really_staking(registry=test_registry)
+    assert worker._operator_is_bonded(registry=test_registry)
+    assert worker._staking_provider_is_really_staking(registry=test_registry)
 
     # OK. Now we learn about this worker.
     lonely_blockchain_learner.remember_node(worker)
