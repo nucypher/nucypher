@@ -100,7 +100,6 @@ from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.policies import Policy
 from nucypher.types import NuNits, Period
 from nucypher.utilities.logging import Logger
 
@@ -1129,27 +1128,19 @@ class Operator(BaseActor):
         return func
 
 
-# TODO: This class can easily be removed with the introduction of Payments.
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
-        self.economics = EconomicsFactory.get_economics(registry=self.registry)
+        self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
 
     def create_policy(self, *args, **kwargs):
-        """
-        Hence the name, a BlockchainPolicyAuthor can create
-        a BlockchainPolicy with themself as the author.
-        """
+        """Hence the name, a BlockchainPolicyAuthor can create a BlockchainPolicy with themself as the author."""
         from nucypher.policy.policies import BlockchainPolicy
         blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)
         return blockchain_policy
 
-=======
->>>>>>> f400a6409... Removes BlockchainPolicyAuthor.
 
 class Investigator(NucypherTokenActor):
     """
