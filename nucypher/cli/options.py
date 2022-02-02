@@ -31,7 +31,7 @@ from nucypher.cli.types import (
     NuCypherNetworkName,
     WEI,
     STAKED_TOKENS_RANGE,
-    MIN_ALLOWED_LOCKED_TOKENS, PAYMENT_METHOD_CHOICES
+    MIN_AUTHORIZATION, PAYMENT_METHOD_CHOICES
 )
 from nucypher.utilities.logging import Logger
 
@@ -54,7 +54,7 @@ option_max_gas_price = click.option('--max-gas-price', help="Maximum acceptable 
 option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
 option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)
 option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be locally accepted.", type=STAKED_TOKENS_RANGE, default=MIN_ALLOWED_LOCKED_TOKENS)
+option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be locally accepted.", type=STAKED_TOKENS_RANGE, default=MIN_AUTHORIZATION)
 option_parameters = click.option('--parameters', help="Filepath to a JSON file containing additional parameters", type=EXISTING_READABLE_FILE)
 option_participant_address = click.option('--participant-address', help="Participant's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
 option_payment_provider = click.option('--payment-provider', help="Connection URL for payment method", type=click.STRING, required=False)

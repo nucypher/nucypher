@@ -85,7 +85,7 @@ ENTRY_POINTS = (
     dao.dao,            # NuCypher DAO
     multisig.multisig,  # MultiSig operations
     felix.felix,        # Faucet
-    cloudworkers.cloudworkers,  # Remote Worker node management
+    cloudworkers.cloudworkers,  # Remote Operator node management
     contacts.contacts,          # Character "card" management
     porter.porter
 )

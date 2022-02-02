@@ -30,7 +30,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
 )
 from tests.constants import (
@@ -113,7 +113,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,
-                 '--worker-address', worker_account.address,
+                 '--operator-address', worker_account.address,
                  '--config-root', str(config_root_path.absolute()),
                  '--provider', TEST_PROVIDER_URI,
                  '--rest-host', MOCK_IP_ADDRESS,
@@ -123,8 +123,8 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--signer', mock_signer_uri)
 
     cli_env = {
-        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD:    password,
-        NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: password,
+        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: password,
+        NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: password,
     }
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=cli_env)
     assert result.exit_code == 0, result.stdout

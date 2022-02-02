@@ -49,7 +49,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.painting.policies import paint_cards
 from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_WORKER_ADDRESS, DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import NUCYPHER_ENVVAR_OPERATOR_ADDRESS, DEFAULT_CONFIG_ROOT
 from nucypher.policy.identity import Card
 
 
@@ -217,7 +217,7 @@ def select_config_file(emitter: StdoutEmitter,
     Behaviour
     ~~~~~~~~~
 
-    - If checksum address is supplied by parameter or worker address env var - confirm there is a corresponding
+    - If checksum address is supplied by parameter or operator address env var - confirm there is a corresponding
       file on the disk or raise ValueError.
 
     - If there is only one configuration file for the character, automatically return its filepath.
@@ -236,7 +236,7 @@ def select_config_file(emitter: StdoutEmitter,
                                                          command=config_class.NAME), color='red')
         raise click.Abort()
 
-    checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_WORKER_ADDRESS, None)  # TODO: Deprecate worker_address in favor of checksum_address
+    checksum_address = checksum_address or os.environ.get(NUCYPHER_ENVVAR_OPERATOR_ADDRESS, None)  # TODO: Deprecate operator_address in favor of checksum_address
 
     parsed_config_files = list()
     parsed_addresses_and_filenames = list()
