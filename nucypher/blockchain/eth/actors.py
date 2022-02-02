@@ -1100,6 +1100,7 @@ class Operator(BaseActor):
 
     def get_staking_provider_address(self):
         self.__staking_provider_address = self.application_agent.get_staking_provider_from_operator(self.operator_address)
+        self.checksum_address = self.__staking_provider_address
         return self.__staking_provider_address
 
     @property
