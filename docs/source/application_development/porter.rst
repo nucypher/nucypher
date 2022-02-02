@@ -547,8 +547,6 @@ Parameters
 +==================================+===============+===============================================+
 | ``quantity``                     | Integer       | Number of total Ursulas to return.            |
 +----------------------------------+---------------+-----------------------------------------------+
-| ``duration_periods``             | Integer       | Number of periods required for the policy.    |
-+----------------------------------+---------------+-----------------------------------------------+
 | ``include_ursulas`` *(Optional)* | List[String]  | | List of Ursula checksum addresses to        |
 |                                  |               | | give preference to. If any of these Ursulas |
 |                                  |               | | are unavailable, they will not be included  |
@@ -574,7 +572,6 @@ Example Request
     curl -X GET <PORTER URI>/get_ursulas \
         -H "Content-Type: application/json" \
         -d '{"quantity": 5,
-             "duration_periods": 4,
              "include_ursulas": ["0xB04FcDF9327f65AB0107Ea95b78BB200C07FA752"],
              "exclude_ursulas": ["0x5cF1703A1c99A4b42Eb056535840e93118177232", "0x9919C9f5CbBAA42CB3bEA153E14E16F85fEA5b5D"]}'
 
@@ -582,7 +579,7 @@ OR
 
 .. code:: bash
 
-    curl -X GET "<PORTER URI>/get_ursulas?quantity=5&duration_periods=4&include_ursulas=0xB04FcDF9327f65AB0107Ea95b78BB200C07FA752&exclude_ursulas=0x5cF1703A1c99A4b42Eb056535840e93118177232,0x9919C9f5CbBAA42CB3bEA153E14E16F85fEA5b5D"
+    curl -X GET "<PORTER URI>/get_ursulas?quantity=5&include_ursulas=0xB04FcDF9327f65AB0107Ea95b78BB200C07FA752&exclude_ursulas=0x5cF1703A1c99A4b42Eb056535840e93118177232,0x9919C9f5CbBAA42CB3bEA153E14E16F85fEA5b5D"
 
 
 Example Response
