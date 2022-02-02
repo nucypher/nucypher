@@ -38,10 +38,17 @@ from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, DEPLOY_DIR, NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, \
     NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from nucypher.utilities import keygen
 
 NODE_CONFIG_STORAGE_KEY = 'worker-configs'
 URSULA_PORT = 9151
 PROMETHEUS_PORTS = [9101]
+
+
+
+# key material params
+STRENGTH: int = 160  # Default is 128
+LANGUAGE: str = "english"  # Default is english
 
 
 ansible_context.CLIARGS = ImmutableDict(
@@ -233,6 +240,11 @@ class BaseCloudNodeConfigurator:
                 "keystorepassword": b64encode(os.urandom(64)).decode('utf-8'),
                 "ethpassword": b64encode(os.urandom(64)).decode('utf-8'),
             }
+
+        if not self.config.get('keystoremnemonic'):
+            wallet = keygen.generate()
+            self.config['keystoremnemonic'] = wallet.mnemonic()
+            self.alert_new_mnemonic(wallet)
         # configure provider specific attributes
         self._configure_provider_params(profile)
 
@@ -269,6 +281,10 @@ class BaseCloudNodeConfigurator:
             json.dump(self.config, outfile, indent=4)
 
     @property
+    def instance_count(self):
+        return len(self.config['instances'].keys())
+
+    @property
     def network_config_path(self):
         return Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, self.network)
 
@@ -301,7 +317,7 @@ class BaseCloudNodeConfigurator:
     def inventory_path(self):
         return str(Path(DEFAULT_CONFIG_ROOT).joinpath(NODE_CONFIG_STORAGE_KEY, f'{self.namespace_network}.ansible_inventory.yml'))
 
-    def update_generate_inventory(self, node_names, **kwargs):
+    def update_generate_inventory(self, node_names, generate_keymaterial=False, **kwargs):
 
         # filter out the nodes we will not be dealing with
         nodes = {key: value for key, value in self.config['instances'].items() if key in node_names}
@@ -317,6 +333,10 @@ class BaseCloudNodeConfigurator:
             'cliargs': [
             ]
         }
+
+        if generate_keymaterial or kwargs.get('wipe_nucypher'):
+            wallet = keygen.restore(self.config['keystoremnemonic'])
+            keypairs = list(keygen.derive(wallet, quantity=self.instance_count))
 
         for datatype in ['envvars', 'cliargs']:
 
@@ -343,6 +363,8 @@ class BaseCloudNodeConfigurator:
                 for k, v in defaults[datatype]:
                     if not k in nodes[key][data_key]:
                         nodes[key][data_key][k] = v
+                if generate_keymaterial or kwargs.get('wipe_nucypher'):
+                    node['keymaterial'] = keypairs[node['index']][1]
 
         inventory_content = self._inventory_template.render(
             deployer=self,
@@ -377,6 +399,7 @@ class BaseCloudNodeConfigurator:
                 node_data = self.create_new_node(node_name)
                 node_data['host_nickname'] = node_name
                 node_data['provider'] = self.provider_name
+                node_data['index'] = len(self.config['instances'].keys())
                 self.config['instances'][node_name] = node_data
                 if self.config['seed_network'] and not self.config.get('seed_node'):
                     self.config['seed_node'] = node_data['publicaddress']
@@ -416,7 +439,7 @@ class BaseCloudNodeConfigurator:
             self.config['seed_node'] = list(self.config['instances'].values())[0]['publicaddress']
             self._write_config()
 
-        self.update_generate_inventory(node_names, wipe_nucypher=wipe_nucypher)
+        self.update_generate_inventory(node_names, generate_keymaterial=True)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -436,7 +459,7 @@ class BaseCloudNodeConfigurator:
         self.update_captured_instance_data(self.output_capture)
         self.give_helpful_hints(node_names, backup=True, playbook=playbook)
 
-    def update_nucypher_on_existing_nodes(self, node_names):
+    def update_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
 
         playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/update_remote_workers.yml')
 
@@ -456,7 +479,7 @@ class BaseCloudNodeConfigurator:
             self.config['seed_node'] = list(self.config['instances'].values())[0]['publicaddress']
             self._write_config()
 
-        self.update_generate_inventory(node_names)
+        self.update_generate_inventory(node_names, wipe_nucypher=wipe_nucypher)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -664,6 +687,35 @@ class BaseCloudNodeConfigurator:
     def format_ssh_cmd(self, host_data):
         user = next(v['value'] for v in host_data['provider_deploy_attrs'] if v['key'] == 'default_user')
         return f"ssh {user}@{host_data['publicaddress']}"
+
+    def alert_new_mnemonic(self, wallet):
+        self.emitter.echo("A new keystore mnemonic has been generated:", color="yellow")
+        self.emitter.echo(f'\t{wallet.mnemonic()}', color="red")
+        self.emitter.echo("This will be stored in the config file for this namespace.")
+        self.emitter.echo(f'\t{self.config_path}')
+        self.emitter.echo("Back this up and keep it safe to enable restoration of Ursula nodes in the event of hard disk failure or other data loss.", color="red")
+
+    def migrate_5_6(self):
+        for index, instance in enumerate(self.config['instances'].keys()):
+            if not self.config['instances'][instance].get('index'):
+                self.config['instances'][instance]['index'] = index
+
+        if self.config.get('keyringpassword'):
+            self.config['keystorepassword'] = self.config.get('keyringpassword')
+
+        if not self.config.get('keystoremnemonic'):
+            wallet = keygen.generate()
+            self.config['keystoremnemonic'] = wallet.mnemonic()
+            self.alert_new_mnemonic(wallet)
+        self._write_config()
+
+    def migrate(self, current=5, target=6):
+        migration = f'migrate_{current}_{target}'
+        if hasattr(self, migration):
+            return getattr(self, migration)()
+
+        self.emitter.echo(f" *** Error:  Could'nt find migration from {current} to {target} ***", color="red")
+
 
 
 class DigitalOceanConfigurator(BaseCloudNodeConfigurator):
@@ -1104,7 +1156,6 @@ class GenericConfigurator(BaseCloudNodeConfigurator):
             self.created_new_nodes = True
 
         return self.config
-
 
 
 class CloudDeployers:
