@@ -49,19 +49,19 @@ from nucypher.blockchain.eth.constants import (
     VOTING_CONTRACT_NAME,
     VOTING_AGGREGATOR_CONTRACT_NAME,
     WORKLOCK_CONTRACT_NAME,
-    DAO_AGENT_CONTRACT_NAME, PRE_APPLICATION_CONTRACT_NAME
+    DAO_AGENT_CONTRACT_NAME,
+    PRE_APPLICATION_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.utils import sha256_digest
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE_LIGHT_NODE,
-    NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE
+    NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
+    NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE
 )
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.utils import sha256_digest
 from nucypher.types import (
     Agent,
     NuNits,
@@ -75,7 +75,7 @@ from nucypher.types import (
     PeriodDelta,
     StakingEscrowParameters,
     PolicyInfo,
-    ArrangementInfo
+    ArrangementInfo, TuNits
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -259,9 +259,9 @@ class StakingEscrowAgent(EthereumContractAgent):
     )
 
     DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE: int = int(os.environ.get(
-        NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
+        NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
 
-    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_STAKERS_PAGINATION_SIZE, default=1000))
+    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE, default=1000))
 
     class NotEnoughStakers(Exception):
         """Raised when the are not enough stakers available to complete an operation"""
@@ -760,7 +760,7 @@ class StakingEscrowAgent(EthereumContractAgent):
                               periods: int,
                               without: Iterable[ChecksumAddress] = None,
                               pagination_size: Optional[int] = None
-                              ) -> 'StakersReservoir':
+                              ) -> 'StakingProvidersReservoir':
 
         n_tokens, stakers_map = self.get_all_active_stakers(periods=periods,
                                                             pagination_size=pagination_size)
@@ -779,7 +779,7 @@ class StakingEscrowAgent(EthereumContractAgent):
         if n_tokens == 0:
             raise self.NotEnoughStakers(f'There are no locked tokens for duration {periods}.')
 
-        return StakersReservoir(stakers_map)
+        return StakingProvidersReservoir(stakers_map)
 
     @contract_api(CONTRACT_CALL)
     def get_completed_work(self, bidder_address: ChecksumAddress) -> Work:
@@ -1086,6 +1086,12 @@ class PREApplicationAgent(EthereumContractAgent):
 
     contract_name: str = PRE_APPLICATION_CONTRACT_NAME
 
+    DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
+    DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE, default=1000))
+
+    class NotEnoughStakingProviders(Exception):
+        pass
+
     class OperatorInfo(NamedTuple):
         address: ChecksumAddress
         confirmed: bool
@@ -1097,8 +1103,8 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_min_worker_seconds(self) -> int:
-        result = self.contract.functions.minWorkerSeconds().call()
+    def get_min_operator_seconds(self) -> int:
+        result = self.contract.functions.minOperatorSeconds().call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -1107,34 +1113,128 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_operator_from_staking_provider(self, operator: ChecksumAddress) -> ChecksumAddress:
-        result = self.contract.functions.getOperatorFromStakingProvider(operator).call()
+    def get_operator_from_staking_provider(self, staking_provider: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.getOperatorFromStakingProvider(staking_provider).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_beneficiary(self, operator: ChecksumAddress) -> ChecksumAddress:
-        result = self.contract.functions.getBeneficiary(operator).call()
+    def get_beneficiary(self, staking_provider: ChecksumAddress) -> ChecksumAddress:
+        result = self.contract.functions.getBeneficiary(staking_provider).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def is_operator_confirmed(self, operator: ChecksumAddress) -> bool:
-        result = self.contract.functions.isOperatorConfirmed(operator).call()
+    def is_operator_confirmed(self, address: ChecksumAddress) -> bool:
+        result = self.contract.functions.isOperatorConfirmed(address).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_authorized_stake(self, operator: ChecksumAddress) -> int:
-        result = self.contract.functions.authorizedStake(operator).call()
+    def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
+        result = self.contract.functions.authorizedStake(staking_provider).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_operators_length(self) -> int:
-        result = self.contract.functions.getOperatorsLength().call()
+    def is_authorized(self, staking_provider: ChecksumAddress) -> bool:
+        result = self.contract.functions.isAuthorized(staking_provider).call()
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_active_operators(self, start_index: int, max_results: int):
-        result = self.contract.functions.getActiveOperators(start_index, max_results).call()
+    def get_staking_providers_population(self) -> int:
+        result = self.contract.functions.getStakingProvidersLength().call()
         return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_staking_providers(self) -> List[ChecksumAddress]:
+        """Returns a list of staking provider addresses"""
+        num_providers: int = self.get_staking_providers_population()
+        providers: List[ChecksumAddress] = [self.contract.functions.stakingProviders(i).call() for i in range(num_providers)]
+        return providers
+
+    @contract_api(CONTRACT_CALL)
+    def get_active_staking_providers(self, start_index: int, max_results: int) -> Iterable:
+        result = self.contract.functions.getActiveStakingProviders(start_index, max_results).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def swarm(self) -> Iterable[ChecksumAddress]:
+        for index in range(self.get_staking_providers_population()):
+            address: ChecksumAddress = self.contract.functions.stakers(index).call()
+            yield address
+
+    @contract_api(CONTRACT_CALL)
+    def get_all_active_staking_providers(self, pagination_size: Optional[int] = None) -> Tuple[TuNits, Dict[ChecksumAddress, TuNits]]:
+
+        if pagination_size is None:
+            pagination_size = self.DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE if self.blockchain.is_light else self.DEFAULT_PROVIDERS_PAGINATION_SIZE
+            self.log.debug(f"Defaulting to pagination size {pagination_size}")
+        elif pagination_size < 0:
+            raise ValueError("Pagination size must be >= 0")
+
+        if pagination_size > 0:
+            num_providers: int = self.get_staking_providers_population()
+            start_index: int = 0
+            n_tokens: int = 0
+            staking_providers: Dict[int, int] = dict()
+            attempts: int = 0
+            while start_index < num_providers:
+                try:
+                    attempts += 1
+                    active_staking_providers = self.get_active_staking_providers(start_index, pagination_size)
+                except Exception as e:
+                    if 'timeout' not in str(e):
+                        # exception unrelated to pagination size and timeout
+                        raise e
+                    elif pagination_size == 1 or attempts >= 3:
+                        # we tried
+                        raise e
+                    else:
+                        # reduce pagination size and retry
+                        old_pagination_size = pagination_size
+                        pagination_size = old_pagination_size // 2
+                        self.log.debug(f"Failed staking providers sampling using pagination size = {old_pagination_size}."
+                                       f"Retrying with size {pagination_size}")
+                else:
+                    temp_authorized_tokens, temp_staking_providers = active_staking_providers
+                    # temp_staking_providers is a list of length-2 lists (address -> authorized tokens)
+                    temp_staking_providers = {address: authorized_tokens for address, authorized_tokens in temp_staking_providers}
+                    n_tokens = n_tokens + temp_authorized_tokens
+                    staking_providers.update(temp_staking_providers)
+                    start_index += pagination_size
+
+        else:
+            n_tokens, temp_staking_providers = self.get_active_staking_providers(start_index=0, max_results=0)
+            staking_providers = {address: authorized_tokens for address, authorized_tokens in temp_staking_providers}
+
+        # staking provider's addresses are returned as uint256 by getActiveStakingProviders(), convert to address objects
+        def checksum_address(address: int) -> ChecksumAddress:
+            return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
+
+        typed_staking_providers = {checksum_address(address): TuNits(authorized_tokens)
+                                   for address, authorized_tokens in staking_providers.items()}
+
+        return TuNits(n_tokens), typed_staking_providers
+
+    def get_staking_provider_reservoir(self,
+                                       without: Iterable[ChecksumAddress] = None,
+                                       pagination_size: Optional[int] = None
+                                       ) -> 'StakingProvidersReservoir':
+
+        # pagination_size = pagination_size or self.get_staking_providers_population()
+        n_tokens, stake_provider_map = self.get_all_active_staking_providers(pagination_size=pagination_size)
+
+        filtered_out = 0
+        if without:
+            for address in without:
+                if address in stake_provider_map:
+                    n_tokens -= stake_provider_map[address]
+                    del stake_provider_map[address]
+                    filtered_out += 1
+
+        self.log.debug(f"Got {len(stake_provider_map)} staking providers with {n_tokens} total tokens "
+                       f"({filtered_out} filtered out)")
+        if n_tokens == 0:
+            raise self.NotEnoughStakingProviders(f'There are no locked tokens.')
+
+        return StakingProvidersReservoir(stake_provider_map)
 
     #
     # Transactions
@@ -1151,9 +1251,9 @@ class PREApplicationAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def bond_operator(self, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def bond_operator(self, provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.bondOperator(operator)
+        contract_function: ContractFunction = self.contract.functions.bondOperator(provider, operator)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
@@ -1767,10 +1867,10 @@ class WeightedSampler:
         return self.__length
 
 
-class StakersReservoir:
+class StakingProvidersReservoir:
 
-    def __init__(self, stakers_map: Dict[ChecksumAddress, int]):
-        self._sampler = WeightedSampler(stakers_map)
+    def __init__(self, staking_provider_map: Dict[ChecksumAddress, int]):
+        self._sampler = WeightedSampler(staking_provider_map)
         self._rng = random.SystemRandom()
 
     def __len__(self):
@@ -1778,7 +1878,7 @@ class StakersReservoir:
 
     def draw(self, quantity):
         if quantity > len(self):
-            raise StakingEscrowAgent.NotEnoughStakers(f'Cannot sample {quantity} out of {len(self)} total stakers')
+            raise PREApplicationAgent.NotEnoughStakingProviders(f'Cannot sample {quantity} out of {len(self)} total staking providers')
 
         return self._sampler.sample_no_replacement(self._rng, quantity)
 

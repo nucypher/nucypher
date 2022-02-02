@@ -39,7 +39,6 @@ class PorterInterface(ControlInterface):
                     exclude_ursulas: Optional[List[ChecksumAddress]] = None,
                     include_ursulas: Optional[List[ChecksumAddress]] = None) -> dict:
         ursulas_info = self.implementer.get_ursulas(quantity=quantity,
-                                                    duration_periods=duration_periods,
                                                     exclude_ursulas=exclude_ursulas,
                                                     include_ursulas=include_ursulas)
 

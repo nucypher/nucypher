@@ -4,7 +4,7 @@ from typing import Optional, NamedTuple, Dict
 import maya
 from hexbytes import HexBytes
 from nucypher_core import ReencryptionRequest
-from web3.types import Wei, ChecksumAddress, Timestamp
+from web3.types import Wei, ChecksumAddress, Timestamp, TxReceipt
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import PolicyManagerAgent, SubscriptionManagerAgent
