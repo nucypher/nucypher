@@ -38,7 +38,7 @@ from nucypher.cli.literature import SUCCESSFUL_MINTING
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.payment import PolicyManagerPayment
+from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
@@ -597,7 +597,7 @@ def test_collect_rewards_integration(click_runner,
     assert staker.worker_address == worker_address
 
     # TODO: Test for SubscriptionManager?
-    payment_method = PolicyManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    payment_method = SubscriptionManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
     ursula_port = select_test_port()
 
     ursula = Ursula(is_me=True,

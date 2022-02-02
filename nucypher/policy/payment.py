@@ -145,112 +145,6 @@ class FreeReencryptions(PaymentMethod):
         return True
 
 
-class PolicyManagerPayment(ContractPayment):
-    """Handle policy payment using the PolicyManager contract."""
-
-    _AGENT = PolicyManagerAgent
-    NAME = 'PolicyManager'
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.economics = EconomicsFactory.get_economics(registry=self.registry, provider_uri=self.provider)
-
-    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
-        """Verify policy payment by reading the PolicyManager contract"""
-        arrangements = self.agent.fetch_policy_arrangements(policy_id=bytes(request.hrac))
-        members = set()
-        for arrangement in arrangements:
-            members.add(arrangement.node)
-            if payee == arrangement.node:
-                return True
-        else:
-            if not members:
-                return False
-            return False
-
-    def pay(self, policy: BlockchainPolicy) -> HexBytes:
-        """Writes a new policy to the PolicyManager contract."""
-        receipt = self.agent.create_policy(
-            value=policy.value,                # wei
-            policy_id=bytes(policy.hrac),      # bytes16 _policyID
-            end_timestamp=policy.expiration,   # uint16 _numberOfPeriods
-            node_addresses=policy.nodes,       # address[] memory _nodes
-            transacting_power=policy.publisher.transacting_power
-        )
-        return receipt
-
-    @property
-    def rate(self) -> Wei:
-        """Returns the default rate set on PolicyManager."""
-        _minimum, default, _maximum = self.agent.get_fee_rate_range()
-        return default
-
-    def validate_price(self, shares: int, value: int, duration: int) -> bool:
-        rate_per_period = value // shares // duration  # wei
-        recalculated_value = duration * rate_per_period * shares
-        if recalculated_value != value:
-            raise ValueError(f"Invalid policy value calculation - "
-                             f"{value} can't be divided into {shares} staker payments per period "
-                             f"for {duration} periods without a remainder")
-        return True
-
-    def quote(self,
-              shares: int,
-              expiration: Optional[Timestamp] = None,
-              duration: Optional[int] = None,
-              value: Optional[int] = None,
-              rate: Optional[int] = None,
-              *args, **kwargs
-              ) -> PaymentMethod.Quote:
-
-        # Check for negative inputs
-        if sum(True for i in (shares, expiration, duration, value, rate) if i is not None and i < 0) > 0:
-            raise ValueError(f"Negative policy parameters are not allowed. Be positive.")
-
-        # Check for policy params
-        if not (bool(value) ^ bool(rate)):
-            if not (value == 0 or rate == 0):  # Support a min fee rate of 0
-                raise ValueError(f"Either 'value' or 'rate'  must be provided for policy. "
-                                 f"Got value: {value} and rate: {rate}")
-
-        now = self.agent.blockchain.get_blocktime()
-        if duration:
-            # Duration equals one period means that expiration date is the last second of the current period
-            current_period = get_current_period(seconds_per_period=self.economics.seconds_per_period)
-            expiration = datetime_at_period(current_period + duration,
-                                            seconds_per_period=self.economics.seconds_per_period,
-                                            start_of_period=True)
-            expiration -= 1  # Get the last second of the target period
-        else:
-            duration = calculate_period_duration(now=maya.MayaDT(now),
-                                                 future_time=maya.MayaDT(expiration),
-                                                 seconds_per_period=self.economics.seconds_per_period)
-            duration += 1  # Number of all included periods
-
-        if value is None:
-            value = rate * duration * shares
-
-        else:
-            value_per_node = value // shares
-            if value_per_node * shares != value:
-                raise ValueError(f"Policy value of ({value} wei) cannot be "
-                                 f"divided by N ({shares}) without a remainder.")
-
-            rate = value_per_node // duration
-            if rate * duration != value_per_node:
-                raise ValueError(f"Policy value of ({value_per_node} wei) per node "
-                                 f"cannot be divided by duration ({duration} periods)"
-                                 f" without a remainder.")
-        q = self.Quote(
-            rate=Wei(rate),
-            value=Wei(value),
-            duration=duration,
-            expiration=Timestamp(expiration),
-            commencement=Timestamp(now)
-        )
-        return q
-
-
 class SubscriptionManagerPayment(ContractPayment):
     """Handle policy payment using the SubscriptionManager contract."""
 
@@ -329,6 +223,5 @@ class SubscriptionManagerPayment(ContractPayment):
 
 PAYMENT_METHODS = {
     FreeReencryptions.NAME: FreeReencryptions,
-    PolicyManagerPayment.NAME: PolicyManagerPayment,
     SubscriptionManagerPayment.NAME: SubscriptionManagerPayment,
 }

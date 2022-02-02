@@ -248,21 +248,16 @@ def federated_treasure_map(enacted_federated_policy, federated_bob):
 
 @pytest.fixture(scope="module")
 def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
-    """
-    Creates a Policy, in a manner typical of how Alice might do it, with a unique label
-    """
+    """Creates a Policy, in a manner typical of how Alice might do it, with a unique label"""
     random_label = generate_random_label()
-    periods = application_economics.min_operator_seconds // 2
-    days = periods * (application_economics.hours_per_period // 24)
-    now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days - 1)
-    shares = 3
-    threshold = 2
+    expiration = maya.now() + timedelta(days=1)
+    threshold, shares = 2, 3
+    price = blockchain_alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value  # TODO: use default quote option
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
+                                            value=price,
                                             threshold=threshold,
                                             shares=shares,
-                                            value=shares * periods * 100,
                                             expiration=expiration)
     return policy
 
