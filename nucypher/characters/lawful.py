@@ -61,9 +61,8 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.actors import ThresholdWorker
-from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.actors import Operator, BlockchainPolicyAuthor
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -95,10 +94,10 @@ from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import PaymentMethod, FreeReencryptions
 from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
 from nucypher.utilities.logging import Logger
-from nucypher.utilities.networking import validate_worker_ip
+from nucypher.utilities.networking import validate_operator_ip
 
 
-class Alice(Character):
+class Alice(Character, BlockchainPolicyAuthor):
     banner = ALICE_BANNER
     _interface_class = AliceInterface
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
@@ -167,12 +166,10 @@ class Alice(Character):
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
-
-            # BlockchainPolicyAuthor was here
-            self.economics = EconomicsFactory.get_economics(registry=self.registry, provider_uri=provider_uri)
-            self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent,
-                                                          registry=self.registry,
-                                                          provider_uri=provider_uri)
+            BlockchainPolicyAuthor.__init__(self,
+                                            domain=self.domain,
+                                            transacting_power=self.transacting_power,
+                                            registry=self.registry)
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -663,7 +660,7 @@ class Bob(Character):
         return controller
 
 
-class Ursula(Teacher, Character, ThresholdWorker):
+class Ursula(Teacher, Character, Operator):
 
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -700,7 +697,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
 
                  # Blockchain
                  checksum_address: ChecksumAddress = None,
-                 worker_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
+                 operator_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
 
@@ -750,7 +747,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
                 # Federated payments are free by default.
                 payment_method = FreeReencryptions()
 
-            # Decentralized Worker
+            # Decentralized Operator
             if not federated_only:
                 if not provider_uri:
                     raise ValueError('Provider URI is required to init a decentralized character.')
@@ -759,7 +756,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
 
                 # TODO: Move to method
                 # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=worker_address,
+                transacting_power = TransactingPower(account=operator_address,
                                                      password=client_password,
                                                      signer=self.signer,
                                                      cache=True)
@@ -771,13 +768,13 @@ class Ursula(Teacher, Character, ThresholdWorker):
                 decentralized_identity_evidence = self.__decentralized_identity_evidence
 
                 try:
-                    ThresholdWorker.__init__(self,
-                                    is_me=is_me,
-                                    domain=self.domain,
-                                    transacting_power=self.transacting_power,
-                                    registry=self.registry,
-                                    worker_address=worker_address)
-                except (Exception, self.WorkerError):
+                    Operator.__init__(self,
+                                      is_me=is_me,
+                                      domain=self.domain,
+                                      transacting_power=self.transacting_power,
+                                      registry=self.registry,
+                                      operator_address=operator_address)
+                except (Exception, self.OperatorError):
                     # TODO: Do not announce self to "other nodes" until this init is finished.
                     # It's not possible to finish constructing this node.
                     self.stop(halt_reactor=False)
@@ -849,7 +846,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
         transacting_power = self._crypto_power.power_ups(TransactingPower)
         signature = transacting_power.sign_message(message=bytes(self.stamp))
         self.__decentralized_identity_evidence = signature
-        self.__worker_address = transacting_power.account
+        self.__operator_address = transacting_power.account
         message = f"Created decentralized identity evidence: {self.__decentralized_identity_evidence[:10].hex()}"
         self.log.debug(message)
 
@@ -858,7 +855,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
         If an exception is raised, Ursula startup will be interrupted.
 
         """
-        validate_worker_ip(worker_ip=self.rest_interface.host)
+        validate_operator_ip(ip=self.rest_interface.host)
 
     def run(self,
             emitter: StdoutEmitter = None,
@@ -911,7 +908,7 @@ class Ursula(Teacher, Character, ThresholdWorker):
                 message = "✓ Work Tracking"
                 self.work_tracker.start(commit_now=True, requirement_func=self.work_tracker.worker.get_work_is_needed_check())  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             else:
-                message = "✓ Worker already confirmed.  Not starting worktracker."
+                message = "✓ Operator already confirmed.  Not starting worktracker."
             if emitter:
                 emitter.message(message, color='green')
 
@@ -1157,8 +1154,8 @@ class Ursula(Teacher, Character, ThresholdWorker):
 
         # Check the node's stake (optional)
         if minimum_stake > 0 and staker_address and not federated_only:
-            staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-            seednode_stake = staking_agent.get_locked_tokens(staker_address=staker_address)
+            staking_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
+            seednode_stake = staking_agent.get_authorized_stake(staking_provider=staker_address)
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(f"{staker_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
@@ -1239,18 +1236,12 @@ class Ursula(Teacher, Character, ThresholdWorker):
 
         if not self.federated_only:
             balance_eth = float(self.eth_balance)
-            balance_nu = float(self.token_balance.to_tokens())
-            missing_commitments = self.missing_commitments
-            last_committed_period = self.last_committed_period
         else:
             balance_eth = None
-            balance_nu = None
-            missing_commitments = None
-            last_committed_period = None
 
         return LocalUrsulaStatus(nickname=self.nickname,
                                  staker_address=self.checksum_address,
-                                 worker_address=self.worker_address,
+                                 operator_address=self.operator_address,
                                  rest_url=self.rest_url(),
                                  timestamp=self.timestamp,
                                  domain=domain,
@@ -1259,16 +1250,13 @@ class Ursula(Teacher, Character, ThresholdWorker):
                                  previous_fleet_states=previous_fleet_states,
                                  known_nodes=known_nodes_info,
                                  balance_eth=balance_eth,
-                                 balance_nu=balance_nu,
-                                 missing_commitments=missing_commitments,
-                                 last_committed_period=last_committed_period
                                  )
 
 
 class LocalUrsulaStatus(NamedTuple):
     nickname: Nickname
     staker_address: ChecksumAddress
-    worker_address: str
+    operator_address: str
     rest_url: str
     timestamp: maya.MayaDT
     domain: str
@@ -1277,9 +1265,6 @@ class LocalUrsulaStatus(NamedTuple):
     previous_fleet_states: List[ArchivedFleetState]
     known_nodes: Optional[List[RemoteUrsulaStatus]]
     balance_eth: float
-    balance_nu: float
-    missing_commitments: int
-    last_committed_period: int
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1288,7 +1273,7 @@ class LocalUrsulaStatus(NamedTuple):
             known_nodes_json = [status.to_json() for status in self.known_nodes]
         return dict(nickname=self.nickname.to_json(),
                     staker_address=self.staker_address,
-                    worker_address=self.worker_address,
+                    operator_address=self.operator_address,
                     rest_url=self.rest_url,
                     timestamp=self.timestamp.iso8601(),
                     domain=self.domain,
@@ -1297,9 +1282,6 @@ class LocalUrsulaStatus(NamedTuple):
                     previous_fleet_states=[state.to_json() for state in self.previous_fleet_states],
                     known_nodes=known_nodes_json,
                     balance_eth=self.balance_eth,
-                    balance_nu=self.balance_nu,
-                    missing_commitments=self.missing_commitments,
-                    last_committed_period=self.last_committed_period,
                     )
 
 

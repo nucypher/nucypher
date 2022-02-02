@@ -30,7 +30,7 @@ from eth_utils import is_checksum_address
 from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
@@ -49,12 +49,12 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
-    SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
     MNEMONIC_KEYSTORE = True
 
     def __init__(self,
                  rest_host: str = None,
-                 worker_address: str = None,
+                 operator_address: str = None,
                  dev_mode: bool = False,
                  db_filepath: Optional[Path] = None,
                  keystore_path: Optional[Path] = None,
@@ -77,7 +77,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host
         self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
-        self.worker_address = worker_address
+        self.operator_address = operator_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
         super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
 
@@ -89,7 +89,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
         federated = bool(cls.peek(filepath=filepath, field='federated_only'))
         if not federated:
-            checksum_address = cls.peek(filepath=filepath, field='worker_address')
+            checksum_address = cls.peek(filepath=filepath, field='operator_address')
 
         if not is_checksum_address(checksum_address):
             raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
@@ -107,7 +107,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            worker_address=self.worker_address,
+            operator_address=self.operator_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             db_filepath=self.db_filepath,

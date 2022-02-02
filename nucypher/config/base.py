@@ -322,7 +322,7 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 3  # bump when static payload scheme changes
+    VERSION = 4  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     DEFAULT_CONTROLLER_PORT = NotImplemented
@@ -412,7 +412,7 @@ class CharacterConfiguration(BaseConfiguration):
                  registry: BaseContractRegistry = None,
                  registry_filepath: Optional[Path] = None,
 
-                 # Deployed Workers
+                 # Deployed Operators
                  worker_data: dict = None
                  ):
 
@@ -466,7 +466,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
         self.config_root = UNINITIALIZED_CONFIGURATION
 
-        # Deployed Workers
+        # Deployed Operators
         self.worker_data = worker_data
 
         #

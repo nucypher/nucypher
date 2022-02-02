@@ -571,7 +571,7 @@ def validate_increase(stake: Stake, amount: NU) -> None:
     validate_max_value(stake=stake, amount=amount)
 
 
-class WorkTrackerBaseClass:
+class WorkTrackerBase:
 
     CLOCK = reactor
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
@@ -597,17 +597,13 @@ class WorkTrackerBaseClass:
         self._consecutive_fails = 0
 
         self._configure(*args)
-        self.gas_strategy = self.staking_agent.blockchain.gas_strategy
+        self.gas_strategy = worker.application_agent.blockchain.gas_strategy
 
     @classmethod
     def random_interval(cls, fails=None) -> int:
         if fails is not None and fails > 0:
             return cls.INTERVAL_FLOOR
         return random.randint(cls.INTERVAL_FLOOR, cls.INTERVAL_CEIL)
-
-    @property
-    def current_period(self):
-        return self.__current_period
 
     def max_confirmation_time(self) -> int:
         expected_time = EXPECTED_CONFIRMATION_TIME_IN_SECONDS[self.gas_strategy]  # FIXME: #2447
@@ -665,7 +661,6 @@ class WorkTrackerBaseClass:
             self._consecutive_fails += 1
             self.start(commit_now=commit_now)
 
-
     def __should_do_work_now(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
@@ -680,9 +675,9 @@ class WorkTrackerBaseClass:
         return self.__pending.copy()
 
     def __commitments_tracker_is_consistent(self) -> bool:
-        worker_address = self.worker.worker_address
-        tx_count_pending = self.client.get_transaction_count(account=worker_address, pending=True)
-        tx_count_latest = self.client.get_transaction_count(account=worker_address, pending=False)
+        operator_address = self.worker.operator_address
+        tx_count_pending = self.client.get_transaction_count(account=operator_address, pending=True)
+        tx_count_latest = self.client.get_transaction_count(account=operator_address, pending=False)
         txs_in_mempool = tx_count_pending - tx_count_latest
 
         if len(self.__pending) == txs_in_mempool:
@@ -814,68 +809,14 @@ class WorkTrackerBaseClass:
         raise NotImplementedError
 
 
-class ClassicPREWorkTracker(WorkTrackerBaseClass):
-
-    def _configure(self, *args):
-        self.stakes = stakes
-        self.staking_agent = self.worker.staking_agent
-        self.client = self.staking_agent.blockchain.client
-        self.__uptime_period = self.staking_agent.get_current_period()
-        self.__current_period = self.__uptime_period
-
-
-    def _prep_work_state(self):
-        # Update on-chain status
-        self.log.info(f"Checking for new period. Current period is {self.__current_period}")
-        onchain_period = self.staking_agent.get_current_period()  # < -- Read from contract
-        if self.current_period != onchain_period:
-            self.__current_period = onchain_period
-            self.log.info(f"New period is {self.__current_period}")
-            self.__reset_tracker_state()
-
-            # TODO: #1515 and #1517 - Shut down at end of terminal stake
-            # This slows down tests substantially and adds additional
-            # RPC calls, but might be acceptable in production
-            # self.worker.stakes.refresh()
-
-        # Measure working interval
-        interval = onchain_period - self.worker.last_committed_period
-        if interval < 0:
-            # Handle period migrations
-            last_commitment = self.worker.last_committed_period
-            next_period = onchain_period + 1
-            if last_commitment > next_period:
-                self.log.warn(f"PERIOD MIGRATION DETECTED - proceeding with commitment.")
-            else:
-                self.__reset_tracker_state()
-                return False# No need to commit to this period.  Save the gas.
-        elif interval > 0:
-            # TODO: #1516 Follow-up actions for missed commitments
-            self.log.warn(f"MISSED COMMITMENTS - {interval} missed staking commitments detected.")
-
-    def _final_work_prep_before_transaction(self):
-        self.stakes.refresh()
-        if not self.stakes.has_active_substakes:
-            self.log.warn(f'COMMIT PREVENTED - There are no active stakes.')
-            return False
-
-    def _fire_commitment(self):
-        """Makes an initial/replacement worker commitment transaction"""
-        transacting_power = self.worker.transacting_power
-        with transacting_power:
-            txhash = self.worker.commit_to_next_period(fire_and_forget=True)  # < --- blockchain WRITE
-        self.log.info(f"Making a commitment to period {self.current_period} - TxHash: {txhash.hex()}")
-        return txhash
-
-
-class SimplePREAppWorkTracker(WorkTrackerBaseClass):
+class WorkTracker(WorkTrackerBase):
 
     INTERVAL_FLOOR = 1
     INTERVAL_CEIL = 2
 
     def _configure(self, *args):
-        self.staking_agent = self.worker.pre_application_agent
-        self.client = self.staking_agent.blockchain.client
+        self.application_agent = self.worker.application_agent
+        self.client = self.application_agent.blockchain.client
 
     def _prep_work_state(self):
         return True
@@ -884,15 +825,15 @@ class SimplePREAppWorkTracker(WorkTrackerBaseClass):
         should_continue = self.worker.get_staking_provider_address() != NULL_ADDRESS
         if should_continue:
             return True
-        self.log.warn('COMMIT PREVENTED - Worker is not bonded to an operator.')
+        self.log.warn('COMMIT PREVENTED - Operator is not bonded to an operator.')
         return False
 
     def _fire_commitment(self):
         """Makes an initial/replacement worker commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:
-            txhash = self.worker.confirm_operator_address(fire_and_forget=True)  # < --- blockchain WRITE
-            self.log.info(f"Confirming worker address {self.worker.worker_address} with staking provider {self.worker.staking_provider_address} - TxHash: {txhash.hex()}")
+            txhash = self.worker.confirm_address(fire_and_forget=True)  # < --- blockchain WRITE
+            self.log.info(f"Confirming worker address {self.worker.operator_address} with staking provider {self.worker.staking_provider_address} - TxHash: {txhash.hex()}")
             return txhash
 
 

@@ -57,7 +57,7 @@ from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import NETWORK_PORT
 from nucypher.cli.utils import setup_emitter
 from nucypher.config.characters import FelixConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 option_port = click.option('--port', help="The host port to run Felix HTTP services on", type=NETWORK_PORT, default=FelixConfiguration.DEFAULT_REST_PORT)
@@ -166,7 +166,7 @@ class FelixCharacterOptions:
                                     password=get_nucypher_password(emitter=emitter, confirm=False))
 
             client_password = get_client_password(checksum_address=felix_config.checksum_address,
-                                                  envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
+                                                  envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD)
 
             # Produce Felix
             FELIX = felix_config.produce(domain=self.config_options.domain)

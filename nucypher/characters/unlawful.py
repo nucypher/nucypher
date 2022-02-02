@@ -64,7 +64,7 @@ class Vladimir(Ursula):
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
-        blockchain = target_ursula.policy_agent.blockchain
+        blockchain = target_ursula.application_agent.blockchain
         cls.attach_transacting_key(blockchain=blockchain)
 
         db_filepath = tempfile.mkdtemp(prefix='Vladimir')
@@ -78,7 +78,7 @@ class Vladimir(Ursula):
                        certificate=target_ursula.certificate,
                        network_middleware=cls.network_middleware,
                        checksum_address=cls.fraud_address,
-                       worker_address=cls.fraud_address,
+                       operator_address=cls.fraud_address,
                        signer=Web3Signer(blockchain.client),
                        provider_uri=blockchain.provider_uri,
                        payment_method=FreeReencryptions(),  # Vladimir does not care about money.
