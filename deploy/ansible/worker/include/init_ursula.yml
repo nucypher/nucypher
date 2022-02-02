@@ -71,6 +71,16 @@
       become: yes
       become_user: nucypher
       when: ursula_check.stat.exists == False
-      command: "docker run -v /home/nucypher:/root/.local/share/ -e NUCYPHER_KEYSTORE_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }} nucypher ursula init --key-material {{keymaterial}} --provider {{ blockchain_provider }} --operator-address {{active_account.stdout}} --rest-host {{ip_response.content}} --network {{network_name}} {{nucypher_ursula_init_options | default('')}} {{signer_options}}"
+      command: "docker run -v /home/nucypher:/root/.local/share/ \
+        -e NUCYPHER_KEYSTORE_PASSWORD -it {{ nucypher_image | default('nucypher/nucypher:latest') }} \
+        nucypher ursula init \
+        --key-material {{keymaterial}} \
+        --provider {{ blockchain_provider }} \
+        --operator-address {{active_account.stdout}} \
+        --rest-host {{ip_response.content}} \
+        --network {{network_name}} \
+        --payment-network {{payment_network}} \
+        --payment-provider {{payment_provider}} \
+        {{nucypher_ursula_init_options | default('')}} {{signer_options}}"
       environment:
         NUCYPHER_KEYSTORE_PASSWORD: "{{runtime_envvars['NUCYPHER_KEYSTORE_PASSWORD']}}"
