@@ -378,12 +378,12 @@ class FleetSensor:
 
         recorded_fleet_state = self._remote_states.get(node.checksum_address, None)
         last_learned_from = self._remote_last_seen.get(node.checksum_address, None)
-        worker_address = node.worker_address if node.verified_node else None
+        operator_address = node.operator_address if node.verified_node else None
 
         return RemoteUrsulaStatus(verified=node.verified_node,
                                   nickname=node.nickname,
                                   staker_address=node.checksum_address,
-                                  worker_address=worker_address,
+                                  operator_address=operator_address,
                                   rest_url=node.rest_url(),
                                   timestamp=node.timestamp,
                                   last_learned_from=last_learned_from,
@@ -395,7 +395,7 @@ class RemoteUrsulaStatus(NamedTuple):
     verified: bool
     nickname: Nickname
     staker_address: ChecksumAddress
-    worker_address: Optional[ChecksumAddress]
+    operator_address: Optional[ChecksumAddress]
     rest_url: str
     timestamp: maya.MayaDT
     recorded_fleet_state: Optional[ArchivedFleetState]
@@ -413,7 +413,7 @@ class RemoteUrsulaStatus(NamedTuple):
         return dict(verified=self.verified,
                     nickname=self.nickname.to_json(),
                     staker_address=self.staker_address,
-                    worker_address=self.worker_address,
+                    operator_address=self.operator_address,
                     rest_url=self.rest_url,
                     timestamp=self.timestamp.iso8601(),
                     recorded_fleet_state=recorded_fleet_state_json,

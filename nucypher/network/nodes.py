@@ -45,7 +45,7 @@ from nucypher_core.umbral import Signature
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -483,7 +483,7 @@ class Learner:
             except node.NotStaking:
                 # TODO: Bucket this node as inactive, and potentially safe to forget.  567
                 self.log.info(
-                    f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
+                    f'Staker:Operator {node.checksum_address}:{node.operator_address} is not actively staking, skipping.')
                 return False
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
@@ -906,11 +906,11 @@ class Learner:
                               f'{sprout} has no active stakes in the current period '
                               f'({self.staking_agent.get_current_period()}')
 
-            except sprout.InvalidWorkerSignature:
+            except sprout.InvalidOperatorSignature:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
 
-            except sprout.UnbondedWorker:
+            except sprout.UnbondedOperator:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} is not bonded to a Staker.')
 
@@ -978,7 +978,7 @@ class Teacher:
         self.verified_worker = False
         self.verified_metadata = False
         self.verified_node = False
-        self.__worker_address = None
+        self.__operator_address = None
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -989,13 +989,13 @@ class Teacher:
     class StampNotSigned(InvalidStamp):
         """Raised when a node does not have a stamp signature when one is required for verification"""
 
-    class InvalidWorkerSignature(InvalidStamp):
+    class InvalidOperatorSignature(InvalidStamp):
         """Raised when a stamp fails signature verification or recovers an unexpected worker address"""
 
     class NotStaking(InvalidStamp):
         """Raised when a node fails verification because it is not currently staking"""
 
-    class UnbondedWorker(InvalidNode):
+    class UnbondedOperator(InvalidNode):
         """Raised when a node fails verification because it is not bonded to a Staker"""
 
     class WrongMode(TypeError):
@@ -1042,16 +1042,16 @@ class Teacher:
 
     def _stamp_has_valid_signature_by_worker(self) -> bool:
         """
-        Off-chain Signature Verification of stamp signature by Worker's ETH account.
+        Off-chain Signature Verification of stamp signature by Operator's ETH account.
         Note that this only "certifies" the stamp with the worker's account,
         so it can be seen like a self certification. For complete assurance,
-        it's necessary to validate on-chain the Staker-Worker relation.
+        it's necessary to validate on-chain the Staker-Operator relation.
         """
         if self.__decentralized_identity_evidence is NOT_SIGNED:
             return False
         signature_is_valid = verify_eip_191(message=bytes(self.stamp),
                                             signature=self.__decentralized_identity_evidence,
-                                            address=self.worker_address)
+                                            address=self.operator_address)
         return signature_is_valid
 
     def _worker_is_bonded_to_staker(self, registry: BaseContractRegistry) -> bool:
@@ -1224,10 +1224,10 @@ class Teacher:
         return self.__decentralized_identity_evidence
 
     @property
-    def worker_address(self):
-        if not self.__worker_address and not self.federated_only:
+    def operator_address(self):
+        if not self.__operator_address and not self.federated_only:
             if self.decentralized_identity_evidence is NOT_SIGNED:
                 raise self.StampNotSigned  # TODO: Find a better exception  NRN
-            self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
+            self.__operator_address = recover_address_eip_191(message=bytes(self.stamp),
                                                             signature=self.decentralized_identity_evidence)
-        return self.__worker_address
+        return self.__operator_address
