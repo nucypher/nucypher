@@ -46,7 +46,7 @@ def test_deploy_single_contract(click_runner, tempfile_path):
 
     # Perform the Test
     command = ['contracts',
-               '--contract-name', NucypherTokenAgent.contract_name,
+               '--contract-name', 'SubscriptionManager',
                '--registry-infile', str(tempfile_path.absolute()),
                '--provider', TEST_PROVIDER_URI,
                '--signer', TEST_PROVIDER_URI,

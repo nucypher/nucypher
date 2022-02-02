@@ -58,6 +58,7 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.policies import BlockchainPolicy
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.porter.porter import Porter
 from tests.constants import (

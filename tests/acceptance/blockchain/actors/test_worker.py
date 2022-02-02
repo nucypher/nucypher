@@ -222,7 +222,7 @@ def test_ursula_contract_interaction_methods(ursula_decentralized_test_config,
     assert blockchain_ursula.is_confirmed is False
 
     # lets confirm it.  It will probably do this automatically in real life...
-    tx = blockchain_ursula.confirm_operator_address()
+    tx = blockchain_ursula.confirm_address()
     testerchain.wait_for_receipt(tx)
 
     assert blockchain_ursula.is_confirmed is True
@@ -240,7 +240,7 @@ def test_integration_of_ursula_contract_interaction(mocker,
     creator, staking_provider, operator, staking_provider2, operator2, *everyone_else = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
-    commit_spy = mocker.spy(Operator, 'confirm_operator_address')
+    commit_spy = mocker.spy(Operator, 'confirm_address')
     # replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
 
     # make an staking_providers and some stakes

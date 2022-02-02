@@ -96,7 +96,8 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency, test_regi
     payload = {'chainId': int(testerchain.client.chain_id),
                'nonce': testerchain.client.w3.eth.getTransactionCount(testerchain.etherbase_account),
                'from': testerchain.etherbase_account,
-               'gasPrice': testerchain.client.gas_price}
+               'gasPrice': testerchain.client.gas_price,
+               'gas': 500_000}
 
     unsigned_transaction = contract_function.buildTransaction(payload)
 
