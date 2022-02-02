@@ -170,7 +170,14 @@ class NucypherTokenActor(BaseActor):
 
     def __init__(self, registry: BaseContractRegistry, **kwargs):
         super().__init__(registry=registry, **kwargs)
-        self.token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.__token_agent = None
+
+    @property
+    def token_agent(self):
+        if self.__token_agent:
+            return self.__token_agent
+        self.__token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        return self.__token_agent
 
     @property
     def token_balance(self) -> NU:
