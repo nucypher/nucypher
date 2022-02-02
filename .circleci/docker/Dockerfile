@@ -2,18 +2,9 @@ FROM rust:slim-buster
 
 # prepare container
 RUN apt-get update -y
-RUN apt-get install -y sudo
-
-# setup user
-ARG USER
-RUN echo "Creating user $USER"
-RUN adduser --disabled-password --gecos '' $USER
-RUN adduser $USER sudo
-RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-RUN chown -R $USER /home/$USER
 
 # install python build dependencies
-RUN sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
+RUN apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
     xz-utils tk-dev libffi-dev liblzma-dev git docker-compose
 
@@ -42,6 +33,3 @@ RUN python3 --version && \
     cargo --version &&   \
     rustup --version &&  \
     rustc --version
-
-# set default user
-USER $USER
