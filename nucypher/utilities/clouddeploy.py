@@ -389,7 +389,7 @@ class BaseCloudNodeConfigurator:
     @property
     def _inventory_template(self):
         template_path = Path(__file__).parent / 'templates' / 'cloud_deploy_ansible_inventory.mako'
-        return Template(filename=template_path)
+        return Template(filename=str(template_path))
 
     def deploy_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
 
