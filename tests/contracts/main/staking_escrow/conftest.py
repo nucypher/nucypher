@@ -20,14 +20,15 @@ from web3.contract import Contract
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.token import NU
 
-VALUE_FIELD = 0
+TOTAL_SUPPLY = NU(1_000_000_000, 'NU').to_units()
 
 
 @pytest.fixture()
-def token(deploy_contract, application_economics):
+def token(deploy_contract):
     # Create an ERC20 token
-    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=application_economics.erc20_total_supply)
+    token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=TOTAL_SUPPLY)
     return token
 
 
