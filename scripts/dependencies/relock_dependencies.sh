@@ -35,15 +35,15 @@ set -e
 
 echo "Building Documentation Requirements"
 pushd ./scripts/dependencies/docs
-pipenv lock --clear --pre --requirements --no-header > ../../../docs-$PREFIX.txt
+pipenv lock --python 3.8 --clear --pre --requirements --no-header > ../../../docs-$PREFIX.txt
 rm -f Pipfile.lock
 pipenv --rm
 popd
 
 echo "Building Development Requirements"
-pipenv lock --clear --pre --requirements --dev-only --no-header > dev-$PREFIX.txt
+pipenv lock --python 3.8 --clear --pre --requirements --dev-only --no-header > dev-$PREFIX.txt
 
 echo "Building Standard Requirements"
-pipenv lock --clear --pre --requirements --no-header > $PREFIX.txt
+pipenv lock --python 3.8 --clear --pre --requirements --no-header > $PREFIX.txt
 
 echo "OK!"
