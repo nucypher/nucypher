@@ -121,12 +121,6 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-      - estimate_gas:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - tests_ok
       - build_docs:
           filters:
             tags:
@@ -344,12 +338,6 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-      - estimate_gas:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - tests_ok
       - build_docs:
           filters:
             tags:
