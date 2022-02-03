@@ -374,28 +374,28 @@ python_36_base: &python_36_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: kprasch/rust-python:3.6.9
+    - image: nucypher/rust-python:3.6.9
       user: circleci
 
 python_37_base: &python_37_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: kprasch/rust-python:3.7.9
+    - image: nucypher/rust-python:3.7.9
       user: circleci
 
 python_38_base: &python_38_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: kprasch/rust-python:3.8.9
+    - image: nucypher/rust-python:3.8.9
       user: circleci
 
 python_39_base: &python_39_base
   parallelism: 1
   working_directory: ~/nucypher
   docker:
-    - image: kprasch/rust-python:3.9.9
+    - image: nucypher/rust-python:3.9.9
       user: circleci
 
 commands:
