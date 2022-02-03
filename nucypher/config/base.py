@@ -848,23 +848,19 @@ class CharacterConfiguration(BaseConfiguration):
         return node_storage
 
     def configure_payment_method(self):
-        """
-        TODO: finalize config fields
-
+        # TODO: finalize config fields
         # Strategy-Based (current implementation, inflexible & hardcoded)
-        'payment_strategy': 'SubscriptionManager'
-        'payment_network': 'matic'
-        'payment_provider': 'https:///matic.infura.io....'
-
+        # 'payment_strategy': 'SubscriptionManager'
+        # 'payment_network': 'matic'
+        # 'payment_provider': 'https:///matic.infura.io....'
         # Contract-Targeted (alternative implementation, flexible & generic)
-        'payment': {
-            'contract': '0xdeadbeef'
-            'abi': '/home/abi/sm.json'
-            'function': 'isPolicyActive'
-            'provider': 'https:///matic.infura.io....'
-        }
+        # 'payment': {
+        #     'contract': '0xdeadbeef'
+        #     'abi': '/home/abi/sm.json'
+        #     'function': 'isPolicyActive'
+        #     'provider': 'https:///matic.infura.io....'
+        # }
 
-        """
         try:
             payment_class = PAYMENT_METHODS[self.payment_method]
         except KeyError:
