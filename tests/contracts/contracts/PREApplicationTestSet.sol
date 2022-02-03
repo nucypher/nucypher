@@ -42,6 +42,10 @@ contract ThresholdStakingForPREApplicationMock {
         preApplication = _preApplication;
     }
 
+    function stakedNu(address) external view returns (uint256) {
+        return 0;
+    }
+
     function setRoles(
         address _stakingProvider,
         address _owner,

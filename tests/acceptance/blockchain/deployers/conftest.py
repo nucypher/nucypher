@@ -51,15 +51,21 @@ def staking_escrow_stub_deployer(testerchain, token_deployer, test_registry, tra
 
 
 @pytest.fixture(scope="module")
-def staking_escrow_deployer(testerchain, staking_escrow_stub_deployer, test_registry, transacting_power):
+def staking_escrow_deployer(testerchain,
+                            staking_escrow_stub_deployer,
+                            threshold_staking,
+                            test_registry,
+                            transacting_power):
     staking_escrow_stub_deployer.deploy(deployment_mode=INIT, transacting_power=transacting_power)
-    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
+    staking_escrow_deployer = StakingEscrowDeployer(staking_interface=threshold_staking.address,
+                                                    registry=test_registry)
     return staking_escrow_deployer
 
 
 @pytest.fixture(scope="module")
-def staking_interface_deployer(staking_escrow_deployer, testerchain, test_registry):
-    staking_interface_deployer = StakingInterfaceDeployer(registry=test_registry)
+def staking_interface_deployer(staking_escrow_deployer, testerchain, test_registry, threshold_staking):
+    staking_interface_deployer = StakingInterfaceDeployer(staking_interface=threshold_staking.address,
+                                                          registry=test_registry)
     return staking_interface_deployer
 
 

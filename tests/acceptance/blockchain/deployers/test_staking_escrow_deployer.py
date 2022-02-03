@@ -23,7 +23,6 @@ from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.deployers import (DispatcherDeployer, StakingEscrowDeployer)
 
 
-@pytest.mark.skip()
 def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress, transacting_power):
     deployment_receipts = staking_escrow_deployer.deploy(progress=deployment_progress,
                                                          deployment_mode=constants.FULL,
@@ -36,7 +35,6 @@ def test_staking_escrow_deployment(staking_escrow_deployer, deployment_progress,
         assert deployment_receipts[step]['status'] == 1
 
 
-@pytest.mark.skip()
 def test_make_agent(staking_escrow_deployer, test_registry):
     # Create a StakingEscrowAgent instance
     staking_agent = staking_escrow_deployer.make_agent()
@@ -49,7 +47,6 @@ def test_make_agent(staking_escrow_deployer, test_registry):
     assert staking_agent.contract_address == same_staking_agent.contract_address
 
 
-@pytest.mark.skip()
 def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, test_registry, transacting_power):
 
     # Let's get the "bare" StakingEscrow contract (i.e., unwrapped, no dispatcher)
@@ -68,20 +65,20 @@ def test_staking_escrow_has_dispatcher(staking_escrow_deployer, testerchain, tes
     assert target == existing_bare_contract.address
 
 
-@pytest.mark.skip()
-def test_upgrade(testerchain, test_registry, application_economics, transacting_power):
+def test_upgrade(testerchain, test_registry, application_economics, transacting_power, threshold_staking):
 
-    deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
+    deployer = StakingEscrowDeployer(staking_interface=threshold_staking.address,
+                                     registry=test_registry,
+                                     economics=application_economics)
 
     receipts = deployer.upgrade(ignore_deployed=True, confirmations=0, transacting_power=transacting_power)
     for title, receipt in receipts.items():
         assert receipt['status'] == 1
 
 
-@pytest.mark.skip()
-def test_rollback(testerchain, test_registry, transacting_power):
+def test_rollback(testerchain, test_registry, transacting_power, threshold_staking):
 
-    deployer = StakingEscrowDeployer(registry=test_registry)
+    deployer = StakingEscrowDeployer(staking_interface=threshold_staking.address, registry=test_registry)
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
     current_target = staking_agent.contract.functions.target().call()
@@ -105,9 +102,14 @@ def test_rollback(testerchain, test_registry, transacting_power):
     assert new_target == old_target
 
 
-@pytest.mark.skip()
-def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry, application_economics, transacting_power):
-    deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
+def test_deploy_bare_upgradeable_contract_deployment(testerchain,
+                                                     test_registry,
+                                                     application_economics,
+                                                     transacting_power,
+                                                     threshold_staking):
+    deployer = StakingEscrowDeployer(staking_interface=threshold_staking.address,
+                                     registry=test_registry,
+                                     economics=application_economics)
 
     enrolled_names = list(test_registry.enrolled_names)
     old_number_of_enrollments = enrolled_names.count(StakingEscrowDeployer.contract_name)
@@ -128,7 +130,6 @@ def test_deploy_bare_upgradeable_contract_deployment(testerchain, test_registry,
     assert new_number_of_proxy_enrollments == old_number_of_proxy_enrollments
 
 
-@pytest.mark.skip()
 def test_deployer_version_management(testerchain, test_registry, application_economics):
     deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
 
@@ -141,7 +142,6 @@ def test_deployer_version_management(testerchain, test_registry, application_eco
     assert untargeted_deployment.address != latest_targeted_deployment.address
 
 
-@pytest.mark.skip()
 def test_manual_proxy_retargeting(testerchain, test_registry, application_economics, transacting_power):
 
     deployer = StakingEscrowDeployer(registry=test_registry, economics=application_economics)
