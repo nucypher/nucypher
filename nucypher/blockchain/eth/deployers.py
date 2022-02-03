@@ -49,6 +49,7 @@ from nucypher.blockchain.eth.interfaces import (
     VersionedContract,
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -399,6 +400,8 @@ class NucypherTokenDeployer(BaseContractDeployer):
     _upgradeable = False
     _ownable = False
 
+    TOTAL_SUPPLY = NU(1_000_000_000, 'NU').to_units()
+
     def deploy(self,
                transacting_power: TransactingPower,
                gas_limit: int = None,
@@ -424,7 +427,7 @@ class NucypherTokenDeployer(BaseContractDeployer):
             emitter.message("\nNext Transaction: Token Contract Creation", color='blue', bold=True)
 
         # WARNING: Order-sensitive!
-        constructor_kwargs = {"_totalSupplyOfTokens": self.economics.erc20_total_supply}
+        constructor_kwargs = {"_totalSupplyOfTokens": self.TOTAL_SUPPLY}
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         contract, deployment_receipt = self.blockchain.deploy_contract(transacting_power,
@@ -541,15 +544,17 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     deployment_steps = preparation_steps
     _proxy_deployer = DispatcherDeployer
 
-    def __init__(self, *args, **kwargs):
+    STUB_MIN_ALLOWED_TOKENS = NU(15_000, 'NU').to_units()
+    STUB_MAX_ALLOWED_TOKENS = NU(30_000_000, 'NU').to_units()
+
+    def __init__(self, staking_interface: ChecksumAddress = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__dispatcher_contract = None
 
         token_contract_name = NucypherTokenDeployer.contract_name
         self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
                                                                    contract_name=token_contract_name)
-        self.policy_manager = self._get_contract(deployer_class=PolicyManagerDeployer)
-        self.adjudicator = self._get_contract(deployer_class=AdjudicatorDeployer)
+        self.threshold_staking_address = staking_interface
         self.worklock = self._get_contract(deployer_class=WorklockDeployer)
 
     def _get_contract(self, deployer_class) -> VersionedContract:
@@ -571,8 +576,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                      confirmations: int = 0,
                      **overrides):
         constructor_kwargs = {
-            "_minAllowableLockedTokens": self.economics.min_authorization,
-            "_maxAllowableLockedTokens": self.economics.maximum_allowed_locked
+            "_minAllowableLockedTokens": self.STUB_MIN_ALLOWED_TOKENS,
+            "_maxAllowableLockedTokens": self.STUB_MAX_ALLOWED_TOKENS
         }
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
@@ -596,11 +601,11 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
                           confirmations: int = 0,
                           **overrides):
         constructor_kwargs = {}
+        constructor_kwargs.update({"_token": self.token_contract.address,
+                                   "_workLock": self.worklock.address if self.worklock is not None else NULL_ADDRESS,
+                                   "_tStaking": self.threshold_staking_address})
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
-        # Force use of the contract addresses from the registry
-        constructor_kwargs.update({"_token": self.token_contract.address,
-                                   "_workLock": self.worklock.address if self.worklock is not None else NULL_ADDRESS})
         the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
             transacting_power,
             self.registry,
@@ -726,6 +731,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
         return preparation_receipts
 
 
+#  TODO delete me
 class PolicyManagerDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
     """
     Depends on StakingEscrow and NucypherTokenAgent
@@ -922,7 +928,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, O
 
     # _ownable = False  # TODO: This contract is not truly ownable but we need the logic of the mixin to execute
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, staking_interface: ChecksumAddress, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         token_contract_name = NucypherTokenDeployer.contract_name
@@ -954,6 +960,8 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, O
         except BaseContractRegistry.UnknownContract:
             self.worklock_contract = None
 
+        self.threshold_staking_interface = staking_interface
+
     def _deploy_essential(self,
                           transacting_power: TransactingPower,
                           contract_version: str,
@@ -964,7 +972,8 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, O
         constructor_args = (self.token_contract.address,
                             self.staking_contract.address,
                             self.policy_contract.address,
-                            worklock_address)
+                            worklock_address,
+                            self.threshold_staking_interface)
 
         contract, deployment_receipt = self.blockchain.deploy_contract(transacting_power,
                                                                        self.registry,
@@ -990,7 +999,7 @@ class StakingInterfaceDeployer(BaseContractDeployer, UpgradeableContractMixin, O
         This is meant to be called only once per general deployment.
         """
 
-        if deployment_mode not in (BARE, IDLE, FULL):
+        if deployment_mode not in (BARE, FULL):
             raise ValueError(f"Invalid deployment mode ({deployment_mode})")
 
         self.check_deployment_readiness(deployer_address=transacting_power.account,
@@ -1168,6 +1177,28 @@ class PREApplicationDeployer(BaseContractDeployer):
         super().__init__(*args, **kwargs)
         self.threshold_staking_interface = staking_interface
 
+    def _deploy_essential(self,
+                          transacting_power: TransactingPower,
+                          gas_limit: int = None,
+                          confirmations: int = 0,
+                          **overrides):
+        constructor_kwargs = {}
+        constructor_kwargs.update({"_minAuthorization": self.economics.min_authorization,
+                                   "_minOperatorSeconds": self.economics.min_operator_seconds,
+                                   "_tStaking": self.threshold_staking_interface})
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
+        the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
+            transacting_power,
+            self.registry,
+            self.contract_name,
+            gas_limit=gas_limit,
+            confirmations=confirmations,
+            **constructor_kwargs
+        )
+
+        return the_escrow_contract, deploy_receipt
+
     def deploy(self,
                transacting_power: TransactingPower,
                gas_limit: int = None,
@@ -1178,25 +1209,27 @@ class PREApplicationDeployer(BaseContractDeployer):
                emitter=None,
                **overrides):
 
-        constructor_args = (
-            self.threshold_staking_interface,
-            *self.economics.pre_application_deployment_parameters
-        )
+        if deployment_mode != FULL:
+            raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
 
-        contract, receipt = self.blockchain.deploy_contract(
-            transacting_power,
-            self.registry,
-            self.contract_name,
-            *constructor_args,
-            gas_limit=gas_limit,
-            confirmations=confirmations,
-            # **overrides  # TODO: Support CLI deployment params
-        )
+        self.check_deployment_readiness(deployer_address=transacting_power.account,
+                                        ignore_deployed=ignore_deployed)
+
+        contract, receipt = self._deploy_essential(transacting_power=transacting_power,
+                                                   gas_limit=gas_limit,
+                                                   confirmations=confirmations,
+                                                   **overrides)
+
+        # Update the progress bar
+        if progress:
+            progress.update(1)
+
         self._contract = contract
         self.deployment_receipts = dict(zip(self.deployment_steps, (receipt, )))
         return self.deployment_receipts
 
 
+# TODO: delete me
 class WorklockDeployer(BaseContractDeployer):
 
     agency = WorkLockAgent
