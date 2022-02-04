@@ -57,12 +57,12 @@ def cloudworkers():
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes. (default is nucypher/nucypher:latest)", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
 @click.option('--include-stakeholder', 'stakes', help="limit worker to specified stakeholder addresses", multiple=True)
-@click.option('--wipe', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
+@click.option('--migrate', help="Clear nucypher configs on existing nodes and start a fresh node with new keys.", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
 @click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, stakes, wipe, namespace, envvars, cliargs):
+def up(general_config, staker_options, config_file, cloudprovider, aws_profile, remote_provider, nucypher_image, seed_network, stakes, migrate, namespace, envvars, cliargs):
     """Creates workers for all stakes owned by the user for the given network."""
 
     emitter = setup_emitter(general_config)
@@ -88,7 +88,7 @@ def up(general_config, staker_options, config_file, cloudprovider, aws_profile, 
 
     if config.get('instances') and len(config.get('instances')) >= len(staker_addresses):
         emitter.echo('Nodes exist for all requested stakes', color="yellow")
-        deployer.deploy_nucypher_on_existing_nodes(staker_addresses, wipe_nucypher=wipe)
+        deployer.deploy_nucypher_on_existing_nodes(staker_addresses, migrate_nucypher=migrate)
 
 
 @cloudworkers.command('create')
@@ -195,14 +195,14 @@ def add_for_stake(general_config, staker_options, config_file, staker_address, h
 @click.option('--remote-provider', help="The blockchain provider for the remote node, if not provided nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
-@click.option('--wipe', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
+@click.option('--migrate', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
 @click.option('--include-host', 'include_hosts', help="specify hosts to update", multiple=True, type=click.STRING)
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
 @click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe,
+def deploy(general_config, remote_provider, nucypher_image, seed_network, migrate,
            namespace, network, include_hosts, envvars, cliargs):
     """Deploys NuCypher on managed hosts."""
 
@@ -228,21 +228,21 @@ def deploy(general_config, remote_provider, nucypher_image, seed_network, wipe,
         hostnames = include_hosts
     for name, hostdata in [(n, d) for n, d in deployer.config['instances'].items() if n in hostnames]:
         emitter.echo(f'\t{name}: {hostdata["publicaddress"]}', color="yellow")
-    deployer.deploy_nucypher_on_existing_nodes(hostnames, wipe_nucypher=wipe)
+    deployer.deploy_nucypher_on_existing_nodes(hostnames, migrate_nucypher=migrate)
 
 
 @cloudworkers.command('update')
 @click.option('--remote-provider', help="The blockchain provider for the remote node – e.g. an Infura endpoint address. If not provided nodes will run geth.", default=None)
 @click.option('--nucypher-image', help="The docker image containing the nucypher code to run on the remote nodes.", default=None)
 @click.option('--seed-network', help="Do you want the 1st node to be --lonely and act as a seed node for this network", default=None, is_flag=True)
-@click.option('--wipe', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
+@click.option('--migrate', help="Clear your nucypher config and start a fresh node with new keys", default=False, is_flag=True)
 @click.option('--namespace', help="Namespace for these operations.  Used to address hosts and data locally and name hosts on cloud platforms.", type=click.STRING, default='local-stakeholders')
 @click.option('--network', help="The Nucypher network name these hosts will run on.", type=click.STRING, default='mainnet')
 @click.option('--include-host', 'include_hosts', help="specify hosts to update", multiple=True, type=click.STRING)
 @click.option('--env', '-e', 'envvars', help="environment variables (ENVVAR=VALUE)", multiple=True, type=click.STRING, default=[])
 @click.option('--cli', '-c', 'cliargs', help="cli arguments for 'nucypher run': eg.'--max-gas-price 50'/'--c max-gas-price=50'", multiple=True, type=click.STRING, default=[])
 @group_general_config
-def update(general_config, remote_provider, nucypher_image, seed_network, wipe,
+def update(general_config, remote_provider, nucypher_image, seed_network, migrate,
            namespace, network, include_hosts, envvars, cliargs):
     """Updates existing installations of Nucypher on existing managed remote hosts."""
 
@@ -272,7 +272,7 @@ def update(general_config, remote_provider, nucypher_image, seed_network, wipe,
         hostnames = include_hosts
     for name, hostdata in [(n, d) for n, d in deployer.config['instances'].items() if n in hostnames]:
         emitter.echo(f'\t{name}: {hostdata["publicaddress"]}', color="yellow")
-    deployer.update_nucypher_on_existing_nodes(hostnames, wipe_nucypher=wipe)
+    deployer.update_nucypher_on_existing_nodes(hostnames, migrate_nucypher=migrate)
 
 
 @cloudworkers.command('status')

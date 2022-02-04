@@ -27,8 +27,8 @@ all:
                 wipe_nucypher_config: ${extra.get('wipe_nucypher', False)}
                 deployer_config_path: ${deployer.config_dir}
                 restore_path: ${extra.get('restore_path')}
-                payment_network: mumbai
-                payment_provider: https://polygon-mumbai.infura.io/v3/7c1fc379aba44e1395dc629e4a734554
+                payment_network: mainnet
+                payment_provider: https://polygon-mainnet.infura.io/v3/7c1fc379aba44e1395dc629e4a734554
               hosts:
                 %for node in nodes:
                 ${node['publicaddress']}:

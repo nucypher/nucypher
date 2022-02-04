@@ -334,7 +334,7 @@ class BaseCloudNodeConfigurator:
             ]
         }
 
-        if generate_keymaterial or kwargs.get('wipe_nucypher'):
+        if generate_keymaterial or kwargs.get('migrate_nucypher'):
             wallet = keygen.restore(self.config['keystoremnemonic'])
             keypairs = list(keygen.derive(wallet, quantity=self.instance_count))
 
@@ -363,7 +363,7 @@ class BaseCloudNodeConfigurator:
                 for k, v in defaults[datatype]:
                     if not k in nodes[key][data_key]:
                         nodes[key][data_key][k] = v
-                if generate_keymaterial or kwargs.get('wipe_nucypher'):
+                if generate_keymaterial or kwargs.get('migrate_nucypher'):
                     node['keymaterial'] = keypairs[node['index']][1]
 
         inventory_content = self._inventory_template.render(
@@ -414,7 +414,10 @@ class BaseCloudNodeConfigurator:
         template_path = Path(__file__).parent / 'templates' / 'cloud_deploy_ansible_inventory.mako'
         return Template(filename=str(template_path))
 
-    def deploy_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
+    def deploy_nucypher_on_existing_nodes(self, node_names, migrate_nucypher=False, **kwargs):
+
+        if migrate_nucypher:
+            self.migrate(**kwargs)
 
         playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/setup_remote_workers.yml')
 
@@ -439,7 +442,7 @@ class BaseCloudNodeConfigurator:
             self.config['seed_node'] = list(self.config['instances'].values())[0]['publicaddress']
             self._write_config()
 
-        self.update_generate_inventory(node_names, generate_keymaterial=True)
+        self.update_generate_inventory(node_names, generate_keymaterial=True, migrate_nucypher=migrate_nucypher)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
@@ -459,7 +462,7 @@ class BaseCloudNodeConfigurator:
         self.update_captured_instance_data(self.output_capture)
         self.give_helpful_hints(node_names, backup=True, playbook=playbook)
 
-    def update_nucypher_on_existing_nodes(self, node_names, wipe_nucypher=False):
+    def update_nucypher_on_existing_nodes(self, node_names):
 
         playbook = Path(DEPLOY_DIR).joinpath('ansible/worker/update_remote_workers.yml')
 
@@ -479,7 +482,7 @@ class BaseCloudNodeConfigurator:
             self.config['seed_node'] = list(self.config['instances'].values())[0]['publicaddress']
             self._write_config()
 
-        self.update_generate_inventory(node_names, wipe_nucypher=wipe_nucypher)
+        self.update_generate_inventory(node_names)
 
         loader = DataLoader()
         inventory = InventoryManager(loader=loader, sources=self.inventory_path)
