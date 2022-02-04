@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.token import TToken
 class Economics:
 
     _default_min_authorization = TToken(40_000, 'T').to_units()
-    _default_min_operator_seconds = 60 * 60 * 48  # TODO: Finalize deployment params
+    _default_min_operator_seconds = 60 * 60 * 24  # one days in seconds
 
     # TODO: Reintroduce Adjudicator
     # Slashing parameters
