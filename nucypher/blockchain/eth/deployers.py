@@ -1173,7 +1173,7 @@ class PREApplicationDeployer(BaseContractDeployer):
     deployment_steps = ('contract_deployment', )
     _upgradeable = False
 
-    def __init__(self, staking_interface: ChecksumAddress, *args, **kwargs):
+    def __init__(self, staking_interface: ChecksumAddress = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.threshold_staking_interface = staking_interface
 
