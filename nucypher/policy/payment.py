@@ -161,6 +161,7 @@ class SubscriptionManagerPayment(ContractPayment):
         receipt = self.agent.create_policy(
             value=policy.value,                   # wei
             policy_id=bytes(policy.hrac),         # bytes16 _policyID
+            size=len(policy.kfrags),              # uint16
             start_timestamp=policy.commencement,  # uint16
             end_timestamp=policy.expiration,      # uint16
             transacting_power=policy.publisher.transacting_power
