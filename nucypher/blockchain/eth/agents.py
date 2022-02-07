@@ -1003,13 +1003,6 @@ class SubscriptionManagerAgent(EthereumContractAgent):
         )
         return receipt
 
-    @contract_api(TRANSACTION)
-    def sweep(self, recipient: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
-        """Collect fees (ETH) earned since last withdrawal"""
-        contract_function: ContractFunction = self.contract.functions.sweep(recipient)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
-        return receipt
-
 
 class AdjudicatorAgent(EthereumContractAgent):
 
