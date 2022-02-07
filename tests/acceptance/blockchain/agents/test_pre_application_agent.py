@@ -44,9 +44,9 @@ def test_get_min_seconds(agency, test_registry, application_economics):
     assert result == application_economics.min_operator_seconds
 
 
-def test_authorized_tokens(testerchain, agency, application_economics, test_registry, stakers):
+def test_authorized_tokens(testerchain, agency, application_economics, test_registry, staking_providers):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    provider_account = stakers[0]
+    provider_account = staking_providers[0]
     authorized_amount = application_agent.get_authorized_stake(staking_provider=provider_account)
     assert authorized_amount >= application_economics.min_authorization
 
@@ -82,19 +82,19 @@ def test_staking_providers_and_operators_relationships(testerchain,
     assert NULL_ADDRESS == application_agent.get_staking_provider_from_operator(operator_address=random_address)
 
 
-def test_get_staker_population(agency, stakers, test_registry):
+def test_get_staker_population(agency, staking_providers, test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 
     # Apart from all the providers in the fixture, we also added a new provider above
-    assert application_agent.get_staking_providers_population() == len(stakers) + 1
+    assert application_agent.get_staking_providers_population() == len(staking_providers) + 1
 
 
-def test_get_swarm(agency, stakers, test_registry):
+def test_get_swarm(agency, staking_providers, test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 
     swarm = application_agent.swarm()
     swarm_addresses = list(swarm)
-    assert len(swarm_addresses) == len(stakers) + 1
+    assert len(swarm_addresses) == len(staking_providers) + 1
 
     # Grab a staker address from the swarm
     provider_addr = swarm_addresses[0]
@@ -102,7 +102,7 @@ def test_get_swarm(agency, stakers, test_registry):
     assert is_address(provider_addr)
 
 
-@pytest.mark.usefixtures("stakers")
+@pytest.mark.usefixtures("staking_providers")
 def test_sample_staking_providers(agency, test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 

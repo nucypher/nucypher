@@ -62,7 +62,7 @@ def test_nucypher_status_network(click_runner, testerchain, agency_local_registr
 
 
 @pytest.mark.skip()
-def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
+def test_nucypher_status_stakers(click_runner, agency_local_registry, staking_providers):
 
     # Get all stakers info
     stakers_command = ('stakers',
@@ -77,11 +77,11 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
 
     # TODO: Use regex matching instead of this
     assert re.search(f"^Current period: {staking_agent.get_current_period()}", result.output, re.MULTILINE)
-    for staker in stakers:
+    for staker in staking_providers:
         assert re.search(f"^{staker.checksum_address}", result.output, re.MULTILINE)
 
     # Get info of only one staker
-    some_dude = random.choice(stakers)
+    some_dude = random.choice(staking_providers)
     staking_address = some_dude.checksum_address
     stakers_command = ('stakers', '--staking-address', staking_address,
                        '--registry-filepath', str(agency_local_registry.filepath.absolute()),
@@ -105,7 +105,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, stakers):
 
 
 @pytest.mark.skip()
-def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers):
+def test_nucypher_status_fee_range(click_runner, agency_local_registry, staking_providers):
 
     # Get information about global fee range (minimum rate, default rate, maximum rate)
     stakers_command = ('fee-range',
@@ -122,7 +122,7 @@ def test_nucypher_status_fee_range(click_runner, agency_local_registry, stakers)
 
 
 @pytest.mark.skip()
-def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, stakers):
+def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_registry, staking_providers):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     # All workers make a commitment
@@ -151,7 +151,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
 
 
 @pytest.mark.skip()
-def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, stakers, temp_dir_path):
+def test_nucypher_status_events(click_runner, testerchain, agency_local_registry, staking_providers, temp_dir_path):
     # All workers make a commitment
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
     starting_block_number = testerchain.get_block_number()
@@ -174,11 +174,11 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
                       '--contract-name', 'StakingEscrow',
                       '--from-block', starting_block_number)
     result = click_runner.invoke(status, status_command, catch_exceptions=False)
-    for staker in stakers:
+    for staker in staking_providers:
         assert re.search(f'staker: {staker.checksum_address}, period: {committed_period}', result.output, re.MULTILINE)
 
     # event filter output
-    first_staker = stakers[0]
+    first_staker = staking_providers[0]
     filter_status_command = ('events',
                              '--provider', TEST_PROVIDER_URI,
                              '--network', TEMPORARY_DOMAIN,
@@ -188,7 +188,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
                              '--event-filter', f'staker={first_staker.checksum_address}')
     result = click_runner.invoke(status, filter_status_command, catch_exceptions=False)
     assert re.search(f'staker: {first_staker.checksum_address}, period: {committed_period}', result.output, re.MULTILINE)
-    for staker in stakers:
+    for staker in staking_providers:
         if staker != first_staker:
             assert not re.search(f'staker: {staker.checksum_address}', result.output, re.MULTILINE), result.output
 

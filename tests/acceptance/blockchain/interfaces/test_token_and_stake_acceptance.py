@@ -100,8 +100,8 @@ def test_stake_equality(application_economics, get_random_checksum_address, mock
 
 
 @pytest.mark.skip()
-def test_stake_integration(stakers):
-    staker = list(stakers)[1]
+def test_stake_integration(staking_providers):
+    staker = list(staking_providers)[1]
     stakes = staker.stakes
     assert stakes
 

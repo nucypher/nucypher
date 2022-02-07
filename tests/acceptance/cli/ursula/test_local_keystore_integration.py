@@ -81,7 +81,7 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
 
 def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       tmp_path,
-                                                      stakers,
+                                                      staking_providers,
                                                       stake_value,
                                                       application_economics,
                                                       mocker,

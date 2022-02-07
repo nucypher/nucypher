@@ -18,6 +18,7 @@
 
 import pytest
 import pytest_twisted
+from constant_sorrow.constants import MOCK_DB
 from twisted.internet import threads
 from twisted.internet.task import Clock
 from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
@@ -26,11 +27,10 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import NU, WorkTracker
+from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
-from constant_sorrow.constants import MOCK_DB
 
 logger = Logger("test-operator")
 
@@ -42,13 +42,13 @@ def log(message):
 
 @pytest.mark.skip()
 @pytest_twisted.inlineCallbacks
-def test_worker_auto_commitments(mocker,
-                                 testerchain,
-                                 test_registry,
-                                 staker,
-                                 agency,
-                                 application_economics,
-                                 ursula_decentralized_test_config):
+def test_work_tracker(mocker,
+                      testerchain,
+                      test_registry,
+                      staker,
+                      agency,
+                      application_economics,
+                      ursula_decentralized_test_config):
 
     staker.initialize_stake(amount=NU(application_economics.min_authorization, 'NuNit'),
                             lock_periods=int(application_economics.min_operator_seconds))
@@ -182,12 +182,12 @@ def test_worker_auto_commitments(mocker,
     yield d
 
 
-def test_ursula_contract_interaction_methods(ursula_decentralized_test_config,
-                                             testerchain,
-                                             threshold_staking,
-                                             agency,
-                                             application_economics,
-                                             test_registry):
+def test_ursula_operator_confirmation(ursula_decentralized_test_config,
+                                      testerchain,
+                                      threshold_staking,
+                                      agency,
+                                      application_economics,
+                                      test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     creator, staking_provider, operator_address, *everyone_else = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
@@ -229,13 +229,13 @@ def test_ursula_contract_interaction_methods(ursula_decentralized_test_config,
 
 
 @pytest_twisted.inlineCallbacks
-def test_integration_of_ursula_contract_interaction(mocker,
-                                                    ursula_decentralized_test_config,
-                                                    testerchain,
-                                                    threshold_staking,
-                                                    agency,
-                                                    application_economics,
-                                                    test_registry):
+def test_ursula_operator_confirmation_autopilot(mocker,
+                                                ursula_decentralized_test_config,
+                                                testerchain,
+                                                threshold_staking,
+                                                agency,
+                                                application_economics,
+                                                test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     creator, staking_provider, operator, staking_provider2, operator2, *everyone_else = testerchain.client.accounts
     min_authorization = application_economics.min_authorization

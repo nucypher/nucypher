@@ -69,8 +69,8 @@ def test_testerchain_creation(testerchain, another_testerchain):
         bob = chain.bob_account
         assert bob == chain.client.accounts[2]
 
-        stakers = [chain.staker_account(i) for i in range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)]
-        assert stakers == chain.stakers_accounts
+        stakers = [chain.stake_provider_account(i) for i in range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)]
+        assert stakers == chain.stake_providers_accounts
 
         ursulas = [chain.ursula_account(i) for i in range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)]
         assert ursulas == chain.ursulas_accounts

@@ -263,9 +263,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_URSULA]
 
-    def staker_account(self, index):
+    def stake_provider_account(self, index):
         if index not in self.__STAKERS_RANGE:
-            raise ValueError(f"Staker index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
+            raise ValueError(f"Stake provider index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_STAKER]
 
     @property
@@ -273,13 +273,13 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return list(self.ursula_account(i) for i in self.__WORKERS_RANGE)
 
     @property
-    def stakers_accounts(self):
-        return list(self.staker_account(i) for i in self.__STAKERS_RANGE)
+    def stake_providers_accounts(self):
+        return list(self.stake_provider_account(i) for i in self.__STAKERS_RANGE)
 
     @property
     def unassigned_accounts(self):
         special_accounts = [self.etherbase_account, self.alice_account, self.bob_account]
-        assigned_accounts = set(self.stakers_accounts + self.ursulas_accounts + special_accounts)
+        assigned_accounts = set(self.stake_providers_accounts + self.ursulas_accounts + special_accounts)
         accounts = set(self.client.accounts)
         return list(accounts.difference(assigned_accounts))
 

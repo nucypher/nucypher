@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Sequence
 
@@ -21,11 +23,10 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTO
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import request, Response
-
 from nucypher_core import TreasureMap, RetrievalKit
 from nucypher_core.umbral import PublicKey
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters.lawful import Ursula
@@ -116,7 +117,7 @@ the Pipe for nucypher network operations
                     quantity: int,
                     exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
                     include_ursulas: Optional[Sequence[ChecksumAddress]] = None) -> List[UrsulaInfo]:
-        reservoir = self._make_staker_reservoir(quantity, exclude_ursulas, include_ursulas)
+        reservoir = self._make_reservoir(quantity, exclude_ursulas, include_ursulas)
         value_factory = PrefetchStrategy(reservoir, quantity)
 
         def get_ursula_info(ursula_address) -> Porter.UrsulaInfo:
@@ -165,10 +166,10 @@ the Pipe for nucypher network operations
         return client.retrieve_cfrags(treasure_map, retrieval_kits,
             alice_verifying_key, bob_encrypting_key, bob_verifying_key)
 
-    def _make_staker_reservoir(self,
-                               quantity: int,
-                               exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
-                               include_ursulas: Optional[Sequence[ChecksumAddress]] = None):
+    def _make_reservoir(self,
+                        quantity: int,
+                        exclude_ursulas: Optional[Sequence[ChecksumAddress]] = None,
+                        include_ursulas: Optional[Sequence[ChecksumAddress]] = None):
         if self.federated_only:
             sample_size = quantity - (len(include_ursulas) if include_ursulas else 0)
             if not self.block_until_number_of_known_nodes_is(sample_size,

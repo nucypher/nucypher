@@ -1126,10 +1126,13 @@ class Operator(BaseActor):
                 emitter.message(message, color='red')
                 raise self.ActorError(message)
 
-            ether_balance = client.get_balance(self.operator_address)
-            if ether_balance and (not funded):
-                funded, balance = True, Web3.fromWei(ether_balance, 'ether')
-                emitter.message(f"✓ Operator is funded with {balance} ETH", color='green')
+            if not funded:
+                # check for funds
+                ether_balance = client.get_balance(self.operator_address)
+                if ether_balance:
+                    # funds found
+                    funded, balance = True, Web3.fromWei(ether_balance, 'ether')
+                    emitter.message(f"✓ Operator is funded with {balance} ETH", color='green')
 
             if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
                 bonded = True

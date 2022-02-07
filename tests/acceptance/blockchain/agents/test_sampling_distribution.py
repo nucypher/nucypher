@@ -35,7 +35,7 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
 
     # setup
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    stake_provider_accounts = testerchain.stakers_accounts
+    stake_provider_accounts = testerchain.stake_providers_accounts
     amount = application_economics.min_authorization
     all_locked_tokens = len(stake_provider_accounts) * amount
 

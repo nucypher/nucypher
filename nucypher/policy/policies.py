@@ -212,8 +212,7 @@ class BlockchainPolicy(Policy):
     def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
         """Returns a reservoir of staking nodes to create a decentralized policy."""
         reservoir = make_decentralized_staking_provider_reservoir(application_agent=self.publisher.application_agent,
-                                                                  include_addresses=handpicked_addresses,
-                                                                  pagination_size=self.publisher.application_agent.get_staking_providers_population())  # TODO:  Use another size?
+                                                                  include_addresses=handpicked_addresses)
         return reservoir
 
 

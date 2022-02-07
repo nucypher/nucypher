@@ -125,11 +125,11 @@ def test_stakers_and_workers_relationships(testerchain, agency, test_registry):
 
 
 @pytest.mark.skip()
-def test_get_staker_population(agency, stakers, test_registry):
+def test_get_staker_population(agency, staking_providers, test_registry):
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=test_registry)
 
     # Apart from all the stakers in the fixture, we also added a new staker above
-    assert staking_agent.get_staker_population() == len(stakers) + 1
+    assert staking_agent.get_staker_population() == len(staking_providers) + 1
 
 
 @pytest.mark.skip()

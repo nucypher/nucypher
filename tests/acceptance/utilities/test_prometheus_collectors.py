@@ -95,8 +95,8 @@ def test_blockchain_metrics_collector(testerchain):
 
 @pytest.mark.skip()
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
-def test_staker_metrics_collector(test_registry, stakers):
-    staker = random.choice(stakers)
+def test_staker_metrics_collector(test_registry, staking_providers):
+    staker = random.choice(staking_providers)
     collector = StakerMetricsCollector(domain=staker.network,
                                        staker_address=staker.checksum_address,
                                        contract_registry=test_registry)

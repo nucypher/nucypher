@@ -310,6 +310,9 @@ class Alice(Character, BlockchainPolicyAuthor):
 
     def _check_grant_requirements(self, policy):
         """Called immediately before granting."""
+        # TODO: Do not allow policies with an expiration beyond a node unbonding time.
+
+        # Policy Probationary Period
         # TODO: Remove when the time is right.
         # from nucypher.config.constants import END_OF_POLICIES_PROBATIONARY_PERIOD
         # if policy.expiration > END_OF_POLICIES_PROBATIONARY_PERIOD:
@@ -1121,13 +1124,13 @@ class Ursula(Teacher, Character, Operator):
                                  network_middleware: RestMiddleware = None,
                                  *args,
                                  **kwargs
-                                 ) -> 'Ursula':
+                                 ) -> Union['Ursula', 'NodeSprout']:
 
         if network_middleware is None:
             network_middleware = RestMiddleware(registry=registry)
 
         # Parse node URI
-        host, port, staker_address = parse_node_uri(seed_uri)
+        host, port, staking_provider_address = parse_node_uri(seed_uri)
 
         # Fetch the hosts TLS certificate and read the common name
         try:
@@ -1153,11 +1156,11 @@ class Ursula(Teacher, Character, Operator):
         )
 
         # Check the node's stake (optional)
-        if minimum_stake > 0 and staker_address and not federated_only:
-            staking_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
-            seednode_stake = staking_agent.get_authorized_stake(staking_provider=staker_address)
+        if minimum_stake > 0 and staking_provider_address and not federated_only:
+            application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
+            seednode_stake = application_agent.get_authorized_stake(staking_provider=staking_provider_address)
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(f"{staker_address} is staking less than the specified minimum stake value ({minimum_stake}).")
+                raise Learner.NotATeacher(f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
         # OK - everyone get out
         temp_node_storage.forget()

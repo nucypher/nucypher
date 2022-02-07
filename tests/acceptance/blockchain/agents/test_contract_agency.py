@@ -15,21 +15,17 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
-from decimal import Decimal, InvalidOperation
-
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, ContractAgency, PREApplicationAgent
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 
 
 def test_get_agent_with_different_registries(application_economics, agency, test_registry, agency_local_registry):
     # Get agents using same registry instance
-    staking_agent_1 = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    staking_agent_2 = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    assert staking_agent_2.registry_str == staking_agent_1.registry_str == str(test_registry)
-    assert staking_agent_2 is staking_agent_1
+    application_agent_1 = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    application_agent_2 = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    assert application_agent_2.registry_str == application_agent_1.registry_str == str(test_registry)
+    assert application_agent_2 is application_agent_1
 
     # Same content but different classes of registries
-    staking_agent_2 = ContractAgency.get_agent(PREApplicationAgent, registry=agency_local_registry)
-    assert staking_agent_2.registry_str == str(test_registry)
-    assert staking_agent_2 is staking_agent_1
+    application_agent_2 = ContractAgency.get_agent(PREApplicationAgent, registry=agency_local_registry)
+    assert application_agent_2.registry_str == str(test_registry)
+    assert application_agent_2 is application_agent_1
