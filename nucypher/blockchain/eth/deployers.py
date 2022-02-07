@@ -34,7 +34,6 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     EthereumContractAgent,
-    MultiSigAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
@@ -1343,69 +1342,3 @@ class WorklockDeployer(BaseContractDeployer):
             progress.update(1)
 
         return approve_receipt, funding_receipt
-
-
-class MultiSigDeployer(BaseContractDeployer):
-
-    agency = MultiSigAgent
-    contract_name = agency.contract_name
-    deployment_steps = ('contract_deployment', )
-    _upgradeable = False
-
-    MAX_OWNER_COUNT = 50  # Hard-coded limit in MultiSig contract
-
-    def _deploy_essential(self,
-                          transacting_power: TransactingPower,
-                          threshold: int,
-                          owners: List[str],
-                          gas_limit: int = None,
-                          confirmations: int = 0):
-        if not (0 < threshold <= len(owners) <= self.MAX_OWNER_COUNT):
-            raise ValueError(f"Parameters threshold={threshold} and len(owners)={len(owners)} don't satisfy inequality "
-                             f"0 < threshold <= len(owners) <= {self.MAX_OWNER_COUNT}")
-        if NULL_ADDRESS in owners:
-            raise ValueError("The null address is not allowed as an owner")
-        if len(owners) != len(set(owners)):
-            raise ValueError("Can't use the same owner address more than once")
-
-        constructor_args = (threshold, owners)
-
-        multisig_contract, deploy_receipt = self.blockchain.deploy_contract(transacting_power,
-                                                                            self.registry,
-                                                                            self.contract_name,
-                                                                            *constructor_args,
-                                                                            gas_limit=gas_limit,
-                                                                            confirmations=confirmations)
-        return multisig_contract, deploy_receipt
-
-    def deploy(self,
-               transacting_power: TransactingPower,
-               deployment_mode=FULL,
-               gas_limit: int = None,
-               progress=None,
-               ignore_deployed: bool = False,
-               emitter=None,
-               *args, **kwargs
-               ) -> dict:
-
-        if deployment_mode != FULL:
-            raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
-
-        self.check_deployment_readiness(deployer_address=transacting_power.account,
-                                        ignore_deployed=ignore_deployed)
-
-        if emitter:
-            emitter.message(f"\nNext Transaction: {self.contract_name} Contract Creation", color='blue', bold=True)
-        multisig_contract, deploy_receipt = self._deploy_essential(
-            transacting_power=transacting_power,
-            gas_limit=gas_limit,
-            *args, **kwargs)
-
-        # Update the progress bar
-        if progress:
-            progress.update(1)
-
-        # Gather the transaction receipts
-        self.deployment_receipts.update({self.deployment_steps[0]: deploy_receipt})
-        self._contract = multisig_contract
-        return self.deployment_receipts

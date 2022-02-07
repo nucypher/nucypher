@@ -40,7 +40,6 @@ from nucypher.blockchain.economics import (
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
-    MultiSigAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
@@ -70,7 +69,6 @@ from nucypher.blockchain.eth.decorators import (
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
-    MultiSigDeployer,
     NucypherTokenDeployer,
     PolicyManagerDeployer,
     StakingEscrowDeployer,
@@ -78,7 +76,6 @@ from nucypher.blockchain.eth.deployers import (
     WorklockDeployer, PREApplicationDeployer, SubscriptionManagerDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.multisig import Authorization, Proposal
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import (
@@ -217,7 +214,6 @@ class ContractAdministrator(BaseActor):
 
     aux_deployer_classes = (
         WorklockDeployer,
-        MultiSigDeployer,
     )
 
     # For ownership transfers.
@@ -362,139 +358,6 @@ class ContractAdministrator(BaseActor):
                                                              maximum=maximum,
                                                              gas_limit=transaction_gas_limit)
         return receipt
-
-
-class MultiSigActor(BaseActor):
-    class UnknownExecutive(Exception):
-        """
-        Raised when Executive is not listed as a owner of the MultiSig.
-        """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=self.registry)
-
-
-class Trustee(MultiSigActor):
-    """
-    A member of a MultiSigBoard given the power and
-    obligation to execute an authorized transaction on
-    behalf of the board of executives.
-    """
-
-    class NoAuthorizations(RuntimeError):
-        """Raised when there are zero authorizations."""
-
-    def __init__(self,
-                 checksum_address: ChecksumAddress,
-                 is_transacting: bool,
-                 signer: Optional[Signer] = None,
-                 *args, **kwargs):
-        super().__init__(checksum_address=checksum_address, *args, **kwargs)
-        self.authorizations = dict()
-        self.executive_addresses = tuple(self.multisig_agent.owners)
-        if is_transacting:
-            if not signer:
-                raise ValueError('signer is required to create a transacting Trustee.')
-            self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
-
-    def add_authorization(self, authorization, proposal: Proposal) -> str:
-        executive_address = authorization.recover_executive_address(proposal)
-        if executive_address not in self.executive_addresses:
-            raise self.UnknownExecutive(f"Executive {executive_address} is not listed as an owner of the MultiSig.")
-        if executive_address in self.authorizations:
-            raise ValueError(f"There is already an authorization from executive {executive_address}")
-
-        self.authorizations[executive_address] = authorization
-        return executive_address
-
-    def _combine_authorizations(self) -> Tuple[List[bytes], ...]:
-        if not self.authorizations:
-            raise self.NoAuthorizations
-
-        all_v, all_r, all_s = list(), list(), list()
-
-        def order_by_address(executive_address_to_sort):
-            """
-            Authorizations (i.e., signatures) must be provided to the MultiSig in increasing order by signing address
-            """
-            return Web3.toInt(to_canonical_address(executive_address_to_sort))
-
-        for executive_address in sorted(self.authorizations.keys(), key=order_by_address):
-            authorization = self.authorizations[executive_address]
-            r, s, v = authorization.components
-            all_v.append(Web3.toInt(v))  # v values are passed to the contract as ints, not as bytes
-            all_r.append(r)
-            all_s.append(s)
-
-        return all_r, all_s, all_v
-
-    def execute(self, proposal: Proposal) -> dict:
-
-        if proposal.trustee_address != self.checksum_address:
-            raise ValueError(f"This proposal is meant to be executed by trustee {proposal.trustee_address}, "
-                             f"not by this trustee ({self.checksum_address})")
-        # TODO: check for inconsistencies (nonce, etc.)
-
-        r, s, v = self._combine_authorizations()
-        receipt = self.multisig_agent.execute(sender_address=self.checksum_address,
-                                              # TODO: Investigate unresolved reference to .execute
-                                              v=v, r=r, s=s,
-                                              destination=proposal.target_address,
-                                              value=proposal.value,
-                                              data=proposal.data)
-        return receipt
-
-    def create_transaction_proposal(self, transaction):
-        proposal = Proposal.from_transaction(transaction,
-                                             multisig_agent=self.multisig_agent,
-                                             trustee_address=self.checksum_address)
-        return proposal
-
-    # MultiSig management proposals
-
-    def propose_adding_owner(self, new_owner_address: str, evidence: str) -> Proposal:
-        # TODO: Use evidence to ascertain new owner can transact with this address
-        tx = self.multisig_agent.build_add_owner_tx(new_owner_address=new_owner_address)
-        proposal = self.create_transaction_proposal(tx)
-        return proposal
-
-    def propose_removing_owner(self, owner_address: str) -> Proposal:
-        tx = self.multisig_agent.build_remove_owner_tx(owner_address=owner_address)
-        proposal = self.create_transaction_proposal(tx)
-        return proposal
-
-    def propose_changing_threshold(self, new_threshold: int) -> Proposal:
-        tx = self.multisig_agent.build_change_threshold_tx(new_threshold)
-        proposal = self.create_transaction_proposal(tx)
-        return proposal
-
-
-class Executive(MultiSigActor):
-    """
-    An actor having the power to authorize transaction executions to a delegated trustee.
-    """
-
-    def __init__(self,
-                 checksum_address: ChecksumAddress,
-                 signer: Signer = None,
-                 *args, **kwargs):
-        super().__init__(checksum_address=checksum_address, *args, **kwargs)
-
-        if checksum_address not in self.multisig_agent.owners:
-            raise self.UnknownExecutive(f"Executive {checksum_address} is not listed as an owner of the MultiSig. "
-                                        f"Current owners are {self.multisig_agent.owners}")
-        self.signer = signer
-        if signer:
-            self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
-
-    def authorize_proposal(self, proposal) -> Authorization:
-        # TODO: Double-check that the digest corresponds to the real data to sign
-        signature = self.signer.sign_data_for_validator(account=self.checksum_address,
-                                                        message=proposal.application_specific_data,
-                                                        validator_address=self.multisig_agent.contract_address)
-        authorization = Authorization.deserialize(data=Web3.toBytes(hexstr=signature))
-        return authorization
 
 
 class Staker(NucypherTokenActor):

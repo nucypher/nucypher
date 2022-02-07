@@ -39,7 +39,6 @@ from nucypher.blockchain.eth.constants import (
     DISPATCHER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH,
     FORWARDER_INTERFACE_NAME,
-    MULTISIG_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     POLICY_MANAGER_CONTRACT_NAME,
@@ -1542,106 +1541,6 @@ class WorkLockAgent(EthereumContractAgent):
 
         parameters = WorklockParameters(map(_call_function_by_name, parameter_signatures))
         return parameters
-
-
-class MultiSigAgent(EthereumContractAgent):
-
-    contract_name: str = MULTISIG_CONTRACT_NAME
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def nonce(self) -> Nonce:
-        nonce: int = self.contract.functions.nonce().call()
-        return Nonce(nonce)
-
-    @contract_api(CONTRACT_CALL)
-    def get_owner(self, index: int) -> ChecksumAddress:
-        owner: ChecksumAddress = self.contract.functions.owners(index).call()
-        return ChecksumAddress(owner)
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def number_of_owners(self) -> int:
-        number: int = self.contract.functions.getNumberOfOwners().call()
-        return number
-
-    @property  # type: ignore
-    def owners(self) -> Tuple[ChecksumAddress, ...]:
-        return tuple(ChecksumAddress(self.get_owner(i)) for i in range(self.number_of_owners))
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def threshold(self) -> int:
-        threshold: int = self.contract.functions.required().call()
-        return threshold
-
-    @contract_api(CONTRACT_CALL)
-    def is_owner(self, checksum_address: ChecksumAddress) -> bool:
-        result: bool = self.contract.functions.isOwner(checksum_address).call()
-        return result
-
-    @contract_api(TRANSACTION)
-    def build_add_owner_tx(self, new_owner_address: ChecksumAddress) -> TxParams:
-        max_owner_count: int = self.contract.functions.MAX_OWNER_COUNT().call()
-        if not self.number_of_owners < max_owner_count:
-            raise self.RequirementError(f"MultiSig already has the maximum number of owners")
-        if new_owner_address == NULL_ADDRESS:
-            raise self.RequirementError(f"Invalid MultiSig owner address (NULL ADDRESS)")
-        if self.is_owner(new_owner_address):
-            raise self.RequirementError(f"{new_owner_address} is already an owner of the MultiSig.")
-        transaction_function: ContractFunction = self.contract.functions.addOwner(new_owner_address)
-        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
-                                                                           sender_address=self.contract_address)
-        return transaction
-
-    @contract_api(TRANSACTION)
-    def build_remove_owner_tx(self, owner_address: ChecksumAddress) -> TxParams:
-        if not self.number_of_owners > self.threshold:
-            raise self.RequirementError(f"Need at least one owner above the threshold to remove an owner.")
-        if not self.is_owner(owner_address):
-            raise self.RequirementError(f"{owner_address} is not owner of the MultiSig.")
-
-        transaction_function: ContractFunction = self.contract.functions.removeOwner(owner_address)
-        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
-                                                                           sender_address=self.contract_address)
-        return transaction
-
-    @contract_api(TRANSACTION)
-    def build_change_threshold_tx(self, threshold: int) -> TxParams:
-        if not 0 < threshold <= self.number_of_owners:
-            raise self.RequirementError(f"New threshold {threshold} does not satisfy "
-                                        f"0 < threshold ≤ number of owners = {self.number_of_owners}")
-        transaction_function: ContractFunction = self.contract.functions.changeRequirement(threshold)
-        transaction: TxParams = self.blockchain.build_contract_transaction(contract_function=transaction_function,
-                                                                           sender_address=self.contract_address)
-        return transaction
-
-    @contract_api(CONTRACT_CALL)
-    def get_unsigned_transaction_hash(self,
-                                      trustee_address: ChecksumAddress,
-                                      target_address: ChecksumAddress,
-                                      value: Wei,
-                                      data: bytes,
-                                      nonce: Nonce
-                                      ) -> HexBytes:
-        transaction_args = trustee_address, target_address, value, data, nonce
-        transaction_hash: bytes = self.contract.functions.getUnsignedTransactionHash(*transaction_args).call()
-        return HexBytes(transaction_hash)
-
-    @contract_api(TRANSACTION)
-    def execute(self,
-                v: List[str],  # TODO: Use bytes?
-                r: List[str],
-                s: List[str],
-                destination: ChecksumAddress,
-                value: Wei,
-                data: Union[bytes, HexStr],
-                transacting_power: TransactingPower,
-                ) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.execute(v, r, s, destination, value, data)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
 
 
 class InstanceAgent(EthereumContractAgent):

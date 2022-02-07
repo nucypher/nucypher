@@ -234,8 +234,6 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
     # assert new_enrolled_names == old_enrolled_names + 1
 
 
-# TODO: test to validate retargetting via multisig, specifically, building the transaction
-
 @pytest.mark.skip()
 def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, application_economics):
 
