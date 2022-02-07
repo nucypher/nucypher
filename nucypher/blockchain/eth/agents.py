@@ -955,7 +955,7 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     #
 
     @contract_api(CONTRACT_CALL)
-    def rate_per_second(self) -> Wei:
+    def fee_rate(self) -> Wei:
         result = self.contract.functions.feeRate().call()
         return Wei(result)
 

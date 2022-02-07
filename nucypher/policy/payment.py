@@ -51,6 +51,7 @@ class PaymentMethod(ReencryptionPrerequisite, ABC):
         commencement: int  # epoch
         expiration: int    # epoch
         duration: int      # seconds or periods
+        shares: int
 
     @abstractmethod
     def pay(self, policy: Policy) -> Dict:
@@ -128,6 +129,7 @@ class FreeReencryptions(PaymentMethod):
         return 0
 
     def quote(self,
+              shares: int,
               commencement: Optional[Timestamp] = None,
               expiration: Optional[Timestamp] = None,
               duration: Optional[int] = None,
@@ -136,6 +138,7 @@ class FreeReencryptions(PaymentMethod):
         return self.Quote(
             value=0,
             rate=0,
+            shares=shares,
             duration=duration,
             commencement=commencement,
             expiration=expiration
@@ -170,10 +173,11 @@ class SubscriptionManagerPayment(ContractPayment):
 
     @property
     def rate(self) -> Wei:
-        fixed_rate = self.agent.rate_per_second()
+        fixed_rate = self.agent.fee_rate()
         return Wei(fixed_rate)
 
     def quote(self,
+              shares: int,
               commencement: Optional[Timestamp] = None,
               expiration: Optional[Timestamp] = None,
               duration: Optional[int] = None,
@@ -206,19 +210,18 @@ class SubscriptionManagerPayment(ContractPayment):
 
         q = self.Quote(
             rate=Wei(self.rate),
-            value=Wei(self.rate * duration),
+            value=Wei(self.rate * duration * shares),
+            shares=shares,
             commencement=Timestamp(commencement),
             expiration=Timestamp(expiration),
             duration=duration
         )
         return q
 
-    def validate_price(self, value: Wei, duration: Wei, *args, **kwargs) -> bool:
-        if value and duration:
-            if duration != value // self.rate:
-                raise ValueError(f"Invalid duration ({duration}) for value ({value}).")
-            if value != duration * self.rate:
-                raise ValueError(f"Invalid value ({value}) for duration ({duration}).")
+    def validate_price(self, value: Wei, duration: Wei, shares: int, *args, **kwargs) -> bool:
+        expected_price = Wei(shares * duration * self.rate)
+        if value != expected_price:
+            raise ValueError(f"Policy value ({value}) doesn't match expected value ({expected_price})")
         return True
 
 
