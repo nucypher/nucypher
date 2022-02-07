@@ -17,6 +17,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Tuple, Optional
 
+from web3 import Web3
+from web3.types import Wei
+
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     PREApplicationAgent
@@ -29,6 +32,7 @@ class Economics:
 
     _default_min_authorization = TToken(40_000, 'T').to_units()
     _default_min_operator_seconds = 60 * 60 * 24  # one day in seconds
+    _default_fee_rate = Wei(Web3.toWei(1, 'gwei'))
 
     # TODO: Reintroduce Adjudicator
     # Slashing parameters
@@ -44,6 +48,7 @@ class Economics:
     def __init__(self,
                  min_operator_seconds: int = _default_min_operator_seconds,
                  min_authorization: int = _default_min_authorization,
+                 fee_rate: Wei = _default_fee_rate,
 
                  # Adjudicator
                  # hash_algorithm: int = _default_hash_algorithm,
@@ -73,6 +78,7 @@ class Economics:
 
         self.min_operator_seconds = min_operator_seconds
         self.min_authorization = min_authorization
+        self.fee_rate = fee_rate
 
     @property
     def pre_application_deployment_parameters(self) -> Tuple[int, ...]:
