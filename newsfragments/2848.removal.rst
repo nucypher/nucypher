@@ -1,0 +1,1 @@
+Retires and removes eth/token faucet.
