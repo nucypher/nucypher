@@ -613,12 +613,12 @@ def threshold_staking(deploy_contract):
 
 
 @pytest.fixture(scope="module")
-def stakers(testerchain, agency, test_registry, threshold_staking):
+def staking_providers(testerchain, agency, test_registry, threshold_staking):
     pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     blockchain = pre_application_agent.blockchain
 
     staking_providers = list()
-    for provider_address, operator_address in zip(blockchain.stakers_accounts, blockchain.ursulas_accounts):
+    for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
         provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
         provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -651,14 +651,14 @@ def stakers(testerchain, agency, test_registry, threshold_staking):
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                          stakers_addresses=testerchain.stakers_accounts,
+                                          stakers_addresses=testerchain.stake_providers_accounts,
                                           workers_addresses=testerchain.ursulas_accounts)
     for u in _ursulas:
         u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.

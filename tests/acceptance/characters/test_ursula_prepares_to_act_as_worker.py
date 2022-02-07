@@ -29,12 +29,12 @@ from tests.utils.ursula import make_decentralized_ursulas
 
 
 @pytest.mark.usefixtures("blockchain_ursulas")
-def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
+def test_stakers_bond_to_ursulas(testerchain, test_registry, staking_providers, ursula_decentralized_test_config):
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                         stakers_addresses=testerchain.stakers_accounts,
+                                         stakers_addresses=testerchain.stake_providers_accounts,
                                          workers_addresses=testerchain.ursulas_accounts)
 
-    assert len(ursulas) == len(stakers)
+    assert len(ursulas) == len(staking_providers)
     for ursula in ursulas:
         ursula.validate_worker(registry=test_registry)
         assert ursula.verified_worker

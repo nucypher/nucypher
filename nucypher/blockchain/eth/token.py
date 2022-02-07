@@ -47,21 +47,21 @@ from nucypher.utilities.logging import Logger
 
 class ERC20:
     """
-    An amount of NuCypher tokens that doesn't hurt your eyes.
+    An amount of ERC20 tokens that doesn't hurt your eyes.
     Wraps the eth_utils currency conversion methods.
 
-    The easiest way to use NU, is to pass an int, Decimal, or str, and denomination string:
+    The easiest way to use ERC20, is to pass an int, Decimal, or str, and denomination string:
 
-    Int:    nu = NU(100, 'NU')
-    Int:    nu = NU(15000000000000000000000, self._unit_name)
+    Int:    t = T(100, 'T')
+    Int:    t = T(15000000000000000000000, 'TuNits')
 
-    Decimal:  nu = NU(Decimal('15042.445'), 'NU')
-    String: nu = NU('10002.302', 'NU')
+    Decimal:  t = T(Decimal('15042.445'), 'T')
+    String: t = T('10002.302', 'T')
 
     ...or alternately...
 
-    Decimal: nu = NU.from_tokens(Decimal('100.50'))
-    Int: nu = NU.from_units(15000000000000000000000)
+    Decimal: t = T.from_tokens(Decimal('100.50'))
+    Int: t = T.from_units(15000000000000000000000)
 
     Token quantity is stored internally as an int in the smallest denomination,
     and all arithmetic operations use this value.
@@ -572,6 +572,7 @@ def validate_increase(stake: Stake, amount: NU) -> None:
 
 
 class WorkTrackerBase:
+    """Baseclass for handling automated transaction tracking..."""
 
     CLOCK = reactor
     INTERVAL_FLOOR = 60 * 15  # fifteen minutes
@@ -583,7 +584,7 @@ class WorkTrackerBase:
 
         super().__init__(*args, **kwargs)
         self.log = Logger('stake-tracker')
-        self.worker = worker
+        self.worker = worker   # TODO: What to call the subject here?  What is a work tracker without "work"?
 
         self._tracking_task = task.LoopingCall(self._do_work)
         self._tracking_task.clock = self.CLOCK
@@ -759,7 +760,7 @@ class WorkTrackerBase:
         Async working task for Ursula  # TODO: Split into multiple async tasks
         """
 
-        self.log.info("doing work")
+        self.log.info(f"{self.__class__.__name__} is running. Advancing to next work cycle.")  # TODO: What to call the verb the subject performs?
 
         # Call once here, and inject later for temporal consistency
         current_block_number = self.client.block_number
@@ -770,6 +771,7 @@ class WorkTrackerBase:
         # Commitment tracking
         unmined_transactions = self.__track_pending_commitments()
         if unmined_transactions:
+            self.log.info('Tracking pending transaction.')
             self.__handle_replacement_commitment(current_block_number=current_block_number)
             # while there are known pending transactions, remain in fast interval mode
             self._tracking_task.interval = self.INTERVAL_FLOOR
@@ -829,11 +831,11 @@ class WorkTracker(WorkTrackerBase):
         return False
 
     def _fire_commitment(self):
-        """Makes an initial/replacement worker commitment transaction"""
+        """Makes an initial/replacement operator commitment transaction"""
         transacting_power = self.worker.transacting_power
         with transacting_power:
             txhash = self.worker.confirm_address(fire_and_forget=True)  # < --- blockchain WRITE
-            self.log.info(f"Confirming worker address {self.worker.operator_address} with staking provider {self.worker.staking_provider_address} - TxHash: {txhash.hex()}")
+            self.log.info(f"Confirming operator address {self.worker.operator_address} with staking provider {self.worker.staking_provider_address} - TxHash: {txhash.hex()}")
             return txhash
 
 

@@ -134,8 +134,8 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         self.metrics["work_orders_gauge"].set(len(reencryption_requests))
 
         if not self.ursula.federated_only:
-            staking_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.ursula.registry)
-            authorized = staking_agent.get_authorized_stake(staking_provider=self.ursula.checksum_address)
+            application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.ursula.registry)
+            authorized = application_agent.get_authorized_stake(staking_provider=self.ursula.checksum_address)
             decentralized_payload = {'provider': str(self.ursula.provider_uri),
                                      'active_stake': str(authorized)}
             base_payload.update(decentralized_payload)

@@ -55,7 +55,7 @@ def test_adjudicator_slashes(agency,
                              test_registry,
                              mocker):
 
-    staker_account = testerchain.staker_account(0)
+    staker_account = testerchain.stake_provider_account(0)
     worker_account = testerchain.ursula_account(0)
 
     ##### STAKING ESCROW STUFF #####

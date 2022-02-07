@@ -50,7 +50,7 @@ def test_investigator_requests_slashing(testerchain,
                                         application_economics,
                                         mocker):
 
-    staker_account = testerchain.staker_account(0)
+    staker_account = testerchain.stake_provider_account(0)
     worker_account = testerchain.ursula_account(0)
 
     ##### STAKING ESCROW STUFF #####
