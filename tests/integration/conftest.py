@@ -26,7 +26,6 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
-    WorkLockAgent
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry

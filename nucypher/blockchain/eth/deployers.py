@@ -32,12 +32,10 @@ from web3.contract import Contract
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
-    ContractAgency,
     EthereumContractAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
-    WorkLockAgent,
     PREApplicationAgent,
     SubscriptionManagerAgent
 )
@@ -1226,119 +1224,3 @@ class PREApplicationDeployer(BaseContractDeployer):
         self._contract = contract
         self.deployment_receipts = dict(zip(self.deployment_steps, (receipt, )))
         return self.deployment_receipts
-
-
-# TODO: delete me
-class WorklockDeployer(BaseContractDeployer):
-
-    agency = WorkLockAgent
-    contract_name = agency.contract_name
-    deployment_steps = ('contract_deployment', 'approve_funding', 'fund_worklock')
-    _upgradeable = False
-
-    def __init__(self, *args, **kwargs):
-
-        super().__init__(*args, **kwargs)
-        token_contract_name = NucypherTokenDeployer.contract_name
-        self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   contract_name=token_contract_name)
-
-        staking_contract_name = StakingEscrowDeployer.contract_name
-        proxy_name = StakingEscrowDeployer._proxy_deployer.contract_name
-        try:
-            self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                         contract_name=staking_contract_name,
-                                                                         proxy_name=proxy_name)
-        except self.registry.UnknownContract:
-            staking_contract_name = StakingEscrowDeployer.contract_name_stub
-            self.staking_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                         contract_name=staking_contract_name,
-                                                                         proxy_name=proxy_name)
-
-    def _deploy_essential(self, transacting_power: TransactingPower, gas_limit: int = None, confirmations: int = 0):
-        # Deploy
-        constructor_args = (self.token_contract.address,
-                            self.staking_contract.address,
-                            *self.economics.worklock_deployment_parameters)
-
-        worklock_contract, receipt = self.blockchain.deploy_contract(transacting_power,
-                                                                     self.registry,
-                                                                     self.contract_name,
-                                                                     *constructor_args,
-                                                                     gas_limit=gas_limit,
-                                                                     confirmations=confirmations)
-
-        self._contract = worklock_contract
-        return worklock_contract, receipt
-
-    def deploy(self,
-               transacting_power: TransactingPower,
-               gas_limit: int = None, 
-               progress=None, 
-               confirmations: int = 0,
-               deployment_mode=FULL,
-               ignore_deployed: bool = False,
-               emitter=None,
-               ) -> Dict[str, dict]:
-
-        if deployment_mode != FULL:
-            raise self.ContractDeploymentError(f"{self.contract_name} cannot be deployed in {deployment_mode} mode")
-
-        self.check_deployment_readiness(deployer_address=transacting_power.account,
-                                        ignore_deployed=ignore_deployed)
-
-        # Essential
-        if emitter:
-            emitter.message(f"\nNext Transaction: {self.contract_name} Contract Creation", color='blue', bold=True)
-        worklock_contract, deployment_receipt = self._deploy_essential(transacting_power=transacting_power,
-                                                                       gas_limit=gas_limit,
-                                                                       confirmations=confirmations)
-        if progress:
-            progress.update(1)
-
-        # Funding
-        approve_receipt, funding_receipt = self.fund(transacting_power=transacting_power,
-                                                     progress=progress,
-                                                     confirmations=confirmations,
-                                                     emitter=emitter)
-
-        # Gather the transaction hashes
-        self.deployment_receipts = dict(zip(self.deployment_steps, (deployment_receipt,
-                                                                    approve_receipt,
-                                                                    funding_receipt)))
-        return self.deployment_receipts
-
-    def fund(self,
-             transacting_power: TransactingPower,
-             progress=None,
-             confirmations: int = 0,
-             emitter=None
-             ) -> Tuple[dict, dict]:
-        """
-        Convenience method for funding the contract and establishing the
-        total worklock lot value to be auctioned.
-        """
-        supply = int(self.economics.worklock_supply)
-
-        token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
-        if emitter:
-            emitter.message(f"\nNext Transaction: Approve Token Transfer to {self.contract_name}", color='blue', bold=True)
-        approve_function = token_agent.contract.functions.approve(self.contract_address, supply)
-        approve_receipt = self.blockchain.send_transaction(contract_function=approve_function,
-                                                           transacting_power=transacting_power,
-                                                           confirmations=confirmations)
-
-        if progress:
-            progress.update(1)
-
-        if emitter:
-            emitter.message(f"\nNext Transaction: Transfer Tokens to {self.contract_name}", color='blue', bold=True)
-        funding_function = self.contract.functions.tokenDeposit(supply)
-        funding_receipt = self.blockchain.send_transaction(contract_function=funding_function,
-                                                           transacting_power=transacting_power,
-                                                           confirmations=confirmations)
-
-        if progress:
-            progress.update(1)
-
-        return approve_receipt, funding_receipt

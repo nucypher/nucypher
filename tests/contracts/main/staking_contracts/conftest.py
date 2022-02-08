@@ -50,12 +50,6 @@ def policy_manager(testerchain, deploy_contract):
 
 
 @pytest.fixture()
-def worklock(testerchain, deploy_contract):
-    contract, _ = deploy_contract('WorkLockForStakingContractMock')
-    return contract
-
-
-@pytest.fixture()
 def threshold_staking(testerchain, deploy_contract):
     contract, _ = deploy_contract('ThresholdStakingForStakingContractMock')
     return contract

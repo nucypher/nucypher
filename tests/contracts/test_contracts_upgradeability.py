@@ -20,23 +20,17 @@ from pathlib import Path
 
 import pytest
 import requests
-from eth_utils import to_wei
-
 from constant_sorrow import constants
 from web3.exceptions import ValidationError
 
-from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, WorkLockAgent
 from nucypher.blockchain.eth.deployers import (
-    AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
     PolicyManagerDeployer,
     StakingEscrowDeployer,
-    WorklockDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT, TEST_SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle

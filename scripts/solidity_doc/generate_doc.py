@@ -31,8 +31,7 @@ CONTRACTS = {
               'TokenRecipient'],
     'main':  ['StakingEscrow',
               'PolicyManager',
-              'Adjudicator',
-              'WorkLock'],
+              'Adjudicator'],
     'proxy': ['Dispatcher',
               'Upgradeable'],
     'staking': ['StakingInterface',
@@ -40,8 +39,7 @@ CONTRACTS = {
                 'AbstractStakingContract',
                 'InitializableStakingContract',
                 'PoolingStakingContract',
-                'PoolingStakingContractV2',
-                'WorkLockPoolingContract']
+                'PoolingStakingContractV2']
 }
 
 

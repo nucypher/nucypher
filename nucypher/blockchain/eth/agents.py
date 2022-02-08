@@ -26,12 +26,11 @@ from constant_sorrow.constants import (  # type: ignore
     TRANSACTION,
     CONTRACT_ATTRIBUTE
 )
-from eth_typing.encoding import HexStr
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes.main import HexBytes
 from web3.contract import Contract, ContractFunction
-from web3.types import Wei, Timestamp, TxReceipt, TxParams, Nonce
+from web3.types import Wei, Timestamp, TxReceipt, TxParams
 
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
@@ -42,7 +41,6 @@ from nucypher.blockchain.eth.constants import (
     POLICY_MANAGER_CONTRACT_NAME,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME,
-    WORKLOCK_CONTRACT_NAME,
     PRE_APPLICATION_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
@@ -62,7 +60,6 @@ from nucypher.types import (
     RawSubStakeInfo,
     Period,
     Work,
-    WorklockParameters,
     StakerFlags,
     StakerInfo,
     StakingProviderInfo,
@@ -1257,284 +1254,6 @@ class PREApplicationAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
-
-
-class WorkLockAgent(EthereumContractAgent):
-
-    contract_name: str = WORKLOCK_CONTRACT_NAME
-    _excluded_interfaces = ('shutdown', 'tokenDeposit')
-
-    #
-    # Transactions
-    #
-
-    @contract_api(TRANSACTION)
-    def bid(self, value: Wei, transacting_power: TransactingPower) -> TxReceipt:
-        """Bid for NU tokens with ETH."""
-        contract_function: ContractFunction = self.contract.functions.bid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   payload={'value': value})
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def cancel_bid(self, transacting_power: TransactingPower) -> TxReceipt:
-        """Cancel bid and refund deposited ETH."""
-        contract_function: ContractFunction = self.contract.functions.cancelBid()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def force_refund(self, transacting_power: TransactingPower, addresses: List[ChecksumAddress]) -> TxReceipt:
-        """Force refund to bidders who can get tokens more than maximum allowed."""
-        addresses = sorted(addresses, key=str.casefold)
-        contract_function: ContractFunction = self.contract.functions.forceRefund(addresses)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def verify_bidding_correctness(self,
-                                   transacting_power: TransactingPower,
-                                   gas_limit: Wei,  # TODO - #842: Gas Management
-                                   gas_to_save_state: Wei = Wei(30000)) -> TxReceipt:
-        """Verify all bids are less than max allowed bid"""
-        contract_function: ContractFunction = self.contract.functions.verifyBiddingCorrectness(gas_to_save_state)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   transaction_gas_limit=gas_limit)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def claim(self, transacting_power: TransactingPower) -> TxReceipt:
-        """
-        Claim tokens - will be deposited and locked as stake in the StakingEscrow contract.
-        """
-        contract_function: ContractFunction = self.contract.functions.claim()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   gas_estimation_multiplier=1.5)  # FIXME
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def refund(self, transacting_power: TransactingPower) -> TxReceipt:
-        """Refund ETH for completed work."""
-        contract_function: ContractFunction = self.contract.functions.refund()
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def withdraw_compensation(self, transacting_power: TransactingPower) -> TxReceipt:
-        """Withdraw compensation after force refund."""
-        contract_function: ContractFunction = self.contract.functions.withdrawCompensation()
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def check_claim(self, checksum_address: ChecksumAddress) -> bool:
-        has_claimed: bool = bool(self.contract.functions.workInfo(checksum_address).call()[2])
-        return has_claimed
-
-    #
-    # Internal
-    #
-
-    @contract_api(CONTRACT_CALL)
-    def get_refunded_work(self, checksum_address: ChecksumAddress) -> Work:
-        work = self.contract.functions.workInfo(checksum_address).call()[1]
-        return Work(work)
-
-    #
-    # Calls
-    #
-
-    @contract_api(CONTRACT_CALL)
-    def get_available_refund(self, checksum_address: ChecksumAddress) -> Wei:
-        refund_eth: int = self.contract.functions.getAvailableRefund(checksum_address).call()
-        return Wei(refund_eth)
-
-    @contract_api(CONTRACT_CALL)
-    def get_available_compensation(self, checksum_address: ChecksumAddress) -> Wei:
-        compensation_eth: int = self.contract.functions.compensation(checksum_address).call()
-        return Wei(compensation_eth)
-
-    @contract_api(CONTRACT_CALL)
-    def get_deposited_eth(self, checksum_address: ChecksumAddress) -> Wei:
-        current_bid: int = self.contract.functions.workInfo(checksum_address).call()[0]
-        return Wei(current_bid)
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def lot_value(self) -> NuNits:
-        """
-        Total number of tokens than can be bid for and awarded in or the number of NU
-        tokens deposited before the bidding windows begins via tokenDeposit().
-        """
-        supply: int = self.contract.functions.tokenSupply().call()
-        return NuNits(supply)
-
-    @contract_api(CONTRACT_CALL)
-    def get_bonus_lot_value(self) -> NuNits:
-        """
-        Total number of tokens than can be  awarded for bonus part of bid.
-        """
-        num_bidders: int = self.get_bidders_population()
-        supply: int = self.lot_value - num_bidders * self.contract.functions.minAllowableLockedTokens().call()
-        return NuNits(supply)
-
-    @contract_api(CONTRACT_CALL)
-    def get_remaining_work(self, checksum_address: str) -> Work:
-        """Get remaining work periods until full refund for the target address."""
-        result = self.contract.functions.getRemainingWork(checksum_address).call()
-        return Work(result)
-
-    @contract_api(CONTRACT_CALL)
-    def get_bonus_eth_supply(self) -> Wei:
-        supply = self.contract.functions.bonusETHSupply().call()
-        return Wei(supply)
-
-    @contract_api(CONTRACT_CALL)
-    def get_eth_supply(self) -> Wei:
-        num_bidders: int = self.get_bidders_population()
-        min_bid: int = self.minimum_allowed_bid
-        supply: int = num_bidders * min_bid + self.get_bonus_eth_supply()
-        return Wei(supply)
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def boosting_refund(self) -> int:
-        refund = self.contract.functions.boostingRefund().call()
-        return refund
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def slowing_refund(self) -> int:
-        refund: int = self.contract.functions.SLOWING_REFUND().call()
-        return refund
-
-    @contract_api(CONTRACT_CALL)
-    def get_bonus_refund_rate(self) -> float:
-        f = self.contract.functions
-        slowing_refund: int = f.SLOWING_REFUND().call()
-        boosting_refund: int = f.boostingRefund().call()
-        refund_rate: float = self.get_bonus_deposit_rate() * slowing_refund / boosting_refund
-        return refund_rate
-
-    @contract_api(CONTRACT_CALL)
-    def get_base_refund_rate(self) -> int:
-        f = self.contract.functions
-        slowing_refund = f.SLOWING_REFUND().call()
-        boosting_refund = f.boostingRefund().call()
-        refund_rate = self.get_base_deposit_rate() * slowing_refund / boosting_refund
-        return refund_rate
-
-    @contract_api(CONTRACT_CALL)
-    def get_base_deposit_rate(self) -> int:
-        min_allowed_locked_tokens: NuNits = self.contract.functions.minAllowableLockedTokens().call()
-        deposit_rate: int = min_allowed_locked_tokens // self.minimum_allowed_bid  # should never divide by 0
-        return deposit_rate
-
-    @contract_api(CONTRACT_CALL)
-    def get_bonus_deposit_rate(self) -> int:
-        try:
-            deposit_rate: int = self.get_bonus_lot_value() // self.get_bonus_eth_supply()
-        except ZeroDivisionError:
-            return 0
-        return deposit_rate
-
-    @contract_api(CONTRACT_CALL)
-    def eth_to_tokens(self, value: Wei) -> NuNits:
-        tokens: int = self.contract.functions.ethToTokens(value).call()
-        return NuNits(tokens)
-
-    @contract_api(CONTRACT_CALL)
-    def eth_to_work(self, value: Wei) -> Work:
-        tokens: int = self.contract.functions.ethToWork(value).call()
-        return Work(tokens)
-
-    @contract_api(CONTRACT_CALL)
-    def work_to_eth(self, value: Work) -> Wei:
-        wei: Wei = self.contract.functions.workToETH(value).call()
-        return Wei(wei)
-
-    @contract_api(CONTRACT_CALL)
-    def get_bidders_population(self) -> int:
-        """Returns the number of bidders on the blockchain"""
-        return self.contract.functions.getBiddersLength().call()
-
-    @contract_api(CONTRACT_CALL)
-    def get_bidders(self) -> List[ChecksumAddress]:
-        """Returns a list of bidders"""
-        num_bidders: int = self.get_bidders_population()
-        bidders: List[ChecksumAddress] = [self.contract.functions.bidders(i).call() for i in range(num_bidders)]
-        return bidders
-
-    @contract_api(CONTRACT_CALL)
-    def is_claiming_available(self) -> bool:
-        """Returns True if claiming is available"""
-        result: bool = self.contract.functions.isClaimingAvailable().call()
-        return result
-
-    @contract_api(CONTRACT_CALL)
-    def estimate_verifying_correctness(self, gas_limit: Wei, gas_to_save_state: Wei = Wei(30000)) -> int:  # TODO - #842: Gas Management
-        """Returns how many bidders will be verified using specified gas limit"""
-        return self.contract.functions.verifyBiddingCorrectness(gas_to_save_state).call({'gas': gas_limit})
-
-    @contract_api(CONTRACT_CALL)
-    def next_bidder_to_check(self) -> int:
-        """Returns the index of the next bidder to check as part of the bids verification process"""
-        return self.contract.functions.nextBidderToCheck().call()
-
-    @contract_api(CONTRACT_CALL)
-    def bidders_checked(self) -> bool:
-        """Returns True if bidders have been checked"""
-        bidders_population: int = self.get_bidders_population()
-        return self.next_bidder_to_check() == bidders_population
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def minimum_allowed_bid(self) -> Wei:
-        min_bid: Wei = self.contract.functions.minAllowedBid().call()
-        return min_bid
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def start_bidding_date(self) -> Timestamp:
-        date: int = self.contract.functions.startBidDate().call()
-        return Timestamp(date)
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def end_bidding_date(self) -> Timestamp:
-        date: int = self.contract.functions.endBidDate().call()
-        return Timestamp(date)
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def end_cancellation_date(self) -> Timestamp:
-        date: int = self.contract.functions.endCancellationDate().call()
-        return Timestamp(date)
-
-    @contract_api(CONTRACT_CALL)
-    def worklock_parameters(self) -> WorklockParameters:
-        parameter_signatures = (
-            'tokenSupply',
-            'startBidDate',
-            'endBidDate',
-            'endCancellationDate',
-            'boostingRefund',
-            'stakingPeriods',
-            'minAllowedBid',
-        )
-
-        def _call_function_by_name(name: str) -> int:
-            return getattr(self.contract.functions, name)().call()
-
-        parameters = WorklockParameters(map(_call_function_by_name, parameter_signatures))
-        return parameters
 
 
 class ContractAgency:

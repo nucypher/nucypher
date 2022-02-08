@@ -32,16 +32,6 @@ PeriodDelta = NewType('PeriodDelta', int)
 ContractReturnValue = TypeVar('ContractReturnValue', bound=Union[TxReceipt, Wei, int, str, bool])
 
 
-class WorklockParameters(Tuple):
-    token_supply: NuNits
-    start_bid_date: Timestamp
-    end_bid_date: Timestamp
-    end_cancellation_date: Timestamp
-    boosting_refund: int
-    staking_periods: int
-    min_allowed_bid: Wei
-
-
 class StakingEscrowParameters(Tuple):
     seconds_per_period: int
     minting_coefficient: int
