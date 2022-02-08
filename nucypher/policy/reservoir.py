@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from typing import Iterable, List, Optional
 
 from eth_typing import ChecksumAddress
@@ -25,9 +27,7 @@ from nucypher.blockchain.eth.agents import StakingProvidersReservoir, PREApplica
 def make_federated_staker_reservoir(known_nodes: FleetSensor,
                                     exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
                                     include_addresses: Optional[Iterable[ChecksumAddress]] = None):
-    """
-    Get a sampler object containing the federated stakers.
-    """
+    """Get a sampler object containing the federated stakers."""
     # needs to not include both exclude and include addresses
     # so that they aren't included in reservoir, include_address will be re-added to reservoir afterwards
     include_addresses = include_addresses or ()
@@ -46,9 +46,7 @@ def make_decentralized_staking_provider_reservoir(application_agent: PREApplicat
                                                   exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
                                                   include_addresses: Optional[Iterable[ChecksumAddress]] = None,
                                                   pagination_size: int = None):
-    """
-    Get a sampler object containing the currently registered stakers.
-    """
+    """Get a sampler object containing the currently registered staking providers."""
 
     # needs to not include both exclude and include addresses
     # so that they aren't included in reservoir, include_address will be re-added to reservoir afterwards
@@ -57,7 +55,7 @@ def make_decentralized_staking_provider_reservoir(application_agent: PREApplicat
     try:
         reservoir = application_agent.get_staking_provider_reservoir(without=without_set, pagination_size=pagination_size)
     except PREApplicationAgent.NotEnoughStakingProviders:
-        # TODO: do that in `get_stakers_reservoir()`?
+        # TODO: do that in `get_staking_provider_reservoir()`?
         reservoir = StakingProvidersReservoir({})
 
     # add include addresses
@@ -66,8 +64,8 @@ def make_decentralized_staking_provider_reservoir(application_agent: PREApplicat
 
 class MergedReservoir:
     """
-    A reservoir made of a list of addresses and a StakersReservoir.
-    Draws the values from the list first, then from StakersReservoir,
+    A reservoir made of a list of addresses and a StakingProviderReservoir.
+    Draws the values from the list first, then from StakingProviderReservoir,
     then returns None on subsequent calls.
     """
 

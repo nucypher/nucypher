@@ -182,8 +182,7 @@ the Pipe for nucypher network operations
         else:
             return make_decentralized_staking_provider_reservoir(application_agent=self.application_agent,
                                                                  exclude_addresses=exclude_ursulas,
-                                                                 include_addresses=include_ursulas,
-                                                                 pagination_size=self.application_agent.get_staking_providers_population())  # TODO: embed this as default
+                                                                 include_addresses=include_ursulas)
 
     def make_cli_controller(self, crash_on_error: bool = False):
         controller = PorterCLIController(app_name=self.APP_NAME,

@@ -39,7 +39,7 @@ def configuration_v3_to_v4(filepath: str):
         # Check we have version 1 indeed
         existing_version = config['version']
         if existing_version != OLD_VERSION:
-            raise RuntimeError(f'Existing configuration is not version 1; Got version {existing_version}')
+            raise RuntimeError(f'Existing configuration is not version {OLD_VERSION}; Got version {existing_version}')
 
         # Make a copy of the original file
         backup_filepath = filepath+BACKUP_SUFFIX
@@ -58,7 +58,7 @@ def configuration_v3_to_v4(filepath: str):
     # Commit updates
     with open(filepath, 'w') as file:
         file.write(json.dumps(config, indent=4))
-    print('OK! Migrated configuration file from v3 -> v4.')
+    print(f'OK! Migrated configuration file from v{OLD_VERSION} -> v{NEW_VERSION}.')
 
 
 if __name__ == "__main__":
