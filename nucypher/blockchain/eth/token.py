@@ -827,7 +827,7 @@ class WorkTracker(WorkTrackerBase):
         should_continue = self.worker.get_staking_provider_address() != NULL_ADDRESS
         if should_continue:
             return True
-        self.log.warn('COMMIT PREVENTED - Operator is not bonded to an operator.')
+        self.log.warn('COMMIT PREVENTED - Operator is not bonded to a staking provider.')
         return False
 
     def _fire_commitment(self):

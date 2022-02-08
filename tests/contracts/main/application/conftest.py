@@ -56,19 +56,3 @@ def pre_application(testerchain, threshold_staking, deploy_contract, application
     testerchain.wait_for_receipt(tx)
 
     return contract
-
-
-@pytest.fixture(scope='module')
-def test_registry():
-    registry = InMemoryContractRegistry()
-    return registry
-
-
-@pytest.fixture()
-def ursula_decentralized_test_config(testerchain, test_registry):
-    config = make_ursula_test_configuration(federated=False,
-                                            provider_uri=TEST_PROVIDER_URI,
-                                            test_registry=test_registry,
-                                            rest_port=MOCK_URSULA_STARTING_PORT)
-
-    return config

@@ -179,14 +179,12 @@ class UrsulaConfigOptions:
         if self.dev:
             raise RuntimeError('Persistent configurations cannot be created in development mode.')
 
-        operator_address = self.operator_address
-        if (not operator_address) and not self.federated_only:
-            if not operator_address:
-                prompt = "Select worker account"
-                operator_address = select_client_account(emitter=emitter,
-                                                       prompt=prompt,
-                                                       provider_uri=self.provider_uri,
-                                                       signer_uri=self.signer_uri)
+        if (not self.operator_address) and not self.federated_only:
+            prompt = "Select operator account"
+            self.operator_address = select_client_account(emitter=emitter,
+                                                          prompt=prompt,
+                                                          provider_uri=self.provider_uri,
+                                                          signer_uri=self.signer_uri)
 
         # Resolve rest host
         if not self.rest_host:
@@ -200,7 +198,7 @@ class UrsulaConfigOptions:
                                             db_filepath=self.db_filepath,
                                             domain=self.domain,
                                             federated_only=self.federated_only,
-                                            operator_address=operator_address,
+                                            operator_address=self.operator_address,
                                             registry_filepath=self.registry_filepath,
                                             provider_uri=self.provider_uri,
                                             signer_uri=self.signer_uri,
@@ -245,7 +243,7 @@ group_config_options = group_options(
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
-    operator_address=click.option('--operator-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
+    operator_address=click.option('--operator-address', help="Run with the specified operator address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
     rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=OPERATOR_IP),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
@@ -333,7 +331,7 @@ def init(general_config, config_options, force, config_root, key_material):
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter, message="Select Staking Network")
     if not config_options.federated_only and not config_options.payment_network:
-        config_options.domain = select_network(emitter, message="Select Payment Network")
+        config_options.payment_network = select_network(emitter, message="Select Payment Network")
     ursula_config = config_options.generate_config(emitter=emitter,
                                                    config_root=config_root,
                                                    force=force,

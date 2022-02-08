@@ -19,11 +19,11 @@ General
     Password for the `nucypher` Keystore.
 * `NUCYPHER_PROVIDER_URI`
     Default Web3 node provider URI.
-* `NUCYPHER_STAKERS_PAGINATION_SIZE`
-    Default pagination size for the maximum number of active stakers to retrieve from StakingEscrow in
+* `NUCYPHER_STAKING_PROVIDERS_PAGINATION_SIZE`
+    Default pagination size for the maximum number of active staking providers to retrieve from PREApplication in
     one contract call.
-* `NUCYPHER_STAKERS_PAGINATION_SIZE_LIGHT_NODE`
-    Default pagination size for the maximum number of active stakers to retrieve from StakingEscrow in
+* `NUCYPHER_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE`
+    Default pagination size for the maximum number of active staking providers to retrieve from PREApplication in
     one contract call when a light node provider is being used.
 
 
@@ -41,10 +41,10 @@ Bob
     Password for Ethereum account used by Bob.
 
 
-Ursula (Worker)
----------------
+Ursula (Operator)
+-----------------
 
-* `NUCYPHER_WORKER_ADDRESS`
+* `NUCYPHER_OPERATOR_ADDRESS`
     Ethereum account used by Ursula.
-* `NUCYPHER_WORKER_ETH_PASSWORD`
-    Password for Ethereum account used by Ursula (Worker).
+* `NUCYPHER_OPERATOR_ETH_PASSWORD`
+    Password for Ethereum account used by Ursula (Operator).

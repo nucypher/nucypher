@@ -483,7 +483,7 @@ class Learner:
             except node.NotStaking:
                 # TODO: Bucket this node as inactive, and potentially safe to forget.  567
                 self.log.info(
-                    f'Staker:Operator {node.checksum_address}:{node.operator_address} is not actively staking, skipping.')
+                    f'StakingProvider:Operator {node.checksum_address}:{node.operator_address} is not actively staking, skipping.')
                 return False
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
@@ -1045,7 +1045,7 @@ class Teacher:
         Off-chain Signature Verification of stamp signature by Operator's ETH account.
         Note that this only "certifies" the stamp with the worker's account,
         so it can be seen like a self certification. For complete assurance,
-        it's necessary to validate on-chain the Staker-Operator relation.
+        it's necessary to validate the StakingProvider/Operator relation on-chain.
         """
         if self.__decentralized_identity_evidence is NOT_SIGNED:
             return False
@@ -1057,8 +1057,8 @@ class Teacher:
     def _operator_is_bonded(self, registry: BaseContractRegistry) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
-        As a follow-up, this checks that the worker is bonded to a staker, but it may be
-        the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
+        As a follow-up, this checks that the worker is bonded to a staking provider, but it may be
+        the case that the "staking provider" isn't "staking" (e.g., all her tokens have been slashed).
         """
         application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)  # type: PREApplicationAgent
         staking_provider_address = application_agent.get_staking_provider_from_operator(operator_address=self.operator_address)
@@ -1069,7 +1069,7 @@ class Teacher:
     def _staking_provider_is_really_staking(self, registry: BaseContractRegistry, provider_uri: Optional[str] = None) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
-        As a follow-up, this checks that the staker is, indeed, staking.
+        As a follow-up, this checks that the staking provider is, indeed, staking.
         """
         application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, provider_uri=provider_uri)  # type: PREApplicationAgent
         is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
@@ -1090,27 +1090,25 @@ class Teacher:
             # Off-chain signature verification
             if not self._stamp_has_valid_signature_by_worker():
                 message = f"Invalid signature {self.__decentralized_identity_evidence.hex()} " \
-                          f"from worker {self.operator_address} for stamp {bytes(self.stamp).hex()} "
+                          f"from operator {self.operator_address} for stamp {bytes(self.stamp).hex()} "
                 raise self.InvalidOperatorSignature(message)
 
             # On-chain staking check, if registry is present
             if registry:
                 if not self._operator_is_bonded(registry=registry):  # <-- Blockchain CALL
-                    message = f"Operator {self.operator_address} is not bonded to staker {self.checksum_address}"
+                    message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
                     self.log.debug(message)
                     raise self.UnbondedOperator(message)
 
                 if self._staking_provider_is_really_staking(registry=registry, provider_uri=provider_uri):  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
-                    raise self.NotStaking(f"Staker {self.checksum_address} is not staking")
+                    raise self.NotStaking(f"{self.checksum_address} is not staking")
 
             self.verified_stamp = True
 
     def validate_metadata_signature(self) -> bool:
-        """
-        Checks that the interface info is valid for this node's canonical address.
-        """
+        """Checks that the interface info is valid for this node's canonical address."""
         metadata_is_valid = self.metadata().verify()
         self.verified_metadata = metadata_is_valid
         if metadata_is_valid:
