@@ -26,7 +26,8 @@ from nucypher.cli.commands import (
     ursula,
     cloudworkers,
     contacts,
-    porter
+    porter,
+    bond,
 )
 from nucypher.cli.painting.help import echo_version, echo_config_root_path, echo_logging_root_path
 
@@ -75,8 +76,12 @@ ENTRY_POINTS = (
     ursula.ursula,      # Untrusted Re-Encryption Proxy
     stake.stake,        # Stake Management
 
+    # PRE Application 
+    bond.bond,
+    bond.unbond,
+
     # Utility Commands
-    status.status,      # Network Status
+    status.status,              # Network Status
     cloudworkers.cloudworkers,  # Remote Operator node management
     contacts.contacts,          # Character "card" management
     porter.porter
