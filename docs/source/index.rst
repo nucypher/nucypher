@@ -133,7 +133,6 @@ Whitepapers
    architecture/worklock
    architecture/contracts
    architecture/upgradeable_proxy_contracts
-   architecture/dao
    architecture/rewards_and_service_fees
    architecture/sub_stakes
    architecture/slashing

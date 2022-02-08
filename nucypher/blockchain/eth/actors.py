@@ -43,20 +43,11 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PolicyManagerAgent,
     StakingEscrowAgent,
-    TokenManagerAgent,
-    VotingAgent,
-    VotingAggregatorAgent,
     WorkLockAgent,
-    AragonAgent,
     PREApplicationAgent
 )
-from nucypher.blockchain.eth.aragon import CallScriptCodec, DAORegistry, Action
 from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
-    EMERGENCY_MANAGER,
-    STANDARD_AGGREGATOR,
-    STANDARD_VOTING,
-    DAO_AGENT,
     POLICY_MANAGER_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME,
@@ -1387,116 +1378,3 @@ class Bidder(NucypherTokenActor):
     def available_claim(self) -> int:
         tokens = self.worklock_agent.eth_to_tokens(self.get_deposited_eth)
         return tokens
-
-
-class DaoActor(BaseActor):
-    """Generic actor to interact with the NuCypher DAO"""
-
-    def __init__(self,
-                 network: str,
-                 checksum_address: ChecksumAddress,
-                 registry=None,
-                 signer: Signer = None,
-                 transacting: bool = True):
-        super().__init__(registry=registry, domain=network, checksum_address=checksum_address)
-        self.dao_registry = DAORegistry(network=network)
-        if transacting:  # TODO: This logic is repeated in Bidder and possible others.
-            self.transacting_power = TransactingPower(signer=signer, account=checksum_address)
-
-        self.aragon_agent = AragonAgent(self.dao_registry.get_address_of(DAO_AGENT))
-        self.token_manager = TokenManagerAgent(address=self.dao_registry.get_address_of(EMERGENCY_MANAGER))
-        self.voting = VotingAgent(address=self.dao_registry.get_address_of(STANDARD_VOTING))
-        self.voting_aggregator = VotingAggregatorAgent(self.dao_registry.get_address_of(STANDARD_AGGREGATOR))
-
-    def rotate_emergency_response_team(self,
-                                       members_out: Iterable[ChecksumAddress],
-                                       members_in: Iterable[ChecksumAddress]) -> TxReceipt:
-
-        members_out_set = set(members_out)
-        if not members_out_set.isdisjoint(members_in):
-            raise ValueError(f"{members_out_set.intersection(members_in)} can't be both new and exiting members")
-
-        # TODO: Additional checks? e.g., members_out have tokens, members_in don't, etc.
-
-        # The order of interaction is: Voter -> VotingAggregator -> VotingApp -> TokenManager
-        # Hence, the callscript is encoded in the reverse order: TokenManager > VotingApp > VotingAggregator
-
-        burn_calls = [self.token_manager._burn(holder_address=member, amount=1) for member in members_out]
-        mint_calls = [self.token_manager._mint(receiver_address=member, amount=1) for member in members_in]
-        calls = burn_calls + mint_calls
-
-        actions = [Action(target=self.token_manager.contract.address, data=call) for call in calls]
-        token_manager_callscript = CallScriptCodec.encode_actions(actions=actions)
-
-        forwarding_to_voting = Action(target=self.voting.contract.address,
-                                      data=self.voting._forward(callscript=token_manager_callscript))
-        voting_callscript = CallScriptCodec.encode_actions(actions=[forwarding_to_voting])
-
-        receipt = self.voting_aggregator.forward(callscript=voting_callscript, transacting_power=self.transacting_power)
-        return receipt
-
-    def period_extension_proposal(self,
-                                  policy_manager_target: ChecksumAddress,
-                                  staking_escrow_target: ChecksumAddress) -> TxReceipt:
-
-        # The order of interaction is: Voter -> VotingAggregator -> VotingApp -> AragonAgent -> NU Contracts
-        # The callscript is encoded in the reverse order: NU Contracts > AragonAgent > VotingApp > VotingAggregator
-
-        blockchain = BlockchainInterfaceFactory.get_interface()
-
-        policy_manager_implementation = blockchain.get_contract_by_name(registry=self.registry,
-                                                                        contract_name=POLICY_MANAGER_CONTRACT_NAME,
-                                                                        proxy_name=DISPATCHER_CONTRACT_NAME,
-                                                                        use_proxy_address=False)
-        staking_escrow_implementation = blockchain.get_contract_by_name(registry=self.registry,
-                                                                        contract_name=STAKING_ESCROW_CONTRACT_NAME,
-                                                                        proxy_name=DISPATCHER_CONTRACT_NAME,
-                                                                        use_proxy_address=False)
-
-        policy_manager_dispatcher = blockchain.get_proxy_contract(registry=self.registry,
-                                                                  target_address=policy_manager_implementation.address,
-                                                                  proxy_name=DISPATCHER_CONTRACT_NAME)
-
-        staking_escrow_dispatcher = blockchain.get_proxy_contract(registry=self.registry,
-                                                                  target_address=staking_escrow_implementation.address,
-                                                                  proxy_name=DISPATCHER_CONTRACT_NAME)
-
-        policy_manager_upgrade = policy_manager_dispatcher.functions.upgrade(policy_manager_target)
-        staking_escrow_upgrade = staking_escrow_dispatcher.functions.upgrade(staking_escrow_target)
-
-        # FIXME: Get new parameters for fee rate range
-
-        minimum = Web3.toWei(350, 'gwei')
-        default = minimum
-        maximum = Web3.toWei(3500, 'gwei')
-
-        set_range = policy_manager_implementation.functions.setFeeRateRange(minimum, default, maximum)
-
-        def call_to_bytes(function_call) -> bytes:
-            encoded_action = function_call._encode_transaction_data()
-            action_bytes = Web3.toBytes(hexstr=encoded_action)
-            return action_bytes
-
-        execution_list = (
-            (staking_escrow_dispatcher.address, staking_escrow_upgrade),
-            (policy_manager_dispatcher.address, policy_manager_upgrade),
-            (policy_manager_dispatcher.address, set_range),
-        )
-
-        actions = []
-        for target, data in execution_list:
-            action = self.aragon_agent.get_execute_call_as_action(target_address=target, data=call_to_bytes(data))
-            actions.append(action)
-
-        agent_executions_callscript = CallScriptCodec.encode_actions(actions=actions)
-
-        voting_callscript = Action(target=self.voting.contract.address,
-                                   data=self.voting._forward(callscript=agent_executions_callscript))
-        aggregator_callscript = CallScriptCodec.encode_actions(actions=[voting_callscript])
-
-        receipt = self.voting_aggregator.forward(callscript=aggregator_callscript,
-                                                 transacting_power=self.transacting_power)
-        return receipt
-
-# TODO:
-# - Tests for DAO stuff requires mocking the DAO. We need stuff like MockTokenManager, MockVoting, etc
