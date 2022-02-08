@@ -15,17 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
-from pathlib import Path
-from unittest.mock import Mock
-import pytest
 import tempfile
+from pathlib import Path
 
+import pytest
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 from nucypher_core.umbral import SecretKey
 
 from nucypher.blockchain.eth.actors import StakeHolder
-from nucypher.characters.chaotic import Felix
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
@@ -33,7 +30,6 @@ from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    FelixConfiguration,
     StakeHolderConfiguration,
     UrsulaConfiguration
 )
@@ -48,13 +44,13 @@ configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 characters = (Alice, Bob, Ursula)
 
 # Auxiliary Support
-blockchain_only_configurations = (FelixConfiguration, StakeHolderConfiguration)
-blockchain_only_characters = (Felix, StakeHolder)
+blockchain_only_configurations = (StakeHolderConfiguration, )
+blockchain_only_characters = (StakeHolder, )
 
 # Assemble
 characters_and_configurations = list(zip(characters, configurations))
-all_characters = tuple(characters + blockchain_only_characters)
-all_configurations = tuple(configurations + blockchain_only_configurations)
+all_characters = tuple(characters, )
+all_configurations = tuple(configurations, )
 
 
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)

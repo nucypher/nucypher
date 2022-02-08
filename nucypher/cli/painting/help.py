@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import click
 import maya
 from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
@@ -87,14 +88,8 @@ Path to Keystore: {new_configuration.keystore_dir}
         emitter.message(f'* NOTE: for a non-default configuration filepath use `--config-file "{filepath}"` '
                         f'with subsequent `{character_name}` CLI commands', color='yellow')
 
-    # Felix
-    if character_name == 'felix':
-        hint = '''
-To initialize a new faucet recipient database run: nucypher felix createdb 
-'''
-
     # Ursula
-    elif character_name == 'ursula':
+    if character_name == 'ursula':
         hint = '''
 * Review configuration  -> nucypher ursula config
 * Start working         -> nucypher ursula run
@@ -120,6 +115,7 @@ To initialize a new faucet recipient database run: nucypher felix createdb
 
     else:
         raise ValueError(f'Unknown character type "{character_name}"')
+
     emitter.echo(hint, color='green')
 
 

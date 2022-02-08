@@ -243,46 +243,6 @@ class BobConfiguration(CharacterConfiguration):
         return {**super().static_payload(), **payload}
 
 
-class FelixConfiguration(CharacterConfiguration):
-    from nucypher.characters.chaotic import Felix
-
-    # Character
-    CHARACTER_CLASS = Felix
-    NAME = CHARACTER_CLASS.__name__.lower()
-
-    DEFAULT_DB_NAME = '{}.db'.format(NAME)
-    DEFAULT_REST_PORT = 6151
-    DEFAULT_LEARNER_PORT = 9151
-    DEFAULT_REST_HOST = LOOPBACK_ADDRESS
-    __DEFAULT_TLS_CURVE = ec.SECP384R1
-
-    def __init__(self,
-                 db_filepath: Optional[Path] = None,
-                 rest_host: str = None,
-                 rest_port: int = None,
-                 tls_curve: EllipticCurve = None,
-                 certificate: Certificate = None,
-                 *args, **kwargs) -> None:
-
-        super().__init__(*args, **kwargs)
-        if not rest_port:
-            rest_port = self.DEFAULT_REST_PORT
-        self.rest_port = rest_port or self.DEFAULT_REST_PORT
-        self.rest_host = rest_host or self.DEFAULT_REST_HOST
-        self.tls_curve = tls_curve or self.__DEFAULT_TLS_CURVE
-        self.certificate = certificate
-        self.db_filepath = db_filepath or self.config_root / self.DEFAULT_DB_NAME
-
-    def static_payload(self) -> dict:
-        payload = dict(
-         rest_host=self.rest_host,
-         rest_port=self.rest_port,
-         db_filepath=self.db_filepath.absolute(),
-         signer_uri=self.signer_uri
-        )
-        return {**super().static_payload(), **payload}
-
-
 class StakeHolderConfiguration(CharacterConfiguration):
 
     NAME = 'stakeholder'

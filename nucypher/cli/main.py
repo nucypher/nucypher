@@ -22,7 +22,6 @@ from nucypher.cli.commands import (
     bob,
     dao,
     enrico,
-    felix,
     multisig,
     stake,
     status,
@@ -84,7 +83,6 @@ ENTRY_POINTS = (
     status.status,      # Network Status
     dao.dao,            # NuCypher DAO
     multisig.multisig,  # MultiSig operations
-    felix.felix,        # Faucet
     cloudworkers.cloudworkers,  # Remote Worker node management
     contacts.contacts,          # Character "card" management
     porter.porter

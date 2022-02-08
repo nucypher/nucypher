@@ -40,9 +40,6 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 tabulate = "*"
-# Felix
-flask_sqlalchemy = "*"
-sqlalchemy = "*"
 
 [dev-packages]
 # Pytest

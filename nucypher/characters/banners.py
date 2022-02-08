@@ -94,18 +94,6 @@ the Untrusted Re-Encryption Proxy.
 {}
 '''
 
-FELIX_BANNER = r"""
-
-'||''''|        '||`            
- ||  .           ||   ''        
- ||''|   .|''|,  ||   ||  \\  //
- ||      ||..||  ||   ||    ><  
-.||.     `|...  .||. .||. //  \\
-
-
-the Unlicensed Faucet Plumber
-{}
-"""
 
 STAKEHOLDER_BANNER = r"""
  ____    __            __                      
