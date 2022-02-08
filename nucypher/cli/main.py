@@ -20,7 +20,6 @@ import click
 from nucypher.cli.commands import (
     alice,
     bob,
-    dao,
     enrico,
     stake,
     status,
@@ -80,7 +79,6 @@ ENTRY_POINTS = (
 
     # Utility Commands
     status.status,      # Network Status
-    dao.dao,            # NuCypher DAO
     cloudworkers.cloudworkers,  # Remote Operator node management
     contacts.contacts,          # Character "card" management
     porter.porter
