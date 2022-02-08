@@ -570,25 +570,6 @@ Compiled with solc version {solc_version}
 '''
 
 #
-# Multisig
-#
-
-SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL = "✅ Saved proposal to {filepath}"
-
-PROMPT_NEW_MULTISIG_THRESHOLD = "New threshold"
-
-PROMPT_FOR_RAW_SIGNATURE = "Signature"
-
-SUCCESSFUL_MULTISIG_AUTHORIZATION = "Added authorization from executive {executive_address}"
-
-CONFIRM_EXECUTE_MULTISIG_TRANSACTION = "\nCollected required authorizations. Proceed with execution?"
-
-PROMPT_CONFIRM_MULTISIG_SIGNATURE = "Proceed with signing?"
-
-MULTISIG_SIGNATURE_RECEIVED = "\nSignature received from {recovered_address}:\n"
-
-
-#
 # Worklock
 #
 

@@ -23,8 +23,8 @@ import click
 from constant_sorrow import constants
 from typing import Tuple
 
-from nucypher.blockchain.eth.actors import ContractAdministrator, Trustee
-from nucypher.blockchain.eth.agents import ContractAgency, MultiSigAgent
+from nucypher.blockchain.eth.actors import ContractAdministrator
+from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -63,7 +63,6 @@ from nucypher.cli.literature import (
     SUCCESSFUL_REGISTRY_DOWNLOAD,
     SUCCESSFUL_RETARGET,
     SUCCESSFUL_RETARGET_TX_BUILT,
-    SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
     DEPLOYER_IS_NOT_OWNER,
@@ -88,7 +87,6 @@ from nucypher.cli.painting.deployment import (
     paint_staged_deployment
 )
 from nucypher.cli.painting.help import echo_solidity_version
-from nucypher.cli.painting.multisig import paint_multisig_proposed_transaction
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
 from nucypher.cli.utils import (
@@ -152,7 +150,6 @@ class ActorOptions:
 
     def create_actor(self,
                      emitter: StdoutEmitter,
-                     is_multisig: bool = False
                      ) -> Tuple[ContractAdministrator, str, BlockchainInterface, BaseContractRegistry]:
 
         ensure_config_root(self.config_root)
@@ -181,36 +178,30 @@ class ActorOptions:
         #
 
         # Verify Address & collect password
-        if is_multisig:
-            multisig_agent = ContractAgency.get_agent(MultiSigAgent, registry=local_registry)
-            deployer_address = multisig_agent.contract.address
-            transacting_power = None
+        testnet = deployer_interface.client.chain_name != PUBLIC_CHAINS[1]  # Mainnet
+        signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
+        deployer_address = self.deployer_address
+        if not deployer_address:
+            deployer_address = select_client_account(emitter=emitter,
+                                                     prompt=SELECT_DEPLOYER_ACCOUNT,
+                                                     registry=local_registry,
+                                                     provider_uri=self.provider_uri,
+                                                     signer=signer,
+                                                     show_eth_balance=True)
 
-        else:
-            testnet = deployer_interface.client.chain_name != PUBLIC_CHAINS[1]  # Mainnet
-            signer = Signer.from_signer_uri(self.signer_uri, testnet=testnet)
-            deployer_address = self.deployer_address
-            if not deployer_address:
-                deployer_address = select_client_account(emitter=emitter,
-                                                         prompt=SELECT_DEPLOYER_ACCOUNT,
-                                                         registry=local_registry,
-                                                         provider_uri=self.provider_uri,
-                                                         signer=signer,
-                                                         show_eth_balance=True)
+        if not self.force:
+            click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
 
-            if not self.force:
-                click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
-
-            # Authenticate
-            is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
-            password_required = all((not is_clef,
-                                     not signer.is_device(account=deployer_address),
-                                     not deployer_interface.client.is_local,
-                                     not self.hw_wallet))
-            if password_required:
-                password = get_client_password(checksum_address=deployer_address)
-                signer.unlock_account(password=password, account=deployer_address)
-            transacting_power = TransactingPower(signer=signer, account=deployer_address)
+        # Authenticate
+        is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
+        password_required = all((not is_clef,
+                                 not signer.is_device(account=deployer_address),
+                                 not deployer_interface.client.is_local,
+                                 not self.hw_wallet))
+        if password_required:
+            password = get_client_password(checksum_address=deployer_address)
+            signer.unlock_account(password=password, account=deployer_address)
+        transacting_power = TransactingPower(signer=signer, account=deployer_address)
 
         # Produce Actor
         ADMINISTRATOR = ContractAdministrator(registry=local_registry,
@@ -324,8 +315,7 @@ def inspect(general_config, provider_uri, config_root, registry_infile, deployer
 @option_ignore_deployed
 @option_confirmations
 @click.option('--retarget', '-d', help="Retarget a contract's proxy.", is_flag=True)
-@click.option('--multisig', help="Build raw transaction for upgrade via MultiSig ", is_flag=True)
-def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, multisig, confirmations):
+def upgrade(general_config, actor_options, retarget, target_address, ignore_deployed, confirmations):
     """Upgrade NuCypher existing proxy contract deployments."""
 
     #
@@ -333,7 +323,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     #
 
     emitter = general_config.emitter
-    ADMINISTRATOR, deployer_address, blockchain, local_registry = actor_options.create_actor(emitter, is_multisig=bool(multisig))  # FIXME: Workaround for building MultiSig TXs | NRN
+    ADMINISTRATOR, deployer_address, blockchain, local_registry = actor_options.create_actor(emitter)
 
     #
     # Pre-flight
@@ -365,40 +355,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
     # Business
     #
 
-    if multisig:
-        if not target_address:
-            raise click.BadArgumentUsage(message="--multisig requires using --target-address.")
-        if not actor_options.force:
-            click.confirm(CONFIRM_BUILD_RETARGET_TRANSACTION.format(contract_name=contract_name,
-                                                                    target_address=target_address), abort=True)
-        transaction = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,
-                                                   target_address=target_address,
-                                                   just_build_transaction=True,
-                                                   confirmations=confirmations)
-
-        trustee_address = select_client_account(emitter=emitter,
-                                                prompt="Select trustee address",
-                                                provider_uri=actor_options.provider_uri,
-                                                show_eth_balance=False,
-                                                show_nu_balance=False,
-                                                show_staking=False)
-
-        if not actor_options.force:
-            click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=trustee_address), abort=True)
-
-        trustee = Trustee(registry=local_registry, checksum_address=trustee_address)
-        transaction_proposal = trustee.create_transaction_proposal(transaction)
-
-        message = SUCCESSFUL_RETARGET_TX_BUILT.format(contract_name=contract_name, target_address=target_address)
-        emitter.message(message, color='green')
-        paint_multisig_proposed_transaction(emitter, transaction_proposal)  # TODO: Show decoded function too
-
-        filepath = Path(f'proposal-{trustee.multisig_agent.contract_address[:8]}-TX-{transaction_proposal.nonce}.json')
-        transaction_proposal.write(filepath=filepath)
-        emitter.echo(SUCCESSFUL_SAVE_MULTISIG_TX_PROPOSAL.format(filepath=filepath), color='blue', bold=True)
-        return  # Exit
-
-    elif retarget:
+    if retarget:
         if not target_address:
             raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
         if not actor_options.force:
