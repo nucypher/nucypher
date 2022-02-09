@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import glob
 import json
 from json.decoder import JSONDecodeError
@@ -22,7 +24,6 @@ from typing import Optional, Type, List
 
 import click
 
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (
@@ -38,8 +39,8 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.types import OPERATOR_IP
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
@@ -111,8 +112,6 @@ def handle_missing_configuration_file(character_config_class: Type[CharacterConf
     config_file_location = config_file or character_config_class.default_filepath()
     init_command = init_command_hint or f"{character_config_class.NAME} init"
     name = character_config_class.NAME.capitalize()
-    if name == StakeHolderConfiguration.NAME.capitalize():
-        init_command = 'stake init-stakeholder'
     message = MISSING_CONFIGURATION_FILE.format(name=name, init_command=init_command)
     raise click.FileError(filename=str(config_file_location.absolute()), hint=message)
 

@@ -15,18 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 from pathlib import Path
 
 import click
 
-from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.constants import (
-    STAKING_ESCROW_CONTRACT_NAME
-)
+from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -37,10 +33,8 @@ from nucypher.cli.options import (
     option_poa,
     option_eth_provider_uri,
     option_registry_filepath,
-    option_staking_address,
 )
-from nucypher.cli.painting.staking import paint_stakes
-from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
+from nucypher.cli.painting.status import paint_contract_status
 from nucypher.cli.utils import (
     connect_to_blockchain,
     get_registry,

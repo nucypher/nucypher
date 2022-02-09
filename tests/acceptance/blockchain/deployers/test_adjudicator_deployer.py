@@ -20,7 +20,6 @@ from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,
-    StakingEscrowDeployer,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower

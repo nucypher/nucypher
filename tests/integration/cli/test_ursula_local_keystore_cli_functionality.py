@@ -23,7 +23,6 @@ import pytest
 from eth_account import Account
 
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -107,7 +106,6 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
     ursula_config.keystore.unlock(password=password)
 
     # Produce an ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
-    mocker.patch.object(StakeList, 'refresh', autospec=True)
     ursula = ursula_config.produce()
     ursula.signer.unlock_account(account=worker_account.address, password=password)
 

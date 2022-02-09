@@ -22,16 +22,15 @@ import pytest
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
-    StakingEscrowAgent
 )
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME, STAKING_ESCROW_STUB_CONTRACT_NAME
+    STAKING_ESCROW_CONTRACT_NAME,
+    STAKING_ESCROW_STUB_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.deployers import (
-    StakingEscrowDeployer,
     SubscriptionManagerDeployer
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
@@ -136,8 +135,6 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert staking_agent.owner == michwill
     assert adjudicator_agent.owner == testerchain.etherbase_account
 
-    # Test transfer ownersh
-
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
 
@@ -164,11 +161,6 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
     assert ALTERNATE_REGISTRY_FILEPATH.exists()
     new_registry = LocalContractRegistry(filepath=ALTERNATE_REGISTRY_FILEPATH)
     assert agency_local_registry != new_registry
-
-    # FIXME
-    old_enrolled_names = list(agency_local_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
-    new_enrolled_names = list(new_registry.enrolled_names).count(StakingEscrowDeployer.contract_name)
-    # assert new_enrolled_names == old_enrolled_names + 1
 
 
 @pytest.mark.skip()

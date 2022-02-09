@@ -22,7 +22,6 @@ import pytest
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 from nucypher_core.umbral import SecretKey
 
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
@@ -30,7 +29,6 @@ from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    StakeHolderConfiguration,
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -42,10 +40,6 @@ from tests.constants import MOCK_IP_ADDRESS
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 characters = (Alice, Bob, Ursula)
-
-# Auxiliary Support
-blockchain_only_configurations = (StakeHolderConfiguration, )
-blockchain_only_characters = (StakeHolder, )
 
 # Assemble
 characters_and_configurations = list(zip(characters, configurations))
@@ -118,11 +112,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         expected_filepath.unlink()
     assert not expected_filepath.exists()
 
-    if configuration_class == StakeHolderConfiguration:
-        # special case for defaults
-        character_config = StakeHolderConfiguration(eth_provider_uri=testerchain.eth_provider_uri, domain=network)
-
-    elif configuration_class == UrsulaConfiguration:
+    if configuration_class == UrsulaConfiguration:
         # special case for rest_host & dev mode
         # use keystore
         keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)

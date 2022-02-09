@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from nucypher.blockchain.eth.events import ContractEventsThrottler
 
 try:
@@ -27,15 +29,12 @@ from eth_typing.evm import ChecksumAddress
 
 import nucypher
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, \
-    PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent, EthereumContractAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.datastore.queries import get_reencryption_requests
 
-from typing import Dict, Union, Type
-
-ContractAgents = Union[StakingEscrowAgent]
+from typing import Dict, Type
 
 
 class MetricsCollector(ABC):
@@ -246,7 +245,7 @@ class EventMetricsCollector(BaseMetricsCollector):
                  event_name: str,
                  event_args_config: Dict[str, tuple],
                  argument_filters: Dict[str, str],
-                 contract_agent_class: Type[ContractAgents],
+                 contract_agent_class: Type[EthereumContractAgent],
                  contract_registry: BaseContractRegistry):
         super().__init__()
         self.event_name = event_name

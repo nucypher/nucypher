@@ -63,7 +63,6 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import Operator, BlockchainPolicyAuthor
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -674,7 +673,7 @@ class Ursula(Teacher, Character, Operator):
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
-    class NotEnoughUrsulas(Learner.NotEnoughTeachers, StakingEscrowAgent.NotEnoughStakers):
+    class NotEnoughUrsulas(Learner.NotEnoughTeachers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
         This exception is raised when a piece of logic can't proceed without more Ursulas.

@@ -21,7 +21,6 @@ from nucypher.cli.commands import (
     alice,
     bob,
     enrico,
-    stake,
     status,
     ursula,
     cloudworkers,
@@ -70,21 +69,23 @@ def nucypher_cli():
 ENTRY_POINTS = (
 
     # Characters & Actors
-    alice.alice,        # Author of Policies
-    bob.bob,            # Builder of Capsules
-    enrico.enrico,      # Encryptor of Data
-    ursula.ursula,      # Untrusted Re-Encryption Proxy
-    stake.stake,        # Stake Management
+    ursula.ursula,  # Untrusted Re-Encryption Proxy
+    enrico.enrico,  # Encryptor of Data
 
-    # PRE Application 
+    # PRE Application
     bond.bond,
     bond.unbond,
 
     # Utility Commands
-    status.status,              # Network Status
-    cloudworkers.cloudworkers,  # Remote Operator node management
-    contacts.contacts,          # Character "card" management
-    porter.porter
+    status.status,              # Network status explorer
+    cloudworkers.cloudworkers,  # Remote node management
+    porter.porter,              # Network support services
+
+    # Demos
+    alice.alice,        # Author of Policies
+    bob.bob,            # Builder of Capsules
+    contacts.contacts,  # "character "card" management
+
 )
 
 for entry_point in ENTRY_POINTS:

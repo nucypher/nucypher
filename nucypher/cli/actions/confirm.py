@@ -16,36 +16,25 @@
 """
 
 
+from typing import Type, Union, Dict
+
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-
 from maya import MayaDT
 from tabulate import tabulate
-from typing import Type, Union, Dict
 from web3.main import Web3
 
-from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract, BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import calculate_period_duration
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
-    CHARACTER_DESTRUCTION,
-    CONFIRM_ENABLE_RESTAKING,
-    CONFIRM_ENABLE_WINDING_DOWN,
-    CONFIRM_LARGE_STAKE_DURATION,
-    CONFIRM_LARGE_STAKE_VALUE,
-    CONFIRM_STAGED_STAKE,
-    RESTAKING_AGREEMENT,
-    WINDING_DOWN_AGREEMENT,
-    SNAPSHOTS_DISABLING_AGREEMENT,
-    CONFIRM_DISABLE_SNAPSHOTS
+    CHARACTER_DESTRUCTION
 )
 from nucypher.cli.literature import CONFIRM_VERSIONED_UPGRADE
 from nucypher.config.base import CharacterConfiguration
+from nucypher.control.emitters import StdoutEmitter
 
 
 def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDeployerInterface) -> bool:
@@ -62,47 +51,6 @@ def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDep
     if click.prompt(f"Type '{expected_chain_name.upper()}' to continue") != expected_chain_name.upper():
         emitter.echo(ABORT_DEPLOYMENT, color='red', bold=True)
         raise click.Abort(ABORT_DEPLOYMENT)
-    return True
-
-
-def confirm_enable_restaking(emitter: StdoutEmitter, staking_address: str) -> bool:
-    """Interactively confirm enabling of the restaking with user agreements."""
-    emitter.message(RESTAKING_AGREEMENT.format(staking_address=staking_address))
-    click.confirm(CONFIRM_ENABLE_RESTAKING.format(staking_address=staking_address), abort=True)
-    return True
-
-
-def confirm_enable_winding_down(emitter: StdoutEmitter, staking_address: str) -> bool:
-    """Interactively confirm enabling of winding down with user agreements."""
-    emitter.message(WINDING_DOWN_AGREEMENT)
-    click.confirm(CONFIRM_ENABLE_WINDING_DOWN.format(staking_address=staking_address), abort=True)
-    return True
-
-
-def confirm_disable_snapshots(emitter: StdoutEmitter, staking_address: str) -> bool:
-    """Interactively confirm disabling of taking snapshots with user agreements."""
-    emitter.message(SNAPSHOTS_DISABLING_AGREEMENT)
-    click.confirm(CONFIRM_DISABLE_SNAPSHOTS.format(staking_address=staking_address), abort=True)
-    return True
-
-
-def confirm_staged_stake(staker_address: str, value: NU, lock_periods: int) -> bool:
-    """Interactively confirm a new stake reviewing all staged stake details."""
-    click.confirm(CONFIRM_STAGED_STAKE.format(nunits=str(value.to_units()),
-                                              tokens=value,
-                                              staker_address=staker_address,
-                                              lock_periods=lock_periods), abort=True)
-    return True
-
-
-def confirm_large_and_or_long_stake(value: NU = None, lock_periods: int = None, economics: Economics = None) -> bool:
-    """Interactively confirm a large stake and/or a long stake duration."""
-    if economics and value and (value > (NU.from_units(economics.min_authorization) * 10)):  # > 10x min stake
-        click.confirm(CONFIRM_LARGE_STAKE_VALUE.format(value=value), abort=True)
-    if economics and lock_periods and (lock_periods > economics.maximum_rewarded_periods):  # > 1 year
-        lock_days = (lock_periods * economics.hours_per_period) // 24
-        click.confirm(CONFIRM_LARGE_STAKE_DURATION.format(lock_periods=lock_periods, lock_days=lock_days),
-                      abort=True)
     return True
 
 

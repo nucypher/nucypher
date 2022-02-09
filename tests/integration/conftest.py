@@ -14,6 +14,8 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from pathlib import Path
 
 import pytest
@@ -23,13 +25,12 @@ from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
-    NucypherTokenAgent,
-    StakingEscrowAgent, PREApplicationAgent
+    PREApplicationAgent
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
@@ -57,24 +58,6 @@ def mock_contract_agency(monkeypatch, module_mocker, application_economics):
 
 
 @pytest.fixture(scope='function', autouse=True)
-def mock_token_agent(mock_testerchain, application_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(NucypherTokenAgent)
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture(scope='function', autouse=True)
-def mock_staking_agent(mock_testerchain, application_economics, mock_contract_agency, mocker):
-    mock_agent = mock_contract_agency.get_agent(StakingEscrowAgent)
-
-    # Handle the special case of commit_to_next_period, which returns a txhash due to the fire_and_forget option
-    mock_agent.commit_to_next_period = mocker.Mock(return_value=MockContractAgent.FAKE_TX_HASH)
-
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture(scope='function', autouse=True)
 def mock_application_agent(mock_testerchain, application_economics, mock_contract_agency, mocker):
     mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
 
@@ -85,7 +68,6 @@ def mock_application_agent(mock_testerchain, application_economics, mock_contrac
     mock_agent.reset()
 
 
-@pytest.fixture(scope='function', autouse=True)
 def mock_adjudicator_agent(mock_testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
     yield mock_agent
@@ -168,14 +150,14 @@ def mock_account(mock_accounts):
 
 
 @pytest.fixture(scope='module')
-def worker_account(mock_accounts, mock_testerchain):
+def operator_account(mock_accounts, mock_testerchain):
     account = list(mock_accounts.values())[0]
     return account
 
 
 @pytest.fixture(scope='module')
-def operator_address(worker_account):
-    address = worker_account.address
+def operator_address(operator_account):
+    address = operator_account.address
     return address
 
 
@@ -205,16 +187,6 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
     monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
     yield
     monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
-
-
-@pytest.fixture(scope='function')
-def patch_stakeholder_configuration(mock_accounts, monkeypatch):
-    def mock_read_configuration_file(filepath: Path) -> dict:
-        return dict()
-
-    monkeypatch.setattr(StakeHolderConfiguration, '_read_configuration_file', mock_read_configuration_file)
-    yield
-    monkeypatch.delattr(StakeHolderConfiguration, '_read_configuration_file')
 
 
 @pytest.fixture(scope='function')

@@ -22,7 +22,7 @@ from twisted.logger import LogLevel, globalLogPublisher
 from nucypher.acumen.perception import FleetSensor
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
-from tests.utils.ursula import make_ursula_for_staker
+from tests.utils.ursula import make_ursula_for_staking_provider
 
 
 # @pytest.mark.skip()
@@ -89,14 +89,14 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
-def test_invalid_workers_tolerance(testerchain,
-                                   test_registry,
-                                   blockchain_ursulas,
-                                   agency,
-                                   idle_staker,
-                                   application_economics,
-                                   ursula_decentralized_test_config
-                                   ):
+def test_invalid_operators_tolerance(testerchain,
+                                     test_registry,
+                                     blockchain_ursulas,
+                                     agency,
+                                     idle_staker,
+                                     application_economics,
+                                     ursula_decentralized_test_config
+                                     ):
     #
     # Setup
     #
@@ -124,11 +124,11 @@ def test_invalid_workers_tolerance(testerchain,
     idle_staker.stake_tracker.refresh()
 
     # We create an active worker node for this staker
-    worker = make_ursula_for_staker(staker=idle_staker,
-                                    operator_address=testerchain.unassigned_accounts[-1],
-                                    ursula_config=ursula_decentralized_test_config,
-                                    blockchain=testerchain,
-                                    ursulas_to_learn_about=None)
+    worker = make_ursula_for_staking_provider(staking_provider=idle_staker,
+                                              operator_address=testerchain.unassigned_accounts[-1],
+                                              ursula_config=ursula_decentralized_test_config,
+                                              blockchain=testerchain,
+                                              ursulas_to_learn_about=None)
 
     # Since we made a commitment, we need to advance one period
     testerchain.time_travel(periods=1)

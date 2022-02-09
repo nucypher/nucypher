@@ -19,20 +19,16 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from constant_sorrow import constants
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.agents import (
-    AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    StakingEscrowAgent
 )
 from nucypher.blockchain.eth.deployers import (
-    AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
-    StakingEscrowDeployer
 )
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.mark.skip()

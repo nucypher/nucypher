@@ -17,66 +17,33 @@
 
 import os
 from pathlib import Path
-from typing import Callable
-from typing import Optional, Tuple, Type
+from typing import Optional, Type
 
 import click
 from tabulate import tabulate
 from web3.main import Web3
 
-from nucypher.blockchain.eth.actors import StakeHolder, Staker
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.blockchain.eth.token import NU, Stake
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
     NO_CONFIGURATIONS_ON_DISK,
     NO_ETH_ACCOUNTS,
-    NO_STAKES_FOUND,
-    ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE,
     SELECT_NETWORK,
-    SELECT_STAKE,
-    SELECT_STAKING_ACCOUNT_INDEX,
     SELECTED_ACCOUNT,
     IGNORE_OLD_CONFIGURATION,
     DEFAULT_TO_LONE_CONFIG_FILE
 )
 from nucypher.cli.painting.policies import paint_cards
-from nucypher.cli.painting.staking import paint_stakes
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_OPERATOR_ADDRESS, DEFAULT_CONFIG_ROOT
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.policy.identity import Card
-
-
-def select_stake(staker: Staker,
-                 emitter: StdoutEmitter,
-                 stakes_status: Stake.Status = Stake.Status.EDITABLE,
-                 filter_function: Callable[[Stake], bool] = None
-                 ) -> Stake:
-    """Interactively select a stake or abort if there are no eligible stakes."""
-
-    if stakes_status.is_child(Stake.Status.DIVISIBLE):
-        emitter.echo(ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE, color='yellow')
-
-    # Filter stakes by status
-    stakes = staker.sorted_stakes(parent_status=stakes_status, filter_function=filter_function)
-    if not stakes:
-        emitter.echo(NO_STAKES_FOUND, color='red')
-        raise click.Abort
-
-    # Interactive Selection
-    paint_unlocked = stakes_status.is_child(Stake.Status.UNLOCKED)
-    paint_stakes(staker=staker, emitter=emitter, stakes=stakes, paint_unlocked=paint_unlocked)
-    indexed_stakes = {stake.index: stake for stake in stakes}
-    indices = [str(index) for index in indexed_stakes.keys()]
-    choice = click.prompt(SELECT_STAKE, type=click.Choice(indices))
-    chosen_stake = indexed_stakes[int(choice)]
-    return chosen_stake
 
 
 def select_client_account(emitter,
@@ -167,33 +134,6 @@ def select_client_account(emitter,
 
     emitter.echo(SELECTED_ACCOUNT.format(choice=choice, chosen_account=chosen_account), color='blue')
     return chosen_account
-
-
-def select_client_account_for_staking(emitter: StdoutEmitter,
-                                      stakeholder: StakeHolder,
-                                      staking_address: Optional[str],
-                                      ) -> Tuple[str, str]:
-    """
-    Manages client account selection for stake-related operations.
-    It always returns a tuple of addresses: the first is the local client account and the second is the staking address.
-
-    When this is not a preallocation staker (which is the normal use case), both addresses are the same.
-    Otherwise, when the staker is a contract managed by a beneficiary account,
-    then the local client account is the beneficiary, and the staking address is the address of the staking contract.
-    """
-
-    if staking_address:
-        client_account = staking_address
-    else:
-        client_account = select_client_account(prompt=SELECT_STAKING_ACCOUNT_INDEX,
-                                               emitter=emitter,
-                                               registry=stakeholder.registry,
-                                               network=stakeholder.domain,
-                                               signer=stakeholder.signer)
-        staking_address = client_account
-    stakeholder.assimilate(client_account)
-
-    return client_account, staking_address
 
 
 def select_network(emitter: StdoutEmitter, message: Optional[str] = None) -> str:

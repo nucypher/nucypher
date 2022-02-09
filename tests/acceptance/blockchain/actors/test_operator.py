@@ -68,8 +68,8 @@ def test_work_tracker(mocker,
 
     # Make the Worker
     ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                        stakers_addresses=[staker.checksum_address],
-                                        workers_addresses=[worker_address],
+                                        staking_provider_addresses=[staker.checksum_address],
+                                        operator_addresses=[worker_address],
                                         registry=test_registry).pop()
 
     ursula.run(preflight=False,

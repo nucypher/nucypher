@@ -23,8 +23,7 @@ from constant_sorrow.constants import (
     BARE,
     CONTRACT_NOT_DEPLOYED,
     FULL,
-    IDLE,
-    INIT
+    IDLE
 )
 from eth_typing.evm import ChecksumAddress
 from web3.contract import Contract
@@ -34,11 +33,10 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent,
     NucypherTokenAgent,
-    StakingEscrowAgent,
     PREApplicationAgent,
     SubscriptionManagerAgent
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterfaceFactory,
@@ -523,198 +521,6 @@ class DispatcherDeployer(OwnableContractMixin, ProxyContractDeployer):
     """
 
     contract_name = DISPATCHER_CONTRACT_NAME
-
-
-class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
-    """
-    Deploys the StakingEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
-    """
-
-    agency = StakingEscrowAgent
-    contract_name = agency.contract_name
-    contract_name_stub = "StakingEscrowStub"
-
-    can_be_idle = True
-    init_steps = ('stub_deployment', 'dispatcher_deployment')
-    preparation_steps = ('contract_deployment', 'dispatcher_retarget')
-    deployment_steps = preparation_steps
-    _proxy_deployer = DispatcherDeployer
-
-    STUB_MIN_ALLOWED_TOKENS = NU(15_000, 'NU').to_units()
-    STUB_MAX_ALLOWED_TOKENS = NU(30_000_000, 'NU').to_units()
-
-    def __init__(self,
-                 staking_interface: ChecksumAddress = None,
-                 worklock_address: ChecksumAddress = None,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__dispatcher_contract = None
-
-        token_contract_name = NucypherTokenDeployer.contract_name
-        self.token_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                   contract_name=token_contract_name)
-        self.threshold_staking_address = staking_interface
-        self.worklock_address = worklock_address
-
-    def _deploy_stub(self,
-                     transacting_power: TransactingPower,
-                     gas_limit: int = None,
-                     confirmations: int = 0,
-                     **overrides):
-        constructor_kwargs = {
-            "_minAllowableLockedTokens": self.STUB_MIN_ALLOWED_TOKENS,
-            "_maxAllowableLockedTokens": self.STUB_MAX_ALLOWED_TOKENS
-        }
-        constructor_kwargs.update(overrides)
-        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
-        # Force use of the token address from the registry
-        constructor_kwargs.update({"_token": self.token_contract.address})
-        the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
-            transacting_power,
-            self.registry,
-            self.contract_name_stub,
-            gas_limit=gas_limit,
-            confirmations=confirmations,
-            **constructor_kwargs
-        )
-
-        return the_escrow_contract, deploy_receipt
-
-    def _deploy_essential(self,
-                          transacting_power: TransactingPower,
-                          contract_version: str,
-                          gas_limit: int = None,
-                          confirmations: int = 0,
-                          **overrides):
-        constructor_kwargs = {}
-        constructor_kwargs.update({"_token": self.token_contract.address,
-                                   "_workLock": self.worklock_address if self.worklock_address is not None else NULL_ADDRESS,
-                                   "_tStaking": self.threshold_staking_address})
-        constructor_kwargs.update(overrides)
-        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
-        the_escrow_contract, deploy_receipt = self.blockchain.deploy_contract(
-            transacting_power,
-            self.registry,
-            self.contract_name,
-            gas_limit=gas_limit,
-            contract_version=contract_version,
-            confirmations=confirmations,
-            **constructor_kwargs
-        )
-
-        return the_escrow_contract, deploy_receipt
-
-    def deploy(self,
-               transacting_power: TransactingPower,
-               deployment_mode=INIT,
-               gas_limit: int = None,
-               progress=None,
-               contract_version: str = "latest",
-               ignore_deployed: bool = False,
-               confirmations: int = 0,
-               emitter=None,
-               **overrides
-               ) -> dict:
-        """
-        Deploy and publish the StakingEscrow contract
-        to the blockchain network specified in self.blockchain.network.
-
-        Emits the following blockchain network transactions:
-            - StakingEscrow contract deployment
-            - StakingEscrow dispatcher deployment
-            - Transfer reward tokens origin to StakingEscrow contract
-            - StakingEscrow contract initialization
-
-        Returns transaction receipts in a dict.
-        """
-
-        if deployment_mode not in (BARE, INIT, FULL):
-            raise ValueError(f"Invalid deployment mode ({deployment_mode})")
-
-        # Raise if not all-systems-go
-        self.check_deployment_readiness(deployer_address=transacting_power.account,
-                                        contract_version=contract_version,
-                                        ignore_deployed=ignore_deployed)
-
-        # Build deployment arguments
-        origin_args = {}
-        if gas_limit:
-            origin_args.update({'gas': gas_limit})  # TODO: Gas Management - #842
-
-        if emitter:
-            contract_name = self.contract_name_stub if deployment_mode is INIT else self.contract_name
-            emitter.message(f"\nNext Transaction: {contract_name} Contract Creation", color='blue', bold=True)
-
-        if deployment_mode is INIT:
-            # 1 - Deploy Stub
-            the_escrow_contract, deploy_receipt = self._deploy_stub(transacting_power=transacting_power,
-                                                                    gas_limit=gas_limit,
-                                                                    confirmations=confirmations,
-                                                                    **overrides)
-        else:
-            # 1 - Deploy StakingEscrow
-            the_escrow_contract, deploy_receipt = self._deploy_essential(transacting_power=transacting_power,
-                                                                         contract_version=contract_version,
-                                                                         gas_limit=gas_limit,
-                                                                         confirmations=confirmations,
-                                                                         **overrides)
-
-            # This is the end of bare deployment.
-            if deployment_mode is BARE:
-                self._contract = the_escrow_contract
-                receipts = self._finish_bare_deployment(deployment_receipt=deploy_receipt, progress=progress)
-                return receipts
-
-        if progress:
-            progress.update(1)
-
-        if emitter:
-            emitter.message(f"\nNext Transaction: {DispatcherDeployer.contract_name} "
-                            f"Contract {'Creation' if deployment_mode is INIT else 'Upgrade'} for {self.contract_name}",
-                            color='blue', bold=True)
-
-        if deployment_mode is INIT:
-            # 2 - Deploy the dispatcher used for updating this contract #
-            dispatcher_deployer = DispatcherDeployer(registry=self.registry, target_contract=the_escrow_contract)
-
-            dispatcher_receipts = dispatcher_deployer.deploy(transacting_power=transacting_power, 
-                                                             gas_limit=gas_limit,
-                                                             confirmations=confirmations)
-            dispatcher_deploy_receipt = dispatcher_receipts[dispatcher_deployer.deployment_steps[0]]
-        else:
-            # 2 - Upgrade dispatcher to the real contract
-            the_stub_contract = self.blockchain.get_contract_by_name(registry=self.registry,
-                                                                     contract_name=self.contract_name_stub)
-            dispatcher_deployer = DispatcherDeployer(registry=self.registry,
-                                                     target_contract=the_stub_contract,
-                                                     bare=True)
-
-            dispatcher_retarget_receipt = dispatcher_deployer.retarget(transacting_power=transacting_power,
-                                                                       new_target=the_escrow_contract.address,
-                                                                       gas_limit=gas_limit,
-                                                                       confirmations=confirmations)
-
-        if progress:
-            progress.update(1)
-
-        # Cache the dispatcher contract
-        dispatcher_contract = dispatcher_deployer.contract
-        self.__dispatcher_contract = dispatcher_contract
-
-        # Wrap the escrow contract
-        wrapped_escrow_contract = self.blockchain._wrap_contract(dispatcher_contract,
-                                                                 target_contract=the_escrow_contract)
-
-        # Switch the contract for the wrapped one
-        self._contract = wrapped_escrow_contract
-
-        if deployment_mode is INIT:
-            preparation_receipts = dict(zip(self.init_steps, (deploy_receipt, dispatcher_deploy_receipt)))
-        else:
-            preparation_receipts = dict(zip(self.preparation_steps, (deploy_receipt, dispatcher_retarget_receipt)))
-        self.deployment_receipts = preparation_receipts
-
-        return preparation_receipts
 
 
 class SubscriptionManagerDeployer(BaseContractDeployer, OwnableContractMixin):

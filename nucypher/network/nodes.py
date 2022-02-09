@@ -45,7 +45,7 @@ from nucypher_core.umbral import Signature
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry

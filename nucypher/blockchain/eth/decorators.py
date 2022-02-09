@@ -112,7 +112,7 @@ def only_me(func: Callable) -> Callable:
     @functools.wraps(func)
     def wrapped(actor=None, *args, **kwargs):
         if not actor.is_me:
-            raise actor.StakerError("You are not {}".format(actor.__class.__.__name__))
+            raise actor.ActorError("You are not {}".format(actor.__class.__.__name__))
         return func(actor, *args, **kwargs)
     return wrapped
 

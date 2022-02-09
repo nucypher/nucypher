@@ -45,281 +45,35 @@ FEDERATED_WARNING = "WARNING: Running in Federated mode"
 
 PERIOD_ADVANCED_WARNING = "Current period advanced before the action could be completed. Please try again."
 
-
-#
-# Staking
-#
-
-CONFIRM_STAGED_STAKE = """
-* Ursula Node Operator Notice *
--------------------------------
-
-By agreeing to stake {tokens} ({nunits} NuNits):
-
-- Staked tokens will be locked for the stake duration.
-
-- You are obligated to maintain a networked and available Ursula-Worker node
-  bonded to the staker address {staker_address} for the duration
-  of the stake(s) ({lock_periods} periods).
-
-- Agree to allow NuCypher network users to carry out uninterrupted re-encryption
-  work orders at-will without interference.
-
-Failure to keep your node online or fulfill re-encryption work orders will result
-in loss of staked NU as described in the NuCypher slashing protocol:
-https://docs.nucypher.com/en/latest/architecture/slashing.html.
-
-Keeping your Ursula node online during the staking period and successfully
-producing correct re-encryption work orders will result in rewards
-paid out in ethers retro-actively and on-demand.
-
-Accept ursula node operator obligation?"""
-
-
-CONFIRM_LARGE_STAKE_VALUE = "Wow, {value} - That's a lot of NU - Are you sure this is correct?"
-
-CONFIRM_LARGE_STAKE_DURATION = "Woah, {lock_periods} periods ({lock_days} days) is a long time - Are you sure this is correct?"
-
-PROMPT_STAKE_CREATE_VALUE = "Enter stake value in NU ({lower_limit} - {upper_limit})"
-
-PROMPT_STAKE_CREATE_LOCK_PERIODS = "Enter stake duration ({min_locktime} - {max_locktime})"
-
-CONFIRM_STAKE_USE_UNLOCKED = "Confirm only use uncollected staking rewards and unlocked sub-stakes; not tokens from staker address"
-
-CONFIRM_BROADCAST_CREATE_STAKE = "Publish staged stake to the blockchain?"
-
-CONFIRM_INCREASING_STAKE = "Confirm increase stake (index: {stake_index}) by {value}?"
-
-CONFIRM_INCREASING_STAKE_DISCLAIMER = """
-NOTE: Due to a known issue with the StakingEscrow contract, using the increase operation may lead to reduced staking
-rewards for the first period after the increase (GitHub Issue: https://github.com/nucypher/nucypher/issues/2691).
-
-The workaround to increase stake size without reduced staking rewards is the following:
-1. Create a new sub-stake with the same duration as the current sub-stake
-2. Wait until there has been a Worker node commitment made in the period after the sub-stake was created
-3. Once there has been a commitment made in the period after the sub-stake was created, merge the sub-stakes at any time afterwards
-
-For example,
-- If you created a sub-stake in period 10
-- Wait until there has been a commitment made in the period after the sub-stake was created (i.e. in period 11)
-- Then merge the sub-stake in period 11 after the commitment, or during any period afterwards
-
-Are you sure you want to use the increase operation instead of the workaround?
-"""
-
-INSUFFICIENT_BALANCE_TO_INCREASE = "There are no tokens to increase stake"
-
-INSUFFICIENT_BALANCE_TO_CREATE = "Insufficient NU for stake creation."
-
-MAXIMUM_STAKE_REACHED = "Maximum stake reached, can't lock more"
-
-PROMPT_STAKE_INCREASE_VALUE = "Enter stake value in NU (up to {upper_limit})"
-
-SUCCESSFUL_STAKE_INCREASE = 'Successfully increased stake'
-
-NO_STAKING_ACCOUNTS = "No staking accounts found."
-
-SELECT_STAKING_ACCOUNT_INDEX = "Select index of staking account"
-
-NO_ACTIVE_STAKES = "No active stakes found\n"
-
-NO_STAKES_AT_ALL = "No Stakes found"
-
-SELECT_STAKE = "Select Stake"
-
-NO_STAKES_FOUND = "No stakes found."
-
-CONFIRM_MANUAL_MIGRATION = "Confirm manual migration for staker {address}"
-
-MIGRATION_ALREADY_PERFORMED = 'Staker {address} has already migrated.'
-
-
-POST_STAKING_ADVICE = """
-View your stakes by running 'nucypher stake list'
-or set your Ursula worker node address by running 'nucypher stake bond-worker'.
-
-See https://docs.nucypher.com/en/latest/staking/running_a_worker.html
-"""
-
 #
 # Events
 #
 
 CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_file}?"
 
-#
-# Remove Inactive
-#
-
-
-FETCHING_INACTIVE_STAKES = 'Fetching inactive stakes'
-
-NO_INACTIVE_STAKES = "No inactive stakes found\n"
-
-CONFIRM_REMOVE_ALL_INACTIVE_SUBSTAKES = """
-This action will perform a series of transactions to remove all unused sub-stakes
-(Indices {stakes}).  It is recommended that you verify each staker transaction was successful (https://etherscan.io/address/{staker_address}).
-
-Confirm removal of {quantity} unused sub-stakes?"""
-
-
-#
-# Minting
-#
-
-NO_MINTABLE_PERIODS = "There are no periods that can be rewarded."
-
-STILL_LOCKED_TOKENS = """
-WARNING: Some amount of tokens still locked. 
-It is *recommended* to run worker node until all tokens will be unlocked
-and only after that call `mint`.
-"""
-
-CONFIRM_MINTING = "Confirm mint tokens for {mintable_periods} previous periods?"
-
-SUCCESSFUL_MINTING = 'Reward successfully minted'
-
-#
-# Wind Down
-#
-
-WINDING_DOWN_AGREEMENT = """
-Over time, as the locked stake duration decreases
-i.e. `winds down`, you will receive decreasing inflationary rewards.
-
-Instead, by disabling `wind down` (default) the locked stake duration
-can remain constant until you specify that `wind down` should begin. By
-keeping the locked stake duration constant, it ensures that you will
-receive maximum inflation compensation.
-
-If `wind down` was previously disabled, you can enable it at any point
-and the locked duration will decrease after each period.
-
-For more information see https://docs.nucypher.com/en/latest/architecture/sub_stakes.html#winding-down.
-"""
-
-CONFIRM_ENABLE_WINDING_DOWN = "Confirm enable automatic winding down for staker {staking_address}?"
-
-SUCCESSFUL_ENABLE_WIND_DOWN = 'Successfully enabled winding down for {staking_address}'
-
-CONFIRM_DISABLE_WIND_DOWN = "Confirm disable winding down for staker {staking_address}?"
-
-SUCCESSFUL_DISABLE_WIND_DOWN = 'Successfully disabled winding down for {staking_address}'
-
-
-#
-# Restaking
-#
-
-RESTAKING_AGREEMENT = """
-By enabling the re-staking for {staking_address}, all staking rewards will be automatically added to your existing stake.
-"""
-
-CONFIRM_ENABLE_RESTAKING = "Confirm enable automatic re-staking for staker {staking_address}?"
-
-SUCCESSFUL_ENABLE_RESTAKING = 'Successfully enabled re-staking for {staking_address}'
-
-CONFIRM_DISABLE_RESTAKING = "Confirm disable re-staking for staker {staking_address}?"
-
-SUCCESSFUL_DISABLE_RESTAKING = 'Successfully disabled re-staking for {staking_address}'
-
-
-#
-# Snapshots
-#
-
-SNAPSHOTS_DISABLING_AGREEMENT = """
-By disabling snapshots, staker {staking_address} will be excluded from all future DAO validations
-until snapshots are enabled.
-"""
-
-CONFIRM_ENABLE_SNAPSHOTS = "Confirm enable automatic snapshots for staker {staking_address}?"
-
-SUCCESSFUL_ENABLE_SNAPSHOTS = 'Successfully enabled snapshots for staker {staking_address}'
-
-CONFIRM_DISABLE_SNAPSHOTS = "Confirm disable snapshots for staker {staking_address}?"
-
-SUCCESSFUL_DISABLE_SNAPSHOTS = 'Successfully disabled snapshots for staker {staking_address}'
 
 #
 # Bonding
 #
 
-PROMPT_WORKER_ADDRESS = "Enter worker address"
+PROMPT_OPERATOR_ADDRESS = "Enter operator address"
 
-CONFIRM_WORKER_AND_STAKER_ADDRESSES_ARE_EQUAL = """
+CONFIRM_WORKER_AND_OPERATOR_ADDRESSES_ARE_EQUAL = """
 
 {address}
-The worker address provided is the same as the staker.
-It is *highly recommended* to use a different accounts for staker and worker roles.
+The operator address provided is the same as the staking provider.
+Continue using the same account for operator and staking provider?"""
 
-Continue using the same account for worker and staker?"""
+SUCCESSFUL_OPERATOR_BONDING = "\nOperator {operator_address} successfully bonded to staking provider {staking_provider_address}"
 
-SUCCESSFUL_WORKER_BONDING = "\nWorker {worker_address} successfully bonded to staker {staking_address}"
+BONDING_DETAILS = "Bonded at {bonded_date}"
 
-BONDING_DETAILS = "Bonded at period #{current_period} ({bonded_date})"
+BONDING_RELEASE_INFO = "This operator can be replaced or detached after {release_date}"
 
-BONDING_RELEASE_INFO = "This worker can be replaced or detached after period #{release_period} ({release_date})"
+SUCCESSFUL_UNBOND_OPERATOR = "Successfully unbonded operator {operator_address} from staking provider {staking_provider_address}"
 
-SUCCESSFUL_DETACH_WORKER = "Successfully detached worker {worker_address} from staker {staking_address}"
+DETACH_DETAILS = "Unbonded at {bonded_date}"
 
-DETACH_DETAILS = "Detached at period #{current_period} ({bonded_date})"
-
-
-#
-# Worker Rate
-#
-
-PROMPT_STAKER_MIN_POLICY_RATE = "Enter new value (in GWEI) so the minimum fee rate falls within global fee range"
-
-CONFIRM_NEW_MIN_POLICY_RATE = "Commit new value {min_rate} GWEI for minimum fee rate?"
-
-SUCCESSFUL_SET_MIN_POLICY_RATE = "\nMinimum fee rate {min_rate} GWEI successfully set by staker {staking_address}"
-
-
-#
-# Divide, Prolong and Merge
-#
-
-
-ONLY_DISPLAYING_DIVISIBLE_STAKES_NOTE = "NOTE: Showing divisible stakes only"
-
-ONLY_DISPLAYING_MERGEABLE_STAKES_NOTE = "NOTE: Showing stakes with {final_period} final period only"
-
-CONFIRM_BROADCAST_STAKE_DIVIDE = "Publish stake division to the blockchain?"
-
-PROMPT_STAKE_EXTEND_VALUE = "Enter number of periods to extend"
-
-PROMPT_STAKE_DIVIDE_VALUE = "Enter target value ({minimum} - {maximum})"
-
-SUCCESSFUL_STAKE_DIVIDE = 'Successfully divided stake'
-
-PROMPT_PROLONG_VALUE = "Enter number of periods to extend ({minimum}-{maximum})"
-
-CONFIRM_PROLONG = "Publish stake extension of {lock_periods} period(s) to the blockchain?"
-
-SUCCESSFUL_STAKE_PROLONG = 'Successfully Prolonged Stake'
-
-CONFIRM_MERGE = "Publish merging of {stake_index_1} and {stake_index_2} stakes?"
-
-CONFIRM_MERGE_DISCLAIMER = """
-NOTE: Due to a known issue with the StakingEscrow contract, using the merge operation may lead to reduced staking
-rewards for the first period after the merge (GitHub Issue: https://github.com/nucypher/nucypher/issues/2691).
-
-Before merging a sub-stake, ensure that there has been a Worker node commitment that occurred in the period after the
-sub-stake was created. For example,
-- If you created a sub-stake in period 10
-- Wait until there has been a Worker node commitment made in the period after the sub-stake was created (i.e. in period 11)
-- Merge the sub-stake in period 11 after the commitment, or any time afterwards
-
-Are you sure you want to merge now instead of waiting?
-"""
-
-SUCCESSFUL_STAKES_MERGE = 'Successfully Merged Stakes'
-
-CONFIRM_REMOVE_SUBSTAKE = "Publish removal of {stake_index} stake?"
-
-SUCCESSFUL_STAKE_REMOVAL = 'Successfully Removed Stake'
 
 #
 # Rewards
@@ -327,16 +81,7 @@ SUCCESSFUL_STAKE_REMOVAL = 'Successfully Removed Stake'
 
 COLLECTING_TOKEN_REWARD = 'Collecting {reward_amount} from staking rewards...'
 
-CONFIRM_COLLECTING_WITHOUT_MINTING = """
-There will still be a period to reward after withdrawing this portion of NU. 
-It is *recommended* to call `mint` before.
-
-Continue?
-"""
-
 COLLECTING_ETH_FEE = 'Collecting {fee_amount} ETH from policy fees...'
-
-COLLECTING_PREALLOCATION_REWARD = 'Collecting {unlocked_tokens} from PreallocationEscrow contract {staking_address}...'
 
 NO_TOKENS_TO_WITHDRAW = "No tokens can be withdrawn."
 

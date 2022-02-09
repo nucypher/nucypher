@@ -16,25 +16,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import maya
 import os
+from typing import List, Tuple, Union, Optional
+
+import maya
+from constant_sorrow.constants import INIT
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import List, Tuple, Union, Optional
 from web3 import Web3
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.economics import Economics, Economics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.utils import epoch_to_period
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
@@ -42,11 +42,10 @@ from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
-    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     PYEVM_DEV_URI
 )
-from constant_sorrow.constants import INIT
 
 
 def token_airdrop(token_agent, amount: NU, transacting_power: TransactingPower, addresses: List[str]):
@@ -96,12 +95,12 @@ class TesterBlockchain(BlockchainDeployerInterface):
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
-    _FIRST_STAKER = 5
-    _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
+    _FIRST_STAKING_PROVIDER = 5
+    _FIRST_URSULA = _FIRST_STAKING_PROVIDER + NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS
 
     # Internal
-    __STAKERS_RANGE = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
-    __WORKERS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+    __STAKING_PROVIDERS_RANGE = range(NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS)
+    __OPERATORS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
     __ACCOUNT_CACHE = list()
 
     # Defaults
@@ -237,13 +236,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         gas_limit = None  # TODO: Gas management - #842
         for deployer_class in admin.primary_deployer_classes:
-            if deployer_class is StakingEscrowDeployer:
-                admin.deploy_contract(contract_name=deployer_class.contract_name,
-                                      gas_limit=gas_limit,
-                                      deployment_mode=INIT)
-            else:
-                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
-        admin.deploy_contract(contract_name=StakingEscrowDeployer.contract_name, gas_limit=gas_limit)
+            admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
         return testerchain, registry
 
     @property
@@ -259,22 +252,22 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return self.client.accounts[self._BOB]
 
     def ursula_account(self, index):
-        if index not in self.__WORKERS_RANGE:
+        if index not in self.__OPERATORS_RANGE:
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_URSULA]
 
     def stake_provider_account(self, index):
-        if index not in self.__STAKERS_RANGE:
-            raise ValueError(f"Stake provider index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
-        return self.client.accounts[index + self._FIRST_STAKER]
+        if index not in self.__STAKING_PROVIDERS_RANGE:
+            raise ValueError(f"Stake provider index must be lower than {NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS}")
+        return self.client.accounts[index + self._FIRST_STAKING_PROVIDER]
 
     @property
     def ursulas_accounts(self):
-        return list(self.ursula_account(i) for i in self.__WORKERS_RANGE)
+        return list(self.ursula_account(i) for i in self.__OPERATORS_RANGE)
 
     @property
     def stake_providers_accounts(self):
-        return list(self.stake_provider_account(i) for i in self.__STAKERS_RANGE)
+        return list(self.stake_provider_account(i) for i in self.__STAKING_PROVIDERS_RANGE)
 
     @property
     def unassigned_accounts(self):

@@ -35,7 +35,7 @@ from web3.contract import Contract
 from web3.types import TxReceipt
 
 from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.actors import StakeHolder, Staker, Operator
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PREApplicationAgent
 from nucypher.blockchain.eth.deployers import (
     PREApplicationDeployer,
@@ -49,7 +49,6 @@ from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    StakeHolderConfiguration,
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -58,7 +57,6 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
-from nucypher.policy.policies import BlockchainPolicy
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.porter.porter import Porter
 from tests.constants import (
@@ -98,8 +96,12 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT,
-                                make_decentralized_ursulas, make_federated_ursulas)
+from tests.utils.ursula import (
+    MOCK_KNOWN_URSULAS_CACHE,
+    MOCK_URSULA_STARTING_PORT,
+    make_decentralized_ursulas,
+    make_federated_ursulas
+)
 
 test_logger = Logger("test-logger")
 
@@ -658,8 +660,8 @@ def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                          stakers_addresses=testerchain.stake_providers_accounts,
-                                          workers_addresses=testerchain.ursulas_accounts)
+                                          staking_provider_addresses=testerchain.stake_providers_accounts,
+                                          operator_addresses=testerchain.ursulas_accounts)
     for u in _ursulas:
         u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
     #testerchain.time_travel(periods=1)
@@ -685,30 +687,6 @@ def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test
     # Pytest will hold on to this object, need to clear it manually.
     # See https://github.com/pytest-dev/pytest/issues/5642
     _ursulas.clear()
-
-
-@pytest.fixture(scope="module")
-def idle_staker(testerchain, agency, test_registry):
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    idle_staker_account = testerchain.unassigned_accounts[-2]
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         signer=Web3Signer(testerchain.client))
-    token_airdrop(transacting_power=transacting_power,
-                  addresses=[idle_staker_account],
-                  token_agent=token_agent,
-                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-
-    # Prepare idle staker
-    idle_staker = Staker(transacting_power=transacting_power,
-                         domain=TEMPORARY_DOMAIN,
-                         blockchain=testerchain)
-    yield idle_staker
-
-
-@pytest.fixture(scope='module')
-def stake_value(application_economics):
-    value = NU(application_economics.min_authorization * 2, 'NuNit')
-    return value
 
 
 @pytest.fixture(scope='module')

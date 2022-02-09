@@ -16,11 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import functools
 from collections import namedtuple
 from pathlib import Path
 
 import click
-import functools
 
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
 from nucypher.cli.types import (
@@ -65,7 +65,6 @@ option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", i
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
 option_shares = click.option('--shares', '-n', help="N-Total shares", type=click.INT)
 option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
-option_staking_address = click.option('--staking-address', help="Address of a NuCypher staker", type=EIP55_CHECKSUM_ADDRESS)
 option_staking_provider = click.option('--staking-provider', help="Staking provider ethereum address", type=EIP55_CHECKSUM_ADDRESS, required=True)
 option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 option_threshold = click.option('--threshold', '-m', help="M-Threshold KFrags", type=click.INT)
