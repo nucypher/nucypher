@@ -28,7 +28,6 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    PolicyManagerAgent,
     StakingEscrowAgent
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -44,14 +43,12 @@ def paint_contract_status(registry, emitter):
 
     token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry)
 
     contracts = f"""
 | Contract Deployments |
 {token_agent.contract_name} ............ {token_agent.contract_address}
 {staking_agent.contract_name} ............ {staking_agent.contract_address}
-{policy_agent.contract_name} ............ {policy_agent.contract_address}
 {adjudicator_agent.contract_name} .............. {adjudicator_agent.contract_address}
     """
 

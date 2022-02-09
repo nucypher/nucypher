@@ -534,28 +534,3 @@ def transfer_ownership(general_config, actor_options, target_address, gas):
                                                    new_owner=target_address,
                                                    transaction_gas_limit=gas)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
-
-
-@deploy.command("set-range")
-@group_general_config
-@group_actor_options
-@click.option('--minimum', help="Minimum value for range (in wei)", type=WEI)
-@click.option('--default', help="Default value for range (in wei)", type=WEI)
-@click.option('--maximum', help="Maximum value for range (in wei)", type=WEI)
-def set_range(general_config, actor_options, minimum, default, maximum):
-    """
-    Set the minimum, default & maximum fee rate for all policies ('global fee range') in the policy manager contract.
-    The minimum acceptable fee rate (set by stakers) must fall within the global fee range.
-    """
-    emitter = general_config.emitter
-    ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
-
-    if not minimum:
-        minimum = click.prompt("Enter new minimum value for range", type=click.IntRange(min=0))
-    if not default:
-        default = click.prompt("Enter new default value for range", type=click.IntRange(min=minimum))
-    if not maximum:
-        maximum = click.prompt("Enter new maximum value for range", type=click.IntRange(min=default))
-
-    ADMINISTRATOR.set_fee_rate_range(minimum=minimum, default=default, maximum=maximum)
-    emitter.echo(MINIMUM_POLICY_RATE_EXCEEDED_WARNING.format(minimum=minimum, maximum=maximum, default=default))

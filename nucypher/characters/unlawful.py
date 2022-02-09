@@ -23,7 +23,7 @@ from unittest.mock import patch
 from eth_tester.exceptions import ValidationError
 from nucypher_core import NodeMetadata
 
-from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent
+from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -159,29 +159,3 @@ class Amonia(Alice):
         """
         with patch("nucypher.policy.policies.Policy._publish", self.grant_without_paying):
             return self.grant_without_paying(*args, **kwargs)
-
-    def grant_while_paying_the_wrong_nodes(self,
-                                           ursulas_to_trick_into_working_for_free,
-                                           ursulas_to_pay_instead,
-                                           *args, **kwargs):
-        """
-        Instead of paying the nodes with whom I've made Arrangements,
-        I'll pay my flunkies instead.  Since this is a valid transaction and creates
-        an on-chain Policy using PolicyManager, I'm hoping Ursula won't notice.
-        """
-
-        def publish_wrong_payee_address_to_blockchain(policy, ursulas):
-            policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
-            receipt = policy_agent.create_policy(
-                policy_id=bytes(policy.hrac),  # bytes16 _policyID
-                transacting_power=policy.publisher.transacting_power,
-                value=policy.value,
-                end_timestamp=policy.expiration,  # uint16 _numberOfPeriods
-                node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes
-            )
-
-            return receipt['transactionHash']
-
-        with patch("nucypher.policy.policies.BlockchainPolicy._publish",
-                   publish_wrong_payee_address_to_blockchain):
-            return super().grant(ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)

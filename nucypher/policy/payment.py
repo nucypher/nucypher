@@ -19,14 +19,11 @@ from abc import ABC, abstractmethod
 from typing import Optional, NamedTuple, Dict
 
 import maya
-from hexbytes import HexBytes
 from nucypher_core import ReencryptionRequest
 from web3.types import Wei, ChecksumAddress, Timestamp, TxReceipt
 
-from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import PolicyManagerAgent, SubscriptionManagerAgent
+from nucypher.blockchain.eth.agents import SubscriptionManagerAgent
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.utils import get_current_period, datetime_at_period, calculate_period_duration
 from nucypher.policy.policies import BlockchainPolicy, Policy
 
 

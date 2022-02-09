@@ -137,7 +137,6 @@ Whitepapers
    architecture/sub_stakes
    architecture/slashing
    architecture/periods
-   architecture/staking_contracts
 .. TODO perhaps categorize architecture section
 
 .. toctree::

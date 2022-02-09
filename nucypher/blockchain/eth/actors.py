@@ -41,7 +41,6 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    PolicyManagerAgent,
     StakingEscrowAgent,
     WorkLockAgent,
     PREApplicationAgent
@@ -61,10 +60,10 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
-    PolicyManagerDeployer,
     StakingEscrowDeployer,
-    StakingInterfaceDeployer,
-    WorklockDeployer, PREApplicationDeployer, SubscriptionManagerDeployer
+    WorklockDeployer,
+    PREApplicationDeployer,
+    SubscriptionManagerDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -194,13 +193,11 @@ class ContractAdministrator(BaseActor):
 
     dispatched_upgradeable_deployer_classes = (
         StakingEscrowDeployer,
-        PolicyManagerDeployer,
         AdjudicatorDeployer,
     )
 
     upgradeable_deployer_classes = (
         *dispatched_upgradeable_deployer_classes,
-        StakingInterfaceDeployer,
     )
 
     aux_deployer_classes = (
@@ -208,8 +205,7 @@ class ContractAdministrator(BaseActor):
     )
 
     # For ownership transfers.
-    ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,
-                                StakingInterfaceDeployer)
+    ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,)
 
     # Used in the automated deployment series.
     primary_deployer_classes = (*standard_deployer_classes,
@@ -335,21 +331,6 @@ class ContractAdministrator(BaseActor):
             file.write(data)
         return filepath
 
-    def set_fee_rate_range(self,
-                           minimum: int,
-                           default: int,
-                           maximum: int,
-                           transaction_gas_limit: int = None) -> TxReceipt:
-        if not self.transacting_power:
-            raise self.ActorError('No transacting power available.')
-        policy_manager_deployer = PolicyManagerDeployer(registry=self.registry, economics=self.economics)
-        receipt = policy_manager_deployer.set_fee_rate_range(transacting_power=self.transacting_power,
-                                                             minimum=minimum,
-                                                             default=default,
-                                                             maximum=maximum,
-                                                             gas_limit=transaction_gas_limit)
-        return receipt
-
 
 class Staker(NucypherTokenActor):
     """
@@ -369,7 +350,6 @@ class Staker(NucypherTokenActor):
         self._operator_address = None
 
         # Blockchain
-        self.policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=self.registry)
         self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)
         self.economics = EconomicsFactory.get_economics(registry=self.registry)
 

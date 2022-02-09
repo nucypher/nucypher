@@ -17,23 +17,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import maya
-import tabulate
 import webbrowser
 from web3.main import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
-    PolicyManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, PolicyManagerDeployer, StakingInterfaceRouterDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.painting.staking import paint_fee_rate_range
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 
@@ -163,14 +160,3 @@ Registry  ................ {registry.filepath}
             message = f"\n{contract_deployer_class.contract_name} is not enrolled in {registry.filepath}"
             emitter.echo(message, color='yellow')
             emitter.echo(sep, nl=False)
-
-    try:
-
-        policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_fee_rate_range(emitter, policy_agent)
-        emitter.echo(sep, nl=False)
-
-    except BaseContractRegistry.UnknownContract:
-        message = f"\n{PolicyManagerDeployer.contract_name} is not enrolled in {registry.filepath}"
-        emitter.echo(message, color='yellow')
-        emitter.echo(sep, nl=False)

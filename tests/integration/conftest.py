@@ -24,7 +24,6 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    PolicyManagerAgent,
     StakingEscrowAgent,
     WorkLockAgent
 )
@@ -79,13 +78,6 @@ def mock_staking_agent(mock_testerchain, application_economics, mock_contract_ag
 @pytest.fixture(scope='function', autouse=True)
 def mock_adjudicator_agent(mock_testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture(scope='function', autouse=True)
-def mock_policy_manager_agent(mock_testerchain, application_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(PolicyManagerAgent)
     yield mock_agent
     mock_agent.reset()
 

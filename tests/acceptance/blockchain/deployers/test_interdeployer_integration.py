@@ -31,7 +31,6 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
-    PolicyManagerDeployer,
     StakingEscrowDeployer
 )
 

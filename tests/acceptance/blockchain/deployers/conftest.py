@@ -21,11 +21,8 @@ import pytest
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.deployers import (
-    AdjudicatorDeployer,
     NucypherTokenDeployer,
-    PolicyManagerDeployer,
     StakingEscrowDeployer,
-    StakingInterfaceDeployer
 )
 from constant_sorrow.constants import (FULL, INIT)
 
@@ -60,13 +57,6 @@ def staking_escrow_deployer(testerchain,
     staking_escrow_deployer = StakingEscrowDeployer(staking_interface=threshold_staking.address,
                                                     registry=test_registry)
     return staking_escrow_deployer
-
-
-@pytest.fixture(scope="module")
-def staking_interface_deployer(staking_escrow_deployer, testerchain, test_registry, threshold_staking):
-    staking_interface_deployer = StakingInterfaceDeployer(staking_interface=threshold_staking.address,
-                                                          registry=test_registry)
-    return staking_interface_deployer
 
 
 @pytest.fixture(scope="function")

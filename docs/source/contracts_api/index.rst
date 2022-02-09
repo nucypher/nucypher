@@ -28,12 +28,3 @@ Upgradeability and proxies
    :glob:
    
    proxy/*
-   
-Staking and Pooling Contracts
-=============================
-   
-.. toctree::
-   :maxdepth: 1
-   :glob:
-   
-   staking/*
