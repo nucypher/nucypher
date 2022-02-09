@@ -88,7 +88,8 @@ class EthereumContractAgent:
                  registry: BaseContractRegistry = None,  # TODO: Consider make it non-optional again. See comment in InstanceAgent.
                  eth_provider_uri: Optional[str] = None,
                  contract: Optional[Contract] = None,
-                 transaction_gas: Optional[Wei] = None):
+                 transaction_gas: Optional[Wei] = None,
+                 contract_version: Optional[str] = None):
 
         self.log = Logger(self.__class__.__name__)
         self.registry_str = str(registry)
@@ -99,6 +100,7 @@ class EthereumContractAgent:
             contract = self.blockchain.get_contract_by_name(
                 registry=registry,
                 contract_name=self.contract_name,
+                contract_version=contract_version,
                 proxy_name=self._proxy_name,
                 use_proxy_address=self._forward_address
             )
@@ -564,7 +566,8 @@ class ContractAgency:
     def get_agent(cls,
                   agent_class: Type[Agent],
                   registry: Optional[BaseContractRegistry] = None,
-                  eth_provider_uri: Optional[str] = None
+                  eth_provider_uri: Optional[str] = None,
+                  contract_version: Optional[str] = None
                   ) -> Agent:
 
         if not issubclass(agent_class, EthereumContractAgent):
@@ -580,7 +583,7 @@ class ContractAgency:
         try:
             return cast(Agent, cls.__agents[registry_id][agent_class])
         except KeyError:
-            agent = cast(Agent, agent_class(registry=registry, eth_provider_uri=eth_provider_uri))
+            agent = cast(Agent, agent_class(registry=registry, eth_provider_uri=eth_provider_uri, contract_version=contract_version))
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
@@ -597,12 +600,18 @@ class ContractAgency:
     def get_agent_by_contract_name(cls,
                                    contract_name: str,
                                    registry: BaseContractRegistry,
-                                   eth_provider_uri: Optional[str] = None
+                                   eth_provider_uri: Optional[str] = None,
+                                   contract_version: Optional[str] = None
                                    ) -> EthereumContractAgent:
         agent_name: str = cls._contract_name_to_agent_name(name=contract_name)
         agents_module = sys.modules[__name__]
         agent_class: Type[EthereumContractAgent] = getattr(agents_module, agent_name)
-        agent: EthereumContractAgent = cls.get_agent(agent_class=agent_class, registry=registry, eth_provider_uri=eth_provider_uri)
+        agent: EthereumContractAgent = cls.get_agent(
+            agent_class=agent_class,
+            registry=registry,
+            eth_provider_uri=eth_provider_uri,
+            contract_version=contract_version
+        )
         return agent
 
 
