@@ -255,29 +255,6 @@ def paint_staking_accounts(emitter, signer, registry, domain):
     emitter.echo(tabulate.tabulate(rows, showindex=True, headers=headers, tablefmt="fancy_grid"))
 
 
-def paint_fee_rate_range(emitter, policy_agent):
-    minimum, default, maximum = policy_agent.get_fee_rate_range()
-
-    range_payload = f"""
-Global fee Range:
-    ~ Minimum ............ {prettify_eth_amount(minimum)}
-    ~ Default ............ {prettify_eth_amount(default)}
-    ~ Maximum ............ {prettify_eth_amount(maximum)}"""
-    emitter.echo(range_payload)
-
-
-def paint_min_rate(emitter, staker):
-    paint_fee_rate_range(emitter, staker.policy_agent)
-    minimum = staker.min_fee_rate
-    raw_minimum = staker.raw_min_fee_rate
-
-    rate_payload = f"""
-Minimum acceptable fee rate (set by staker for their associated worker):
-    ~ Previously set ....... {prettify_eth_amount(raw_minimum)}
-    ~ Effective ............ {prettify_eth_amount(minimum)}"""
-    emitter.echo(rate_payload)
-
-
 def paint_staking_rewards(stakeholder, blockchain, emitter, past_periods, staking_address, staking_agent):
     if not past_periods:
         reward_amount = stakeholder.staker.calculate_staking_reward()

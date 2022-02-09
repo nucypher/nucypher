@@ -31,7 +31,6 @@ from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
-    PolicyManagerDeployer,
     StakingEscrowDeployer,
     WorklockDeployer
 )
@@ -126,7 +125,6 @@ CONSTRUCTOR_OVERRIDES = {
 
 FORCE_SKIP = {
     StakingEscrowDeployer.contract_name: ["v5.6.1", "v6.2.1"],
-    PolicyManagerDeployer.contract_name: ["v6.2.1"]
 }
 
 

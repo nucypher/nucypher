@@ -22,7 +22,6 @@ import pytest
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
-    PolicyManagerAgent,
     StakingEscrowAgent
 )
 from nucypher.blockchain.eth.constants import (
@@ -34,7 +33,6 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.deployers import (
     StakingEscrowDeployer,
-    StakingInterfaceDeployer,
     SubscriptionManagerDeployer
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
@@ -62,35 +60,9 @@ def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_l
 
 
 @pytest.mark.skip()
-def test_set_range(click_runner, testerchain, agency_local_registry):
-
-    minimum, default, maximum = 10, 20, 30
-    status_command = ('set-range',
-                      '--provider', TEST_PROVIDER_URI,
-                      '--signer', TEST_PROVIDER_URI,
-                      '--registry-infile', str(agency_local_registry.filepath.absolute()),
-                      '--minimum', minimum,
-                      '--default', default,
-                      '--network', TEMPORARY_DOMAIN,
-                      '--maximum', maximum)
-
-    account_index = '0\n'
-    yes = 'Y\n'
-    user_input = account_index + yes + yes
-    result = click_runner.invoke(deploy,
-                                 status_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0, result.output
-    assert f"range [{minimum}, {maximum}]" in result.output
-    assert f"default value {default}" in result.output
-
-
-@pytest.mark.skip()
 def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_registry):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=agency_local_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     status_command = ('inspect',
@@ -103,7 +75,6 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
                                  catch_exceptions=False)
     assert result.exit_code == 0
     assert staking_agent.owner in result.output
-    assert policy_agent.owner in result.output
     assert adjudicator_agent.owner in result.output
 
     minimum, default, maximum = 10, 10, 10
@@ -117,7 +88,6 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
 def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
 
     staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=agency_local_registry)
-    policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=agency_local_registry)
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     assert staking_agent.owner == testerchain.etherbase_account
@@ -167,39 +137,9 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert result.exit_code == 0
     assert staking_agent.owner != maclane
     assert staking_agent.owner == michwill
-    assert policy_agent.owner == testerchain.etherbase_account
     assert adjudicator_agent.owner == testerchain.etherbase_account
 
     # Test transfer ownersh
-
-
-@pytest.mark.skip()
-def test_transfer_ownership_staking_interface_router(click_runner, testerchain, agency_local_registry):
-
-    maclane = testerchain.unassigned_accounts[0]
-
-    ownership_command = ('transfer-ownership',
-                         '--registry-infile', str(agency_local_registry.filepath.absolute()),
-                         '--contract-name', StakingInterfaceDeployer.contract_name,
-                         '--provider', TEST_PROVIDER_URI,
-                         '--signer', TEST_PROVIDER_URI,
-                         '--network', TEMPORARY_DOMAIN,
-                         '--target-address', maclane,
-                         '--debug')
-
-    account_index = '0\n'
-    yes = 'Y\n'
-    user_input = account_index + yes + yes
-
-    result = click_runner.invoke(deploy,
-                                 ownership_command,
-                                 input=user_input,
-                                 catch_exceptions=False)
-    assert result.exit_code == 0, result.output
-
-    # This owner is updated
-    interface_deployer = StakingInterfaceDeployer(registry=agency_local_registry)
-    assert interface_deployer.owner == maclane
 
 
 def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_local_registry):
