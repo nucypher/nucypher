@@ -40,7 +40,8 @@ def test_staking_providers_and_operators_relationships(testerchain,
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
     tx = threshold_staking.functions.setRoles(staking_provider_account).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(staking_provider_account, application_economics.min_authorization, 0, 0).transact()
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider_account, 0, application_economics.min_authorization).transact()
     testerchain.wait_for_receipt(tx)
 
     # The staking provider hasn't bond an operator yet
