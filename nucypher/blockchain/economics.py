@@ -18,8 +18,9 @@ class Economics:
     _default_min_authorization = TToken(40_000, 'T').to_units()
     _default_min_operator_seconds = 60 * 60 * 24  # one day in seconds
     _default_fee_rate = Wei(Web3.to_wei(1, 'gwei'))
-
-
+    # TODO choose proper default values
+    _default_reward_duration = 60 * 60 * 24 * 7   # one week in seconds
+    _default_deauthorization_duration = 60 * 60 * 24 * 60  # 60 days in seconds
     # Slashing parameters
     HASH_ALGORITHM_KECCAK256 = 0
     HASH_ALGORITHM_SHA256 = 1
@@ -33,7 +34,8 @@ class Economics:
                  min_operator_seconds: int = _default_min_operator_seconds,
                  min_authorization: int = _default_min_authorization,
                  fee_rate: Wei = _default_fee_rate,
-
+                 reward_duration: int = _default_reward_duration,
+                 deauthorization_duration: int = _default_deauthorization_duration,
                  # Adjudicator
                  hash_algorithm: int = _default_hash_algorithm,
                  base_penalty: int = _default_base_penalty,
@@ -44,6 +46,8 @@ class Economics:
         """
         :param min_operator_seconds: Min amount of seconds while an operator can't be changed
         :param min_authorization: Amount of minimum allowable authorization
+        :param reward_duration: Duration of one reward cycle
+        :param deauthorization_duration: Duration of decreasing authorization
 
         :param hash_algorithm: Hashing algorithm
         :param base_penalty: Base for the penalty calculation
@@ -59,28 +63,22 @@ class Economics:
         self.min_operator_seconds = min_operator_seconds
         self.min_authorization = min_authorization
         self.fee_rate = fee_rate
-
+        self.reward_duration = reward_duration
+        self.deauthorization_duration = deauthorization_duration
     @property
     def pre_application_deployment_parameters(self) -> Tuple[int, ...]:
         """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
         deploy_parameters = (  # note: order-sensitive
+            self.hash_algorithm,
+            self.base_penalty,
+            self.penalty_history_coefficient,
+            self.percentage_penalty_coefficient,
             self.min_authorization,
             self.min_operator_seconds,
+            self.reward_duration,
+            self.deauthorization_duration,
         )
         return tuple(map(int, deploy_parameters))
-
-    # TODO: Reintroduce Adjudicator
-    # @property
-    # def slashing_deployment_parameters(self) -> Tuple[int, ...]:
-    #     """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
-    #     deployment_parameters = [
-    #         self.hash_algorithm,
-    #         self.base_penalty,
-    #         self.penalty_history_coefficient,
-    #         self.percentage_penalty_coefficient,
-    #         self.reward_coefficient
-    #     ]
-    #     return tuple(map(int, deployment_parameters))
 
 
 class EconomicsFactory:
