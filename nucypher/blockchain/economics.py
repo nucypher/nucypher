@@ -103,17 +103,25 @@ class EconomicsFactory:
         application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri)
 
         # PRE Application
+        hash_algorithm = application_agent.hash_algorithm
+        base_penalty = application_agent.base_penalty
+        penalty_history_coefficient = application_agent.penalty_history_coefficient
+        percentage_penalty_coefficient = application_agent.percentage_penalty_coefficient
+
         min_authorization = application_agent.get_min_authorization()
         min_operator_seconds = application_agent.get_min_operator_seconds()
-
-        # Adjudicator
-        # TODO: Reintroduce Adjudicator
-        # adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry, provider_uri=provider_uri)
-        # slashing_parameters = adjudicator_agent.slashing_parameters()
+        reward_duration = application_agent.get_reward_duration()
+        deauthorization_duration = application_agent.get_deauthorization_duration()
 
         # Aggregate
         economics_parameters = dict(min_authorization=min_authorization,
-                                    min_operator_seconds=min_operator_seconds)
+                                    min_operator_seconds=min_operator_seconds,
+                                    reward_duration=reward_duration,
+                                    deauthorization_duration=deauthorization_duration,
+                                    hash_algorithm=hash_algorithm,
+                                    base_penalty=base_penalty,
+                                    penalty_history_coefficient=penalty_history_coefficient,
+                                    percentage_penalty_coefficient=percentage_penalty_coefficient)
 
         economics = Economics(**economics_parameters)
 

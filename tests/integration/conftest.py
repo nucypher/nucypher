@@ -6,7 +6,6 @@ from typing import Iterable, Optional
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
-    AdjudicatorAgent,
     ContractAgency,
     PREApplicationAgent,
     StakingProvidersReservoir, CoordinatorAgent,
@@ -71,13 +70,6 @@ def mock_application_agent(
     mock_agent.confirm_operator_address = mocker.Mock(
         return_value=testerchain.FAKE_TX_HASH
     )
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture(scope="function", autouse=True)
-def mock_adjudicator_agent(testerchain, application_economics, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
     yield mock_agent
     mock_agent.reset()
 

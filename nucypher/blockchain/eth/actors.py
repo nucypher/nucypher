@@ -12,7 +12,6 @@ from web3.types import TxReceipt
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
-    AdjudicatorAgent,
     ContractAgency,
     CoordinatorAgent,
     NucypherTokenAgent,
@@ -582,13 +581,13 @@ class Investigator(NucypherTokenActor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
+        self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
 
     @save_receipt
     def request_evaluation(self, evidence) -> dict:
-        receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence, transacting_power=self.transacting_power)
+        receipt = self.application_agent.evaluate_cfrag(evidence=evidence, transacting_power=self.transacting_power)
         return receipt
 
     def was_this_evidence_evaluated(self, evidence) -> bool:
-        result = self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
+        result = self.application_agent.was_this_evidence_evaluated(evidence=evidence)
         return result

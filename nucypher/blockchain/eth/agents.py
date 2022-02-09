@@ -15,7 +15,6 @@ from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (
-    ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
@@ -279,78 +278,6 @@ class SubscriptionManagerAgent(EthereumContractAgent):
         return receipt
 
 
-class AdjudicatorAgent(EthereumContractAgent):
-
-    contract_name: str = ADJUDICATOR_CONTRACT_NAME
-    _proxy_name: str = DISPATCHER_CONTRACT_NAME
-
-    @contract_api(TRANSACTION)
-    def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
-        """Submits proof that a worker created wrong CFrag"""
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
-        contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   payload=payload)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def was_this_evidence_evaluated(self, evidence) -> bool:
-        data_hash: bytes = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
-        result: bool = self.contract.functions.evaluatedCFrags(data_hash).call()
-        return result
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def staking_escrow_contract(self) -> ChecksumAddress:
-        return self.contract.functions.escrow().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def hash_algorithm(self) -> int:
-        return self.contract.functions.hashAlgorithm().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def base_penalty(self) -> int:
-        return self.contract.functions.basePenalty().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def penalty_history_coefficient(self) -> int:
-        return self.contract.functions.penaltyHistoryCoefficient().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def percentage_penalty_coefficient(self) -> int:
-        return self.contract.functions.percentagePenaltyCoefficient().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def reward_coefficient(self) -> int:
-        return self.contract.functions.rewardCoefficient().call()
-
-    @contract_api(CONTRACT_CALL)
-    def penalty_history(self, staker_address: str) -> int:
-        return self.contract.functions.penaltyHistory(staker_address).call()
-
-    @contract_api(CONTRACT_CALL)
-    def slashing_parameters(self) -> Tuple[int, ...]:
-        parameter_signatures = (
-            'hashAlgorithm',                    # Hashing algorithm
-            'basePenalty',                      # Base for the penalty calculation
-            'penaltyHistoryCoefficient',        # Coefficient for calculating the penalty depending on the history
-            'percentagePenaltyCoefficient',     # Coefficient for calculating the percentage penalty
-            'rewardCoefficient',                # Coefficient for calculating the reward
-        )
-
-        def _call_function_by_name(name: str) -> int:
-            return getattr(self.contract.functions, name)().call()
-
-        staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
-        return staking_parameters
-
-
 class PREApplicationAgent(EthereumContractAgent):
 
     contract_name: str = PRE_APPLICATION_CONTRACT_NAME
@@ -374,6 +301,16 @@ class PREApplicationAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_min_operator_seconds(self) -> int:
         result = self.contract.functions.minOperatorSeconds().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_reward_duration(self) -> int:
+        result = self.contract.functions.rewardDuration().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_deauthorization_duration(self) -> int:
+        result = self.contract.functions.deauthorizationDuration().call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -532,6 +469,46 @@ class PREApplicationAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
+
+    @contract_api(TRANSACTION)
+    def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
+        """Submits proof that a worker created wrong CFrag"""
+        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
+        contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power,
+                                                   payload=payload)
+        return receipt
+
+    @contract_api(CONTRACT_CALL)
+    def was_this_evidence_evaluated(self, evidence) -> bool:
+        data_hash: bytes = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
+        result: bool = self.contract.functions.evaluatedCFrags(data_hash).call()
+        return result
+
+    @property  # type: ignore
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def hash_algorithm(self) -> int:
+        return self.contract.functions.hashAlgorithm().call()
+
+    @property  # type: ignore
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def base_penalty(self) -> int:
+        return self.contract.functions.basePenalty().call()
+
+    @property  # type: ignore
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def penalty_history_coefficient(self) -> int:
+        return self.contract.functions.penaltyHistoryCoefficient().call()
+
+    @property  # type: ignore
+    @contract_api(CONTRACT_ATTRIBUTE)
+    def percentage_penalty_coefficient(self) -> int:
+        return self.contract.functions.percentagePenaltyCoefficient().call()
+
+    @contract_api(CONTRACT_CALL)
+    def penalty_history(self, staker_address: str) -> int:
+        return self.contract.functions.penaltyHistory(staker_address).call()
 
 
 class CoordinatorAgent(EthereumContractAgent):
