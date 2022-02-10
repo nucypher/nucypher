@@ -39,7 +39,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PREApplicationAgent
 from nucypher.blockchain.eth.deployers import (
     PREApplicationDeployer,
-    SubscriptionManagerDeployer
+    SubscriptionManagerDeployer, NucypherTokenDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
@@ -571,6 +571,9 @@ def deployer_transacting_power(testerchain):
 
 def _make_agency(test_registry, token_economics, deployer_transacting_power, threshold_staking):
     transacting_power = deployer_transacting_power
+
+    token_deployer = NucypherTokenDeployer(economics=token_economics, registry=test_registry)
+    token_deployer.deploy(transacting_power=transacting_power)
 
     pre_application_deployer = PREApplicationDeployer(economics=token_economics,
                                                       registry=test_registry,

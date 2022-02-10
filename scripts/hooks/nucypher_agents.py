@@ -23,9 +23,8 @@ import sys
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    NucypherTokenAgent,
     PREApplicationAgent,
     SubscriptionManagerAgent
 )

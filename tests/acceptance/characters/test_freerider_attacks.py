@@ -23,9 +23,6 @@ import pytest
 
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Amonia
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.payment import SubscriptionManagerPayment
-from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
@@ -54,46 +51,6 @@ def test_try_to_post_free_service_by_hacking_enact(blockchain_ursulas,
     message_kit = enrico.encrypt_message(plaintext)
 
     with pytest.raises(Ursula.NotEnoughUrsulas):  # Return a more descriptive request error?
-        blockchain_bob.retrieve_and_decrypt([message_kit],
-                                            alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
-                                            encrypted_treasure_map=bupkiss_policy.treasure_map)
-
-
-@pytest.mark.skip()
-def test_pay_a_flunky_instead_of_the_arranged_ursula(blockchain_alice,
-                                                     blockchain_bob,
-                                                     blockchain_ursulas,
-                                                     ursula_decentralized_test_config,
-                                                     testerchain):
-
-    # This test only applies to the PolicyManager payment method.
-    payment_method = SubscriptionManagerPayment(provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
-    blockchain_alice.payment_method = payment_method
-
-    amonia = Amonia.from_lawful_alice(blockchain_alice)
-    target_ursulas = blockchain_ursulas[0], blockchain_ursulas[1], blockchain_ursulas[2]
-    flunkies = [blockchain_ursulas[5], blockchain_ursulas[6], blockchain_ursulas[7]]
-
-    # Setup the policy details
-    shares = 3
-    policy_end_datetime = maya.now() + datetime.timedelta(days=35)
-    label = b"back_and_forth_forever"
-
-    bupkiss_policy = amonia.grant_while_paying_the_wrong_nodes(ursulas_to_trick_into_working_for_free=target_ursulas,
-                                                               ursulas_to_pay_instead=flunkies,
-                                                               bob=blockchain_bob,
-                                                               label=label,
-                                                               threshold=2,
-                                                               shares=shares,
-                                                               rate=int(1e18),  # one ether
-                                                               expiration=policy_end_datetime)
-
-    # Enrico becomes
-    enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
-    plaintext = b"A crafty campaign"
-    message_kit = enrico.encrypt_message(plaintext)
-
-    with pytest.raises(Ursula.NotEnoughUrsulas):
         blockchain_bob.retrieve_and_decrypt([message_kit],
                                             alice_verifying_key=amonia.stamp.as_umbral_pubkey(),
                                             encrypted_treasure_map=bupkiss_policy.treasure_map)

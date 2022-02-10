@@ -84,7 +84,7 @@ ENTRY_POINTS = (
     # Demos
     alice.alice,        # Author of Policies
     bob.bob,            # Builder of Capsules
-    contacts.contacts,  # "character "card" management
+    contacts.contacts,  # "character card" management
 
 )
 

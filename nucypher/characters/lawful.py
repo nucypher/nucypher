@@ -381,9 +381,10 @@ class Alice(Character, BlockchainPolicyAuthor):
         receipt, failed = dict(), dict()
 
         if onchain and (not self.federated_only):
-            # TODO: Decouple onchain revocation from PolicyManager or deprecate.
-            receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
-                                                      transacting_power=self._crypto_power.power_ups(TransactingPower))
+            pass
+            # TODO: Decouple onchain revocation from SubscriptionManager or deprecate.
+            # receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
+            #                                           transacting_power=self._crypto_power.power_ups(TransactingPower))
 
         if offchain:
             """

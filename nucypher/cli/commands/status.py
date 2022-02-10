@@ -39,7 +39,7 @@ from nucypher.cli.options import (
     option_poa,
     option_eth_provider_uri,
     option_registry_filepath,
-    option_staking_provider_address
+    option_staking_provider
 )
 from nucypher.cli.painting.status import paint_contract_status
 from nucypher.cli.utils import (
@@ -58,8 +58,8 @@ POLICY_MANAGER = 'PolicyManager'
 CONTRACT_NAMES = [
     PREApplicationAgent.contract_name,
     SubscriptionManagerAgent.contract_name,
-    'StakingEscrow',
-    'PolicyManager'
+    STAKING_ESCROW,
+    POLICY_MANAGER
 ]
 
 # The default contract version to use with the --legacy flag
@@ -116,13 +116,6 @@ option_to_block = click.option('--to-block',
                                help="Collect events until this block number; defaults to 'latest' block number",
                                type=click.INT)
 
-STAKING_ESCROW = 'StakingEscrow'
-POLICY_MANAGER = 'PolicyManager'
-
-LEGACY_CONTRACT_VERSIONS = {
-    STAKING_ESCROW: 'v5.7.1',
-    POLICY_MANAGER: 'v6.2.1'
-}
 
 @click.group()
 def status():
@@ -140,7 +133,7 @@ def network(general_config, registry_options):
 
 @status.command('pre')
 @group_registry_options
-@option_staking_provider_address
+@option_staking_provider
 @group_general_config
 def staking_providers(general_config, registry_options, staking_provider_address):
     """Show relevant information about staking providers."""
