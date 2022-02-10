@@ -215,8 +215,9 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                 registry=registry,
                 contract_name=contract_name,
                 contract_version=contract_version,
-                proxy_name=None,
-                use_proxy_address=False,
+                proxy_name='Dispatcher',
+                use_proxy_address=True,
+                allow_old_contract_version_with_proxy=True
                )
             agent = EthereumContractAgent(contract=versioned_contract)
             agent.contract_name = contract_name

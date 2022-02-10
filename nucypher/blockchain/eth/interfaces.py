@@ -672,38 +672,62 @@ class BlockchainInterface:
                              contract_version: str = None,
                              enrollment_version: Union[int, str] = None,
                              proxy_name: str = None,
-                             use_proxy_address: bool = True
+                             use_proxy_address: bool = True,
+                             allow_old_contract_version_with_proxy: bool = False
                              ) -> VersionedContract:
         """
         Instantiate a deployed contract from registry data,
         and assimilate it with its proxy if it is upgradeable.
-        """
-        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
 
+        NOTE: `allow_old_contract_version_with_proxy` is disabled by default. Enabling it allows
+              the proxy to be associated with an older version of the live target contract for
+              historical information to be obtained; it is only used to collect old
+              network events. Beware of using this parameter for any other functionality.
+        """
+
+        if allow_old_contract_version_with_proxy and not contract_version:
+            self.InterfaceError("Flag to allow old contract version with proxy is only "
+                                "permitted when contract version is specified")
+
+        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
         if not target_contract_records:
             raise self.UnknownContract(f"No such contract records with name {contract_name}:{contract_version}.")
 
         if proxy_name:
-
             # Lookup proxies; Search for a published proxy that targets this contract record
             proxy_records = registry.search(contract_name=proxy_name)
-
             results = list()
+
+            latest_target_contract_record = None  # used for allowing older versions
             for proxy_name, proxy_version, proxy_address, proxy_abi in proxy_records:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
                                                              address=proxy_address,
                                                              version=proxy_version,
                                                              ContractFactoryClass=self._CONTRACT_FACTORY)
-
-                # Read this dispatcher's target address from the blockchain
+                # Read this dispatcher's current target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
-                for target_name, target_version, target_address, target_abi in target_contract_records:
 
+                # either proxy is targeting latest version of contract
+                # or
+                # use older version of the same contract
+                for target_name, target_version, target_address, target_abi in target_contract_records:
                     if target_address == proxy_live_target_address:
                         if use_proxy_address:
                             triplet = (proxy_address, target_version, target_abi)
                         else:
                             triplet = (target_address, target_version, target_abi)
+                    elif allow_old_contract_version_with_proxy:
+                        # search for contract proxy currently points to
+                        proxy_live_target_record = registry.search(contract_address=proxy_live_target_address)
+                        proxy_live_target_name, _, _, _ = proxy_live_target_record
+                        if proxy_live_target_name == target_name:
+                            # proxy points to same contract name but newer version - so this is the correct proxy
+                            if use_proxy_address:
+                                triplet = (proxy_address, target_version, target_abi)
+                            else:
+                                triplet = (target_address, target_version, target_abi)
+                        else:
+                            continue
                     else:
                         continue
 
@@ -713,7 +737,6 @@ class BlockchainInterface:
                 address, _version, _abi = results[0]
                 message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
                 raise self.InterfaceError(message.format(contract_name))
-
             else:
                 try:
                     selected_address, selected_version, selected_abi = results[0]
@@ -723,7 +746,6 @@ class BlockchainInterface:
 
         else:
             # TODO: use_proxy_address doesnt' work in this case. Should we raise if used?
-
             # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
                 if enrollment_version is None:
