@@ -672,7 +672,7 @@ class BlockchainInterface:
                              contract_version: str = None,
                              enrollment_version: Union[int, str] = None,
                              proxy_name: str = None,
-                             use_proxy_address: bool = True,
+                             use_proxy_address: bool = True
                              ) -> VersionedContract:
         """
         Instantiate a deployed contract from registry data,
