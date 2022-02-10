@@ -1036,24 +1036,6 @@ class Teacher:
         response = MetadataResponse(self.stamp.as_umbral_signer(), response_payload)
         return bytes(response)
 
-    #
-    # Stamp
-    #
-
-    def _stamp_has_valid_signature_by_worker(self) -> bool:
-        """
-        Off-chain Signature Verification of stamp signature by Operator's ETH account.
-        Note that this only "certifies" the stamp with the worker's account,
-        so it can be seen like a self certification. For complete assurance,
-        it's necessary to validate the StakingProvider/Operator relation on-chain.
-        """
-        if self.__decentralized_identity_evidence is NOT_SIGNED:
-            return False
-        signature_is_valid = verify_eip_191(message=bytes(self.stamp),
-                                            signature=self.__decentralized_identity_evidence,
-                                            address=self.operator_address)
-        return signature_is_valid
-
     def _operator_is_bonded(self, registry: BaseContractRegistry) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
@@ -1087,11 +1069,11 @@ class Teacher:
         # Decentralized
         else:
 
-            # Off-chain signature verification
-            if not self._stamp_has_valid_signature_by_worker():
-                message = f"Invalid signature {self.__decentralized_identity_evidence.hex()} " \
-                          f"from operator {self.operator_address} for stamp {bytes(self.stamp).hex()} "
-                raise self.InvalidOperatorSignature(message)
+            # Try to derive the worker address if it hasn't been derived yet.
+            try:
+                operator_address = self.operator_address
+            except Exception as e:
+                raise self.InvalidOperatorSignature(str(e)) from e
 
             # On-chain staking check, if registry is present
             if registry:
@@ -1211,8 +1193,5 @@ class Teacher:
     @property
     def operator_address(self):
         if not self.__operator_address and not self.federated_only:
-            if self.decentralized_identity_evidence is NOT_SIGNED:
-                raise self.StampNotSigned  # TODO: Find a better exception  NRN
-            self.__operator_address = recover_address_eip_191(message=bytes(self.stamp),
-                                                            signature=self.decentralized_identity_evidence)
+            self.__operator_address = to_checksum_address(self.metadata().payload.derive_operator_address())
         return self.__operator_address
