@@ -825,8 +825,8 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     #
 
     @contract_api(CONTRACT_CALL)
-    def rate_per_second(self) -> Wei:
-        result = self.contract.functions.RATE_PER_SECOND().call()
+    def fee_rate(self) -> Wei:
+        result = self.contract.functions.feeRate().call()
         return Wei(result)
 
     @contract_api(CONTRACT_CALL)
@@ -839,10 +839,11 @@ class SubscriptionManagerAgent(EthereumContractAgent):
         record = self.contract.functions.policies(policy_id).call()
         policy_info = self.PolicyInfo(
             sponsor=record[0],
+            start_timestamp=record[1],
+            end_timestamp=record[2],
+            size=record[3],
             # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-            owner=record[0] if record[1] == NULL_ADDRESS else record[1],
-            start_timestamp=record[2],
-            end_timestamp=record[3]
+            owner=record[0] if record[4] == NULL_ADDRESS else record[4]
         )
         return policy_info
 
@@ -854,6 +855,7 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     def create_policy(self,
                       policy_id: bytes,
                       transacting_power: TransactingPower,
+                      size: int,
                       start_timestamp: Timestamp,
                       end_timestamp: Timestamp,
                       value: Wei,
@@ -863,6 +865,7 @@ class SubscriptionManagerAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.createPolicy(
             policy_id,
             owner_address,
+            size,
             start_timestamp,
             end_timestamp
         )
@@ -871,13 +874,6 @@ class SubscriptionManagerAgent(EthereumContractAgent):
             payload=payload,
             transacting_power=transacting_power
         )
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def sweep(self, recipient: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
-        """Collect fees (ETH) earned since last withdrawal"""
-        contract_function: ContractFunction = self.contract.functions.sweep(recipient)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
         return receipt
 
 

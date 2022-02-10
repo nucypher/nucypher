@@ -721,7 +721,7 @@ class SubscriptionManagerDeployer(BaseContractDeployer, OwnableContractMixin):
 
     agency = SubscriptionManagerAgent
     contract_name = agency.contract_name
-    deployment_steps = ('contract_deployment',)
+    deployment_steps = ('contract_deployment', 'initialize')
     _upgradeable = False
     _ownable = True
 
@@ -744,8 +744,19 @@ class SubscriptionManagerDeployer(BaseContractDeployer, OwnableContractMixin):
                                                                        gas_limit=gas_limit,
                                                                        confirmations=confirmations,
                                                                        **constructor_kwargs)
+
         self._contract = contract
-        return {self.deployment_steps[0]: deployment_receipt}
+
+        tx_args = {}
+        if gas_limit:
+            tx_args.update({'gas': gas_limit})  # TODO: Gas management - 842
+        initialize_function = contract.functions.initialize(self.economics.fee_rate)
+        initialize_receipt = self.blockchain.send_transaction(contract_function=initialize_function,
+                                                              transacting_power=transacting_power,
+                                                              payload=tx_args,
+                                                              confirmations=confirmations)
+        return {self.deployment_steps[0]: deployment_receipt,
+                self.deployment_steps[1]: initialize_receipt}
 
 
 class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):
