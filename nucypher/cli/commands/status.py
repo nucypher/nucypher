@@ -23,7 +23,6 @@ import click
 from nucypher.blockchain.eth.actors import Staker
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
 from nucypher.blockchain.eth.constants import (
-    POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -179,7 +178,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         if event_name:
             raise click.BadOptionUsage(option_name='--event-name', message='--event-name requires --contract-name')
         # FIXME should we force a contract name to be specified?
-        contract_names = [STAKING_ESCROW_CONTRACT_NAME, POLICY_MANAGER_CONTRACT_NAME]
+        contract_names = [STAKING_ESCROW_CONTRACT_NAME,]
     else:
         contract_names = [contract_name]
 

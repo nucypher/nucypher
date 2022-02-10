@@ -28,7 +28,6 @@ from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
     NUCYPHER_TOKEN_CONTRACT_NAME,
-    POLICY_MANAGER_CONTRACT_NAME,
     STAKING_ESCROW_CONTRACT_NAME, STAKING_ESCROW_STUB_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.deployers import (
@@ -91,7 +90,6 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=agency_local_registry)
 
     assert staking_agent.owner == testerchain.etherbase_account
-    assert policy_agent.owner == testerchain.etherbase_account
     assert adjudicator_agent.owner == testerchain.etherbase_account
 
     maclane = testerchain.unassigned_accounts[0]
@@ -115,7 +113,6 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     assert result.exit_code == 0
 
     assert staking_agent.owner == maclane
-    assert policy_agent.owner == testerchain.etherbase_account
     assert adjudicator_agent.owner == testerchain.etherbase_account
 
     michwill = testerchain.unassigned_accounts[1]
@@ -254,20 +251,6 @@ def test_manual_deployment_of_idle_network(click_runner):
     assert result.exit_code == 0
 
     deployed_contracts.extend([STAKING_ESCROW_STUB_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
-    assert list(new_registry.enrolled_names) == deployed_contracts
-
-    # 3. Deploy PolicyManager
-    command = ('contracts',
-               '--contract-name', POLICY_MANAGER_CONTRACT_NAME,
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
-               '--network', TEMPORARY_DOMAIN,
-               '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
-
-    result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
-
-    deployed_contracts.extend([POLICY_MANAGER_CONTRACT_NAME, DISPATCHER_CONTRACT_NAME])
     assert list(new_registry.enrolled_names) == deployed_contracts
 
     # 4. Deploy Adjudicator

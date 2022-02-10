@@ -20,16 +20,13 @@ import json
 import time
 from decimal import Decimal
 from typing import Callable, Union
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 import maya
 from constant_sorrow.constants import FULL
-from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
-from eth_utils import to_canonical_address
 from hexbytes import HexBytes
 from web3 import Web3
-from web3.exceptions import ValidationError
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -42,14 +39,10 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
     StakingEscrowAgent,
-    WorkLockAgent,
     PREApplicationAgent
 )
 from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
-    POLICY_MANAGER_CONTRACT_NAME,
-    DISPATCHER_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import (
     only_me,
@@ -61,7 +54,6 @@ from nucypher.blockchain.eth.deployers import (
     BaseContractDeployer,
     NucypherTokenDeployer,
     StakingEscrowDeployer,
-    WorklockDeployer,
     PREApplicationDeployer,
     SubscriptionManagerDeployer
 )
@@ -80,8 +72,7 @@ from nucypher.blockchain.eth.token import (
 )
 from nucypher.blockchain.eth.utils import (
     calculate_period_duration,
-    datetime_to_period,
-    prettify_eth_amount
+    datetime_to_period
 )
 from nucypher.characters.banners import STAKEHOLDER_BANNER
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -201,7 +192,7 @@ class ContractAdministrator(BaseActor):
     )
 
     aux_deployer_classes = (
-        WorklockDeployer,
+        # Add more deployer classes here
     )
 
     # For ownership transfers.
@@ -1088,273 +1079,3 @@ class StakeHolder:
         stake = sum(staking_agent.owned_tokens(staker_address=account) for account in self.signer.accounts)
         nu_stake = NU.from_units(stake)
         return nu_stake
-
-
-class Bidder(NucypherTokenActor):
-    """WorkLock participant"""
-
-    class BidderError(NucypherTokenActor.ActorError):
-        pass
-
-    class BiddingIsOpen(BidderError):
-        pass
-
-    class BiddingIsClosed(BidderError):
-        pass
-
-    class CancellationWindowIsOpen(BidderError):
-        pass
-
-    class CancellationWindowIsClosed(BidderError):
-        pass
-
-    class ClaimError(BidderError):
-        pass
-
-    class WhaleError(BidderError):
-        pass
-
-    @validate_checksum_address
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.log = Logger(f"WorkLockBidder")
-        self.worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.registry)  # type: WorkLockAgent
-        self.staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.registry)  # type: StakingEscrowAgent
-        self.economics = EconomicsFactory.get_economics(registry=self.registry)
-        self._all_bonus_bidders = None
-
-    def ensure_bidding_is_open(self, message: str = None) -> None:
-        now = self.worklock_agent.blockchain.get_blocktime()
-        start = self.worklock_agent.start_bidding_date
-        end = self.worklock_agent.end_bidding_date
-        if now < start:
-            message = message or f'Bidding does not open until {maya.MayaDT(start).slang_date()}'
-            raise self.BiddingIsClosed(message)
-        if now >= end:
-            message = message or f'Bidding closed at {maya.MayaDT(end).slang_date()}'
-            raise self.BiddingIsClosed(message)
-
-    def _ensure_bidding_is_closed(self, message: str = None) -> None:
-        now = self.worklock_agent.blockchain.get_blocktime()
-        end = self.worklock_agent.end_bidding_date
-        if now < end:
-            message = message or f"Bidding does not close until {maya.MayaDT(end).slang_date()}"
-            raise self.BiddingIsOpen(message)
-
-    def _ensure_cancellation_window(self, ensure_closed: bool = True, message: str = None) -> None:
-        now = self.worklock_agent.blockchain.get_blocktime()
-        end = self.worklock_agent.end_cancellation_date
-        if ensure_closed and now < end:
-            message = message or f"Operation cannot be performed while the cancellation window is still open " \
-                                 f"(closes at {maya.MayaDT(end).slang_date()})."
-            raise self.CancellationWindowIsOpen(message)
-        elif not ensure_closed and now >= end:
-            message = message or f"Operation is allowed only while the cancellation window is open " \
-                                 f"(closed at {maya.MayaDT(end).slang_date()})."
-            raise self.CancellationWindowIsClosed(message)
-
-    #
-    # Transactions
-    #
-
-    def place_bid(self, value: int) -> TxReceipt:
-        self.ensure_bidding_is_open()
-        minimum = self.worklock_agent.minimum_allowed_bid
-        if not self.get_deposited_eth and value < minimum:
-            raise self.BidderError(f"{prettify_eth_amount(value)} is too small a value for bidding; "
-                                   f"bid must be at least {prettify_eth_amount(minimum)}")
-        receipt = self.worklock_agent.bid(transacting_power=self.transacting_power, value=value)
-        return receipt
-
-    def claim(self) -> TxReceipt:
-
-        # Require the cancellation window is closed
-        self._ensure_cancellation_window(ensure_closed=True)
-
-        if not self.worklock_agent.is_claiming_available():
-            raise self.ClaimError(f"Claiming is not available yet")
-
-        # Ensure the claim was not already placed
-        if self.has_claimed:
-            raise self.ClaimError(f"Bidder {self.checksum_address} already placed a claim.")
-
-        # Require an active bid
-        if not self.get_deposited_eth:
-            raise self.ClaimError(f"No bids available for {self.checksum_address}")
-
-        receipt = self.worklock_agent.claim(transacting_power=self.transacting_power)
-        return receipt
-
-    def cancel_bid(self) -> TxReceipt:
-        self._ensure_cancellation_window(ensure_closed=False)
-
-        # Require an active bid
-        if not self.get_deposited_eth:
-            self.BidderError(f"No bids available for {self.checksum_address}")
-
-        receipt = self.worklock_agent.cancel_bid(transacting_power=self.transacting_power)
-        return receipt
-
-    def _get_max_bonus_bid_from_max_stake(self) -> int:
-        """Returns maximum allowed bid calculated from maximum allowed locked tokens"""
-        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.min_authorization
-        bonus_eth_supply = sum(
-            self._all_bonus_bidders.values()) if self._all_bonus_bidders else self.worklock_agent.get_bonus_eth_supply()
-        bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
-        max_bonus_bid = max_bonus_tokens * bonus_eth_supply // bonus_worklock_supply
-        return max_bonus_bid
-
-    def get_whales(self, force_read: bool = False) -> Dict[str, int]:
-        """Returns all worklock bidders over the whale threshold as a dictionary of addresses and bonus bid values."""
-        max_bonus_bid_from_max_stake = self._get_max_bonus_bid_from_max_stake()
-
-        bidders = dict()
-        for bidder, bid in self._get_all_bonus_bidders(force_read).items():
-            if bid > max_bonus_bid_from_max_stake:
-                bidders[bidder] = bid
-        return bidders
-
-    def _get_all_bonus_bidders(self, force_read: bool = False) -> dict:
-        if not force_read and self._all_bonus_bidders:
-            return self._all_bonus_bidders
-
-        bidders = self.worklock_agent.get_bidders()
-        min_bid = self.economics.worklock_min_allowed_bid
-
-        self._all_bonus_bidders = dict()
-        for bidder in bidders:
-            bid = self.worklock_agent.get_deposited_eth(bidder)
-            if bid > min_bid:
-                self._all_bonus_bidders[bidder] = bid - min_bid
-        return self._all_bonus_bidders
-
-    def _reduce_bids(self, whales: dict):
-
-        min_whale_bonus_bid = min(whales.values())
-        max_whale_bonus_bid = max(whales.values())
-
-        # first step - align at a minimum bid
-        if min_whale_bonus_bid != max_whale_bonus_bid:
-            whales = dict.fromkeys(whales.keys(), min_whale_bonus_bid)
-            self._all_bonus_bidders.update(whales)
-
-        bonus_eth_supply = sum(self._all_bonus_bidders.values())
-        bonus_worklock_supply = self.worklock_agent.get_bonus_lot_value()
-        max_bonus_tokens = self.economics.maximum_allowed_locked - self.economics.min_authorization
-        if (min_whale_bonus_bid * bonus_worklock_supply) // bonus_eth_supply <= max_bonus_tokens:
-            raise self.WhaleError(f"At least one of bidders {whales} has allowable bid")
-
-        a = min_whale_bonus_bid * bonus_worklock_supply - max_bonus_tokens * bonus_eth_supply
-        b = bonus_worklock_supply - max_bonus_tokens * len(whales)
-        refund = -(-a // b)  # div ceil
-        min_whale_bonus_bid -= refund
-        whales = dict.fromkeys(whales.keys(), min_whale_bonus_bid)
-        self._all_bonus_bidders.update(whales)
-
-        return whales
-
-    def force_refund(self) -> TxReceipt:
-        self._ensure_cancellation_window(ensure_closed=True)
-
-        whales = self.get_whales()
-        if not whales:
-            raise self.WhaleError(f"Force refund aborted: No whales detected and all bids qualify for claims.")
-
-        new_whales = whales.copy()
-        while new_whales:
-            whales.update(new_whales)
-            whales = self._reduce_bids(whales)
-            new_whales = self.get_whales()
-
-        receipt = self.worklock_agent.force_refund(transacting_power=self.transacting_power,
-                                                   addresses=list(whales.keys()))
-
-        if self.get_whales(force_read=True):
-            raise RuntimeError(f"Internal error: offline simulation differs from transaction results")
-        return receipt
-
-    # TODO better control: max iterations, interactive mode
-    def verify_bidding_correctness(self, gas_limit: int) -> dict:
-        self._ensure_cancellation_window(ensure_closed=True)
-
-        if self.worklock_agent.bidders_checked():
-            raise self.BidderError(f"Check was already done")
-
-        whales = self.get_whales()
-        if whales:
-            raise self.WhaleError(f"Some bidders have bids that are too high: {whales}")
-
-        self.log.debug(f"Starting bidding verification. Next bidder to check: {self.worklock_agent.next_bidder_to_check()}")
-
-        receipts = dict()
-        iteration = 1
-        while not self.worklock_agent.bidders_checked():
-            receipt = self.worklock_agent.verify_bidding_correctness(transacting_power=self.transacting_power,
-                                                                     gas_limit=gas_limit)
-            self.log.debug(f"Iteration {iteration}. Next bidder to check: {self.worklock_agent.next_bidder_to_check()}")
-            receipts[iteration] = receipt
-            iteration += 1
-        return receipts
-
-    def refund_deposit(self) -> dict:
-        """Refund ethers for completed work"""
-        if not self.available_refund:
-            raise self.BidderError(f'There is no refund available for {self.checksum_address}')
-        receipt = self.worklock_agent.refund(transacting_power=self.transacting_power)
-        return receipt
-
-    def withdraw_compensation(self) -> TxReceipt:
-        """Withdraw compensation after force refund"""
-        if not self.available_compensation:
-            raise self.BidderError(f'There is no compensation available for {self.checksum_address}; '
-                                   f'Did you mean to call "refund"?')
-        receipt = self.worklock_agent.withdraw_compensation(transacting_power=self.transacting_power)
-        return receipt
-
-    #
-    # Calls
-    #
-
-    @property
-    def get_deposited_eth(self) -> int:
-        bid = self.worklock_agent.get_deposited_eth(checksum_address=self.checksum_address)
-        return bid
-
-    @property
-    def has_claimed(self) -> bool:
-        has_claimed = self.worklock_agent.check_claim(self.checksum_address)
-        return has_claimed
-
-    @property
-    def completed_work(self) -> int:
-        work = self.staking_agent.get_completed_work(bidder_address=self.checksum_address)
-        completed_work = work - self.refunded_work
-        return completed_work
-
-    @property
-    def remaining_work(self) -> int:
-        try:
-            work = self.worklock_agent.get_remaining_work(checksum_address=self.checksum_address)
-        except (TestTransactionFailed, ValidationError, ValueError):  # TODO: 1950
-            work = 0
-        return work
-
-    @property
-    def refunded_work(self) -> int:
-        work = self.worklock_agent.get_refunded_work(checksum_address=self.checksum_address)
-        return work
-
-    @property
-    def available_refund(self) -> int:
-        refund_eth = self.worklock_agent.get_available_refund(checksum_address=self.checksum_address)
-        return refund_eth
-
-    @property
-    def available_compensation(self) -> int:
-        compensation_eth = self.worklock_agent.get_available_compensation(checksum_address=self.checksum_address)
-        return compensation_eth
-
-    @property
-    def available_claim(self) -> int:
-        tokens = self.worklock_agent.eth_to_tokens(self.get_deposited_eth)
-        return tokens
