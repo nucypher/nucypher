@@ -673,32 +673,33 @@ class BlockchainInterface:
                              enrollment_version: Union[int, str] = None,
                              proxy_name: str = None,
                              use_proxy_address: bool = True,
-                             allow_old_contract_version_with_proxy: bool = False
                              ) -> VersionedContract:
         """
         Instantiate a deployed contract from registry data,
         and assimilate it with its proxy if it is upgradeable.
-
-        NOTE: `allow_old_contract_version_with_proxy` is disabled by default. Enabling it allows
-              the proxy to be associated with an older version of the live target contract for
-              historical information to be obtained; it is only used to collect old
-              network events. Beware of using this parameter for any other functionality.
         """
-
-        if allow_old_contract_version_with_proxy and not contract_version:
-            self.InterfaceError("Flag to allow old contract version with proxy is only "
-                                "permitted when contract version is specified")
 
         target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
         if not target_contract_records:
             raise self.UnknownContract(f"No such contract records with name {contract_name}:{contract_version}.")
 
+        if contract_version and len(target_contract_records) != 1:
+            # Assert single contract record returned
+            raise self.InterfaceError(f"Registry is potentially corrupt - multiple {contract_name} "
+                                      f"contract records with the same version {contract_version}")
+
         if proxy_name:
+            if contract_version:
+                # contract version was specified - need more information related to proxy
+                target_all_contract_records = registry.search(contract_name=contract_name)
+            else:
+                # we don't need a separate copy of original result
+                target_all_contract_records = target_contract_records
+
             # Lookup proxies; Search for a published proxy that targets this contract record
             proxy_records = registry.search(contract_name=proxy_name)
             results = list()
 
-            latest_target_contract_record = None  # used for allowing older versions
             for proxy_name, proxy_version, proxy_address, proxy_abi in proxy_records:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
                                                              address=proxy_address,
@@ -710,24 +711,17 @@ class BlockchainInterface:
                 # either proxy is targeting latest version of contract
                 # or
                 # use older version of the same contract
-                for target_name, target_version, target_address, target_abi in target_contract_records:
+                for target_name, target_version, target_address, target_abi in target_all_contract_records:
                     if target_address == proxy_live_target_address:
+                        if contract_version:
+                            # contract_version specified - use specific contract
+                            target_version = target_contract_records[0][1]
+                            target_abi = target_contract_records[0][3]
+
                         if use_proxy_address:
                             triplet = (proxy_address, target_version, target_abi)
                         else:
                             triplet = (target_address, target_version, target_abi)
-                    elif allow_old_contract_version_with_proxy:
-                        # search for contract proxy currently points to
-                        proxy_live_target_record = registry.search(contract_address=proxy_live_target_address)
-                        proxy_live_target_name, _, _, _ = proxy_live_target_record
-                        if proxy_live_target_name == target_name:
-                            # proxy points to same contract name but newer version - so this is the correct proxy
-                            if use_proxy_address:
-                                triplet = (proxy_address, target_version, target_abi)
-                            else:
-                                triplet = (target_address, target_version, target_abi)
-                        else:
-                            continue
                     else:
                         continue
 
