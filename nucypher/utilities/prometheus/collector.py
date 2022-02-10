@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from nucypher.blockchain.eth.events import ContractEventsThrottler
-from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 
 try:
     from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
@@ -28,7 +27,7 @@ from eth_typing.evm import ChecksumAddress
 
 import nucypher
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import ContractAgency, PolicyManagerAgent, StakingEscrowAgent, WorkLockAgent, \
+from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, \
     PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -36,7 +35,7 @@ from nucypher.datastore.queries import get_reencryption_requests
 
 from typing import Dict, Union, Type
 
-ContractAgents = Union[StakingEscrowAgent, WorkLockAgent, PolicyManagerAgent]
+ContractAgents = Union[StakingEscrowAgent]
 
 
 class MetricsCollector(ABC):
@@ -241,43 +240,6 @@ class OperatorMetricsCollector(BaseMetricsCollector):
         self.metrics["worker_token_balance_gauge"].set(int(nucypher_worker_token_actor.token_balance))
 
 
-class WorkLockMetricsCollector(BaseMetricsCollector):
-    """Collector for WorkLock specific metrics."""
-    def __init__(self, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
-        super().__init__()
-        self.staker_address = staker_address
-        self.contract_registry = contract_registry
-
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        self.metrics = {
-            "available_refund_gauge": Gauge(f'{metrics_prefix}_available_refund',
-                                            'Available refund',
-                                            registry=registry),
-            "worklock_remaining_work_gauge": Gauge(f'{metrics_prefix}_worklock_refund_remaining_work',
-                                                   'Worklock remaining work',
-                                                   registry=registry),
-            "worklock_refund_completed_work_gauge": Gauge(f'{metrics_prefix}_worklock_refund_completedWork',
-                                                          'Worklock completed work',
-                                                          registry=registry),
-        }
-
-    def _collect_internal(self) -> None:
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.contract_registry)
-        worklock_agent = ContractAgency.get_agent(WorkLockAgent, registry=self.contract_registry)
-
-        self.metrics["available_refund_gauge"].set(
-            worklock_agent.get_available_refund(checksum_address=self.staker_address))
-
-        self.metrics["worklock_remaining_work_gauge"].set(
-            worklock_agent.get_remaining_work(checksum_address=self.staker_address)
-        )
-
-        self.metrics["worklock_refund_completed_work_gauge"].set(
-            staking_agent.get_completed_work(bidder_address=self.staker_address) -
-            worklock_agent.get_refunded_work(checksum_address=self.staker_address)
-        )
-
-
 class EventMetricsCollector(BaseMetricsCollector):
     """General collector for emitted events."""
     def __init__(self,
@@ -401,22 +363,3 @@ class OperatorBondedEventMetricsCollector(EventMetricsCollector):
         contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
         self.metrics["current_worker_is_me_gauge"].set(
             contract_agent.get_worker_from_staker(self.staker_address) == self.operator_address)
-
-
-class WorkLockRefundEventMetricsCollector(EventMetricsCollector):
-    """Collector for WorkLock Refund event."""
-
-    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'Refund', *args, **kwargs):
-        super().__init__(event_name=event_name, argument_filters={'sender': staker_address}, *args, **kwargs)
-        self.staker_address = staker_address
-
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-        self.metrics["worklock_deposited_eth_gauge"] = Gauge(f'{metrics_prefix}_worklock_current_deposited_eth',
-                                                             'Worklock deposited ETH',
-                                                             registry=registry)
-
-    def _event_occurred(self, event) -> None:
-        super()._event_occurred(event)
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        self.metrics["worklock_deposited_eth_gauge"].set(contract_agent.get_deposited_eth(self.staker_address))

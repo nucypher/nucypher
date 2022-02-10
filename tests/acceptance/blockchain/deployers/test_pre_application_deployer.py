@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from nucypher.blockchain.eth.agents import WorkLockAgent, PREApplicationAgent
+from nucypher.blockchain.eth.agents import PREApplicationAgent
 from nucypher.blockchain.eth.constants import PRE_APPLICATION_CONTRACT_NAME
 from nucypher.blockchain.eth.deployers import PREApplicationDeployer
 

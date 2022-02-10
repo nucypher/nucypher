@@ -24,7 +24,6 @@ from nucypher.cli.commands import (
     stake,
     status,
     ursula,
-    worklock,
     cloudworkers,
     contacts,
     porter
@@ -75,7 +74,6 @@ ENTRY_POINTS = (
     enrico.enrico,      # Encryptor of Data
     ursula.ursula,      # Untrusted Re-Encryption Proxy
     stake.stake,        # Stake Management
-    worklock.worklock,  # WorkLock
 
     # Utility Commands
     status.status,      # Network Status
