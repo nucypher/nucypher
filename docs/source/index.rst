@@ -5,6 +5,8 @@
     :target: ./.static/img/threshold_logo_purple.png
 
 
+`Welcome <https://blog.threshold.network/threshold-launch/>`_ to the Threshold Network!
+
 Introduction
 =============
 
@@ -90,6 +92,12 @@ Whitepapers
     *"Umbral A Threshold Proxy Re-Encryption Scheme"*
     *by David Nuñez - NuCypher*
 
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Threshold
+
+   threshold/threshold_overview
 
 .. toctree::
    :maxdepth: 1
