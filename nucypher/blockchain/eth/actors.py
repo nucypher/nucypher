@@ -910,8 +910,7 @@ class Operator(BaseActor):
             self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
             self.work_tracker = work_tracker or WorkTracker(worker=self)
 
-    @property
-    def operator_address(self):
+    def _local_operator_address(self):
         return self.__operator_address
 
     @property

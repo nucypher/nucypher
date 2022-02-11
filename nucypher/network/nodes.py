@@ -149,7 +149,7 @@ class NodeSprout:
         return self._metadata_payload.encrypting_key
 
     @property
-    def decentralized_identity_evidence(self):
+    def decentralized_identity_evidence_from_metadata(self):
         return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
 
     @property
@@ -178,7 +178,7 @@ class NodeSprout:
                       checksum_address=self.checksum_address,
                       domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
-                      decentralized_identity_evidence=self.decentralized_identity_evidence,
+                      decentralized_identity_evidence_from_metadata=self.decentralized_identity_evidence_from_metadata,
                       certificate=load_pem_x509_certificate(self._metadata_payload.certificate_bytes, backend=default_backend()),
                       metadata=self._metadata
                       )
@@ -908,7 +908,7 @@ class Learner:
 
             except sprout.InvalidOperatorSignature:
                 self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence_from_metadata}')
 
             except sprout.UnbondedOperator:
                 self.log.warn(f'Verification Failed - '
@@ -960,7 +960,6 @@ class Teacher:
                  domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
                  certificate_filepath: Path,
-                 decentralized_identity_evidence=NOT_SIGNED,
                  ) -> None:
 
         self.domain = domain
@@ -971,14 +970,12 @@ class Teacher:
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
 
         # Assume unverified
         self.verified_stamp = False
         self.verified_worker = False
         self.verified_metadata = False
         self.verified_node = False
-        self.__operator_address = None
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -1170,7 +1167,7 @@ class Teacher:
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
         addresses_match = sprout.checksum_address == self.checksum_address
-        evidence_matches = sprout.decentralized_identity_evidence == self.__decentralized_identity_evidence
+        evidence_matches = sprout.decentralized_identity_evidence_from_metadata == self.decentralized_identity_evidence_from_metadata
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure
@@ -1185,13 +1182,3 @@ class Teacher:
         else:
             # Success
             self.verified_node = True
-
-    @property
-    def decentralized_identity_evidence(self):
-        return self.__decentralized_identity_evidence
-
-    @property
-    def operator_address(self):
-        if not self.__operator_address and not self.federated_only:
-            self.__operator_address = to_checksum_address(self.metadata().payload.derive_operator_address())
-        return self.__operator_address

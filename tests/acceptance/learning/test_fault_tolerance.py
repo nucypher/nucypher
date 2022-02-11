@@ -40,7 +40,7 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
             warnings.append(event)
 
     # Make a bad identity evidence
-    unsigned._Teacher__decentralized_identity_evidence = unsigned._Teacher__decentralized_identity_evidence[:-5] + (b'\x00' * 5)
+    unsigned._Ursula__decentralized_identity_evidence = unsigned._Ursula__decentralized_identity_evidence[:-5] + (b'\x00' * 5)
     # Reset the metadata cache
     unsigned._metadata = None
 
