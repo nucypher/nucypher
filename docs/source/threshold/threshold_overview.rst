@@ -1,7 +1,7 @@
 .. _threshold_overview:
 
-Legacy NU Stakes
-----------------
+Legacy NuCypher Stakes
+----------------------
 
 As part of the merger to the Threshold Network, if you have an existing legacy NU stake,
 you can now withdraw it (and then upgrade the liquid tokens to T and stake). If you are

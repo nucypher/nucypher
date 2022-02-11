@@ -277,12 +277,6 @@ Run::
     >    --staking-address <YOUR STAKER ADDRESS>
 
 
-Q: How can I reuse an Ursula that was connected to the previous version of the testnet?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-#. Run ``nucypher ursula destroy`` to destroy the current configuration.
-#. Repeat all of the steps with the new tokens in the :ref:`staking-guide`.
-#. Run ``nucypher ursula init`` per the :ref:`ursula-config-guide`.
 
 Q: What is a fleet state?
 ~~~~~~~~~~~~~~~~~~~~~~~~~

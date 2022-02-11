@@ -3,7 +3,7 @@
 Running a PRE Node
 ==================
 
-.. important::
+.. attention::
 
     In order to run a PRE node on Threshold, ``nucypher`` version 6.0.0 is required,
     but is not yet available. See `releases <https://pypi.org/project/nucypher/#history>`_.

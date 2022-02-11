@@ -1,7 +1,7 @@
 .. _running-a-node:
 
-Threshold Staking
-=================
+Application Overview
+====================
 
 All Threshold Network stakers (legacy KEEP, legacy NU, liquid T) are able to participate
 in the PRE application. Threshold Staking can be performed and managed via
@@ -10,15 +10,12 @@ the `Threshold dashboard <https://dashboard.threshold.network/overview/network>`
 For more information about the roles associated with the Threshold Staking contract,
 see `here <https://github.com/threshold-network/solidity-contracts/blob/main/docs/rfc-1-staking-contract.adoc>`_.
 
-
-PRE Application Overview
-========================
-
 The PRE Application operations are divided into two roles - “Staking Provider” and “Operator”.
 
 
 Staking Provider
 ----------------
+
 The Staking Provider is a party authorized to operate in the network on behalf of a
 given stake owner - it can be the owner itself for self-hosting. The staking provider handles
 the everyday operations on the delegated stake without actually owning the staked tokens. A
@@ -50,8 +47,8 @@ to use the stake. From the moment of approval, the application is authorized to 
 Authorization can be performed on the `Threshold dashboard <https://dashboard.threshold.network/overview/network>`_.
 
 
-Staker Strategies & Responsibilities
-------------------------------------
+Staking Provider Strategies & Responsibilities
+----------------------------------------------
 
 In order to provide the PRE service and receive rewards, there have three options for running a PRE node:
 

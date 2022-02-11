@@ -91,7 +91,7 @@ they know about network-wide, then kick-off the automated node-discovery loop:
 
 
 For information on how to run a staking Ursula node via CLI,
-see :doc:`Running a Worker </staking/running_a_worker>`.
+see :doc:`Running a Worker </pre_application/running_a_worker>`.
 
 
 Alice: Grant Access to a Secret

@@ -13,7 +13,7 @@ For example, external signers can be used with:
 
 The following signers are currently supported:
 
-#. :ref:`Hardware Wallet <signing-with-hardware>` (recommended for :ref:`Stakers <staking-guide>`)
+#. :ref:`Hardware Wallet <signing-with-hardware>` (recommended for Staking Providers)
 #. :ref:`Local Keystore <signing-with-local-keystore>` (recommended for :ref:`Workers <running-a-node>`)
 #. :ref:`Clef <signing-with-clef>`
 
@@ -45,7 +45,7 @@ Signing with Local Keystore
 
 .. important::
 
-    For operational security, the Keystore signer is not recommended for :ref:`Staker operations <staking-guide>`.
+    For operational security, the Keystore signer is not recommended for Staking Providers.
     An exception can be made for testnets, but Staker operations should be performed using a hardware wallet.
 
 Local keystore signing utilizes `eth-account <https://github.com/ethereum/eth-account>`_ to sign ethereum transactions

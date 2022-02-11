@@ -22,7 +22,7 @@ Proxy Re-encryption (PRE) Application
 
 The NuCypher Network proxy re-encryption (PRE) service is now the PRE Application on the Threshold Network.
 
-The PRE application is the first of many *threshold cryptography*-based applications
+The PRE Application is the first of many *threshold cryptography*-based applications
 to be hosted on the Threshold Network. PRE is an end-to-end encryption protocol that is a more scalable, more flexible form of
 `public-key encryption <https://en.wikipedia.org/wiki/Public-key_cryptography>`_ and enables a group of proxy
 entities to transform encrypted data from one public key to another, without the power to decrypt the data or gain access to any
@@ -34,8 +34,16 @@ and encrypted while maintaining the ability to share that data with trusted part
 
 ``nucypher`` is the python library and CLI for interacting with the PRE Application.
 
-How does NuCypher PRE Work?
----------------------------
+.. attention::
+
+    In order to run a PRE node on Threshold, ``nucypher`` version 6.0.0 is required,
+    but is not yet available. See `releases <https://pypi.org/project/nucypher/#history>`_.
+
+    However, this documentation can be used in the interim to gain a better understanding of
+    the logistics of running a PRE node.
+
+How does it Work?
+-----------------
 
 .. image:: ./.static/img/nucypher_overview.svg
     :target: ./.static/img/nucypher_overview.svg
@@ -101,15 +109,14 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: Staking
+   :caption: PRE Application
 
-   staking/overview
-   staking/stake_initialization
-   staking/stake_management
-   staking/running_a_worker
-   staking/best_practices
-   staking/testnet
-   staking/remote_worker_cli
+   pre_application/overview
+   pre_application/running_a_worker
+   pre_application/remote_worker_cli
+   pre_application/best_practices
+   pre_application/testnet
+
 
 .. toctree::
    :maxdepth: 1
