@@ -30,7 +30,7 @@ def authorized_staking_provider(testerchain, threshold_staking, staking_provider
     # initialize threshold stake
     tx = threshold_staking.functions.setRoles(staking_provider_address).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(staking_provider_address, application_economics.min_authorization, 0, 0).transact()
+    tx = threshold_staking.functions.authorizationIncreased(staking_provider_address, 0, application_economics.min_authorization).transact()
     testerchain.wait_for_receipt(tx)
     return staking_provider_address
 

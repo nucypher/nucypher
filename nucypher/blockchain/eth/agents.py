@@ -507,8 +507,8 @@ class PREApplicationAgent(EthereumContractAgent):
         return self.contract.functions.percentagePenaltyCoefficient().call()
 
     @contract_api(CONTRACT_CALL)
-    def penalty_history(self, staker_address: str) -> int:
-        return self.contract.functions.penaltyHistory(staker_address).call()
+    def penalty_history(self, staking_provider: str) -> int:
+        return self.contract.functions.penaltyHistory(staking_provider).call()
 
 
 class CoordinatorAgent(EthereumContractAgent):
