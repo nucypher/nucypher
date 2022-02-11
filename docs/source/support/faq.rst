@@ -26,18 +26,6 @@ NuCypher currently has two testnets available, each of them with different goals
 * ``lynx``: Public Long-Term Support testnet, intended as a stable playground for network users (e.g., Alices wishing to create sharing policies). Running on Ethereum Goerli testnet.
 * ``ibex``: Public testnet, intended as a playground for stakers and node operators (e.g., learning how to create and manage stakes, setting up a node), as well as for internal development purposes. Running on Ethereun Rinkeby testnet.
 
-Q: What is a period and how long is it?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In the NuCypher protocol, a Period is the minimum unit of time. This applies to sharing policy durations, and
-also corresponds to the frequency that Workers must make an on-chain commitment to being online and available
-to provide service.
-
-1 period is 7 days, and periods always start on Thursdays at midnight UTC.
-
-At Network launch, 1 period was 24 hours, but this was updated by a NuCypher DAO proposal to be
-7 days (see :doc:`/architecture/periods`).
-
 
 Using the Network
 -----------------
@@ -154,7 +142,6 @@ The amount of fees a staker can earn in a given period is determined by multiple
 including (1) the minimum fee rate set by the staker,
 (2) the number of active policies issued by users of the network to that staker,
 and (3) whether the staker has previously committed to being available for that period.
-See :doc:`/architecture/rewards_and_service_fees` for details.
 
 Q: How many Ursulas per period collect Inflation rewards (NU)?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -164,15 +151,9 @@ Every Ursula that is “online” and “available” will receive a cut based o
 Q: How/Where can I acquire NU tokens?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The initial distribution of NU was done via the "*WorkLock*" mechanism developed by NuCypher -
-more information is available in our `original blog post <https://blog.nucypher.com/the-worklock/>`_ and :ref:`worklock-guide`.
+The initial distribution of NU was done via the "*WorkLock*" mechanism developed by NuCypher.
 
 Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can be purchased through exchanges.
-
-Q: When/Why does a node operator need to use ``mint`` command?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The period following stake termination or later, but before withdrawing escrowed tokens. Each node on the NuCypher network sends per period commitment transactions signalling continued commitment to providing service, and to calculation of NU rewards for prior periods ("minting"). At the final period of a stake, automatic minting will stop and intervention is required to complete the final minting calculation by calling ``mint`` manually.
 
 Q: What are the recommended specifications for running a nucypher node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -204,13 +185,6 @@ is used by an Ursula node.
 
 You should stake with one address and set the worker to be a different address. Subsequently, you can bond
 the worker address to the stake.
-
-Q: How do I maximize the inflation-based rewards I will receive?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    * Lock your stake for a year or more - stakes with tokens locked for a year or more will be afforded the maximum time coefficient for the calculation of inflation rewards - see :ref:`ursula-generates-staking-rewards`.
-    * Enable :ref:`sub-stake-restaking` to relock inflation rewards and increase your stake size and consequently your proportion of future inflation rewards
-    * Disable :ref:`sub-stake-winddown` to maintain locked stake duration
 
 Q: Where is my Ursula config path?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -291,11 +265,6 @@ are in Period 5 when you start staking:
 - Period 6: Your worker successfully performs the work
 - Period 7: Your worker receives rewards for the work completed in the previous period
 
-.. note::
-
-    :ref:`Restaking <sub-stake-restaking>` is enabled by
-    default, so NU inflation rewards are automatically restaked for you, and will be reflected in
-    the ``Staked`` value of the above command.
 
 Q: How can I observe the settings (re-staking, winding down) for my stake?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -307,11 +276,6 @@ Run::
     >    --network <NETWORK>
     >    --staking-address <YOUR STAKER ADDRESS>
 
-
-Q: Can I extend the duration of my existing stake?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Yes, via the :ref:`prolong <staking-prolong>` command.
 
 Q: How can I reuse an Ursula that was connected to the previous version of the testnet?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

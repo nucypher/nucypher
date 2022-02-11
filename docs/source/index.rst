@@ -92,7 +92,6 @@ Whitepapers
    staking/stake_management
    staking/running_a_worker
    staking/best_practices
-   staking/worklock
    staking/testnet
    staking/remote_worker_cli
 
@@ -130,13 +129,9 @@ Whitepapers
    :caption: Architecture
 
    architecture/character
-   architecture/worklock
    architecture/contracts
    architecture/upgradeable_proxy_contracts
-   architecture/rewards_and_service_fees
-   architecture/sub_stakes
    architecture/slashing
-   architecture/periods
 .. TODO perhaps categorize architecture section
 
 .. toctree::
