@@ -112,9 +112,11 @@ Whitepapers
    :caption: PRE Application
 
    pre_application/overview
-   pre_application/running_a_worker
-   pre_application/remote_worker_cli
+   pre_application/node_requirements
+   pre_application/running_a_node
+   pre_application/cloud_node_management
    pre_application/best_practices
+   pre_application/node_providers
    pre_application/testnet
 
 
@@ -123,10 +125,10 @@ Whitepapers
    :caption: Application Development
 
    application_development/getting_started
-   application_development/porter
    application_development/http_character_control
    application_development/cli_examples
    application_development/local_fleet_demo
+   application_development/porter
    application_development/testnet
 
 .. toctree::
@@ -177,7 +179,6 @@ Whitepapers
    :caption: Support
 
    support/contribution
-   support/node_providers
    support/community
    support/troubleshooting
    support/faq

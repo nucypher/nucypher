@@ -155,10 +155,10 @@ The initial distribution of NU was done via the "*WorkLock*" mechanism developed
 
 Participation in WorkLock is now closed, but since NU is an ERC-20 token, it can be purchased through exchanges.
 
-Q: What are the recommended specifications for running a nucypher node?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: What are the recommended specifications for running a PRE Application node?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See :ref:`ursula-config-guide`.
+See :ref:`node-requirements`.
 
 Q: How do I set up a network node?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

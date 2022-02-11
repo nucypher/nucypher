@@ -1,4 +1,4 @@
-.. _ursula-config-guide:
+.. _running-a-node:
 
 Running a PRE Node
 ==================
@@ -17,9 +17,9 @@ Running a PRE Node
     NuCypher maintains a separate self-contained CLI that automates the initialization
     and management of PRE nodes deployed on cloud infrastructure. This CLI leverages
     automation tools such as Ansible and Docker to simplify the setup and management
-    of nodes running in the cloud. See :ref:`managing-cloud-workers`.
+    of nodes running in the cloud. See :ref:`managing-cloud-nodes`.
 
-Running a PRE node entails two steps:
+After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails two steps:
 
 #. Initializing a PRE node configuration
 #. Starting the PRE node.
