@@ -1,18 +1,38 @@
-Introduction
-=============
-
 
 .. _Umbral: https://github.com/nucypher/pyUmbral
 
-
-The NuCypher network is a decentralized network of nodes that perform threshold
-cryptography operations serving users with secrets management and dynamic access control.
-``nucypher`` is the python library and CLI for interacting with the
-decentralized threshold cryptography network.
+.. image:: ./.static/img/threshold_logo_purple.png
+    :target: ./.static/img/threshold_logo_purple.png
 
 
-How does NuCypher work?
------------------------
+Introduction
+=============
+
+The `NuCypher Network <https://www.nucypher.com/>`_ has merged with the
+`KEEP Network <https://keep.network/>`_ to form the `Threshold Network <https://threshold.network/>`_!
+
+The Threshold Network powers user sovereignty on the public blockchain. It provides a decentralized
+network of nodes that perform threshold cryptography operations as a service to ensure full control over
+your digital assets.
+
+Proxy Re-encryption (PRE) Application
+=====================================
+
+The NuCypher Network proxy re-encryption (PRE) service is now the PRE Application on the Threshold Network.
+
+PRE is an end-to-end `public-key encryption <https://en.wikipedia.org/wiki/Public-key_cryptography>`_ protocol
+that allows a proxy entity to transform encrypted data from one encryption key to another (i.e. re-encrypt),
+without ever decrypting the data or having access to any private keys - it is a direct ciphertext to ciphertext
+transformation.. The PRE Application provides access control functionality that allows applications to ensure
+that only data owners have the ability to grant and revoke access to their private data (wherever stored),
+and to retain ultimate control over their encryption keys. Private data, wherever stored, remains private, confidential
+and encrypted while maintaining the ability to share that data with trusted parties.
+
+``nucypher`` is the python library and CLI for interacting with the PRE Application.
+
+
+How does NuCypher PRE Work?
+---------------------------
 
 .. image:: ./.static/img/nucypher_overview.svg
     :target: ./.static/img/nucypher_overview.svg
@@ -21,12 +41,13 @@ How does NuCypher work?
 anyone she wants by creating a policy and uploading it to
 the NuCypher network.
 
-2. Alice gets information about the group of ``n`` Ursulas associated
-with the policy, which are nodes on the NuCypher network. Each Ursula provides their encrypting key, and Alice creates
+2. Alice gets information about the group of ``n`` PRE nodes (Ursulas) associated
+with the policy, which are nodes on the Threshold network providing the PRE service. Each Ursula provides their encrypting key, and Alice creates
 ``n`` re-encryption key shares (:term:`kFrag`), each of which is encrypted with a different Ursula's encrypting key.
 The Ursulas in the group stand ready to re-encrypt data in exchange for payment in fees and token rewards.
 The list of Ursulas and their associated encrypted re-encryption key shares are stored in a treasure map. Alice
-subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic material to successfully request the NuCypher network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key. 
+subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic
+material to successfully request the Threshold Network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key.
 
 3. Each policy created by Alice has an associated encryption key, which can be used
 by any entity (Enrico) to encrypt data on Alice's behalf.
@@ -38,7 +59,7 @@ or any other storage layer.
 
 4. Bob, a data recipient, uses the treasure map to determine the list of Ursulas to contact and the associated
 re-encryption key share to send to Ursula for the re-encryption operation. Bob obtains the encrypted data from the
-storage layer and sends a re-encryption request to the relevant Ursulas on the NuCypher network. If the policy is
+storage layer and sends a re-encryption request to the relevant Ursulas on the Threshold network. If the policy is
 satisfied, Ursula decrypts the provided re-encryption key share and re-encrypts the data to Bob's public key. Bob
 can subsequently decrypt the data with his private key.
 
@@ -53,26 +74,12 @@ More detailed information:
 Whitepapers
 -----------
 
-**Network**
+**Original Network**
 
     https://github.com/nucypher/whitepaper/blob/master/whitepaper.pdf
 
     *"NuCypher - A proxy re-encryption network to empower privacy in decentralized systems"*
     *by Michael Egorov, David Nuñez, and MacLane Wilkison - NuCypher*
-
-
-**Economics**
-
-    https://github.com/nucypher/whitepaper/blob/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf
-
-    *"NuCypher Network: Staking Protocol & Economics"*
-    *by Michael Egorov, MacLane Wilkison, Arjun Hassard - NuCypher*
-
-
-    https://github.com/nucypher/whitepaper/blob/master/economics/pricing_protocol/NuCypher_Network__Pricing_Protocol_Economics.pdf
-
-    *"NuCypher Network: Pricing Protocol & Economics"*
-    *by Arjun Hassard - NuCypher*
 
 
 **Cryptography**
