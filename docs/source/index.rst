@@ -20,16 +20,17 @@ Proxy Re-encryption (PRE) Application
 
 The NuCypher Network proxy re-encryption (PRE) service is now the PRE Application on the Threshold Network.
 
-PRE is an end-to-end `public-key encryption <https://en.wikipedia.org/wiki/Public-key_cryptography>`_ protocol
-that allows a proxy entity to transform encrypted data from one encryption key to another (i.e. re-encrypt),
-without ever decrypting the data or having access to any private keys - it is a direct ciphertext to ciphertext
-transformation.. The PRE Application provides access control functionality that allows applications to ensure
-that only data owners have the ability to grant and revoke access to their private data (wherever stored),
-and to retain ultimate control over their encryption keys. Private data, wherever stored, remains private, confidential
+The PRE application is the first of many *threshold cryptography*-based applications
+to be hosted on the Threshold Network. PRE is an end-to-end encryption protocol that is a more scalable, more flexible form of
+`public-key encryption <https://en.wikipedia.org/wiki/Public-key_cryptography>`_ and enables a group of proxy
+entities to transform encrypted data from one public key to another, without the power to decrypt the data or gain access to any
+private keys. PRE equips developers, applications and end-users with **secrets management** and **dynamic access control** capabilities.
+This service is provided by a decentralized array of nodes on the Threshold Network, each running the same PRE client software.
+
+Private data, wherever stored, remains private, confidential
 and encrypted while maintaining the ability to share that data with trusted parties.
 
 ``nucypher`` is the python library and CLI for interacting with the PRE Application.
-
 
 How does NuCypher PRE Work?
 ---------------------------

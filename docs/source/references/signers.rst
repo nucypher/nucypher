@@ -14,7 +14,7 @@ For example, external signers can be used with:
 The following signers are currently supported:
 
 #. :ref:`Hardware Wallet <signing-with-hardware>` (recommended for :ref:`Stakers <staking-guide>`)
-#. :ref:`Local Keystore <signing-with-local-keystore>` (recommended for :ref:`Workers <ursula-config-guide>`)
+#. :ref:`Local Keystore <signing-with-local-keystore>` (recommended for :ref:`Workers <running-a-node>`)
 #. :ref:`Clef <signing-with-clef>`
 
 .. _signing-with-hardware:
