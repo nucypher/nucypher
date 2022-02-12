@@ -46,7 +46,7 @@ from tests.constants import (
     FEE_RATE_RANGE,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI,
+    TEST_ETH_PROVIDER_URI,
     YES_ENTER
 )
 from tests.utils.middleware import MockRestMiddleware
@@ -70,7 +70,7 @@ def test_new_stakeholder(click_runner,
 
     init_args = ('stake', 'init-stakeholder',
                  '--config-root', str(custom_filepath.absolute()),
-                 '--provider', TEST_PROVIDER_URI,
+                 '--eth-provider', TEST_ETH_PROVIDER_URI,
                  '--network', TEMPORARY_DOMAIN,
                  '--registry-filepath', str(agency_local_registry.filepath.absolute()))
 
@@ -86,7 +86,7 @@ def test_new_stakeholder(click_runner,
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['provider_uri'] == TEST_PROVIDER_URI
+        assert config_data['eth_provider_uri'] == TEST_ETH_PROVIDER_URI
 
 
 @pytest.mark.skip()
@@ -378,7 +378,7 @@ def test_ursula_init(click_runner,
                  '--payment-network', TEMPORARY_DOMAIN,
                  '--worker-address', manual_worker,
                  '--config-root', str(custom_filepath.absolute()),
-                 '--provider', TEST_PROVIDER_URI,
+                 '--eth-provider', TEST_ETH_PROVIDER_URI,
                  '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port)
@@ -400,7 +400,7 @@ def test_ursula_init(click_runner,
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['provider_uri'] == TEST_PROVIDER_URI
+        assert config_data['eth_provider_uri'] == TEST_ETH_PROVIDER_URI
         assert config_data['worker_address'] == manual_worker
         assert TEMPORARY_DOMAIN == config_data['domain']
 
@@ -597,7 +597,7 @@ def test_collect_rewards_integration(click_runner,
     assert staker.worker_address == worker_address
 
     # TODO: Test for SubscriptionManager?
-    payment_method = SubscriptionManagerPayment(provider=TEST_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    payment_method = SubscriptionManagerPayment(provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
     ursula_port = select_test_port()
 
     ursula = Ursula(is_me=True,
@@ -607,7 +607,7 @@ def test_collect_rewards_integration(click_runner,
                     registry=agency_local_registry,
                     rest_host=LOOPBACK_ADDRESS,
                     rest_port=ursula_port,
-                    provider_uri=TEST_PROVIDER_URI,
+                    eth_provider_uri=TEST_ETH_PROVIDER_URI,
                     network_middleware=MockRestMiddleware(),
                     db_filepath=tempfile.mkdtemp(),
                     domain=TEMPORARY_DOMAIN,

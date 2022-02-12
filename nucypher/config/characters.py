@@ -267,7 +267,7 @@ class StakeHolderConfiguration(CharacterConfiguration):
 
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
-        'provider_uri'
+        'eth_provider_uri'
     )
 
     def __init__(self, checksum_addresses: set = None, *args, **kwargs):
@@ -277,8 +277,8 @@ class StakeHolderConfiguration(CharacterConfiguration):
     def static_payload(self) -> dict:
         """Values to read/write from stakeholder JSON configuration files"""
         if not self.signer_uri:
-            self.signer_uri = self.provider_uri
-        payload = dict(provider_uri=self.provider_uri,
+            self.signer_uri = self.eth_provider_uri
+        payload = dict(eth_provider_uri=self.eth_provider_uri,
                        poa=self.poa,
                        light=self.is_light,
                        domain=self.domain,

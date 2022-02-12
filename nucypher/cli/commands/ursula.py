@@ -48,7 +48,7 @@ from nucypher.cli.options import (
     option_min_stake,
     option_network,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -72,7 +72,7 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self,
-                 provider_uri: str,
+                 eth_provider_uri: str,
                  operator_address: str,
                  federated_only: bool,
                  rest_host: str,
@@ -98,7 +98,7 @@ class UrsulaConfigOptions:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
                                            message=f"--registry-filepath cannot be used in federated mode.")
 
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
         self.operator_address = operator_address
         self.federated_only = federated_only
@@ -127,7 +127,7 @@ class UrsulaConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
-                provider_uri=self.provider_uri,
+                eth_provider_uri=self.eth_provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
@@ -152,7 +152,7 @@ class UrsulaConfigOptions:
                     filepath=config_file,
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
-                    provider_uri=self.provider_uri,
+                    eth_provider_uri=self.eth_provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -183,7 +183,7 @@ class UrsulaConfigOptions:
             prompt = "Select operator account"
             self.operator_address = select_client_account(emitter=emitter,
                                                           prompt=prompt,
-                                                          provider_uri=self.provider_uri,
+                                                          eth_provider_uri=self.eth_provider_uri,
                                                           signer_uri=self.signer_uri)
 
         # Resolve rest host
@@ -200,7 +200,7 @@ class UrsulaConfigOptions:
                                             federated_only=self.federated_only,
                                             operator_address=self.operator_address,
                                             registry_filepath=self.registry_filepath,
-                                            provider_uri=self.provider_uri,
+                                            eth_provider_uri=self.eth_provider_uri,
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
                                             max_gas_price=self.max_gas_price,
@@ -220,7 +220,7 @@ class UrsulaConfigOptions:
                        federated_only=self.federated_only,
                        operator_address=self.operator_address,
                        registry_filepath=self.registry_filepath,
-                       provider_uri=self.provider_uri,
+                       eth_provider_uri=self.eth_provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
                        max_gas_price=self.max_gas_price,
@@ -230,7 +230,7 @@ class UrsulaConfigOptions:
                        payment_method=self.payment_method,
                        payment_provider=self.payment_provider,
                        payment_network=self.payment_network
-        )
+                       )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -239,7 +239,7 @@ class UrsulaConfigOptions:
 group_config_options = group_options(
     # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
     UrsulaConfigOptions,
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
@@ -326,8 +326,8 @@ def init(general_config, config_options, force, config_root, key_material):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
-    if not config_options.federated_only and not config_options.provider_uri:
-        raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
+    if not config_options.federated_only and not config_options.eth_provider_uri:
+        raise click.BadOptionUsage('--eth-network-provider', message="--eth-network-provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter, message="Select Staking Network")
     if not config_options.federated_only and not config_options.payment_network:

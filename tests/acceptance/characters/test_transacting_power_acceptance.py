@@ -23,7 +23,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
 from nucypher.crypto.utils import verify_eip_191
 from nucypher.crypto.powers import (TransactingPower)
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 
 
 def test_character_transacting_power_signing(testerchain, agency, test_registry):
@@ -31,7 +31,7 @@ def test_character_transacting_power_signing(testerchain, agency, test_registry)
     # Pretend to be a character.
     eth_address = testerchain.etherbase_account
     signer = Character(is_me=True,
-                       provider_uri=MOCK_PROVIDER_URI,
+                       eth_provider_uri=MOCK_ETH_PROVIDER_URI,
                        registry=test_registry,
                        checksum_address=eth_address)
 

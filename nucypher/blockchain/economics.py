@@ -109,20 +109,20 @@ class EconomicsFactory:
     __economics = dict()
 
     @classmethod
-    def get_economics(cls, registry: BaseContractRegistry, provider_uri: Optional[str] = None) -> Economics:
+    def get_economics(cls, registry: BaseContractRegistry, eth_provider_uri: Optional[str] = None) -> Economics:
         registry_id = registry.id
         try:
             return cls.__economics[registry_id]
         except KeyError:
-            economics = EconomicsFactory.retrieve_from_blockchain(registry=registry, provider_uri=provider_uri)
+            economics = EconomicsFactory.retrieve_from_blockchain(registry=registry, eth_provider_uri=eth_provider_uri)
             cls.__economics[registry_id] = economics
             return economics
 
     @staticmethod
-    def retrieve_from_blockchain(registry: BaseContractRegistry, provider_uri: Optional[str] = None) -> Economics:
+    def retrieve_from_blockchain(registry: BaseContractRegistry, eth_provider_uri: Optional[str] = None) -> Economics:
 
         # Agents
-        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, provider_uri=provider_uri)
+        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri)
 
         # PRE Application
         min_authorization = application_agent.get_min_authorization()

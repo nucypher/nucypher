@@ -30,7 +30,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.utilities.porter.porter import Porter
-from tests.constants import TEST_PROVIDER_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.ursula import select_test_port
 
 
@@ -237,14 +237,14 @@ def test_blockchain_porter_cli_run_simple(click_runner,
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--network', TEMPORARY_DOMAIN,
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri)
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
     assert result.exit_code == 0
     output = result.output
     assert f"Network: {TEMPORARY_DOMAIN}" in output
-    assert f"Provider: {TEST_PROVIDER_URI}" in output
+    assert f"Provider: {TEST_ETH_PROVIDER_URI}" in output
     assert PORTER_RUN_MESSAGE.format(http_scheme="http", http_port=Porter.DEFAULT_PORT) in output
 
     # Non-default port
@@ -252,7 +252,7 @@ def test_blockchain_porter_cli_run_simple(click_runner,
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--network', TEMPORARY_DOMAIN,
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--http-port', non_default_port,
                           '--teacher', blockchain_teacher_uri)
@@ -260,7 +260,7 @@ def test_blockchain_porter_cli_run_simple(click_runner,
     assert result.exit_code == 0
     output = result.output
     assert f"Network: {TEMPORARY_DOMAIN}" in output
-    assert f"Provider: {TEST_PROVIDER_URI}" in output
+    assert f"Provider: {TEST_ETH_PROVIDER_URI}" in output
     assert PORTER_RUN_MESSAGE.format(http_scheme="http", http_port=non_default_port) in output
 
 
@@ -278,7 +278,7 @@ def test_blockchain_porter_cli_run_provider_required(click_runner,
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
 
     assert result.exit_code != 0
-    assert "--provider is required" in result.output
+    assert "--eth-network-provider is required" in result.output
 
 
 def test_blockchain_porter_cli_run_network_defaults_to_mainnet(click_runner,
@@ -288,7 +288,7 @@ def test_blockchain_porter_cli_run_network_defaults_to_mainnet(click_runner,
                                                                blockchain_teacher_uri):
     porter_run_command = ('porter', 'run',
                           '--dry-run',
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri)
 
@@ -313,7 +313,7 @@ def test_blockchain_porter_cli_run_https(click_runner,
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--network', TEMPORARY_DOMAIN,
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri,
                           '--tls-key-filepath', tls_key_path,
@@ -342,7 +342,7 @@ def test_blockchain_porter_cli_run_https_with_cors_origin(click_runner,
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--network', TEMPORARY_DOMAIN,
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri,
                           '--tls-key-filepath', tls_key_path,
@@ -372,7 +372,7 @@ def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--network', TEMPORARY_DOMAIN,
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri,
                           '--basic-auth-filepath', basic_auth_file)
@@ -385,7 +385,7 @@ def test_blockchain_porter_cli_run_https_basic_auth(click_runner,
     porter_run_command = ('porter', 'run',
                           '--dry-run',
                           '--network', TEMPORARY_DOMAIN,
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', agency_local_registry.filepath,
                           '--teacher', blockchain_teacher_uri,
                           '--tls-key-filepath', tls_key_path,

@@ -82,8 +82,8 @@ encrypting_key = bob.public_keys(DecryptingPower)
 ######################################
 
 # Connect to the ethereum provider.
-connect_web3_provider(provider_uri=L1_PROVIDER)
-connect_web3_provider(provider_uri=L2_PROVIDER)
+connect_web3_provider(eth_provider_uri=L1_PROVIDER)
+connect_web3_provider(eth_provider_uri=L2_PROVIDER)
 
 # Setup and unlock alice's ethereum wallet.
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
@@ -99,7 +99,7 @@ alice = Alice(
     domain=L1_TESTNET,
     payment_network=L2_TESTNET,
     payment_provider=L2_PROVIDER,
-    provider_uri=L1_PROVIDER,
+    eth_provider_uri=L1_PROVIDER,
 )
 
 # Alice puts her public key somewhere for Bob to find later...

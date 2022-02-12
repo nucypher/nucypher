@@ -50,7 +50,7 @@ def test_testerchain_creation(testerchain, another_testerchain):
     for chain in chains:
 
         # Ensure we are testing on the correct network...
-        assert 'tester' in chain.provider_uri
+        assert 'tester' in chain.eth_provider_uri
 
         # ... and that there are already some blocks mined
         chain.w3.eth.web3.testing.mine(1)
@@ -107,7 +107,7 @@ def test_multiversion_contract():
     BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
                                                   'free': free_gas_price_strategy}
 
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', gas_strategy='free')
+    blockchain_interface = BlockchainDeployerInterface(eth_provider_uri='tester://pyevm/2', gas_strategy='free')
     blockchain_interface.connect(compile_now=False)
     blockchain_interface._raw_contract_cache = compiled_contracts
 

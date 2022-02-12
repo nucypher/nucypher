@@ -49,7 +49,7 @@ from nucypher.cli.options import (
     option_network,
     option_shares,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -79,7 +79,7 @@ class AliceConfigOptions:
     def __init__(self,
                  dev: bool,
                  network: str,
-                 provider_uri: str,
+                 eth_provider_uri: str,
                  federated_only: bool,
                  discovery_port: int,
                  pay_with: str,
@@ -96,7 +96,7 @@ class AliceConfigOptions:
 
         self.dev = dev
         self.domain = network
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
@@ -126,7 +126,7 @@ class AliceConfigOptions:
                 dev_mode=True,
                 network_middleware=self.middleware,
                 domain=TEMPORARY_DOMAIN,
-                provider_uri=self.provider_uri,
+                eth_provider_uri=self.eth_provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
@@ -148,7 +148,7 @@ class AliceConfigOptions:
                     dev_mode=False,
                     network_middleware=self.middleware,
                     domain=self.domain,
-                    provider_uri=self.provider_uri,
+                    eth_provider_uri=self.eth_provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -172,7 +172,7 @@ group_config_options = group_options(
     AliceConfigOptions,
     dev=option_dev,
     network=option_network(),
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
@@ -207,15 +207,15 @@ class AliceFullConfigOptions:
         if opts.dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
 
-        if not opts.provider_uri and not opts.federated_only:
+        if not opts.eth_provider_uri and not opts.federated_only:
             raise click.BadOptionUsage(
-                option_name='--provider',
-                message="--provider is required to create a new decentralized alice.")
+                option_name='--eth-network-provider',
+                message="--eth-network-provider is required to create a new decentralized alice.")
 
         pay_with = opts.pay_with
         if not pay_with and not opts.federated_only:
             pay_with = select_client_account(emitter=emitter,
-                                             provider_uri=opts.provider_uri,
+                                             eth_provider_uri=opts.eth_provider_uri,
                                              signer_uri=opts.signer_uri,
                                              show_eth_balance=True,
                                              network=opts.domain)
@@ -227,7 +227,7 @@ class AliceFullConfigOptions:
             checksum_address=pay_with,
             domain=opts.domain,
             federated_only=opts.federated_only,
-            provider_uri=opts.provider_uri,
+            eth_provider_uri=opts.eth_provider_uri,
             signer_uri=opts.signer_uri,
             registry_filepath=opts.registry_filepath,
             poa=self.poa,
@@ -245,7 +245,7 @@ class AliceFullConfigOptions:
         payload = dict(checksum_address=opts.pay_with,
                        domain=opts.domain,
                        federated_only=opts.federated_only,
-                       provider_uri=opts.provider_uri,
+                       eth_provider_uri=opts.eth_provider_uri,
                        signer_uri=opts.signer_uri,
                        registry_filepath=opts.registry_filepath,
                        poa=self.poa,

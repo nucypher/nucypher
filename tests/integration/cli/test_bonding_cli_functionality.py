@@ -28,7 +28,7 @@ from nucypher.config.constants import (
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import StakingProviderInfo
-from tests.constants import TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 cli_env = {NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
@@ -58,9 +58,9 @@ def test_nucypher_bond_help(click_runner, mock_testerchain):
 def exec_bond(click_runner, operator_address: ChecksumAddress, staking_provider_address: ChecksumAddress):
     command = ('--operator-address', operator_address,
                '--staking-provider', staking_provider_address,
-               '--provider', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--force'  # non-interactive only
                )
     result = click_runner.invoke(bond, command, catch_exceptions=False, env=cli_env)
@@ -69,9 +69,9 @@ def exec_bond(click_runner, operator_address: ChecksumAddress, staking_provider_
 
 def exec_unbond(click_runner, staking_provider_address: ChecksumAddress):
     command = ('--staking-provider', staking_provider_address,
-               '--provider', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--force'  # non-interactive only
                )
     result = click_runner.invoke(unbond, command, catch_exceptions=False, env=cli_env)

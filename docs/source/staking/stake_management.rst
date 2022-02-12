@@ -45,7 +45,7 @@ For example, to view all of the staking rewards received by the Staker thus far,
 
 .. code::
 
-    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --eth-provider <ETH PROVIDER URI> --event-name Minted
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -64,7 +64,7 @@ To view staking rewards received by the Staker from block number 11070000 to blo
 
 .. code::
 
-    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted --from-block 11070000 --to-block 11916688
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --eth-provider <ETH PROVIDER URI> --event-name Minted --from-block 11070000 --to-block 11916688
 
     Reading Latest Chaindata...
     Retrieving events from block 11070000 to 11916688
@@ -93,7 +93,7 @@ For example,
 
 .. code::
 
-    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted --csv
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --eth-provider <ETH PROVIDER URI> --event-name Minted --csv
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -105,7 +105,7 @@ For example,
 
 .. code::
 
-    $ nucypher stake events --staking-address <STAKER ADDRESS> --provider <PROVIDER URI> --event-name Minted --csv-file ~/Minted_Events.csv
+    $ nucypher stake events --staking-address <STAKER ADDRESS> --eth-provider <ETH PROVIDER URI> --event-name Minted --csv-file ~/Minted_Events.csv
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest

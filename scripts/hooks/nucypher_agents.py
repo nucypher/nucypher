@@ -16,13 +16,13 @@
 """
 
 # Get an interactive Python session with all the NuCypher agents loaded by running:
-#    python -i scripts/hooks/nucypher_agents.py <NETWORK> <PROVIDER_URI>
+#    python -i scripts/hooks/nucypher_agents.py <NETWORK> <ETH_PROVIDER_URI>
 
 import sys
 import os
 
 from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PolicyManagerAgent, NucypherTokenAgent
-from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
+from nucypher.config.constants import NUCYPHER_ENVVAR_ETH_PROVIDER_URI
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 
@@ -40,10 +40,10 @@ GlobalLoggerSettings.start_console_logging()
 emitter = StdoutEmitter(verbosity=2)
 
 try:
-    provider_uri = sys.argv[2]
+    eth_provider_uri = sys.argv[2]
 except IndexError:
-    provider_uri = os.getenv(NUCYPHER_ENVVAR_PROVIDER_URI)
-    if not provider_uri:
+    eth_provider_uri = os.getenv(NUCYPHER_ENVVAR_ETH_PROVIDER_URI)
+    if not eth_provider_uri:
         emitter.message("You have to pass a provider URI", color='red')
         sys.exit(-1)
 
@@ -53,11 +53,11 @@ except IndexError:
     network = "ibex"
 
 
-BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
+BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri,
                                                 light=False,
                                                 emitter=emitter)
 
-blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
 
 emitter.echo(message="Reading Latest Chaindata...")
 blockchain.connect()

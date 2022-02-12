@@ -30,7 +30,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.cli.options import (
     option_network,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_federated_only,
     option_teacher_uri,
     option_registry_filepath,
@@ -53,7 +53,7 @@ def porter():
 @porter.command()
 @group_general_config
 @option_network(default=NetworksInventory.DEFAULT, validate=True, required=False)
-@option_provider_uri(required=False)
+@option_eth_provider_uri(required=False)
 @option_federated_only
 @option_teacher_uri
 @option_registry_filepath
@@ -67,7 +67,7 @@ def porter():
 @click.option('--eager', help="Start learning and scraping the network before starting up other services", is_flag=True, default=True)
 def run(general_config,
         network,
-        provider_uri,
+        eth_provider_uri,
         federated_only,
         teacher_uri,
         registry_filepath,
@@ -109,9 +109,9 @@ def run(general_config,
                         federated_only=True)
     else:
         # decentralized/blockchain
-        if not provider_uri:
-            raise click.BadOptionUsage(option_name='--provider',
-                                       message="--provider is required for decentralized porter.")
+        if not eth_provider_uri:
+            raise click.BadOptionUsage(option_name='--eth-network-provider',
+                                       message="--eth-network-provider is required for decentralized porter.")
         if not network:
             # should never happen - network defaults to 'mainnet' if not specified
             raise click.BadOptionUsage(option_name='--network',
@@ -129,7 +129,7 @@ def run(general_config,
                         known_nodes={teacher} if teacher else None,
                         registry=registry,
                         start_learning_now=eager,
-                        provider_uri=provider_uri)
+                        eth_provider_uri=eth_provider_uri)
 
     # RPC
     if general_config.json_ipc:
@@ -140,7 +140,7 @@ def run(general_config,
 
     emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
     if not federated_only:
-        emitter.message(f"Provider: {provider_uri}", color='green')
+        emitter.message(f"Provider: {eth_provider_uri}", color='green')
 
     # firm up falsy status (i.e. change specified empty string to None)
     allow_origins = allow_origins if allow_origins else None

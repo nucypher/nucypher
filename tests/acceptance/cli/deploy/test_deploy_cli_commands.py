@@ -39,7 +39,7 @@ from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_PROVIDER_URI,
+    TEST_ETH_PROVIDER_URI,
     YES_ENTER
 )
 
@@ -50,7 +50,7 @@ ALTERNATE_REGISTRY_FILEPATH_2 = Path('/tmp/nucypher-test-registry-alternate-2.js
 def test_nucypher_deploy_inspect_no_deployments(click_runner, testerchain, new_local_registry):
 
     status_command = ('inspect',
-                      '--provider', TEST_PROVIDER_URI,
+                      '--eth-provider', TEST_ETH_PROVIDER_URI,
                       '--registry-infile', str(new_local_registry.filepath.absolute()))
 
     result = click_runner.invoke(deploy, status_command, catch_exceptions=False)
@@ -67,7 +67,7 @@ def test_nucypher_deploy_inspect_fully_deployed(click_runner, agency_local_regis
     status_command = ('inspect',
                       '--registry-infile', str(agency_local_registry.filepath.absolute()),
                       '--network', TEMPORARY_DOMAIN,
-                      '--provider', TEST_PROVIDER_URI)
+                      '--eth-provider', TEST_ETH_PROVIDER_URI)
 
     result = click_runner.invoke(deploy,
                                  status_command,
@@ -97,8 +97,8 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
     ownership_command = ('transfer-ownership',
                          '--registry-infile', str(agency_local_registry.filepath.absolute()),
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
-                         '--provider', TEST_PROVIDER_URI,
-                         '--signer', TEST_PROVIDER_URI,
+                         '--eth-provider', TEST_ETH_PROVIDER_URI,
+                         '--signer', TEST_ETH_PROVIDER_URI,
                          '--network', TEMPORARY_DOMAIN,
                          '--target-address', maclane)
 
@@ -121,8 +121,8 @@ def test_transfer_ownership(click_runner, testerchain, agency_local_registry):
                          '--deployer-address', maclane,
                          '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                          '--registry-infile', str(agency_local_registry.filepath.absolute()),
-                         '--provider', TEST_PROVIDER_URI,
-                         '--signer', TEST_PROVIDER_URI,
+                         '--eth-provider', TEST_ETH_PROVIDER_URI,
+                         '--signer', TEST_ETH_PROVIDER_URI,
                          '--network', TEMPORARY_DOMAIN,
                          '--target-address', michwill)
 
@@ -148,8 +148,8 @@ def test_bare_contract_deployment_to_alternate_registry(click_runner, agency_loc
     command = ('contracts',
                '--contract-name', SubscriptionManagerDeployer.contract_name,  # FIXME
                # '--mode', 'bare',  # FIXME
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--registry-infile', str(agency_local_registry.filepath.absolute()),
                '--registry-outfile', str(ALTERNATE_REGISTRY_FILEPATH.absolute()),
                '--network', TEMPORARY_DOMAIN,
@@ -194,8 +194,8 @@ def test_manual_proxy_retargeting(monkeypatch, testerchain, click_runner, applic
                '--deployer-address', michwill,
                '--contract-name', StakingEscrowDeployer.contract_name,
                '--target-address', untargeted_deployment.address,
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH.absolute()),
                '--confirmations', 4,
                '--network', TEMPORARY_DOMAIN)
@@ -224,9 +224,9 @@ def test_manual_deployment_of_idle_network(click_runner):
     # 1. Deploy NuCypherToken
     command = ('contracts',
                '--contract-name', NUCYPHER_TOKEN_CONTRACT_NAME,
-               '--provider', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
     result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
@@ -242,8 +242,8 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--mode', 'init',
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
@@ -256,8 +256,8 @@ def test_manual_deployment_of_idle_network(click_runner):
     # 4. Deploy Adjudicator
     command = ('contracts',
                '--contract-name', ADJUDICATOR_CONTRACT_NAME,
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
@@ -271,8 +271,8 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--mode', 'idle',
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 
@@ -286,8 +286,8 @@ def test_manual_deployment_of_idle_network(click_runner):
     command = ('contracts',
                '--contract-name', STAKING_ESCROW_CONTRACT_NAME,
                '--activate',
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--registry-infile', str(ALTERNATE_REGISTRY_FILEPATH_2.absolute()))
 

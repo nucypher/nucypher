@@ -108,7 +108,7 @@ from nucypher.cli.options import (
     option_light,
     option_network,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_staking_address,
@@ -162,8 +162,8 @@ class StakeHolderConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, provider_uri, poa, light, registry_filepath, network, signer_uri):
-        self.provider_uri = provider_uri
+    def __init__(self, eth_provider_uri, poa, light, registry_filepath, network, signer_uri):
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
         self.poa = poa
         self.light = light
@@ -175,7 +175,7 @@ class StakeHolderConfigOptions:
             return StakeHolderConfiguration.from_configuration_file(
                 emitter=emitter,
                 filepath=config_file,
-                provider_uri=self.provider_uri,
+                eth_provider_uri=self.eth_provider_uri,
                 signer_uri=self.signer_uri,
                 poa=self.poa,
                 light=self.light,
@@ -190,10 +190,10 @@ class StakeHolderConfigOptions:
 
     def generate_config(self, config_root):
 
-        if self.provider_uri is None:
+        if self.eth_provider_uri is None:
             raise click.BadOptionUsage(
-                option_name="--provider",
-                message="--provider must be specified to create a new stakeholder")
+                option_name="--eth-network-provider",
+                message="--eth-network-provider must be specified to create a new stakeholder")
 
         if self.network is None:
             raise click.BadOptionUsage(
@@ -202,7 +202,7 @@ class StakeHolderConfigOptions:
 
         return StakeHolderConfiguration.generate(
             config_root=config_root,
-            provider_uri=self.provider_uri,
+            eth_provider_uri=self.eth_provider_uri,
             signer_uri=self.signer_uri,
             poa=self.poa,
             light=self.light,
@@ -211,7 +211,7 @@ class StakeHolderConfigOptions:
         )
 
     def get_updates(self) -> dict:
-        payload = dict(provider_uri=self.provider_uri,
+        payload = dict(eth_provider_uri=self.eth_provider_uri,
                        signer_uri=self.signer_uri,
                        poa=self.poa,
                        light=self.light,
@@ -224,7 +224,7 @@ class StakeHolderConfigOptions:
 
 group_config_options = group_options(
     StakeHolderConfigOptions,
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
@@ -248,7 +248,7 @@ class StakerOptions:
         return stakeholder_config.produce(initial_address=initial_address, *args, **kwargs)
 
     def get_blockchain(self):
-        return BlockchainInterfaceFactory.get_interface(provider_uri=self.config_options.provider_uri)  # Eager connection
+        return BlockchainInterfaceFactory.get_interface(eth_provider_uri=self.config_options.eth_provider_uri)  # Eager connection
 
 
 group_staker_options = group_options(

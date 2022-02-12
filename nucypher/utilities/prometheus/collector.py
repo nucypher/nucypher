@@ -135,7 +135,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         if not self.ursula.federated_only:
             application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.ursula.registry)
             authorized = application_agent.get_authorized_stake(staking_provider=self.ursula.checksum_address)
-            decentralized_payload = {'provider': str(self.ursula.provider_uri),
+            decentralized_payload = {'provider': str(self.ursula.eth_provider_uri),
                                      'active_stake': str(authorized)}
             base_payload.update(decentralized_payload)
 
@@ -148,9 +148,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
     """Collector for Blockchain specific metrics."""
-    def __init__(self, provider_uri: str):
+    def __init__(self, eth_provider_uri: str):
         super().__init__()
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
@@ -160,7 +160,7 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
         }
 
     def _collect_internal(self) -> None:
-        blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=self.provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=self.eth_provider_uri)
         self.metrics["current_eth_block_number"].set(blockchain.client.block_number)
 
 

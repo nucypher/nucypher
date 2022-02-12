@@ -98,9 +98,9 @@ GETH_DEV_URI = f'ipc://{BASE_TEMP_DIR}/geth.ipc'  # Standard IPC path for `geth 
 
 PYEVM_DEV_URI = "tester://pyevm"
 
-TEST_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
+TEST_ETH_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
 
-MOCK_PROVIDER_URI = 'tester://mock'
+MOCK_ETH_PROVIDER_URI = 'tester://mock'
 
 #
 # Node Configuration

@@ -183,7 +183,7 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
 
     if not ursula.federated_only:
         # Blockchain prometheus
-        collectors.append(BlockchainMetricsCollector(provider_uri=ursula.provider_uri))
+        collectors.append(BlockchainMetricsCollector(eth_provider_uri=ursula.eth_provider_uri))
 
         # Staker prometheus
         collectors.append(StakerMetricsCollector(domain=ursula.domain,

@@ -229,7 +229,7 @@ This is **ONLY** a heuristic to ensure that your node is running correctly, it d
     #. Run the following command and ensure that the various settings are correct::
 
         nucypher status stakers
-        >    --provider <YOUR PROVIDER URI>
+        >    --eth-provider <YOUR ETH PROVIDER URI>
         >    --network <NETWORK>
         >    --staking-address <YOUR STAKER ADDRESS>
 
@@ -253,7 +253,7 @@ Q: How can I check for currently available staking rewards?
 Run::
 
     nucypher status stakers
-    >    --provider <YOUR PROVIDER URI>
+    >    --eth-provider <YOUR ETH PROVIDER URI>
     >    --network <NETWORK>
     >    --staking-address <YOUR STAKER ADDRESS>
 
@@ -272,7 +272,7 @@ Q: How can I observe the settings (re-staking, winding down) for my stake?
 Run::
 
     nucypher status stakers
-    >    --provider <YOUR PROVIDER URI>
+    >    --eth-provider <YOUR ETH PROVIDER URI>
     >    --network <NETWORK>
     >    --staking-address <YOUR STAKER ADDRESS>
 
@@ -318,7 +318,7 @@ Q: The status of my node on the status monitor seems incorrect?
 Check when last your node made a commitment by running::
 
     nucypher status stakers
-    >    --provider <YOUR PROVIDER URI>
+    >    --eth-provider <YOUR ETH PROVIDER URI>
     >    --network <NETWORK>
     >    --staking-address <YOUR STAKER ADDRESS>
 

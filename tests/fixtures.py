@@ -76,7 +76,7 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     TEST_GAS_LIMIT,
-    TEST_PROVIDER_URI
+    TEST_ETH_PROVIDER_URI
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
@@ -174,8 +174,8 @@ def bob_federated_test_config():
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(federated=False,
-                                            provider_uri=TEST_PROVIDER_URI,
-                                            payment_provider=TEST_PROVIDER_URI,
+                                            eth_provider_uri=TEST_ETH_PROVIDER_URI,
+                                            payment_provider=TEST_ETH_PROVIDER_URI,
                                             test_registry=test_registry,
                                             rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
@@ -187,8 +187,8 @@ def ursula_decentralized_test_config(test_registry, temp_dir_path):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(federated=False,
-                                           provider_uri=TEST_PROVIDER_URI,
-                                           payment_provider=TEST_PROVIDER_URI,
+                                           eth_provider_uri=TEST_ETH_PROVIDER_URI,
+                                           payment_provider=TEST_ETH_PROVIDER_URI,
                                            known_nodes=blockchain_ursulas,
                                            checksum_address=testerchain.alice_account,
                                            test_registry=test_registry)
@@ -199,7 +199,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 @pytest.fixture(scope="module")
 def bob_blockchain_test_config(testerchain, test_registry):
     config = make_bob_test_configuration(federated=False,
-                                         provider_uri=TEST_PROVIDER_URI,
+                                         eth_provider_uri=TEST_ETH_PROVIDER_URI,
                                          test_registry=test_registry,
                                          checksum_address=testerchain.bob_account)
     yield config
@@ -467,7 +467,7 @@ def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
                     abort_on_learning_error=True,
                     start_learning_now=True,
                     known_nodes=blockchain_ursulas,
-                    provider_uri=TEST_PROVIDER_URI,
+                    eth_provider_uri=TEST_ETH_PROVIDER_URI,
                     registry=test_registry,
                     network_middleware=MockRestMiddleware())
     yield porter
@@ -802,7 +802,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
 @pytest.fixture(scope="module")
 def stakeholder_configuration(testerchain, agency_local_registry):
-    config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri,
+    config = StakeHolderConfiguration(eth_provider_uri=testerchain.eth_provider_uri,
                                       registry_filepath=agency_local_registry.filepath)
     return config
 

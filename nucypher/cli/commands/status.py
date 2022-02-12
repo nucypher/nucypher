@@ -35,7 +35,7 @@ from nucypher.cli.options import (
     option_light,
     option_network,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_staking_address,
 )
@@ -48,7 +48,7 @@ from nucypher.cli.utils import (
     retrieve_events,
     parse_event_filters_into_argument_filters
 )
-from nucypher.config.constants import NUCYPHER_ENVVAR_PROVIDER_URI
+from nucypher.config.constants import NUCYPHER_ENVVAR_ETH_PROVIDER_URI
 from nucypher.utilities.events import generate_events_csv_filepath
 
 
@@ -56,8 +56,8 @@ class RegistryOptions:
 
     __option_name__ = 'registry_options'
 
-    def __init__(self, provider_uri, poa, registry_filepath, light, network):
-        self.provider_uri = provider_uri
+    def __init__(self, eth_provider_uri, poa, registry_filepath, light, network):
+        self.eth_provider_uri = eth_provider_uri
         self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
@@ -66,7 +66,7 @@ class RegistryOptions:
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
         registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
-        blockchain = connect_to_blockchain(emitter=emitter, provider_uri=self.provider_uri)
+        blockchain = connect_to_blockchain(emitter=emitter, eth_provider_uri=self.eth_provider_uri)
         return emitter, registry, blockchain
 
 
@@ -76,7 +76,7 @@ group_registry_options = group_options(
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network(default=NetworksInventory.DEFAULT, validate=True),  # TODO: See 2214
-    provider_uri=option_provider_uri(default=os.environ.get(NUCYPHER_ENVVAR_PROVIDER_URI)),
+    eth_provider_uri=option_eth_provider_uri(default=os.environ.get(NUCYPHER_ENVVAR_ETH_PROVIDER_URI)),
 )
 
 option_csv = click.option('--csv',

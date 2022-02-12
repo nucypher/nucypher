@@ -23,7 +23,7 @@ import pytest
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import TEST_PROVIDER_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.blockchain import TesterBlockchain
 
 try:
@@ -79,7 +79,7 @@ def test_ursula_info_metrics_collector(test_registry,
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_blockchain_metrics_collector(testerchain):
-    collector = BlockchainMetricsCollector(provider_uri=TEST_PROVIDER_URI)
+    collector = BlockchainMetricsCollector(eth_provider_uri=TEST_ETH_PROVIDER_URI)
 
     collector_registry = CollectorRegistry()
     prefix = 'test_blockchain_metrics_collector'

@@ -84,16 +84,16 @@ the Pipe for nucypher network operations
                  controller: bool = True,
                  federated_only: bool = False,
                  node_class: object = Ursula,
-                 provider_uri: str = None,
+                 eth_provider_uri: str = None,
                  *args, **kwargs):
         self.federated_only = federated_only
 
         if not self.federated_only:
-            if not provider_uri:
-                raise ValueError('Provider URI is required for decentralized Porter.')
+            if not eth_provider_uri:
+                raise ValueError('ETH Provider URI is required for decentralized Porter.')
 
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri)
+            if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri)
 
             self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)
             self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)

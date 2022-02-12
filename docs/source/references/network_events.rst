@@ -29,7 +29,7 @@ For example, to view the staking rewards received by all Stakers in the current 
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name StakingEscrow --event-name Minted
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name StakingEscrow --event-name Minted
 
     Reading Latest Chaindata...
     Retrieving events from block 11916688 to latest
@@ -50,7 +50,7 @@ To view the staking rewards received by all Stakers from block number ``11916685
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name StakingEscrow --event-name Minted --from-block 11916685 --to-block 11916688
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name StakingEscrow --event-name Minted --from-block 11916685 --to-block 11916688
 
     Reading Latest Chaindata...
     Retrieving events from block 11916685 to 11916688
@@ -69,7 +69,7 @@ To view every PolicyManager smart contract event thus far, run:
 
 .. code::
 
-    $  nucypher status events --provider <PROVIDER URI> --contract-name PolicyManager --from-block 0
+    $  nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name PolicyManager --from-block 0
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -98,7 +98,7 @@ For example, to view all of the commitments ever made by the Worker associated w
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name StakingEscrow --event-name CommitmentMade --event-filter staker=<STAKING_ADDRESS> --from-block 0
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name StakingEscrow --event-name CommitmentMade --event-filter staker=<STAKING_ADDRESS> --from-block 0
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -116,7 +116,7 @@ To view the commitment made by the Worker associated with a specific Staker in p
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name StakingEscrow --event-name CommitmentMade --event-filter staker=<STAKING_ADDRESS> --event-filter period=18552 --from-block 0
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name StakingEscrow --event-name CommitmentMade --event-filter staker=<STAKING_ADDRESS> --event-filter period=18552 --from-block 0
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -141,7 +141,7 @@ For example,
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name PolicyManager --event-name PolicyCreated --from-block 0 --csv
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name PolicyManager --event-name PolicyCreated --from-block 0 --csv
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -153,7 +153,7 @@ For example,
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name PolicyManager --event-name PolicyCreated --from-block 0 --csv-file ~/Policy_Events.csv
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name PolicyManager --event-name PolicyCreated --from-block 0 --csv-file ~/Policy_Events.csv
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -167,7 +167,7 @@ To write every PolicyManager smart contract event thus far to corresponding CSV 
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name PolicyManager --from-block 0 --csv
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name PolicyManager --from-block 0 --csv
 
     Reading Latest Chaindata...
     Retrieving events from block 0 to latest
@@ -191,7 +191,7 @@ To write StakingEscrow events for a specific Staker for the current period to co
 
 .. code::
 
-    $ nucypher status events --provider <PROVIDER URI> --contract-name StakingEscrow --event-filter staker=<STAKING_ADDRESS> --csv
+    $ nucypher status events --eth-provider <ETH PROVIDER URI> --contract-name StakingEscrow --event-filter staker=<STAKING_ADDRESS> --csv
 
     Reading Latest Chaindata...
     Retrieving events from block 11929449 to latest

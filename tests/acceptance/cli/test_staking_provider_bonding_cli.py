@@ -20,7 +20,7 @@ from eth_typing import ChecksumAddress
 
 from nucypher.cli.commands.bond import bond, unbond
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
@@ -53,9 +53,9 @@ def authorized_staking_provider(testerchain, threshold_staking, staking_provider
 def exec_bond(click_runner, operator_address: ChecksumAddress, staking_provider_address: ChecksumAddress):
     command = ('--operator-address', operator_address,
                '--staking-provider', staking_provider_address,
-               '--provider', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--force')
     result = click_runner.invoke(bond,
                                  command,
@@ -66,9 +66,9 @@ def exec_bond(click_runner, operator_address: ChecksumAddress, staking_provider_
 
 def exec_unbond(click_runner, staking_provider_address: ChecksumAddress):
     command = ('--staking-provider', staking_provider_address,
-               '--provider', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--force')
     result = click_runner.invoke(unbond,
                                  command,

@@ -45,16 +45,16 @@ Alice and Bob can also be configured to use the lynx testnet using the command l
 .. code::
 
     # While creating a new alice
-    $ nucypher alice init --network lynx --provider <GOERLI PROVIDER URI>
+    $ nucypher alice init --network lynx --eth-provider <GOERLI PROVIDER URI>
 
     # Update an existing alice
-    $ nucypher alice config --network lynx --provider <GOERLI PROVIDER URI>
+    $ nucypher alice config --network lynx --eth-provider <GOERLI PROVIDER URI>
 
     # While creating a new bob
-    $ nucypher bob init --network lynx --provider <GOERLI PROVIDER URI>
+    $ nucypher bob init --network lynx --eth-provider <GOERLI PROVIDER URI>
 
     # Update an existing bob
-    $ nucypher bob config --network lynx --provider <GOERLI PROVIDER URI>
+    $ nucypher bob config --network lynx --eth-provider <GOERLI PROVIDER URI>
 
 
 

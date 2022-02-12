@@ -81,7 +81,7 @@ from nucypher.cli.painting.staking import REWARDS_TABLE_COLUMNS, TOKEN_DECIMAL_P
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import StakerInfo, SubStakeInfo
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI, YES
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI, YES
 
 
 @pytest.fixture()
@@ -174,7 +174,7 @@ def surrogate_stakes(mock_staking_agent, application_economics, surrogate_staker
 @pytest.mark.usefixtures("test_registry_source_manager", "patch_stakeholder_configuration")
 def test_stakeholder_configuration(test_emitter, test_registry, mock_testerchain, mock_staking_agent):
 
-    stakeholder_config_options = StakeHolderConfigOptions(provider_uri=MOCK_PROVIDER_URI,
+    stakeholder_config_options = StakeHolderConfigOptions(eth_provider_uri=MOCK_ETH_PROVIDER_URI,
                                                           poa=None,
                                                           light=None,
                                                           registry_filepath=None,
@@ -226,7 +226,7 @@ def test_no_token_reward(click_runner, surrogate_stakers, mock_staking_agent):
                        'withdraw',
                        '--no-fees',
                        '--tokens',
-                       '--provider', MOCK_PROVIDER_URI,
+                       '--eth-provider', MOCK_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
@@ -255,7 +255,7 @@ def test_collecting_token_reward(click_runner, surrogate_stakers, mock_staking_a
                        'withdraw',
                        '--no-fees',
                        '--tokens',
-                       '--provider', MOCK_PROVIDER_URI,
+                       '--eth-provider', MOCK_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
@@ -288,7 +288,7 @@ def test_collecting_whole_reward_with_warning(click_runner, surrogate_stakers, m
                        'withdraw',
                        '--no-fees',
                        '--tokens',
-                       '--provider', MOCK_PROVIDER_URI,
+                       '--eth-provider', MOCK_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
@@ -324,7 +324,7 @@ def test_collecting_whole_reward_without_warning(click_runner, surrogate_stakers
                        'withdraw',
                        '--no-fees',
                        '--tokens',
-                       '--provider', MOCK_PROVIDER_URI,
+                       '--eth-provider', MOCK_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
@@ -353,7 +353,7 @@ def test_no_policy_fee(click_runner, surrogate_stakers, mock_policy_manager_agen
                        'withdraw',
                        '--fees',
                        '--no-tokens',
-                       '--provider', MOCK_PROVIDER_URI,
+                       '--eth-provider', MOCK_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
@@ -377,7 +377,7 @@ def test_collecting_fee(click_runner, surrogate_stakers, mock_policy_manager_age
                        'withdraw',
                        '--fees',
                        '--no-tokens',
-                       '--provider', MOCK_PROVIDER_URI,
+                       '--eth-provider', MOCK_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN,
                        '--staking-address', surrogate_stakers[0])
 
@@ -399,7 +399,7 @@ def test_nothing_to_mint(click_runner, surrogate_stakers, mock_staking_agent, mo
     mock_staking_agent.get_next_committed_period.return_value = 0
 
     mint_command = ('mint',
-                    '--provider', MOCK_PROVIDER_URI,
+                    '--eth-provider', MOCK_ETH_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
                     '--staking-address', surrogate_stakers[0])
 
@@ -426,7 +426,7 @@ def test_mint_with_warning(click_runner, surrogate_stakers, mock_staking_agent, 
     mock_staking_agent.non_withdrawable_stake.return_value = NU(1, 'NU').to_units()
 
     mint_command = ('mint',
-                    '--provider', MOCK_PROVIDER_URI,
+                    '--eth-provider', MOCK_ETH_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
                     '--staking-address', surrogate_stakers[0])
 
@@ -454,7 +454,7 @@ def test_mint_without_warning(click_runner, surrogate_stakers, mock_staking_agen
     mock_staking_agent.non_withdrawable_stake.return_value = 0
 
     mint_command = ('mint',
-                    '--provider', MOCK_PROVIDER_URI,
+                    '--eth-provider', MOCK_ETH_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
                     '--staking-address', surrogate_stakers[0])
 
@@ -490,7 +490,7 @@ def test_prolong_interactive(click_runner,
     final_period = surrogate_stakes[selected_index][sub_stake_index][1]
 
     command = ('prolong',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(selected_index),
@@ -534,7 +534,7 @@ def test_prolong_non_interactive(click_runner,
     final_period = surrogate_stakes[selected_index][sub_stake_index][1]
 
     command = ('prolong',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[0],
                '--index', sub_stake_index,
@@ -581,7 +581,7 @@ def test_divide_interactive(click_runner,
     mock_staking_agent.get_worker_from_staker.return_value = NULL_ADDRESS
 
     command = ('divide',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(selected_index),
@@ -630,7 +630,7 @@ def test_divide_non_interactive(click_runner,
     mock_staking_agent.get_worker_from_staker.return_value = surrogate_stakers[0]
 
     command = ('divide',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[0],
                '--index', sub_stake_index,
@@ -679,7 +679,7 @@ def test_increase_interactive(click_runner,
     mock_token_agent.get_balance.return_value = 0
 
     command = ('increase',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(selected_index),
@@ -759,7 +759,7 @@ def test_increase_non_interactive(click_runner,
     mock_token_agent.get_allowance.return_value = current_allowance
 
     command = ('increase',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[0],
                '--index', sub_stake_index,
@@ -813,7 +813,7 @@ def test_increase_lock_interactive(click_runner,
     mock_staking_agent.calculate_staking_reward.return_value = 0
 
     command = ('increase',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--from-unlocked')
 
@@ -886,7 +886,7 @@ def test_increase_lock_non_interactive(click_runner,
     mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
 
     command = ('increase',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[selected_index],
                '--index', sub_stake_index,
@@ -934,7 +934,7 @@ def test_create_interactive(click_runner,
     value = NU.from_units(application_economics.min_authorization * 11 + 12345)
 
     command = ('create',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(selected_index),
@@ -1046,7 +1046,7 @@ def test_create_non_interactive(click_runner,
     mock_token_agent.get_balance.return_value = application_economics.maximum_allowed_locked
 
     command = ('create',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[selected_index],
                '--lock-periods', lock_periods,
@@ -1105,7 +1105,7 @@ def test_create_lock_interactive(click_runner,
     mock_staking_agent.calculate_staking_reward.return_value = application_economics.min_authorization - 1
 
     command = ('create',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--from-unlocked')
 
@@ -1187,7 +1187,7 @@ def test_create_lock_non_interactive(click_runner,
     mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
 
     command = ('create',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[selected_index],
                '--lock-periods', lock_periods,
@@ -1242,7 +1242,7 @@ def test_merge_interactive(click_runner,
     sub_stake_index_2 = 2
 
     command = ('merge',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN)
 
     user_input = '\n'.join((str(selected_index),
@@ -1287,7 +1287,7 @@ def test_merge_partially_interactive(click_runner,
     sub_stake_index_2 = 2
 
     base_command = ('merge',
-                    '--provider', MOCK_PROVIDER_URI,
+                    '--eth-provider', MOCK_ETH_PROVIDER_URI,
                     '--network', TEMPORARY_DOMAIN,
                     '--staking-address', surrogate_stakers[selected_index])
     user_input = '\n'.join((str(sub_stake_index_2),
@@ -1344,7 +1344,7 @@ def test_merge_non_interactive(click_runner,
     mock_staking_agent.calculate_staking_reward.return_value = unlocked_tokens
 
     command = ('merge',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[selected_index],
                '--index-1', sub_stake_index_1,
@@ -1379,7 +1379,7 @@ def test_stake_list_active(click_runner,
                            get_random_checksum_address):
 
     command = ('list',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 
     user_input = None
@@ -1446,7 +1446,7 @@ def test_stake_list_all(click_runner,
 
     command = ('list',
                '--all',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,)
 
     user_input = None
@@ -1509,7 +1509,7 @@ def test_show_rewards(click_runner, surrogate_stakers, mock_staking_agent):
 
     command = ('rewards',
                'show',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[0])
 
@@ -1557,7 +1557,7 @@ def test_show_rewards_for_period(click_runner, surrogate_stakers, mock_staking_a
 
     command = ('rewards',
                'show',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[0],
                '--periods', periods)
@@ -1590,7 +1590,7 @@ def test_show_rewards_not_found(click_runner, surrogate_stakers, mock_staking_ag
 
     command = ('rewards',
                'show',
-               '--provider', MOCK_PROVIDER_URI,
+               '--eth-provider', MOCK_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--staking-address', surrogate_stakers[0],
                '--periods', 10)

@@ -17,7 +17,7 @@ General
 
 * `NUCYPHER_KEYSTORE_PASSWORD`
     Password for the `nucypher` Keystore.
-* `NUCYPHER_PROVIDER_URI`
+* `NUCYPHER_ETH_PROVIDER_URI`
     Default Web3 node provider URI.
 * `NUCYPHER_STAKING_PROVIDERS_PAGINATION_SIZE`
     Default pagination size for the maximum number of active staking providers to retrieve from PREApplication in

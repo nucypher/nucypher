@@ -36,7 +36,7 @@ from nucypher.config.characters import (
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_PROVIDER_URI
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.constants import MOCK_IP_ADDRESS
 
 # Main Cast
@@ -64,7 +64,7 @@ def test_federated_development_character_configurations(character, configuration
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keystore == NO_KEYSTORE_ATTACHED
-    assert config.provider_uri is None
+    assert config.eth_provider_uri is None
 
     # Production
     thing_one = config()
@@ -120,7 +120,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
 
     if configuration_class == StakeHolderConfiguration:
         # special case for defaults
-        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri, domain=network)
+        character_config = StakeHolderConfiguration(eth_provider_uri=testerchain.eth_provider_uri, domain=network)
 
     elif configuration_class == UrsulaConfiguration:
         # special case for rest_host & dev mode
@@ -130,7 +130,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,
-                                               payment_provider=MOCK_PROVIDER_URI,
+                                               payment_provider=MOCK_ETH_PROVIDER_URI,
                                                keystore=keystore)
 
     else:

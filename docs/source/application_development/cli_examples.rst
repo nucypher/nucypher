@@ -23,12 +23,12 @@ Initialize Testnet Alice and Bob
 .. code::
 
     # Create a new Alice
-    (nucypher)$ nucypher alice init --provider <PROVIDER URI> --signer <SIGNER URI> --network lynx
+    (nucypher)$ nucypher alice init --eth-provider <ETH PROVIDER URI> --signer <SIGNER URI> --network lynx
 
     # Create a new Bob
-    (nucypher)$ nucypher bob init --provider <PROVIDER URI> --signer <SIGNER URI> --network lynx
+    (nucypher)$ nucypher bob init --eth-provider <ETH PROVIDER URI> --signer <SIGNER URI> --network lynx
 
-Replace ``<YOUR PROVIDER URI>`` with a valid node web3 node provider string on the goerli ethereum network, for example:
+Replace ``<YOUR ETH PROVIDER URI>`` with a valid node web3 node provider string on the goerli ethereum network, for example:
 
     - ``ipc:///home/<username>/.ethereum/geth.ipc`` - IPC Socket-based JSON-RPC server (Geth)
     - ``https://<host>`` - HTTP(S)-based JSON-RPC server

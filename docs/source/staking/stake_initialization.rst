@@ -119,7 +119,7 @@ using :ref:`clef-rules`.
     $ nucypher stake config --signer clef:///home/<username>/.clef/clef.ipc  # Set clef as the default signer
 
     # Create a new stake using inline signer and provider values
-    $ nucypher stake create --signer clef:///home/<username>/.clef/clef.ipc --provider ~/.ethereum/geth.ipc
+    $ nucypher stake create --signer clef:///home/<username>/.clef/clef.ipc --eth-provider ~/.ethereum/geth.ipc
 
 
 3. Configure nucypher for staking
@@ -131,7 +131,7 @@ configuration values.  No new keys or secrets are created in this step, it is ju
 
 .. code:: bash
 
-    (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --provider <PROVIDER>
+    (nucypher)$ nucypher stake init-stakeholder --signer <SIGNER URI> --eth-provider <PROVIDER>
 
 .. note:: If you are using NuCypher's Ibex testnet, passing the network name is required ``--network ibex``.
 

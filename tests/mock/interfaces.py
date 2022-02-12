@@ -29,7 +29,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import MOCK_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.blockchain import TesterBlockchain
 
 
@@ -67,7 +67,7 @@ def mock_registry_source_manager(test_registry):
 
 class MockBlockchain(TesterBlockchain):
 
-    PROVIDER_URI = MOCK_PROVIDER_URI
+    ETH_PROVIDER_URI = MOCK_ETH_PROVIDER_URI
 
     def __init__(self):
         super().__init__(compile_now=False)

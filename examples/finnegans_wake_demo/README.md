@@ -26,7 +26,7 @@ Then run the demo:
 
 First, configure the demo.  Be sure tat alice's address has some Goerli ETH.
 ```bash
-export DEMO_PROVIDER_URI=<GOERLI RPC ENDPOINT>
+export DEMO_ETH_PROVIDER_URI=<GOERLI RPC ENDPOINT>
 export DEMO_ALICE_ETH_ADDRESS=<ETH ADDRESS>
 export DEMO_SIGNER_URI=keystore://<PATH TO KEYSTORE>
 ```

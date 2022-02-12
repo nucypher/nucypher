@@ -66,11 +66,11 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
                  # Layer 1
                  '--network', TEMPORARY_DOMAIN,
-                 '--provider', mock_testerchain.provider_uri,
+                 '--eth-provider', mock_testerchain.eth_provider_uri,
 
                  # Layer 2
                  '--payment-network', TEMPORARY_DOMAIN,
-                 '--payment-provider', mock_testerchain.provider_uri,
+                 '--payment-provider', mock_testerchain.eth_provider_uri,
 
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port,

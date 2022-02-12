@@ -36,7 +36,7 @@ from nucypher.config.characters import AliceConfiguration, BobConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_PROVIDER_URI
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_ETH_PROVIDER_URI
 
 PLAINTEXT = "I'm bereaved, not a sap!"
 
@@ -137,7 +137,7 @@ def run_entire_cli_lifecycle(click_runner,
     if federated:
         alice_init_args += ('--federated-only',)
     else:
-        alice_init_args += ('--provider', TEST_PROVIDER_URI,
+        alice_init_args += ('--eth-provider', TEST_ETH_PROVIDER_URI,
                             '--pay-with', testerchain.alice_account,
                             '--payment-network', TEMPORARY_DOMAIN,
                             '--registry-filepath', str(registry_filepath.absolute()))
@@ -181,7 +181,7 @@ def run_entire_cli_lifecycle(click_runner,
     if federated:
         bob_init_args += ('--federated-only',)
     else:
-        bob_init_args += ('--provider', TEST_PROVIDER_URI,
+        bob_init_args += ('--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--registry-filepath', str(registry_filepath.absolute()),
                           '--checksum-address', testerchain.bob_account)
 
@@ -331,7 +331,7 @@ def run_entire_cli_lifecycle(click_runner,
         if federated:
             grant_args += ('--federated-only',)
         else:
-            grant_args += ('--provider', TEST_PROVIDER_URI,
+            grant_args += ('--eth-provider', TEST_ETH_PROVIDER_URI,
                            '--value', Web3.toWei(9, 'gwei'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)

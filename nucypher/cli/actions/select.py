@@ -80,7 +80,7 @@ def select_stake(staker: Staker,
 
 
 def select_client_account(emitter,
-                          provider_uri: str = None,
+                          eth_provider_uri: str = None,
                           signer: Signer = None,
                           signer_uri: str = None,
                           prompt: str = None,
@@ -101,17 +101,17 @@ def select_client_account(emitter,
     if signer and signer_uri:
         raise ValueError('Pass either signer or signer_uri but not both.')
 
-    if not any((provider_uri, signer_uri, signer)):
+    if not any((eth_provider_uri, signer_uri, signer)):
         raise ValueError("At least a provider URI, signer URI or signer must be provided to select an account")
 
-    if provider_uri:
+    if eth_provider_uri:
         # Connect to the blockchain in order to select an account
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri, poa=poa, emitter=emitter)
+        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri, poa=poa, emitter=emitter)
         if not signer_uri:
-            signer_uri = provider_uri
+            signer_uri = eth_provider_uri
 
-    blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+    blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
 
     if signer_uri and not signer:
         testnet = network != NetworksInventory.MAINNET

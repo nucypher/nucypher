@@ -89,7 +89,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     # Web3
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
-    PROVIDER_URI = PYEVM_DEV_URI
+    ETH_PROVIDER_URI = PYEVM_DEV_URI
     DEFAULT_GAS_STRATEGY = 'free'
 
     # Reserved addresses
@@ -120,7 +120,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
 
-        super().__init__(provider_uri=self.PROVIDER_URI,
+        super().__init__(eth_provider_uri=self.ETH_PROVIDER_URI,
                          poa=poa,
                          light=light,
                          *args, **kwargs)
@@ -224,7 +224,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         if registry is None:
             registry = InMemoryContractRegistry()
         testerchain = cls()
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
+        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=testerchain.eth_provider_uri):
             BlockchainInterfaceFactory.register_interface(interface=testerchain)
 
         # Produce actor
