@@ -104,14 +104,13 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
     if is_bonded(agent=agent, staking_provider=staking_provider, return_address=False):
         # operator is already set - check timing
         time_elapsed(emitter=emitter, agent=agent, staking_provider=staking_provider)
-
-    # TODO: while rebonding after enough time has elapsed, how can this next check ever succeed? The operator is correctly bound to my staking provider.
-    # Check for pre-existing staking providers for this operator
-    onchain_staking_provider = agent.get_staking_provider_from_operator(operator_address=operator_address)
-    if onchain_staking_provider != NULL_ADDRESS:
-        onchain_operator = agent.get_operator_from_staking_provider(staking_provider=staking_provider)
-        emitter.message(ALREADY_BONDED.format(provider=staking_provider, operator=onchain_operator), color='red')
-        raise click.Abort()  # dont steal bananas
+    else:
+        # Check for pre-existing staking providers for this operator
+        onchain_staking_provider = agent.get_staking_provider_from_operator(operator_address=operator_address)
+        if onchain_staking_provider != NULL_ADDRESS:
+            onchain_operator = agent.get_operator_from_staking_provider(staking_provider=staking_provider)
+            emitter.message(ALREADY_BONDED.format(provider=staking_provider, operator=onchain_operator), color='red')
+            raise click.Abort()  # dont steal bananas
 
     # Check that operator is not human
     if staking_provider != operator_address:

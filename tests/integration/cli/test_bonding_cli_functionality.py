@@ -4,7 +4,7 @@ from eth_typing import ChecksumAddress
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.cli.commands.bond import unbond, bond
-from nucypher.cli.literature import UNEXPECTED_HUMAN_OPERATOR, BONDING_TIME
+from nucypher.cli.literature import UNEXPECTED_HUMAN_OPERATOR, BONDING_TIME, ALREADY_BONDED
 from nucypher.config.constants import (
     TEMPORARY_DOMAIN,
     NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD
@@ -160,3 +160,39 @@ def test_nucypher_rebond_too_soon(click_runner, mock_testerchain, operator_addre
     assert result.exit_code == 1
     error_message = BONDING_TIME.format(date=maya.MayaDT(termination))
     assert error_message in result.output
+
+
+@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
+def test_nucypher_bond_already_claimed_operator(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+    mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
+        operator=NULL_ADDRESS,
+        operator_confirmed=False,
+        operator_start_timestamp=1
+    )
+    mock_application_agent.get_beneficiary.return_value = NULL_ADDRESS
+    mock_application_agent.get_operator_from_staking_provider.return_value = NULL_ADDRESS
+    mock_application_agent.get_staking_provider_from_operator.return_value = mock_testerchain.unassigned_accounts[4]
+
+    result = exec_bond(
+        click_runner=click_runner,
+        operator_address=operator_address,
+        staking_provider_address=staking_provider_address
+    )
+    assert result.exit_code == 1
+
+
+@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
+def test_nucypher_rebond_operator(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+    mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
+        operator=NULL_ADDRESS,
+        operator_confirmed=False,
+        operator_start_timestamp=1
+    )
+    mock_application_agent.get_beneficiary.return_value = NULL_ADDRESS
+
+    result = exec_bond(
+        click_runner=click_runner,
+        operator_address=operator_address,
+        staking_provider_address=staking_provider_address
+    )
+    assert result.exit_code == 0
