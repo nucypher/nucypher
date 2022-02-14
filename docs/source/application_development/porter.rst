@@ -10,8 +10,8 @@ nucypher-based protocol operations on behalf of applications.
 
 Its goal is to simplify and abstract the complexities surrounding the nucypher protocol to negate the need for
 applications to interact with it via a python client. Porter introduces the nucypher protocol to cross-platform
-functionality including web and mobile applications. By leveraging ``rust-umbral`` and its associated javascript
-bindings for cryptography, and Porter for communication with the network, a lightweight, richer and full-featured
+functionality including web and mobile applications. By leveraging `rust-umbral <https://github.com/nucypher/rust-umbral>`_ and
+its associated javascript bindings (`nucypher-ts <https://github.com/nucypher/nucypher-ts>`_) for cryptography, and Porter for communication with the network, a lightweight, richer and full-featured
 web and mobile experience is accessible to application developers.
 
 .. image:: ../.static/img/porter_diagram.svg
