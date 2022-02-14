@@ -606,7 +606,7 @@ CONFIRM_BONDING = 'Are you sure you want to bond staking provider {provider} to 
 
 BONDING_TIME = 'Bonding not permitted until {date}'
 
-ALREADY_BONDED = '{provider} is already bonded to {operator}'
+ALREADY_BONDED = '{operator} is already bonded to {provider}'
 
 BONDING = 'Bonding operator {operator}'
 

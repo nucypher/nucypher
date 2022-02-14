@@ -26,10 +26,12 @@ from nucypher.cli.options import (
     option_provider_uri,
     option_network,
     option_staking_provider,
-    option_operator_address
+    option_operator_address,
+    option_force
 )
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.utils import connect_to_blockchain, get_registry
+from nucypher.config.constants import NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 
@@ -56,7 +58,7 @@ def time_elapsed(emitter, agent: PREApplicationAgent, staking_provider: Checksum
     min_seconds = agent.get_min_operator_seconds()
     termination = (commencement + min_seconds)
     if now <= termination:
-        emitter.error(BONDING_TIME.format(date=maya.MayaDT(termination).slang_date()))
+        emitter.error(BONDING_TIME.format(date=maya.MayaDT(termination)))
         raise click.Abort()
 
 
@@ -67,7 +69,8 @@ def time_elapsed(emitter, agent: PREApplicationAgent, staking_provider: Checksum
 @option_operator_address
 @option_staking_provider
 @option_network(required=True)
-def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_provider, network):
+@option_force
+def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_provider, network, force):
     """
     Bond an operator to a staking provider.
     The staking provider must be authorized to use the PREApplication.
@@ -96,15 +99,18 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
 
     # Check for authorization
     is_authorized(emitter=emitter, agent=agent, staking_provider=staking_provider)
+
+    # Check bonding
     if is_bonded(agent=agent, staking_provider=staking_provider, return_address=False):
         # operator is already set - check timing
         time_elapsed(emitter=emitter, agent=agent, staking_provider=staking_provider)
 
+    # TODO: while rebonding after enough time has elapsed, how can this next check ever succeed? The operator is correctly bound to my staking provider.
     # Check for pre-existing staking providers for this operator
     onchain_staking_provider = agent.get_staking_provider_from_operator(operator_address=operator_address)
     if onchain_staking_provider != NULL_ADDRESS:
         onchain_operator = agent.get_operator_from_staking_provider(staking_provider=staking_provider)
-        emitter.message(ALREADY_BONDED.format(staking_provider=staking_provider, operator=operator_address), color='red')
+        emitter.message(ALREADY_BONDED.format(provider=staking_provider, operator=onchain_operator), color='red')
         raise click.Abort()  # dont steal bananas
 
     # Check that operator is not human
@@ -119,8 +125,9 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
     # Bond
     #
 
-    click.confirm(CONFIRM_BONDING.format(provider=staking_provider, operator=operator_address), abort=True)
-    transacting_power.unlock(password=get_client_password(checksum_address=staking_provider))
+    if not force:
+        click.confirm(CONFIRM_BONDING.format(provider=staking_provider, operator=operator_address), abort=True)
+    transacting_power.unlock(password=get_client_password(checksum_address=staking_provider, envvar=NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD))
     emitter.echo(BONDING.format(operator=operator_address))
     receipt = agent.bond_operator(operator=operator_address, transacting_power=transacting_power, provider=staking_provider)
     paint_receipt_summary(receipt=receipt, emitter=emitter)
@@ -132,7 +139,8 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
 @option_signer_uri
 @option_staking_provider
 @option_network()
-def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, network):
+@option_force
+def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, network, force):
     """Unbonds an operator from an authorized staking provider."""
 
     #
@@ -166,8 +174,9 @@ def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, networ
     # Unbond
     #
 
-    click.confirm(CONFIRM_UNBONDING.format(provider=staking_provider, operator=onchain_operator_address), abort=True)
-    transacting_power.unlock(password=get_client_password(checksum_address=staking_provider))
+    if not force:
+        click.confirm(CONFIRM_UNBONDING.format(provider=staking_provider, operator=onchain_operator_address), abort=True)
+    transacting_power.unlock(password=get_client_password(checksum_address=staking_provider, envvar=NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD))
     emitter.echo(UNBONDING.format(operator=onchain_operator_address))
     receipt = agent.bond_operator(operator=NULL_ADDRESS, transacting_power=transacting_power, provider=staking_provider)
     paint_receipt_summary(receipt=receipt, emitter=emitter)

@@ -12,7 +12,7 @@ def operator_address(testerchain):
 
 
 @pytest.fixture(scope='module')
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency', 'staking_providers')
+@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
 def staking_provider_address(testerchain):
     return testerchain.unassigned_accounts.pop(1)
 

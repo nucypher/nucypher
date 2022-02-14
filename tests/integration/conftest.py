@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    StakingEscrowAgent
+    StakingEscrowAgent, PREApplicationAgent
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -69,6 +69,17 @@ def mock_staking_agent(mock_testerchain, application_economics, mock_contract_ag
 
     # Handle the special case of commit_to_next_period, which returns a txhash due to the fire_and_forget option
     mock_agent.commit_to_next_period = mocker.Mock(return_value=MockContractAgent.FAKE_TX_HASH)
+
+    yield mock_agent
+    mock_agent.reset()
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_application_agent(mock_testerchain, application_economics, mock_contract_agency, mocker):
+    mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
+
+    # Handle the special case of commit_to_next_period, which returns a txhash due to the fire_and_forget option
+    mock_agent.confirm_operator_address = mocker.Mock(return_value=MockContractAgent.FAKE_TX_HASH)
 
     yield mock_agent
     mock_agent.reset()
@@ -235,7 +246,7 @@ def bob_blockchain_test_config(mock_testerchain, test_registry):
 def ursula_decentralized_test_config(mock_testerchain, test_registry):
     config = make_ursula_test_configuration(federated=False,
                                             provider_uri=MOCK_PROVIDER_URI,      # L1
-                                            payment_provider=MOCK_PROVIDER_URI,  # L2
+                                            payment_provider=MOCK_PROVIDER_URI,  # L1/L2
                                             test_registry=test_registry,
                                             rest_port=MOCK_URSULA_STARTING_PORT,
                                             checksum_address=mock_testerchain.ursula_account(index=0))
