@@ -258,3 +258,40 @@ This is complementary to the gas strategy that you may have configured.
 
     The maximum gas price limit is an experimental feature and may be changed
     or removed in the future.
+
+
+Threshold Network Merger
+------------------------
+
+Questions related to the merger with the KEEP Network to form the Threshold Network.
+
+Q: What is the T token address?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+https://etherscan.io/address/0xcdf7028ceab81fa0c6971208e83fa7872994bee5
+
+Q: What is the NU → T VendingMachine address?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+https://etherscan.io/address/0x1cca7e410ee41739792ea0a24e00349dd247680e
+
+Q: What is the NU to T conversion ratio?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+1 NU = 3.259242493160746 T.
+
+Q: Will conversion rate be fixed regardless of NU and T price?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Yes. The ratio is static.
+
+Q: What happened to the existing NU contracts after the merge?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+They continue to exist on the Ethereum mainnet but most of the functionality is disabled.
+
+Q: When was NU inflation halted?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Thursday December 30th after the execution
+of NuCypher DAO proposal `#2 <https://client.aragon.org/#/nucypherdao/0x61950d573c741ca10ee6815de11bcbe7e60a0f10/vote/2/>`_
