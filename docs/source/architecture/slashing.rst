@@ -32,20 +32,4 @@ Incorrect re-encryptions are detectable by Bob, who can then send a proof to the
 Penalties
 ---------
 
-At network genesis, although violations will be detected, attributed and publicly logged, the actual penalty levied will be of nominal size.
-For each violation, :math:`2 \times 10 ^ {-18}` NU tokens will be deleted from the offender’s stake. The theoretical maximum number of tokens
-that can be slashed in a given period is limited by the number of blocks processed on Ethereum per day (~6000) and the number of
-transactions per block (~30 based on transaction gas and current gas limits). This yields a maximum slashable value of:
-
-    .. math::
-
-        &= 2 \times 10 ^ {-18} NU \times 6000 \text{ blocks per period} \times 30 \text{ transactions per block} \\
-        &= 3.6 \times 10 ^ {-13} NU \text{ per period}
-
-The genesis penalty is measurable – so staker behavior can be observed – but small enough that it has a negligible impact on the staker’s ability to continue serving the network. If the severity of penalties and logic of the slashing protocol changes, it may involve any combination of the following:
-
-* Larger penalties levied in absolute terms (number of tokens slashed per violation). This will provide a material disincentive to stakers.
-* Penalties calculated as a percentage of the offender’s stake (i.e. the larger the stake, the greater the number of tokens slashed per violation). This will make punishments and disincentives far more equitable across stakers of diverse sizes.
-* Ramped penalties, that increase with each successive violation, potentially resetting in a specified number of periods. This will encourage stakers to avoid repeat offences and rectify errors quickly.
-* Temporal limitations on penalties, for example capping the total number of tokens slashabe in each period. This addresses a potentially uneven distribution of punishment, despite a near-identical crime, due to the unpredictable frequency with which a given Bob makes requests to an Ursula. A slash limit per period also gives stakers a grace period in which they may rectify their incorrectly re-encrypting Ursula. Since penalties are levied per incorrect re-encryption, a Bob making requests at a high cadence or batching their requests could wipe out a stake before it's possible to manually fix an error – a limit on the maximum penalty size per period mitigates unfair scenarios of this sort.
-* Temporary unbonding of Ursula, which forces the staker to forfeit subsidies, work and fees for a specified period. In a simple construction, this punishment would only apply if the Ursula is not servicing any other policies or all relevant Alices consent to the removal of that Ursula from their sharing policies.
+TBD
