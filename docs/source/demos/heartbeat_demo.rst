@@ -16,7 +16,7 @@ The Heart Monitor uses this public key to produce a file with some amount of enc
 This file is uploaded to a storage layer (e.g., IPFS, S3, or whatever you choose).
 
 At some future point, she wants to share this information with other people, such as her Doctor.
-Once she obtains her Doctor's public keys, she can create a policy in the NuCypher network granting access to him.
+Once she obtains her Doctor's public keys, she can create a policy with PRE nodes to grant access to him.
 After this, her Doctor can read the file with encrypted data (which was uploaded by the Heart Monitor) and
 request a re-encrypted ciphertext for each measurement, which can be opened with the Doctor's private key.
 
@@ -29,7 +29,7 @@ This simple example showcases many interesting and distinctive aspects of NuCyph
 - As a consequence of the previous point, the Heart Monitor is completely
   unaware of the recipients. In its mind, it's producing data **for Alicia**.
 - Alicia never interacts with the Doctor: she only needs the Doctor's public keys.
-- Alicia only interacts with the NuCypher network for granting access to the Doctor.
+- Alicia only interacts with a network of PRE nodes for granting access to the Doctor.
   After this, she can even disappear from the face of the Earth.
 - The Doctor never interacts with Alicia or the Heart Monitor:
   he only needs the encrypted data and some policy metadata.
@@ -46,7 +46,7 @@ The actors in this example can be mapped naturally to :doc:`Characters </api/nuc
   This corresponds to the :class:`~nucypher.characters.lawful.Alice` character.
 - The Heart Monitor, or any other data sources that **encrypt data** on Alicia's behalf,
   is portrayed by the :class:`~nucypher.characters.lawful.Enrico` character.
-- Nodes in the NuCypher network are called :class:`~nucypher.characters.lawful.Ursula` in our terminology.
+- PRE Nodes are called :class:`~nucypher.characters.lawful.Ursula` in our terminology.
   They receive the access policy from Alice and stand ready to
   re-encrypt data in exchange for payment in fees and token rewards.
   In a way, they **enforce the access policy** created by Alicia.
@@ -102,7 +102,7 @@ What's left is running the ``doctor.py`` script:
 
 
 This script will read the data generated in the previous step and retrieve
-re-encrypted ciphertexts by means of the NuCypher network.
+re-encrypted ciphertexts by means of the network of PRE nodes.
 The result is printed in the console:
 
 .. code::
