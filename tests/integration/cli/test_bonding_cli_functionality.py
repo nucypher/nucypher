@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import maya
 import pytest
 from eth_typing import ChecksumAddress
@@ -184,11 +201,12 @@ def test_nucypher_bond_already_claimed_operator(click_runner, mock_testerchain, 
 @pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
 def test_nucypher_rebond_operator(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
-        operator=NULL_ADDRESS,
+        operator=mock_testerchain.unassigned_accounts[-1],
         operator_confirmed=False,
         operator_start_timestamp=1
     )
     mock_application_agent.get_beneficiary.return_value = NULL_ADDRESS
+    mock_application_agent.get_staking_provider_from_operator.return_value = NULL_ADDRESS
 
     result = exec_bond(
         click_runner=click_runner,

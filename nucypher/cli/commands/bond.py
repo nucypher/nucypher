@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 from typing import Tuple, Union
 
 import click
@@ -57,7 +74,7 @@ def time_elapsed(emitter, agent: PREApplicationAgent, staking_provider: Checksum
     commencement = agent.get_staking_provider_info(staking_provider=staking_provider).operator_start_timestamp
     min_seconds = agent.get_min_operator_seconds()
     termination = (commencement + min_seconds)
-    if now <= termination:
+    if now < termination:
         emitter.error(BONDING_TIME.format(date=maya.MayaDT(termination)))
         raise click.Abort()
 
@@ -104,13 +121,12 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
     if is_bonded(agent=agent, staking_provider=staking_provider, return_address=False):
         # operator is already set - check timing
         time_elapsed(emitter=emitter, agent=agent, staking_provider=staking_provider)
-    else:
-        # Check for pre-existing staking providers for this operator
-        onchain_staking_provider = agent.get_staking_provider_from_operator(operator_address=operator_address)
-        if onchain_staking_provider != NULL_ADDRESS:
-            onchain_operator = agent.get_operator_from_staking_provider(staking_provider=staking_provider)
-            emitter.message(ALREADY_BONDED.format(provider=staking_provider, operator=onchain_operator), color='red')
-            raise click.Abort()  # dont steal bananas
+
+    # Check for pre-existing staking providers for this operator
+    onchain_staking_provider = agent.get_staking_provider_from_operator(operator_address=operator_address)
+    if onchain_staking_provider != NULL_ADDRESS:
+        emitter.message(ALREADY_BONDED.format(provider=onchain_staking_provider, operator=operator_address), color='red')
+        raise click.Abort()  # dont steal bananas
 
     # Check that operator is not human
     if staking_provider != operator_address:

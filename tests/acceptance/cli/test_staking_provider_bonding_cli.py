@@ -1,9 +1,26 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import pytest
 from eth_typing import ChecksumAddress
 
 from nucypher.cli.commands.bond import bond, unbond
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import TEST_PROVIDER_URI
+from tests.constants import TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.fixture(scope='module')
@@ -24,11 +41,11 @@ def test_nucypher_bond_help(click_runner, testerchain):
 
 
 @pytest.fixture(scope='module')
-def authorized_staking_provider(testerchain, threshold_staking, staking_provider_address):
+def authorized_staking_provider(testerchain, threshold_staking, staking_provider_address, application_economics):
     # initialize threshold stake
     tx = threshold_staking.functions.setRoles(staking_provider_address).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(staking_provider_address, 40_000, 0, 0).transact()
+    tx = threshold_staking.functions.setStakes(staking_provider_address, application_economics.min_authorization, 0, 0).transact()
     testerchain.wait_for_receipt(tx)
     return staking_provider_address
 
@@ -38,8 +55,12 @@ def exec_bond(click_runner, operator_address: ChecksumAddress, staking_provider_
                '--staking-provider', staking_provider_address,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI)
-    result = click_runner.invoke(bond, command, catch_exceptions=False)
+               '--signer', TEST_PROVIDER_URI,
+               '--force')
+    result = click_runner.invoke(bond,
+                                 command,
+                                 catch_exceptions=False,
+                                 env=dict(NUCYPHER_STAKING_PROVIDER_ETH_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
     return result
 
 
@@ -47,8 +68,12 @@ def exec_unbond(click_runner, staking_provider_address: ChecksumAddress):
     command = ('--staking-provider', staking_provider_address,
                '--provider', TEST_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
-               '--signer', TEST_PROVIDER_URI)
-    result = click_runner.invoke(unbond, command, catch_exceptions=False)
+               '--signer', TEST_PROVIDER_URI,
+               '--force')
+    result = click_runner.invoke(unbond,
+                                 command,
+                                 catch_exceptions=False,
+                                 env=dict(NUCYPHER_STAKING_PROVIDER_ETH_PASSWORD=INSECURE_DEVELOPMENT_PASSWORD))
     return result
 
 
@@ -75,12 +100,6 @@ def test_nucypher_bond(click_runner, testerchain, operator_address, authorized_s
 
 
 @pytest.mark.usefixtures('test_registry_source_manager', 'agency')
-def test_nucypher_unbond_operator(click_runner, testerchain, staking_providers, staking_provider_address):
-    result = exec_unbond(click_runner=click_runner, staking_provider_address=staking_provider_address)
-    assert result.exit_code == 0
-
-
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency', 'staking_providers')
 def test_nucypher_rebond_too_soon(click_runner, testerchain, operator_address, staking_provider_address):
     result = exec_bond(
         click_runner=click_runner,
@@ -88,15 +107,30 @@ def test_nucypher_rebond_too_soon(click_runner, testerchain, operator_address, s
         staking_provider_address=staking_provider_address
     )
     assert result.exit_code == 1
-    error_message = 'Bonding not permitted until tomorrow'
+    error_message = 'Bonding not permitted until '
     assert error_message in result.output
 
 
 @pytest.mark.usefixtures('test_registry_source_manager', 'agency')
-def test_nucypher_rebond_operator(click_runner, testerchain, operator_address, staking_provider_address):
+def test_nucypher_rebond_operator(click_runner,
+                                  testerchain,
+                                  operator_address,
+                                  staking_provider_address,
+                                  application_economics):
+    testerchain.time_travel(seconds=application_economics.min_operator_seconds)
     result = exec_bond(
         click_runner=click_runner,
-        operator_address=operator_address,
+        operator_address=testerchain.unassigned_accounts[-1],
         staking_provider_address=staking_provider_address
     )
+    assert result.exit_code == 0
+
+
+@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
+def test_nucypher_unbond_operator(click_runner,
+                                  testerchain,
+                                  staking_provider_address,
+                                  application_economics):
+    testerchain.time_travel(seconds=application_economics.min_operator_seconds)
+    result = exec_unbond(click_runner=click_runner, staking_provider_address=staking_provider_address)
     assert result.exit_code == 0
