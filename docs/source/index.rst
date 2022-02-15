@@ -125,10 +125,10 @@ Whitepapers
    :caption: Application Development
 
    application_development/getting_started
+   application_development/local_fleet_demo
+   application_development/web_development
    application_development/http_character_control
    application_development/cli_examples
-   application_development/local_fleet_demo
-   application_development/porter
    application_development/testnet
 
 .. toctree::

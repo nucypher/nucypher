@@ -1,7 +1,36 @@
-.. _porter:
+.. _web-development:
 
-Porter Service
-==============
+===============
+Web Development
+===============
+
+Web development / browser support for the PRE Application can be split into 3 projects:
+
+#. :ref:`rust-umbral-library` - Rust implementation of Umbral, the underlying threshold PRE cryptography library.
+#. `Porter`_ - the "Infura for NuCypher" - a web-based service for interacting with the network PRE Application protocol.
+#. :ref:`nucypher-ts-library` - middleware javascript layer that ties the underlying cryptography ``rust-umbral`` layer to the use of Porter.
+
+By leveraging rust-umbral and its associated javascript bindings for cryptography, and Porter for
+communication with the network of PRE nodes, a lightweight, richer and full-featured web and mobile
+experience is accessible to web application developers.
+
+
+.. _rust-umbral-library:
+
+Rust-Umbral
+===========
+
+`Rust-Umbral <https://github.com/nucypher/rust-umbral>`_ is the cryptography
+layer for client-side applications. The underlying Umbral threshold PRE scheme has been re-written in Rust,
+and provides bindings to other languages:
+
+    * Rust (primary)
+    * JavaScript (WASM-based)
+    * Python
+
+
+Porter
+======
 
 Overview
 --------
@@ -10,9 +39,7 @@ nucypher-based protocol operations on behalf of applications.
 
 Its goal is to simplify and abstract the complexities surrounding the nucypher protocol to negate the need for
 applications to interact with it via a python client. Porter introduces the nucypher protocol to cross-platform
-functionality including web and mobile applications. By leveraging `rust-umbral <https://github.com/nucypher/rust-umbral>`_ and
-its associated javascript bindings (`nucypher-ts <https://github.com/nucypher/nucypher-ts>`_) for cryptography, and Porter for communication with the network, a lightweight, richer and full-featured
-web and mobile experience is accessible to application developers.
+functionality including web and mobile applications.
 
 .. image:: ../.static/img/porter_diagram.svg
     :target: ../.static/img/porter_diagram.svg
@@ -721,3 +748,12 @@ Example Response
        },
        "version": "6.0.0"
     }
+
+
+.. _nucypher-ts-library:
+
+nucypher-ts
+===========
+
+`nucypher-ts <https://github.com/nucypher/nucypher-ts>`_ is a typescript middleware layer implementation of the ``nucypher`` python library. It abstracts
+the cryptography layer and PRE network protocol to provide PRE functionality in web applications.
