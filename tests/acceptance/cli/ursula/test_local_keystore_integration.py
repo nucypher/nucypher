@@ -72,7 +72,7 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    pre_application_agent.bond_operator(provider=provider_address,
+    pre_application_agent.bond_operator(staking_provider=provider_address,
                                         operator=account.address,
                                         transacting_power=provider_power)
 

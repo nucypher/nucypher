@@ -52,7 +52,7 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
         power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
 
         # We assume that the staking provider knows in advance the account of her operator
-        application_agent.bond_operator(provider=provider_address,
+        application_agent.bond_operator(staking_provider=provider_address,
                                         operator=operator_address,
                                         transacting_power=power)
 

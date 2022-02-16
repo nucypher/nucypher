@@ -107,7 +107,7 @@ def test_nucypher_rebond_too_soon(click_runner, testerchain, operator_address, s
         staking_provider_address=staking_provider_address
     )
     assert result.exit_code == 1
-    error_message = 'Bonding not permitted until '
+    error_message = 'Bonding/Unbonding not permitted until '
     assert error_message in result.output
 
 

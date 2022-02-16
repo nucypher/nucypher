@@ -25,7 +25,8 @@ General
 * `NUCYPHER_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE`
     Default pagination size for the maximum number of active staking providers to retrieve from PREApplication in
     one contract call when a light node provider is being used.
-
+* `NUCYPHER_STAKING_PROVIDER_ETH_PASSWORD`
+    Password for a staking provider's Keystore.
 
 Alice
 -----

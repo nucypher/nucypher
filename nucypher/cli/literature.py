@@ -604,7 +604,7 @@ STAKING_PROVIDER_UNAUTHORIZED = '{provider} is not authorized.'
 
 CONFIRM_BONDING = 'Are you sure you want to bond staking provider {provider} to operator {operator}?'
 
-BONDING_TIME = 'Bonding not permitted until {date}'
+BONDING_TIME = 'Bonding/Unbonding not permitted until {date}.'
 
 ALREADY_BONDED = '{operator} is already bonded to {provider}'
 

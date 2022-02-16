@@ -60,7 +60,7 @@ def is_authorized(emitter, staking_provider: ChecksumAddress, agent: PREApplicat
         raise click.Abort()
 
 
-def is_bonded(agent, staking_provider, return_address: bool = False) -> Union[bool, Tuple[bool, ChecksumAddress]]:
+def is_bonded(agent, staking_provider: ChecksumAddress, return_address: bool = False) -> Union[bool, Tuple[bool, ChecksumAddress]]:
     onchain_operator = agent.get_operator_from_staking_provider(staking_provider=staking_provider)
     result = onchain_operator != NULL_ADDRESS
     if not return_address:
@@ -68,7 +68,7 @@ def is_bonded(agent, staking_provider, return_address: bool = False) -> Union[bo
     return result, onchain_operator
 
 
-def time_elapsed(emitter, agent: PREApplicationAgent, staking_provider: ChecksumAddress) -> None:
+def check_bonding_requirements(emitter, agent: PREApplicationAgent, staking_provider: ChecksumAddress) -> None:
     blockchain = agent.blockchain
     now = blockchain.get_blocktime()
     commencement = agent.get_staking_provider_info(staking_provider=staking_provider).operator_start_timestamp
@@ -120,7 +120,7 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
     # Check bonding
     if is_bonded(agent=agent, staking_provider=staking_provider, return_address=False):
         # operator is already set - check timing
-        time_elapsed(emitter=emitter, agent=agent, staking_provider=staking_provider)
+        check_bonding_requirements(emitter=emitter, agent=agent, staking_provider=staking_provider)
 
     # Check for pre-existing staking providers for this operator
     onchain_staking_provider = agent.get_staking_provider_from_operator(operator_address=operator_address)
@@ -144,7 +144,7 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
         click.confirm(CONFIRM_BONDING.format(provider=staking_provider, operator=operator_address), abort=True)
     transacting_power.unlock(password=get_client_password(checksum_address=staking_provider, envvar=NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD))
     emitter.echo(BONDING.format(operator=operator_address))
-    receipt = agent.bond_operator(operator=operator_address, transacting_power=transacting_power, provider=staking_provider)
+    receipt = agent.bond_operator(operator=operator_address, transacting_power=transacting_power, staking_provider=staking_provider)
     paint_receipt_summary(receipt=receipt, emitter=emitter)
 
 
@@ -183,7 +183,7 @@ def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, networ
     if not bonded:
         emitter.message(NOT_BONDED.format(provider=staking_provider), color='red')
         raise click.Abort()
-    time_elapsed(emitter=emitter, agent=agent, staking_provider=staking_provider)
+    check_bonding_requirements(emitter=emitter, agent=agent, staking_provider=staking_provider)
 
     #
     # Unbond
@@ -193,5 +193,5 @@ def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, networ
         click.confirm(CONFIRM_UNBONDING.format(provider=staking_provider, operator=onchain_operator_address), abort=True)
     transacting_power.unlock(password=get_client_password(checksum_address=staking_provider, envvar=NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD))
     emitter.echo(UNBONDING.format(operator=onchain_operator_address))
-    receipt = agent.bond_operator(operator=NULL_ADDRESS, transacting_power=transacting_power, provider=staking_provider)
+    receipt = agent.bond_operator(operator=NULL_ADDRESS, transacting_power=transacting_power, staking_provider=staking_provider)
     paint_receipt_summary(receipt=receipt, emitter=emitter)
