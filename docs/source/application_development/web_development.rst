@@ -329,7 +329,7 @@ For a full list of CLI options, run:
         | |   | |_| | |   | |_( (/ /| |
         |_|    \___/|_|    \___)____)_|
 
-        the Pipe for nucypher network operations
+        the Pipe for PRE Application network operations
 
         Network: <NETWORK NAME>
         Provider: ...
@@ -351,7 +351,7 @@ For a full list of CLI options, run:
         | |   | |_| | |   | |_( (/ /| |
         |_|    \___/|_|    \___)____)_|
 
-        the Pipe for nucypher network operations
+        the Pipe for PRE Application network operations
 
         Network: <NETWORK NAME>
         Provider: ...
@@ -371,7 +371,7 @@ For a full list of CLI options, run:
         | |   | |_| | |   | |_( (/ /| |
         |_|    \___/|_|    \___)____)_|
 
-        the Pipe for nucypher network operations
+        the Pipe for PRE Application network operations
 
         Network: <NETWORK NAME>
         Provider: ...
@@ -392,7 +392,7 @@ For a full list of CLI options, run:
         | |   | |_| | |   | |_( (/ /| |
         |_|    \___/|_|    \___)____)_|
 
-        the Pipe for nucypher network operations
+        the Pipe for PRE Application network operations
 
         Network: <NETWORK NAME>
         Provider: ...

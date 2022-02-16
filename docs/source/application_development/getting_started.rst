@@ -179,11 +179,11 @@ After generating a keystore, any future usage can decrypt the keys from the disk
 
    # Instantiate Alice
    alice = Alice(
-       keystore=keystore,                # NuCypher Keystore
-       known_nodes=[ursula],             # Peers (Optional)
-       signer=signer,                    # Alice Wallet
+       keystore=keystore,            # NuCypher Keystore
+       known_nodes=[ursula],         # Peers (Optional)
+       signer=signer,                # Alice Wallet
        eth_provider_uri=<RPC ENDPOINT>,  # Ethereum RPC endpoint
-       domain='lynx'                     # NuCypher network (mainnet, lynx, ibex)
+       domain='lynx'                 # PRE Application network (mainnet, lynx, ibex)
    )
 
    # Alice is identified by her ethereum address

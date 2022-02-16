@@ -100,7 +100,7 @@ Nucypher also provides web integration. See :ref:`web-development`.
 Running a Node
 --------------
 
-*These are questions related to running a node on the NuCypher network.*
+*These are questions related to running a PRE node on the Threshold Network.*
 
 Q: What kind of token is T?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -179,7 +179,7 @@ Using docker :ref:`Docker <run-ursula-with-docker>`
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use ``mainnet`` if you want to interact with the main NuCypher network,
+Use ``mainnet`` if you want to interact with the PRE Application network,
 and either ``lynx`` or ``ibex`` in case you want to use one of our testnets.
 Go :ref:`here <faq-testnet>` to read more about the difference between both testnets.
 

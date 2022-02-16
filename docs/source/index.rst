@@ -50,7 +50,7 @@ How does it Work?
 
 1. Alice, the data owner, grants access to her encrypted data to
 anyone she wants by creating a policy and uploading it to
-the NuCypher network.
+the PRE Application on the Threshold Network.
 
 2. Alice gets information about the group of ``n`` PRE nodes (Ursulas) associated
 with the policy, which are nodes on the Threshold network providing the PRE service. Each Ursula provides their encrypting key, and Alice creates

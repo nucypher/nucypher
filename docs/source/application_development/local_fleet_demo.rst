@@ -8,7 +8,7 @@ Overview
 --------
 
 To aid in application development, a network of federated Ursulas can be run locally. These Ursulas do not utilize
-blockchain functionality, but afford the same cryptographic capabilities of the public NuCypher network.
+blockchain functionality, but afford the same cryptographic capabilities of the public PRE nodes on the Threshold Network.
 
 .. note::
 

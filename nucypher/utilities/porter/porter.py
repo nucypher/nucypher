@@ -57,7 +57,7 @@ class Porter(Learner):
 | |   | |_| | |   | |_( (/ /| |
 |_|    \___/|_|    \___)____)_|
 
-the Pipe for nucypher network operations
+the Pipe for PRE Application network operations
 """
 
     APP_NAME = "Porter"
