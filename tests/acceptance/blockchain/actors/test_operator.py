@@ -212,7 +212,7 @@ def test_ursula_operator_confirmation(ursula_decentralized_test_config,
 
     # now lets visit stake.nucypher.network and bond this operator
     tpower = TransactingPower(account=staking_provider, signer=Web3Signer(testerchain.client))
-    application_agent.bond_operator(provider=staking_provider,
+    application_agent.bond_operator(staking_provider=staking_provider,
                                     operator=operator_address,
                                     transacting_power=tpower)
 
@@ -251,7 +251,7 @@ def test_ursula_operator_confirmation_autopilot(mocker,
 
     # now lets bond this worker
     tpower = TransactingPower(account=staking_provider2, signer=Web3Signer(testerchain.client))
-    application_agent.bond_operator(provider=staking_provider2,
+    application_agent.bond_operator(staking_provider=staking_provider2,
                                     operator=operator2,
                                     transacting_power=tpower)
 

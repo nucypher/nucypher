@@ -632,7 +632,7 @@ def staking_providers(testerchain, agency, test_registry, threshold_staking):
         testerchain.wait_for_receipt(tx)
 
         # We assume that the staking provider knows in advance the account of her operator
-        pre_application_agent.bond_operator(provider=provider_address,
+        pre_application_agent.bond_operator(staking_provider=provider_address,
                                             operator=operator_address,
                                             transacting_power=provider_power)
 

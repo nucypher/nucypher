@@ -69,7 +69,7 @@ def test_staking_providers_and_operators_relationships(testerchain,
 
     tpower = TransactingPower(account=staking_provider_account, signer=Web3Signer(testerchain.client))
     _txhash = application_agent.bond_operator(transacting_power=tpower,
-                                              provider=staking_provider_account,
+                                              staking_provider=staking_provider_account,
                                               operator=operator_account)
 
     # We can check the staker-worker relation from both sides

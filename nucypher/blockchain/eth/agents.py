@@ -19,7 +19,7 @@ import random
 import sys
 from bisect import bisect_right
 from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, Iterator, NamedTuple
+from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, NamedTuple
 
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
@@ -64,8 +64,7 @@ from nucypher.types import (
     StakingProviderInfo,
     PeriodDelta,
     StakingEscrowParameters,
-    PolicyInfo,
-    ArrangementInfo, TuNits
+    TuNits
 )
 from nucypher.utilities.logging import Logger  # type: ignore
 
@@ -1124,9 +1123,9 @@ class PREApplicationAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def bond_operator(self, provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.bondOperator(provider, operator)
+        contract_function: ContractFunction = self.contract.functions.bondOperator(staking_provider, operator)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt

@@ -594,3 +594,26 @@ PORTER_CORS_ALLOWED_ORIGINS = "CORS Allow Origins: {allow_origins}"
 PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED = "Both --tls-key-filepath and --tls-certificate-filepath must be provided to launch porter with TLS; only one specified"
 
 PORTER_BASIC_AUTH_REQUIRES_HTTPS = "Basic authentication can only be used with HTTPS. --tls-key-filepath and --tls-certificate-filepath must also be provided"
+
+
+#
+# PREApplication
+#
+
+STAKING_PROVIDER_UNAUTHORIZED = '{provider} is not authorized.'
+
+CONFIRM_BONDING = 'Are you sure you want to bond staking provider {provider} to operator {operator}?'
+
+BONDING_TIME = 'Bonding/Unbonding not permitted until {date}.'
+
+ALREADY_BONDED = '{operator} is already bonded to {provider}'
+
+BONDING = 'Bonding operator {operator}'
+
+UNEXPECTED_HUMAN_OPERATOR = 'Operation not permitted'
+
+UNBONDING = 'Unbonding operator {operator}'
+
+CONFIRM_UNBONDING = 'Are you sure you want to unbond {operator} from {provider}?'
+
+NOT_BONDED = '{provider} is not bonded to any operator'
