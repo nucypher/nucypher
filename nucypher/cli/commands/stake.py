@@ -192,8 +192,8 @@ class StakeHolderConfigOptions:
 
         if self.eth_provider_uri is None:
             raise click.BadOptionUsage(
-                option_name="--eth-network-provider",
-                message="--eth-network-provider must be specified to create a new stakeholder")
+                option_name="--eth-provider",
+                message="--eth-provider must be specified to create a new stakeholder")
 
         if self.network is None:
             raise click.BadOptionUsage(

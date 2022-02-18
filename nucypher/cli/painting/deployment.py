@@ -38,7 +38,7 @@ def paint_staged_deployment(emitter, deployer_interface, administrator) -> None:
     emitter.clear()
     emitter.banner(NU_BANNER)
     emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
-    emitter.echo(f"Web3 Provider ....... {deployer_interface.eth_provider_uri}")
+    emitter.echo(f"ETH Provider URI .... {deployer_interface.eth_provider_uri}")
     emitter.echo(f"Block ............... {deployer_interface.client.block_number}")
     emitter.echo(f"Gas Price ........... {deployer_interface.client.gas_price}")
     emitter.echo(f"Deployer Address .... {administrator.checksum_address}")
@@ -101,7 +101,7 @@ def paint_deployer_contract_inspection(emitter, registry, deployer_address) -> N
 * Web3 Provider
 ====================================================================
 
-Provider URI ............. {blockchain.eth_provider_uri}
+ETH Provider URI ......... {blockchain.eth_provider_uri}
 Registry  ................ {registry.filepath}
 
 * Standard Deployments

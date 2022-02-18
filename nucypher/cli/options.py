@@ -58,7 +58,7 @@ option_min_stake = click.option('--min-stake', help="The minimum stake the teach
 option_operator_address = click.option('--operator-address', help="Address to bond as an operator", type=EIP55_CHECKSUM_ADDRESS, required=True)
 option_parameters = click.option('--parameters', help="Filepath to a JSON file containing additional parameters", type=EXISTING_READABLE_FILE)
 option_participant_address = click.option('--participant-address', help="Participant's checksum address.", type=EIP55_CHECKSUM_ADDRESS)
-option_payment_provider = click.option('--payment-network-provider', '--payment-provider', 'payment_provider', help="Connection URL for payment method", type=click.STRING, required=False)
+option_payment_provider = click.option('--payment-provider', 'payment_provider', help="Connection URL for payment method", type=click.STRING, required=False)
 option_payment_network = click.option('--payment-network', help="Payment network name", type=click.STRING, required=False)  # TODO: Choices
 option_payment_method = click.option('--payment-method', help="Payment method name", type=PAYMENT_METHOD_CHOICES, required=False)
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
@@ -152,7 +152,7 @@ def option_policy_encrypting_key(required: bool = False):
 
 def option_eth_provider_uri(default=None, required: bool = False):
     return click.option(
-        '--eth-network-provider', '--eth-provider', 'eth_provider_uri',
+        '--eth-provider', 'eth_provider_uri',
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
         type=click.STRING,
         required=required,

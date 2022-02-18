@@ -110,8 +110,8 @@ def run(general_config,
     else:
         # decentralized/blockchain
         if not eth_provider_uri:
-            raise click.BadOptionUsage(option_name='--eth-network-provider',
-                                       message="--eth-network-provider is required for decentralized porter.")
+            raise click.BadOptionUsage(option_name='--eth-provider',
+                                       message="--eth-provider is required for decentralized porter.")
         if not network:
             # should never happen - network defaults to 'mainnet' if not specified
             raise click.BadOptionUsage(option_name='--network',
@@ -140,7 +140,7 @@ def run(general_config,
 
     emitter.message(f"Network: {PORTER.domain.capitalize()}", color='green')
     if not federated_only:
-        emitter.message(f"Provider: {eth_provider_uri}", color='green')
+        emitter.message(f"ETH Provider URI: {eth_provider_uri}", color='green')
 
     # firm up falsy status (i.e. change specified empty string to None)
     allow_origins = allow_origins if allow_origins else None

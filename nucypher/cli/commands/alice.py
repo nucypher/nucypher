@@ -209,8 +209,8 @@ class AliceFullConfigOptions:
 
         if not opts.eth_provider_uri and not opts.federated_only:
             raise click.BadOptionUsage(
-                option_name='--eth-network-provider',
-                message="--eth-network-provider is required to create a new decentralized alice.")
+                option_name='--eth-provider',
+                message="--eth-provider is required to create a new decentralized alice.")
 
         pay_with = opts.pay_with
         if not pay_with and not opts.federated_only:

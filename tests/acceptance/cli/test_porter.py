@@ -244,7 +244,7 @@ def test_blockchain_porter_cli_run_simple(click_runner,
     assert result.exit_code == 0
     output = result.output
     assert f"Network: {TEMPORARY_DOMAIN}" in output
-    assert f"Provider: {TEST_ETH_PROVIDER_URI}" in output
+    assert f"ETH Provider URI: {TEST_ETH_PROVIDER_URI}" in output
     assert PORTER_RUN_MESSAGE.format(http_scheme="http", http_port=Porter.DEFAULT_PORT) in output
 
     # Non-default port
@@ -260,7 +260,7 @@ def test_blockchain_porter_cli_run_simple(click_runner,
     assert result.exit_code == 0
     output = result.output
     assert f"Network: {TEMPORARY_DOMAIN}" in output
-    assert f"Provider: {TEST_ETH_PROVIDER_URI}" in output
+    assert f"ETH Provider URI: {TEST_ETH_PROVIDER_URI}" in output
     assert PORTER_RUN_MESSAGE.format(http_scheme="http", http_port=non_default_port) in output
 
 
@@ -278,7 +278,7 @@ def test_blockchain_porter_cli_run_provider_required(click_runner,
     result = click_runner.invoke(nucypher_cli, porter_run_command, catch_exceptions=False)
 
     assert result.exit_code != 0
-    assert "--eth-network-provider is required" in result.output
+    assert "--eth-provider is required" in result.output
 
 
 def test_blockchain_porter_cli_run_network_defaults_to_mainnet(click_runner,
