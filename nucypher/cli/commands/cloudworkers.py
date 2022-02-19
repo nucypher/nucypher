@@ -272,7 +272,7 @@ def update(general_config, remote_provider, nucypher_image, seed_network, migrat
         hostnames = include_hosts
     for name, hostdata in [(n, d) for n, d in deployer.config['instances'].items() if n in hostnames]:
         emitter.echo(f'\t{name}: {hostdata["publicaddress"]}', color="yellow")
-    deployer.update_nucypher_on_existing_nodes(hostnames, migrate_nucypher=migrate)
+    deployer.update_nucypher_on_existing_nodes(hostnames)
 
 
 @cloudworkers.command('status')
