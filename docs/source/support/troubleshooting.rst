@@ -115,4 +115,4 @@ and to update values
 
 .. code:: bash
 
-    nucypher stake config --signer <SIGNER PATH> --provider <YOUR PROVIDER URI>
+    nucypher stake config --signer <SIGNER PATH> --eth-provider <YOUR ETH PROVIDER URI>

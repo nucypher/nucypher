@@ -107,7 +107,7 @@ class Alice(Character, BlockchainPolicyAuthor):
                  # Mode
                  is_me: bool = True,
                  federated_only: bool = False,
-                 provider_uri: str = None,
+                 eth_provider_uri: str = None,
                  signer=None,
 
                  # Ownership
@@ -153,16 +153,16 @@ class Alice(Character, BlockchainPolicyAuthor):
                            known_node_class=Ursula,
                            is_me=is_me,
                            federated_only=federated_only,
-                           provider_uri=provider_uri,
+                           eth_provider_uri=eth_provider_uri,
                            checksum_address=checksum_address,
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
         if is_me and not federated_only:  # TODO: #289
-            if not provider_uri:
-                raise ValueError('Provider URI is required to init a decentralized character.')
+            if not eth_provider_uri:
+                raise ValueError('ETH Provider URI is required to init a decentralized character.')
 
-            blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=self.provider_uri)
+            blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=self.eth_provider_uri)
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
@@ -515,14 +515,14 @@ class Bob(Character):
                  is_me: bool = True,
                  controller: bool = True,
                  verify_node_bonding: bool = False,
-                 provider_uri: str = None,
+                 eth_provider_uri: str = None,
                  *args, **kwargs) -> None:
 
         Character.__init__(self,
                            is_me=is_me,
                            known_node_class=Ursula,
                            verify_node_bonding=verify_node_bonding,
-                           provider_uri=provider_uri,
+                           eth_provider_uri=eth_provider_uri,
                            *args, **kwargs)
 
         if controller:
@@ -704,7 +704,7 @@ class Ursula(Teacher, Character, Operator):
                  client_password: str = None,
                  decentralized_identity_evidence=NOT_SIGNED,
 
-                 provider_uri: str = None,
+                 eth_provider_uri: str = None,
                  payment_method: PaymentMethod = None,
 
                  # Character
@@ -726,7 +726,7 @@ class Ursula(Teacher, Character, Operator):
                            domain=domain,
                            known_node_class=Ursula,
                            include_self_in_the_state=True,
-                           provider_uri=provider_uri,
+                           eth_provider_uri=eth_provider_uri,
                            **character_kwargs)
 
         if is_me:
@@ -752,8 +752,8 @@ class Ursula(Teacher, Character, Operator):
 
             # Decentralized Operator
             if not federated_only:
-                if not provider_uri:
-                    raise ValueError('Provider URI is required to init a decentralized character.')
+                if not eth_provider_uri:
+                    raise ValueError('ETH Provider URI is required to init a decentralized character.')
                 if not payment_method:
                     raise ValueError('Payment method is required to init a decentralized character.')
 
@@ -878,8 +878,8 @@ class Ursula(Teacher, Character, Operator):
 
         # Connect to Provider
         if not self.federated_only:
-            if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri)
+            if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri):
+                BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri)
 
         if preflight:
             self.__preflight()

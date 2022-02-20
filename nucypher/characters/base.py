@@ -71,7 +71,7 @@ class Character(Learner):
                  keystore: Keystore = None,
                  crypto_power: CryptoPower = None,
                  crypto_power_ups: List[CryptoPowerUp] = None,
-                 provider_uri: str = None,
+                 eth_provider_uri: str = None,
                  signer: Signer = None,
                  registry: BaseContractRegistry = None,
                  include_self_in_the_state: bool = False,
@@ -120,8 +120,8 @@ class Character(Learner):
                 federated_only = known_node_class._federated_only_instances
 
         if federated_only:
-            if registry or provider_uri:
-                raise ValueError(f"Cannot init federated-only character with {registry or provider_uri}.")
+            if registry or eth_provider_uri:
+                raise ValueError(f"Cannot init federated-only character with {registry or eth_provider_uri}.")
         self.federated_only: bool = federated_only
 
         ##########################################
@@ -164,14 +164,14 @@ class Character(Learner):
 
             # Blockchainy
             if not self.federated_only:
-                self.provider_uri = provider_uri
+                self.eth_provider_uri = eth_provider_uri
                 self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
             else:
                 self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(registry=self.registry,
-                                                                           provider_uri=provider_uri)
+                                                                           eth_provider_uri=eth_provider_uri)
 
             # Learner
             Learner.__init__(self,

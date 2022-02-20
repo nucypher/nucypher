@@ -45,7 +45,7 @@ def test_deployer_interface_multiversion_contract():
 
     # Prepare chain
     BlockchainInterfaceFactory._interfaces.clear()
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm', gas_strategy='free')
+    blockchain_interface = BlockchainDeployerInterface(eth_provider_uri='tester://pyevm', gas_strategy='free')
     blockchain_interface.connect()
     BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)  # Lets this test run in isolation
 

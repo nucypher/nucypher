@@ -78,7 +78,7 @@ from nucypher.cli.options import (
     option_hw_wallet,
     option_network,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_signer_uri,
     option_parameters, option_gas_strategy, option_max_gas_price)
 from nucypher.cli.painting.deployment import (
@@ -113,7 +113,7 @@ class ActorOptions:
     __option_name__ = 'actor_options'
 
     def __init__(self,
-                 provider_uri: str,
+                 eth_provider_uri: str,
                  deployer_address: str,
                  contract_name: str,
                  registry_infile: Path,
@@ -131,7 +131,7 @@ class ActorOptions:
                  network: str
                  ):
 
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
@@ -154,7 +154,7 @@ class ActorOptions:
 
         ensure_config_root(self.config_root)
         deployer_interface = initialize_deployer_interface(poa=self.poa,
-                                                           provider_uri=self.provider_uri,
+                                                           eth_provider_uri=self.eth_provider_uri,
                                                            emitter=emitter,
                                                            ignore_solidity_check=self.ignore_solidity_check,
                                                            gas_strategy=self.gas_strategy,
@@ -185,7 +185,7 @@ class ActorOptions:
             deployer_address = select_client_account(emitter=emitter,
                                                      prompt=SELECT_DEPLOYER_ACCOUNT,
                                                      registry=local_registry,
-                                                     provider_uri=self.provider_uri,
+                                                     eth_provider_uri=self.eth_provider_uri,
                                                      signer=signer,
                                                      show_eth_balance=True)
 
@@ -218,7 +218,7 @@ class ActorOptions:
 
 group_actor_options = group_options(
     ActorOptions,
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
     signer_uri=option_signer_uri,
@@ -282,20 +282,20 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
 
 @deploy.command()
 @group_general_config
-@option_provider_uri(required=True)
+@option_eth_provider_uri(required=True)
 @option_config_root
 @option_registry_infile
 @option_deployer_address
 @option_poa
 @option_network(required=False, default=NetworksInventory.DEFAULT)
 @option_ignore_solidity_version
-def inspect(general_config, provider_uri, config_root, registry_infile, deployer_address,
+def inspect(general_config, eth_provider_uri, config_root, registry_infile, deployer_address,
             poa, ignore_solidity_check, network):
     """Echo owner information and bare contract metadata."""
     emitter = general_config.emitter
     ensure_config_root(config_root)
     initialize_deployer_interface(poa=poa,
-                                  provider_uri=provider_uri,
+                                  eth_provider_uri=eth_provider_uri,
                                   emitter=emitter,
                                   ignore_solidity_check=ignore_solidity_check)
     download_required = not bool(registry_infile)

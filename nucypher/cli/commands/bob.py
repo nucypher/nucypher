@@ -48,7 +48,7 @@ from nucypher.cli.options import (
     option_middleware,
     option_min_stake,
     option_network,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -70,8 +70,8 @@ class BobConfigOptions:
 
     __option_name__ = 'config_options'
 
-    def __init__(self, 
-                 provider_uri: str,
+    def __init__(self,
+                 eth_provider_uri: str,
                  network: str,
                  registry_filepath: Path,
                  checksum_address: str,
@@ -85,7 +85,7 @@ class BobConfigOptions:
                  lonely: bool
                  ):
 
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
@@ -104,7 +104,7 @@ class BobConfigOptions:
                 emitter=emitter,
                 dev_mode=True,
                 domain=TEMPORARY_DOMAIN,
-                provider_uri=self.provider_uri,
+                eth_provider_uri=self.eth_provider_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
                 signer_uri=self.signer_uri,
@@ -125,7 +125,7 @@ class BobConfigOptions:
                     domain=self.domain,
                     checksum_address=self.checksum_address,
                     rest_port=self.discovery_port,
-                    provider_uri=self.provider_uri,
+                    eth_provider_uri=self.eth_provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -143,7 +143,7 @@ class BobConfigOptions:
         if not checksum_address and not self.federated_only:
             checksum_address = select_client_account(emitter=emitter,
                                                      signer_uri=self.signer_uri,
-                                                     provider_uri=self.provider_uri)  # TODO: See #1888
+                                                     eth_provider_uri=self.eth_provider_uri)  # TODO: See #1888
 
         return BobConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
@@ -153,7 +153,7 @@ class BobConfigOptions:
             domain=self.domain,
             federated_only=self.federated_only,
             registry_filepath=self.registry_filepath,
-            provider_uri=self.provider_uri,
+            eth_provider_uri=self.eth_provider_uri,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
@@ -165,7 +165,7 @@ class BobConfigOptions:
                        domain=self.domain,
                        federated_only=self.federated_only,
                        registry_filepath=self.registry_filepath,
-                       provider_uri=self.provider_uri,
+                       eth_provider_uri=self.eth_provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
                        max_gas_price=self.max_gas_price,
@@ -178,7 +178,7 @@ class BobConfigOptions:
 
 group_config_options = group_options(
     BobConfigOptions,
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
     signer_uri=option_signer_uri,

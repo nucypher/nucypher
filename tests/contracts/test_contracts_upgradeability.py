@@ -183,10 +183,10 @@ def test_upgradeability(temp_dir_path):
         SourceBundle(base_path=Path(temp_dir_path))
     ]
 
-    provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
+    eth_provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
     try:
         blockchain_interface = TesterBlockchain(gas_strategy='free')
-        blockchain_interface.provider_uri = provider_uri
+        blockchain_interface.eth_provider_uri = eth_provider_uri
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
@@ -233,4 +233,4 @@ def test_upgradeability(temp_dir_path):
     finally:
         # Unregister interface  # TODO: Move to method?
         with contextlib.suppress(KeyError):
-            del BlockchainInterfaceFactory._interfaces[provider_uri]
+            del BlockchainInterfaceFactory._interfaces[eth_provider_uri]

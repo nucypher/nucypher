@@ -103,7 +103,7 @@ class ContractPayment(PaymentMethod, ABC):
         """Returns an instance of the agent used to carry out contract payments."""
         if self.__agent:
             return self.__agent  # get cache
-        agent = self._AGENT(provider_uri=self.provider, registry=self.registry)
+        agent = self._AGENT(eth_provider_uri=self.provider, registry=self.registry)
         self.__agent = agent
         return self.__agent  # set cache
 

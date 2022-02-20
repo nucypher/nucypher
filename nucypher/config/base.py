@@ -397,11 +397,11 @@ class CharacterConfiguration(BaseConfiguration):
                  # Blockchain
                  poa: bool = None,
                  light: bool = False,
-                 provider_uri: str = None,
+                 eth_provider_uri: str = None,
                  gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
                  max_gas_price: Optional[int] = None,
                  signer_uri: str = None,
-                 
+
                  # Payments
                  # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
                  payment_method: str = None,
@@ -447,7 +447,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Blockchain
         self.poa = poa
         self.is_light = light
-        self.provider_uri = provider_uri or NO_BLOCKCHAIN_CONNECTION
+        self.eth_provider_uri = eth_provider_uri or NO_BLOCKCHAIN_CONNECTION
         self.signer_uri = signer_uri or None
 
         # Learner
@@ -481,7 +481,7 @@ class CharacterConfiguration(BaseConfiguration):
             # Check for incompatible values
             blockchain_args = {'filepath': registry_filepath,
                                'poa': poa,
-                               'provider_uri': provider_uri,
+                               'eth_provider_uri': eth_provider_uri,
                                'gas_strategy': gas_strategy,
                                'max_gas_price': max_gas_price}
             if any(blockchain_args.values()):
@@ -493,7 +493,7 @@ class CharacterConfiguration(BaseConfiguration):
                 # federated configuration.
                 self.poa = False
                 self.is_light = False
-                self.provider_uri = None
+                self.eth_provider_uri = None
                 self.registry_filepath = None
                 self.gas_strategy = None
                 self.max_gas_price = None
@@ -510,16 +510,16 @@ class CharacterConfiguration(BaseConfiguration):
         else:
             self.gas_strategy = gas_strategy
             self.max_gas_price = max_gas_price  # gwei
-            is_initialized = BlockchainInterfaceFactory.is_interface_initialized(provider_uri=self.provider_uri)
-            if not is_initialized and provider_uri:
-                BlockchainInterfaceFactory.initialize_interface(provider_uri=self.provider_uri,
+            is_initialized = BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri)
+            if not is_initialized and eth_provider_uri:
+                BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri,
                                                                 poa=self.poa,
                                                                 light=self.is_light,
                                                                 emitter=emitter,
                                                                 gas_strategy=self.gas_strategy,
                                                                 max_gas_price=self.max_gas_price)
             else:
-                self.log.warn(f"Using existing blockchain interface connection ({self.provider_uri}).")
+                self.log.warn(f"Using existing blockchain interface connection ({self.eth_provider_uri}).")
 
             if not self.registry:
                 # TODO: These two code blocks are untested.
@@ -539,7 +539,7 @@ class CharacterConfiguration(BaseConfiguration):
             #     raise self.ConfigurationError("payment provider is required.")
             self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
             self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
-            self.payment_provider = payment_provider or (self.provider_uri or None)  # default to L1 payments
+            self.payment_provider = payment_provider or (self.eth_provider_uri or None)  # default to L1 payments
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -720,10 +720,10 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Optional values (mode)
         if not self.federated_only:
-            if self.provider_uri:
+            if self.eth_provider_uri:
                 if not self.signer_uri:
-                    self.signer_uri = self.provider_uri
-                payload.update(dict(provider_uri=self.provider_uri,
+                    self.signer_uri = self.eth_provider_uri
+                payload.update(dict(eth_provider_uri=self.eth_provider_uri,
                                     poa=self.poa,
                                     light=self.is_light,
                                     signer_uri=self.signer_uri))

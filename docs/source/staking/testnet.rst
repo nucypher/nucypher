@@ -19,16 +19,16 @@ Stakers and Workers can be configured to use the Ibex testnet using the command 
 .. code::
 
     # While creating a new staker
-    $ nucypher stake init-stakeholder --network ibex --provider <RINKEBY PROVIDER URI>
+    $ nucypher stake init-stakeholder --network ibex --eth-provider <RINKEBY PROVIDER URI>
 
     # Update an existing staker
-    $ nucypher stake config --network ibex --provider <RINKEBY PROVIDER URI>
+    $ nucypher stake config --network ibex --eth-provider <RINKEBY PROVIDER URI>
 
     # While creating a new worker
-    $ nucypher ursula init --network ibex --provider <RINKEBY PROVIDER URI>
+    $ nucypher ursula init --network ibex --eth-provider <RINKEBY PROVIDER URI>
 
     # Update an existing worker
-    $ nucypher ursula config --network ibex --provider <RINKEBY PROVIDER URI>
+    $ nucypher ursula config --network ibex --eth-provider <RINKEBY PROVIDER URI>
 
 
 Deployments

@@ -80,7 +80,7 @@ class Vladimir(Ursula):
                        checksum_address=cls.fraud_address,
                        operator_address=cls.fraud_address,
                        signer=Web3Signer(blockchain.client),
-                       provider_uri=blockchain.provider_uri,
+                       eth_provider_uri=blockchain.eth_provider_uri,
                        payment_method=FreeReencryptions(),  # Vladimir does not care about money.
                        )
 

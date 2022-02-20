@@ -33,7 +33,7 @@ from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfigura
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
-    MOCK_PROVIDER_URI,
+    MOCK_ETH_PROVIDER_URI,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
 )
 from tests.mock.agents import MockContractAgency, MockContractAgent
@@ -225,7 +225,7 @@ def mock_keystore(mocker):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(mock_testerchain, test_registry):
     config = make_alice_test_configuration(federated=False,
-                                           provider_uri=MOCK_PROVIDER_URI,
+                                           eth_provider_uri=MOCK_ETH_PROVIDER_URI,
                                            test_registry=test_registry,
                                            checksum_address=mock_testerchain.alice_account)
     yield config
@@ -235,7 +235,7 @@ def alice_blockchain_test_config(mock_testerchain, test_registry):
 @pytest.fixture(scope="module")
 def bob_blockchain_test_config(mock_testerchain, test_registry):
     config = make_bob_test_configuration(federated=False,
-                                         provider_uri=MOCK_PROVIDER_URI,
+                                         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
                                          test_registry=test_registry,
                                          checksum_address=mock_testerchain.bob_account)
     yield config
@@ -245,8 +245,8 @@ def bob_blockchain_test_config(mock_testerchain, test_registry):
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(mock_testerchain, test_registry):
     config = make_ursula_test_configuration(federated=False,
-                                            provider_uri=MOCK_PROVIDER_URI,      # L1
-                                            payment_provider=MOCK_PROVIDER_URI,  # L1/L2
+                                            eth_provider_uri=MOCK_ETH_PROVIDER_URI,  # L1
+                                            payment_provider=MOCK_ETH_PROVIDER_URI,  # L1/L2
                                             test_registry=test_registry,
                                             rest_port=MOCK_URSULA_STARTING_PORT,
                                             checksum_address=mock_testerchain.ursula_account(index=0))

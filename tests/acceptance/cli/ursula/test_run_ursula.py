@@ -33,7 +33,7 @@ from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI,
+    TEST_ETH_PROVIDER_URI,
     YES_ENTER
 )
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
@@ -176,7 +176,7 @@ def test_persistent_node_storage_integration(click_runner,
     another_ursula_configuration_file_location = custom_filepath / filename
 
     init_args = ('ursula', 'init',
-                 '--provider', TEST_PROVIDER_URI,
+                 '--eth-provider', TEST_ETH_PROVIDER_URI,
                  '--operator-address', another_ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,

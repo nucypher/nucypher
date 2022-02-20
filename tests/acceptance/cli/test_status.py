@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.commands.status import status
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import FEE_RATE_RANGE, TEST_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import FEE_RATE_RANGE, TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 
 
 @pytest.mark.skip()
@@ -39,7 +39,7 @@ def test_nucypher_status_network(click_runner, testerchain, agency_local_registr
 
     network_command = ('network',
                        '--registry-filepath', str(agency_local_registry.filepath.absolute()),
-                       '--provider', TEST_PROVIDER_URI,
+                       '--eth-provider', TEST_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, network_command, catch_exceptions=False)
@@ -54,7 +54,7 @@ def test_nucypher_status_network(click_runner, testerchain, agency_local_registr
         contract_regex = f"^{agent.contract_name} \\.+ {agent.contract_address}"
         assert re.search(contract_regex, result.output, re.MULTILINE)
 
-    assert re.search(f"^Provider URI \\.+ {TEST_PROVIDER_URI}", result.output, re.MULTILINE)
+    assert re.search(f"^Provider URI \\.+ {TEST_ETH_PROVIDER_URI}", result.output, re.MULTILINE)
     assert re.search(f"^Current Period \\.+ {staking_agent.get_current_period()}", result.output, re.MULTILINE)
 
 
@@ -64,7 +64,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, staking_pr
     # Get all stakers info
     stakers_command = ('stakers',
                        '--registry-filepath', str(agency_local_registry.filepath.absolute()),
-                       '--provider', TEST_PROVIDER_URI,
+                       '--eth-provider', TEST_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
@@ -82,7 +82,7 @@ def test_nucypher_status_stakers(click_runner, agency_local_registry, staking_pr
     staking_address = some_dude.checksum_address
     stakers_command = ('stakers', '--staking-address', staking_address,
                        '--registry-filepath', str(agency_local_registry.filepath.absolute()),
-                       '--provider', TEST_PROVIDER_URI,
+                       '--eth-provider', TEST_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
@@ -107,7 +107,7 @@ def test_nucypher_status_fee_range(click_runner, agency_local_registry, staking_
     # Get information about global fee range (minimum rate, default rate, maximum rate)
     stakers_command = ('fee-range',
                        '--registry-filepath', str(agency_local_registry.filepath),
-                       '--provider', TEST_PROVIDER_URI,
+                       '--eth-provider', TEST_ETH_PROVIDER_URI,
                        '--network', TEMPORARY_DOMAIN)
 
     result = click_runner.invoke(status, stakers_command, catch_exceptions=False)
@@ -132,7 +132,7 @@ def test_nucypher_status_locked_tokens(click_runner, testerchain, agency_local_r
     periods = 2
     status_command = ('locked-tokens',
                       '--registry-filepath', str(agency_local_registry.filepath.absolute()),
-                      '--provider', TEST_PROVIDER_URI,
+                      '--eth-provider', TEST_ETH_PROVIDER_URI,
                       '--network', TEMPORARY_DOMAIN,
                       '--periods', periods)
     light_parameter = [False, True]
@@ -165,7 +165,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
     # CLI output
     #
     status_command = ('events',
-                      '--provider', TEST_PROVIDER_URI,
+                      '--eth-provider', TEST_ETH_PROVIDER_URI,
                       '--network', TEMPORARY_DOMAIN,
                       '--event-name', 'CommitmentMade',
                       '--contract-name', 'StakingEscrow',
@@ -177,7 +177,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
     # event filter output
     first_staker = staking_providers[0]
     filter_status_command = ('events',
-                             '--provider', TEST_PROVIDER_URI,
+                             '--eth-provider', TEST_ETH_PROVIDER_URI,
                              '--network', TEMPORARY_DOMAIN,
                              '--event-name', 'CommitmentMade',
                              '--contract-name', 'StakingEscrow',
@@ -194,7 +194,7 @@ def test_nucypher_status_events(click_runner, testerchain, agency_local_registry
     #
     csv_file = temp_dir_path / 'status_events_output.csv'
     csv_status_command = ('events',
-                          '--provider', TEST_PROVIDER_URI,
+                          '--eth-provider', TEST_ETH_PROVIDER_URI,
                           '--network', TEMPORARY_DOMAIN,
                           '--event-name', 'CommitmentMade',
                           '--contract-name', 'StakingEscrow',

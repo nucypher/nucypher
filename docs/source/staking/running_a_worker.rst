@@ -144,7 +144,7 @@ Initialize a new Worker
     nucypher/nucypher:latest                      \
     nucypher ursula init                          \
     --signer keystore:///root/.ethereum/keystore  \
-    --provider <L1 PROVIDER URI>                  \
+    --eth-provider <L1 PROVIDER URI>              \
     --network <L1 NETWORK NAME>                   \
     --payment-provider <L2 PROVIDER URI>          \
     --payment-network <L2 NETWORK NAME>           \
@@ -222,7 +222,7 @@ Instead of using docker, the nucypher worker can be run as a systemd service.
 .. code-block::
 
     $(nucypher) nucypher ursula init     \
-    --provider <L1 PROVIDER URI>         \
+    --eth-provider <L1 PROVIDER URI>     \
     --network <L1 NETWORK NAME>          \
     --payment-provider <L2 PROVIDER URI> \
     --payment-network <L2 NETWORK NAME>  \
@@ -330,7 +330,7 @@ First initialize a Worker configuration:
 .. code-block::
 
     $(nucypher) nucypher ursula init      \
-    --provider <L1 PROVIDER URI>          \
+    --eth-provider <L1 PROVIDER URI>      \
     --network <L1 NETWORK NAME>           \
     --payment-provider <L2 PROVIDER URI>  \
     --payment-network <L2 NETWORK NAME>   \
@@ -386,7 +386,7 @@ paths, use the ``--config-file <CONFIG PATH>`` parameter.
     nucypher ursula config --max-gas-price <GWEI>
 
     # Change the Ethereum provider to use
-    nucypher ursula config --provider <PROVIDER URI>
+    nucypher ursula config --eth-provider <ETH PROVIDER URI>
 
     # Accept payments for service using the SubscriptionManager contract on polygon/mumbai
     nucypher ursula config --payment-method SubscriptionManager --payment-network mumbai
@@ -403,7 +403,7 @@ paths, use the ``--config-file <CONFIG PATH>`` parameter.
     nucypher ursula config --config-file <CONFIG PATH>
 
     # Update the max gas price setting of a non-default configuration file path
-    nucypher ursula config --config-file <CONFIG PATH> --provider <PROVIDER URI>
+    nucypher ursula config --config-file <CONFIG PATH> --eth-provider <ETH PROVIDER URI>
 
 
 .. important::

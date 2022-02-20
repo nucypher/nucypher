@@ -47,8 +47,8 @@ from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
-    NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE
+    NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
+    NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import sha256_digest
@@ -94,14 +94,14 @@ class EthereumContractAgent:
 
     def __init__(self,
                  registry: BaseContractRegistry = None,  # TODO: Consider make it non-optional again. See comment in InstanceAgent.
-                 provider_uri: Optional[str] = None,
+                 eth_provider_uri: Optional[str] = None,
                  contract: Optional[Contract] = None,
                  transaction_gas: Optional[Wei] = None):
 
         self.log = Logger(self.__class__.__name__)
         self.registry_str = str(registry)
 
-        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(provider_uri=provider_uri)
+        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=eth_provider_uri)
 
         if not contract:  # Fetch the contract
             contract = self.blockchain.get_contract_by_name(
@@ -119,7 +119,7 @@ class EthereumContractAgent:
 
         self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
                                                                         self.contract.address,
-                                                                        self.blockchain.provider_uri,
+                                                                        self.blockchain.eth_provider_uri,
                                                                         self.registry_str))
 
     def __repr__(self) -> str:
@@ -248,9 +248,9 @@ class StakingEscrowAgent(EthereumContractAgent):
     )
 
     DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE: int = int(os.environ.get(
-        NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
+        NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
 
-    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE, default=1000))
+    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
 
     class NotEnoughStakers(Exception):
         """Raised when the are not enough stakers available to complete an operation"""
@@ -952,8 +952,8 @@ class PREApplicationAgent(EthereumContractAgent):
 
     contract_name: str = PRE_APPLICATION_CONTRACT_NAME
 
-    DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
-    DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_PROVIDERS_PAGINATION_SIZE, default=1000))
+    DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
+    DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
 
     class NotEnoughStakingProviders(Exception):
         pass
@@ -1141,7 +1141,7 @@ class ContractAgency:
     def get_agent(cls,
                   agent_class: Type[Agent],
                   registry: Optional[BaseContractRegistry] = None,
-                  provider_uri: Optional[str] = None
+                  eth_provider_uri: Optional[str] = None
                   ) -> Agent:
 
         if not issubclass(agent_class, EthereumContractAgent):
@@ -1157,7 +1157,7 @@ class ContractAgency:
         try:
             return cast(Agent, cls.__agents[registry_id][agent_class])
         except KeyError:
-            agent = cast(Agent, agent_class(registry=registry, provider_uri=provider_uri))
+            agent = cast(Agent, agent_class(registry=registry, eth_provider_uri=eth_provider_uri))
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
@@ -1174,12 +1174,12 @@ class ContractAgency:
     def get_agent_by_contract_name(cls,
                                    contract_name: str,
                                    registry: BaseContractRegistry,
-                                   provider_uri: Optional[str] = None
+                                   eth_provider_uri: Optional[str] = None
                                    ) -> EthereumContractAgent:
         agent_name: str = cls._contract_name_to_agent_name(name=contract_name)
         agents_module = sys.modules[__name__]
         agent_class: Type[EthereumContractAgent] = getattr(agents_module, agent_name)
-        agent: EthereumContractAgent = cls.get_agent(agent_class=agent_class, registry=registry, provider_uri=provider_uri)
+        agent: EthereumContractAgent = cls.get_agent(agent_class=agent_class, registry=registry, eth_provider_uri=eth_provider_uri)
         return agent
 
 

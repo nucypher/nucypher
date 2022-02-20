@@ -91,7 +91,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
           -p 80:9155 \
           nucypher/porter:latest \
           nucypher porter run \
-          --provider <YOUR WEB3 PROVIDER URI> \
+          --eth-provider <YOUR WEB3 PROVIDER URI> \
           --network <NETWORK NAME>
 
    For HTTPS service (on default port 443):
@@ -107,7 +107,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -p 443:9155 \
             nucypher/porter:latest \
             nucypher porter run \
-            --provider <YOUR WEB3 PROVIDER URI> \
+            --eth-provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
             --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
             --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME>
@@ -123,7 +123,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -p 443:9155 \
             nucypher/porter:latest \
             nucypher porter run \
-            --provider <YOUR WEB3 PROVIDER URI> \
+            --eth-provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
             --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
             --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME> \
@@ -141,7 +141,7 @@ Run Porter within Docker without acquiring or installing the ``nucypher`` codeba
             -p 443:9155 \
             nucypher/porter:latest \
             nucypher porter run \
-            --provider <YOUR WEB3 PROVIDER URI> \
+            --eth-provider <YOUR WEB3 PROVIDER URI> \
             --network <NETWORK NAME> \
             --tls-key-filepath /etc/porter/tls/<KEY FILENAME> \
             --tls-certificate-filepath /etc/porter/tls/<CERT FILENAME> \
@@ -292,7 +292,7 @@ For a full list of CLI options, run:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME>
+        $ nucypher porter run --eth-provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME>
 
 
          ______
@@ -314,7 +314,7 @@ For a full list of CLI options, run:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH>
+        $ nucypher porter run --eth-provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH>
 
 
         ______
@@ -334,7 +334,7 @@ For a full list of CLI options, run:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins ".*\.example\.com$"
+        $ nucypher porter run --eth-provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins ".*\.example\.com$"
 
 
         ______
@@ -355,7 +355,7 @@ For a full list of CLI options, run:
 
     .. code:: console
 
-        $ nucypher porter run --provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins ".*\.example\.com$" --basic-auth-filepath <HTPASSWD FILE>
+        $ nucypher porter run --eth-provider <YOUR WEB3 PROVIDER URI> --network <NETWORK NAME> --tls-key-filepath <TLS KEY FILEPATH> --tls-certificate-filepath <CERT FILEPATH> --allow-origins ".*\.example\.com$" --basic-auth-filepath <HTPASSWD FILE>
 
 
         ______

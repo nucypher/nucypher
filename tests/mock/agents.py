@@ -26,12 +26,12 @@ from nucypher.blockchain.eth import agents
 from nucypher.blockchain.eth.agents import Agent, ContractAgency, EthereumContractAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from tests.constants import MOCK_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.interfaces import MockBlockchain
 
 MOCK_TESTERCHAIN = MockBlockchain()
 CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN, emitter=None)
-BlockchainInterfaceFactory._interfaces[MOCK_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
+BlockchainInterfaceFactory._interfaces[MOCK_ETH_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
 
 CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock('latest')
 

@@ -40,7 +40,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.options import (
     option_registry_filepath,
     option_signer_uri,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_network,
     option_staking_provider,
     option_operator_address,
@@ -81,13 +81,13 @@ def check_bonding_requirements(emitter, agent: PREApplicationAgent, staking_prov
 
 @click.command('bond')
 @option_registry_filepath
-@option_provider_uri(required=True)
+@option_eth_provider_uri(required=True)
 @option_signer_uri
 @option_operator_address
 @option_staking_provider
 @option_network(required=True)
 @option_force
-def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_provider, network, force):
+def bond(registry_filepath, eth_provider_uri, signer_uri, operator_address, staking_provider, network, force):
     """
     Bond an operator to a staking provider.
     The staking provider must be authorized to use the PREApplication.
@@ -98,7 +98,7 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
     #
 
     emitter = StdoutEmitter()
-    connect_to_blockchain(provider_uri=provider_uri, emitter=emitter)
+    connect_to_blockchain(eth_provider_uri=eth_provider_uri, emitter=emitter)
     if not signer_uri:
         emitter.message('--signer is required', color='red')
         raise click.Abort()
@@ -150,12 +150,12 @@ def bond(registry_filepath, provider_uri, signer_uri, operator_address, staking_
 
 @click.command('unbond')
 @option_registry_filepath
-@option_provider_uri(required=True)
+@option_eth_provider_uri(required=True)
 @option_signer_uri
 @option_staking_provider
 @option_network()
 @option_force
-def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, network, force):
+def unbond(registry_filepath, eth_provider_uri, signer_uri, staking_provider, network, force):
     """Unbonds an operator from an authorized staking provider."""
 
     #
@@ -169,7 +169,7 @@ def unbond(registry_filepath, provider_uri, signer_uri, staking_provider, networ
     if not network:
         network = select_network(emitter=emitter)
 
-    connect_to_blockchain(provider_uri=provider_uri, emitter=emitter)
+    connect_to_blockchain(eth_provider_uri=eth_provider_uri, emitter=emitter)
     registry = get_registry(network=network, registry_filepath=registry_filepath)
     agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
     signer = Signer.from_signer_uri(signer_uri)

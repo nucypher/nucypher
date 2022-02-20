@@ -30,7 +30,7 @@ def paint_decoded_transaction(emitter, proposal, contract, registry):
     emitter.echo()
 
 
-def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, provider_uri: str = None):
+def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, eth_provider_uri: str = None):
     tx_hash = receipt['transactionHash'].hex()
     emitter.echo("OK", color='green', nl=False, bold=True)
     if transaction_type:
@@ -41,7 +41,7 @@ def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_
     emitter.echo(f"Block #{receipt['blockNumber']} | {receipt['blockHash'].hex()}")
 
     if not chain_name:
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
         chain_name = blockchain.client.chain_name
     try:
         url = etherscan_url(item=tx_hash, network=chain_name)

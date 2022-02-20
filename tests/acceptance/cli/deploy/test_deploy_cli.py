@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import TEST_PROVIDER_URI, YES_ENTER
+from tests.constants import TEST_ETH_PROVIDER_URI, YES_ENTER
 
 PLANNED_UPGRADES = 4
 CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
@@ -48,8 +48,8 @@ def test_deploy_single_contract(click_runner, tempfile_path):
     command = ['contracts',
                '--contract-name', 'SubscriptionManager',
                '--registry-infile', str(tempfile_path.absolute()),
-               '--provider', TEST_PROVIDER_URI,
-               '--signer', TEST_PROVIDER_URI,
+               '--eth-provider', TEST_ETH_PROVIDER_URI,
+               '--signer', TEST_ETH_PROVIDER_URI,
                '--network', TEMPORARY_DOMAIN,
                '--debug']
 
@@ -65,8 +65,8 @@ def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
         command = ['contracts',
                    '--contract-name', NucypherTokenAgent.contract_name,
                    '--registry-infile', str(tempfile_path.absolute()),
-                   '--provider', TEST_PROVIDER_URI,
-                   '--signer', TEST_PROVIDER_URI,
+                   '--eth-provider', TEST_ETH_PROVIDER_URI,
+                   '--signer', TEST_ETH_PROVIDER_URI,
                    '--network', TEMPORARY_DOMAIN,
                    '--debug']
 
@@ -75,13 +75,13 @@ def test_deploy_signer_uri_testnet_check(click_runner, mocker, tempfile_path):
         # fail trying to deploy contract to testnet since ETH balance is 0, signer will already have been initialized
         result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
         assert result.exit_code != 0, result.output  # expected failure given eth balance is 0
-        spy_from_signer_uri.assert_called_with(TEST_PROVIDER_URI, testnet=True)
+        spy_from_signer_uri.assert_called_with(TEST_ETH_PROVIDER_URI, testnet=True)
 
         # fail trying to deploy contract to mainnet (:-o) since ETH balance is 0, signer will already have been initialized
         with patch('nucypher.blockchain.eth.clients.EthereumTesterClient.chain_name', PropertyMock(return_value='Mainnet')):
             result = click_runner.invoke(deploy, command, input=user_input, catch_exceptions=False)
             assert result.exit_code != 0, result.output  # expected failure given invalid contract name
-            spy_from_signer_uri.assert_called_with(TEST_PROVIDER_URI, testnet=False)  # the "real" deal
+            spy_from_signer_uri.assert_called_with(TEST_ETH_PROVIDER_URI, testnet=False)  # the "real" deal
 
 
 @pytest.mark.skip()
@@ -108,8 +108,8 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
 
     cli_action = 'upgrade'
     base_command = ('--registry-infile', str(registry_filepath.absolute()),
-                    '--provider', TEST_PROVIDER_URI,
-                    '--signer', TEST_PROVIDER_URI,
+                    '--eth-provider', TEST_ETH_PROVIDER_URI,
+                    '--signer', TEST_ETH_PROVIDER_URI,
                     '--confirmations', 1,
                     '--network', TEMPORARY_DOMAIN,
                     '--force'  # skip registry preflight check for tests
@@ -239,8 +239,8 @@ def test_rollback(click_runner, testerchain, registry_filepath, agency):
                    '--contract-name', contract_name,
                    '--registry-infile', str(registry_filepath.absolute()),
                    '--network', TEMPORARY_DOMAIN,
-                   '--provider', TEST_PROVIDER_URI,
-                   '--signer', TEST_PROVIDER_URI
+                   '--eth-provider', TEST_ETH_PROVIDER_URI,
+                   '--signer', TEST_ETH_PROVIDER_URI
                    )
 
         user_input = '0\n' + YES_ENTER
