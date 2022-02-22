@@ -154,7 +154,7 @@ def staking_providers(general_config, registry_options, staking_provider_address
 @option_csv
 @option_csv_file
 @option_event_filters
-@click.option('--legacy', is_flag=True)
+@click.option('--legacy', help="Events related to the NuCypher Network prior to the merge to Threshold Network", is_flag=True)
 def events(general_config, registry_options, contract_name, from_block, to_block, event_name, csv, csv_file, event_filters, legacy):
     """Show events associated with NuCypher contracts."""
 

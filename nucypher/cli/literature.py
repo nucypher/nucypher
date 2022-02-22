@@ -58,7 +58,7 @@ CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_f
 
 PROMPT_OPERATOR_ADDRESS = "Enter operator address"
 
-CONFIRM_WORKER_AND_OPERATOR_ADDRESSES_ARE_EQUAL = """
+CONFIRM_PROVIDER_AND_OPERATOR_ADDRESSES_ARE_EQUAL = """
 
 {address}
 The operator address provided is the same as the staking provider.
