@@ -30,13 +30,13 @@ client, this generic error will become extinct.
 builtins.ValueError: {'code': -32000, 'message': 'insufficient funds for gas * price + value'}
 ----------------------------------------------------------------------------------------------
 
-The Ursula node does not have enough ETH to pay for transaction gas. Ensure that your worker address has ETH.
+The Ursula node does not have enough ETH to pay for transaction gas. Ensure that your operator address has ETH.
 
 
 Warning! Error encountered during contract execution [Out of gas]
 -----------------------------------------------------------------
 
-The Ursula node does not have enough ETH to pay for transaction gas; ensure that your worker address has ETH.
+The Ursula node does not have enough ETH to pay for transaction gas; ensure that your operator address has ETH.
 
 
 RuntimeError: Click will abort further execution because Python 3 was configured to use ASCII as encoding for the environment

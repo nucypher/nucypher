@@ -9,7 +9,7 @@ role.
 * **Alice**:  *"The Data Owner"* - retains full control over the data encrypted for her and determines whom to share the data with
 * **Enrico**: *"The Encryptor"* - a data source that encrypts data on behalf of Alice
 * **Bob**:    *"The Data Recipient"* - the data recipient that Alice intends to share data with
-* **Ursula**: *"The Proxy in PRE"* - the PRE nodes on the Threshold Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
+* **Ursula**: *"The Proxy in PRE"* - the PRE node on the Threshold Network that stands ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
 
 .. _Umbral: https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 

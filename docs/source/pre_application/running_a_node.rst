@@ -73,7 +73,7 @@ These environment variables are used to better simplify the docker installation 
     $ export NUCYPHER_KEYSTORE_PASSWORD=<YOUR NUCYPHER KEYSTORE PASSWORD>
 
     # Password used to unlock node eth account
-    $ export NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ETH ACCOUNT PASSWORD>
+    $ export NUCYPHER_OPERATOR_ETH_PASSWORD=<YOUR OPERATOR ETH ACCOUNT PASSWORD>
 
 
 Initialize Node Configuration
@@ -107,7 +107,7 @@ Replace the following values with your own:
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
 
-   * *Optional* ``<GWEI>`` - The maximum price of gas to spend on any transaction
+   * ``<GWEI>`` (*Optional*) - The maximum price of gas to spend on any transaction
 
 Launch the Node
 +++++++++++++++
@@ -119,11 +119,11 @@ This step starts the PRE node.
     $ docker run -d --rm \
     --name ursula      \
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
-    -v ~/.ethereum/:/root/.ethereum  \
-    -p 9151:9151                     \
-    -e NUCYPHER_KEYSTORE_PASSWORD    \
-    -e NUCYPHER_WORKER_ETH_PASSWORD  \
-    nucypher/nucypher:latest         \
+    -v ~/.ethereum/:/root/.ethereum   \
+    -p 9151:9151                      \
+    -e NUCYPHER_KEYSTORE_PASSWORD     \
+    -e NUCYPHER_OPERATOR_ETH_PASSWORD \
+    nucypher/nucypher:latest          \
     nucypher ursula run
 
 View Node Logs
@@ -204,7 +204,7 @@ Configure the node
     --payment-provider <L2 PROVIDER URI> \
     --payment-network <L2 NETWORK NAME>  \
     --signer <SIGNER URI>                \
-    --max-gas-price <GWEI>               \
+    --max-gas-price <GWEI>
 
 
 Replace the following values with your own:
@@ -215,8 +215,8 @@ Replace the following values with your own:
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
 
-   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
-   * *Optional* ``<GWEI>`` - The maximum price of gas to spend on any transaction
+   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: ``keystore:///root/.ethereum/keystore``
+   * ``<GWEI>`` (*Optional*) - The maximum price of gas to spend on any transaction
 
 
 Create Node Service Template
@@ -232,7 +232,7 @@ Create a file named ``ursula.service`` in ``/etc/systemd/system``, and add this 
     [Service]
     User=<YOUR USERNAME>
     Type=simple
-    Environment="NUCYPHER_WORKER_ETH_PASSWORD=<YOUR WORKER ADDRESS PASSWORD>"
+    Environment="NUCYPHER_OPERATOR_ETH_PASSWORD=<YOUR OPERATOR ADDRESS PASSWORD>"
     Environment="NUCYPHER_KEYSTORE_PASSWORD=<YOUR PASSWORD>"
     ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
 
@@ -243,7 +243,7 @@ Create a file named ``ursula.service`` in ``/etc/systemd/system``, and add this 
 Replace the following values with your own:
 
 - ``<YOUR USER>`` - The host system’s username to run the process with (best practice is to use a dedicated user)
-- ``<YOUR WORKER ADDRESS PASSWORD>`` - Operator’s ETH account password
+- ``<YOUR OPERATOR ADDRESS PASSWORD>`` - Operator’s ETH account password
 - ``<YOUR PASSWORD>`` - ``nucypher`` keystore password
 - ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable.
   Run ``pipenv –venv`` within the virtual environment to get the virtual environment path.
@@ -307,7 +307,7 @@ First initialize a Node configuration:
     --payment-provider <L2 PROVIDER URI>  \
     --payment-network <L2 NETWORK NAME>   \
     --signer <SIGNER URI>                 \
-    --max-gas-price <GWEI>                \
+    --max-gas-price <GWEI>
 
 Replace the following values with your own:
 
@@ -317,8 +317,8 @@ Replace the following values with your own:
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
 
-   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: `keystore:///root/.ethereum/keystore`
-   * *Optional* ``<GWEI>`` - The maximum price of gas to spend on any transaction
+   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: ``keystore:///root/.ethereum/keystore``
+   * ``<GWEI>`` (*Optional*) - The maximum price of gas to spend on any transaction
 
 
 Run the Node
@@ -342,7 +342,6 @@ All node configuration values can be modified using the config command, ``nucyph
 
     # Usage
     $ nucypher ursula config –help
-
 
     # Update the max gas price setting
     $ nucypher ursula config --max-gas-price <GWEI>

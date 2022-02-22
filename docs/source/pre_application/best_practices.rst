@@ -13,7 +13,7 @@ the following core areas of responsibility (in order of importance):
 1. Keystore Diligence
 ---------------------
 
-Requires that private keys used by the worker are backed up and can be restored.
+Requires that private keys used by the PRE node are backed up and can be restored.
 
 Keystore diligence an be exercised by:
 
@@ -23,14 +23,14 @@ Keystore diligence an be exercised by:
 
 .. note::
 
-    The default location of the nucypher worker keystore files can be located by
+    The default location of the nucypher PRE node keystore files can be located by
     running a nucypher command:
 
     .. code::
 
         $ nucypher --config-path
 
-    Encrypted worker keys can be found in the ``keystore`` directory:
+    Encrypted PRE Node keys can be found in the ``keystore`` directory:
 
     .. code-block:: bash
 
@@ -48,14 +48,14 @@ Requires active and security-conscious participation in the network.
 A PRE node that is unreachable or otherwise invalid will be unable to accept new
 policies, and miss out on inflation rewards.
 
-It is *not* necessary (and potentially risky) to hold NU/T tokens on an Operator's
+It is **not necessary (and potentially risky)** to hold NU/T tokens on an Operator's
 account for any reason.
 
 Runtime Diligence an be exercised by:
 
 - Secure the node's keystore used on the deployment host.
 - Maintain high uptime; keep downtime brief when required by updates or reconfiguration.
-- Update when a new version is available.
+- Update when new versions are available.
 
 ..
     TODO: separate section on backups and data (#2285)

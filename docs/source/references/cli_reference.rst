@@ -126,7 +126,7 @@ Ursula
 Cloudworkers
 ------------
 
-Manage worker operations on cloud infrastructure.
+Manage PRE Node operations on cloud infrastructure.
 
 .. code:: bash
 

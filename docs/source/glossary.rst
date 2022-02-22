@@ -67,7 +67,7 @@ Glossary
       NuCypher's threshold proxy re-encryption scheme - it takes standard :term:`PRE` and increases security and performance. See Umbral_.
 
     Ursula
-      *"The Proxy in PRE"* :term:`Character` - the PRE nodes on the Threshold Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by :term:`Alice`.
+      *"The Proxy in PRE"* :term:`Character` - the PRE node on the Threshold Network that stands ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by :term:`Alice`.
 
     Operator
       An account that is actively doing work in the network as an :term:`Ursula` node. An Operator is bonded to, and performs work on behalf of, a Staking Provider.

@@ -210,10 +210,10 @@ Q: What types of Ethereum web3 node providers do you support?
 * HTTP(S)-based JSON-RPC server e.g. ``http://<host>``, ``https://<host>``
 * Websocket(Secure)-based JSON-RPC server e.g. ``ws://<host>:8080``, ``wss://<host>:8080``
 
-Q: How does my worker node choose what price to use for transactions? Can I control this?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: How does my node choose what price to use for transactions? Can I control this?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When sending a transaction, your worker node automatically chooses the gas price
+When sending a transaction, your node automatically chooses the gas price
 using a `gas strategy <https://web3py.readthedocs.io/en/stable/gas_price.html>`_.
 
 We currently offer three types of gas strategies,

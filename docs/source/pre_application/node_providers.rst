@@ -7,7 +7,7 @@ Node-as-a-Service Providers
 You can delegate running a PRE node to one of the service providers listed below.
 
 .. warning::
-  Providers have not been vetted or endorsed by the core development team.
+  Staking Providers have not been vetted or endorsed by the core development team.
   Use your own judgement when selecting a provider.
 
 
@@ -34,4 +34,4 @@ You can delegate running a PRE node to one of the service providers listed below
     * Telegram: ``@staked_official``
     * WeChat: ``@colekennelly``
 
-More detailed profile information about each provider is available `here <https://github.com/nucypher/validator-profiles>`_.
+More detailed profile information about each staking provider is available `here <https://github.com/nucypher/validator-profiles>`_.

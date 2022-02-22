@@ -94,4 +94,4 @@ value, eg. ``--signer keystore:///root/.ethereum/keystore``.
 
 .. note::
 
-    The expectation is that the operator account is part of the local keystore.
+    The expectation is that the operator account is part of the local ethereum keystore.

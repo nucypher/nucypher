@@ -8,9 +8,10 @@ you can now withdraw it (and then upgrade the liquid tokens to T and stake). If 
 subject to a vesting agreement, your unvested stake will not be immediately withdrawable
 but you can still stake it in Threshold!
 
-Both of these options are available from the NU dashboard: https://stake.nucypher.network/manage
-* Withdraw available NU stake: https://stake.nucypher.network/manage/withdraw
-* Stake unvested NU on Threshold: https://stake.nucypher.network/manage/stake
+Both options are available from the `NU dashboard <https://stake.nucypher.network/manage>`_:
+
+* `Withdraw available NU <https://stake.nucypher.network/manage/withdraw>`_
+* `Stake unvested NU on Threshold <https://stake.nucypher.network/manage/stake>`_
 
 
 Upgrading to T
@@ -20,7 +21,7 @@ The Threshold Network Token (`T <https://etherscan.io/address/0xCdF7028ceAB81fA0
 the work token for staking on the Threshold Network, and
 allows for participation in `DAO governance <https://blog.threshold.network/thresholds-governance-structure-and-the-upcoming-council-elections/>`_.
 
-The Threshold Network `dashboard <https://dashboard.threshold.network/upgrade.>`_ can be used to upgrade from NU to T.
+The `Threshold Network Dashboard <https://dashboard.threshold.network/upgrade.>`_ can be used to upgrade from NU to T.
 
 The upgrade from NU to T is also available via directly interacting with the vending machine smart contracts
 deployed on mainnet. The NU -> T vending machine contract address is https://etherscan.io/address/0x1CCA7E410eE41739792eA0A24e00349Dd247680e.

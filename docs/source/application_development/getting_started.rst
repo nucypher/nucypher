@@ -67,7 +67,7 @@ the role of a ``Teacher``\ , or "seednode":
 
 .. note::
 
-    While any nucypher worker node can be used to seed your peers, NuCypher maintains
+    While any PRE node can be used to seed your peers, NuCypher maintains
     workers that can be used as seed nodes:
 
     - mainnet: ``https://mainnet.nucypher.network:9151``
@@ -91,7 +91,7 @@ they know about network-wide, then kick-off the automated node-discovery loop:
 
 
 For information on how to run a staking Ursula node via CLI,
-see :doc:`Running a Worker </pre_application/running_a_node>`.
+see :doc:`Running a Node </pre_application/running_a_node>`.
 
 
 Alice: Grant Access to a Secret
