@@ -35,7 +35,7 @@ ethereum providers include Infura, Alchemy etc. and an HTTPS URI will need to
 be configured (``https://<URI>``), whereas a local full node would entail running
 `geth <https://geth.ethereum.org/>`_ locally and configured using the
 IPC URI (``ipc://<PATH TO IPC FILE>``).
-This value will be provided via the ``--provider`` CLI parameter.
+This value is specified via the ``--eth-provider`` CLI parameter.
 
 It is worth noting that running a local ethereum node is quite the undertaking,
 and has its own

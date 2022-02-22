@@ -199,7 +199,7 @@ Configure the node
 .. code:: bash
 
     $(nucypher) nucypher ursula init     \
-    --provider <L1 PROVIDER URI>         \
+    --eth-provider <L1 PROVIDER URI>     \
     --network <L1 NETWORK NAME>          \
     --payment-provider <L2 PROVIDER URI> \
     --payment-network <L2 NETWORK NAME>  \

@@ -17,7 +17,7 @@ The Threshold Network powers user sovereignty on the public blockchain. It provi
 network of nodes that perform threshold cryptography operations as a service to ensure full control over
 your digital assets.
 
-Proxy Re-encryption (PRE) Application
+Proxy Re-Encryption (PRE) Application
 =====================================
 
 The NuCypher Network proxy re-encryption (PRE) service is now the PRE Application on the Threshold Network.
@@ -31,8 +31,6 @@ This service is provided by a decentralized array of nodes on the Threshold Netw
 
 Private data, wherever stored, remains private, confidential
 and encrypted while maintaining the ability to share that data with trusted parties.
-
-``nucypher`` is the python library and CLI for interacting with the PRE Application.
 
 .. attention::
 
