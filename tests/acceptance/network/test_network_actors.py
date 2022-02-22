@@ -16,19 +16,15 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import datetime
-
-import maya
 import pytest
 from eth_utils import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
 
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent, PREApplicationAgent
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import SigningPower
 from tests.utils.middleware import MockRestMiddleware
 
 

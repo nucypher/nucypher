@@ -27,9 +27,8 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import StakeList
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
@@ -82,7 +81,6 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
 def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       tmp_path,
                                                       staking_providers,
-                                                      stake_value,
                                                       application_economics,
                                                       mocker,
                                                       mock_funded_account_password_keystore,
@@ -137,7 +135,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula_config.keystore.unlock(password=password)
 
     # Produce an Ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
-    mocker.patch.object(StakeList, 'refresh', autospec=True)
     ursula = ursula_config.produce()
     ursula.signer.unlock_account(account=worker_account.address, password=password)
 

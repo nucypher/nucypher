@@ -18,13 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
+from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from nucypher.blockchain.eth.deployers import (
-    NucypherTokenDeployer,
-    StakingEscrowDeployer,
-)
-from constant_sorrow.constants import (FULL, INIT)
 
 
 @pytest.fixture(scope="module")
@@ -38,25 +34,6 @@ def transacting_power(testerchain, test_registry):
     tpower = TransactingPower(account=testerchain.etherbase_account,
                               signer=Web3Signer(testerchain.client))
     return tpower
-
-
-@pytest.fixture(scope="module")
-def staking_escrow_stub_deployer(testerchain, token_deployer, test_registry, transacting_power):
-    token_deployer.deploy(transacting_power=transacting_power)
-    staking_escrow_deployer = StakingEscrowDeployer(registry=test_registry)
-    return staking_escrow_deployer
-
-
-@pytest.fixture(scope="module")
-def staking_escrow_deployer(testerchain,
-                            staking_escrow_stub_deployer,
-                            threshold_staking,
-                            test_registry,
-                            transacting_power):
-    staking_escrow_stub_deployer.deploy(deployment_mode=INIT, transacting_power=transacting_power)
-    staking_escrow_deployer = StakingEscrowDeployer(staking_interface=threshold_staking.address,
-                                                    registry=test_registry)
-    return staking_escrow_deployer
 
 
 @pytest.fixture(scope="function")

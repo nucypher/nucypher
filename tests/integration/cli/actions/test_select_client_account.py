@@ -16,16 +16,17 @@
 """
 
 
+from unittest.mock import Mock
+
 import click
 import pytest
 from eth_utils import is_checksum_address
-from unittest.mock import Mock
 from web3 import Web3
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.literature import (
@@ -33,8 +34,7 @@ from nucypher.cli.literature import (
     GENERIC_SELECT_ACCOUNT,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.types import SubStakeInfo
-from tests.constants import MOCK_ETH_PROVIDER_URI, MOCK_SIGNER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS
+from tests.constants import MOCK_SIGNER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS, MOCK_ETH_PROVIDER_URI
 
 
 @pytest.mark.parametrize('selection', range(NUMBER_OF_ETH_TEST_ACCOUNTS))
@@ -83,7 +83,6 @@ def test_select_client_account_ambiguous_source(mock_stdin,  # used to assert th
     error_message = "Pass either signer or signer_uri but not both."
     with pytest.raises(ValueError, match=error_message):
         select_client_account(emitter=test_emitter, signer=Mock(), signer_uri=MOCK_SIGNER_URI)
-
 
 
 @pytest.mark.parametrize('selection', range(NUMBER_OF_ETH_TEST_ACCOUNTS))
@@ -143,8 +142,6 @@ def test_select_client_account_valid_sources(mocker,
         (1, True, True, True, []),
         (5, True, True, True, []),
         (NUMBER_OF_ETH_TEST_ACCOUNTS-1, True, True, True, []),
-        (4, True, True, True, [SubStakeInfo(1, 2, 3)]),
-        (7, True, True, True, [SubStakeInfo(1, 2, 3), SubStakeInfo(1, 2, 3)]),
         (0, False, True, True, []),
         (0, False, False, True, []),
         (0, False, False, False, []),

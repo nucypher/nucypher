@@ -14,12 +14,14 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 import random
 import sys
 from bisect import bisect_right
 from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Union, Any, Optional, cast, NamedTuple
+from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
 
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
@@ -28,7 +30,6 @@ from constant_sorrow.constants import (  # type: ignore
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from hexbytes.main import HexBytes
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams
 
@@ -39,7 +40,6 @@ from nucypher.blockchain.eth.constants import (
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
-    STAKING_ESCROW_CONTRACT_NAME,
     PRE_APPLICATION_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
@@ -55,15 +55,7 @@ from nucypher.crypto.utils import sha256_digest
 from nucypher.types import (
     Agent,
     NuNits,
-    SubStakeInfo,
-    RawSubStakeInfo,
-    Period,
-    Work,
-    StakerFlags,
-    StakerInfo,
     StakingProviderInfo,
-    PeriodDelta,
-    StakingEscrowParameters,
     TuNits
 )
 from nucypher.utilities.logging import Logger  # type: ignore
@@ -96,7 +88,8 @@ class EthereumContractAgent:
                  registry: BaseContractRegistry = None,  # TODO: Consider make it non-optional again. See comment in InstanceAgent.
                  eth_provider_uri: Optional[str] = None,
                  contract: Optional[Contract] = None,
-                 transaction_gas: Optional[Wei] = None):
+                 transaction_gas: Optional[Wei] = None,
+                 contract_version: Optional[str] = None):
 
         self.log = Logger(self.__class__.__name__)
         self.registry_str = str(registry)
@@ -107,6 +100,7 @@ class EthereumContractAgent:
             contract = self.blockchain.get_contract_by_name(
                 registry=registry,
                 contract_name=self.contract_name,
+                contract_version=contract_version,
                 proxy_name=self._proxy_name,
                 use_proxy_address=self._forward_address
             )
@@ -236,575 +230,6 @@ class NucypherTokenAgent(EthereumContractAgent):
         current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
         if current_allowance != 0:
             raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
-
-
-class StakingEscrowAgent(EthereumContractAgent):
-
-    contract_name: str = STAKING_ESCROW_CONTRACT_NAME
-    _proxy_name: str = DISPATCHER_CONTRACT_NAME
-    _excluded_interfaces = (
-        'verifyState',
-        'finishUpgrade'
-    )
-
-    DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE: int = int(os.environ.get(
-        NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
-
-    DEFAULT_STAKER_PAGINATION_SIZE: int = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
-
-    class NotEnoughStakers(Exception):
-        """Raised when the are not enough stakers available to complete an operation"""
-
-    #
-    # Staker Network Status
-    #
-
-    @contract_api(CONTRACT_CALL)
-    def get_staker_population(self) -> int:
-        """Returns the number of stakers on the blockchain"""
-        return self.contract.functions.getStakersLength().call()
-
-    @contract_api(CONTRACT_CALL)
-    def get_current_period(self) -> Period:
-        """Returns the current period"""
-        return self.contract.functions.getCurrentPeriod().call()
-
-    @contract_api(CONTRACT_CALL)
-    def get_stakers(self) -> List[ChecksumAddress]:
-        """Returns a list of stakers"""
-        num_stakers: int = self.get_staker_population()
-        stakers: List[ChecksumAddress] = [self.contract.functions.stakers(i).call() for i in range(num_stakers)]
-        return stakers
-
-    @contract_api(CONTRACT_CALL)
-    def partition_stakers_by_activity(self) -> Tuple[List[ChecksumAddress], List[ChecksumAddress], List[ChecksumAddress]]:
-        """
-        Returns three lists of stakers depending on their commitments:
-        The first list contains stakers that already committed to next period.
-        The second, stakers that committed to current period but haven't committed to next yet.
-        The third contains stakers that have missed commitments before current period
-        """
-
-        num_stakers: int = self.get_staker_population()
-        current_period: Period = self.get_current_period()
-        active_stakers: List[ChecksumAddress] = list()
-        pending_stakers: List[ChecksumAddress] = list()
-        missing_stakers: List[ChecksumAddress] = list()
-
-        for i in range(num_stakers):
-            staker = self.contract.functions.stakers(i).call()
-            last_committed_period = self.get_last_committed_period(staker)
-            if last_committed_period == current_period + 1:
-                active_stakers.append(staker)
-            elif last_committed_period == current_period:
-                pending_stakers.append(staker)
-            else:
-                locked_stake = self.non_withdrawable_stake(staker_address=staker)
-                if locked_stake == 0:
-                    # don't include stakers with expired stakes
-                    continue
-                missing_stakers.append(staker)
-
-        return active_stakers, pending_stakers, missing_stakers
-
-    @contract_api(CONTRACT_CALL)
-    def get_all_active_stakers(self, periods: int, pagination_size: Optional[int] = None) -> Tuple[NuNits, Dict[ChecksumAddress, NuNits]]:
-        """Only stakers which committed to the current period (in the previous period) are used."""
-        if not periods > 0:
-            raise ValueError("Period must be > 0")
-
-        if pagination_size is None:
-            pagination_size = self.DEFAULT_STAKER_PAGINATION_SIZE_LIGHT_NODE if self.blockchain.is_light else self.DEFAULT_STAKER_PAGINATION_SIZE
-            self.log.debug(f"Defaulting to pagination size {pagination_size}")
-        elif pagination_size < 0:
-            raise ValueError("Pagination size must be >= 0")
-
-        if pagination_size > 0:
-            num_stakers: int = self.get_staker_population()
-            start_index: int = 0
-            n_tokens: int = 0
-            stakers: Dict[int, int] = dict()
-            attempts = 0
-            while start_index < num_stakers:
-                try:
-                    attempts += 1
-                    active_stakers = self.contract.functions.getActiveStakers(periods,
-                                                                              start_index,
-                                                                              pagination_size).call()
-                except Exception as e:
-                    if 'timeout' not in str(e):
-                        # exception unrelated to pagination size and timeout
-                        raise e
-                    elif pagination_size == 1 or attempts >= 3:
-                        # we tried
-                        raise e
-                    else:
-                        # reduce pagination size and retry
-                        old_pagination_size = pagination_size
-                        pagination_size = old_pagination_size // 2
-                        self.log.debug(f"Failed stakers sampling using pagination size = {old_pagination_size}. "
-                                       f"Retrying with size {pagination_size}")
-                else:
-                    temp_locked_tokens, temp_stakers = active_stakers
-                    # temp_stakers is a list of length-2 lists (address -> locked tokens)
-                    temp_stakers_map = {address: locked_tokens for address, locked_tokens in temp_stakers}
-                    n_tokens = n_tokens + temp_locked_tokens
-                    stakers.update(temp_stakers_map)
-                    start_index += pagination_size
-
-        else:
-            n_tokens, temp_stakers = self.contract.functions.getActiveStakers(periods, 0, 0).call()
-            stakers = {address: locked_tokens for address, locked_tokens in temp_stakers}
-
-        # stakers' addresses are returned as uint256 by getActiveStakers(), convert to address objects
-        def checksum_address(address: int) -> ChecksumAddress:
-            return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
-        typed_stakers = {checksum_address(address): NuNits(locked_tokens) for address, locked_tokens in stakers.items()}
-
-        return NuNits(n_tokens), typed_stakers
-
-    @contract_api(CONTRACT_CALL)
-    def get_all_locked_tokens(self, periods: int, pagination_size: Optional[int] = None) -> NuNits:
-        all_locked_tokens, _stakers = self.get_all_active_stakers(periods=periods, pagination_size=pagination_size)
-        return all_locked_tokens
-
-    #
-    # StakingEscrow Contract API
-    #
-
-    @contract_api(CONTRACT_CALL)
-    def get_global_locked_tokens(self, at_period: Optional[Period] = None) -> NuNits:
-        """
-        Gets the number of locked tokens for *all* stakers that have
-        made a commitment to the specified period.
-
-        `at_period` values can be any valid period number past, present, or future:
-
-            PAST - Calling this function with an `at_period` value in the past will return the number
-            of locked tokens whose worker commitment was made to that past period.
-
-            PRESENT - This is the default value, when no `at_period` value is provided.
-
-            FUTURE - Calling this function with an `at_period` value greater than
-            the current period + 1 (next period), will result in a zero return value
-            because commitment cannot be made beyond the next period.
-
-        Returns an amount of NuNits.
-        """
-        if at_period is None:  # allow 0, vs default
-            # Get the current period on-chain by default.
-            at_period = self.contract.functions.getCurrentPeriod().call()
-        return NuNits(self.contract.functions.lockedPerPeriod(at_period).call())
-
-    @contract_api(CONTRACT_CALL)
-    def get_staker_info(self, staker_address: ChecksumAddress) -> StakerInfo:
-        # remove reserved fields
-        info: list = self.contract.functions.stakerInfo(staker_address).call()
-        return StakerInfo(*info[0:9])
-
-    @contract_api(CONTRACT_CALL)
-    def get_locked_tokens(self, staker_address: ChecksumAddress, periods: int = 0) -> NuNits:
-        """
-        Returns the amount of tokens this staker has locked
-        for a given duration in periods measured from the current period forwards.
-        """
-        if periods < 0:
-            raise ValueError(f"Periods value must not be negative, Got '{periods}'.")
-        return NuNits(self.contract.functions.getLockedTokens(staker_address, periods).call())
-
-    @contract_api(CONTRACT_CALL)
-    def owned_tokens(self, staker_address: ChecksumAddress) -> NuNits:
-        """
-        Returns all tokens that belong to staker_address, including locked, unlocked and rewards.
-        """
-        return NuNits(self.contract.functions.getAllTokens(staker_address).call())
-
-    @contract_api(CONTRACT_CALL)
-    def get_substake_info(self, staker_address: ChecksumAddress, stake_index: int) -> SubStakeInfo:
-        first_period, *others, locked_value = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
-        last_period: Period = self.contract.functions.getLastPeriodOfSubStake(staker_address, stake_index).call()
-        return SubStakeInfo(first_period, last_period, locked_value)
-
-    @contract_api(CONTRACT_CALL)
-    def get_raw_substake_info(self, staker_address: ChecksumAddress, stake_index: int) -> RawSubStakeInfo:
-        result: RawSubStakeInfo = self.contract.functions.getSubStakeInfo(staker_address, stake_index).call()
-        return RawSubStakeInfo(*result)
-
-    @contract_api(CONTRACT_CALL)
-    def get_all_stakes(self, staker_address: ChecksumAddress) -> Iterable[SubStakeInfo]:
-        stakes_length: int = self.contract.functions.getSubStakesLength(staker_address).call()
-        if stakes_length == 0:
-            return iter(())  # Empty iterable, There are no stakes
-        for stake_index in range(stakes_length):
-            yield self.get_substake_info(staker_address=staker_address, stake_index=stake_index)
-
-    @contract_api(TRANSACTION)
-    def deposit_tokens(self,
-                       amount: NuNits,
-                       lock_periods: PeriodDelta,
-                       transacting_power: TransactingPower,
-                       staker_address: Optional[ChecksumAddress] = None,
-                       ) -> TxReceipt:
-        """
-        Send tokens to the escrow from the sender's address to be locked on behalf of the staker address.
-        If the sender address is not provided, the stakers address is used.
-        Note that this resolved to two separate contract function signatures.
-        """
-        if not staker_address:
-            staker_address = transacting_power.account
-        contract_function: ContractFunction = self.contract.functions.deposit(staker_address, amount, lock_periods)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def deposit_and_increase(self,
-                             transacting_power: TransactingPower,
-                             amount: NuNits,
-                             stake_index: int
-                             ) -> TxReceipt:
-        """
-        Send tokens to the escrow from the sender's address to be locked on behalf of the staker address.
-        This method will add tokens to the selected sub-stake.
-        Note that this resolved to two separate contract function signatures.
-        """
-        contract_function: ContractFunction = self.contract.functions.depositAndIncrease(stake_index, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def lock_and_create(self,
-                        transacting_power: TransactingPower,
-                        amount: NuNits,
-                        lock_periods: PeriodDelta
-                        ) -> TxReceipt:
-        """
-        Locks tokens amount and creates new sub-stake
-        """
-        contract_function: ContractFunction = self.contract.functions.lockAndCreate(amount, lock_periods)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def lock_and_increase(self,
-                          transacting_power: TransactingPower,
-                          amount: NuNits,
-                          stake_index: int
-                          ) -> TxReceipt:
-        """
-        Locks tokens amount and add them to selected sub-stake
-        """
-        contract_function: ContractFunction = self.contract.functions.lockAndIncrease(stake_index, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def divide_stake(self,
-                     transacting_power: TransactingPower,
-                     stake_index: int,
-                     target_value: NuNits,
-                     periods: PeriodDelta
-                     ) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.divideStake(stake_index, target_value, periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def prolong_stake(self, transacting_power: TransactingPower, stake_index: int, periods: PeriodDelta) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.prolongStake(stake_index, periods)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def merge_stakes(self, transacting_power: TransactingPower, stake_index_1: int, stake_index_2: int) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.mergeStake(stake_index_1, stake_index_2)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def get_current_committed_period(self, staker_address: ChecksumAddress) -> Period:
-        staker_info: StakerInfo = self.get_staker_info(staker_address)
-        period: int = staker_info.current_committed_period
-        return Period(period)
-
-    @contract_api(CONTRACT_CALL)
-    def get_next_committed_period(self, staker_address: ChecksumAddress) -> Period:
-        staker_info: StakerInfo = self.get_staker_info(staker_address)
-        period: int = staker_info.next_committed_period
-        return Period(period)
-
-    @contract_api(CONTRACT_CALL)
-    def get_last_committed_period(self, staker_address: ChecksumAddress) -> Period:
-        period: int = self.contract.functions.getLastCommittedPeriod(staker_address).call()
-        return Period(period)
-
-    @contract_api(CONTRACT_CALL)
-    def get_worker_from_staker(self, staker_address: ChecksumAddress) -> ChecksumAddress:
-        worker: str = self.contract.functions.getWorkerFromStaker(staker_address).call()
-        return to_checksum_address(worker)
-
-    @contract_api(CONTRACT_CALL)
-    def get_staker_from_worker(self, worker_address: ChecksumAddress) -> ChecksumAddress:
-        staker = self.contract.functions.stakerFromWorker(worker_address).call()
-        return to_checksum_address(staker)
-
-    @contract_api(TRANSACTION)
-    def bond_worker(self, transacting_power: TransactingPower, worker_address: ChecksumAddress) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.bondWorker(worker_address)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def release_worker(self, transacting_power: TransactingPower) -> TxReceipt:
-        return self.bond_worker(transacting_power=transacting_power, worker_address=NULL_ADDRESS)
-
-    @contract_api(TRANSACTION)
-    def commit_to_next_period(self,
-                              transacting_power: TransactingPower,
-                              fire_and_forget: bool = True,  # TODO: rename to wait_for_receipt
-                              ) -> Union[TxReceipt, HexBytes]:
-        """
-        For each period that the worker makes a commitment, the staker is rewarded.
-        """
-        contract_function: ContractFunction = self.contract.functions.commitToNextPeriod()
-        txhash_or_receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                             transacting_power=transacting_power,
-                                                             gas_estimation_multiplier=1.5, # TODO: Workaround for #2337
-                                                             fire_and_forget=fire_and_forget)
-        return txhash_or_receipt
-
-    @contract_api(TRANSACTION)
-    def mint(self, transacting_power: TransactingPower) -> TxReceipt:
-        """
-        Computes reward tokens for the staker's account;
-        This is only used to calculate the reward for the final period of a stake,
-        when you intend to withdraw 100% of tokens.
-        """
-        contract_function: ContractFunction = self.contract.functions.mint()
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def non_withdrawable_stake(self, staker_address: ChecksumAddress) -> NuNits:
-        """
-        Returns token amount that can not be withdrawn.
-        Opposite method for `calculate_staking_reward`.
-        Uses maximum of locked tokens in the current and next periods.
-        """
-        staked_amount: int = max(self.contract.functions.getLockedTokens(staker_address, 0).call(),
-                                 self.contract.functions.getLockedTokens(staker_address, 1).call())
-        return NuNits(staked_amount)
-
-    @contract_api(CONTRACT_CALL)
-    def calculate_staking_reward(self, staker_address: ChecksumAddress) -> NuNits:
-        token_amount: NuNits = self.owned_tokens(staker_address)
-        reward_amount: int = token_amount - self.non_withdrawable_stake(staker_address)
-        return NuNits(reward_amount)
-
-    @contract_api(TRANSACTION)
-    def collect_staking_reward(self, transacting_power: TransactingPower, replace: bool = False) -> TxReceipt: # TODO: Support replacement for all agent transactions
-        """Withdraw tokens rewarded for staking."""
-        staker_address = transacting_power.account
-        reward_amount: NuNits = self.calculate_staking_reward(staker_address=staker_address)
-        from nucypher.blockchain.eth.token import NU
-        self.log.debug(f"Withdrawing staking reward ({NU.from_units(reward_amount)}) to {staker_address}")
-        receipt: TxReceipt = self.withdraw(transacting_power=transacting_power, amount=reward_amount, replace=replace)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def withdraw(self, transacting_power: TransactingPower, amount: NuNits, replace: bool = False) -> TxReceipt:
-        """Withdraw tokens"""
-        contract_function: ContractFunction = self.contract.functions.withdraw(amount)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   replace=replace)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def get_flags(self, staker_address: ChecksumAddress) -> StakerFlags:
-        flags: tuple = self.contract.functions.getFlags(staker_address).call()
-        wind_down_flag, restake_flag, measure_work_flag, snapshot_flag, migration_flag = flags
-        return StakerFlags(wind_down_flag, restake_flag, measure_work_flag, snapshot_flag, migration_flag)
-
-    @contract_api(CONTRACT_CALL)
-    def is_restaking(self, staker_address: ChecksumAddress) -> bool:
-        flags = self.get_flags(staker_address)
-        return flags.restake_flag
-
-    @contract_api(TRANSACTION)
-    def set_restaking(self, transacting_power: TransactingPower, value: bool) -> TxReceipt:
-        """
-        Enable automatic restaking for a fixed duration of lock periods.
-        If set to True, then all staking rewards will be automatically added to locked stake.
-        """
-        contract_function: ContractFunction = self.contract.functions.setReStake(value)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        # TODO: Handle ReStakeSet event (see #1193)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def is_migrated(self, staker_address: ChecksumAddress) -> bool:
-        flags = self.get_flags(staker_address)
-        return flags.migration_flag
-
-    @contract_api(TRANSACTION)
-    def migrate(self, transacting_power: TransactingPower, staker_address: Optional[ChecksumAddress] = None) -> TxReceipt:
-        if not staker_address:
-            staker_address = transacting_power.account
-        contract_function: ContractFunction = self.contract.functions.migrate(staker_address)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def is_winding_down(self, staker_address: ChecksumAddress) -> bool:
-        flags = self.get_flags(staker_address)
-        return flags.wind_down_flag
-
-    @contract_api(TRANSACTION)
-    def set_winding_down(self, transacting_power: TransactingPower, value: bool) -> TxReceipt:
-        """
-        Enable wind down for stake.
-        If set to True, then stakes duration will decrease in each period with `commitToNextPeriod()`.
-        """
-        contract_function: ContractFunction = self.contract.functions.setWindDown(value)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
-        # TODO: Handle WindDownSet event (see #1193)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def is_taking_snapshots(self, staker_address: ChecksumAddress) -> bool:
-        flags = self.get_flags(staker_address)
-        return flags.snapshot_flag
-
-    @contract_api(TRANSACTION)
-    def set_snapshots(self, transacting_power: TransactingPower, activate: bool) -> TxReceipt:
-        """
-        Activate/deactivate taking balance snapshots.
-        If set to True, then each time the balance changes, a snapshot associated to current block number is stored.
-        """
-        contract_function: ContractFunction = self.contract.functions.setSnapshots(activate)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function, transacting_power=transacting_power)
-        # TODO: Handle SnapshotSet event (see #1193)
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def remove_inactive_stake(self, transacting_power: TransactingPower, stake_index: int) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.removeUnusedSubStake(stake_index)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def staking_parameters(self) -> StakingEscrowParameters:
-        parameter_signatures = (
-
-            # Period
-            'genesisSecondsPerPeriod',       # Seconds in single period at genesis
-            'secondsPerPeriod',             # Seconds in single period
-
-            # Coefficients
-            'mintingCoefficient',           # Minting coefficient (d * k2)
-            'lockDurationCoefficient1',     # Numerator of the lock duration coefficient (k1)
-            'lockDurationCoefficient2',     # Denominator of the lock duration coefficient (k2)
-            'maximumRewardedPeriods',       # Max periods that will be additionally rewarded (kmax)
-            'firstPhaseTotalSupply',        # Total supply for the first phase
-            'firstPhaseMaxIssuance',        # Max possible reward for one period for all stakers in the first phase
-
-            # Constraints
-            'minLockedPeriods',             # Min amount of periods during which tokens can be locked
-            'minAllowableLockedTokens',     # Min amount of tokens that can be locked
-            'maxAllowableLockedTokens',     # Max amount of tokens that can be locked
-            'minWorkerPeriods'              # Min amount of periods while a worker can't be changed
-        )
-
-        def _call_function_by_name(name: str) -> int:
-            return getattr(self.contract.functions, name)().call()
-
-        staking_parameters = StakingEscrowParameters(tuple(map(_call_function_by_name, parameter_signatures)))
-        return staking_parameters
-
-    #
-    # Contract Utilities
-    #
-
-    @contract_api(CONTRACT_CALL)
-    def swarm(self) -> Iterable[ChecksumAddress]:
-        """
-        Returns an iterator of all staker addresses via cumulative sum, on-network.
-        Staker addresses are returned in the order in which they registered with the StakingEscrow contract's ledger
-        """
-        for index in range(self.get_staker_population()):
-            staker_address: ChecksumAddress = self.contract.functions.stakers(index).call()
-            yield staker_address
-
-    def get_stakers_reservoir(self,
-                              periods: int,
-                              without: Iterable[ChecksumAddress] = None,
-                              pagination_size: Optional[int] = None
-                              ) -> 'StakingProvidersReservoir':
-
-        n_tokens, stakers_map = self.get_all_active_stakers(periods=periods,
-                                                            pagination_size=pagination_size)
-
-        filtered_out = 0
-        if without:
-            for address in without:
-                if address in stakers_map:
-                    n_tokens -= stakers_map[address]
-                    del stakers_map[address]
-                    filtered_out += 1
-
-        self.log.debug(f"Got {len(stakers_map)} stakers with {n_tokens} total tokens "
-                       f"({filtered_out} filtered out)")
-
-        if n_tokens == 0:
-            raise self.NotEnoughStakers(f'There are no locked tokens for duration {periods}.')
-
-        return StakingProvidersReservoir(stakers_map)
-
-    @contract_api(CONTRACT_CALL)
-    def get_completed_work(self, bidder_address: ChecksumAddress) -> Work:
-        total_completed_work = self.contract.functions.getCompletedWork(bidder_address).call()
-        return total_completed_work
-
-    @contract_api(CONTRACT_CALL)
-    def get_missing_commitments(self, checksum_address: ChecksumAddress) -> int:
-        # TODO: Move this up one layer, since it utilizes a combination of contract API methods.
-        last_committed_period = self.get_last_committed_period(checksum_address)
-        current_period = self.get_current_period()
-        missing_commitments = current_period - last_committed_period
-        if missing_commitments in (0, -1):
-            result = 0
-        elif last_committed_period == 0:  # never committed
-            stakes = list(self.get_all_stakes(staker_address=checksum_address))
-            initial_staking_period = min(stakes, key=lambda s: s[0])[0]
-            result = current_period - initial_staking_period
-        else:
-            result = missing_commitments
-        return result
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def worklock(self) -> ChecksumAddress:
-        return self.contract.functions.workLock().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def adjudicator(self) -> ChecksumAddress:
-        return self.contract.functions.adjudicator().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def policy_manager(self) -> ChecksumAddress:
-        return self.contract.functions.policyManager().call()
 
 
 class SubscriptionManagerAgent(EthereumContractAgent):
@@ -1141,7 +566,8 @@ class ContractAgency:
     def get_agent(cls,
                   agent_class: Type[Agent],
                   registry: Optional[BaseContractRegistry] = None,
-                  eth_provider_uri: Optional[str] = None
+                  eth_provider_uri: Optional[str] = None,
+                  contract_version: Optional[str] = None
                   ) -> Agent:
 
         if not issubclass(agent_class, EthereumContractAgent):
@@ -1157,7 +583,7 @@ class ContractAgency:
         try:
             return cast(Agent, cls.__agents[registry_id][agent_class])
         except KeyError:
-            agent = cast(Agent, agent_class(registry=registry, eth_provider_uri=eth_provider_uri))
+            agent = cast(Agent, agent_class(registry=registry, eth_provider_uri=eth_provider_uri, contract_version=contract_version))
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
@@ -1174,12 +600,18 @@ class ContractAgency:
     def get_agent_by_contract_name(cls,
                                    contract_name: str,
                                    registry: BaseContractRegistry,
-                                   eth_provider_uri: Optional[str] = None
+                                   eth_provider_uri: Optional[str] = None,
+                                   contract_version: Optional[str] = None
                                    ) -> EthereumContractAgent:
         agent_name: str = cls._contract_name_to_agent_name(name=contract_name)
         agents_module = sys.modules[__name__]
         agent_class: Type[EthereumContractAgent] = getattr(agents_module, agent_name)
-        agent: EthereumContractAgent = cls.get_agent(agent_class=agent_class, registry=registry, eth_provider_uri=eth_provider_uri)
+        agent: EthereumContractAgent = cls.get_agent(
+            agent_class=agent_class,
+            registry=registry,
+            eth_provider_uri=eth_provider_uri,
+            contract_version=contract_version
+        )
         return agent
 
 

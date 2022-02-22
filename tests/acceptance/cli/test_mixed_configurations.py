@@ -77,7 +77,7 @@ def test_coexisting_configurations(click_runner,
 
     # Parse node addresses
     # TODO: Is testerchain & Full contract deployment needed here (causes massive slowdown)?
-    alice, ursula, another_ursula, staker, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
 
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
                NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
@@ -231,7 +231,7 @@ def test_corrupted_configuration(click_runner,
         shutil.rmtree(custom_filepath, ignore_errors=True)
     assert not custom_filepath.exists()
     
-    alice, ursula, another_ursula, staker, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
 
     #
     # Chaos

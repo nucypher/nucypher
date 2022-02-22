@@ -14,7 +14,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
@@ -48,8 +47,6 @@ from typing import List
 
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
-
-from nucypher.blockchain.eth.agents import StakingEscrowAgent
 
 
 class PrometheusMetricsConfig:

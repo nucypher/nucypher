@@ -18,6 +18,9 @@
 import click
 import os
 
+from nucypher.cli.config import group_general_config
+from nucypher.cli.options import option_config_file
+
 try:
     from nucypher.utilities.clouddeploy import CloudDeployers
 except ImportError:
@@ -26,8 +29,6 @@ except ImportError:
     # exception similar to DevelopmentInstallationRequired.
     CloudDeployers = None
 from nucypher.cli.utils import setup_emitter
-from nucypher.config.characters import StakeHolderConfiguration
-from nucypher.cli.commands.stake import group_staker_options, option_config_file, group_general_config
 
 
 def filter_staker_addresses(stakers, stakes):
@@ -49,7 +50,7 @@ def cloudworkers():
 
 
 @cloudworkers.command('up')
-@group_staker_options
+# @group_staker_options
 @option_config_file
 @click.option('--cloudprovider', help="aws or digitalocean", default='aws')
 @click.option('--aws-profile', help="The cloud provider account profile you'd like to use (an aws profile)", default=None)
@@ -154,7 +155,7 @@ def add(general_config, host_address, login_name, key_path, ssh_port, host_nickn
 
 
 @cloudworkers.command('add_for_stake')
-@group_staker_options
+# @group_staker_options
 @option_config_file
 @click.option('--staker-address',  help="The staker account address for whom you are adding a worker host.", required=True)
 @click.option('--host-address', help="The IP address or Hostname of the host you are adding.", required=True)

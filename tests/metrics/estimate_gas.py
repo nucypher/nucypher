@@ -19,38 +19,33 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
 import io
+import json
 import os
 import re
+import time
 from pathlib import Path
 from unittest.mock import Mock
-import tabulate
-import time
 
+import tabulate
+from nucypher_core.umbral import SecretKey, Signer
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
 from web3.contract import Contract
 from zope.interface import provider
 
-from nucypher_core.umbral import SecretKey, Signer
-
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
-    StakingEscrowAgent
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS, POLICY_ID_LENGTH
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from tests.utils.blockchain import TesterBlockchain
-
 
 ALGORITHM_SHA256 = 1
 TOKEN_ECONOMICS = Economics()

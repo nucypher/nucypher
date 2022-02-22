@@ -171,7 +171,7 @@ def test_persistent_node_storage_integration(click_runner,
                                              blockchain_ursulas,
                                              agency_local_registry):
 
-    alice, ursula, another_ursula, staker, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
     filename = UrsulaConfiguration.generate_filename()
     another_ursula_configuration_file_location = custom_filepath / filename
 

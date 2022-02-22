@@ -678,28 +678,46 @@ class BlockchainInterface:
         Instantiate a deployed contract from registry data,
         and assimilate it with its proxy if it is upgradeable.
         """
-        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
 
+        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
         if not target_contract_records:
             raise self.UnknownContract(f"No such contract records with name {contract_name}:{contract_version}.")
 
+        if contract_version and len(target_contract_records) != 1:
+            # Assert single contract record returned
+            raise self.InterfaceError(f"Registry is potentially corrupt - multiple {contract_name} "
+                                      f"contract records with the same version {contract_version}")
+
         if proxy_name:
+            if contract_version:
+                # contract version was specified - need more information related to proxy
+                target_all_contract_records = registry.search(contract_name=contract_name)
+            else:
+                # we don't need a separate copy of original result
+                target_all_contract_records = target_contract_records
 
             # Lookup proxies; Search for a published proxy that targets this contract record
             proxy_records = registry.search(contract_name=proxy_name)
-
             results = list()
+
             for proxy_name, proxy_version, proxy_address, proxy_abi in proxy_records:
                 proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
                                                              address=proxy_address,
                                                              version=proxy_version,
                                                              ContractFactoryClass=self._CONTRACT_FACTORY)
-
-                # Read this dispatcher's target address from the blockchain
+                # Read this dispatcher's current target address from the blockchain
                 proxy_live_target_address = proxy_contract.functions.target().call()
-                for target_name, target_version, target_address, target_abi in target_contract_records:
 
+                # either proxy is targeting latest version of contract
+                # or
+                # use older version of the same contract
+                for target_name, target_version, target_address, target_abi in target_all_contract_records:
                     if target_address == proxy_live_target_address:
+                        if contract_version:
+                            # contract_version specified - use specific contract
+                            target_version = target_contract_records[0][1]
+                            target_abi = target_contract_records[0][3]
+
                         if use_proxy_address:
                             triplet = (proxy_address, target_version, target_abi)
                         else:
@@ -713,7 +731,6 @@ class BlockchainInterface:
                 address, _version, _abi = results[0]
                 message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
                 raise self.InterfaceError(message.format(contract_name))
-
             else:
                 try:
                     selected_address, selected_version, selected_abi = results[0]
@@ -723,7 +740,6 @@ class BlockchainInterface:
 
         else:
             # TODO: use_proxy_address doesnt' work in this case. Should we raise if used?
-
             # NOTE: 0 must be allowed as a valid version number
             if len(target_contract_records) != 1:
                 if enrollment_version is None:

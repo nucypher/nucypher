@@ -17,7 +17,6 @@
 
 
 import json
-import os
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
@@ -28,13 +27,12 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.sol import SOLIDITY_COMPILER_VERSION
 from nucypher.cli.commands.deploy import deploy
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import TEST_ETH_PROVIDER_URI, YES_ENTER
 
 PLANNED_UPGRADES = 4
-CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'PolicyManager', 'Adjudicator', 'StakingInterface')
+CONTRACTS_TO_UPGRADE = ('StakingEscrow', 'Adjudicator', 'StakingInterface')
 
 
 @pytest.fixture(scope="module")
@@ -120,7 +118,6 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
     #
 
     contracts_to_upgrade = ('StakingEscrow',      # v1 -> v2
-                            'PolicyManager',      # v1 -> v2
                             'Adjudicator',        # v1 -> v2
                             'StakingInterface',   # v1 -> v2
 
@@ -128,11 +125,9 @@ def test_upgrade_contracts(click_runner, test_registry_source_manager, test_regi
                             'StakingEscrow',      # v3 -> v4
 
                             'Adjudicator',        # v2 -> v3
-                            'PolicyManager',      # v2 -> v3
                             'StakingInterface',   # v2 -> v3
 
                             'StakingInterface',   # v3 -> v4
-                            'PolicyManager',      # v3 -> v4
                             'Adjudicator',        # v3 -> v4
 
                             )  # NOTE: Keep all versions the same in this test (all version 4, for example)

@@ -15,18 +15,20 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import os
 from pathlib import Path
 
 import click
 
-from nucypher.blockchain.eth.actors import Staker
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
-from nucypher.blockchain.eth.constants import (
-    STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    PREApplicationAgent,
+    SubscriptionManagerAgent,
+    EthereumContractAgent
 )
+from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.utils import estimate_block_number_for_period
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -37,10 +39,9 @@ from nucypher.cli.options import (
     option_poa,
     option_eth_provider_uri,
     option_registry_filepath,
-    option_staking_address,
+    option_staking_provider
 )
-from nucypher.cli.painting.staking import paint_stakes
-from nucypher.cli.painting.status import paint_contract_status, paint_locked_tokens_status, paint_stakers
+from nucypher.cli.painting.status import paint_contract_status
 from nucypher.cli.utils import (
     connect_to_blockchain,
     get_registry,
@@ -50,6 +51,22 @@ from nucypher.cli.utils import (
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_ETH_PROVIDER_URI
 from nucypher.utilities.events import generate_events_csv_filepath
+
+STAKING_ESCROW = 'StakingEscrow'
+POLICY_MANAGER = 'PolicyManager'
+
+CONTRACT_NAMES = [
+    PREApplicationAgent.contract_name,
+    SubscriptionManagerAgent.contract_name,
+    STAKING_ESCROW,
+    POLICY_MANAGER
+]
+
+# The default contract version to use with the --legacy flag
+LEGACY_CONTRACT_VERSIONS = {
+    STAKING_ESCROW: 'v5.7.1',
+    POLICY_MANAGER: 'v6.2.1'
+}
 
 
 class RegistryOptions:
@@ -114,37 +131,17 @@ def network(general_config, registry_options):
     paint_contract_status(registry, emitter=emitter)
 
 
-@status.command()
+@status.command('pre')
 @group_registry_options
-@option_staking_address
-@click.option('--substakes', help="Print all sub-stakes for this staker", is_flag=True, default=False)
+@option_staking_provider
 @group_general_config
-def stakers(general_config, registry_options, staking_address, substakes):
-    """Show relevant information about stakers."""
-    if substakes and not staking_address:
-        raise click.BadOptionUsage(option_name="--substakes",
-                                   message="--substakes is only valid when used with --staking-address.")
+def staking_providers(general_config, registry_options, staking_provider_address):
+    """Show relevant information about staking providers."""
     emitter, registry, blockchain = registry_options.setup(general_config=general_config)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-    stakers_list = [staking_address] if staking_address else staking_agent.get_stakers()
-    paint_stakers(emitter=emitter, stakers=stakers_list, registry=registry)
-    if substakes:
-        staker = Staker(registry=registry,
-                        domain=registry_options.network,
-                        checksum_address=staking_address)
-        staker.stakes.refresh()
-        paint_stakes(emitter=emitter, staker=staker, paint_unlocked=True)
-
-
-@status.command(name='locked-tokens')
-@group_registry_options
-@click.option('--periods', help="Number of periods", type=click.INT, default=90)
-@group_general_config
-def locked_tokens(general_config, registry_options, periods):
-    """Display a graph of the number of locked tokens over time."""
-    emitter, registry, blockchain = registry_options.setup(general_config=general_config)
-    staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-    paint_locked_tokens_status(emitter=emitter, agent=staking_agent, periods=periods)
+    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
+    staking_providers_list = [staking_provider_address] if staking_provider_address else application_agent.get_staking_providers()
+    emitter.echo(staking_providers_list)  # TODO: staking provider painter
+    # paint_stakers(emitter=emitter, stakers=staking_providers_list, registry=registry)
 
 
 @status.command()
@@ -157,8 +154,8 @@ def locked_tokens(general_config, registry_options, periods):
 @option_csv
 @option_csv_file
 @option_event_filters
-# TODO: Add options for number of periods in the past (default current period), or range of blocks
-def events(general_config, registry_options, contract_name, from_block, to_block, event_name, csv, csv_file, event_filters):
+@click.option('--legacy', help="Events related to the NuCypher Network prior to the merge to Threshold Network", is_flag=True)
+def events(general_config, registry_options, contract_name, from_block, to_block, event_name, csv, csv_file, event_filters, legacy):
     """Show events associated with NuCypher contracts."""
 
     if csv or csv_file:
@@ -178,7 +175,6 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         if event_name:
             raise click.BadOptionUsage(option_name='--event-name', message='--event-name requires --contract-name')
         # FIXME should we force a contract name to be specified?
-        contract_names = [STAKING_ESCROW_CONTRACT_NAME,]
     else:
         contract_names = [contract_name]
 
@@ -186,12 +182,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
 
     if from_block is None:
         # by default, this command only shows events of the current period
-        last_block = blockchain.client.block_number
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
-        current_period = staking_agent.get_current_period()
-        from_block = estimate_block_number_for_period(period=current_period,
-                                                      seconds_per_period=staking_agent.staking_parameters()[1],
-                                                      latest_block=last_block)
+        blocks_since_yesterday_kinda = ((60*60*24)//AVERAGE_BLOCK_TIME_IN_SECONDS)
+        from_block = blockchain.client.block_number - blocks_since_yesterday_kinda
     if to_block is None:
         to_block = 'latest'
     else:
@@ -212,8 +204,29 @@ def events(general_config, registry_options, contract_name, from_block, to_block
                                                f'the form `<name>=<value>` - {str(e)}')
 
     emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
-    for contract_name in contract_names:
-        agent = ContractAgency.get_agent_by_contract_name(contract_name, registry)
+
+    contract_version = None
+    if legacy and contract_name in LEGACY_CONTRACT_VERSIONS:
+        contract_version = LEGACY_CONTRACT_VERSIONS[contract_name]
+
+    for contract_name in CONTRACT_NAMES:
+        if legacy:
+            versioned_contract = blockchain.get_contract_by_name(
+                registry=registry,
+                contract_name=contract_name,
+                contract_version=contract_version,
+                proxy_name='Dispatcher',
+                use_proxy_address=True
+               )
+            agent = EthereumContractAgent(contract=versioned_contract)
+            agent.contract_name = contract_name
+        else:
+            agent = ContractAgency.get_agent_by_contract_name(
+                contract_name=contract_name,
+                contract_version=contract_version,
+                registry=registry
+            )
+
         if event_name and event_name not in agent.events.names:
             raise click.BadOptionUsage(option_name='--event-name, --contract_name',
                                        message=f'{contract_name} contract does not have an event named {event_name}')

@@ -34,11 +34,10 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     EthereumContractAgent,
     NucypherTokenAgent,
-    StakingEscrowAgent,
     PREApplicationAgent,
     SubscriptionManagerAgent
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, NULL_ADDRESS, STAKING_ESCROW_CONTRACT_NAME
+from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterfaceFactory,
@@ -530,8 +529,8 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
     Deploys the StakingEscrow ethereum contract to the blockchain.  Depends on NucypherTokenAgent
     """
 
-    agency = StakingEscrowAgent
-    contract_name = agency.contract_name
+    agency = NotImplemented  # StakingEscrowAgent was here
+    contract_name = 'StakingEscrow'
     contract_name_stub = "StakingEscrowStub"
 
     can_be_idle = True
@@ -677,7 +676,7 @@ class StakingEscrowDeployer(BaseContractDeployer, UpgradeableContractMixin, Owna
             # 2 - Deploy the dispatcher used for updating this contract #
             dispatcher_deployer = DispatcherDeployer(registry=self.registry, target_contract=the_escrow_contract)
 
-            dispatcher_receipts = dispatcher_deployer.deploy(transacting_power=transacting_power, 
+            dispatcher_receipts = dispatcher_deployer.deploy(transacting_power=transacting_power,
                                                              gas_limit=gas_limit,
                                                              confirmations=confirmations)
             dispatcher_deploy_receipt = dispatcher_receipts[dispatcher_deployer.deployment_steps[0]]

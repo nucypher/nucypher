@@ -20,8 +20,8 @@ import pytest
 
 from nucypher_core.umbral import SecretKeyFactory, Signer
 
-from nucypher.blockchain.eth.actors import Investigator, Staker
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, StakingEscrowAgent
+from nucypher.blockchain.eth.actors import Investigator
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU

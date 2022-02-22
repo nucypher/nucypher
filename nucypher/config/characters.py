@@ -18,16 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Optional
 
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
@@ -258,91 +254,3 @@ class BobConfiguration(CharacterConfiguration):
             store_cards=self.store_cards
         )
         return {**super().static_payload(), **payload}
-
-
-class StakeHolderConfiguration(CharacterConfiguration):
-
-    NAME = 'stakeholder'
-    CHARACTER_CLASS = StakeHolder
-
-    _CONFIG_FIELDS = (
-        *CharacterConfiguration._CONFIG_FIELDS,
-        'eth_provider_uri'
-    )
-
-    def __init__(self, checksum_addresses: set = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.checksum_addresses = checksum_addresses
-
-    def static_payload(self) -> dict:
-        """Values to read/write from stakeholder JSON configuration files"""
-        if not self.signer_uri:
-            self.signer_uri = self.eth_provider_uri
-        payload = dict(eth_provider_uri=self.eth_provider_uri,
-                       poa=self.poa,
-                       light=self.is_light,
-                       domain=self.domain,
-                       signer_uri=self.signer_uri,
-                       worker_data=self.worker_data
-                       )
-
-        if self.registry_filepath:
-            payload.update(dict(registry_filepath=self.registry_filepath))
-        return payload
-
-    @property
-    def dynamic_payload(self) -> dict:
-        payload = dict(registry=self.registry, signer=self.signer)
-        return payload
-
-    def _setup_node_storage(self, node_storage=None) -> None:
-        pass
-
-    @classmethod
-    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
-        payload = cls._read_configuration_file(filepath=filepath)
-        # Filter out None values from **overrides to detect, well, overrides...
-        # Acts as a shim for optional CLI flags.
-        overrides = {k: v for k, v in overrides.items() if v is not None}
-        payload = {**payload, **overrides}
-        return payload
-
-    @classmethod
-    def generate_runtime_filepaths(cls, config_root: Path) -> dict:
-        """Dynamically generate paths based on configuration root directory"""
-        filepaths = dict(config_root=config_root,
-                         config_file_location=config_root / cls.generate_filename())
-        return filepaths
-
-    def initialize(self, password: Optional[str] = None) -> Path:
-        """Initialize a new configuration and write installation files to disk."""
-
-        # Development
-        if self.dev_mode:
-            self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
-            self.config_root = Path(self.__temp_dir.name)
-
-        # Persistent
-        else:
-            self._ensure_config_root_exists()
-
-        self._cache_runtime_filepaths()
-
-        # Validate
-        if not self.dev_mode:
-            self.validate()
-
-        # Success
-        message = "Created nucypher installation files at {}".format(self.config_root)
-        self.log.debug(message)
-        return self.config_root
-
-    @classmethod
-    def generate(cls, *args, **kwargs):
-        """Shortcut: Hook-up a new initial installation configuration."""
-        node_config = cls(dev_mode=False, *args, **kwargs)
-        node_config.initialize()
-        return node_config
-
-    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> Path:
-        return super().to_configuration_file(override=True, *args, **kwargs)
