@@ -15,15 +15,16 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from abc import ABC, abstractmethod
 from typing import Optional, NamedTuple, Dict
 
 import maya
 from nucypher_core import ReencryptionRequest
-from web3.types import Wei, ChecksumAddress, Timestamp, TxReceipt
+from web3.types import Wei, Timestamp, TxReceipt, ChecksumAddress
 
 from nucypher.blockchain.eth.agents import SubscriptionManagerAgent
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.policy.policies import BlockchainPolicy, Policy
 
 
@@ -91,11 +92,17 @@ class ContractPayment(PaymentMethod, ABC):
         rate: Wei
         value: Wei
 
-    def __init__(self, provider: str, network: str, *args, **kwargs):
+    def __init__(self,
+                 eth_provider: str,
+                 network: str,
+                 registry: Optional[BaseContractRegistry] = None,
+                 *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.provider = provider
+        self.provider = eth_provider
         self.network = network
-        self.registry = InMemoryContractRegistry.from_latest_publication(network=network)
+        if not registry:
+            registry = InMemoryContractRegistry.from_latest_publication(network=network)
+        self.registry = registry
         self.__agent = None  # delay blockchain/registry reads until later
 
     @property

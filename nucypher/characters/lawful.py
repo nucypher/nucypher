@@ -169,7 +169,8 @@ class Alice(Character, BlockchainPolicyAuthor):
             BlockchainPolicyAuthor.__init__(self,
                                             domain=self.domain,
                                             transacting_power=self.transacting_power,
-                                            registry=self.registry)
+                                            registry=self.registry,
+                                            eth_provider_uri=eth_provider_uri)
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -572,6 +573,7 @@ class Bob(Character):
 
         if not publisher_verifying_key:
             publisher_verifying_key = alice_verifying_key
+        publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
 
         # A small optimization to avoid multiple treasure map decryptions.
         map_hash = hash(bytes(encrypted_treasure_map))

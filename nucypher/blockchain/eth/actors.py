@@ -383,9 +383,13 @@ class Operator(BaseActor):
 class BlockchainPolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, eth_provider_uri, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+        self.application_agent = ContractAgency.get_agent(
+            PREApplicationAgent,
+            registry=self.registry,
+            eth_provider_uri=eth_provider_uri
+        )
 
     def create_policy(self, *args, **kwargs):
         """Hence the name, a BlockchainPolicyAuthor can create a BlockchainPolicy with themself as the author."""
