@@ -185,3 +185,23 @@ Echo a snapshot of live PRE Application metadata.
 +==========================+=====================================================================+
 | ``events``               | Show events associated to PRE Application contracts.                |
 +--------------------------+---------------------------------------------------------------------+
+
+
+Bond
+----
+
+Bond an Operator to a Staking Provider. The Staking Provider must be authorized to use the PREApplication.
+
+.. code:: bash
+
+    (nucypher)$ nucypher bond [OPTIONS]
+
+
+Unbond
+------
+
+Unbonds an operator from an authorized Staking Provider.
+
+.. code:: bash
+
+    (nucypher)$ nucypher unbond [OPTIONS]

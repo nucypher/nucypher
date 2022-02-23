@@ -30,10 +30,10 @@ can be specified on the `Threshold Dashboard <https://dashboard.threshold.networ
 Operator
 --------
 
-The Operator (aka "Ursula") is the node that provides PRE application service.
+The Operator (aka "Ursula") is the node, and associated Ethereum address, that provides PRE application service.
 
-It is the bonded delegate of a Staking Provider and an active network node, performing PRE work on behalf
-of a Staking Provider. Ursulas must remain online to provide uninterrupted services on-demand.
+It is the :ref:`bonded <bond-operator>` delegate of a Staking Provider and an active network node, performing PRE work on behalf
+of a Staking Provider. Nodes must remain online to provide uninterrupted services on-demand.
 
 .. note::
 
@@ -47,7 +47,7 @@ Before the Staking Provider is eligible to participate in the PRE application,
 the Authorizer appointed during the stake delegation needs to approve the PRE Application
 to use the stake. From the moment of approval, the application is authorized to slash or seize the stake.
 
-Authorization can be performed on the `Threshold dashboard <https://dashboard.threshold.network/overview/network>`_.
+Authorization can be performed on the `Threshold Dashboard <https://dashboard.threshold.network/overview/network>`_.
 
 
 Staking Provider Strategies & Responsibilities
@@ -57,7 +57,7 @@ In order to provide the PRE service and receive rewards, there have three option
 
 * **Node Delegation**: Delegate running a PRE client to one of the participating *node-as-a-service* :ref:`Staking Providers <node-providers>`. In this
   case, the setup, operation, and monitoring is outsourced, and stakers need only check in occasionally to ensure the provider is handling things as expected.
-* **Self-Managed, Manual**: :ref:`Run<running-a-node>` your own PRE node and retain full purview and customization control over the machine(s), installation, dependencies and configuration. In this case, stakers are entirely responsible for setup, operation, and monitoring
+* **Self-Managed, Manual**: :ref:`Run <running-a-node>` your own PRE node and retain full purview and customization control over the machine(s), installation, dependencies and configuration. In this case, stakers are entirely responsible for setup, operation, and monitoring
   of the PRE client.
 * **Self-Managed, Automated**: Run your own PRE node on either Digital Ocean or AWS, leveraging :ref:`automation tools <managing-cloud-nodes>` that speed up and simplify the installation process. In this case too, stakers are entirely responsible for setup, operation, and monitoring of the PRE client.
 

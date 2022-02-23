@@ -1,5 +1,6 @@
 .. _running-a-node:
 
+==================
 Running a PRE Node
 ==================
 
@@ -19,10 +20,65 @@ Running a PRE Node
     automation tools such as Ansible and Docker to simplify the setup and management
     of nodes running in the cloud. See :ref:`managing-cloud-nodes`.
 
-After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails two steps:
+After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following steps:
 
-#. Initializing a PRE node configuration
-#. Starting the PRE node.
+#. :ref:`bond-operator`
+#. :ref:`configure-and-run-node`
+
+
+
+.. _bond-operator:
+
+Bond An Operator
+================
+
+Once the Staking Provider is authorized to use the PRE Application, an Operator must be bonded to it. This is performed by
+the Staking Provider via the ``nucypher bond`` CLI command.
+
+.. attention::
+
+    The Staking Provider should run the bond command. This may be the same as the Staker themself for self run nodes, or a *node-as-a-service* :ref:`Staking Provider <node-providers>` for node delegation.
+
+
+.. important::
+
+    Once the Operator is bonded, it cannot be changed by the Staking Provider for 24 hours.
+
+
+.. code:: bash
+
+    (nucypher)$ nucypher bond --network <NETWORK NAME> --eth-provider <L1 PROVIDER URI> --staking-provider <STAKING PROVIDER ADDRESS> --signer <STAKING PROVIDER KEYSTORE URI> --operator-address <OPERATOR ADDRESS>
+
+    Are you sure you want to bond staking provider 0x... to operator 0x...? [y/N]: y
+    Enter ethereum account password (0x...):
+
+    Bonding operator 0x...
+    Broadcasting BONDOPERATOR Transaction ...
+    TXHASH 0x...
+
+    OK | 0x...
+    Block #14114221 | 0x...
+     See https://etherscan.io/tx/0x...
+
+
+Replace the following values with your own:
+
+   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
+   * ``<STAKING PROVIDER ADDRESS>`` - the ethereum address of the staking provider
+   * ``<STAKING PROVIDER KEYSTORE URI>`` - the local ethereum keystore of the staking provider address
+   * ``<OPERATOR ADDRESS>`` - the address of the operator to bond
+
+
+.. note::
+
+    See ``nucypher bond --help`` for usage.
+
+
+.. _configure-and-run-node:
+
+Configure and Run a PRE Node
+============================
 
 Node management commands are issued via the ``nucypher ursula`` CLI. For more information
 on that command you can run ``nucypher ursula –help``.
@@ -102,7 +158,7 @@ This step creates and stores the PRE node configuration, and only needs to be ru
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -210,7 +266,7 @@ Configure the node
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -312,7 +368,7 @@ First initialize a Node configuration:
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -406,10 +462,10 @@ Continuing startup after funding and bonding:
 
 
 Node Status
------------
+===========
 
 Node Logs
-+++++++++
+---------
 
 A reliable way to check the status of a node is to view the logs.
 View logs for a docker-launched Ursula:
@@ -430,6 +486,6 @@ View logs for a CLI-launched or systemd Ursula:
 
 
 Node Status Page
-++++++++++++++++
+----------------
 
 Once the node is running, you can view its public status page at ``https://<node_ip>:9151/status``.
