@@ -24,10 +24,12 @@ import os
 from pathlib import Path
 from web3.main import Web3
 
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.crypto.powers import SigningPower, DecryptingPower
+from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.ethereum import connect_web3_provider
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -62,8 +64,18 @@ except KeyError:
 # NuCypher Network #
 ####################
 
-L1_TESTNET = 'lynx'
+L1_TESTNET = 'ibex'
 L2_TESTNET = 'mumbai'  # TODO: Needs name different than the network name
+
+base_path = Path('/home/k/Git/nucypher/nucypher/blockchain/eth/contract_registry')
+
+# Staking local registry (L1)
+application_registry_path = base_path / Path(f'{L1_TESTNET}/contract_registry.json')
+application_registry = LocalContractRegistry(filepath=application_registry_path)
+
+# Policy/Payment local registry (L2 or Sidechain)
+policy_registry_path = base_path / Path(f'{L2_TESTNET}/contract_registry.json')
+policy_registry = LocalContractRegistry(filepath=policy_registry_path)
 
 #####################
 # Bob the BUIDLer  ##
@@ -71,7 +83,7 @@ L2_TESTNET = 'mumbai'  # TODO: Needs name different than the network name
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-bob = Bob(domain=L1_TESTNET)
+bob = Bob(domain=L1_TESTNET, registry=application_registry)
 
 # Bob puts his public keys somewhere alice can find them.
 verifying_key = bob.public_keys(SigningPower)
@@ -92,14 +104,29 @@ wallet = Signer.from_signer_uri(SIGNER_URI)
 password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock {ALICE_ADDRESS[:8]}: ")
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
+
+handpicked_ursulas = {
+    Ursula.from_teacher_uri(
+        teacher_uri=f"https://{L1_TESTNET}.nucypher.network",
+        min_stake=0,
+        federated_only=False
+    ),
+}
+
+payment_method = SubscriptionManagerPayment(
+    network='mumbai',
+    registry=policy_registry,
+    eth_provider=L2_PROVIDER
+)
+
 # This is Alice.
 alice = Alice(
     checksum_address=ALICE_ADDRESS,
+    registry=application_registry,
     signer=wallet,
     domain=L1_TESTNET,
-    payment_network=L2_TESTNET,
-    payment_provider=L2_PROVIDER,
     eth_provider_uri=L1_PROVIDER,
+    payment_method=payment_method,
 )
 
 # Alice puts her public key somewhere for Bob to find later...
@@ -120,11 +147,18 @@ remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=v
 # In this example bob will be granted access for 1 day,
 # trusting 2 of 3 nodes paying each of them 50 gwei per period.
 expiration = maya.now() + datetime.timedelta(days=1)
-threshold, shares = 2, 3
-price = alice.payment_method.quote(expiration=expiration, shares=shares).value
+threshold, shares = 1, 1
+price = alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value
 
 # Alice grants access to Bob...
-policy = alice.grant(remote_bob, label, threshold=threshold, shares=shares, value=price, expiration=expiration)
+policy = alice.grant(
+    remote_bob, label,
+    threshold=threshold,
+    shares=shares,
+    value=price,
+    expiration=expiration,
+    ursulas=handpicked_ursulas
+)
 
 # ...and then disappears from the internet.
 #
