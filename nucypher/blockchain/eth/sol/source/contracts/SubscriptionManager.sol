@@ -2,9 +2,15 @@
 
 pragma solidity ^0.8.0;
 
-import "../zeppelin/proxy/Initializable.sol";
+import "@openzeppelin-upgradeable/contracts/access/AccessControlUpgradeable.sol";
+import "@openzeppelin-upgradeable/contracts/proxy/utils/Initializable.sol";
 
-contract SubscriptionManager is Initializable {
+contract SubscriptionManager is Initializable, AccessControlUpgradeable {
+
+    bytes32 public constant SET_RATE_ROLE =
+        keccak256("Power to set the fee rate");
+    bytes32 public constant WITHDRAW_ROLE =
+        keccak256("Power to withdraw funds from SubscriptionManager");
 
     // The layout of policy struct is optimized, so sponsor, timestamps and size
     // fit in a single 256-word.
@@ -13,6 +19,7 @@ contract SubscriptionManager is Initializable {
         uint32 startTimestamp;
         uint32 endTimestamp;
         uint16 size; // also known as `N`
+        // There's still 2 bytes available here
         address owner;
     }
 
@@ -22,12 +29,13 @@ contract SubscriptionManager is Initializable {
         address indexed owner,
         uint16 size,
         uint32 startTimestamp,
-        uint32 endTimestamp
+        uint32 endTimestamp,
+        uint256 cost
     );
 
     event FeeRateUpdated(uint256 oldFeeRate, uint256 newFeeRate);
 
-    // Per-second service fee rate
+    // Per-second, per-node service fee rate
     uint256 public feeRate;
 
     // Mapping that stores policy structs, keyed by policy ID
@@ -35,6 +43,20 @@ contract SubscriptionManager is Initializable {
 
     function initialize(uint256 _feeRate) public initializer {
         _setFeeRate(_feeRate);
+        _setupRole(SET_RATE_ROLE, msg.sender);
+        _setupRole(WITHDRAW_ROLE, msg.sender);
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    function getPolicyCost(
+        uint16 _size,
+        uint32 _startTimestamp,
+        uint32 _endTimestamp
+    ) public view returns (uint256){
+        uint32 duration = _endTimestamp - _startTimestamp;
+        require(duration > 0, "Invalid timestamps");
+        require(_size > 0, "Invalid policy size");
+        return feeRate * _size * duration;
     }
 
     function createPolicy(
@@ -47,14 +69,12 @@ contract SubscriptionManager is Initializable {
         external payable
     {
         require(
-            _startTimestamp < _endTimestamp &&
-            block.timestamp < _endTimestamp,
+            _startTimestamp < _endTimestamp && block.timestamp < _endTimestamp,
             "Invalid timestamps"
         );
-        uint32 duration = _endTimestamp - _startTimestamp;
         require(
-            duration > 0 && _size > 0 &&
-            msg.value == feeRate * _size * uint32(duration)
+            msg.value == getPolicyCost(_size, _startTimestamp, _endTimestamp),
+            "Invalid policy cost"
         );
 
         _createPolicy(_policyId, _policyOwner, _size, _startTimestamp, _endTimestamp);
@@ -98,7 +118,8 @@ contract SubscriptionManager is Initializable {
             _policyOwner == address(0) ? msg.sender : _policyOwner,
             _size,
             _startTimestamp,
-            _endTimestamp
+            _endTimestamp,
+            msg.value
         );
     }
 
@@ -116,11 +137,11 @@ contract SubscriptionManager is Initializable {
         emit FeeRateUpdated(oldFee, newFee);
     }
 
-    function setFeeRate(uint256 _rate_per_second) external {
-        _setFeeRate(_rate_per_second);
+    function setFeeRate(uint256 _ratePerSecond) onlyRole(SET_RATE_ROLE) external {
+        _setFeeRate(_ratePerSecond);
     }
 
-    function sweep(address payable recipient) external {
+    function sweep(address payable recipient) onlyRole(WITHDRAW_ROLE) external {
         uint256 balance = address(this).balance;
         (bool sent, ) = recipient.call{value: balance}("");
         require(sent, "Failed transfer");
