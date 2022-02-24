@@ -860,7 +860,7 @@ class Ursula(Teacher, Character, Operator):
     @property
     def operator_address(self):
         if not self.federated_only:
-            # TODO: The reason for the fork here is the difference in available information
+            # TODO (#2875): The reason for the fork here is the difference in available information
             # for local and remote nodes.
             # The local node knows its operator address, but doesn't yet know the staker address.
             # For the remote node, we know its staker address (from the metadata),
