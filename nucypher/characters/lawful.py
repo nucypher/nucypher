@@ -703,7 +703,7 @@ class Ursula(Teacher, Character, Operator):
                  checksum_address: ChecksumAddress = None,
                  operator_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
-                 decentralized_identity_evidence_from_metadata=NOT_SIGNED,
+                 operator_signature_from_metadata=NOT_SIGNED,
 
                  eth_provider_uri: str = None,
                  payment_method: PaymentMethod = None,
@@ -848,14 +848,14 @@ class Ursula(Teacher, Character, Operator):
     def __substantiate_stamp(self):
         transacting_power = self._crypto_power.power_ups(TransactingPower)
         signature = transacting_power.sign_message(message=bytes(self.stamp))
-        self.__decentralized_identity_evidence = signature
+        self.__operator_signature = signature
         self.__operator_address = transacting_power.account
-        message = f"Created decentralized identity evidence: {self.__decentralized_identity_evidence[:10].hex()}"
+        message = f"Created decentralized identity evidence: {self.__operator_signature[:10].hex()}"
         self.log.debug(message)
 
     @property
-    def decentralized_identity_evidence(self):
-        return self.__decentralized_identity_evidence
+    def operator_signature(self):
+        return self.__operator_signature
 
     @property
     def operator_address(self):
@@ -1027,7 +1027,7 @@ class Ursula(Teacher, Character, Operator):
         return deployer
 
     @property
-    def decentralized_identity_evidence_from_metadata(self):
+    def operator_signature_from_metadata(self):
         return self._metadata.payload.decentralized_identity_evidence or NOT_SIGNED
 
     def _generate_metadata(self) -> NodeMetadata:
@@ -1036,13 +1036,13 @@ class Ursula(Teacher, Character, Operator):
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
         if self.federated_only:
-            decentralized_identity_evidence = None
+            operator_signature = None
         else:
-            decentralized_identity_evidence = self.decentralized_identity_evidence
+            operator_signature = self.operator_signature
         payload = NodeMetadataPayload(staker_address=self.canonical_address,
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
-                                      decentralized_identity_evidence=decentralized_identity_evidence,
+                                      decentralized_identity_evidence=operator_signature,
                                       verifying_key=self.public_keys(SigningPower),
                                       encrypting_key=self.public_keys(DecryptingPower),
                                       certificate_bytes=self.certificate.public_bytes(Encoding.PEM),

@@ -149,7 +149,7 @@ class NodeSprout:
         return self._metadata_payload.encrypting_key
 
     @property
-    def decentralized_identity_evidence_from_metadata(self):
+    def operator_signature_from_metadata(self):
         return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
 
     @property
@@ -178,7 +178,7 @@ class NodeSprout:
                       checksum_address=self.checksum_address,
                       domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
-                      decentralized_identity_evidence_from_metadata=self.decentralized_identity_evidence_from_metadata,
+                      operator_signature_from_metadata=self.operator_signature_from_metadata,
                       certificate=load_pem_x509_certificate(self._metadata_payload.certificate_bytes, backend=default_backend()),
                       metadata=self._metadata
                       )
@@ -908,7 +908,7 @@ class Learner:
 
             except sprout.InvalidOperatorSignature:
                 self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence_from_metadata}')
+                              f'{sprout} has an invalid wallet signature for {sprout.operator_signature_from_metadata}')
 
             except sprout.UnbondedOperator:
                 self.log.warn(f'Verification Failed - '
@@ -1167,7 +1167,7 @@ class Teacher:
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
         addresses_match = sprout.checksum_address == self.checksum_address
-        evidence_matches = sprout.decentralized_identity_evidence_from_metadata == self.decentralized_identity_evidence_from_metadata
+        evidence_matches = sprout.operator_signature_from_metadata == self.operator_signature_from_metadata
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure

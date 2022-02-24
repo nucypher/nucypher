@@ -43,7 +43,7 @@ def mock_ursula(testerchain, account, mocker):
     signed_stamp = testerchain.client.sign_message(account=account,
                                                    message=bytes(ursula_stamp))
 
-    ursula = mocker.Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
+    ursula = mocker.Mock(stamp=ursula_stamp, operator_signature=signed_stamp)
     return ursula
 
 
