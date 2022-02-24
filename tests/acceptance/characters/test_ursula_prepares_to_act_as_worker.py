@@ -42,14 +42,12 @@ def test_stakers_bond_to_ursulas(testerchain, test_registry, staking_providers, 
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
-    signature_as_bytes = first_ursula.decentralized_identity_evidence
+    signature_as_bytes = first_ursula.operator_signature
     signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
+    # `operator_address` was derived in nucypher_core, check it independently
     assert verify_eip_191(address=first_ursula.operator_address,
                           message=bytes(first_ursula.stamp),
                           signature=signature_as_bytes)
-
-    # This method is a shortcut for the above.
-    assert first_ursula._stamp_has_valid_signature_by_worker()
 
 
 def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):

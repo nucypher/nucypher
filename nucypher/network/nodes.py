@@ -120,7 +120,7 @@ class NodeSprout:
 
     @property
     def canonical_address(self):
-        return self._metadata_payload.canonical_address
+        return self._metadata_payload.staker_address
 
     @property
     def nickname(self):
@@ -149,7 +149,7 @@ class NodeSprout:
         return self._metadata_payload.encrypting_key
 
     @property
-    def decentralized_identity_evidence(self):
+    def operator_signature_from_metadata(self):
         return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
 
     @property
@@ -178,7 +178,7 @@ class NodeSprout:
                       checksum_address=self.checksum_address,
                       domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
-                      decentralized_identity_evidence=self.decentralized_identity_evidence,
+                      operator_signature_from_metadata=self.operator_signature_from_metadata,
                       certificate=load_pem_x509_certificate(self._metadata_payload.certificate_bytes, backend=default_backend()),
                       metadata=self._metadata
                       )
@@ -908,7 +908,7 @@ class Learner:
 
             except sprout.InvalidOperatorSignature:
                 self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+                              f'{sprout} has an invalid wallet signature for {sprout.operator_signature_from_metadata}')
 
             except sprout.UnbondedOperator:
                 self.log.warn(f'Verification Failed - '
@@ -960,7 +960,6 @@ class Teacher:
                  domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
                  certificate_filepath: Path,
-                 decentralized_identity_evidence=NOT_SIGNED,
                  ) -> None:
 
         self.domain = domain
@@ -971,14 +970,12 @@ class Teacher:
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
 
         # Assume unverified
         self.verified_stamp = False
         self.verified_worker = False
         self.verified_metadata = False
         self.verified_node = False
-        self.__operator_address = None
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -1036,24 +1033,6 @@ class Teacher:
         response = MetadataResponse(self.stamp.as_umbral_signer(), response_payload)
         return bytes(response)
 
-    #
-    # Stamp
-    #
-
-    def _stamp_has_valid_signature_by_worker(self) -> bool:
-        """
-        Off-chain Signature Verification of stamp signature by Operator's ETH account.
-        Note that this only "certifies" the stamp with the worker's account,
-        so it can be seen like a self certification. For complete assurance,
-        it's necessary to validate the StakingProvider/Operator relation on-chain.
-        """
-        if self.__decentralized_identity_evidence is NOT_SIGNED:
-            return False
-        signature_is_valid = verify_eip_191(message=bytes(self.stamp),
-                                            signature=self.__decentralized_identity_evidence,
-                                            address=self.operator_address)
-        return signature_is_valid
-
     def _operator_is_bonded(self, registry: BaseContractRegistry) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
@@ -1087,11 +1066,11 @@ class Teacher:
         # Decentralized
         else:
 
-            # Off-chain signature verification
-            if not self._stamp_has_valid_signature_by_worker():
-                message = f"Invalid signature {self.__decentralized_identity_evidence.hex()} " \
-                          f"from operator {self.operator_address} for stamp {bytes(self.stamp).hex()} "
-                raise self.InvalidOperatorSignature(message)
+            # Try to derive the worker address if it hasn't been derived yet.
+            try:
+                operator_address = self.operator_address
+            except Exception as e:
+                raise self.InvalidOperatorSignature(str(e)) from e
 
             # On-chain staking check, if registry is present
             if registry:
@@ -1188,7 +1167,7 @@ class Teacher:
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
         addresses_match = sprout.checksum_address == self.checksum_address
-        evidence_matches = sprout.decentralized_identity_evidence == self.__decentralized_identity_evidence
+        evidence_matches = sprout.operator_signature_from_metadata == self.operator_signature_from_metadata
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure
@@ -1203,16 +1182,3 @@ class Teacher:
         else:
             # Success
             self.verified_node = True
-
-    @property
-    def decentralized_identity_evidence(self):
-        return self.__decentralized_identity_evidence
-
-    @property
-    def operator_address(self):
-        if not self.__operator_address and not self.federated_only:
-            if self.decentralized_identity_evidence is NOT_SIGNED:
-                raise self.StampNotSigned  # TODO: Find a better exception  NRN
-            self.__operator_address = recover_address_eip_191(message=bytes(self.stamp),
-                                                            signature=self.decentralized_identity_evidence)
-        return self.__operator_address

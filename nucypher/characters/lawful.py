@@ -38,6 +38,7 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
+from eth_utils import to_checksum_address
 from flask import Response, request
 from nucypher_core import (
     MessageKit,
@@ -702,7 +703,7 @@ class Ursula(Teacher, Character, Operator):
                  checksum_address: ChecksumAddress = None,
                  operator_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
                  client_password: str = None,
-                 decentralized_identity_evidence=NOT_SIGNED,
+                 operator_signature_from_metadata=NOT_SIGNED,
 
                  eth_provider_uri: str = None,
                  payment_method: PaymentMethod = None,
@@ -768,7 +769,6 @@ class Ursula(Teacher, Character, Operator):
 
                 # Use this power to substantiate the stamp
                 self.__substantiate_stamp()
-                decentralized_identity_evidence = self.__decentralized_identity_evidence
 
                 try:
                     Operator.__init__(self,
@@ -810,13 +810,13 @@ class Ursula(Teacher, Character, Operator):
             # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
             self._metadata = metadata
+            self.__operator_address = None
 
         # Teacher (All Modes)
         Teacher.__init__(self,
                          domain=domain,
                          certificate=certificate,
-                         certificate_filepath=certificate_filepath,
-                         decentralized_identity_evidence=decentralized_identity_evidence)
+                         certificate_filepath=certificate_filepath)
 
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
         try:
@@ -848,10 +848,33 @@ class Ursula(Teacher, Character, Operator):
     def __substantiate_stamp(self):
         transacting_power = self._crypto_power.power_ups(TransactingPower)
         signature = transacting_power.sign_message(message=bytes(self.stamp))
-        self.__decentralized_identity_evidence = signature
+        self.__operator_signature = signature
         self.__operator_address = transacting_power.account
-        message = f"Created decentralized identity evidence: {self.__decentralized_identity_evidence[:10].hex()}"
+        message = f"Created decentralized identity evidence: {self.__operator_signature[:10].hex()}"
         self.log.debug(message)
+
+    @property
+    def operator_signature(self):
+        return self.__operator_signature
+
+    @property
+    def operator_address(self):
+        if not self.federated_only:
+            # TODO (#2875): The reason for the fork here is the difference in available information
+            # for local and remote nodes.
+            # The local node knows its operator address, but doesn't yet know the staker address.
+            # For the remote node, we know its staker address (from the metadata),
+            # but don't know the worker address.
+            # Can this be resolved more elegantly?
+            if getattr(self, 'is_me', False):
+                return self._local_operator_address()
+            else:
+                if not self.__operator_address:
+                    operator_address = to_checksum_address(self.metadata().payload.derive_operator_address())
+                    self.__operator_address = operator_address
+                return self.__operator_address
+        else:
+            raise RuntimeError("Federated nodes do not have an operator address")
 
     def __preflight(self) -> None:
         """Called immediately before running services
@@ -1003,19 +1026,23 @@ class Ursula(Teacher, Character, Operator):
         deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
         return deployer
 
+    @property
+    def operator_signature_from_metadata(self):
+        return self._metadata.payload.decentralized_identity_evidence or NOT_SIGNED
+
     def _generate_metadata(self) -> NodeMetadata:
         # Assuming that the attributes collected there do not change,
         # so we can cache the result of this method.
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
-        if self.decentralized_identity_evidence is NOT_SIGNED:
-            decentralized_identity_evidence = None
+        if self.federated_only:
+            operator_signature = None
         else:
-            decentralized_identity_evidence = self.decentralized_identity_evidence
-        payload = NodeMetadataPayload(canonical_address=self.canonical_address,
+            operator_signature = self.operator_signature
+        payload = NodeMetadataPayload(staker_address=self.canonical_address,
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
-                                      decentralized_identity_evidence=decentralized_identity_evidence,
+                                      decentralized_identity_evidence=operator_signature,
                                       verifying_key=self.public_keys(SigningPower),
                                       encrypting_key=self.public_keys(DecryptingPower),
                                       certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
