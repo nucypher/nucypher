@@ -24,25 +24,26 @@ After finding a server that meets the :ref:`requirements <node-requirements>`, r
 
 #. :ref:`bond-operator`
 #. :ref:`configure-and-run-node`
-
+#. :ref:`qualify-node`
+#. :ref:`manage-node`
 
 
 .. _bond-operator:
 
-Bond An Operator
-================
+Bond Operator
+=============
 
-Once the Staking Provider is authorized to use the PRE Application, an Operator must be bonded to it. This is performed by
+Once the Staking Provider is authorized to use the PRE Application, an Operator address must be bonded to it. This is performed by
 the Staking Provider via the ``nucypher bond`` CLI command.
 
 .. attention::
 
-    The Staking Provider should run the bond command. This may be the same as the Staker themself for self run nodes, or a *node-as-a-service* :ref:`Staking Provider <node-providers>` for node delegation.
+    This command should only be run by the stake Owner for self-managed nodes, or the *node-as-a-service* :ref:`Staking Provider <node-providers>` for node delegation.
 
 
 .. important::
 
-    Once the Operator is bonded, it cannot be changed by the Staking Provider for 24 hours.
+    Once the Operator address is bonded, it cannot be changed for 24 hours.
 
 
 .. code:: bash
@@ -250,7 +251,7 @@ Instead of using docker, the node can be run as a `systemd <https://en.wikipedia
 
 
 Configure the node
-++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -276,7 +277,7 @@ Replace the following values with your own:
 
 
 Create Node Service Template
-++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a file named ``ursula.service`` in ``/etc/systemd/system``, and add this template to it
 
@@ -306,7 +307,7 @@ Replace the following values with your own:
 
 
 Enable Node Service
-+++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -314,7 +315,7 @@ Enable Node Service
 
 
 Run Node Service
-++++++++++++++++
+~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -322,7 +323,7 @@ Run Node Service
 
 
 Check Node Service Status
-+++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -337,7 +338,7 @@ Check Node Service Status
 
 
 Restart Node Service
-++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -348,7 +349,7 @@ Run Node Manually
 +++++++++++++++++
 
 Configure the Node
-++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
 
 If you’d like to use another own method of running the Node's process in the
 background,, here is how to run Ursula using the CLI directly.
@@ -384,8 +385,49 @@ Run the Node
     $ nucypher ursula run
 
 
+.. _qualify-node:
+
+Qualify Node
+============
+
+Nodes must be fully qualified: funded with ETH and bonded to an operator address,
+in order to fully start. Nodes that are launched before qualification will
+pause until they have a balance greater than 0 ETH, and are bonded to an
+Operator address. Once both of these requirements are met, the node will
+automatically continue startup.
+
+Waiting for qualification:
+
+.. code:: bash
+
+    Defaulting to Ursula configuration file: '/root/.local/share/nucypher/ursula.json'
+    Authenticating Ursula
+    Starting services
+    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
+    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
+    ⓘ  Operator startup is paused. Waiting for bonding and funding …
+
+Continuing startup after funding and bonding:
+
+.. code:: bash
+
+    ...
+    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
+    ✓ Operator is funded with 0.641160744670608582 ETH
+    ✓ Operator 0x2507beC003324d1Ec7F42Cc03B95d213D2E0b238 is bonded to staking provider 0x4F29cC79B52DCc97db059B0E11730F9BE98F1959
+    ✓ Operator already confirmed.  Not starting worktracker.
+    ...
+    ✓ Rest Server https://1.2.3.4:9151
+    Working ~ Keep Ursula Online!
+
+
+.. _manage-node:
+
+Manage Node
+===========
+
 Update Node Configuration
-+++++++++++++++++++++++++
+-------------------------
 
 These configuration settings will be stored in an ursula configuration file, ``ursula.json``, stored
 in ``/home/user/.local/share/nucypher`` by default.
@@ -427,65 +469,32 @@ All node configuration values can be modified using the config command, ``nucyph
     The node must be restarted for any configuration changes to take effect.
 
 
-Node Qualification
-++++++++++++++++++
-
-Nodes must be fully qualified: funded with ETH and bonded to an operator address,
-in order to fully start. Nodes that are launched before qualification will
-pause until they have a balance greater than 0 ETH, and are bonded to an
-operator address. Once both of these requirements are met, the node will
-automatically continue startup.
-
-Waiting for qualification:
-
-.. code:: bash
-
-    Defaulting to Ursula configuration file: '/root/.local/share/nucypher/ursula.json'
-    Authenticating Ursula
-    Starting services
-    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
-    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
-    ⓘ  Operator startup is paused. Waiting for bonding and funding …
-
-Continuing startup after funding and bonding:
-
-.. code:: bash
-
-    ...
-    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
-    ✓ Operator is funded with 0.641160744670608582 ETH
-    ✓ Operator 0x2507beC003324d1Ec7F42Cc03B95d213D2E0b238 is bonded to staking provider 0x4F29cC79B52DCc97db059B0E11730F9BE98F1959
-    ✓ Operator already confirmed.  Not starting worktracker.
-    ...
-    ✓ Rest Server https://1.2.3.4:9151
-    Working ~ Keep Ursula Online!
-
-
 Node Status
-===========
+-----------
 
 Node Logs
----------
++++++++++
 
 A reliable way to check the status of a node is to view the logs.
-View logs for a docker-launched Ursula:
 
-.. code:: bash
+* View logs for a docker-launched Ursula:
 
-    $ docker logs -f ursula
+  .. code:: bash
 
-View logs for a CLI-launched or systemd Ursula:
+      $ docker logs -f ursula
 
-.. code:: bash
+* View logs for a systemd or CLI-launched Ursula:
 
-    # Application Logs
-    tail -f ~/.local/share/nucypher/nucypher.log
+  .. code:: bash
 
-    # Systemd Logs
-    journalctl -f -t ursula
+      # Systemd Logs
+      journalctl -f -t ursula
+
+      # Application Logs
+      tail -f ~/.local/share/nucypher/nucypher.log
 
 
 Node Status Page
-----------------
+++++++++++++++++
 
 Once the node is running, you can view its public status page at ``https://<node_ip>:9151/status``.
