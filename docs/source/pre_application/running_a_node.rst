@@ -498,3 +498,21 @@ Node Status Page
 ++++++++++++++++
 
 Once the node is running, you can view its public status page at ``https://<node_ip>:9151/status``.
+
+.. image:: ../.static/img/Annotated-Ursula-Status-Webpage-v2.svg
+    :target: ../.static/img/Annotated-Ursula-Status-Webpage-v2.svg
+
+- *Nickname Icon* - A visual representation of the node's nickname words and colors
+- *Staking Provider Nickname* - A nickname/codename for the node derived from the Staking Provider address
+- *Staking Provider Address* - The Staking Provider address this node is bonded to
+- *Client Version* - The version of nucypher this node is running
+- *Network Name* - The network this node is running on (mainnet, lynx, or ibex).
+- *Peer Count* - The total number of peers this node has discovered.
+- *Fleet State Checksum* - A checksum representing all currently known peers
+- *Fleet State Icon* - A visual representation of the fleet state's checksum word and color
+- *Fleet State History* - The most recent historical fleet states known by this node, sorted from most recent to oldest
+- *Peer Nickname* - The nickname of a peer derived from it's Staking Provider address
+- *Peer Fleet State* - The current fleet state of a peer node
+- *Peer Staking Provider Address* - The Staking Provider address of a peer
+- *Verified Nodes* - The collection of nodes that have been and validated by this node (valid metadata and staking status)
+- *Unverified Nodes* - The collection of nodes that have not been contacted or validated by this node
