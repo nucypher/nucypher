@@ -63,6 +63,7 @@ option_payment_network = click.option('--payment-network', help="Payment network
 option_payment_method = click.option('--payment-method', help="Payment method name", type=PAYMENT_METHOD_CHOICES, required=False)
 option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
 option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
+option_policy_registry_filepath = click.option('--policy-registry-filepath', help="Custom contract registry filepath for policies", type=EXISTING_READABLE_FILE)
 option_shares = click.option('--shares', '-n', help="N-Total shares", type=click.INT)
 option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
 option_staking_provider = click.option('--staking-provider', help="Staking provider ethereum address", type=EIP55_CHECKSUM_ADDRESS, required=True)

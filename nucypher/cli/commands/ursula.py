@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from pathlib import Path
 
 import click
@@ -54,7 +56,11 @@ from nucypher.cli.options import (
     option_teacher_uri,
     option_lonely,
     option_max_gas_price,
-    option_key_material, option_payment_provider, option_payment_method, option_payment_network
+    option_key_material,
+    option_payment_provider,
+    option_payment_method,
+    option_payment_network,
+    option_policy_registry_filepath
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
@@ -80,6 +86,7 @@ class UrsulaConfigOptions:
                  db_filepath: Path,
                  network: str,
                  registry_filepath: Path,
+                 policy_registry_filepath: Path,
                  dev: bool,
                  poa: bool,
                  light: bool,
@@ -94,9 +101,9 @@ class UrsulaConfigOptions:
                  ):
 
         if federated_only:
-            if registry_filepath:
+            if registry_filepath or policy_registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
-                                           message=f"--registry-filepath cannot be used in federated mode.")
+                                           message=f"--registry-filepath and --policy-registry-filepath cannot be used in federated mode.")
 
         self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
@@ -107,6 +114,7 @@ class UrsulaConfigOptions:
         self.db_filepath = db_filepath
         self.domain = network
         self.registry_filepath = registry_filepath
+        self.policy_registry_filepath = policy_registry_filepath
         self.dev = dev
         self.poa = poa
         self.light = light
@@ -127,6 +135,7 @@ class UrsulaConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
+                policy_registry_filepath=self.policy_registry_filepath,
                 eth_provider_uri=self.eth_provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
@@ -152,6 +161,7 @@ class UrsulaConfigOptions:
                     filepath=config_file,
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
+                    policy_registry_filepath=self.policy_registry_filepath,
                     eth_provider_uri=self.eth_provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
@@ -200,6 +210,7 @@ class UrsulaConfigOptions:
                                             federated_only=self.federated_only,
                                             operator_address=self.operator_address,
                                             registry_filepath=self.registry_filepath,
+                                            policy_registry_filepath=self.policy_registry_filepath,
                                             eth_provider_uri=self.eth_provider_uri,
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
@@ -220,6 +231,7 @@ class UrsulaConfigOptions:
                        federated_only=self.federated_only,
                        operator_address=self.operator_address,
                        registry_filepath=self.registry_filepath,
+                       policy_registry_filepath=self.policy_registry_filepath,
                        eth_provider_uri=self.eth_provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
@@ -250,6 +262,7 @@ group_config_options = group_options(
     db_filepath=option_db_filepath,
     network=option_network(),
     registry_filepath=option_registry_filepath,
+    policy_registry_filepath=option_policy_registry_filepath,
     poa=option_poa,
     light=option_light,
     dev=option_dev,

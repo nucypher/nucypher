@@ -209,7 +209,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
         paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
         if not paid:
-            message = f"{bob_identity_message} Policy {hrac} is unpaid."
+            message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
             return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
         # Re-encrypt
