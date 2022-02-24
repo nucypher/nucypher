@@ -27,10 +27,10 @@ class RevocationKit:
     def __init__(self, treasure_map, signer: SignatureStamp):
         # TODO: move to core and make a method of TreasureMap?
         self.revocations = dict()
-        for ursula_address, encrypted_kfrag in treasure_map.destinations.items():
-            self.revocations[ursula_address] = RevocationOrder(signer=signer.as_umbral_signer(),
-                                                               staker_address=ursula_address,
-                                                               encrypted_kfrag=encrypted_kfrag)
+        for staking_provider_address, encrypted_kfrag in treasure_map.destinations.items():
+            self.revocations[staking_provider_address] = RevocationOrder(signer=signer.as_umbral_signer(),
+                                                                         staker_address=staking_provider_address,
+                                                                         encrypted_kfrag=encrypted_kfrag)
 
     def __iter__(self):
         return iter(self.revocations.values())
