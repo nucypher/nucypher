@@ -20,7 +20,7 @@ Running a PRE Node
     automation tools such as Ansible and Docker to simplify the setup and management
     of nodes running in the cloud. See :ref:`managing-cloud-nodes`.
 
-After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following steps:
+After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following:
 
 #. :ref:`bond-operator`
 #. :ref:`configure-and-run-node`
@@ -423,8 +423,8 @@ Continuing startup after funding and bonding:
 
 .. _manage-node:
 
-Manage Node
-===========
+Node Management
+===============
 
 Update Node Configuration
 -------------------------
