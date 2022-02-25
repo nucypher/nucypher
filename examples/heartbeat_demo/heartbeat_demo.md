@@ -1,6 +1,6 @@
 # NuCypher's Heartbeat Demo
 
-![Heartbeat Demo](https://user-images.githubusercontent.com/2564234/49080419-dda35680-f243-11e8-90d7-6f649d80e03d.png)
+![Heartbeat Demo](./heart_monitor.png)
 
 Alicia has a Heart Monitor device that measures her heart rate and outputs this data in encrypted form.
 Since she thinks that she may want to share this data in the future,

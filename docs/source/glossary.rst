@@ -26,9 +26,6 @@ Glossary
     Enrico
       *"The Encryptor"* :term:`Character` - a data source that encrypts data on behalf of :term:`Alice` and produces a :term:`MessageKit`.
 
-    Felix
-      *"The Faucet"* :term:`Character` - provides *testnet* NU tokens for nodes on the test NuCypher Network.
-
     KEM
       Key encapsulation mechanism - a symmetric key encrypted with an asymmetric key
 
@@ -42,35 +39,23 @@ Glossary
       The ciphertext (data encrypted with a symmetric key) and the :term:`Capsule` (encrypted symmetric key) that are stored together.
 
     NU
-      The NuCypher token used by nodes for staking.
+      The Legacy NuCypher token used by nodes for staking.
 
     NuNit
       1 NU = 10\ :sup:`18` NuNits.
-
-    Period
-      A timeframe of approximately 7 days in the NuCypher Network. This parameter is used as a minimum unit for policy
-      duration, and is also the cadence with which workers must make an on-chain commitment to being online and
-      available. Note that period durations were 24 hours in the genesis (previous) protocol and could change again in the
-      future.
 
     PKE
       Public-key encryption.
 
     Porter
-      A web service that is the conduit between applications (platform-agnostic) and the nucypher network, that
-      performs nucypher protocol operations on behalf of Alice and Bob.
+      A web service that is the conduit between applications (platform-agnostic) and the PRE nodes on the Threshold network, that
+      performs ``nucypher`` protocol operations on behalf of Alice and Bob.
 
     PRE
       Proxy re-encryption.
 
     Re-encryption Key
       A key that facilitates the transformation of ciphertext from one encryption key to another.
-
-    Stake
-      A quantity of tokens and escrow duration in periods.
-
-    Staker
-      An account that holds NU tokens and performs staking-related operations on the blockchain.
 
     Stamp
       The public key for a :term:`Character`'s signing key pair.
@@ -82,10 +67,7 @@ Glossary
       NuCypher's threshold proxy re-encryption scheme - it takes standard :term:`PRE` and increases security and performance. See Umbral_.
 
     Ursula
-      *"The Proxy in PRE"* :term:`Character` - the nodes on the NuCypher Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by :term:`Alice`.
+      *"The Proxy in PRE"* :term:`Character` - the PRE node on the Threshold Network that stands ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by :term:`Alice`.
 
-    Worker
-      An account that is actively doing work in the network as an :term:`Ursula` node. A worker is bonded to, and performs work on behalf of, a :term:`Staker`.
-
-    WorkLock
-      NuCypher's permissionless token distribution mechanism.
+    Operator
+      An account that is actively doing work in the network as an :term:`Ursula` node. An Operator is bonded to, and performs work on behalf of, a Staking Provider.

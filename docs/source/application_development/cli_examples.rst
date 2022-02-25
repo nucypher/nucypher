@@ -5,7 +5,7 @@ Overview
 --------
 
 This guide is an example of NuCypher's decentralized network allowing Alice to share a secret
-with Bob using the NuCypher Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
+with Bob using the PRE Application on the Threshold Network via the ``nucypher`` CLI. It is analogous to the ``python`` example
 in :doc:`/application_development/getting_started`.
 
 .. note::

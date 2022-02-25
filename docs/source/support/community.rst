@@ -15,4 +15,4 @@ that characterise its nature. The full list of *Labels* are available `here <htt
 
 Contact Us
 ----------
-You can join our `Discord <http://discord.nucypher.com>`_ to chat with us.
+You can join our `Discord <https://discord.gg/Threshold>`_ to chat with us.
