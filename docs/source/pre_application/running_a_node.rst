@@ -159,7 +159,7 @@ This step creates and stores the PRE node configuration, and only needs to be ru
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of the network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
