@@ -332,6 +332,16 @@ Q: How do I use the Vending Machine contract directly?
 
 See the `Vending Machine Documentation <https://github.com/threshold-network/solidity-contracts/blob/main/docs/rfc-2-vending-machine.adoc>`_.
 
+Q: How do I stake T?
+~~~~~~~~~~~~~~~~~~~~
+
+Via the `Threshold Dashboard Staking UI <https://dashboard.threshold.network/staking>`_.
+
+Q: Is there a minimum stake size?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The current minimum stake size for running a PRE node is 40,000 T but is tunable via governance.
+
 Q: What happened to the existing NU contracts after the merge?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
