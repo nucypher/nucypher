@@ -130,7 +130,7 @@ Whitepapers
    application_development/testnet
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: References
 
    references/pip-installation

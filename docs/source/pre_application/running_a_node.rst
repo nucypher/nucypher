@@ -1,5 +1,6 @@
 .. _running-a-node:
 
+==================
 Running a PRE Node
 ==================
 
@@ -19,10 +20,66 @@ Running a PRE Node
     automation tools such as Ansible and Docker to simplify the setup and management
     of nodes running in the cloud. See :ref:`managing-cloud-nodes`.
 
-After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails two steps:
+After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following:
 
-#. Initializing a PRE node configuration
-#. Starting the PRE node.
+#. :ref:`bond-operator`
+#. :ref:`configure-and-run-node`
+#. :ref:`qualify-node`
+#. :ref:`manage-node`
+
+
+.. _bond-operator:
+
+Bond Operator
+=============
+
+Once the Staking Provider is authorized to use the PRE Application, an Operator address must be bonded to it. This is performed by
+the Staking Provider via the ``nucypher bond`` CLI command.
+
+.. attention::
+
+    This command should only be run by the stake Owner for self-managed nodes, or the *node-as-a-service* :ref:`Staking Provider <node-providers>` for node delegation.
+
+
+.. important::
+
+    Once the Operator address is bonded, it cannot be changed for 24 hours.
+
+
+.. code:: bash
+
+    (nucypher)$ nucypher bond --network <NETWORK NAME> --eth-provider <L1 PROVIDER URI> --staking-provider <STAKING PROVIDER ADDRESS> --signer <STAKING PROVIDER KEYSTORE URI> --operator-address <OPERATOR ADDRESS>
+
+    Are you sure you want to bond staking provider 0x... to operator 0x...? [y/N]: y
+    Enter ethereum account password (0x...):
+
+    Bonding operator 0x...
+    Broadcasting BONDOPERATOR Transaction ...
+    TXHASH 0x...
+
+    OK | 0x...
+    Block #14114221 | 0x...
+     See https://etherscan.io/tx/0x...
+
+
+Replace the following values with your own:
+
+   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
+   * ``<STAKING PROVIDER ADDRESS>`` - the ethereum address of the staking provider
+   * ``<STAKING PROVIDER KEYSTORE URI>`` - the local ethereum keystore of the staking provider address
+   * ``<OPERATOR ADDRESS>`` - the address of the operator to bond
+
+
+.. note::
+
+    See ``nucypher bond --help`` for usage.
+
+
+.. _configure-and-run-node:
+
+Configure and Run a PRE Node
+============================
 
 Node management commands are issued via the ``nucypher ursula`` CLI. For more information
 on that command you can run ``nucypher ursula –help``.
@@ -102,7 +159,7 @@ This step creates and stores the PRE node configuration, and only needs to be ru
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -194,7 +251,7 @@ Instead of using docker, the node can be run as a `systemd <https://en.wikipedia
 
 
 Configure the node
-++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -210,7 +267,7 @@ Configure the node
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -220,7 +277,7 @@ Replace the following values with your own:
 
 
 Create Node Service Template
-++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create a file named ``ursula.service`` in ``/etc/systemd/system``, and add this template to it
 
@@ -250,7 +307,7 @@ Replace the following values with your own:
 
 
 Enable Node Service
-+++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -258,7 +315,7 @@ Enable Node Service
 
 
 Run Node Service
-++++++++++++++++
+~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -266,7 +323,7 @@ Run Node Service
 
 
 Check Node Service Status
-+++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -281,7 +338,7 @@ Check Node Service Status
 
 
 Restart Node Service
-++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~
 
 .. code:: bash
 
@@ -292,7 +349,7 @@ Run Node Manually
 +++++++++++++++++
 
 Configure the Node
-++++++++++++++++++
+~~~~~~~~~~~~~~~~~~
 
 If you’d like to use another own method of running the Node's process in the
 background,, here is how to run Ursula using the CLI directly.
@@ -312,7 +369,7 @@ First initialize a Node configuration:
 Replace the following values with your own:
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of a nucypher network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -328,8 +385,49 @@ Run the Node
     $ nucypher ursula run
 
 
+.. _qualify-node:
+
+Qualify Node
+============
+
+Nodes must be fully qualified: funded with ETH and bonded to an operator address,
+in order to fully start. Nodes that are launched before qualification will
+pause until they have a balance greater than 0 ETH, and are bonded to an
+Operator address. Once both of these requirements are met, the node will
+automatically continue startup.
+
+Waiting for qualification:
+
+.. code:: bash
+
+    Defaulting to Ursula configuration file: '/root/.local/share/nucypher/ursula.json'
+    Authenticating Ursula
+    Starting services
+    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
+    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
+    ⓘ  Operator startup is paused. Waiting for bonding and funding …
+
+Continuing startup after funding and bonding:
+
+.. code:: bash
+
+    ...
+    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
+    ✓ Operator is funded with 0.641160744670608582 ETH
+    ✓ Operator 0x2507beC003324d1Ec7F42Cc03B95d213D2E0b238 is bonded to staking provider 0x4F29cC79B52DCc97db059B0E11730F9BE98F1959
+    ✓ Operator already confirmed.  Not starting worktracker.
+    ...
+    ✓ Rest Server https://1.2.3.4:9151
+    Working ~ Keep Ursula Online!
+
+
+.. _manage-node:
+
+Node Management
+===============
+
 Update Node Configuration
-+++++++++++++++++++++++++
+-------------------------
 
 These configuration settings will be stored in an ursula configuration file, ``ursula.json``, stored
 in ``/home/user/.local/share/nucypher`` by default.
@@ -371,40 +469,6 @@ All node configuration values can be modified using the config command, ``nucyph
     The node must be restarted for any configuration changes to take effect.
 
 
-Node Qualification
-++++++++++++++++++
-
-Nodes must be fully qualified: funded with ETH and bonded to an operator address,
-in order to fully start. Nodes that are launched before qualification will
-pause until they have a balance greater than 0 ETH, and are bonded to an
-operator address. Once both of these requirements are met, the node will
-automatically continue startup.
-
-Waiting for qualification:
-
-.. code:: bash
-
-    Defaulting to Ursula configuration file: '/root/.local/share/nucypher/ursula.json'
-    Authenticating Ursula
-    Starting services
-    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
-    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
-    ⓘ  Operator startup is paused. Waiting for bonding and funding …
-
-Continuing startup after funding and bonding:
-
-.. code:: bash
-
-    ...
-    ⓘ  Operator startup is paused. Waiting for bonding and funding ...
-    ✓ Operator is funded with 0.641160744670608582 ETH
-    ✓ Operator 0x2507beC003324d1Ec7F42Cc03B95d213D2E0b238 is bonded to staking provider 0x4F29cC79B52DCc97db059B0E11730F9BE98F1959
-    ✓ Operator already confirmed.  Not starting worktracker.
-    ...
-    ✓ Rest Server https://1.2.3.4:9151
-    Working ~ Keep Ursula Online!
-
-
 Node Status
 -----------
 
@@ -412,24 +476,43 @@ Node Logs
 +++++++++
 
 A reliable way to check the status of a node is to view the logs.
-View logs for a docker-launched Ursula:
 
-.. code:: bash
+* View logs for a docker-launched Ursula:
 
-    $ docker logs -f ursula
+  .. code:: bash
 
-View logs for a CLI-launched or systemd Ursula:
+      $ docker logs -f ursula
 
-.. code:: bash
+* View logs for a systemd or CLI-launched Ursula:
 
-    # Application Logs
-    tail -f ~/.local/share/nucypher/nucypher.log
+  .. code:: bash
 
-    # Systemd Logs
-    journalctl -f -t ursula
+      # Systemd Logs
+      journalctl -f -t ursula
+
+      # Application Logs
+      tail -f ~/.local/share/nucypher/nucypher.log
 
 
 Node Status Page
 ++++++++++++++++
 
 Once the node is running, you can view its public status page at ``https://<node_ip>:9151/status``.
+
+.. image:: ../.static/img/Annotated-Ursula-Status-Webpage-v2.svg
+    :target: ../.static/img/Annotated-Ursula-Status-Webpage-v2.svg
+
+- *Nickname Icon* - A visual representation of the node's nickname words and colors
+- *Staking Provider Nickname* - A nickname/codename for the node derived from the Staking Provider address
+- *Staking Provider Address* - The Staking Provider address this node is bonded to
+- *Client Version* - The version of nucypher this node is running
+- *Network Name* - The network this node is running on (mainnet, lynx, or ibex).
+- *Peer Count* - The total number of peers this node has discovered.
+- *Fleet State Checksum* - A checksum representing all currently known peers
+- *Fleet State Icon* - A visual representation of the fleet state's checksum word and color
+- *Fleet State History* - The most recent historical fleet states known by this node, sorted from most recent to oldest
+- *Peer Nickname* - The nickname of a peer derived from it's Staking Provider address
+- *Peer Fleet State* - The current fleet state of a peer node
+- *Peer Staking Provider Address* - The Staking Provider address of a peer
+- *Verified Nodes* - The collection of nodes that have been and validated by this node (valid metadata and staking status)
+- *Unverified Nodes* - The collection of nodes that have not been contacted or validated by this node
