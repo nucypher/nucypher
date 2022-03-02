@@ -47,7 +47,8 @@ Importantly, Ursulas are not trusted with access to any underlying plaintext or 
 Q: How do we verify that Ursula has performed the re-encryption correctly?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Every time Ursula produces a re-encryption result, she computes a zero-knowledge proof that proves that the re-encryption she just performed is correct, without disclosing any kind of secret information. This  correctness proof is publicly verifiable, so in the event
+Every time Ursula produces a re-encryption result, she computes a zero-knowledge proof that proves that the re-encryption she just performed is correct,
+without disclosing any kind of secret information. This  correctness proof is publicly verifiable, so if
 someone detects incorrect re-encryptions coming from an Ursula, these faulty proofs can be sent to a smart contract that will slash the stake
 associated with that Ursula. However, in a normal scenario, with Ursula working correctly, there’s no need for correctness proofs to be
 submitted on-chain.
@@ -262,7 +263,7 @@ This is complementary to the gas strategy that you may have configured.
 Threshold Network Merger
 ------------------------
 
-Questions related to the merger with the KEEP Network to `launch the Threshold Network <https://blog.threshold.network/threshold-launch/>`_.
+*Questions related to the merger with the Keep Network to launch the Threshold Network* (More info `here <https://blog.threshold.network/threshold-launch/>`_).
 
 Q: What are the benefits of the network merger between NU and Keep?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -273,6 +274,12 @@ Q: What is the Threshold Network website
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 https://threshold.network
+
+Q: Is this NuCypher Discord server still in use?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The community has migrated to the `Threshold Discord <https://discord.gg/Threshold>`_ and the NuCypher Discord server has been set to read-only.
+
 
 Q: What is the T token address?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -314,8 +321,8 @@ Q: What is the NU to T conversion ratio?
 
 1 NU = 3.259242493160746 T.
 
-Q: Will conversion rate be fixed regardless of NU and T price?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Q: Will the conversion rate be fixed regardless of NU and T price?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Yes. The vending machine is perpetual and the ratio is static.
 
@@ -336,6 +343,19 @@ Q: How do I stake T?
 ~~~~~~~~~~~~~~~~~~~~
 
 Via the `Threshold Dashboard Staking UI <https://dashboard.threshold.network/staking>`_.
+
+Q: What happens if my stake is/was locked?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Unless a stake is subject to vesting associated with a legal agreement (e.g. SAFT 2 purchaser, team etc.) it will be immediately withdrawable. These Stakers can:
+
+#. Withdraw any existing unlocked stake: https://stake.nucypher.network/manage/withdraw
+#. Upgrade the unlocked NU to T: https://dashboard.threshold.network/upgrade/nu
+#. Stake the upgraded T: https://dashboard.threshold.network/staking
+
+For **locked** stakes, an adapter will allow these stakes to operate nodes on the Threshold Network and receive T token rewards. These Stakers can
+migrate existing locked stakes from NU to Threshold via https://stake.nucypher.network/manage/stake. Once these stakes expire and the locked tokens become unlocked / liquid,
+they can be upgraded to T and staked as T.
 
 Q: Is there a minimum stake size?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
