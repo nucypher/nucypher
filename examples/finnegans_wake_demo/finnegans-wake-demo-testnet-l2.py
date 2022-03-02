@@ -16,29 +16,26 @@
 """
 
 
-from getpass import getpass
-
 import datetime
-import maya
 import os
+from getpass import getpass
 from pathlib import Path
-from web3.main import Web3
 
-from nucypher.blockchain.eth.registry import LocalContractRegistry
+import maya
+
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.crypto.powers import SigningPower, DecryptingPower
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.ethereum import connect_web3_provider
 from nucypher.utilities.logging import GlobalLoggerSettings
 
-
 ######################
 # Boring setup stuff #
 ######################
 
-GlobalLoggerSettings.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.set_log_level(log_level_name='info')
 GlobalLoggerSettings.start_console_logging()
 
 BOOK_PATH = Path('finnegans-wake-excerpt.txt')
@@ -67,15 +64,6 @@ except KeyError:
 L1_TESTNET = 'ibex'
 L2_TESTNET = 'mumbai'  # TODO: Needs name different than the network name
 
-base_path = Path('/home/k/Git/nucypher/nucypher/blockchain/eth/contract_registry')
-
-# Staking local registry (L1)
-application_registry_path = base_path / Path(f'{L1_TESTNET}/contract_registry.json')
-application_registry = LocalContractRegistry(filepath=application_registry_path)
-
-# Policy/Payment local registry (L2 or Sidechain)
-policy_registry_path = base_path / Path(f'{L2_TESTNET}/contract_registry.json')
-policy_registry = LocalContractRegistry(filepath=policy_registry_path)
 
 #####################
 # Bob the BUIDLer  ##
@@ -83,7 +71,7 @@ policy_registry = LocalContractRegistry(filepath=policy_registry_path)
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-bob = Bob(domain=L1_TESTNET, registry=application_registry)
+bob = Bob(domain=L1_TESTNET)
 
 # Bob puts his public keys somewhere alice can find them.
 verifying_key = bob.public_keys(SigningPower)
@@ -105,32 +93,22 @@ password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to 
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 
-handpicked_ursulas = {
-    Ursula.from_teacher_uri(
-        teacher_uri=f"https://{L1_TESTNET}.nucypher.network",
-        min_stake=0,
-        federated_only=False
-    ),
-}
-
 payment_method = SubscriptionManagerPayment(
     network='mumbai',
-    registry=policy_registry,
     eth_provider=L2_PROVIDER
 )
 
 # This is Alice.
 alice = Alice(
     checksum_address=ALICE_ADDRESS,
-    registry=application_registry,
     signer=wallet,
     domain=L1_TESTNET,
     eth_provider_uri=L1_PROVIDER,
-    payment_method=payment_method,
+    payment_method=payment_method
 )
 
 # Alice puts her public key somewhere for Bob to find later...
-alice_verifying_key = bytes(alice.stamp)
+alice_verifying_key = alice.stamp.as_umbral_pubkey()
 
 # Alice can get the policy's public key even before creating the policy.
 label = b"secret/files/42"
@@ -141,13 +119,16 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 # can be shared with any Bob that Alice grants access.
 
 # Alice already knows Bob's public keys from a side-channel.
-remote_bob = Bob.from_public_keys(encrypting_key=encrypting_key, verifying_key=verifying_key)
+remote_bob = Bob.from_public_keys(
+    encrypting_key=encrypting_key,
+    verifying_key=verifying_key,
+)
 
 # These are the policy details for bob.
 # In this example bob will be granted access for 1 day,
 # trusting 2 of 3 nodes paying each of them 50 gwei per period.
 expiration = maya.now() + datetime.timedelta(days=1)
-threshold, shares = 1, 1
+threshold, shares = 1, 2
 price = alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value
 
 # Alice grants access to Bob...
@@ -157,7 +138,6 @@ policy = alice.grant(
     shares=shares,
     value=price,
     expiration=expiration,
-    ursulas=handpicked_ursulas
 )
 
 # ...and then disappears from the internet.
@@ -203,5 +183,6 @@ for counter, plaintext in enumerate(finnegans_wake):
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == cleartexts[0]
+    print(cleartexts)
 
 bob.disenchant()

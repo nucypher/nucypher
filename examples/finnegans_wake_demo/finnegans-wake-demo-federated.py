@@ -36,7 +36,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 BOOK_PATH = Path(os.getenv('FINNEGANS_WAKE_PATH') or 'finnegans-wake-excerpt.txt')
 
 # Twisted Logger
-GlobalLoggerSettings.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.set_log_level(log_level_name='info')
 GlobalLoggerSettings.start_console_logging()
 
 # if your ursulas are NOT running on your current host,
