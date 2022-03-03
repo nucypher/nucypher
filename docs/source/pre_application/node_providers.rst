@@ -15,6 +15,8 @@ You can delegate running a PRE node to one of the *node-as-a-service* Staking Pr
     * Email: sales@ankr.com
 * `BisonTrails <https://bisontrails.co/>`_
     * Email: cloud-sales@coinbase.com
+* `DELIGHT <https://delightlabs.io>`_
+    * Email: contact@delightlabs.io
 * `Figment <https://figment.io/>`_
     * Email: support@figment.io
     * Discord: ``@claymenzel#0569``
