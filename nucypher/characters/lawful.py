@@ -985,7 +985,7 @@ class Ursula(Teacher, Character, Worker):
             decentralized_identity_evidence = None
         else:
             decentralized_identity_evidence = self.decentralized_identity_evidence
-        payload = NodeMetadataPayload(canonical_address=self.canonical_address,
+        payload = NodeMetadataPayload(staker_address=self.canonical_address,
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
                                       decentralized_identity_evidence=decentralized_identity_evidence,
