@@ -49,7 +49,7 @@ class NodeStorage(ABC):
         pass
 
     def __init__(self,
-                 federated_only: bool,  # TODO# 466
+                 federated_only: bool = False,  # TODO# 466
                  character_class=None,
                  registry: BaseContractRegistry = None,
                  ) -> None:

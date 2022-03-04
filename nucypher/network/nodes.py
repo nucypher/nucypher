@@ -24,7 +24,6 @@ from typing import Callable, List, Optional, Set, Tuple, Union
 
 import maya
 import requests
-from constant_sorrow import constant_or_bytes
 from constant_sorrow.constants import (
     CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
@@ -32,19 +31,18 @@ from constant_sorrow.constants import (
     NO_STORAGE_AVAILABLE,
     RELAX,
 )
-from cryptography.x509 import Certificate, load_der_x509_certificate
 from cryptography.hazmat.backends import default_backend
+from cryptography.x509 import Certificate
+from cryptography.x509 import load_der_x509_certificate
 from eth_utils import to_checksum_address
+from nucypher_core import NodeMetadata, MetadataResponse, MetadataResponsePayload
+from nucypher_core.umbral import Signature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 
-from nucypher_core import NodeMetadata, MetadataResponse, MetadataResponsePayload
-from nucypher_core.umbral import Signature
-
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -58,7 +56,6 @@ from nucypher.crypto.powers import (
     SigningPower,
 )
 from nucypher.crypto.signing import SignatureStamp, InvalidSignature
-from nucypher.crypto.utils import recover_address_eip_191, verify_eip_191
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import SuspiciousActivity, InterfaceInfo
@@ -475,7 +472,7 @@ class Learner:
                 # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
                 return False
 
-            except NodeSeemsToBeDown:
+            except RestMiddleware.Unreachable:
                 self.log.info("No Response while trying to verify node {}|{}".format(node.rest_interface, node))
                 # TODO: Bucket this node as "ghost" or something: somebody else knows about it, but we can't get to it.  567
                 return False
@@ -805,15 +802,15 @@ class Learner:
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info(
-                f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
+            raise
+            self.log.info(f"Teacher {str(current_teacher)} is perhaps down:{e}.")  # FIXME: This was printing the node bytestring. Is this really necessary?  #1712
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.
             # TODO: Bucket separately and report.
             unresponsive_nodes.add(current_teacher)  # This does nothing.
             self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
-            self.log.warn(f"Teacher {str(current_teacher)} is invalid (hex={bytes(current_teacher.metadata()).hex()}):{e}.")
+            self.log.warn(f"Teacher {str(current_teacher)} is invalid: {e}.")
             # TODO (#567): bucket the node as suspicious
             return
         except RuntimeError as e:
@@ -918,8 +915,8 @@ class Learner:
             # except sprout.Invalidsprout:
             #     self.log.warn(sprout.invalid_metadata_message.format(sprout))
 
-            except InvalidNodeCertificate as e:
-                message = f"Discovered sprout with invalid node certificate: {sprout}. Full error: {e.__str__()} "
+            except NodeSeemsToBeDown as e:
+                message = f"Node is unreachable: {sprout}. Full error: {e.__str__()} "
                 self.log.warn(message)
 
             except SuspiciousActivity:
@@ -973,7 +970,7 @@ class Teacher:
 
         # Assume unverified
         self.verified_stamp = False
-        self.verified_worker = False
+        self.verified_operator = False
         self.verified_metadata = False
         self.verified_node = False
 
@@ -1054,7 +1051,7 @@ class Teacher:
         is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
         return is_staking
 
-    def validate_worker(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None) -> None:
+    def validate_operator(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None) -> None:
 
         # Federated
         if self.federated_only:
@@ -1062,29 +1059,33 @@ class Teacher:
                       "but is OK to use in federated mode if you " \
                       "have reason to believe it is trustworthy."
             raise self.WrongMode(message)
+        elif not registry:
+            self.log.info('No registry provided for staking verification.')
 
         # Decentralized
         else:
 
             # Try to derive the worker address if it hasn't been derived yet.
             try:
-                operator_address = self.operator_address
+                _operator_address = self.operator_address
             except Exception as e:
                 raise self.InvalidOperatorSignature(str(e)) from e
 
             # On-chain staking check, if registry is present
             if registry:
+
                 if not self._operator_is_bonded(registry=registry):  # <-- Blockchain CALL
                     message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
                     self.log.debug(message)
                     raise self.UnbondedOperator(message)
 
                 if self._staking_provider_is_really_staking(registry=registry, eth_provider_uri=eth_provider_uri):  # <-- Blockchain CALL
-                    self.verified_worker = True
+                    self.log.info(f'Verified operator {self}')
+                    self.verified_operator = True
                 else:
                     raise self.NotStaking(f"{self.checksum_address} is not staking")
 
-            self.verified_stamp = True
+            self.verified_stamp = True  # TODO: Why is this here?
 
     def validate_metadata_signature(self) -> bool:
         """Checks that the interface info is valid for this node's canonical address."""
@@ -1107,7 +1108,7 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.validate_worker(registry=registry, eth_provider_uri=eth_provider_uri)
+            self.validate_operator(registry=registry, eth_provider_uri=eth_provider_uri)
         except self.WrongMode:
             if bool(registry):
                 raise
@@ -1137,7 +1138,7 @@ class Teacher:
             self.verified_metadata = False
             self.verified_node = False
             self.verified_stamp = False
-            self.verified_worker = False
+            self.verified_operator = False
 
         if self.verified_node:
             return True
@@ -1156,8 +1157,7 @@ class Teacher:
             certificate_filepath = self.certificate_filepath
 
         response_data = network_middleware_client.node_information(host=self.rest_interface.host,
-                                                                   port=self.rest_interface.port,
-                                                                   certificate_filepath=certificate_filepath)
+                                                                   port=self.rest_interface.port)
 
         try:
             sprout = self.from_metadata_bytes(response_data)

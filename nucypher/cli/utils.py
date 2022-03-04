@@ -123,7 +123,7 @@ def make_cli_character(character_config,
     if character_config.federated_only:
         emitter.message(FEDERATED_WARNING, color='yellow')
 
-    emitter.message(f"Loaded {CHARACTER.__class__.__name__} {CHARACTER.checksum_address} ({CHARACTER.domain})", color='green')
+    emitter.message(f"Loaded {CHARACTER.__class__.__name__} ({CHARACTER.domain})", color='green')
     return CHARACTER
 
 

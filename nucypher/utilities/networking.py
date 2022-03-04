@@ -17,10 +17,11 @@
 
 
 import random
-import requests
 from ipaddress import ip_address
-from requests.exceptions import RequestException, HTTPError
 from typing import Union, Optional
+
+import requests
+from requests.exceptions import RequestException, HTTPError
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.registry import BaseContractRegistry

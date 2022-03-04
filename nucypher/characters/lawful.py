@@ -84,7 +84,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import RestMiddleware, fetch_ssl_certificate
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import RetrievalClient
@@ -1077,15 +1077,9 @@ class Ursula(Teacher, Character, Operator):
     def from_rest_url(cls,
                       network_middleware: RestMiddleware,
                       host: str,
-                      port: int,
-                      certificate_filepath,
-                      *args, **kwargs
-                      ):
-        response_data = network_middleware.client.node_information(host, port,
-                                                                   certificate_filepath=certificate_filepath)
-
+                      port: int):
+        response_data = network_middleware.client.node_information(host, port)
         stranger_ursula_from_public_keys = cls.from_metadata_bytes(response_data)
-
         return stranger_ursula_from_public_keys
 
     @classmethod
@@ -1136,7 +1130,7 @@ class Ursula(Teacher, Character, Operator):
             except NodeSeemsToBeDown as e:
                 log = Logger(cls.__name__)
                 log.warn(
-                    "Can't connect to seed node (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
+                    "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
@@ -1151,8 +1145,6 @@ class Ursula(Teacher, Character, Operator):
                                  minimum_stake: int = 0,
                                  registry: BaseContractRegistry = None,
                                  network_middleware: RestMiddleware = None,
-                                 *args,
-                                 **kwargs
                                  ) -> Union['Ursula', 'NodeSprout']:
 
         if network_middleware is None:
@@ -1163,25 +1155,18 @@ class Ursula(Teacher, Character, Operator):
 
         # Fetch the hosts TLS certificate and read the common name
         try:
-            certificate = network_middleware.get_certificate(host=host, port=port)
+            certificate = fetch_ssl_certificate(host=host, port=port)
         except NodeSeemsToBeDown as e:
-            e.args += (f"While trying to load seednode {seed_uri}",)
-            e.crash_right_now = True
+            e.args += (f"While trying to contact {seed_uri}",)
+            e.crash_right_now = False
             raise
         real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-
-        # Create a temporary certificate storage area
-        temp_node_storage = ForgetfulNodeStorage(federated_only=federated_only)
-        temp_certificate_filepath = temp_node_storage.store_node_certificate(certificate=certificate, port=port)
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
             host=real_host,
             port=port,
             network_middleware=network_middleware,
-            certificate_filepath=temp_certificate_filepath,
-            *args,
-            **kwargs
         )
 
         # Check the node's stake (optional)
@@ -1191,8 +1176,6 @@ class Ursula(Teacher, Character, Operator):
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
-        # OK - everyone get out
-        temp_node_storage.forget()
         return potential_seed_node
 
     @classmethod

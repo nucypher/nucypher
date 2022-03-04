@@ -134,7 +134,7 @@ def test_invalid_operators_tolerance(testerchain,
     testerchain.time_travel(periods=1)
 
     # The worker is valid and can be verified (even with the force option)
-    worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
+    worker.verify_node(force=True, network_middleware=MockRestMiddleware())
     # In particular, we know that it's bonded to a staker who is really staking.
     assert worker._operator_is_bonded(registry=test_registry)
     assert worker._staking_provider_is_really_staking(registry=test_registry)
@@ -159,11 +159,11 @@ def test_invalid_operators_tolerance(testerchain,
     assert 0 == staking_agent.owned_tokens(idle_staker.checksum_address)
 
     # ... but the worker node still is "verified" (since we're not forcing on-chain verification)
-    worker.verify_node(network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
+    worker.verify_node(network_middleware=MockRestMiddleware())
 
     # If we force, on-chain verification, the worker is of course not verified
     with pytest.raises(worker.NotStaking):
-        worker.verify_node(force=True, network_middleware=MockRestMiddleware(), certificate_filepath="quietorl")
+        worker.verify_node(force=True, network_middleware=MockRestMiddleware())
 
     # Let's learn from this invalid node
     lonely_blockchain_learner._current_teacher_node = worker
