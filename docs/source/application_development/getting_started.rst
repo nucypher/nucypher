@@ -10,11 +10,11 @@ Getting Started with Characters
 A Note about Side Channels
 --------------------------
 
-The NuCypher network does not store or handle an application's data; instead - it manages access *to* application data.
+The PRE Application nodes do not store or handle an application's data; instead - it manages access *to* application data.
 Management of encrypted secrets and public keys tends to be highly domain-specific - the surrounding architecture
 will vary greatly depending on the throughput, sensitivity, and sharing cadence of application secrets.
 
-In all cases, NuCypher must be integrated with a storage and transport layer in order to function properly.
+In all cases, the PRE Application must be integrated with a storage and transport layer in order to function properly.
 Along with the transport of ciphertexts, a nucypher application also needs to include channels for Alice and Bob
 to discover each other's public keys, and provide policy encrypting information to Bob and Enrico.
 
@@ -67,7 +67,7 @@ the role of a ``Teacher``\ , or "seednode":
 
 .. note::
 
-    While any nucypher worker node can be used to seed your peers, NuCypher maintains
+    While any PRE node can be used to seed your peers, NuCypher maintains
     workers that can be used as seed nodes:
 
     - mainnet: ``https://mainnet.nucypher.network:9151``
@@ -91,7 +91,7 @@ they know about network-wide, then kick-off the automated node-discovery loop:
 
 
 For information on how to run a staking Ursula node via CLI,
-see :doc:`Running a Worker </staking/running_a_worker>`.
+see :doc:`Running a Node </pre_application/running_a_node>`.
 
 
 Alice: Grant Access to a Secret
@@ -182,8 +182,8 @@ After generating a keystore, any future usage can decrypt the keys from the disk
        keystore=keystore,            # NuCypher Keystore
        known_nodes=[ursula],         # Peers (Optional)
        signer=signer,                # Alice Wallet
-       provider_uri=<RPC ENDPOINT>,  # Ethereum RPC endpoint
-       domain='lynx'                 # NuCypher network (mainnet, lynx, ibex)
+       eth_provider_uri=<RPC ENDPOINT>,  # Ethereum RPC endpoint
+       domain='lynx'                 # PRE Application network (mainnet, lynx, ibex)
    )
 
    # Alice is identified by her ethereum address
@@ -265,7 +265,7 @@ software wallet and an existing keystore:
     # Make Alice
     alice = Alice(
         domain='lynx',  # testnet
-        provider_uri='GOERLI RPC ENDPOINT',
+        eth_provider_uri='GOERLI RPC ENDPOINT',
         keystore=keystore,
         signer=wallet,
     )

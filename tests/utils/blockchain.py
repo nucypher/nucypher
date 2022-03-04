@@ -16,25 +16,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import maya
 import os
+from typing import List, Tuple, Union, Optional
+
+import maya
+from constant_sorrow.constants import INIT
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
-from typing import List, Tuple, Union, Optional
 from web3 import Web3
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.deployers import StakingEscrowDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.utils import epoch_to_period
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
@@ -42,11 +42,10 @@ from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
-    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
     PYEVM_DEV_URI
 )
-from constant_sorrow.constants import INIT
 
 
 def token_airdrop(token_agent, amount: NU, transacting_power: TransactingPower, addresses: List[str]):
@@ -89,23 +88,23 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     # Web3
     GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
-    PROVIDER_URI = PYEVM_DEV_URI
+    ETH_PROVIDER_URI = PYEVM_DEV_URI
     DEFAULT_GAS_STRATEGY = 'free'
 
     # Reserved addresses
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
-    _FIRST_STAKER = 5
-    _FIRST_URSULA = _FIRST_STAKER + NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS
+    _FIRST_STAKING_PROVIDER = 5
+    _FIRST_URSULA = _FIRST_STAKING_PROVIDER + NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS
 
     # Internal
-    __STAKERS_RANGE = range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)
-    __WORKERS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
+    __STAKING_PROVIDERS_RANGE = range(NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS)
+    __OPERATORS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
     __ACCOUNT_CACHE = list()
 
     # Defaults
-    DEFAULT_ECONOMICS = StandardTokenEconomics()
+    DEFAULT_ECONOMICS = Economics()
 
     def __init__(self,
                  test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
@@ -120,7 +119,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
 
-        super().__init__(provider_uri=self.PROVIDER_URI,
+        super().__init__(eth_provider_uri=self.ETH_PROVIDER_URI,
                          poa=poa,
                          light=light,
                          *args, **kwargs)
@@ -184,29 +183,24 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
     def time_travel(self,
                     hours: int = None,
-                    seconds: int = None,
-                    periods: int = None,
-                    periods_base: int = None):
+                    seconds: int = None):
         """
         Wait the specified number of wait_hours by comparing
         block timestamps and mines a single block.
         """
 
-        more_than_one_arg = sum(map(bool, (hours, seconds, periods))) > 1
+        more_than_one_arg = sum(map(bool, (hours, seconds))) > 1
         if more_than_one_arg:
             raise ValueError("Specify hours, seconds, or periods, not a combination")
 
-        if periods:
-            base = periods_base or self.DEFAULT_ECONOMICS.seconds_per_period
-            duration = base * periods
-        elif hours:
+        if hours:
             duration = hours * (60*60)
             base = 60 * 60
         elif seconds:
             duration = seconds
             base = 1
         else:
-            raise ValueError("Specify either hours, seconds, or periods.")
+            raise ValueError("Specify either hours, or seconds.")
 
         now = self.w3.eth.getBlock('latest').timestamp
         end_timestamp = ((now+duration)//base) * base
@@ -216,13 +210,12 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "
-                      f"| period {epoch_to_period(epoch=end_timestamp, seconds_per_period=self.DEFAULT_ECONOMICS.seconds_per_period)} "
                       f"| epoch {end_timestamp}")
 
     @classmethod
     def bootstrap_network(cls,
                           registry: Optional[BaseContractRegistry] = None,
-                          economics: BaseEconomics = None
+                          economics: Economics = None
                           ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
         """For use with metric testing scripts"""
 
@@ -230,7 +223,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         if registry is None:
             registry = InMemoryContractRegistry()
         testerchain = cls()
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=testerchain.provider_uri):
+        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=testerchain.eth_provider_uri):
             BlockchainInterfaceFactory.register_interface(interface=testerchain)
 
         # Produce actor
@@ -243,13 +236,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         gas_limit = None  # TODO: Gas management - #842
         for deployer_class in admin.primary_deployer_classes:
-            if deployer_class is StakingEscrowDeployer:
-                admin.deploy_contract(contract_name=deployer_class.contract_name,
-                                      gas_limit=gas_limit,
-                                      deployment_mode=INIT)
-            else:
-                admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
-        admin.deploy_contract(contract_name=StakingEscrowDeployer.contract_name, gas_limit=gas_limit)
+            admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
         return testerchain, registry
 
     @property
@@ -265,27 +252,27 @@ class TesterBlockchain(BlockchainDeployerInterface):
         return self.client.accounts[self._BOB]
 
     def ursula_account(self, index):
-        if index not in self.__WORKERS_RANGE:
+        if index not in self.__OPERATORS_RANGE:
             raise ValueError(f"Ursula index must be lower than {NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS}")
         return self.client.accounts[index + self._FIRST_URSULA]
 
-    def staker_account(self, index):
-        if index not in self.__STAKERS_RANGE:
-            raise ValueError(f"Staker index must be lower than {NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS}")
-        return self.client.accounts[index + self._FIRST_STAKER]
+    def stake_provider_account(self, index):
+        if index not in self.__STAKING_PROVIDERS_RANGE:
+            raise ValueError(f"Stake provider index must be lower than {NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS}")
+        return self.client.accounts[index + self._FIRST_STAKING_PROVIDER]
 
     @property
     def ursulas_accounts(self):
-        return list(self.ursula_account(i) for i in self.__WORKERS_RANGE)
+        return list(self.ursula_account(i) for i in self.__OPERATORS_RANGE)
 
     @property
-    def stakers_accounts(self):
-        return list(self.staker_account(i) for i in self.__STAKERS_RANGE)
+    def stake_providers_accounts(self):
+        return list(self.stake_provider_account(i) for i in self.__STAKING_PROVIDERS_RANGE)
 
     @property
     def unassigned_accounts(self):
         special_accounts = [self.etherbase_account, self.alice_account, self.bob_account]
-        assigned_accounts = set(self.stakers_accounts + self.ursulas_accounts + special_accounts)
+        assigned_accounts = set(self.stake_providers_accounts + self.ursulas_accounts + special_accounts)
         accounts = set(self.client.accounts)
         return list(accounts.difference(assigned_accounts))
 

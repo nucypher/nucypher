@@ -9,7 +9,7 @@ role.
 * **Alice**:  *"The Data Owner"* - retains full control over the data encrypted for her and determines whom to share the data with
 * **Enrico**: *"The Encryptor"* - a data source that encrypts data on behalf of Alice
 * **Bob**:    *"The Data Recipient"* - the data recipient that Alice intends to share data with
-* **Ursula**: *"The Proxy in PRE"* - the nodes on the NuCypher Network that stand ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
+* **Ursula**: *"The Proxy in PRE"* - the PRE node on the Threshold Network that stands ready to re-encrypt data in exchange for payment in fees and token rewards; they enforce the access policy created by Alice
 
 .. _Umbral: https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 
@@ -37,10 +37,10 @@ for different Bobs. Enrico, therefore, only has to encrypt data using the provid
 and data can later be re-encrypted for all Bobs who have been granted access.
 
 When Alice wants to share this information with Bob, she can create a
-policy in the NuCypher Network to grant access to him. To grant access to Bob, Alice must:
+policy in the PRE Application running on the Threshold Network to grant access to him. To grant access to Bob, Alice must:
 
 #. Create a re-encryption key based on the asymmetric private key and Bob's public key
-#. Determine `n` Ursulas from the NuCypher Network to use in the policy
+#. Determine `n` Ursulas from the Threshold Network to use in the policy
 #. Configure the conditions of the policy, e.g. *expiration time, m-of-n threshold values*
 #. Deploy the policy to the blockchain and escrow associated policy fees
 #. Create a `treasure map`, encrypted for Bob that contains the list of `n` Ursulas in the policy,
@@ -59,7 +59,7 @@ Enrico::Encrypt
 .. image:: ../.static/img/enrico_encrypt.svg
     :target: ../.static/img/enrico_encrypt.svg
 
-The NuCypher Network uses the Umbral_ threshold proxy re-encryption scheme which employs a key encapsulation mechanism (KEM)/data
+The Ursulas uses the Umbral_ threshold proxy re-encryption scheme which employs a key encapsulation mechanism (KEM)/data
 encapsulation mechanism (DEM). In this approach, an ephemeral symmetric key is used to encrypt the data, and the
 symmetric key is encrypted using an asymmetric encryption key. The encrypted data (the DEM portion) and the
 encrypted symmetric key (the KEM portion, called a `capsule`) are stored together.
@@ -82,7 +82,7 @@ To gain access, Bob must request re-encryption of the `capsule` by the `n` Ursul
 Remember that when Alice granted access to Bob, she created a `treasure map` that contained
 this list of `n` Ursulas in the policy, and the associated encrypted re-encryption key fragments (`kFrags`) for Bob to
 give to the Ursulas for the re-encryption operation. Therefore, Bob sends his `capsule` and the relevant encrypted
-`kFrag` to the various Ursulas in the NuCypher Network associated with the policy. Those Ursulas
+`kFrag` to the various Ursulas in the Threshold Network associated with the policy. Those Ursulas
 will decrypt the encrypted `kFrag` and use it to perform a partial re-encryption operation on the `capsule` to
 produce a corresponding ciphertext fragment, `cFrag`. In the same way a `kFrag` is a fragment of a key, a `cFrag`
 is a fragment of ciphertext. The `cFrag` is returned to Bob, who collects `cFrags` until he obtains a threshold, `m`,

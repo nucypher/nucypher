@@ -28,7 +28,7 @@ from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
-    NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS,
+    NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS, INSECURE_DEVELOPMENT_PASSWORD
 )
 # Prevents TesterBlockchain to be picked up by py.test as a test class
@@ -50,7 +50,7 @@ def test_testerchain_creation(testerchain, another_testerchain):
     for chain in chains:
 
         # Ensure we are testing on the correct network...
-        assert 'tester' in chain.provider_uri
+        assert 'tester' in chain.eth_provider_uri
 
         # ... and that there are already some blocks mined
         chain.w3.eth.web3.testing.mine(1)
@@ -69,8 +69,8 @@ def test_testerchain_creation(testerchain, another_testerchain):
         bob = chain.bob_account
         assert bob == chain.client.accounts[2]
 
-        stakers = [chain.staker_account(i) for i in range(NUMBER_OF_STAKERS_IN_BLOCKCHAIN_TESTS)]
-        assert stakers == chain.stakers_accounts
+        stakers = [chain.stake_provider_account(i) for i in range(NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS)]
+        assert stakers == chain.stake_providers_accounts
 
         ursulas = [chain.ursula_account(i) for i in range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)]
         assert ursulas == chain.ursulas_accounts
@@ -107,7 +107,7 @@ def test_multiversion_contract():
     BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
                                                   'free': free_gas_price_strategy}
 
-    blockchain_interface = BlockchainDeployerInterface(provider_uri='tester://pyevm/2', gas_strategy='free')
+    blockchain_interface = BlockchainDeployerInterface(eth_provider_uri='tester://pyevm/2', gas_strategy='free')
     blockchain_interface.connect(compile_now=False)
     blockchain_interface._raw_contract_cache = compiled_contracts
 

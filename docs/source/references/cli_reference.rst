@@ -92,90 +92,6 @@ Enrico
 +--------------------------+-------------------------------------------------------------------------------+
 
 
-Stake
------
-
-Manage stakes and other staker-related operations.
-
-.. code:: bash
-
-    (nucypher)$ nucypher stake ACTION [OPTIONS]
-
-
-**Stake Command Actions**
-
-+----------------------+-------------------------------------------------------------------------------+
-| Action               |  Description                                                                  |
-+======================+===============================================================================+
-|  ``init-stakeholder``| Create a new stakeholder configuration                                        |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``create``          | Initialize NuCypher stakes (used with ``--value`` and ``--duration``)         |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``increase``        | Increase an existing stake's value                                            |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``list``            | List active stakes for current stakeholder                                    |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``accounts``        | Show ETH and NU balances for stakeholder's accounts                           |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``bond-worker``     | Bond a worker to a staker                                                     |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``unbond-worker``   | Unbond worker currently bonded to a staker                                    |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``divide``          | Create a new stake from part of an existing one                               |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``restake``         | Manage automatic reward re-staking                                            |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``rewards``         | Preview and withdraw staking rewards and fees                                 |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``prolong``         | Prolong an existing stake's duration                                          |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``winddown``        | Manage winding down of stakes                                                 |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``snapshots``       | Manage taking snapshots                                                       |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``mint``            | Mint last portion of reward                                                   |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``merge``           | Merge two stakes into one                                                     |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``remove-inactive`` | Remove inactive stake                                                         |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``events``          | View StakingEscrow blockchain events associated with a staker                 |
-+----------------------+-------------------------------------------------------------------------------+
-
-**Stake Command Options**
-
-+-----------------+--------------------------------------------+
-| Option          |  Description                               |
-+=================+============================================+
-|  ``--value``    | Stake value (optional)                     |
-+-----------------+--------------------------------------------+
-|  ``--duration`` | Stake duration of extension (optional)     |
-+-----------------+--------------------------------------------+
-|  ``--index``    | Stake index (optional)                     |
-+-----------------+--------------------------------------------+
-
-**Re-stake Command Options**
-
-+-------------------------+---------------------------------------------+
-| Option                  |  Description                                |
-+=========================+=============================================+
-|  ``--enable``           | Enable re-staking                           |
-+-------------------------+---------------------------------------------+
-|  ``--disable``          | Disable re-staking                          |
-+-------------------------+---------------------------------------------+
-|  ``--lock-until``       | Enable re-staking lock until release period |
-+-------------------------+---------------------------------------------+
-
-**Stake Rewards Command Actions**
-
-+----------------------+-------------------------------------------------------------------------------+
-| Action               |  Description                                                                  |
-+======================+===============================================================================+
-|  ``show``            | Show available and historical staking rewards                                 |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``withdraw``        | Withdraw unlocked tokens and fees from the contract to your wallet            |
-+----------------------+-------------------------------------------------------------------------------+
-
 Ursula
 ------
 
@@ -193,11 +109,11 @@ Ursula
 +--------------------------+---------------------------------------------------------------------+
 | Action                   | Description                                                         |
 +==========================+=====================================================================+
-| ``init``                 | Create a brand new persistent Bob.                                  |
+| ``init``                 | Create a brand new persistent Ursula.                               |
 +--------------------------+---------------------------------------------------------------------+
 | ``config``               | View and optionally update an existing Ursula's configuration.      |
 +--------------------------+---------------------------------------------------------------------+
-| ``destroy``              | Delete existing Bob's configuration.                                |
+| ``destroy``              | Delete existing Ursula's configuration.                             |
 +--------------------------+---------------------------------------------------------------------+
 | ``forget``               | Delete all stored peer metadata.                                    |
 +--------------------------+---------------------------------------------------------------------+
@@ -210,7 +126,7 @@ Ursula
 Cloudworkers
 ------------
 
-Manage worker and other staker-related operations on cloud infrastructure.
+Manage PRE Node operations on cloud infrastructure.
 
 .. code:: bash
 
@@ -254,7 +170,7 @@ Manage worker and other staker-related operations on cloud infrastructure.
 Status
 ------
 
-Echo a snapshot of live NuCypher Network metadata.
+Echo a snapshot of live PRE Application metadata.
 
 .. code:: bash
 
@@ -267,13 +183,25 @@ Echo a snapshot of live NuCypher Network metadata.
 +--------------------------+---------------------------------------------------------------------+
 | Action                   | Description                                                         |
 +==========================+=====================================================================+
-| ``events``               | Show events associated to NuCypher contracts.                       |
+| ``events``               | Show events associated to PRE Application contracts.                |
 +--------------------------+---------------------------------------------------------------------+
-| ``fee-range``            | Provide information on the global fee range.                        |
-+--------------------------+---------------------------------------------------------------------+
-| ``locked-tokens``        | Display a graph of the number of locked tokens over time.           |
-+--------------------------+---------------------------------------------------------------------+
-| ``network``              | Overall information of the NuCypher Network.                        |
-+--------------------------+---------------------------------------------------------------------+
-| ``stakers``              | Show relevant information about stakers.                            |
-+--------------------------+---------------------------------------------------------------------+
+
+
+Bond
+----
+
+Bond an Operator to a Staking Provider. The Staking Provider must be authorized to use the PREApplication.
+
+.. code:: bash
+
+    (nucypher)$ nucypher bond [OPTIONS]
+
+
+Unbond
+------
+
+Unbonds an operator from an authorized Staking Provider.
+
+.. code:: bash
+
+    (nucypher)$ nucypher unbond [OPTIONS]

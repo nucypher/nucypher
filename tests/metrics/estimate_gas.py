@@ -19,42 +19,37 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-import json
 import io
+import json
 import os
 import re
+import time
 from pathlib import Path
 from unittest.mock import Mock
-import tabulate
-import time
 
+import tabulate
+from nucypher_core.umbral import SecretKey, Signer
 from twisted.logger import ILogObserver, globalLogPublisher, jsonFileLogObserver
 from web3.contract import Contract
 from zope.interface import provider
 
-from nucypher_core.umbral import SecretKey, Signer
-
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
-from nucypher.blockchain.economics import StandardTokenEconomics
+from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     NucypherTokenAgent,
     PolicyManagerAgent,
-    StakingEscrowAgent
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES, NULL_ADDRESS, POLICY_ID_LENGTH
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.exceptions import DevelopmentInstallationRequired
-from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import Logger
 from tests.utils.blockchain import TesterBlockchain
 
-
 ALGORITHM_SHA256 = 1
-TOKEN_ECONOMICS = StandardTokenEconomics()
-MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.minimum_allowed_locked
+TOKEN_ECONOMICS = Economics()
+MIN_ALLOWED_LOCKED = TOKEN_ECONOMICS.min_authorization
 LOCKED_PERIODS = 30
 MAX_ALLOWED_LOCKED = TOKEN_ECONOMICS.maximum_allowed_locked
 MAX_MINTING_PERIODS = TOKEN_ECONOMICS.maximum_rewarded_periods
@@ -136,7 +131,7 @@ def mock_ursula(testerchain, account):
     signed_stamp = testerchain.client.sign_message(account=account,
                                                    message=bytes(ursula_stamp))
 
-    ursula = Mock(stamp=ursula_stamp, decentralized_identity_evidence=signed_stamp)
+    ursula = Mock(stamp=ursula_stamp, operator_signature=signed_stamp)
     return ursula
 
 
@@ -160,7 +155,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     os.environ['GAS_ESTIMATOR_BACKEND_FUNC'] = 'eth.estimators.gas.binary_gas_search_exact'
 
     # Blockchain
-    economics = StandardTokenEconomics(
+    economics = Economics(
         base_penalty=MIN_ALLOWED_LOCKED - 1,
         penalty_history_coefficient=0,
         percentage_penalty_coefficient=2,
@@ -250,9 +245,9 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                      {'from': staker2})
     transact(staker_functions.deposit(staker3, MIN_ALLOWED_LOCKED * 3, LOCKED_PERIODS), {'from': staker3})
 
-    transact(staker_functions.bondWorker(staker1), {'from': staker1})
-    transact(staker_functions.bondWorker(staker2), {'from': staker2})
-    transact(staker_functions.bondWorker(staker3), {'from': staker3})
+    transact(staker_functions.bondOperator(staker1), {'from': staker1})
+    transact(staker_functions.bondOperator(staker2), {'from': staker2})
+    transact(staker_functions.bondOperator(staker3), {'from': staker3})
     transact(staker_functions.setReStake(False), {'from': staker1})
     transact(staker_functions.setReStake(False), {'from': staker2})
     transact(staker_functions.setWindDown(True), {'from': staker1})
@@ -530,7 +525,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     for i in range(number_of_sub_stakes):
         transact(staker_functions.deposit(staker4, MIN_ALLOWED_LOCKED, LOCKED_PERIODS),
                  {'from': origin})
-    transact(staker_functions.bondWorker(staker4), {'from': staker4})
+    transact(staker_functions.bondOperator(staker4), {'from': staker4})
     transact(staker_functions.setWindDown(True), {'from': staker4})
 
     # Used to remove spending for first call in a period for mint and commitToNextPeriod
@@ -564,15 +559,15 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
                                            *args,
                                            **kwargs)
 
-    token_economics = StandardTokenEconomics(genesis_hours_per_period=StandardTokenEconomics._default_hours_per_period,
-                                             hours_per_period=2 * StandardTokenEconomics._default_hours_per_period)
+    token_economics = Economics(genesis_hours_per_period=Economics._default_hours_per_period,
+                                             hours_per_period=2 * Economics._default_hours_per_period)
 
     token, _ = deploy_contract('NuCypherToken', _totalSupplyOfTokens=token_economics.erc20_total_supply)
     # Deploy Adjudicator mock
     adjudicator, _ = deploy_contract('AdjudicatorForStakingEscrowMock', token_economics.reward_coefficient)
 
     # Deploy old StakingEscrow contract
-    deploy_args = token_economics.staking_deployment_parameters
+    deploy_args = token_economics.pre_application_deployment_parameters
     deploy_args = (deploy_args[0], *deploy_args[2:])
     escrow_old_library, _ = deploy_contract(
         'StakingEscrowOld',
@@ -619,8 +614,8 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
         testerchain.wait_for_receipt(tx)
 
     sub_stakes_1 = 2
-    duration = token_economics.minimum_locked_periods
-    stake_size = token_economics.minimum_allowed_locked
+    duration = token_economics.min_operator_seconds
+    stake_size = token_economics.min_authorization
     for staker in (staker1, staker3):
         for i in range(1, sub_stakes_1 + 1):
             tx = escrow.functions.deposit(staker, stake_size, duration * i).transact({'from': staker})
@@ -632,7 +627,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
             testerchain.wait_for_receipt(tx)
 
     for staker in stakers:
-        tx = escrow.functions.bondWorker(staker).transact({'from': staker})
+        tx = escrow.functions.bondOperator(staker).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
     for i in range(duration):
@@ -650,7 +645,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     ##########
     # Deploy new version of contracts
     ##########
-    deploy_args = token_economics.staking_deployment_parameters
+    deploy_args = token_economics.pre_application_deployment_parameters
     escrow_library, _ = deploy_contract(
         'StakingEscrow',
         token.address,

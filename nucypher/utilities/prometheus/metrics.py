@@ -14,7 +14,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
@@ -36,21 +35,18 @@ from nucypher.utilities.prometheus.collector import (
     UrsulaInfoMetricsCollector,
     BlockchainMetricsCollector,
     StakerMetricsCollector,
-    WorkerMetricsCollector,
-    WorkLockMetricsCollector,
+    OperatorMetricsCollector,
     EventMetricsCollector,
     ReStakeEventMetricsCollector,
     WindDownEventMetricsCollector,
-    WorkerBondedEventMetricsCollector,
-    CommitmentMadeEventMetricsCollector,
-    WorkLockRefundEventMetricsCollector)
+    OperatorBondedEventMetricsCollector,
+    CommitmentMadeEventMetricsCollector
+)
 
 from typing import List
 
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
-
-from nucypher.blockchain.eth.agents import StakingEscrowAgent, PolicyManagerAgent, WorkLockAgent
 
 
 class PrometheusMetricsConfig:
@@ -184,16 +180,16 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
 
     if not ursula.federated_only:
         # Blockchain prometheus
-        collectors.append(BlockchainMetricsCollector(provider_uri=ursula.provider_uri))
+        collectors.append(BlockchainMetricsCollector(eth_provider_uri=ursula.eth_provider_uri))
 
         # Staker prometheus
         collectors.append(StakerMetricsCollector(domain=ursula.domain,
                                                  staker_address=ursula.checksum_address,
                                                  contract_registry=ursula.registry))
 
-        # Worker prometheus
-        collectors.append(WorkerMetricsCollector(domain=ursula.domain,
-                                                 worker_address=ursula.worker_address,
+        # Operator prometheus
+        collectors.append(OperatorMetricsCollector(domain=ursula.domain,
+                                                 operator_address=ursula.operator_address,
                                                  contract_registry=ursula.registry))
 
         #
@@ -204,24 +200,6 @@ def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[Met
         staking_events_collectors = create_staking_events_metric_collectors(ursula=ursula,
                                                                             metrics_prefix=metrics_prefix)
         collectors.extend(staking_events_collectors)
-
-        # Policy Events
-        policy_events_collectors = create_policy_events_metric_collectors(ursula=ursula,
-                                                                          metrics_prefix=metrics_prefix)
-        collectors.extend(policy_events_collectors)
-
-        #
-        # WorkLock information - only collected for mainnet
-        #
-        if ursula.domain == NetworksInventory.MAINNET:
-            # WorkLock metrics
-            collectors.append(WorkLockMetricsCollector(staker_address=ursula.checksum_address,
-                                                       contract_registry=ursula.registry))
-
-            # WorkLock Events
-            worklock_events_collectors = create_worklock_events_metric_collectors(ursula=ursula,
-                                                                                  metrics_prefix=metrics_prefix)
-            collectors.extend(worklock_events_collectors)
 
     return collectors
 
@@ -292,48 +270,16 @@ def create_staking_events_metric_collectors(ursula: 'Ursula', metrics_prefix: st
         contract_registry=ursula.registry
     ))
 
-    # WorkerBonded
-    collectors.append(WorkerBondedEventMetricsCollector(
+    # OperatorBonded
+    collectors.append(OperatorBondedEventMetricsCollector(
         event_args_config={
             "startPeriod": (Gauge, f'{metrics_prefix}_worker_set_start_period', 'New worker was bonded'),
-            "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'WorkerBonded block number')
+            "block_number": (Gauge, f'{metrics_prefix}_worker_set_block_number', 'OperatorBonded block number')
         },
         staker_address=staker_address,
-        worker_address=ursula.worker_address,
+        operator_address=ursula.operator_address,
         contract_agent_class=StakingEscrowAgent,
         contract_registry=ursula.registry
     ))
-
-    return collectors
-
-
-def create_worklock_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
-    """Create collectors for worklock-related events."""
-    # Refund
-    collectors: List[MetricsCollector] = [WorkLockRefundEventMetricsCollector(
-        event_args_config={
-            "refundETH": (Gauge, f'{metrics_prefix}_worklock_refund_refundETH',
-                          'Refunded ETH'),
-        },
-        staker_address=ursula.checksum_address,
-        contract_agent_class=WorkLockAgent,
-        contract_registry=ursula.registry
-    )]
-
-    return collectors
-
-
-def create_policy_events_metric_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
-    """Create collectors for policy-related events."""
-    # Withdrawn
-    collectors: List[MetricsCollector] = [EventMetricsCollector(
-        event_name='Withdrawn',
-        event_args_config={
-            "value": (Gauge, f'{metrics_prefix}_policy_withdrawn_reward', 'Policy reward')
-        },
-        argument_filters={"recipient": ursula.checksum_address},
-        contract_agent_class=PolicyManagerAgent,
-        contract_registry=ursula.registry
-    )]
 
     return collectors

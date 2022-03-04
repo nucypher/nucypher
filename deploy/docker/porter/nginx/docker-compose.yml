@@ -28,7 +28,7 @@ services:
       - .:/code
       - ~/.local/share/nucypher:/nucypher
     command: [ "nucypher", "porter", "run",
-               "--provider", "${WEB3_PROVIDER_URI}",
+               "--eth-provider", "${WEB3_PROVIDER_URI}",
                "--network", "${NUCYPHER_NETWORK}" ]
     environment:
       - VIRTUAL_HOST=porter.local

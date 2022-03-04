@@ -64,6 +64,8 @@ PUBLIC_CHAINS = {
     42: "Kovan",
     77: "Sokol",
     100: "xDai",
+    137: "Polygon/Mainnet",
+    80001: "Polygon/Mumbai"
 }
 
 LOCAL_CHAINS = {
@@ -84,7 +86,10 @@ POA_CHAINS = {
 class EthereumClient:
     is_local = False
 
+    # These two are used by Infura
     GETH = 'Geth'
+    BOR = 'bor'
+
     PARITY = 'Parity'
     ALT_PARITY = 'Parity-Ethereum'
     GANACHE = 'EthereumJS TestRPC'
@@ -162,11 +167,13 @@ class EthereumClient:
         Parity  -> 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
         Ganache -> 'EthereumJS TestRPC/v2.1.5/ethereum-js'
         PyEVM   -> 'EthereumTester/0.1.0b39/linux/python3.6.7'
+        Bor     -> 'bor/v0.2.13-beta2-c227a072/linux-amd64/go1.17.5'
         """
         clients = {
 
             # Geth
             cls.GETH: GethClient,
+            cls.BOR: BorClient,
 
             # Parity
             cls.PARITY: ParityClient,
@@ -459,6 +466,10 @@ class GethClient(EthereumClient):
     @property
     def wallets(self):
         return self.w3.geth.personal.list_wallets()
+
+
+class BorClient(GethClient):
+    """Geth to Bor adapter"""
 
 
 class ParityClient(EthereumClient):

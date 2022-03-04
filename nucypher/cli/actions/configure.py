@@ -14,6 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import glob
 import json
 from json.decoder import JSONDecodeError
@@ -22,7 +24,6 @@ from typing import Optional, Type, List
 
 import click
 
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (
@@ -36,11 +37,11 @@ from nucypher.cli.literature import (
     COLLECT_URSULA_IPV4_ADDRESS,
     CONFIRM_URSULA_IPV4_ADDRESS
 )
-from nucypher.cli.types import WORKER_IP
+from nucypher.cli.types import OPERATOR_IP
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.characters import StakeHolderConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.networking import InvalidWorkerIP, validate_worker_ip
+from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 
 
@@ -111,8 +112,6 @@ def handle_missing_configuration_file(character_config_class: Type[CharacterConf
     config_file_location = config_file or character_config_class.default_filepath()
     init_command = init_command_hint or f"{character_config_class.NAME} init"
     name = character_config_class.NAME.capitalize()
-    if name == StakeHolderConfiguration.NAME.capitalize():
-        init_command = 'stake init-stakeholder'
     message = MISSING_CONFIGURATION_FILE.format(name=name, init_command=init_command)
     raise click.FileError(filename=str(config_file_location.absolute()), hint=message)
 
@@ -137,7 +136,7 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
         raise  # crash :-(
 
 
-def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
+def collect_operator_ip_address(emitter: StdoutEmitter, network: str, force: bool = False) -> str:
 
     # From node swarm
     try:
@@ -148,14 +147,14 @@ def collect_worker_ip_address(emitter: StdoutEmitter, network: str, force: bool 
         if force:
             raise
         emitter.message('Cannot automatically determine external IP address - input required')
-        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
+        ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=OPERATOR_IP)
 
     # Confirmation
     if not force:
         if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
-            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=WORKER_IP)
+            ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=OPERATOR_IP)
 
-    validate_worker_ip(worker_ip=ip)
+    validate_operator_ip(ip=ip)
     return ip
 
 
@@ -172,9 +171,9 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
         return  # TODO: crash, or not to crash... that is the question
     rest_host = ursula.rest_interface.host
     try:
-        validate_worker_ip(worker_ip=rest_host)
-    except InvalidWorkerIP:
-        message = f'{rest_host} is not a valid or permitted worker IP address.  Set the correct external IP then try again\n' \
+        validate_operator_ip(ip=rest_host)
+    except InvalidOperatorIP:
+        message = f'{rest_host} is not a valid or permitted operator IP address.  Set the correct external IP then try again\n' \
                   f'automatic configuration -> nucypher ursula config ip-address\n' \
                   f'manual configuration    -> nucypher ursula config --rest-host <IP ADDRESS>'
         emitter.message(message)

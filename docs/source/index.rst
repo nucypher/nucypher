@@ -1,32 +1,62 @@
-Introduction
-=============
-
 
 .. _Umbral: https://github.com/nucypher/pyUmbral
 
-
-The NuCypher network is a decentralized network of nodes that perform threshold
-cryptography operations serving users with secrets management and dynamic access control.
-``nucypher`` is the python library and CLI for interacting with the
-decentralized threshold cryptography network.
+.. image:: ./.static/img/threshold_logo_purple.png
+    :target: ./.static/img/threshold_logo_purple.png
 
 
-How does NuCypher work?
------------------------
+`Welcome <https://blog.threshold.network/threshold-launch/>`_ to the Threshold Network!
+
+Introduction
+=============
+
+The `NuCypher Network <https://www.nucypher.com/>`_ has merged with the
+`KEEP Network <https://keep.network/>`_ to form the `Threshold Network <https://threshold.network/>`_!
+
+The Threshold Network powers user sovereignty on the public blockchain. It provides a decentralized
+network of nodes that perform threshold cryptography operations as a service to ensure full control over
+your digital assets.
+
+Proxy Re-Encryption (PRE) Application
+=====================================
+
+The NuCypher Network proxy re-encryption (PRE) service is now the PRE Application on the Threshold Network.
+
+The PRE Application is the first of many *threshold cryptography*-based applications
+to be hosted on the Threshold Network. PRE is an end-to-end encryption protocol that is a more scalable, more flexible form of
+`public-key encryption <https://en.wikipedia.org/wiki/Public-key_cryptography>`_ and enables a group of proxy
+entities to transform encrypted data from one public key to another, without the power to decrypt the data or gain access to any
+private keys. PRE equips developers, applications and end-users with **secrets management** and **dynamic access control** capabilities.
+This service is provided by a decentralized array of nodes on the Threshold Network, each running the same PRE client software.
+
+Private data, wherever stored, remains private, confidential
+and encrypted while maintaining the ability to share that data with trusted parties.
+
+.. attention::
+
+    In order to run a PRE node on Threshold, ``nucypher`` version 6.0.0 is required,
+    but is not yet available. See `releases <https://pypi.org/project/nucypher/#history>`_.
+
+    However, this documentation can be used in the interim to gain a better understanding of
+    the logistics of running a PRE node.
+
+How does it Work?
+-----------------
 
 .. image:: ./.static/img/nucypher_overview.svg
     :target: ./.static/img/nucypher_overview.svg
 
 1. Alice, the data owner, grants access to her encrypted data to
 anyone she wants by creating a policy and uploading it to
-the NuCypher network.
+the PRE Application on the Threshold Network.
 
-2. Alice gets information about the group of ``n`` Ursulas associated
-with the policy, which are nodes on the NuCypher network. Each Ursula provides their encrypting key, and Alice creates
+2. Alice gets information about the group of ``n`` PRE nodes (Ursulas) associated
+with the policy, which are nodes on the Threshold network providing the PRE service. Each Ursula provides their encrypting key, and Alice creates
 ``n`` re-encryption key shares (:term:`kFrag`), each of which is encrypted with a different Ursula's encrypting key.
 The Ursulas in the group stand ready to re-encrypt data in exchange for payment in fees and token rewards.
 The list of Ursulas and their associated encrypted re-encryption key shares are stored in a treasure map. Alice
-subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic material to successfully request the NuCypher network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key. 
+subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic
+material to successfully request the Threshold Network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key.
 
 3. Each policy created by Alice has an associated encryption key, which can be used
 by any entity (Enrico) to encrypt data on Alice's behalf.
@@ -38,7 +68,7 @@ or any other storage layer.
 
 4. Bob, a data recipient, uses the treasure map to determine the list of Ursulas to contact and the associated
 re-encryption key share to send to Ursula for the re-encryption operation. Bob obtains the encrypted data from the
-storage layer and sends a re-encryption request to the relevant Ursulas on the NuCypher network. If the policy is
+storage layer and sends a re-encryption request to the relevant Ursulas on the Threshold network. If the policy is
 satisfied, Ursula decrypts the provided re-encryption key share and re-encrypts the data to Bob's public key. Bob
 can subsequently decrypt the data with his private key.
 
@@ -53,26 +83,12 @@ More detailed information:
 Whitepapers
 -----------
 
-**Network**
+**Original Network**
 
     https://github.com/nucypher/whitepaper/blob/master/whitepaper.pdf
 
     *"NuCypher - A proxy re-encryption network to empower privacy in decentralized systems"*
     *by Michael Egorov, David Nuñez, and MacLane Wilkison - NuCypher*
-
-
-**Economics**
-
-    https://github.com/nucypher/whitepaper/blob/master/economics/staking_protocol/NuCypher_Staking_Protocol_Economics.pdf
-
-    *"NuCypher Network: Staking Protocol & Economics"*
-    *by Michael Egorov, MacLane Wilkison, Arjun Hassard - NuCypher*
-
-
-    https://github.com/nucypher/whitepaper/blob/master/economics/pricing_protocol/NuCypher_Network__Pricing_Protocol_Economics.pdf
-
-    *"NuCypher Network: Pricing Protocol & Economics"*
-    *by Arjun Hassard - NuCypher*
 
 
 **Cryptography**
@@ -85,38 +101,42 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: Staking
+   :caption: Threshold
 
-   staking/overview
-   staking/stake_initialization
-   staking/stake_management
-   staking/running_a_worker
-   staking/best_practices
-   staking/worklock
-   staking/testnet
-   staking/remote_worker_cli
+   threshold/threshold_overview
+
+.. toctree::
+   :maxdepth: 1
+   :caption: PRE Application
+
+   pre_application/overview
+   pre_application/node_requirements
+   pre_application/running_a_node
+   pre_application/cloud_node_management
+   pre_application/best_practices
+   pre_application/node_providers
+   pre_application/testnet
+
 
 .. toctree::
    :maxdepth: 1
    :caption: Application Development
 
    application_development/getting_started
-   application_development/porter
+   application_development/local_fleet_demo
+   application_development/web_development
    application_development/http_character_control
    application_development/cli_examples
-   application_development/local_fleet_demo
    application_development/testnet
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: References
 
    references/pip-installation
    references/cli_reference
-   references/network_events
-   references/signers
    references/environment_variables
-   references/networks
+   references/network_events
 
 .. toctree::
    :maxdepth: 1
@@ -130,15 +150,9 @@ Whitepapers
    :caption: Architecture
 
    architecture/character
-   architecture/worklock
    architecture/contracts
    architecture/upgradeable_proxy_contracts
-   architecture/dao
-   architecture/rewards_and_service_fees
-   architecture/sub_stakes
    architecture/slashing
-   architecture/periods
-   architecture/staking_contracts
 .. TODO perhaps categorize architecture section
 
 .. toctree::
@@ -161,7 +175,6 @@ Whitepapers
    :caption: Support
 
    support/contribution
-   support/node_providers
    support/community
    support/troubleshooting
    support/faq

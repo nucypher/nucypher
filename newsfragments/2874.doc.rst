@@ -1,0 +1,1 @@
+Add documentation about bonding an operator to a staking provider.

@@ -15,25 +15,22 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+import webbrowser
 
 import maya
-import tabulate
-import webbrowser
 from web3.main import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
-    PolicyManagerAgent,
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer, PolicyManagerDeployer, StakingInterfaceRouterDeployer
+from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.utils import etherscan_url
 from nucypher.characters.banners import NU_BANNER
-from nucypher.cli.painting.staking import paint_fee_rate_range
 from nucypher.cli.painting.transactions import paint_receipt_summary
 
 
@@ -41,7 +38,7 @@ def paint_staged_deployment(emitter, deployer_interface, administrator) -> None:
     emitter.clear()
     emitter.banner(NU_BANNER)
     emitter.echo(f"Current Time ........ {maya.now().iso8601()}")
-    emitter.echo(f"Web3 Provider ....... {deployer_interface.provider_uri}")
+    emitter.echo(f"ETH Provider URI .... {deployer_interface.eth_provider_uri}")
     emitter.echo(f"Block ............... {deployer_interface.client.block_number}")
     emitter.echo(f"Gas Price ........... {deployer_interface.client.gas_price}")
     emitter.echo(f"Deployer Address .... {administrator.checksum_address}")
@@ -104,7 +101,7 @@ def paint_deployer_contract_inspection(emitter, registry, deployer_address) -> N
 * Web3 Provider
 ====================================================================
 
-Provider URI ............. {blockchain.provider_uri}
+ETH Provider URI ......... {blockchain.eth_provider_uri}
 Registry  ................ {registry.filepath}
 
 * Standard Deployments
@@ -118,7 +115,7 @@ Registry  ................ {registry.filepath}
 
 {token_agent.contract_name} ........... {token_agent.contract_address}
     ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
-    ~ Tokens ............ {NU.from_nunits(token_agent.get_balance(token_agent.contract_address))}"""
+    ~ Tokens ............ {NU.from_units(token_agent.get_balance(token_agent.contract_address))}"""
     except BaseContractRegistry.UnknownContract:
         message = f"\n{NucypherTokenAgent.contract_name} is not enrolled in {registry.filepath}"
         emitter.echo(message, color='yellow')
@@ -150,12 +147,12 @@ Registry  ................ {registry.filepath}
     ~ Version ............ {bare_contract.version}
     ~ Owner .............. {bare_contract.functions.owner().call()}
     ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
-    ~ Tokens ............. {NU.from_nunits(token_agent.get_balance(bare_contract.address))}
+    ~ Tokens ............. {NU.from_units(token_agent.get_balance(bare_contract.address))}
     ~ Dispatcher ......... {dispatcher_deployer.contract_address}
         ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
         ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
-        ~ Tokens ......... {NU.from_nunits(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
+        ~ Tokens ......... {NU.from_units(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
             emitter.echo(proxy_payload)
             emitter.echo(sep, nl=False)
 
@@ -163,14 +160,3 @@ Registry  ................ {registry.filepath}
             message = f"\n{contract_deployer_class.contract_name} is not enrolled in {registry.filepath}"
             emitter.echo(message, color='yellow')
             emitter.echo(sep, nl=False)
-
-    try:
-
-        policy_agent = ContractAgency.get_agent(PolicyManagerAgent, registry=registry)
-        paint_fee_rate_range(emitter, policy_agent)
-        emitter.echo(sep, nl=False)
-
-    except BaseContractRegistry.UnknownContract:
-        message = f"\n{PolicyManagerDeployer.contract_name} is not enrolled in {registry.filepath}"
-        emitter.echo(message, color='yellow')
-        emitter.echo(sep, nl=False)

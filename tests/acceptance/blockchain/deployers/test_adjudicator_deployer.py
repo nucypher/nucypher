@@ -14,20 +14,20 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+import pytest
 
 from nucypher.blockchain.eth.agents import AdjudicatorAgent
 from nucypher.blockchain.eth.deployers import (
     AdjudicatorDeployer,
     NucypherTokenDeployer,
-    StakingEscrowDeployer,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
+@pytest.mark.skip()
 def test_adjudicator_deployer(testerchain,
-                              token_economics,
+                              application_economics,
                               deployment_progress,
                               test_registry):
 
@@ -57,11 +57,11 @@ def test_adjudicator_deployer(testerchain,
     # Check default Adjudicator deployment parameters
     assert tpower.account != staking_agent.contract_address
     assert adjudicator_agent.staking_escrow_contract == staking_agent.contract_address
-    assert adjudicator_agent.hash_algorithm == token_economics.hash_algorithm
-    assert adjudicator_agent.base_penalty == token_economics.base_penalty
-    assert adjudicator_agent.penalty_history_coefficient == token_economics.penalty_history_coefficient
-    assert adjudicator_agent.percentage_penalty_coefficient == token_economics.percentage_penalty_coefficient
-    assert adjudicator_agent.reward_coefficient == token_economics.reward_coefficient
+    assert adjudicator_agent.hash_algorithm == application_economics.hash_algorithm
+    assert adjudicator_agent.base_penalty == application_economics.base_penalty
+    assert adjudicator_agent.penalty_history_coefficient == application_economics.penalty_history_coefficient
+    assert adjudicator_agent.percentage_penalty_coefficient == application_economics.percentage_penalty_coefficient
+    assert adjudicator_agent.reward_coefficient == application_economics.reward_coefficient
 
     # Retrieve the AdjudicatorAgent singleton
     some_policy_agent = AdjudicatorAgent(registry=test_registry)

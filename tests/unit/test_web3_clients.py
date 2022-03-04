@@ -154,43 +154,43 @@ class ProviderTypeTestClient(BlockchainInterfaceTestBase):
         self.expected_provider_class = expected_provider_class
         self.test_provider_to_attach = actual_provider_to_attach
 
-    def _attach_provider(self, *args, **kwargs) -> None:
-        super()._attach_provider(*args, **kwargs)
+    def _attach_eth_provider(self, *args, **kwargs) -> None:
+        super()._attach_eth_provider(*args, **kwargs)
 
         # check type
         assert isinstance(self.provider, self.expected_provider_class)
 
-        super()._attach_provider(provider=self.test_provider_to_attach)
+        super()._attach_eth_provider(eth_provider=self.test_provider_to_attach)
 
 
 class InfuraTestClient(BlockchainInterfaceTestBase):
 
-    def _attach_provider(self, *args, **kwargs) -> None:
-        super()._attach_provider(provider=MockInfuraProvider())
+    def _attach_eth_provider(self, *args, **kwargs) -> None:
+        super()._attach_eth_provider(eth_provider=MockInfuraProvider())
 
 
 class AlchemyTestClient(BlockchainInterfaceTestBase):
 
-    def _attach_provider(self, *args, **kwargs) -> None:
-        super()._attach_provider(provider=MockAlchemyProvider())
+    def _attach_eth_provider(self, *args, **kwargs) -> None:
+        super()._attach_eth_provider(eth_provider=MockAlchemyProvider())
 
 
 class GethClientTestBlockchain(BlockchainInterfaceTestBase):
 
-    def _attach_provider(self, *args, **kwargs) -> None:
-        super()._attach_provider(provider=MockGethProvider())
+    def _attach_eth_provider(self, *args, **kwargs) -> None:
+        super()._attach_eth_provider(eth_provider=MockGethProvider())
 
 
 class ParityClientTestInterface(BlockchainInterfaceTestBase):
 
-    def _attach_provider(self, *args, **kwargs) -> None:
-        super()._attach_provider(provider=MockParityProvider())
+    def _attach_eth_provider(self, *args, **kwargs) -> None:
+        super()._attach_eth_provider(eth_provider=MockParityProvider())
 
 
 class GanacheClientTestInterface(BlockchainInterfaceTestBase):
 
-    def _attach_provider(self, *args, **kwargs) -> None:
-        super()._attach_provider(provider=MockGanacheProvider())
+    def _attach_eth_provider(self, *args, **kwargs) -> None:
+        super()._attach_eth_provider(eth_provider=MockGanacheProvider())
 
 
 def test_client_no_provider():
@@ -200,7 +200,7 @@ def test_client_no_provider():
 
 
 def test_geth_web3_client():
-    interface = GethClientTestBlockchain(provider_uri='file:///ipc.geth')
+    interface = GethClientTestBlockchain(eth_provider_uri='file:///ipc.geth')
     interface.connect()
 
     assert isinstance(interface.client, GethClient)
@@ -215,7 +215,7 @@ def test_geth_web3_client():
 
 def test_autodetect_provider_type_file(tempfile_path):
 
-    interface = ProviderTypeTestClient(provider_uri=str(tempfile_path),  # existing file for test
+    interface = ProviderTypeTestClient(eth_provider_uri=str(tempfile_path),  # existing file for test
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
     interface.connect()
@@ -224,12 +224,12 @@ def test_autodetect_provider_type_file(tempfile_path):
 
 def test_autodetect_provider_type_file_none_existent():
     with pytest.raises(BlockchainInterface.UnsupportedProvider) as e:
-        interface = BlockchainInterfaceTestBase(provider_uri='/none_existent.ipc.geth')
+        interface = BlockchainInterfaceTestBase(eth_provider_uri='/none_existent.ipc.geth')
         interface.connect()
 
 
 def test_detect_provider_type_file():
-    interface = ProviderTypeTestClient(provider_uri='file:///ipc.geth',
+    interface = ProviderTypeTestClient(eth_provider_uri='file:///ipc.geth',
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
     interface.connect()
@@ -237,7 +237,7 @@ def test_detect_provider_type_file():
 
 
 def test_detect_provider_type_ipc():
-    interface = ProviderTypeTestClient(provider_uri='ipc:///ipc.geth',
+    interface = ProviderTypeTestClient(eth_provider_uri='ipc:///ipc.geth',
                                        expected_provider_class=IPCProvider,
                                        actual_provider_to_attach=MockGethProvider())
     interface.connect()
@@ -245,7 +245,7 @@ def test_detect_provider_type_ipc():
 
 
 def test_detect_provider_type_http():
-    interface = ProviderTypeTestClient(provider_uri='http://ganache:8445',
+    interface = ProviderTypeTestClient(eth_provider_uri='http://ganache:8445',
                                        expected_provider_class=HTTPProvider,
                                        actual_provider_to_attach=MockGanacheProvider())
     interface.connect()
@@ -253,7 +253,7 @@ def test_detect_provider_type_http():
 
 
 def test_detect_provider_type_https():
-    interface = ProviderTypeTestClient(provider_uri='https://ganache:8445',
+    interface = ProviderTypeTestClient(eth_provider_uri='https://ganache:8445',
                                        expected_provider_class=HTTPProvider,
                                        actual_provider_to_attach=MockGanacheProvider())
     interface.connect()
@@ -261,7 +261,7 @@ def test_detect_provider_type_https():
 
 
 def test_detect_provider_type_ws():
-    interface = ProviderTypeTestClient(provider_uri=f'ws://{LOOPBACK_ADDRESS}:8546',
+    interface = ProviderTypeTestClient(eth_provider_uri=f'ws://{LOOPBACK_ADDRESS}:8546',
                                        expected_provider_class=WebsocketProvider,
                                        actual_provider_to_attach=MockWebSocketProvider())
     interface.connect()
@@ -269,7 +269,7 @@ def test_detect_provider_type_ws():
 
 
 def test_infura_web3_client():
-    interface = InfuraTestClient(provider_uri='wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef')
+    interface = InfuraTestClient(eth_provider_uri='wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef')
     interface.connect()
 
     assert isinstance(interface.client, InfuraClient)
@@ -285,7 +285,7 @@ def test_infura_web3_client():
 
 
 def test_alchemy_web3_client():
-    interface = AlchemyTestClient(provider_uri='https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef')
+    interface = AlchemyTestClient(eth_provider_uri='https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef')
     interface.connect()
 
     assert isinstance(interface.client, AlchemyClient)
@@ -297,7 +297,7 @@ def test_alchemy_web3_client():
 
 
 def test_parity_web3_client():
-    interface = ParityClientTestInterface(provider_uri='file:///ipc.parity')
+    interface = ParityClientTestInterface(eth_provider_uri='file:///ipc.parity')
     interface.connect()
 
     assert isinstance(interface.client, ParityClient)
@@ -308,7 +308,7 @@ def test_parity_web3_client():
 
 
 def test_ganache_web3_client():
-    interface = GanacheClientTestInterface(provider_uri='http://ganache:8445')
+    interface = GanacheClientTestInterface(eth_provider_uri='http://ganache:8445')
     interface.connect()
 
     assert isinstance(interface.client, GanacheClient)

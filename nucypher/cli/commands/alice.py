@@ -49,14 +49,14 @@ from nucypher.cli.options import (
     option_network,
     option_shares,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
     option_threshold,
     option_lonely,
     option_max_gas_price,
-    option_key_material
+    option_key_material, option_payment_method, option_payment_network, option_payment_provider
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.painting.policies import paint_single_card
@@ -69,7 +69,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.identity import Card
 
 option_pay_with = click.option('--pay-with', help="Run with a specified account", type=EIP55_CHECKSUM_ADDRESS)
-option_payment_periods = click.option('--payment-periods', help="Policy payment periods", type=click.INT)
+option_duration = click.option('--duration', help="Policy payment periods", type=click.INT)
 
 
 class AliceConfigOptions:
@@ -79,7 +79,7 @@ class AliceConfigOptions:
     def __init__(self,
                  dev: bool,
                  network: str,
-                 provider_uri: str,
+                 eth_provider_uri: str,
                  federated_only: bool,
                  discovery_port: int,
                  pay_with: str,
@@ -89,11 +89,14 @@ class AliceConfigOptions:
                  max_gas_price: int,  # gwei
                  signer_uri: str,
                  lonely: bool,
+                 payment_method: str,
+                 payment_provider: str,
+                 payment_network: str
                  ):
 
         self.dev = dev
         self.domain = network
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
@@ -103,6 +106,10 @@ class AliceConfigOptions:
         self.registry_filepath = registry_filepath
         self.middleware = middleware
         self.lonely = lonely
+        
+        self.payment_method = payment_method
+        self.payment_provider = payment_provider
+        self.payment_network = payment_network
 
     def create_config(self, emitter, config_file):
 
@@ -119,12 +126,15 @@ class AliceConfigOptions:
                 dev_mode=True,
                 network_middleware=self.middleware,
                 domain=TEMPORARY_DOMAIN,
-                provider_uri=self.provider_uri,
+                eth_provider_uri=self.eth_provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
                 federated_only=True,
-                lonely=self.lonely
+                lonely=self.lonely,
+                payment_method=self.payment_method,
+                payment_provider=self.payment_provider,
+                payment_network=self.payment_network
             )
 
         else:
@@ -138,7 +148,7 @@ class AliceConfigOptions:
                     dev_mode=False,
                     network_middleware=self.middleware,
                     domain=self.domain,
-                    provider_uri=self.provider_uri,
+                    eth_provider_uri=self.eth_provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -146,7 +156,10 @@ class AliceConfigOptions:
                     rest_port=self.discovery_port,
                     checksum_address=self.pay_with,
                     registry_filepath=self.registry_filepath,
-                    lonely=self.lonely
+                    lonely=self.lonely,
+                    payment_method=self.payment_method,
+                    payment_provider=self.payment_provider,
+                    payment_network=self.payment_network
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(
@@ -159,7 +172,7 @@ group_config_options = group_options(
     AliceConfigOptions,
     dev=option_dev,
     network=option_network(),
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
@@ -169,6 +182,9 @@ group_config_options = group_options(
     registry_filepath=option_registry_filepath,
     middleware=option_middleware,
     lonely=option_lonely,
+    payment_provider=option_payment_provider,
+    payment_network=option_payment_network,
+    payment_method=option_payment_method,
 )
 
 
@@ -176,13 +192,13 @@ class AliceFullConfigOptions:
 
     __option_name__ = 'full_config_options'
 
-    def __init__(self, config_options, poa: bool, light: bool, threshold: int, shares: int, payment_periods: int):
+    def __init__(self, config_options, poa: bool, light: bool, threshold: int, shares: int, duration: int):
         self.config_options = config_options
         self.poa = poa
         self.light = light
         self.threshold = threshold
         self.shares = shares
-        self.payment_periods = payment_periods
+        self.duration = duration
 
     def generate_config(self, emitter: StdoutEmitter, config_root: Path, key_material: str) -> AliceConfiguration:
 
@@ -191,15 +207,15 @@ class AliceFullConfigOptions:
         if opts.dev:
             raise click.BadArgumentUsage("Cannot create a persistent development character")
 
-        if not opts.provider_uri and not opts.federated_only:
+        if not opts.eth_provider_uri and not opts.federated_only:
             raise click.BadOptionUsage(
-                option_name='--provider',
-                message="--provider is required to create a new decentralized alice.")
+                option_name='--eth-provider',
+                message="--eth-provider is required to create a new decentralized alice.")
 
         pay_with = opts.pay_with
         if not pay_with and not opts.federated_only:
             pay_with = select_client_account(emitter=emitter,
-                                             provider_uri=opts.provider_uri,
+                                             eth_provider_uri=opts.eth_provider_uri,
                                              signer_uri=opts.signer_uri,
                                              show_eth_balance=True,
                                              network=opts.domain)
@@ -211,28 +227,36 @@ class AliceFullConfigOptions:
             checksum_address=pay_with,
             domain=opts.domain,
             federated_only=opts.federated_only,
-            provider_uri=opts.provider_uri,
+            eth_provider_uri=opts.eth_provider_uri,
             signer_uri=opts.signer_uri,
             registry_filepath=opts.registry_filepath,
             poa=self.poa,
             light=self.light,
             threshold=self.threshold,
             shares=self.shares,
-            payment_periods=self.payment_periods)
+            duration=self.duration,
+            payment_provider=opts.payment_provider,
+            payment_network=opts.payment_network,
+            payment_method=opts.payment_method,
+        )
 
     def get_updates(self) -> dict:
         opts = self.config_options
         payload = dict(checksum_address=opts.pay_with,
                        domain=opts.domain,
                        federated_only=opts.federated_only,
-                       provider_uri=opts.provider_uri,
+                       eth_provider_uri=opts.eth_provider_uri,
                        signer_uri=opts.signer_uri,
                        registry_filepath=opts.registry_filepath,
                        poa=self.poa,
                        light=self.light,
                        threshold=self.threshold,
                        shares=self.shares,
-                       payment_periods=self.payment_periods)
+                       duration=self.duration,
+                       payment_provider=opts.payment_provider,
+                       payment_network=opts.payment_network,
+                       payment_method=opts.payment_method,
+                       )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
@@ -245,7 +269,7 @@ group_full_config_options = group_options(
     light=option_light,
     threshold=option_threshold,
     shares=option_shares,
-    payment_periods=option_payment_periods
+    duration=option_duration
 )
 
 

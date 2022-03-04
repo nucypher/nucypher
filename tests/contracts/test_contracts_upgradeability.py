@@ -18,27 +18,25 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 from pathlib import Path
 
+import pytest
 import requests
+
 from constant_sorrow import constants
 from web3.exceptions import ValidationError
 
 from nucypher.blockchain.eth.deployers import (
-    AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
-    PolicyManagerDeployer,
-    StakingEscrowDeployer,
-    WorklockDeployer
+    StakingEscrowDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT, TEST_SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.fixtures import make_token_economics
-from tests.utils.blockchain import free_gas_price_strategy
+from tests.utils.blockchain import free_gas_price_strategy, TesterBlockchain
 
 USER = "nucypher"
 REPO = "nucypher"
@@ -78,26 +76,50 @@ def download_github_file(source_link: str, target_folder: Path):
         registry_file.truncate()
 
 
+# def parameters_v611(blockchain_interface: BlockchainDeployerInterface,
+#                     transacting_power: TransactingPower,
+#                     deployer: BaseContractDeployer):
+#     policy_manager_mock, _ = blockchain_interface.deploy_contract(
+#         transacting_power,
+#         deployer.registry,
+#         "OldPolicyManagerMock"
+#     )
+#     adjudicator_mock, _ = blockchain_interface.deploy_contract(
+#         transacting_power,
+#         deployer.registry,
+#         "OldAdjudicatorMock"
+#     )
+#     parameters = {
+#         "_genesisHoursPerPeriod": 1,
+#         "_hoursPerPeriod": 1,
+#         "_issuanceDecayCoefficient": 1,
+#         "_lockDurationCoefficient1": 1,
+#         "_lockDurationCoefficient2": 2,
+#         "_maximumRewardedPeriods": 1,
+#         "_firstPhaseTotalSupply": 1,
+#         "_firstPhaseMaxIssuance": 1,
+#         "_minLockedPeriods": 2,
+#         "_minAllowableLockedTokens": 0,
+#         "_maxAllowableLockedTokens": deployer.economics.maximum_allowed_locked,
+#         "_minWorkerPeriods": 1,
+#         "_policyManager": policy_manager_mock.address,
+#         "_adjudicator": adjudicator_mock.address
+#       }
+#     return parameters
+
+
 # Constructor parameters overrides for previous versions if needed
 # All versions below the specified version must use these overrides
 # 'None' value removes arg from list of constructor parameters
 CONSTRUCTOR_OVERRIDES = {
-    StakingEscrowDeployer.contract_name: {"v4.2.1": {"_issuanceDecayCoefficient": None,
-                                                     "_lockDurationCoefficient1": None,
-                                                     "_lockDurationCoefficient2": None,
-                                                     "_maximumRewardedPeriods": None,
-                                                     "_firstPhaseTotalSupply": None,
-                                                     "_firstPhaseMaxIssuance": None,
-                                                     "_miningCoefficient": 2,
-                                                     "_lockedPeriodsCoefficient": 1,
-                                                     "_rewardedPeriods": 1},
-                                          "v5.7.1": {"_genesisHoursPerPeriod": None}
-                                          }
+    StakingEscrowDeployer.contract_name: {
+        "v5.7.1": lambda *args: {"_genesisHoursPerPeriod": None},
+        # "v6.1.1": parameters_v611
+    }
 }
 
 FORCE_SKIP = {
-    StakingEscrowDeployer.contract_name: ["v5.6.1"],
-    PolicyManagerDeployer.contract_name: ["v6.2.1"]
+    StakingEscrowDeployer.contract_name: ["v5.6.1", "v6.2.1"],
 }
 
 
@@ -111,7 +133,10 @@ def deploy_base_contract(blockchain_interface: BlockchainDeployerInterface,
     overrides = dict()
     if len(raw_contracts[contract_name]) != 1:
         try:
-            overrides = CONSTRUCTOR_OVERRIDES[contract_name][latest_version]
+            overrides_func = CONSTRUCTOR_OVERRIDES[contract_name][latest_version]
+            overrides = overrides_func(blockchain_interface,
+                                       transacting_power,
+                                       deployer)
         except KeyError:
             pass
 
@@ -135,19 +160,33 @@ def skip_test(blockchain_interface: BlockchainDeployerInterface, contract_name: 
     return force_skip or len(raw_contracts[contract_name]) == 1
 
 
+def prepare_staker(blockchain_interface: TesterBlockchain,
+                   deployer: StakingEscrowDeployer,
+                   transacting_power: TransactingPower):
+    worklock_agent = WorkLockAgent(registry=deployer.registry)
+    value = worklock_agent.minimum_allowed_bid
+    worklock_agent.bid(value=value, transacting_power=transacting_power)
+    blockchain_interface.time_travel(hours=100)
+    worklock_agent.verify_bidding_correctness(transacting_power=transacting_power, gas_limit=1000000)
+    worklock_agent.claim(transacting_power=transacting_power)
+
+
+@pytest.mark.skip("fix after deployers and merging threshold-network")
 def test_upgradeability(temp_dir_path):
     # Prepare remote source for compilation
     download_github_dir(GITHUB_SOURCE_LINK, temp_dir_path)
 
     # Prepare the blockchain
-    BlockchainDeployerInterface.SOURCES = [
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
+    TesterBlockchain.SOURCES = [
+        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT,
+                     other_paths=(TEST_SOLIDITY_SOURCE_ROOT,)),
         SourceBundle(base_path=Path(temp_dir_path))
     ]
 
-    provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
+    eth_provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
     try:
-        blockchain_interface = BlockchainDeployerInterface(provider_uri=provider_uri, gas_strategy='free')
+        blockchain_interface = TesterBlockchain(gas_strategy='free')
+        blockchain_interface.eth_provider_uri = eth_provider_uri
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
@@ -158,14 +197,10 @@ def test_upgradeability(temp_dir_path):
         economics = make_token_economics(blockchain_interface)
 
         # Check contracts with multiple versions
-        contract_name = AdjudicatorDeployer.contract_name
-        skip_adjudicator_test = skip_test(blockchain_interface, contract_name)
         contract_name = StakingEscrowDeployer.contract_name
         skip_staking_escrow_test = skip_test(blockchain_interface, contract_name)
-        contract_name = PolicyManagerDeployer.contract_name
-        skip_policy_manager_test = skip_test(blockchain_interface, contract_name)
 
-        if skip_adjudicator_test and skip_staking_escrow_test and skip_policy_manager_test:
+        if skip_staking_escrow_test:
             return
 
         # Prepare master version of contracts and upgrade to the latest
@@ -177,17 +212,8 @@ def test_upgradeability(temp_dir_path):
         staking_escrow_deployer = StakingEscrowDeployer(registry=registry, economics=economics)
         staking_escrow_deployer.deploy(deployment_mode=constants.INIT, transacting_power=transacting_power)
 
-        policy_manager_deployer = PolicyManagerDeployer(registry=registry, economics=economics)
-        deploy_base_contract(blockchain_interface, policy_manager_deployer,
-                             transacting_power=transacting_power,
-                             skipt_test=skip_policy_manager_test)
-
-        adjudicator_deployer = AdjudicatorDeployer(registry=registry, economics=economics)
-        deploy_base_contract(blockchain_interface, adjudicator_deployer,
-                             transacting_power=transacting_power,
-                             skipt_test=skip_adjudicator_test)
-
-        if skip_staking_escrow_test:
+        if not skip_staking_escrow_test:
+            economics.worklock_supply = economics.maximum_allowed_locked
             worklock_deployer = WorklockDeployer(registry=registry, economics=economics)
             worklock_deployer.deploy(transacting_power=transacting_power)
 
@@ -197,22 +223,14 @@ def test_upgradeability(temp_dir_path):
                              skipt_test=skip_staking_escrow_test)
 
         if not skip_staking_escrow_test:
-            # TODO prepare at least one staker before calling upgrade
+            prepare_staker(blockchain_interface=blockchain_interface,
+                           deployer=staking_escrow_deployer,
+                           transacting_power=transacting_power)
             staking_escrow_deployer.upgrade(transacting_power=transacting_power,
                                             contract_version="latest",
                                             confirmations=0)
 
-        if not skip_policy_manager_test:
-            policy_manager_deployer.upgrade(transacting_power=transacting_power,
-                                            contract_version="latest",
-                                            confirmations=0)
-
-        if not skip_adjudicator_test:
-            adjudicator_deployer.upgrade(transacting_power=transacting_power,
-                                         contract_version="latest",
-                                         confirmations=0)
-
     finally:
         # Unregister interface  # TODO: Move to method?
         with contextlib.suppress(KeyError):
-            del BlockchainInterfaceFactory._interfaces[provider_uri]
+            del BlockchainInterfaceFactory._interfaces[eth_provider_uri]

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 /**
@@ -101,16 +101,16 @@ library SignatureVerifier {
     */
     function hashEIP191(
         bytes memory _message,
-        byte _version
+        bytes1 _version
     )
         internal
         view
         returns (bytes32 result)
     {
-        if(_version == byte(0x00)){  // Version 0: Data with intended validator
+        if(_version == bytes1(0x00)){  // Version 0: Data with intended validator
             address validator = address(this);
-            return keccak256(abi.encodePacked(byte(0x19), byte(0x00), validator, _message));
-        } else if (_version == byte(0x45)){  // Version E: personal_sign messages
+            return keccak256(abi.encodePacked(bytes1(0x19), bytes1(0x00), validator, _message));
+        } else if (_version == bytes1(0x45)){  // Version E: personal_sign messages
             uint256 length = _message.length;
             require(length > 0, "Empty message not allowed for version E");
 
@@ -122,13 +122,13 @@ library SignatureVerifier {
             }
             bytes memory lengthAsText = new bytes(digits);
             length = _message.length;
-            uint256 index = digits - 1;
+            uint256 index = digits;
             while (length != 0) {
-                lengthAsText[index--] = byte(uint8(48 + length % 10));
+                lengthAsText[--index] = bytes1(uint8(48 + length % 10));
                 length /= 10;
             }
 
-            return keccak256(abi.encodePacked(byte(0x19), EIP191_VERSION_E_HEADER, lengthAsText, _message));
+            return keccak256(abi.encodePacked(bytes1(0x19), EIP191_VERSION_E_HEADER, lengthAsText, _message));
         } else {
             revert("Unsupported EIP191 version");
         }
@@ -147,7 +147,7 @@ library SignatureVerifier {
         bytes memory _message,
         bytes memory _signature,
         bytes memory _publicKey,
-        byte _version
+        bytes1 _version
     )
         internal
         view

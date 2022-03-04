@@ -19,7 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from typing import List, Dict
 
 from nucypher.blockchain.eth.sol.compile.constants import (
-    CONTRACTS, ZEPPELIN, ARAGON
+    CONTRACTS, ZEPPELIN, ARAGON, THRESHOLD
 )
 from nucypher.blockchain.eth.sol.compile.types import CompilerConfiguration
 
@@ -47,7 +47,7 @@ WARNING: Do not change these values unless you know what you are doing.
 LANGUAGE: str = 'Solidity'
 
 # Version of the EVM to compile for. Affects type checking and code generation.
-EVM_VERSION: str = 'berlin'
+EVM_VERSION: str = 'london'
 
 # File level compiler outputs (needs empty string as contract name):
 FILE_OUTPUTS: List[str] = [
@@ -114,7 +114,12 @@ COMPILER_SETTINGS: Dict = dict(
     outputSelection={"*": {"*": CONTRACT_OUTPUTS, "": FILE_OUTPUTS}},  # all contacts(*), all files("")
 )
 
-REMAPPINGS: List = [CONTRACTS, ZEPPELIN, ARAGON]
+REMAPPINGS: List = [
+    CONTRACTS,
+    ZEPPELIN,
+    ARAGON,
+    THRESHOLD
+]
 
 # Base configuration for programmatic usage
 BASE_COMPILER_CONFIGURATION = CompilerConfiguration(

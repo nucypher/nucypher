@@ -36,14 +36,12 @@ def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
     assert response.status_code == 400
 
     quantity = 4
-    duration = 2
     blockchain_ursulas_list = list(blockchain_ursulas)
     include_ursulas = [blockchain_ursulas_list[0].checksum_address, blockchain_ursulas_list[1].checksum_address]
     exclude_ursulas = [blockchain_ursulas_list[2].checksum_address, blockchain_ursulas_list[3].checksum_address]
 
     get_ursulas_params = {
         'quantity': quantity,
-        'duration_periods': duration,
         'include_ursulas': include_ursulas,
         'exclude_ursulas': exclude_ursulas
     }
@@ -67,7 +65,6 @@ def test_get_ursulas(blockchain_porter_web_controller, blockchain_ursulas):
     # Test Query parameters
     #
     response = blockchain_porter_web_controller.get(f'/get_ursulas?quantity={quantity}'
-                                                    f'&duration_periods={duration}'
                                                     f'&include_ursulas={",".join(include_ursulas)}'
                                                     f'&exclude_ursulas={",".join(exclude_ursulas)}')
     assert response.status_code == 200
@@ -197,10 +194,8 @@ def test_retrieve_cfrags(blockchain_porter,
 
 def test_get_ursulas_basic_auth(blockchain_porter_basic_auth_web_controller):
     quantity = 4
-    duration = 2
     get_ursulas_params = {
         'quantity': quantity,
-        'duration_periods': duration,
     }
 
     response = blockchain_porter_basic_auth_web_controller.get('/get_ursulas', data=json.dumps(get_ursulas_params))

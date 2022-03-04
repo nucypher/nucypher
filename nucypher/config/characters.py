@@ -14,21 +14,19 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Optional
 
 from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
@@ -47,12 +45,12 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_DB_NAME = f'{NAME}.db'
     DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
-    SIGNER_ENVVAR = NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD
+    SIGNER_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
     MNEMONIC_KEYSTORE = True
 
     def __init__(self,
                  rest_host: str = None,
-                 worker_address: str = None,
+                 operator_address: str = None,
                  dev_mode: bool = False,
                  db_filepath: Optional[Path] = None,
                  keystore_path: Optional[Path] = None,
@@ -75,7 +73,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host
         self.certificate = certificate
         self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
-        self.worker_address = worker_address
+        self.operator_address = operator_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
         super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
 
@@ -87,7 +85,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
         federated = bool(cls.peek(filepath=filepath, field='federated_only'))
         if not federated:
-            checksum_address = cls.peek(filepath=filepath, field='worker_address')
+            checksum_address = cls.peek(filepath=filepath, field='operator_address')
 
         if not is_checksum_address(checksum_address):
             raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
@@ -105,11 +103,16 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            worker_address=self.worker_address,
+            operator_address=self.operator_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             db_filepath=self.db_filepath,
             availability_check=self.availability_check,
+
+            # TODO: Resolve variable prefixing below (uses nested configuration fields?)
+            payment_method=self.payment_method,
+            payment_provider=self.payment_provider,
+            payment_network=self.payment_network
         )
         return {**super().static_payload(), **payload}
 
@@ -118,6 +121,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         payload = dict(
             network_middleware=self.network_middleware,
             certificate=self.certificate,
+            payment_method=self.configure_payment_method()
         )
         return {**super().dynamic_payload, **payload}
 
@@ -149,7 +153,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     @classmethod
     def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         payload = super().assemble(filepath, **overrides)
-        payload['db_filepath'] = Path(payload['db_filepath'])
+        payload['db_filepath'] = Path(payload['db_filepath'])  # TODO: this can be moved to dynamic payload
         return payload
 
 
@@ -173,42 +177,51 @@ class AliceConfiguration(CharacterConfiguration):
     _CONFIG_FIELDS = (
         *CharacterConfiguration._CONFIG_FIELDS,
         'store_policies',
-        'store_cards'
+        'store_cards',
     )
 
     def __init__(self,
                  threshold: int = None,
                  shares: int = None,
                  rate: int = None,
-                 payment_periods: int = None,
+                 duration: int = None,
                  store_policies: bool = DEFAULT_STORE_POLICIES,
                  store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-        self.threshold = threshold or self.DEFAULT_THRESHOLD
-        self.shares = shares or self.DEFAULT_SHARES
 
-        # if not self.federated_only:  # TODO: why not?
-        self.rate = rate
-        self.payment_periods = payment_periods
-
+        # Storage
         self.store_policies = store_policies
         self.store_cards = store_cards
+
+        # Policy Value Defaults
+        self.rate = rate
+        self.duration = duration
+        self.threshold = threshold or self.DEFAULT_THRESHOLD
+        self.shares = shares or self.DEFAULT_SHARES
 
     def static_payload(self) -> dict:
         payload = dict(
             threshold=self.threshold,
             shares=self.shares,
             store_policies=self.store_policies,
-            store_cards=self.store_cards
+            store_cards=self.store_cards,
+            payment_network=self.payment_network,
+            payment_provider=self.payment_provider,
+            payment_method=self.payment_method
         )
         if not self.federated_only:
             if self.rate:
                 payload['rate'] = self.rate
-            if self.payment_periods:
-                payload['payment_periods'] = self.payment_periods
+            if self.duration:
+                payload['duration'] = self.duration
         return {**super().static_payload(), **payload}
+
+    @property
+    def dynamic_payload(self) -> dict:
+        payload = dict(payment_method=self.configure_payment_method())
+        return {**super().dynamic_payload, **payload}
 
 
 class BobConfiguration(CharacterConfiguration):
@@ -241,91 +254,3 @@ class BobConfiguration(CharacterConfiguration):
             store_cards=self.store_cards
         )
         return {**super().static_payload(), **payload}
-
-
-class StakeHolderConfiguration(CharacterConfiguration):
-
-    NAME = 'stakeholder'
-    CHARACTER_CLASS = StakeHolder
-
-    _CONFIG_FIELDS = (
-        *CharacterConfiguration._CONFIG_FIELDS,
-        'provider_uri'
-    )
-
-    def __init__(self, checksum_addresses: set = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.checksum_addresses = checksum_addresses
-
-    def static_payload(self) -> dict:
-        """Values to read/write from stakeholder JSON configuration files"""
-        if not self.signer_uri:
-            self.signer_uri = self.provider_uri
-        payload = dict(provider_uri=self.provider_uri,
-                       poa=self.poa,
-                       light=self.is_light,
-                       domain=self.domain,
-                       signer_uri=self.signer_uri,
-                       worker_data=self.worker_data
-                       )
-
-        if self.registry_filepath:
-            payload.update(dict(registry_filepath=self.registry_filepath))
-        return payload
-
-    @property
-    def dynamic_payload(self) -> dict:
-        payload = dict(registry=self.registry, signer=self.signer)
-        return payload
-
-    def _setup_node_storage(self, node_storage=None) -> None:
-        pass
-
-    @classmethod
-    def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
-        payload = cls._read_configuration_file(filepath=filepath)
-        # Filter out None values from **overrides to detect, well, overrides...
-        # Acts as a shim for optional CLI flags.
-        overrides = {k: v for k, v in overrides.items() if v is not None}
-        payload = {**payload, **overrides}
-        return payload
-
-    @classmethod
-    def generate_runtime_filepaths(cls, config_root: Path) -> dict:
-        """Dynamically generate paths based on configuration root directory"""
-        filepaths = dict(config_root=config_root,
-                         config_file_location=config_root / cls.generate_filename())
-        return filepaths
-
-    def initialize(self, password: Optional[str] = None) -> Path:
-        """Initialize a new configuration and write installation files to disk."""
-
-        # Development
-        if self.dev_mode:
-            self.__temp_dir = TemporaryDirectory(prefix=self.TEMP_CONFIGURATION_DIR_PREFIX)
-            self.config_root = Path(self.__temp_dir.name)
-
-        # Persistent
-        else:
-            self._ensure_config_root_exists()
-
-        self._cache_runtime_filepaths()
-
-        # Validate
-        if not self.dev_mode:
-            self.validate()
-
-        # Success
-        message = "Created nucypher installation files at {}".format(self.config_root)
-        self.log.debug(message)
-        return self.config_root
-
-    @classmethod
-    def generate(cls, *args, **kwargs):
-        """Shortcut: Hook-up a new initial installation configuration."""
-        node_config = cls(dev_mode=False, *args, **kwargs)
-        node_config.initialize()
-        return node_config
-
-    def to_configuration_file(self, override: bool = True, *args, **kwargs) -> Path:
-        return super().to_configuration_file(override=True, *args, **kwargs)

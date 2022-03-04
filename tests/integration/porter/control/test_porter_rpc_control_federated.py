@@ -28,14 +28,12 @@ def test_get_ursulas(federated_porter_rpc_controller, federated_ursulas):
     method = 'get_ursulas'
 
     quantity = 4
-    duration = 2  # irrelevant for federated (but required)
     federated_ursulas_list = list(federated_ursulas)
     include_ursulas = [federated_ursulas_list[0].checksum_address, federated_ursulas_list[1].checksum_address]
     exclude_ursulas = [federated_ursulas_list[2].checksum_address, federated_ursulas_list[3].checksum_address]
 
     get_ursulas_params = {
         'quantity': quantity,
-        'duration_periods': duration,  # irrelevant for federated (but required)
         'include_ursulas': include_ursulas,
         'exclude_ursulas': exclude_ursulas
     }

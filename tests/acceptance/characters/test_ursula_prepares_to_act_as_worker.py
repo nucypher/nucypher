@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
+
 import maya
 import pytest
 from eth_account._utils.signing import to_standard_signature_bytes
@@ -22,20 +23,18 @@ from eth_account._utils.signing import to_standard_signature_bytes
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.utils import verify_eip_191
-from nucypher.crypto.powers import SigningPower
 from nucypher.policy.policies import BlockchainPolicy
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.ursula import make_decentralized_ursulas
 
 
 @pytest.mark.usefixtures("blockchain_ursulas")
-def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_decentralized_test_config):
+def test_stakers_bond_to_ursulas(testerchain, test_registry, staking_providers, ursula_decentralized_test_config):
     ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                         stakers_addresses=testerchain.stakers_accounts,
-                                         workers_addresses=testerchain.ursulas_accounts)
+                                         staking_provider_addresses=testerchain.stake_providers_accounts,
+                                         operator_addresses=testerchain.ursulas_accounts)
 
-    assert len(ursulas) == len(stakers)
+    assert len(ursulas) == len(staking_providers)
     for ursula in ursulas:
         ursula.validate_worker(registry=test_registry)
         assert ursula.verified_worker
@@ -43,14 +42,12 @@ def test_stakers_bond_to_ursulas(testerchain, test_registry, stakers, ursula_dec
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
     first_ursula = list(blockchain_ursulas)[0]
-    signature_as_bytes = first_ursula.decentralized_identity_evidence
+    signature_as_bytes = first_ursula.operator_signature
     signature_as_bytes = to_standard_signature_bytes(signature_as_bytes)
-    assert verify_eip_191(address=first_ursula.worker_address,
+    # `operator_address` was derived in nucypher_core, check it independently
+    assert verify_eip_191(address=first_ursula.operator_address,
                           message=bytes(first_ursula.stamp),
                           signature=signature_as_bytes)
-
-    # This method is a shortcut for the above.
-    assert first_ursula._stamp_has_valid_signature_by_worker()
 
 
 def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
@@ -123,8 +120,8 @@ def test_vladimir_uses_his_own_signing_key(blockchain_alice, blockchain_ursulas,
                                substitute_verifying_key=True,
                                sign_metadata=True)
 
-    message = f"Worker {vladimir.worker_address} is not bonded"
-    with pytest.raises(vladimir.UnbondedWorker, match=message):
+    message = f"Operator {vladimir.operator_address} is not bonded"
+    with pytest.raises(vladimir.UnbondedOperator, match=message):
         vladimir.validate_metadata(registry=test_registry)
 
 

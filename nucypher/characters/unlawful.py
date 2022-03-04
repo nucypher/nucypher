@@ -21,14 +21,15 @@ from copy import copy
 from unittest.mock import patch
 
 from eth_tester.exceptions import ValidationError
-
 from nucypher_core import NodeMetadata
 
+from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import CryptoPower, SigningPower
+from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
+from nucypher.policy.payment import FreeReencryptions
 
 
 class Vladimir(Ursula):
@@ -63,7 +64,7 @@ class Vladimir(Ursula):
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
-        blockchain = target_ursula.policy_agent.blockchain
+        blockchain = target_ursula.application_agent.blockchain
         cls.attach_transacting_key(blockchain=blockchain)
 
         db_filepath = tempfile.mkdtemp(prefix='Vladimir')
@@ -77,9 +78,10 @@ class Vladimir(Ursula):
                        certificate=target_ursula.certificate,
                        network_middleware=cls.network_middleware,
                        checksum_address=cls.fraud_address,
-                       worker_address=cls.fraud_address,
+                       operator_address=cls.fraud_address,
                        signer=Web3Signer(blockchain.client),
-                       provider_uri=blockchain.provider_uri,
+                       eth_provider_uri=blockchain.eth_provider_uri,
+                       payment_method=FreeReencryptions(),  # Vladimir does not care about money.
                        )
 
         # Let's use the target's public info, and try to make some changes.
@@ -93,7 +95,7 @@ class Vladimir(Ursula):
         # so it should work regardless of the binary format.
 
         # Our basic replacement. We want to impersonate the target Ursula.
-        metadata_bytes = metadata_bytes.replace(metadata.payload.canonical_address,
+        metadata_bytes = metadata_bytes.replace(metadata.payload.staker_address,
                                                 vladimir.canonical_address)
 
         # Use our own verifying key
@@ -157,28 +159,3 @@ class Amonia(Alice):
         """
         with patch("nucypher.policy.policies.Policy._publish", self.grant_without_paying):
             return self.grant_without_paying(*args, **kwargs)
-
-    def grant_while_paying_the_wrong_nodes(self,
-                                           ursulas_to_trick_into_working_for_free,
-                                           ursulas_to_pay_instead,
-                                           *args, **kwargs):
-        """
-        Instead of paying the nodes with whom I've made Arrangements,
-        I'll pay my flunkies instead.  Since this is a valid transaction and creates
-        an on-chain Policy using PolicyManager, I'm hoping Ursula won't notice.
-        """
-
-        def publish_wrong_payee_address_to_blockchain(policy, ursulas):
-            receipt = policy.publisher.policy_agent.create_policy(
-                policy_id=bytes(policy.hrac),  # bytes16 _policyID
-                transacting_power=policy.publisher.transacting_power,
-                value=policy.value,
-                end_timestamp=policy.expiration.epoch,  # uint16 _numberOfPeriods
-                node_addresses=[f.checksum_address for f in ursulas_to_pay_instead]  # address[] memory _nodes
-            )
-
-            return receipt['transactionHash']
-
-        with patch("nucypher.policy.policies.BlockchainPolicy._publish",
-                   publish_wrong_payee_address_to_blockchain):
-            return super().grant(ursulas=ursulas_to_trick_into_working_for_free, *args, **kwargs)

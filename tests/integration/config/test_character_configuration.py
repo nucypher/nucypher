@@ -22,7 +22,6 @@ import pytest
 from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
 from nucypher_core.umbral import SecretKey
 
-from nucypher.blockchain.eth.actors import StakeHolder
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration
 from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION
@@ -30,22 +29,17 @@ from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    StakeHolderConfiguration,
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.constants import MOCK_IP_ADDRESS
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
 characters = (Alice, Bob, Ursula)
-
-# Auxiliary Support
-blockchain_only_configurations = (StakeHolderConfiguration, )
-blockchain_only_characters = (StakeHolder, )
 
 # Assemble
 characters_and_configurations = list(zip(characters, configurations))
@@ -64,7 +58,7 @@ def test_federated_development_character_configurations(character, configuration
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keystore == NO_KEYSTORE_ATTACHED
-    assert config.provider_uri is None
+    assert config.eth_provider_uri is None
 
     # Production
     thing_one = config()
@@ -118,11 +112,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         expected_filepath.unlink()
     assert not expected_filepath.exists()
 
-    if configuration_class == StakeHolderConfiguration:
-        # special case for defaults
-        character_config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri, domain=network)
-
-    elif configuration_class == UrsulaConfiguration:
+    if configuration_class == UrsulaConfiguration:
         # special case for rest_host & dev mode
         # use keystore
         keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
@@ -130,6 +120,7 @@ def test_default_character_configuration_preservation(configuration_class, teste
         character_config = configuration_class(checksum_address=fake_address,
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,
+                                               payment_provider=MOCK_ETH_PROVIDER_URI,
                                                keystore=keystore)
 
     else:

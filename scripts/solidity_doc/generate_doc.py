@@ -30,18 +30,10 @@ CONTRACTS = {
     'token': ['NuCypherToken',
               'TokenRecipient'],
     'main':  ['StakingEscrow',
-              'PolicyManager',
-              'Adjudicator',
-              'WorkLock'],
+              'SimplePREApplication',  # TODO change to PREApplication when ready
+              'Adjudicator'],
     'proxy': ['Dispatcher',
               'Upgradeable'],
-    'staking': ['StakingInterface',
-                'StakingInterfaceRouter',
-                'AbstractStakingContract',
-                'InitializableStakingContract',
-                'PoolingStakingContract',
-                'PoolingStakingContractV2',
-                'WorkLockPoolingContract']
 }
 
 

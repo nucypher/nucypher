@@ -15,14 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from contextlib import contextmanager
-
-import pytest
 import sys
+from contextlib import contextmanager
 from io import StringIO
 
-from nucypher.control.emitters import StdoutEmitter
+import pytest
+
 from nucypher.cli.processes import UrsulaCommandProtocol
+from nucypher.control.emitters import StdoutEmitter
 
 
 @contextmanager

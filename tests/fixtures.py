@@ -29,36 +29,30 @@ from typing import Callable, Tuple
 import maya
 import pytest
 from click.testing import CliRunner
-from constant_sorrow.constants import (FULL, INIT)
 from eth_utils import to_checksum_address
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import TxReceipt
 
-from nucypher.blockchain.economics import BaseEconomics, StandardTokenEconomics
-from nucypher.blockchain.eth.actors import StakeHolder, Staker
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
+from nucypher.blockchain.economics import Economics
+from nucypher.blockchain.eth.actors import Operator
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PREApplicationAgent
 from nucypher.blockchain.eth.deployers import (
-    AdjudicatorDeployer,
-    NucypherTokenDeployer,
-    PolicyManagerDeployer,
-    StakingEscrowDeployer,
-    StakingInterfaceDeployer,
-    WorklockDeployer
+    PREApplicationDeployer,
+    SubscriptionManagerDeployer, NucypherTokenDeployer
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    StakeHolderConfiguration,
     UrsulaConfiguration
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
@@ -72,7 +66,6 @@ from tests.constants import (
     DATETIME_FORMAT,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
-    FEE_RATE_RANGE,
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -81,7 +74,7 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     TEST_GAS_LIMIT,
-    TEST_PROVIDER_URI
+    TEST_ETH_PROVIDER_URI
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
@@ -103,8 +96,12 @@ from tests.utils.config import (
 )
 from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import (MOCK_KNOWN_URSULAS_CACHE, MOCK_URSULA_STARTING_PORT,
-                                make_decentralized_ursulas, make_federated_ursulas)
+from tests.utils.ursula import (
+    MOCK_KNOWN_URSULAS_CACHE,
+    MOCK_URSULA_STARTING_PORT,
+    make_decentralized_ursulas,
+    make_federated_ursulas
+)
 
 test_logger = Logger("test-logger")
 
@@ -179,7 +176,8 @@ def bob_federated_test_config():
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(federated=False,
-                                            provider_uri=TEST_PROVIDER_URI,
+                                            eth_provider_uri=TEST_ETH_PROVIDER_URI,
+                                            payment_provider=TEST_ETH_PROVIDER_URI,
                                             test_registry=test_registry,
                                             rest_port=MOCK_URSULA_STARTING_PORT)
     yield config
@@ -191,7 +189,8 @@ def ursula_decentralized_test_config(test_registry, temp_dir_path):
 @pytest.fixture(scope="module")
 def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(federated=False,
-                                           provider_uri=TEST_PROVIDER_URI,
+                                           eth_provider_uri=TEST_ETH_PROVIDER_URI,
+                                           payment_provider=TEST_ETH_PROVIDER_URI,
                                            known_nodes=blockchain_ursulas,
                                            checksum_address=testerchain.alice_account,
                                            test_registry=test_registry)
@@ -202,7 +201,7 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 @pytest.fixture(scope="module")
 def bob_blockchain_test_config(testerchain, test_registry):
     config = make_bob_test_configuration(federated=False,
-                                         provider_uri=TEST_PROVIDER_URI,
+                                         eth_provider_uri=TEST_ETH_PROVIDER_URI,
                                          test_registry=test_registry,
                                          checksum_address=testerchain.bob_account)
     yield config
@@ -251,22 +250,17 @@ def federated_treasure_map(enacted_federated_policy, federated_bob):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
-    """
-    Creates a Policy, in a manner typical of how Alice might do it, with a unique label
-    """
+def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
+    """Creates a Policy, in a manner typical of how Alice might do it, with a unique label"""
     random_label = generate_random_label()
-    periods = token_economics.minimum_locked_periods // 2
-    days = periods * (token_economics.hours_per_period // 24)
-    now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days - 1)
-    shares = 3
-    threshold = 2
+    expiration = maya.now() + timedelta(days=1)
+    threshold, shares = 2, 3
+    price = blockchain_alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value  # TODO: use default quote option
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
+                                            value=price,
                                             threshold=threshold,
                                             shares=shares,
-                                            value=shares * periods * 100,
                                             expiration=expiration)
     return policy
 
@@ -297,19 +291,18 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
 
 
 @pytest.fixture(scope="function")
-def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, token_economics):
+def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
     random_label = generate_random_label()
-    periods = token_economics.minimum_locked_periods // 2
-    days = periods * (token_economics.hours_per_period // 24)
+    seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
     now = testerchain.w3.eth.getBlock('latest').timestamp
-    expiration = maya.MayaDT(now).add(days=days - 1)
+    expiration = maya.MayaDT(now).add(seconds=seconds)
     shares = 3
     threshold = 2
     policy = blockchain_alice.create_policy(blockchain_bob,
                                             label=random_label,
                                             threshold=threshold,
                                             shares=shares,
-                                            value=shares * periods * 100,
+                                            value=shares * seconds * 100,  # calculation probably needs to incorporate actual cost per second
                                             expiration=expiration)
     return policy
 
@@ -476,7 +469,7 @@ def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
                     abort_on_learning_error=True,
                     start_learning_now=True,
                     known_nodes=blockchain_ursulas,
-                    provider_uri=TEST_PROVIDER_URI,
+                    eth_provider_uri=TEST_ETH_PROVIDER_URI,
                     registry=test_registry,
                     network_middleware=MockRestMiddleware())
     yield porter
@@ -487,34 +480,11 @@ def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
 # Blockchain
 #
 
-def make_token_economics(blockchain):
-    # Get current blocktime
-    now = blockchain.w3.eth.getBlock('latest').timestamp
-
-    # Calculate instant start time
-    one_hour_in_seconds = (60 * 60)
-    start_date = now
-    bidding_start_date = start_date
-
-    # Ends in one hour
-    bidding_end_date = start_date + one_hour_in_seconds
-    cancellation_end_date = bidding_end_date + one_hour_in_seconds
-
-    economics = StandardTokenEconomics(
-        worklock_boosting_refund_rate=200,
-        worklock_commitment_duration=60,  # genesis periods
-        worklock_supply=10 * BaseEconomics._default_maximum_allowed_locked,
-        bidding_start_date=bidding_start_date,
-        bidding_end_date=bidding_end_date,
-        cancellation_end_date=cancellation_end_date,
-        worklock_min_allowed_bid=Web3.toWei(1, "ether")
-    )
-    return economics
-
 
 @pytest.fixture(scope='module')
-def token_economics(testerchain):
-    return make_token_economics(blockchain=testerchain)
+def application_economics():
+    economics = Economics()
+    return economics
 
 
 @pytest.fixture(scope='module')
@@ -599,36 +569,19 @@ def deployer_transacting_power(testerchain):
     return transacting_power
 
 
-def _make_agency(testerchain, test_registry, token_economics, deployer_transacting_power):
-
+def _make_agency(test_registry, token_economics, deployer_transacting_power, threshold_staking):
     transacting_power = deployer_transacting_power
 
     token_deployer = NucypherTokenDeployer(economics=token_economics, registry=test_registry)
     token_deployer.deploy(transacting_power=transacting_power)
 
-    staking_escrow_deployer = StakingEscrowDeployer(economics=token_economics, registry=test_registry)
-    staking_escrow_deployer.deploy(deployment_mode=INIT, transacting_power=transacting_power)
+    pre_application_deployer = PREApplicationDeployer(economics=token_economics,
+                                                      registry=test_registry,
+                                                      staking_interface=threshold_staking.address)
+    pre_application_deployer.deploy(transacting_power=transacting_power)
 
-    policy_manager_deployer = PolicyManagerDeployer(economics=token_economics, registry=test_registry)
-    policy_manager_deployer.deploy(transacting_power=transacting_power)
-
-    adjudicator_deployer = AdjudicatorDeployer(economics=token_economics, registry=test_registry)
-    adjudicator_deployer.deploy(transacting_power=transacting_power)
-
-    staking_interface_deployer = StakingInterfaceDeployer(economics=token_economics, registry=test_registry)
-    staking_interface_deployer.deploy(transacting_power=transacting_power)
-
-    worklock_deployer = WorklockDeployer(economics=token_economics, registry=test_registry)
-    worklock_deployer.deploy(transacting_power=transacting_power)
-
-    staking_escrow_deployer = StakingEscrowDeployer(economics=token_economics, registry=test_registry)
-    staking_escrow_deployer.deploy(deployment_mode=FULL, transacting_power=transacting_power)
-
-    # Set additional parameters
-    minimum, default, maximum = FEE_RATE_RANGE
-    policy_agent = policy_manager_deployer.make_agent()
-    txhash = policy_agent.contract.functions.setFeeRateRange(minimum, default, maximum).transact()
-    testerchain.wait_for_receipt(txhash)
+    subscription_manager_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
+    subscription_manager_deployer.deploy(transacting_power=transacting_power)
 
 
 @pytest.fixture(scope='module')
@@ -638,15 +591,15 @@ def test_registry_source_manager(test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(testerchain,
-           test_registry,
-           token_economics,
+def agency(test_registry,
+           application_economics,
            test_registry_source_manager,
-           deployer_transacting_power):
-    _make_agency(testerchain=testerchain,
-                 test_registry=test_registry,
-                 token_economics=token_economics,
-                 deployer_transacting_power=deployer_transacting_power)
+           deployer_transacting_power,
+           threshold_staking):
+    _make_agency(test_registry=test_registry,
+                 token_economics=application_economics,
+                 deployer_transacting_power=deployer_transacting_power,
+                 threshold_staking=threshold_staking)
 
 
 @pytest.fixture(scope='module')
@@ -658,57 +611,63 @@ def agency_local_registry(testerchain, agency, test_registry):
         MOCK_REGISTRY_FILEPATH.unlink()
 
 
+@pytest.fixture(scope='module')
+def threshold_staking(deploy_contract):
+    threshold_staking, _ = deploy_contract('ThresholdStakingForPREApplicationMock')
+    yield threshold_staking
+
+
 @pytest.fixture(scope="module")
-def stakers(testerchain, agency, token_economics, test_registry, deployer_transacting_power):
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    blockchain = token_agent.blockchain
-    token_airdrop(transacting_power=deployer_transacting_power,
-                  addresses=blockchain.stakers_accounts,
-                  token_agent=token_agent,
-                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
+def staking_providers(testerchain, agency, test_registry, threshold_staking):
+    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    blockchain = pre_application_agent.blockchain
 
-    stakers = list()
-    for index, account in enumerate(blockchain.stakers_accounts):
-        tpower = TransactingPower(account=account, signer=Web3Signer(testerchain.client))
-        tpower.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    staking_providers = list()
+    for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
+        provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
+        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-        staker = Staker(transacting_power=tpower,
-                        domain=TEMPORARY_DOMAIN,
-                        registry=test_registry)
-
+        # for a random amount
         amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
-        # for a random lock duration
-        min_locktime, max_locktime = token_economics.minimum_locked_periods, token_economics.maximum_rewarded_periods
-        periods = random.randint(min_locktime, max_locktime)
+        # initialize threshold stake
+        tx = threshold_staking.functions.setRoles(provider_address).transact()
+        testerchain.wait_for_receipt(tx)
+        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
+        testerchain.wait_for_receipt(tx)
 
-        staker.initialize_stake(amount=amount, lock_periods=periods)
+        # We assume that the staking provider knows in advance the account of her operator
+        pre_application_agent.bond_operator(staking_provider=provider_address,
+                                            operator=operator_address,
+                                            transacting_power=provider_power)
 
-        # We assume that the staker knows in advance the account of her worker
-        worker_address = blockchain.ursula_account(index)
-        staker.bond_worker(worker_address=worker_address)
+        operator_power = TransactingPower(account=operator_address, signer=Web3Signer(testerchain.client))
+        operator = Operator(is_me=True,
+                            operator_address=operator_address,
+                            domain=TEMPORARY_DOMAIN,
+                            registry=test_registry,
+                            transacting_power=operator_power)
+        operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
 
-        stakers.append(staker)
+        # track
+        staking_providers.append(provider_address)
 
-    # Stake starts next period
-    blockchain.time_travel(periods=1)
-
-    yield stakers
+    yield staking_providers
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
+def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
     _ursulas = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                          stakers_addresses=testerchain.stakers_accounts,
-                                          workers_addresses=testerchain.ursulas_accounts)
+                                          staking_provider_addresses=testerchain.stake_providers_accounts,
+                                          operator_addresses=testerchain.ursulas_accounts)
     for u in _ursulas:
         u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
-    testerchain.time_travel(periods=1)
+    #testerchain.time_travel(periods=1)
 
     # Bootstrap the network
     for ursula_to_teach in _ursulas:
@@ -733,30 +692,6 @@ def blockchain_ursulas(testerchain, stakers, ursula_decentralized_test_config):
     _ursulas.clear()
 
 
-@pytest.fixture(scope="module")
-def idle_staker(testerchain, agency, test_registry):
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    idle_staker_account = testerchain.unassigned_accounts[-2]
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         signer=Web3Signer(testerchain.client))
-    token_airdrop(transacting_power=transacting_power,
-                  addresses=[idle_staker_account],
-                  token_agent=token_agent,
-                  amount=DEVELOPMENT_TOKEN_AIRDROP_AMOUNT)
-
-    # Prepare idle staker
-    idle_staker = Staker(transacting_power=transacting_power,
-                         domain=TEMPORARY_DOMAIN,
-                         blockchain=testerchain)
-    yield idle_staker
-
-
-@pytest.fixture(scope='module')
-def stake_value(token_economics):
-    value = NU(token_economics.minimum_allowed_locked * 2, 'NuNit')
-    return value
-
-
 @pytest.fixture(scope='module')
 def policy_rate():
     rate = Web3.toWei(21, 'gwei')
@@ -764,13 +699,13 @@ def policy_rate():
 
 
 @pytest.fixture(scope='module')
-def policy_value(token_economics, policy_rate):
-    value = policy_rate * token_economics.minimum_locked_periods
+def policy_value(application_economics, policy_rate):
+    value = policy_rate * application_economics.min_operator_seconds
     return value
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, agency, token_economics, test_registry):
+def funded_blockchain(testerchain, agency, application_economics, test_registry):
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
@@ -784,7 +719,7 @@ def funded_blockchain(testerchain, agency, token_economics, test_registry):
     token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
                   transacting_power=transacting_power,
                   addresses=everyone_else,
-                  amount=token_economics.minimum_allowed_locked * 5)
+                  amount=application_economics.min_authorization * 5)
 
     # HERE YOU GO
     yield testerchain, deployer_address
@@ -828,7 +763,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
                                          signer=Web3Signer(testerchain.client),
                                          password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
+    token_agent.transfer(amount=NU(200_000, 'NU').to_units(),
                          transacting_power=transacting_power,
                          target_address=address)
 
@@ -848,39 +783,13 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
 @pytest.fixture(scope="module")
 def stakeholder_configuration(testerchain, agency_local_registry):
-    config = StakeHolderConfiguration(provider_uri=testerchain.provider_uri,
+    config = StakeHolderConfiguration(eth_provider_uri=testerchain.eth_provider_uri,
                                       registry_filepath=agency_local_registry.filepath)
     return config
 
 
 @pytest.fixture(scope='module')
-def manual_staker(testerchain, agency, test_registry):
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    tpower = TransactingPower(account=testerchain.etherbase_account, signer=Web3Signer(testerchain.client))
-
-    # its okay to add this key if it already exists.
-    address = '0xaaa23A5c74aBA6ca5E7c09337d5317A7C4563075'
-    if address not in testerchain.client.accounts:
-        staker_private_key = '13378db1c2af06933000504838afc2d52efa383206454deefb1836f8f4cd86f8'
-        address = testerchain.provider.ethereum_tester.add_account(staker_private_key,
-                                                                   password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    tx = {'to': address,
-          'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
-
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-
-    token_agent.transfer(amount=NU(200_000, 'NU').to_nunits(),
-                         transacting_power=tpower,
-                         target_address=address)
-
-    yield address
-
-
-@pytest.fixture(scope='module')
-def manual_worker(testerchain):
+def manual_operator(testerchain):
     worker_private_key = os.urandom(32).hex()
     address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
                                                                password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -1037,12 +946,12 @@ def nominal_federated_configuration_fields():
 
 # TODO: Not used?
 @pytest.fixture(scope='module')
-def mock_allocation_infile(testerchain, token_economics, get_random_checksum_address):
+def mock_allocation_infile(testerchain, application_economics, get_random_checksum_address):
     accounts = [get_random_checksum_address() for _ in range(10)]
     # accounts = testerchain.unassigned_accounts
     allocation_data = list()
-    amount = 2 * token_economics.minimum_allowed_locked
-    min_periods = token_economics.minimum_locked_periods
+    amount = 2 * application_economics.min_authorization
+    min_periods = application_economics.min_operator_seconds
     for account in accounts:
         substake = [{'checksum_address': account, 'amount': amount, 'lock_periods': min_periods + i} for i in range(24)]
         allocation_data.extend(substake)

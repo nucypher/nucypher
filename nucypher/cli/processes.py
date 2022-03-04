@@ -93,16 +93,6 @@ class UrsulaCommandProtocol(LineReceiver):
         from nucypher.cli.painting.nodes import paint_known_nodes
         paint_known_nodes(emitter=self.emitter, ursula=self.ursula)
 
-    def paintStakes(self):
-        """
-        Display a list of all active stakes.
-        """
-        if self.ursula.stakes:
-            from nucypher.cli.painting.staking import paint_stakes
-            paint_stakes(self.emitter, stakes=self.ursula.stakes)
-        else:
-            self.emitter.echo("No active stakes.")
-
     def paintStatus(self):
         """
         Display the current status of the attached Ursula node.

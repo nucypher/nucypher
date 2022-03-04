@@ -1,69 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 
 import "contracts/StakingEscrow.sol";
 import "contracts/NuCypherToken.sol";
+import "threshold/IStaking.sol";
 
 /**
 * @notice Enhanced version of StakingEscrow to use in tests
 */
 contract EnhancedStakingEscrow is StakingEscrow {
-    using AdditionalMath for uint16;
 
     constructor(
         NuCypherToken _token,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint32 _genesisHoursPerPeriod,
-        uint32 _hoursPerPeriod,
-        uint256 _issuanceDecayCoefficient,
-        uint256 _lockDurationCoefficient1,
-        uint256 _lockDurationCoefficient2,
-        uint16 _maximumRewardedPeriods,
-        uint256 _firstPhaseTotalSupply,
-        uint256 _firstPhaseMaxIssuance,
-        uint16 _minLockedPeriods,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        IStaking _tStaking
     )
         StakingEscrow(
             _token,
-            _policyManager,
-            _adjudicator,
             _workLock,
-            _genesisHoursPerPeriod,
-            _hoursPerPeriod,
-            _issuanceDecayCoefficient,
-            _lockDurationCoefficient1,
-            _lockDurationCoefficient2,
-            _maximumRewardedPeriods,
-            _firstPhaseTotalSupply,
-            _firstPhaseMaxIssuance,
-            _minLockedPeriods,
-            _minAllowableLockedTokens,
-            _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _tStaking
         )
     {
     }
 
-    /**
-    * @notice Get the value of locked tokens for a staker in a previous period
-    * @dev Information may be incorrect for rewarded or not committed surpassed period
-    * @param _staker Staker
-    * @param _periods Amount of periods that will be subtracted from the current period
-    */
-    function getLockedTokensInPast(address _staker, uint16 _periods)
-        external view returns (uint256 lockedValue)
-    {
+    function setStaker(address _staker, uint256 _value, uint16 _lastCommittedPeriod) external {
         StakerInfo storage info = stakerInfo[_staker];
-        uint16 currentPeriod = getCurrentPeriod();
-        uint16 previousPeriod = currentPeriod.sub16(_periods);
-        return getLockedTokens(info, currentPeriod, previousPeriod);
+        info.value = _value;
+        info.lastCommittedPeriod = _lastCommittedPeriod;
+        stakers.push(_staker);
     }
 
 }
@@ -76,44 +42,18 @@ contract StakingEscrowBad is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint32 _genesisHoursPerPeriod,
-        uint32 _hoursPerPeriod,
-        uint256 _issuanceDecayCoefficient,
-        uint256 _lockDurationCoefficient1,
-        uint256 _lockDurationCoefficient2,
-        uint16 _maximumRewardedPeriods,
-        uint256 _firstPhaseTotalSupply,
-        uint256 _firstPhaseMaxIssuance,
-        uint16 _minLockedPeriods,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        IStaking _tStaking
     )
         StakingEscrow(
             _token,
-            _policyManager,
-            _adjudicator,
             _workLock,
-            _genesisHoursPerPeriod,
-            _hoursPerPeriod,
-            _issuanceDecayCoefficient,
-            _lockDurationCoefficient1,
-            _lockDurationCoefficient2,
-            _maximumRewardedPeriods,
-            _firstPhaseTotalSupply,
-            _firstPhaseMaxIssuance,
-            _minLockedPeriods,
-            _minAllowableLockedTokens,
-            _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _tStaking
         )
     {
     }
 
-    function getSubStakeInfo(address, uint256) public view override returns (uint16, uint16, uint16, uint128) {}
+    function getStakersLength() external override view returns (uint256) {}
 
 }
 
@@ -127,42 +67,16 @@ contract StakingEscrowV2Mock is StakingEscrow {
 
     constructor(
         NuCypherToken _token,
-        PolicyManagerInterface _policyManager,
-        AdjudicatorInterface _adjudicator,
         WorkLockInterface _workLock,
-        uint32 _genesisHoursPerPeriod,
-        uint32 _hoursPerPeriod,
-        uint256 _issuanceDecayCoefficient,
-        uint256 _lockDurationCoefficient1,
-        uint256 _lockDurationCoefficient2,
-        uint16 _maximumRewardedPeriods,
-        uint256 _firstPhaseTotalSupply,
-        uint256 _firstPhaseMaxIssuance,
-        uint16 _minLockedPeriods,
-        uint256 _minAllowableLockedTokens,
-        uint256 _maxAllowableLockedTokens,
-        uint16 _minWorkerPeriods
+        IStaking _tStaking
     )
         StakingEscrow(
             _token,
-            _policyManager,
-            _adjudicator,
             _workLock,
-            _genesisHoursPerPeriod,
-            _hoursPerPeriod,
-            _issuanceDecayCoefficient,
-            _lockDurationCoefficient1,
-            _lockDurationCoefficient2,
-            _maximumRewardedPeriods,
-            _firstPhaseTotalSupply,
-            _firstPhaseMaxIssuance,
-            _minLockedPeriods,
-            _minAllowableLockedTokens,
-            _maxAllowableLockedTokens,
-            _minWorkerPeriods
+            _tStaking
         )
     {
-        valueToCheck = _minWorkerPeriods;
+        valueToCheck = 2;
     }
 
     function setValueToCheck(uint256 _valueToCheck) public {
@@ -179,111 +93,6 @@ contract StakingEscrowV2Mock is StakingEscrow {
         valueToCheck = escrow.valueToCheck();
         emit UpgradeFinished(_target, msg.sender);
     }
-}
-
-
-/**
-* @notice Contract for testing staking escrow contract
-*/
-contract PolicyManagerForStakingEscrowMock {
-
-    uint32 public secondsPerPeriod;
-    StakingEscrow public escrow;
-    mapping (address => uint16[]) public nodes;
-    mapping (address => uint256) public migratedNodes;
-
-    constructor(address, uint32 _secondsPerPeriod) {
-        secondsPerPeriod = _secondsPerPeriod;
-    }
-
-    function setStakingEscrow(StakingEscrow _escrow) external {
-        escrow = _escrow;
-    }
-
-    function register(address _node, uint16 _period) external {
-        nodes[_node].push(_period);
-    }
-
-    function migrate(address _node) external {
-        migratedNodes[_node]++;
-    }
-
-    function ping(
-        address _node,
-        uint16 _processedPeriod1,
-        uint16 _processedPeriod2,
-        uint16 _periodToSetDefault
-    ) external {
-        nodes[_node].push(_processedPeriod1);
-        nodes[_node].push(_processedPeriod2);
-        nodes[_node].push(_periodToSetDefault);
-    }
-
-    function getPeriodsLength(address _node) public view returns (uint256) {
-        return nodes[_node].length;
-    }
-
-    function getPeriod(address _node, uint256 _index) public view returns (uint16) {
-        return nodes[_node][_index];
-    }
-
-}
-
-
-/**
-* @notice Contract for testing staking escrow contract
-*/
-contract AdjudicatorForStakingEscrowMock {
-
-    StakingEscrow public escrow;
-    uint256 public rewardCoefficient;
-
-    constructor(uint256 _rewardCoefficient) {
-        rewardCoefficient = _rewardCoefficient;
-    }
-
-    function setStakingEscrow(StakingEscrow _escrow) external {
-        escrow = _escrow;
-    }
-
-    function slashStaker(
-        address _staker,
-        uint256 _penalty,
-        address _investigator,
-        uint256 _reward
-    )
-        public
-    {
-        escrow.slashStaker(_staker, _penalty, _investigator, _reward);
-    }
-}
-
-/**
-* @notice Intermediary contract for testing worker
-*/
-contract Intermediary {
-
-    NuCypherToken immutable token;
-    StakingEscrow immutable escrow;
-
-    constructor(NuCypherToken _token, StakingEscrow _escrow) {
-        token = _token;
-        escrow = _escrow;
-    }
-
-    function bondWorker(address _worker) external {
-        escrow.bondWorker(_worker);
-    }
-
-    function deposit(uint256 _value, uint16 _periods) external {
-        token.approve(address(escrow), _value);
-        escrow.deposit(address(this), _value, _periods);
-    }
-
-    function commitToNextPeriod() external {
-        escrow.commitToNextPeriod();
-    }
-
 }
 
 
@@ -310,5 +119,70 @@ contract WorkLockForStakingEscrowMock {
     function depositFromWorkLock(address _staker, uint256 _value, uint16 _periods) external {
         token.approve(address(escrow), _value);
         escrow.depositFromWorkLock(_staker, _value, _periods);
+    }
+}
+
+
+/**
+* @notice Contract for testing staking escrow contract
+*/
+contract ThresholdStakingForStakingEscrowMock {
+
+    StakingEscrow public escrow;
+
+    struct StakingProviderInfo {
+        uint256 staked;
+        uint96 minStaked;
+    }
+
+    mapping(address => StakingProviderInfo) public stakingProviders;
+
+    function setStakingEscrow(StakingEscrow _escrow) external {
+        escrow = _escrow;
+    }
+
+    function stakedNu(address _stakingProvider) external view returns (uint256) {
+        return stakingProviders[_stakingProvider].staked;
+    }
+
+    function getMinStaked(address _stakingProvider, IStaking.StakeType _stakeTypes) external view returns (uint96) {
+        require(_stakeTypes == IStaking.StakeType.NU);
+        return stakingProviders[_stakingProvider].minStaked;
+    }
+
+    function stakes(address _stakingProvider) external view returns
+    (
+        uint96 tStake,
+        uint96 keepInTStake,
+        uint96 nuInTStake
+    ) {
+        tStake = 0;
+        keepInTStake = 0;
+        nuInTStake = uint96(stakingProviders[_stakingProvider].staked);
+    }
+
+    function slashStaker(
+        address _staker,
+        uint256 _penalty,
+        address _investigator,
+        uint256 _reward
+    )
+        external
+    {
+        escrow.slashStaker(_staker, _penalty, _investigator, _reward);
+    }
+
+    function requestMerge(address _staker, address _stakingProvider) external {
+        stakingProviders[_stakingProvider].staked = escrow.requestMerge(_staker, _stakingProvider);
+    }
+
+    function setStakedNu(address _stakingProvider, uint256 _staked) external {
+        require(_staked <= stakingProviders[_stakingProvider].staked);
+        stakingProviders[_stakingProvider].staked = _staked;
+    }
+
+    function setMinStaked(address _stakingProvider, uint96 _minStaked) external {
+        require(_minStaked <= stakingProviders[_stakingProvider].staked);
+        stakingProviders[_stakingProvider].minStaked = _minStaked;
     }
 }

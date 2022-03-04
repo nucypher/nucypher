@@ -24,7 +24,7 @@ from nucypher.cli.actions.configure import (
     destroy_configuration,
     handle_missing_configuration_file,
     get_or_update_configuration,
-    collect_worker_ip_address
+    collect_operator_ip_address
 )
 from nucypher.cli.actions.configure import forget as forget_nodes, perform_startup_ip_check
 from nucypher.cli.actions.select import select_client_account, select_config_file, select_network
@@ -48,20 +48,20 @@ from nucypher.cli.options import (
     option_min_stake,
     option_network,
     option_poa,
-    option_provider_uri,
+    option_eth_provider_uri,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
     option_lonely,
     option_max_gas_price,
-    option_key_material
+    option_key_material, option_payment_provider, option_payment_method, option_payment_network
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, WORKER_IP
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN
 )
 from nucypher.crypto.keystore import Keystore
@@ -72,8 +72,8 @@ class UrsulaConfigOptions:
     __option_name__ = 'config_options'
 
     def __init__(self,
-                 provider_uri: str,
-                 worker_address: str,
+                 eth_provider_uri: str,
+                 operator_address: str,
                  federated_only: bool,
                  rest_host: str,
                  rest_port: int,
@@ -87,7 +87,10 @@ class UrsulaConfigOptions:
                  max_gas_price: int,  # gwei
                  signer_uri: str,
                  availability_check: bool,
-                 lonely: bool
+                 lonely: bool,
+                 payment_method: str,
+                 payment_provider: str,
+                 payment_network: str
                  ):
 
         if federated_only:
@@ -95,9 +98,9 @@ class UrsulaConfigOptions:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
                                            message=f"--registry-filepath cannot be used in federated mode.")
 
-        self.provider_uri = provider_uri
+        self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
-        self.worker_address = worker_address
+        self.operator_address = operator_address
         self.federated_only = federated_only
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
@@ -111,6 +114,9 @@ class UrsulaConfigOptions:
         self.max_gas_price = max_gas_price
         self.availability_check = availability_check
         self.lonely = lonely
+        self.payment_method = payment_method
+        self.payment_provider = payment_provider
+        self.payment_network = payment_network
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -121,21 +127,24 @@ class UrsulaConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
-                provider_uri=self.provider_uri,
+                eth_provider_uri=self.eth_provider_uri,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
-                checksum_address=self.worker_address,
+                checksum_address=self.operator_address,
                 federated_only=self.federated_only,
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
                 db_filepath=self.db_filepath,
-                availability_check=self.availability_check
+                availability_check=self.availability_check,
+                payment_method=self.payment_method,
+                payment_provider=self.payment_provider,
+                payment_network=self.payment_network
             )
         else:
             if not config_file:
                 config_file = select_config_file(emitter=emitter,
-                                                 checksum_address=self.worker_address,
+                                                 checksum_address=self.operator_address,
                                                  config_class=UrsulaConfiguration)
             try:
                 return UrsulaConfiguration.from_configuration_file(
@@ -143,7 +152,7 @@ class UrsulaConfigOptions:
                     filepath=config_file,
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
-                    provider_uri=self.provider_uri,
+                    eth_provider_uri=self.eth_provider_uri,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -153,7 +162,10 @@ class UrsulaConfigOptions:
                     poa=self.poa,
                     light=self.light,
                     federated_only=self.federated_only,
-                    availability_check=self.availability_check
+                    availability_check=self.availability_check,
+                    payment_method=self.payment_method,
+                    payment_provider=self.payment_provider,
+                    payment_network=self.payment_network
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
@@ -167,18 +179,16 @@ class UrsulaConfigOptions:
         if self.dev:
             raise RuntimeError('Persistent configurations cannot be created in development mode.')
 
-        worker_address = self.worker_address
-        if (not worker_address) and not self.federated_only:
-            if not worker_address:
-                prompt = "Select worker account"
-                worker_address = select_client_account(emitter=emitter,
-                                                       prompt=prompt,
-                                                       provider_uri=self.provider_uri,
-                                                       signer_uri=self.signer_uri)
+        if (not self.operator_address) and not self.federated_only:
+            prompt = "Select operator account"
+            self.operator_address = select_client_account(emitter=emitter,
+                                                          prompt=prompt,
+                                                          eth_provider_uri=self.eth_provider_uri,
+                                                          signer_uri=self.signer_uri)
 
         # Resolve rest host
         if not self.rest_host:
-            self.rest_host = collect_worker_ip_address(emitter, network=self.domain, force=force)
+            self.rest_host = collect_operator_ip_address(emitter, network=self.domain, force=force)
 
         return UrsulaConfiguration.generate(password=get_nucypher_password(emitter=emitter, confirm=True),
                                             key_material=bytes.fromhex(key_material) if key_material else None,
@@ -188,15 +198,19 @@ class UrsulaConfigOptions:
                                             db_filepath=self.db_filepath,
                                             domain=self.domain,
                                             federated_only=self.federated_only,
-                                            worker_address=worker_address,
+                                            operator_address=self.operator_address,
                                             registry_filepath=self.registry_filepath,
-                                            provider_uri=self.provider_uri,
+                                            eth_provider_uri=self.eth_provider_uri,
                                             signer_uri=self.signer_uri,
                                             gas_strategy=self.gas_strategy,
                                             max_gas_price=self.max_gas_price,
                                             poa=self.poa,
                                             light=self.light,
-                                            availability_check=self.availability_check)
+                                            availability_check=self.availability_check,
+                                            payment_method=self.payment_method,
+                                            payment_provider=self.payment_provider,
+                                            payment_network=self.payment_network
+                                            )
 
     def get_updates(self) -> dict:
         payload = dict(rest_host=self.rest_host,
@@ -204,38 +218,46 @@ class UrsulaConfigOptions:
                        db_filepath=self.db_filepath,
                        domain=self.domain,
                        federated_only=self.federated_only,
-                       worker_address=self.worker_address,
+                       operator_address=self.operator_address,
                        registry_filepath=self.registry_filepath,
-                       provider_uri=self.provider_uri,
+                       eth_provider_uri=self.eth_provider_uri,
                        signer_uri=self.signer_uri,
                        gas_strategy=self.gas_strategy,
                        max_gas_price=self.max_gas_price,
                        poa=self.poa,
                        light=self.light,
-                       availability_check=self.availability_check)
+                       availability_check=self.availability_check,
+                       payment_method=self.payment_method,
+                       payment_provider=self.payment_provider,
+                       payment_network=self.payment_network
+                       )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
         return updates
 
 
 group_config_options = group_options(
+    # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
     UrsulaConfigOptions,
-    provider_uri=option_provider_uri(),
+    eth_provider_uri=option_eth_provider_uri(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
-    worker_address=click.option('--worker-address', help="Run the worker-ursula with a specified address", type=EIP55_CHECKSUM_ADDRESS),
+    operator_address=click.option('--operator-address', help="Run with the specified operator address", type=EIP55_CHECKSUM_ADDRESS),
     federated_only=option_federated_only,
-    rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=WORKER_IP),
+    rest_host=click.option('--rest-host', help="The host IP address to run Ursula network services on", type=OPERATOR_IP),
     rest_port=click.option('--rest-port', help="The host port to run Ursula network services on", type=NETWORK_PORT),
     db_filepath=option_db_filepath,
-    network=option_network(),  # Don't set defaults here or they will be applied to config updates. Use the Config API.
+    network=option_network(),
     registry_filepath=option_registry_filepath,
     poa=option_poa,
     light=option_light,
     dev=option_dev,
     availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None),
     lonely=option_lonely,
+    payment_provider=option_payment_provider,
+    payment_network=option_payment_network,
+    payment_method=option_payment_method,
 )
 
 
@@ -257,8 +279,8 @@ class UrsulaCharacterOptions:
                                  not is_clef))
         __password = None
         if password_required:
-            __password = get_client_password(checksum_address=ursula_config.worker_address,
-                                             envvar=NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD)
+            __password = get_client_password(checksum_address=ursula_config.operator_address,
+                                             envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD)
 
         try:
             URSULA = make_cli_character(character_config=ursula_config,
@@ -300,14 +322,16 @@ def ursula():
 @option_key_material
 def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.operator_address)
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
-    if not config_options.federated_only and not config_options.provider_uri:
-        raise click.BadOptionUsage('--provider', message="--provider is required to initialize a new ursula.")
+    if not config_options.federated_only and not config_options.eth_provider_uri:
+        raise click.BadOptionUsage('--eth-provider', message="--eth-provider is required to initialize a new ursula.")
     if not config_options.federated_only and not config_options.domain:
-        config_options.domain = select_network(emitter)
+        config_options.domain = select_network(emitter, message="Select Staking Network")
+    if not config_options.federated_only and not config_options.payment_network:
+        config_options.payment_network = select_network(emitter, message="Select Payment Network")
     ursula_config = config_options.generate_config(emitter=emitter,
                                                    config_root=config_root,
                                                    force=force,
@@ -322,7 +346,7 @@ def init(general_config, config_options, force, config_root, key_material):
 def recover(general_config, config_options):
     # TODO: Combine with work in PR #2682
     # TODO: Integrate regeneration of configuration files
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.operator_address)
     recover_keystore(emitter=emitter)
 
 
@@ -333,7 +357,7 @@ def recover(general_config, config_options):
 @group_general_config
 def destroy(general_config, config_options, config_file, force):
     """Delete Ursula node configuration."""
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.operator_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
@@ -345,7 +369,7 @@ def destroy(general_config, config_options, config_file, force):
 @group_general_config
 def forget(general_config, config_options, config_file):
     """Forget all known nodes."""
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.operator_address)
     _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
     ursula_config = config_options.create_config(emitter, config_file)
     forget_nodes(emitter, configuration=ursula_config)
@@ -368,7 +392,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
         metrics_listen_address, metrics_prefix, metrics_interval, force, ip_checkup):
     """Run an "Ursula" node."""
 
-    worker_address = character_options.config_options.worker_address
+    operator_address = character_options.config_options.operator_address
     emitter = setup_emitter(general_config)
     dev_mode = character_options.config_options.dev
     lonely = character_options.config_options.lonely
@@ -414,7 +438,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
 @group_general_config
 def save_metadata(general_config, character_options, config_file):
     """Manually write node metadata to disk without running."""
-    emitter = setup_emitter(general_config, character_options.config_options.worker_address)
+    emitter = setup_emitter(general_config, character_options.config_options.operator_address)
     _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
     _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
     metadata_path = URSULA.write_node_metadata(node=URSULA)
@@ -437,13 +461,13 @@ def config(general_config, config_options, config_file, force, action):
     ip-address - automatically detect and configure the external IP address.
 
     """
-    emitter = setup_emitter(general_config, config_options.worker_address)
+    emitter = setup_emitter(general_config, config_options.operator_address)
     if not config_file:
         config_file = select_config_file(emitter=emitter,
-                                         checksum_address=config_options.worker_address,
+                                         checksum_address=config_options.operator_address,
                                          config_class=UrsulaConfiguration)
     if action == 'ip-address':
-        rest_host = collect_worker_ip_address(emitter=emitter, network=config_options.domain, force=force)
+        rest_host = collect_operator_ip_address(emitter=emitter, network=config_options.domain, force=force)
         config_options.rest_host = rest_host
     elif action:
         emitter.echo(f'"{action}" is not a valid command.', color='red')

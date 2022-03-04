@@ -29,7 +29,6 @@ from hendrix.deploy.base import HendrixDeploy
 from hendrix.deploy.tls import HendrixDeployTLS
 from twisted.internet import reactor, stdio
 
-from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter, WebEmitter
 from nucypher.control.interfaces import ControlInterface

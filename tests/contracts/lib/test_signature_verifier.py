@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 
-import coincurve
 import pytest
 from cryptography.hazmat.backends.openssl import backend
 from cryptography.hazmat.primitives import hashes
@@ -60,11 +59,15 @@ def get_signature_recovery_value(message: bytes,
     if len(signature) != ecdsa_signature_size:
         raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
 
+    hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
+    hash_ctx.update(message)
+    message_hash = hash_ctx.finalize()
+
+    address = canonical_address_from_umbral_key(public_key)
     for v in (0, 1):
         v_byte = bytes([v])
-        recovered_pubkey = coincurve.PublicKey.from_signature_and_message(signature=signature + v_byte,
-                                                                          message=message)
-        if bytes(public_key) == recovered_pubkey.format(compressed=True):
+        recovered = to_canonical_address(Account.recoverHash(message_hash, signature=signature + v_byte))
+        if recovered == address:
             return v_byte
     else:
         raise ValueError("Signature recovery failed. "

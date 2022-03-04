@@ -61,7 +61,7 @@ class CanonicalRegistrySource(ABC):
         raise NotImplementedError
 
     def __repr__(self):
-        return self.get_publication_endpoint()
+        return str(self.get_publication_endpoint())
 
 
 class GithubRegistrySource(CanonicalRegistrySource):
@@ -100,7 +100,8 @@ class EmbeddedRegistrySource(CanonicalRegistrySource):
     is_primary = False
 
     def get_publication_endpoint(self) -> Path:
-        return CONTRACT_REGISTRY_BASE / self.network / self.registry_name
+        filepath = Path(CONTRACT_REGISTRY_BASE / self.network / self.registry_name).absolute()
+        return filepath
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
         filepath = self.get_publication_endpoint()

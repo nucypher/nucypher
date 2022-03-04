@@ -44,7 +44,7 @@ BOOK_PATH = Path('finnegans-wake-excerpt.txt')
 try:
 
     # Replace with ethereum RPC endpoint
-    PROVIDER_URI = os.environ['DEMO_PROVIDER_URI']
+    ETH_PROVIDER_URI = os.environ['DEMO_ETH_PROVIDER_URI']
 
     # Replace with wallet filepath.
     WALLET_FILEPATH = os.environ['DEMO_WALLET_FILEPATH']
@@ -80,7 +80,7 @@ encrypting_key = bob.public_keys(DecryptingPower)
 ######################################
 
 # Connect to the ethereum provider.
-connect_web3_provider(provider_uri=PROVIDER_URI)
+connect_web3_provider(eth_provider_uri=ETH_PROVIDER_URI)
 
 # Setup and unlock alice's ethereum wallet.
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
@@ -90,7 +90,7 @@ password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to 
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice.
-alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET, provider_uri=PROVIDER_URI)
+alice = Alice(checksum_address=ALICE_ADDRESS, signer=wallet, domain=TESTNET, eth_provider_uri=ETH_PROVIDER_URI)
 
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = bytes(alice.stamp)

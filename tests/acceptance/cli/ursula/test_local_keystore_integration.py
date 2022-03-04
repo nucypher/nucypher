@@ -24,25 +24,30 @@ import pytest
 from eth_account import Account
 from web3 import Web3
 
+from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.token import StakeList
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import StakeHolderConfiguration, UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
 )
+from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     MOCK_IP_ADDRESS,
-    TEST_PROVIDER_URI
+    TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
 )
 from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='module')
-def mock_funded_account_password_keystore(tmp_path_factory, testerchain):
-    """Generate a random keypair & password and create a local keystore"""
+def mock_funded_account_password_keystore(tmp_path_factory, testerchain, threshold_staking, application_economics, test_registry):
+    """
+    Generate a random keypair & password and create a local keystore. Then prepare a staking provider
+    for ursula. Then check that the correct ursula ethereum key signs the commitment.
+    """
     keystore = tmp_path_factory.mktemp('keystore', numbered=True)
     password = secrets.token_urlsafe(12)
     account = Account.create()
@@ -55,52 +60,37 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain):
             'from': testerchain.etherbase_account,
             'value': Web3.toWei('1', 'ether')}))
 
+    # initialize threshold stake
+    provider_address = testerchain.unassigned_accounts[0]
+    tx = threshold_staking.functions.setRoles(provider_address).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakes(provider_address, application_economics.min_authorization, 0, 0).transact()
+    testerchain.wait_for_receipt(tx)
+
+    provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
+    provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    pre_application_agent.bond_operator(staking_provider=provider_address,
+                                        operator=account.address,
+                                        transacting_power=provider_power)
+
     return account, password, keystore
 
 
 def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       tmp_path,
-                                                      manual_staker,
-                                                      stake_value,
-                                                      token_economics,
+                                                      staking_providers,
+                                                      application_economics,
                                                       mocker,
                                                       mock_funded_account_password_keystore,
                                                       testerchain):
     config_root_path = tmp_path
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()
-    stakeholder_config_path = config_root_path / StakeHolderConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_funded_account_password_keystore
 
     #
-    # Stakeholder Steps
-    #
-
-    init_args = ('stake', 'init-stakeholder',
-                 '--config-root', str(config_root_path.absolute()),
-                 '--provider', TEST_PROVIDER_URI,
-                 '--network', TEMPORARY_DOMAIN)
-    click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False)
-
-    stake_args = ('stake', 'create',
-                  '--config-file', str(stakeholder_config_path.absolute()),
-                  '--staking-address', manual_staker,
-                  '--value', stake_value.to_tokens(),
-                  '--lock-periods', token_economics.minimum_locked_periods,
-                  '--force')
-    # TODO: Is This test is writing to the default system directory and ignoring updates to the passed filepath?
-    user_input = f'0\n{password}\nY\n'
-    click_runner.invoke(nucypher_cli, stake_args, input=user_input, catch_exceptions=False)
-
-    init_args = ('stake', 'bond-worker',
-                 '--config-file', str(stakeholder_config_path.absolute()),
-                 '--staking-address', manual_staker,
-                 '--worker-address', worker_account.address,
-                 '--force')
-    user_input = password
-    click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
-
-    #
-    # Worker Steps
+    # Operator Steps
     #
 
     # Good signer...
@@ -112,9 +102,10 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
 
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
-                 '--worker-address', worker_account.address,
+                 '--payment-network', TEMPORARY_DOMAIN,
+                 '--operator-address', worker_account.address,
                  '--config-root', str(config_root_path.absolute()),
-                 '--provider', TEST_PROVIDER_URI,
+                 '--eth-provider', TEST_ETH_PROVIDER_URI,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port,
 
@@ -122,8 +113,8 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--signer', mock_signer_uri)
 
     cli_env = {
-        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD:    password,
-        NUCYPHER_ENVVAR_WORKER_ETH_PASSWORD: password,
+        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: password,
+        NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: password,
     }
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=cli_env)
     assert result.exit_code == 0, result.stdout
@@ -144,7 +135,6 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
     ursula_config.keystore.unlock(password=password)
 
     # Produce an Ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
-    mocker.patch.object(StakeList, 'refresh', autospec=True)
     ursula = ursula_config.produce()
     ursula.signer.unlock_account(account=worker_account.address, password=password)
 
@@ -158,7 +148,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
         assert pre_config_signer.path == ursula.signer.path
 
         # ...and that transactions are signed by the keystore signer
-        txhash = ursula.commit_to_next_period()
+        txhash = ursula.confirm_address()
         receipt = testerchain.wait_for_receipt(txhash)
         transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
         assert transaction_data['from'] == worker_account.address

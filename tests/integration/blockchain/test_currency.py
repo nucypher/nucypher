@@ -21,21 +21,22 @@ from decimal import Decimal, InvalidOperation
 from nucypher.blockchain.eth.token import NU
 
 
-def test_NU(token_economics):
+def test_NU(application_economics):
 
     # Starting Small
-    min_allowed_locked = NU(token_economics.minimum_allowed_locked, 'NuNit')
-    assert token_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
+    min_allowed_locked = NU(application_economics.min_authorization, 'NuNit')
+    assert application_economics.min_authorization == int(min_allowed_locked.to_units())
 
-    min_NU_locked = int(str(token_economics.minimum_allowed_locked)[0:-18])
+    min_NU_locked = int(str(application_economics.min_authorization)[0:-18])
     expected = NU(min_NU_locked, 'NU')
     assert min_allowed_locked == expected
 
+    # TODO: Use minimums for T staking
     # Starting Big
-    min_allowed_locked = NU(min_NU_locked, 'NU')
-    assert token_economics.minimum_allowed_locked == int(min_allowed_locked)
-    assert token_economics.minimum_allowed_locked == int(min_allowed_locked.to_nunits())
-    assert str(min_allowed_locked) == '15000 NU'
+    # min_allowed_locked = NU(min_NU_locked, 'NU')
+    # assert token_economics.min_authorization == int(min_allowed_locked)
+    # assert token_economics.min_authorization == int(min_allowed_locked.to_units())
+    # assert str(min_allowed_locked) == '40000 NU'
 
     # Alternate construction
     assert NU(1, 'NU') == NU('1.0', 'NU') == NU(1.0, 'NU')
@@ -74,7 +75,7 @@ def test_NU(token_economics):
 
     # 3.14 NU is 3_140_000_000_000_000_000 NuNit
     pi_nuweis = NU(3.14, 'NU')
-    assert NU('3.14', 'NU') == pi_nuweis.to_nunits() == NU(3_140_000_000_000_000_000, 'NuNit')
+    assert NU('3.14', 'NU') == pi_nuweis.to_units() == NU(3_140_000_000_000_000_000, 'NuNit')
 
     # Mixed type operations
     difference = NU('3.14159265', 'NU') - NU(1.1, 'NU')

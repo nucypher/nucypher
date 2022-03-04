@@ -20,16 +20,13 @@ import click
 from nucypher.cli.commands import (
     alice,
     bob,
-    dao,
     enrico,
-    multisig,
-    stake,
     status,
     ursula,
-    worklock,
     cloudworkers,
     contacts,
-    porter
+    porter,
+    bond,
 )
 from nucypher.cli.painting.help import echo_version, echo_config_root_path, echo_logging_root_path
 
@@ -72,20 +69,23 @@ def nucypher_cli():
 ENTRY_POINTS = (
 
     # Characters & Actors
-    alice.alice,        # Author of Policies
-    bob.bob,            # Builder of Capsules
-    enrico.enrico,      # Encryptor of Data
-    ursula.ursula,      # Untrusted Re-Encryption Proxy
-    stake.stake,        # Stake Management
-    worklock.worklock,  # WorkLock
+    ursula.ursula,  # Untrusted Re-Encryption Proxy
+    enrico.enrico,  # Encryptor of Data
+
+    # PRE Application
+    bond.bond,
+    bond.unbond,
 
     # Utility Commands
-    status.status,      # Network Status
-    dao.dao,            # NuCypher DAO
-    multisig.multisig,  # MultiSig operations
-    cloudworkers.cloudworkers,  # Remote Worker node management
-    contacts.contacts,          # Character "card" management
-    porter.porter
+    status.status,              # Network status explorer
+    cloudworkers.cloudworkers,  # Remote node management
+    porter.porter,              # Network support services
+
+    # Demos
+    alice.alice,        # Author of Policies
+    bob.bob,            # Builder of Capsules
+    contacts.contacts,  # "character card" management
+
 )
 
 for entry_point in ENTRY_POINTS:

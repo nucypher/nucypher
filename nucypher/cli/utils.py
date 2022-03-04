@@ -174,18 +174,18 @@ def get_registry(network: str, registry_filepath: Optional[Path] = None) -> Base
 
 
 def connect_to_blockchain(emitter: StdoutEmitter,
-                          provider_uri: str,
+                          eth_provider_uri: str,
                           debug: bool = False,
                           light: bool = False
                           ) -> BlockchainInterface:
     try:
         # Note: Conditional for test compatibility.
-        if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(provider_uri=provider_uri,
+        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri,
                                                             light=light,
                                                             emitter=emitter)
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
-        blockchain = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
         return blockchain
     except Exception as e:
         if debug:
@@ -196,19 +196,19 @@ def connect_to_blockchain(emitter: StdoutEmitter,
 
 def initialize_deployer_interface(emitter: StdoutEmitter,
                                   poa: bool,
-                                  provider_uri,
+                                  eth_provider_uri,
                                   ignore_solidity_check: bool,
                                   gas_strategy: str = None,
                                   max_gas_price: int = None
                                   ) -> BlockchainDeployerInterface:
-    if not BlockchainInterfaceFactory.is_interface_initialized(provider_uri=provider_uri):
-        deployer_interface = BlockchainDeployerInterface(provider_uri=provider_uri,
+    if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
+        deployer_interface = BlockchainDeployerInterface(eth_provider_uri=eth_provider_uri,
                                                          poa=poa,
                                                          gas_strategy=gas_strategy,
                                                          max_gas_price=max_gas_price)
         BlockchainInterfaceFactory.register_interface(interface=deployer_interface, emitter=emitter)
     else:
-        deployer_interface = BlockchainInterfaceFactory.get_interface(provider_uri=provider_uri)
+        deployer_interface = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
     deployer_interface.connect(ignore_solidity_check=ignore_solidity_check)
     return deployer_interface
 

@@ -25,6 +25,7 @@ from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
 from nucypher.blockchain.eth.interfaces import BaseContractRegistry
 
 
+@pytest.mark.skip('remove me')
 def test_token_deployer_and_agent(testerchain, deployment_progress, test_registry):
 
     origin = testerchain.etherbase_account

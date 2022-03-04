@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity ^0.7.0;
+pragma solidity ^0.8.0;
 
 import "contracts/lib/ReEncryptionValidator.sol";
 import "contracts/lib/SignatureVerifier.sol";
-import "contracts/StakingEscrow.sol";
+import "contracts/IStakingEscrow.sol";
 import "contracts/proxy/Upgradeable.sol";
 import "zeppelin/math/SafeMath.sol";
 import "zeppelin/math/Math.sol";
@@ -35,7 +35,7 @@ contract Adjudicator is Upgradeable {
     bytes32 constant RESERVED_CAPSULE_AND_CFRAG_BYTES = bytes32(0);
     address constant RESERVED_ADDRESS = address(0);
 
-    StakingEscrow public immutable escrow;
+    IStakingEscrow public immutable escrow;
     SignatureVerifier.HashAlgorithm public immutable hashAlgorithm;
     uint256 public immutable basePenalty;
     uint256 public immutable penaltyHistoryCoefficient;
@@ -54,7 +54,7 @@ contract Adjudicator is Upgradeable {
     * @param _rewardCoefficient Coefficient for calculating the reward
     */
     constructor(
-        StakingEscrow _escrow,
+        IStakingEscrow _escrow,
         SignatureVerifier.HashAlgorithm _hashAlgorithm,
         uint256 _basePenalty,
         uint256 _penaltyHistoryCoefficient,
@@ -156,7 +156,7 @@ contract Adjudicator is Upgradeable {
 
         // 4. Extract worker address from stamp signature.
         address worker = SignatureVerifier.recover(
-            SignatureVerifier.hashEIP191(stamp, byte(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
+            SignatureVerifier.hashEIP191(stamp, bytes1(0x45)), // Currently, we use version E (0x45) of EIP191 signatures
             _workerIdentityEvidence);
         address staker = escrow.stakerFromWorker(worker);
         require(staker != address(0), "Worker must be related to a staker");

@@ -12,11 +12,12 @@ constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=3.4"
 lmdb = "*"
-umbral = ">=0.3"
+nucypher-core = ">=0.0.4"
 # Cryptography
 pyopenssl = "*"
 cryptography = ">=3.2"
 pysha3="*"
+pynacl= ">=1.4.0"
 # Utilities
 maya = "*"
 tzlocal = "==2.1"
@@ -28,10 +29,12 @@ trezor = "*"
 # Web
 requests = "*"
 flask = "*"
+# 2.1.0 removed `JSONWebSignatureSerializer`, which `flask_httpasswd` depends on
+# (and it does not cap the version of `itsdangerous` itself)
+itsdangerous = "<2.1.0"
 # Third-Party Ethereum
-py-evm = "*"
-eth-tester = "*"
-coincurve = "*"
+py-evm = "<0.5"
+eth-tester = "<0.6"
 web3 = "<=5.12.3"
 eth-utils = "<1.10"
 py-geth = "*"
@@ -43,7 +46,12 @@ tabulate = "*"
 
 [dev-packages]
 # Pytest
-pytest = "*"
+# pytest==7 causes problems with autouse mocks and config in `.circleci` folder.
+# See https://github.com/pytest-dev/pytest/issues/9703
+# Namely, the issue above was leading to an interference between `mock_transacting_power()` fixture
+# and `test_ursula_init_with_local_keystore_signer()` - the mock was still present
+# when that test was run, causing a failure.
+pytest = "<7"
 pytest-xdist = "*"
 pytest-twisted = "*"
 pytest-cov = "*"

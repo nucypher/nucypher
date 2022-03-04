@@ -45,7 +45,7 @@ from nucypher_core.umbral import Signature
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency, StakingEscrowAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -120,7 +120,7 @@ class NodeSprout:
 
     @property
     def canonical_address(self):
-        return self._metadata_payload.canonical_address
+        return self._metadata_payload.staker_address
 
     @property
     def nickname(self):
@@ -149,7 +149,7 @@ class NodeSprout:
         return self._metadata_payload.encrypting_key
 
     @property
-    def decentralized_identity_evidence(self):
+    def operator_signature_from_metadata(self):
         return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
 
     @property
@@ -178,7 +178,7 @@ class NodeSprout:
                       checksum_address=self.checksum_address,
                       domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
-                      decentralized_identity_evidence=self.decentralized_identity_evidence,
+                      operator_signature_from_metadata=self.operator_signature_from_metadata,
                       certificate=load_pem_x509_certificate(self._metadata_payload.certificate_bytes, backend=default_backend()),
                       metadata=self._metadata
                       )
@@ -483,7 +483,7 @@ class Learner:
             except node.NotStaking:
                 # TODO: Bucket this node as inactive, and potentially safe to forget.  567
                 self.log.info(
-                    f'Staker:Worker {node.checksum_address}:{node.worker_address} is not actively staking, skipping.')
+                    f'StakingProvider:Operator {node.checksum_address}:{node.operator_address} is not actively staking, skipping.')
                 return False
 
             # TODO: What about InvalidNode?  (for that matter, any SuspiciousActivity)  1714, 567 too really
@@ -906,11 +906,11 @@ class Learner:
                               f'{sprout} has no active stakes in the current period '
                               f'({self.staking_agent.get_current_period()}')
 
-            except sprout.InvalidWorkerSignature:
+            except sprout.InvalidOperatorSignature:
                 self.log.warn(f'Verification Failed - '
-                              f'{sprout} has an invalid wallet signature for {sprout.decentralized_identity_evidence}')
+                              f'{sprout} has an invalid wallet signature for {sprout.operator_signature_from_metadata}')
 
-            except sprout.UnbondedWorker:
+            except sprout.UnbondedOperator:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} is not bonded to a Staker.')
 
@@ -960,7 +960,6 @@ class Teacher:
                  domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
                  certificate_filepath: Path,
-                 decentralized_identity_evidence=NOT_SIGNED,
                  ) -> None:
 
         self.domain = domain
@@ -971,14 +970,12 @@ class Teacher:
 
         self.certificate = certificate
         self.certificate_filepath = certificate_filepath
-        self.__decentralized_identity_evidence = constant_or_bytes(decentralized_identity_evidence)
 
         # Assume unverified
         self.verified_stamp = False
         self.verified_worker = False
         self.verified_metadata = False
         self.verified_node = False
-        self.__worker_address = None
 
     class InvalidNode(SuspiciousActivity):
         """Raised when a node has an invalid characteristic - stamp, interface, or address."""
@@ -989,13 +986,13 @@ class Teacher:
     class StampNotSigned(InvalidStamp):
         """Raised when a node does not have a stamp signature when one is required for verification"""
 
-    class InvalidWorkerSignature(InvalidStamp):
+    class InvalidOperatorSignature(InvalidStamp):
         """Raised when a stamp fails signature verification or recovers an unexpected worker address"""
 
     class NotStaking(InvalidStamp):
         """Raised when a node fails verification because it is not currently staking"""
 
-    class UnbondedWorker(InvalidNode):
+    class UnbondedOperator(InvalidNode):
         """Raised when a node fails verification because it is not bonded to a Staker"""
 
     class WrongMode(TypeError):
@@ -1036,59 +1033,28 @@ class Teacher:
         response = MetadataResponse(self.stamp.as_umbral_signer(), response_payload)
         return bytes(response)
 
-    #
-    # Stamp
-    #
-
-    def _stamp_has_valid_signature_by_worker(self) -> bool:
-        """
-        Off-chain Signature Verification of stamp signature by Worker's ETH account.
-        Note that this only "certifies" the stamp with the worker's account,
-        so it can be seen like a self certification. For complete assurance,
-        it's necessary to validate on-chain the Staker-Worker relation.
-        """
-        if self.__decentralized_identity_evidence is NOT_SIGNED:
-            return False
-        signature_is_valid = verify_eip_191(message=bytes(self.stamp),
-                                            signature=self.__decentralized_identity_evidence,
-                                            address=self.worker_address)
-        return signature_is_valid
-
-    def _worker_is_bonded_to_staker(self, registry: BaseContractRegistry) -> bool:
+    def _operator_is_bonded(self, registry: BaseContractRegistry) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
-        As a follow-up, this checks that the worker is bonded to a staker, but it may be
-        the case that the "staker" isn't "staking" (e.g., all her tokens have been slashed).
+        As a follow-up, this checks that the worker is bonded to a staking provider, but it may be
+        the case that the "staking provider" isn't "staking" (e.g., all her tokens have been slashed).
         """
-        # Lazy agent get or create
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)
+        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)  # type: PREApplicationAgent
+        staking_provider_address = application_agent.get_staking_provider_from_operator(operator_address=self.operator_address)
+        if staking_provider_address == NULL_ADDRESS:
+            raise self.UnbondedOperator(f"Operator {self.operator_address} is not bonded")
+        return staking_provider_address == self.checksum_address
 
-        staker_address = staking_agent.get_staker_from_worker(worker_address=self.worker_address)
-        if staker_address == NULL_ADDRESS:
-            raise self.UnbondedWorker(f"Worker {self.worker_address} is not bonded")
-        return staker_address == self.checksum_address
-
-    def _staker_is_really_staking(self, registry: BaseContractRegistry) -> bool:
+    def _staking_provider_is_really_staking(self, registry: BaseContractRegistry, eth_provider_uri: Optional[str] = None) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
-        As a follow-up, this checks that the staker is, indeed, staking.
+        As a follow-up, this checks that the staking provider is, indeed, staking.
         """
-        # Lazy agent get or create
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=registry)  # type: StakingEscrowAgent
-
-        try:
-            economics = EconomicsFactory.get_economics(registry=registry)
-        except Exception:
-            raise  # TODO: Get StandardEconomics  NRN
-
-        min_stake = economics.minimum_allowed_locked
-
-        stake_current_period = staking_agent.get_locked_tokens(staker_address=self.checksum_address, periods=0)
-        stake_next_period = staking_agent.get_locked_tokens(staker_address=self.checksum_address, periods=1)
-        is_staking = max(stake_current_period, stake_next_period) >= min_stake
+        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri)  # type: PREApplicationAgent
+        is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
         return is_staking
 
-    def validate_worker(self, registry: BaseContractRegistry = None) -> None:
+    def validate_worker(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None) -> None:
 
         # Federated
         if self.federated_only:
@@ -1100,30 +1066,28 @@ class Teacher:
         # Decentralized
         else:
 
-            # Off-chain signature verification
-            if not self._stamp_has_valid_signature_by_worker():
-                message = f"Invalid signature {self.__decentralized_identity_evidence.hex()} " \
-                          f"from worker {self.worker_address} for stamp {bytes(self.stamp).hex()} "
-                raise self.InvalidWorkerSignature(message)
+            # Try to derive the worker address if it hasn't been derived yet.
+            try:
+                operator_address = self.operator_address
+            except Exception as e:
+                raise self.InvalidOperatorSignature(str(e)) from e
 
             # On-chain staking check, if registry is present
             if registry:
-                if not self._worker_is_bonded_to_staker(registry=registry):  # <-- Blockchain CALL
-                    message = f"Worker {self.worker_address} is not bonded to staker {self.checksum_address}"
+                if not self._operator_is_bonded(registry=registry):  # <-- Blockchain CALL
+                    message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
                     self.log.debug(message)
-                    raise self.UnbondedWorker(message)
+                    raise self.UnbondedOperator(message)
 
-                if self._staker_is_really_staking(registry=registry):  # <-- Blockchain CALL
+                if self._staking_provider_is_really_staking(registry=registry, eth_provider_uri=eth_provider_uri):  # <-- Blockchain CALL
                     self.verified_worker = True
                 else:
-                    raise self.NotStaking(f"Staker {self.checksum_address} is not staking")
+                    raise self.NotStaking(f"{self.checksum_address} is not staking")
 
             self.verified_stamp = True
 
     def validate_metadata_signature(self) -> bool:
-        """
-        Checks that the interface info is valid for this node's canonical address.
-        """
+        """Checks that the interface info is valid for this node's canonical address."""
         metadata_is_valid = self.metadata().verify()
         self.verified_metadata = metadata_is_valid
         if metadata_is_valid:
@@ -1131,7 +1095,7 @@ class Teacher:
         else:
             raise self.InvalidNode("Metadata signature is invalid")
 
-    def validate_metadata(self, registry: BaseContractRegistry = None):
+    def validate_metadata(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None):
 
         # Verify the metadata signature
         if not self.verified_metadata:
@@ -1143,7 +1107,7 @@ class Teacher:
 
         # Offline check of valid stamp signature by worker
         try:
-            self.validate_worker(registry=registry)
+            self.validate_worker(registry=registry, eth_provider_uri=eth_provider_uri)
         except self.WrongMode:
             if bool(registry):
                 raise
@@ -1151,6 +1115,7 @@ class Teacher:
     def verify_node(self,
                     network_middleware_client,
                     registry: BaseContractRegistry = None,
+                    eth_provider_uri: Optional[str] = None,
                     certificate_filepath: Optional[Path] = None,
                     force: bool = False
                     ) -> bool:
@@ -1182,7 +1147,7 @@ class Teacher:
                            "on-chain Staking verification will not be performed.")
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        self.validate_metadata(registry=registry)
+        self.validate_metadata(registry=registry, eth_provider_uri=eth_provider_uri)
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:
@@ -1202,7 +1167,7 @@ class Teacher:
         verifying_keys_match = sprout.verifying_key == self.public_keys(SigningPower)
         encrypting_keys_match = sprout.encrypting_key == self.public_keys(DecryptingPower)
         addresses_match = sprout.checksum_address == self.checksum_address
-        evidence_matches = sprout.decentralized_identity_evidence == self.__decentralized_identity_evidence
+        evidence_matches = sprout.operator_signature_from_metadata == self.operator_signature_from_metadata
 
         if not all((encrypting_keys_match, verifying_keys_match, addresses_match, evidence_matches)):
             # Failure
@@ -1217,16 +1182,3 @@ class Teacher:
         else:
             # Success
             self.verified_node = True
-
-    @property
-    def decentralized_identity_evidence(self):
-        return self.__decentralized_identity_evidence
-
-    @property
-    def worker_address(self):
-        if not self.__worker_address and not self.federated_only:
-            if self.decentralized_identity_evidence is NOT_SIGNED:
-                raise self.StampNotSigned  # TODO: Find a better exception  NRN
-            self.__worker_address = recover_address_eip_191(message=bytes(self.stamp),
-                                                            signature=self.decentralized_identity_evidence)
-        return self.__worker_address
