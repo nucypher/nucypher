@@ -636,12 +636,21 @@ class CharacterConfiguration(BaseConfiguration):
         return self.__dev_mode
 
     def _setup_node_storage(self, node_storage=None) -> None:
-        if self.dev_mode:
-            node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
-        elif not node_storage:
-            node_storage = LocalFileBasedNodeStorage(registry=self.registry,
-                                                     config_root=self.config_root,
-                                                     federated_only=self.federated_only)
+        # TODO: Disables node metadata persistence..
+        # if self.dev_mode:
+        #     node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
+
+        # TODO: Forcibly clears the filesystem of any stored node metadata and certificates...
+        local_node_storage = LocalFileBasedNodeStorage(
+            registry=self.registry,
+            config_root=self.config_root,
+            federated_only=self.federated_only
+        )
+        local_node_storage.clear()
+        self.log.info(f'Cleared peer metadata from {local_node_storage.root_dir}')
+
+        # TODO: Always sets up nodes for in-memory node metadata storage
+        node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
         self.node_storage = node_storage
 
     def forget_nodes(self) -> None:
