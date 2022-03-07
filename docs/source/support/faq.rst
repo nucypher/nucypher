@@ -86,6 +86,11 @@ Q: How do I integrate nucypher if my application is not written in Python?
 
 Nucypher also provides web integration. See :ref:`web-development`.
 
+Q: Are there testnets that I can use?
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is subject to near-term changes as we stabilize the new release across testnet nodes.
+
 
 Running a Node
 --------------
