@@ -34,9 +34,9 @@ For an in-depth analysis of this topic, see our blog post entitled "`Three thing
 Q: If a dApp utilizes the PRE Application, is there an ETH gas fee associated with each re-encryption of encrypted data?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There is a gas fee associated with granting and revoking policies. However, there is no gas fee per access.
-Previously policy management was done on L1 but the gas fees were high. Instead, policy management will now
-occur on various L2s, starting with Polygon Matic.
+There is a gas fee associated with granting and revoking policies, but re-encryption does not involve an on-chain transaction so there is no gas fee.
+Previously, policy management occurred on Ethereum mainnet.  As of nucypher 6.0, policy management occurs on the Polygon sidechain
+by default and results in lower gas fees.
 
 Q: How much trust do we place in Ursula, the proxy?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -85,16 +85,6 @@ Q: How do I integrate nucypher if my application is not written in Python?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Nucypher also provides web integration. See :ref:`web-development`.
-
-.. _faq-testnet:
-
-Q: Are there testnets that I can use?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-NuCypher currently has two testnets available, each of them with different goals:
-
-* :doc:`/application_development/testnet`: Public Long-Term Support testnet, intended as a stable playground for network users (e.g., Alices wishing to create sharing policies). Running on Ethereum Goerli testnet.
-* :doc:`/pre_application/testnet`: Public testnet, intended as a playground for node operators (e.g., learning how to set up a PRE node etc.), as well as for internal development purposes. Running on Ethereun Rinkeby testnet.
 
 
 Running a Node
@@ -179,9 +169,7 @@ Using docker :ref:`Docker <run-ursula-with-docker>`
 Q: When installing on Docker, what do I input for <NETWORK NAME>?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use ``mainnet`` if you want to interact with the PRE Application network,
-and either ``lynx`` or ``ibex`` in case you want to use one of our testnets.
-Go :ref:`here <faq-testnet>` to read more about the difference between both testnets.
+Use ``mainnet`` if you want to interact with the PRE Application network, otherwise use the relevant testnet.
 
 Q: How can I check for currently available staking rewards?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
