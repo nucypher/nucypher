@@ -7,6 +7,11 @@ All Threshold Network Stakers (legacy KEEP, legacy NU, liquid T) are able to par
 in the PRE application. Threshold Staking can be performed and managed via
 the `Threshold dashboard <https://dashboard.threshold.network/overview/network>`_.
 
+.. note::
+
+     The current minimum stake for running a PRE node is (or equivalent to) 40,000 T but is tunable via governance.
+
+
 For more information about the roles associated with the Threshold Staking contract,
 see `here <https://github.com/threshold-network/solidity-contracts/blob/main/docs/rfc-1-staking-contract.adoc>`_.
 
