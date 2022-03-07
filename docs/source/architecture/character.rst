@@ -14,9 +14,19 @@ role.
 .. _Umbral: https://github.com/nucypher/umbral-doc/blob/master/umbral-doc.pdf
 
 
+.. raw:: html
+
+    <div>
+        <div style="position:relative;padding-top:56.25%;">
+            <iframe style="position:absolute;top:0;left:0;width:100%;height:100%;" src="https://www.youtube-nocookie.com/embed/SXn1zShgVI8?rel=0&controls=1&modestbranding=1" frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+   </div>
+   <br/>
+
+
 Character Actions
 -----------------
-
 
 Alice::Grant
 ^^^^^^^^^^^^
