@@ -1045,7 +1045,7 @@ class Ursula(Teacher, Character, Operator):
                                       operator_signature=operator_signature,
                                       verifying_key=self.public_keys(SigningPower),
                                       encrypting_key=self.public_keys(DecryptingPower),
-                                      certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
+                                      certificate_der=self.certificate.public_bytes(Encoding.DER),
                                       host=self.rest_interface.host,
                                       port=self.rest_interface.port,
                                       )

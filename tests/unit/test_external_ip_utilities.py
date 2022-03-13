@@ -78,7 +78,7 @@ class Dummy:  # Teacher
                                       operator_signature=dummy_signature,
                                       verifying_key=signer.verifying_key(),
                                       encrypting_key=SecretKey.random().public_key(),
-                                      certificate_bytes=b'not a certificate',
+                                      certificate_der=b'not a certificate',
                                       host='127.0.0.1',
                                       port=1111,
                                       )
