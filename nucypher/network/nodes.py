@@ -150,7 +150,7 @@ class NodeSprout:
 
     @property
     def operator_signature_from_metadata(self):
-        return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
+        return self._metadata_payload.operator_signature or NOT_SIGNED
 
     @property
     def timestamp(self):

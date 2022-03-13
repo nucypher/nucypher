@@ -68,10 +68,14 @@ class Dummy:  # Teacher
 
     def metadata(self):
         signer = Signer(SecretKey.random())
+
+        # A dummy signature with the recovery byte
+        dummy_signature = bytes(signer.sign(b'whatever')) + b'\x00'
+
         payload = NodeMetadataPayload(staking_provider_address=self.canonical_address,
                                       domain=':dummy:',
                                       timestamp_epoch=0,
-                                      decentralized_identity_evidence=b'\x00' * LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
+                                      operator_signature=dummy_signature,
                                       verifying_key=signer.verifying_key(),
                                       encrypting_key=SecretKey.random().public_key(),
                                       certificate_bytes=b'not a certificate',
