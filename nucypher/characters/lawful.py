@@ -1039,7 +1039,7 @@ class Ursula(Teacher, Character, Operator):
             operator_signature = None
         else:
             operator_signature = self.operator_signature
-        payload = NodeMetadataPayload(staker_address=self.canonical_address,
+        payload = NodeMetadataPayload(staking_provider_address=self.canonical_address,
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
                                       decentralized_identity_evidence=operator_signature,

@@ -120,7 +120,7 @@ class NodeSprout:
 
     @property
     def canonical_address(self):
-        return self._metadata_payload.staker_address
+        return self._metadata_payload.staking_provider_address
 
     @property
     def nickname(self):

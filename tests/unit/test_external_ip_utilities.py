@@ -68,7 +68,7 @@ class Dummy:  # Teacher
 
     def metadata(self):
         signer = Signer(SecretKey.random())
-        payload = NodeMetadataPayload(staker_address=self.canonical_address,
+        payload = NodeMetadataPayload(staking_provider_address=self.canonical_address,
                                       domain=':dummy:',
                                       timestamp_epoch=0,
                                       decentralized_identity_evidence=b'\x00' * LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY,
