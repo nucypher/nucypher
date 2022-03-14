@@ -16,9 +16,9 @@ idna==3.3; python_version >= '3'
 imagesize==1.3.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 incremental==21.3.0
 iniconfig==1.1.1
-isort==5.10.1; python_full_version >= '3.6.1' and python_version < '4'
+isort==5.10.1; python_full_version >= '3.6.1' and python_version < '4.0'
 jinja2==3.0.3; python_version >= '3.6'
-markupsafe==2.1.0; python_version >= '3.7'
+markupsafe==2.1.1; python_version >= '3.7'
 mock==4.0.3; python_version >= '3.6'
 packaging==21.3; python_version >= '3.6'
 pep8==1.7.1
@@ -30,7 +30,7 @@ pyparsing==3.0.7; python_version >= '3.6'
 pytest-cache==1.0
 pytest-cov==3.0.0; python_version >= '3.6'
 pytest-pep8==1.0.6
-pytest==7.0.1; python_version >= '3.6'
+pytest==7.1.0; python_version >= '3.7'
 pytz==2021.3
 pyyaml==6.0; python_version >= '3.6'
 requests==2.27.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5'
@@ -45,6 +45,6 @@ sphinxcontrib-htmlhelp==2.0.0; python_version >= '3.6'
 sphinxcontrib-jsmath==1.0.1; python_version >= '3.5'
 sphinxcontrib-qthelp==1.0.3; python_version >= '3.5'
 sphinxcontrib-serializinghtml==1.1.5; python_version >= '3.5'
-tomli==2.0.1; python_version >= '3.6'
+tomli==2.0.1; python_version >= '3.7'
 towncrier==21.9.0
-urllib3==1.26.8; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'
+urllib3==1.26.8; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4.0'
