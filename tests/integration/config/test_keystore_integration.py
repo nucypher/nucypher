@@ -110,7 +110,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
     assert ursula.keystore is keystore
     assert ursula.certificate == ursula._crypto_power.power_ups(TLSHostingPower).keypair.certificate
 
-    original_certificate_bytes = ursula.certificate.public_bytes(encoding=Encoding.PEM)
+    original_certificate_bytes = ursula.certificate.public_bytes(encoding=Encoding.DER)
     ursula.disenchant()
     del ursula
 
@@ -124,7 +124,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
                               domain=TEMPORARY_DOMAIN)
 
     assert recreated_ursula.keystore is keystore
-    assert recreated_ursula.certificate.public_bytes(encoding=Encoding.PEM) == original_certificate_bytes
+    assert recreated_ursula.certificate.public_bytes(encoding=Encoding.DER) == original_certificate_bytes
     tls_hosting_power = recreated_ursula._crypto_power.power_ups(TLSHostingPower)
     spy_rest_server_init.assert_called_once_with(ANY,  # self
                                                  rest_host=LOOPBACK_ADDRESS,

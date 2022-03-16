@@ -95,7 +95,7 @@ class Vladimir(Ursula):
         # so it should work regardless of the binary format.
 
         # Our basic replacement. We want to impersonate the target Ursula.
-        metadata_bytes = metadata_bytes.replace(metadata.payload.staker_address,
+        metadata_bytes = metadata_bytes.replace(metadata.payload.staking_provider_address,
                                                 vladimir.canonical_address)
 
         # Use our own verifying key

@@ -54,7 +54,7 @@ def _read_tls_certificate(filepath: Path) -> Certificate:
     """Deserialize an X509 certificate from a filepath"""
     try:
         with open(filepath, 'rb') as certificate_file:
-            cert = x509.load_pem_x509_certificate(certificate_file.read(), backend=default_backend())
+            cert = x509.load_der_x509_certificate(certificate_file.read(), backend=default_backend())
             return cert
     except FileNotFoundError:
         raise FileNotFoundError("No SSL certificate found at {}".format(filepath))

@@ -186,7 +186,8 @@ class RestMiddleware:
 
         try:
             self.log.info(f"Fetching seednode {host}:{port} TLS certificate")
-            seednode_certificate = ssl.get_server_certificate(addr=(host, port))
+            seednode_certificate_pem = ssl.get_server_certificate(addr=(host, port))
+            seednode_certificate = ssl.PEM_cert_to_DER_cert(seednode_certificate_pem)
 
         except socket.timeout:
             if current_attempt == retry_attempts:
@@ -201,7 +202,7 @@ class RestMiddleware:
             raise  # TODO: #1835
 
         else:
-            certificate = x509.load_pem_x509_certificate(seednode_certificate.encode(),
+            certificate = x509.load_der_x509_certificate(seednode_certificate,
                                                          backend=default_backend())
             return certificate
 

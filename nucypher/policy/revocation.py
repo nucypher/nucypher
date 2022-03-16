@@ -29,7 +29,7 @@ class RevocationKit:
         self.revocations = dict()
         for staking_provider_address, encrypted_kfrag in treasure_map.destinations.items():
             self.revocations[staking_provider_address] = RevocationOrder(signer=signer.as_umbral_signer(),
-                                                                         staker_address=staking_provider_address,
+                                                                         staking_provider_address=staking_provider_address,
                                                                          encrypted_kfrag=encrypted_kfrag)
 
     def __iter__(self):

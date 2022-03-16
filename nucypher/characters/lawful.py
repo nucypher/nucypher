@@ -1028,7 +1028,7 @@ class Ursula(Teacher, Character, Operator):
 
     @property
     def operator_signature_from_metadata(self):
-        return self._metadata.payload.decentralized_identity_evidence or NOT_SIGNED
+        return self._metadata.payload.operator_signature or NOT_SIGNED
 
     def _generate_metadata(self) -> NodeMetadata:
         # Assuming that the attributes collected there do not change,
@@ -1039,13 +1039,13 @@ class Ursula(Teacher, Character, Operator):
             operator_signature = None
         else:
             operator_signature = self.operator_signature
-        payload = NodeMetadataPayload(staker_address=self.canonical_address,
+        payload = NodeMetadataPayload(staking_provider_address=self.canonical_address,
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
-                                      decentralized_identity_evidence=operator_signature,
+                                      operator_signature=operator_signature,
                                       verifying_key=self.public_keys(SigningPower),
                                       encrypting_key=self.public_keys(DecryptingPower),
-                                      certificate_bytes=self.certificate.public_bytes(Encoding.PEM),
+                                      certificate_der=self.certificate.public_bytes(Encoding.DER),
                                       host=self.rest_interface.host,
                                       port=self.rest_interface.port,
                                       )

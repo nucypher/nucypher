@@ -32,7 +32,7 @@ from constant_sorrow.constants import (
     NO_STORAGE_AVAILABLE,
     RELAX,
 )
-from cryptography.x509 import Certificate, load_pem_x509_certificate
+from cryptography.x509 import Certificate, load_der_x509_certificate
 from cryptography.hazmat.backends import default_backend
 from eth_utils import to_checksum_address
 from requests.exceptions import SSLError
@@ -120,7 +120,7 @@ class NodeSprout:
 
     @property
     def canonical_address(self):
-        return self._metadata_payload.staker_address
+        return self._metadata_payload.staking_provider_address
 
     @property
     def nickname(self):
@@ -150,7 +150,7 @@ class NodeSprout:
 
     @property
     def operator_signature_from_metadata(self):
-        return self._metadata_payload.decentralized_identity_evidence or NOT_SIGNED
+        return self._metadata_payload.operator_signature or NOT_SIGNED
 
     @property
     def timestamp(self):
@@ -179,7 +179,7 @@ class NodeSprout:
                       domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
                       operator_signature_from_metadata=self.operator_signature_from_metadata,
-                      certificate=load_pem_x509_certificate(self._metadata_payload.certificate_bytes, backend=default_backend()),
+                      certificate=load_der_x509_certificate(self._metadata_payload.certificate_der, backend=default_backend()),
                       metadata=self._metadata
                       )
 
