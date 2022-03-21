@@ -7,7 +7,7 @@ name = "pypi"
 python_version = "3"
 
 [packages]
-jsonschema2rst = {git = "git://github.com/inspirehep/jsonschema2rst.git", editable = false, ref="d211d9709046431a6b6a4594c97c22d8713d854b"}
+jsonschema2rst = {git = "https://github.com/inspirehep/jsonschema2rst.git", editable = false, ref="d211d9709046431a6b6a4594c97c22d8713d854b"}
 py-solc-x = "==0.10.1"
 sphinx = "==3.0.1"
 sphinx_rtd_theme = "*"
