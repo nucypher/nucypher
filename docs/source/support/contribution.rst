@@ -59,7 +59,13 @@ contributing proposed changes:
 
    $ git remote update
 
-After acquiring a local copy of the application code, you will need to
+
+Ensure Rust is Installed
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instruction for installing Rust can be found (\ `here <https://rustup.rs/>`_\ ).
+
+After acquiring a local copy of the application code and installing rust, you will need to
 install the project dependencies, we recommend using either ``pip`` or ``pipenv``.
 
 
