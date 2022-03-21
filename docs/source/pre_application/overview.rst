@@ -58,7 +58,7 @@ Authorization can be performed on the `Threshold Dashboard <https://dashboard.th
 Staking Provider Strategies & Responsibilities
 ----------------------------------------------
 
-In order to provide the PRE service and receive rewards, there have three options for running a PRE node:
+In order to provide the PRE service and receive rewards, there are three options for running a PRE node:
 
 * **Node Delegation**: Delegate running a PRE client to one of the participating *node-as-a-service* :ref:`Staking Providers <node-providers>`. In this
   case, the setup, operation, and monitoring is outsourced, and stakers need only check in occasionally to ensure the provider is handling things as expected.
