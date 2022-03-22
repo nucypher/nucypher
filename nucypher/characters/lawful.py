@@ -71,7 +71,7 @@ from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER,
 from nucypher.characters.base import Character, Learner
 from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
 from nucypher.cli.processes import UrsulaCommandProtocol
-from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
+from nucypher.config.storages import NodeStorage
 from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
@@ -84,7 +84,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware, fetch_ssl_certificate
+from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import RetrievalClient
@@ -717,7 +717,7 @@ class Ursula(Teacher, Character, Operator):
                  known_nodes: Iterable[Teacher] = None,
 
                  **character_kwargs
-                 ) -> None:
+                 ):
 
         Character.__init__(self,
                            is_me=is_me,
@@ -1153,18 +1153,9 @@ class Ursula(Teacher, Character, Operator):
         # Parse node URI
         host, port, staking_provider_address = parse_node_uri(seed_uri)
 
-        # Fetch the hosts TLS certificate and read the common name
-        try:
-            certificate = fetch_ssl_certificate(host=host, port=port)
-        except NodeSeemsToBeDown as e:
-            e.args += (f"While trying to contact {seed_uri}",)
-            e.crash_right_now = False
-            raise
-        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
-            host=real_host,
+            host=host,
             port=port,
             network_middleware=network_middleware,
         )

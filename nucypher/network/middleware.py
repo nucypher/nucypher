@@ -20,7 +20,8 @@ import socket
 import ssl
 import time
 from http import HTTPStatus
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Tuple
 from typing import Sequence
 
 import requests
@@ -39,36 +40,6 @@ SSL_LOGGER = Logger('ssl-middleware')
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
 
-def fetch_ssl_certificate(host: str,
-                          port: int,
-                          timeout: int = 3,
-                          retry_attempts: int = 3,
-                          retry_rate: int = 2,
-                          current_attempt: int = 0
-                          ) -> Certificate:
-
-    socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-
-    try:
-        SSL_LOGGER.debug(f"Fetching {host}:{port} TLS certificate")
-        certificate = ssl.get_server_certificate(addr=(host, port))
-
-    except socket.timeout:
-        if current_attempt == retry_attempts:
-            message = f"No Response from {host}:{port} after {retry_attempts} attempts"
-            SSL_LOGGER.info(message)
-            raise ConnectionRefusedError("No response from {}:{}".format(host, port))
-        SSL_LOGGER.debug(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
-        time.sleep(retry_rate)
-        return fetch_ssl_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
-
-    except OSError:
-        raise  # TODO: #1835
-
-    certificate = x509.load_pem_x509_certificate(certificate.encode(), backend=default_backend())
-    return certificate
-
-
 class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
@@ -82,6 +53,37 @@ class NucypherMiddlewareClient:
         self.registry = registry
         self.eth_provider_uri = eth_provider_uri
         self.storage = storage or ForgetfulNodeStorage()  # for certificate storage
+
+    def get_certificate(self,
+                        host,
+                        port,
+                        timeout=3,
+                        retry_attempts: int = 3,
+                        retry_rate: int = 2,
+                        current_attempt: int = 0):
+
+        socket.setdefaulttimeout(timeout)  # Set Socket Timeout
+
+        try:
+            SSL_LOGGER.info(f"Fetching {host}:{port} TLS certificate")
+            certificate_pem = ssl.get_server_certificate(addr=(host, port))
+            certificate = ssl.PEM_cert_to_DER_cert(certificate_pem)
+
+        except socket.timeout:
+            if current_attempt == retry_attempts:
+                message = f"No Response from {host}:{port} after {retry_attempts} attempts"
+                self.log.info(message)
+                raise ConnectionRefusedError("No response from {}:{}".format(host, port))
+            self.log.info(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
+            time.sleep(retry_rate)
+            return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
+
+        except OSError:
+            raise  # TODO: #1835
+
+        certificate = x509.load_der_x509_certificate(certificate, backend=default_backend())
+        filepath = self.storage.store_node_certificate(certificate=certificate, port=port)
+        return certificate, filepath
 
     @staticmethod
     def response_cleaner(response):
@@ -104,7 +106,7 @@ class NucypherMiddlewareClient:
         if node:
             if any((host, port)):
                 raise ValueError("Don't pass host and port if you are passing the node.")
-            host, port = node.rest_interface
+            host, port = node.rest_interface.host, node.rest_interface.port
         elif not (host and port):
             raise ValueError("You need to pass either the node or a host and port.")
         return host, port, self.library
@@ -148,15 +150,12 @@ class NucypherMiddlewareClient:
 
             # Fetch SSL certificate
             try:
-                certificate = fetch_ssl_certificate(host=host, port=port)
-                certificate_filepath = self.storage.store_node_certificate(certificate=certificate, port=port)
-
-            # Handle no response
+                certificate, filepath = self.get_certificate(host=host, port=port)
             except NodeSeemsToBeDown as e:
                 raise RestMiddleware.Unreachable(message=f'Node {node_or_sprout} {host}:{port} is unreachable: {e}')
 
             # Send request
-            response = self.invoke_method(method, endpoint, verify=certificate_filepath, *args, **kwargs)
+            response = self.invoke_method(method, endpoint, verify=filepath, *args, **kwargs)
 
             # Handle response
             cleaned_response = self.response_cleaner(response)
@@ -226,33 +225,6 @@ class RestMiddleware:
 
     def __init__(self, registry=None, eth_provider_uri: str = None):
         self.client = self._client_class(registry=registry, eth_provider_uri=eth_provider_uri)
-
-    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
-                        current_attempt: int = 0):
-
-        socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-
-        try:
-            self.log.info(f"Fetching seednode {host}:{port} TLS certificate")
-            seednode_certificate_pem = ssl.get_server_certificate(addr=(host, port))
-            seednode_certificate = ssl.PEM_cert_to_DER_cert(seednode_certificate_pem)
-
-        except socket.timeout:
-            if current_attempt == retry_attempts:
-                message = f"No Response from seednode {host}:{port} after {retry_attempts} attempts"
-                self.log.info(message)
-                raise ConnectionRefusedError("No response from {}:{}".format(host, port))
-            self.log.info(f"No Response from seednode {host}:{port}. Retrying in {retry_rate} seconds...")
-            time.sleep(retry_rate)
-            return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
-
-        except OSError:
-            raise  # TODO: #1835
-
-        else:
-            certificate = x509.load_der_x509_certificate(seednode_certificate,
-                                                         backend=default_backend())
-            return certificate
 
     def request_revocation(self, ursula, revocation):
         # TODO: Implement offchain revocation #2787
