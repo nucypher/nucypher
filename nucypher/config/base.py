@@ -543,21 +543,23 @@ class CharacterConfiguration(BaseConfiguration):
             # Onchain Payments & Policies
             #
 
-            # TODO: Enforce this for Ursula/Alice but not Bob?
-            # if not payment_provider:
-            #     raise self.ConfigurationError("payment provider is required.")
-            self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
-            self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
-            self.payment_provider = payment_provider or (self.eth_provider_uri or None)  # default to L1 payments
+            # FIXME: Enforce this for Ursula/Alice but not Bob?
+            from nucypher.config.characters import BobConfiguration
+            if not isinstance(self, BobConfiguration):
+                # if not payment_provider:
+                #     raise self.ConfigurationError("payment provider is required.")
+                self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
+                self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
+                self.payment_provider = payment_provider or (self.eth_provider_uri or None)  # default to L1 payments
 
-            # TODO: Dedupe
-            if not self.policy_registry:
-                if not self.policy_registry_filepath:
-                    self.log.info(f"Fetching latest policy registry from source.")
-                    self.policy_registry = InMemoryContractRegistry.from_latest_publication(network=self.payment_network)
-                else:
-                    self.policy_registry = LocalContractRegistry(filepath=self.policy_registry_filepath)
-                    self.log.info(f"Using local policy registry ({self.policy_registry}).")
+                # TODO: Dedupe
+                if not self.policy_registry:
+                    if not self.policy_registry_filepath:
+                        self.log.info(f"Fetching latest policy registry from source.")
+                        self.policy_registry = InMemoryContractRegistry.from_latest_publication(network=self.payment_network)
+                    else:
+                        self.policy_registry = LocalContractRegistry(filepath=self.policy_registry_filepath)
+                        self.log.info(f"Using local policy registry ({self.policy_registry}).")
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION

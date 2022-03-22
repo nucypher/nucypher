@@ -1059,17 +1059,17 @@ class Teacher:
                       "but is OK to use in federated mode if you " \
                       "have reason to believe it is trustworthy."
             raise self.WrongMode(message)
-        elif not registry:
-            self.log.info('No registry provided for staking verification.')
 
         # Decentralized
         else:
 
             # Try to derive the worker address if it hasn't been derived yet.
             try:
+                # TODO: This is overtly implicit
                 _operator_address = self.operator_address
             except Exception as e:
                 raise self.InvalidOperatorSignature(str(e)) from e
+            self.verified_stamp = True  # TODO: Does this belong here?
 
             # On-chain staking check, if registry is present
             if registry:
@@ -1085,7 +1085,8 @@ class Teacher:
                 else:
                     raise self.NotStaking(f"{self.checksum_address} is not staking")
 
-            self.verified_stamp = True  # TODO: Why is this here?
+            else:
+                self.log.info('No registry provided for staking verification.')
 
     def validate_metadata_signature(self) -> bool:
         """Checks that the interface info is valid for this node's canonical address."""

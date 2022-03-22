@@ -74,7 +74,7 @@ class NucypherMiddlewareClient:
                 message = f"No Response from {host}:{port} after {retry_attempts} attempts"
                 self.log.info(message)
                 raise ConnectionRefusedError("No response from {}:{}".format(host, port))
-            self.log.info(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
+            SSL_LOGGER.info(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
             time.sleep(retry_rate)
             return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
 
