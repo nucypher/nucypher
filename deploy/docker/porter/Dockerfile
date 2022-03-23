@@ -1,8 +1,8 @@
-FROM python:3.8.7-slim
+FROM python:3.8.12-slim
 
 # Update
-RUN apt update -y && apt upgrade -y
-RUN apt install patch gcc libffi-dev wget git -y
+RUN apt-get update -y && apt upgrade -y
+RUN apt-get install patch gcc libffi-dev wget git -y
 
 WORKDIR /code
 COPY . /code
