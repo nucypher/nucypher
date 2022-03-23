@@ -34,11 +34,12 @@ from nucypher.utilities.networking import (
     get_external_ip_from_default_teacher,
     get_external_ip_from_known_nodes,
     CENTRALIZED_IP_ORACLE_URL,
-    UnknownIPAddress, LOOPBACK_ADDRESS
+    UnknownIPAddress
 )
 from tests.constants import MOCK_IP_ADDRESS
 
 MOCK_NETWORK = 'holodeck'
+MOCK_PORT = 1111
 
 
 class Dummy:  # Teacher
@@ -69,7 +70,7 @@ class Dummy:  # Teacher
 
     @property
     def rest_interface(self):
-        return InterfaceInfo(host=MOCK_IP_ADDRESS, port=1111)
+        return InterfaceInfo(host=MOCK_IP_ADDRESS, port=MOCK_PORT)
 
     def metadata(self):
         signer = Signer(SecretKey.random())
@@ -84,8 +85,8 @@ class Dummy:  # Teacher
                                       verifying_key=signer.verifying_key(),
                                       encrypting_key=SecretKey.random().public_key(),
                                       certificate_der=b'not a certificate',
-                                      host='127.0.0.1',
-                                      port=1111,
+                                      host=MOCK_IP_ADDRESS,
+                                      port=MOCK_PORT,
                                       )
         return NodeMetadata(signer=signer,
                             payload=payload)
@@ -100,14 +101,14 @@ def mock_requests(mocker):
 
 @pytest.fixture(autouse=True)
 def mock_client(mocker):
-    cert, pk = generate_self_signed_certificate(host=LOOPBACK_ADDRESS)
+    cert, pk = generate_self_signed_certificate(host=MOCK_IP_ADDRESS)
     mocker.patch.object(NucypherMiddlewareClient, 'get_certificate', return_value=(cert, Path()))
     yield mocker.patch.object(NucypherMiddlewareClient, 'invoke_method', return_value=Dummy.GoodResponse)
 
 
 @pytest.fixture(autouse=True)
 def mock_default_teachers(mocker):
-    teachers = {MOCK_NETWORK: (MOCK_IP_ADDRESS, )}
+    teachers = {MOCK_NETWORK: (f"{MOCK_IP_ADDRESS}:{MOCK_PORT}", )}
     mocker.patch.dict(TEACHER_NODES, teachers, clear=True)
 
 
@@ -176,7 +177,7 @@ def test_get_external_ip_from_known_nodes_client(mocker, mock_client):
 
     function, endpoint = mock_client.call_args[0]
     assert function.__name__ == 'get'
-    # assert endpoint == f'https://{teacher_uri}/ping'
+    assert endpoint == f'https://{teacher_uri}/ping'
 
 
 def test_get_external_ip_default_teacher_unreachable(mocker):
@@ -202,7 +203,7 @@ def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests
     mock_client.assert_called_once()
     function, endpoint = mock_client.call_args[0]
     assert function.__name__ == 'get'
-    # assert endpoint == f'https://{teacher_uri}/ping'
+    assert endpoint == f'https://{teacher_uri}/ping'
 
 
 def test_get_external_ip_default_unknown_network():
