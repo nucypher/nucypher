@@ -72,7 +72,7 @@ class NucypherMiddlewareClient:
         except socket.timeout:
             if current_attempt == retry_attempts:
                 message = f"No Response from {host}:{port} after {retry_attempts} attempts"
-                self.log.info(message)
+                SSL_LOGGER.info(message)
                 raise ConnectionRefusedError("No response from {}:{}".format(host, port))
             SSL_LOGGER.info(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
             time.sleep(retry_rate)
