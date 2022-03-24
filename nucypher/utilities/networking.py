@@ -62,8 +62,9 @@ IP_DETECTION_LOGGER = Logger('external-ip-detection')
 
 def validate_operator_ip(ip: str) -> None:
     if ip in RESERVED_IP_ADDRESSES:
-        raise InvalidOperatorIP(f'{ip} is not a valid or permitted worker IP address.  '
-                              f'Verify the rest_host is set to the external IPV4 address')
+        raise InvalidOperatorIP(f"{ip} is not a valid or permitted operator IP address. "
+                                f"Verify the 'rest_host' configuration value is set to the "
+                                f"external IPV4 address")
 
 
 def _request(url: str, certificate=None) -> Union[str, None]:

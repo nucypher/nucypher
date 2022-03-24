@@ -263,7 +263,7 @@ class WorkTrackerBase:
             self._consecutive_fails += 1
             self.start(commit_now=commit_now)
 
-    def __should_do_work_now(self) -> bool:
+    def _should_do_work_now(self) -> bool:
         # TODO: Check for stake expiration and exit
         if self.__requirement is None:
             return True
@@ -325,12 +325,12 @@ class WorkTrackerBase:
 
         return bool(self.__pending)
 
-    def _fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
+    def __fire_replacement_commitment(self, current_block_number: int, tx_firing_block_number: int) -> None:
         replacement_txhash = self._fire_commitment()  # replace
         self.__pending[current_block_number] = replacement_txhash  # track this transaction
         del self.__pending[tx_firing_block_number]  # assume our original TX is stuck
 
-    def _handle_replacement_commitment(self, current_block_number: int) -> None:
+    def __handle_replacement_commitment(self, current_block_number: int) -> None:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
         if txhash is UNTRACKED_PENDING_TRANSACTION:
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
@@ -360,6 +360,10 @@ class WorkTrackerBase:
         """
         Async working task for Ursula  # TODO: Split into multiple async tasks
         """
+        if self._all_work_completed():
+            # nothing left to do
+            self.stop()
+            return
 
         self.log.info(f"{self.__class__.__name__} is running. Advancing to next work cycle.")  # TODO: What to call the verb the subject performs?
 
@@ -382,9 +386,10 @@ class WorkTrackerBase:
             self._tracking_task.interval = self.random_interval(fails=self._consecutive_fails)
 
         # Only perform work this round if the requirements are met
-        if not self.__should_do_work_now():
+        if not self._should_do_work_now():
             self.log.warn(f'COMMIT PREVENTED (callable: "{self.__requirement.__name__}") - '
                           f'Situation does not call for doing work now.')
+
             # TODO: Follow-up actions for failed requirements
             return
 
@@ -399,16 +404,20 @@ class WorkTrackerBase:
         """ post __init__ configuration dealing with contracts or state specific to this PRE flavor"""
         raise NotImplementedError
 
-    def _prep_work_state(self):
+    def _prep_work_state(self) -> bool:
         """ configuration perfomed before transaction management in task execution """
         raise NotImplementedError
 
-    def _final_work_prep_before_transaction(self):
+    def _final_work_prep_before_transaction(self) -> bool:
         """ configuration perfomed after transaction management in task execution right before transaction firing"""
         raise NotImplementedError()
 
     def _fire_commitment(self):
         """ actually fire the tranasction """
+        raise NotImplementedError
+
+    def _all_work_completed(self) -> bool:
+        """ allows the work tracker to indicate that its work is completed it can be shut down """
         raise NotImplementedError
 
 
@@ -438,3 +447,7 @@ class WorkTracker(WorkTrackerBase):
             txhash = self.worker.confirm_address(fire_and_forget=True)  # < --- blockchain WRITE
             self.log.info(f"Confirming operator address {self.worker.operator_address} with staking provider {self.worker.staking_provider_address} - TxHash: {txhash.hex()}")
             return txhash
+
+    def _all_work_completed(self) -> bool:
+        # only a one-and-done - work is no longer needed
+        return not self._should_do_work_now()
