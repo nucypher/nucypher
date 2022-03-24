@@ -70,7 +70,7 @@ def test_initialize_via_cli(config_class, custom_filepath: Path, click_runner, m
 
     # TODO: Only using in-memory node storage for now
     # assert (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
-
+    assert not (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
 @pytest.mark.parametrize('config_class', CONFIG_CLASSES)
 def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry, test_registry_source_manager):

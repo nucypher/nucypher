@@ -94,5 +94,5 @@ def make_alice_test_configuration(payment_provider: str = None,
 
 def make_bob_test_configuration(**assemble_kwargs) -> BobConfiguration:
     test_params = assemble(**assemble_kwargs)
-    config = BobConfiguration(**test_params, policy_registry=test_params['registry'])
+    config = BobConfiguration(**test_params)
     return config

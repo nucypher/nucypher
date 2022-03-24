@@ -802,7 +802,7 @@ class Learner:
         # These except clauses apply to the current_teacher itself, not the learned-about nodes.
         except NodeSeemsToBeDown as e:
             unresponsive_nodes.add(current_teacher)
-            self.log.info(f"Teacher {current_teacher.seed_node_metadata(as_teacher_uri=True)} is perhaps down:{e}.")
+            self.log.info(f"Teacher {current_teacher.seed_node_metadata(as_teacher_uri=True)} is unreachable: {e}.")
             return
         except current_teacher.InvalidNode as e:
             # Ugh.  The teacher is invalid.  Rough.

@@ -128,7 +128,7 @@ remote_bob = Bob.from_public_keys(
 # In this example bob will be granted access for 1 day,
 # trusting 2 of 3 nodes paying each of them 50 gwei per period.
 expiration = maya.now() + datetime.timedelta(days=1)
-threshold, shares = 1, 2
+threshold, shares = 2, 3
 price = alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value
 
 # Alice grants access to Bob...

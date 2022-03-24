@@ -118,6 +118,7 @@ def test_initialize_alice_with_custom_configuration_root(custom_filepath, click_
 
     # TODO: Only using in-memory node storage for now
     # assert (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
+    assert not (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
     custom_config_filepath = custom_filepath / AliceConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
