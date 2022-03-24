@@ -92,7 +92,7 @@ class EthereumContractAgent:
                  contract_version: Optional[str] = None):
 
         self.log = Logger(self.__class__.__name__)
-        self.registry_str = str(registry)
+        self.registry = registry
 
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=eth_provider_uri)
 
@@ -111,15 +111,17 @@ class EthereumContractAgent:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
         self.transaction_gas = transaction_gas
 
-        self.log.info("Initialized new {} for {} with {} and {}".format(self.__class__.__name__,
-                                                                        self.contract.address,
-                                                                        self.blockchain.eth_provider_uri,
-                                                                        self.registry_str))
+        self.log.info("Initialized new {} for {} with {} and {}".format(
+            self.__class__.__name__,
+            self.contract.address,
+            self.blockchain.eth_provider_uri,
+            str(self.registry)
+        ))
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
         r = "{}(registry={}, contract={})"
-        return r.format(class_name, self.registry_str, self.contract_name)
+        return r.format(class_name, str(self.registry), self.contract_name)
 
     def __eq__(self, other: Any) -> bool:
         return bool(self.contract.address == other.contract.address)

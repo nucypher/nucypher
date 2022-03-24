@@ -14,19 +14,20 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from pathlib import Path
 
-from eth_utils import to_checksum_address
 import pytest
-
+from eth_utils import to_checksum_address
 from nucypher_core import NodeMetadata, NodeMetadataPayload
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from nucypher.characters.lawful import Ursula
+from nucypher.crypto.tls import generate_self_signed_certificate
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import NucypherMiddlewareClient
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.networking import (
     determine_external_ip_address,
     get_external_ip_from_centralized_source,
@@ -38,6 +39,7 @@ from nucypher.utilities.networking import (
 from tests.constants import MOCK_IP_ADDRESS
 
 MOCK_NETWORK = 'holodeck'
+MOCK_PORT = 1111
 
 
 class Dummy:  # Teacher
@@ -66,6 +68,10 @@ class Dummy:  # Teacher
     def rest_url(self):
         return MOCK_IP_ADDRESS
 
+    @property
+    def rest_interface(self):
+        return InterfaceInfo(host=MOCK_IP_ADDRESS, port=MOCK_PORT)
+
     def metadata(self):
         signer = Signer(SecretKey.random())
 
@@ -79,8 +85,8 @@ class Dummy:  # Teacher
                                       verifying_key=signer.verifying_key(),
                                       encrypting_key=SecretKey.random().public_key(),
                                       certificate_der=b'not a certificate',
-                                      host='127.0.0.1',
-                                      port=1111,
+                                      host=MOCK_IP_ADDRESS,
+                                      port=MOCK_PORT,
                                       )
         return NodeMetadata(signer=signer,
                             payload=payload)
@@ -95,12 +101,14 @@ def mock_requests(mocker):
 
 @pytest.fixture(autouse=True)
 def mock_client(mocker):
+    cert, pk = generate_self_signed_certificate(host=MOCK_IP_ADDRESS)
+    mocker.patch.object(NucypherMiddlewareClient, 'get_certificate', return_value=(cert, Path()))
     yield mocker.patch.object(NucypherMiddlewareClient, 'invoke_method', return_value=Dummy.GoodResponse)
 
 
 @pytest.fixture(autouse=True)
 def mock_default_teachers(mocker):
-    teachers = {MOCK_NETWORK: (MOCK_IP_ADDRESS, )}
+    teachers = {MOCK_NETWORK: (f"{MOCK_IP_ADDRESS}:{MOCK_PORT}", )}
     mocker.patch.dict(TEACHER_NODES, teachers, clear=True)
 
 

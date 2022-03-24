@@ -14,19 +14,18 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-import time
+
+
 import random
-import os
+import socket
+import time
+from pathlib import Path
 
 import requests
-import socket
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED
 from flask import Response
-
 from nucypher_core import MetadataRequest, FleetStateChecksum
 
 from nucypher.characters.lawful import Ursula
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
@@ -76,9 +75,8 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
             mock_client = self._get_mock_client_by_port(port)
         else:
             raise ValueError("You need to pass either the node or a host and port.")
-
-        # We don't use certs in mock-style tests anyway.
-        return node.rest_url(), CERTIFICATE_NOT_SAVED, mock_client
+        host, port = node.rest_interface.host, node.rest_interface.port
+        return host, port, mock_client
 
     def invoke_method(self, method, url, *args, **kwargs):
         _cert_location = kwargs.pop("verify")  # TODO: Is this something that can be meaningfully tested?
@@ -89,6 +87,10 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
     def clean_params(self, request_kwargs):
         request_kwargs["query_string"] = request_kwargs.pop("params", {})
 
+    def get_certificate(self, port, *args, **kwargs):
+        ursula = self._get_ursula_by_port(port)
+        return ursula.certificate, Path()
+
 
 class MockRestMiddleware(RestMiddleware):
     _ursulas = None
@@ -97,11 +99,6 @@ class MockRestMiddleware(RestMiddleware):
 
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
-
-    def get_certificate(self, host, port, timeout=3, retry_attempts: int = 3, retry_rate: int = 2,
-                        current_attempt: int = 0):
-        ursula = self.client._get_ursula_by_port(port)
-        return ursula.certificate
 
 
 class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):

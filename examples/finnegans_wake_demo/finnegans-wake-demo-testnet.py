@@ -36,7 +36,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 # Boring setup stuff #
 ######################
 
-GlobalLoggerSettings.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.set_log_level(log_level_name='info')
 GlobalLoggerSettings.start_console_logging()
 
 BOOK_PATH = Path('finnegans-wake-excerpt.txt')

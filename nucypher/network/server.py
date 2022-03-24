@@ -16,9 +16,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from http import HTTPStatus
 import uuid
 import weakref
+from http import HTTPStatus
 from pathlib import Path
 from typing import Tuple
 
@@ -27,14 +27,13 @@ from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
-
 from nucypher_core import (
     ReencryptionRequest,
     RevocationOrder,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
-    )
+)
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
@@ -42,8 +41,8 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.datastore.datastore import Datastore
 from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.protocols import InterfaceInfo
 from nucypher.network.nodes import NodeSprout
+from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -105,7 +104,6 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
 
     # TODO: Avoid circular imports :-(
     from nucypher.characters.lawful import Alice, Bob, Ursula
-    from nucypher.policy.policies import Policy
 
     _alice_class = Alice
     _bob_class = Bob
@@ -209,7 +207,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
         paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
         if not paid:
-            message = f"{bob_identity_message} Policy {hrac} is unpaid."
+            message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
             return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
         # Re-encrypt
@@ -255,13 +253,9 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
 
         # Make a Sandwich
         try:
-            # Fetch and store initiator's teacher certificate.
-            certificate = this_node.network_middleware.get_certificate(host=initiator_address, port=initiator_port)
-            certificate_filepath = this_node.node_storage.store_node_certificate(certificate=certificate)
             requesting_ursula_metadata = this_node.network_middleware.client.node_information(
                 host=initiator_address,
                 port=initiator_port,
-                certificate_filepath=certificate_filepath
             )
         except NodeSeemsToBeDown:
             return Response({'error': 'Unreachable node'}, status=HTTPStatus.BAD_REQUEST)  # ... toasted

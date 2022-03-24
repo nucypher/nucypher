@@ -104,7 +104,12 @@ def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
         assert prompt in captured.out
 
 
-def test_unlock_nucypher_keystore_invalid_password(mocker, test_emitter, alice_blockchain_test_config, capsys, tmpdir):
+def test_unlock_nucypher_keystore_invalid_password(mocker,
+                                                   test_emitter,
+                                                   alice_blockchain_test_config,
+                                                   capsys,
+                                                   tmpdir,
+                                                   test_registry_source_manager):
 
     # Setup
     mocker.patch.object(passwords, 'secret_box_decrypt', side_effect=SecretBoxAuthenticationError)

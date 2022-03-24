@@ -15,15 +15,14 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import datetime
-from base64 import b64encode, b64decode
+from base64 import b64encode
 
 import maya
 import pytest
-
 from nucypher_core import (
     MessageKit as MessageKitClass,
     EncryptedTreasureMap as EncryptedTreasureMapClass)
-from nucypher_core.umbral import SecretKey, Signer
+from nucypher_core.umbral import SecretKey
 
 from nucypher.characters.control.specifications.fields import (
     DateTime,
@@ -46,6 +45,7 @@ from nucypher.control.specifications.exceptions import InvalidInputData
 #
 #     deserialized = field._deserialize(value=serialized, attr=None, data=None)
 #     assert deserialized == data
+
 
 
 def test_file(tmpdir):

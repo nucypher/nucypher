@@ -47,7 +47,7 @@ def check(policy, bob, ursulas):
 
 
 def test_decentralized_grant_subscription_manager(blockchain_alice, blockchain_bob, blockchain_ursulas):
-    payment_method = SubscriptionManagerPayment(provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+    payment_method = SubscriptionManagerPayment(eth_provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
     blockchain_alice.payment_method = payment_method
     policy = blockchain_alice.grant(bob=blockchain_bob,
                                     label=os.urandom(16),

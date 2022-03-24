@@ -95,9 +95,12 @@ def test_federated_development_character_configurations(character, configuration
             alice.disenchant()
 
 
-# TODO: This test is unnecessarily slow due to the blockchain configurations. Perhaps we should mock them -- See #2230
 @pytest.mark.parametrize('configuration_class', all_configurations)
-def test_default_character_configuration_preservation(configuration_class, testerchain, test_registry_source_manager, tmpdir):
+def test_default_character_configuration_preservation(configuration_class,
+                                                      mock_testerchain,
+                                                      test_registry_source_manager,
+                                                      tmpdir,
+                                                      test_registry):
 
     configuration_class.DEFAULT_CONFIG_ROOT = Path('/tmp')
     fake_address = '0xdeadbeef'
@@ -121,10 +124,15 @@ def test_default_character_configuration_preservation(configuration_class, teste
                                                domain=network,
                                                rest_host=MOCK_IP_ADDRESS,
                                                payment_provider=MOCK_ETH_PROVIDER_URI,
+                                               policy_registry=test_registry,
+                                               payment_network=TEMPORARY_DOMAIN,
                                                keystore=keystore)
 
     else:
-        character_config = configuration_class(checksum_address=fake_address, domain=network)
+        character_config = configuration_class(checksum_address=fake_address,
+                                               domain=network,
+                                               payment_network=TEMPORARY_DOMAIN,
+                                               policy_registry=test_registry)
 
     generated_filepath = character_config.generate_filepath()
     assert generated_filepath == expected_filepath

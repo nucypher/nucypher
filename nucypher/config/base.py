@@ -408,9 +408,11 @@ class CharacterConfiguration(BaseConfiguration):
                  payment_provider: str = None,
                  payment_network: str = None,
 
-                 # Registry
+                 # Registries
                  registry: BaseContractRegistry = None,
                  registry_filepath: Optional[Path] = None,
+                 policy_registry: BaseContractRegistry = None,
+                 policy_registry_filepath: Optional[Path] = None,
 
                  # Deployed Operators
                  worker_data: dict = None
@@ -443,6 +445,9 @@ class CharacterConfiguration(BaseConfiguration):
                 self.log.warn(f"Registry and registry filepath were both passed.")
         self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
+
+        self.policy_registry = policy_registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+        self.policy_registry_filepath = policy_registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
         self.poa = poa
@@ -495,6 +500,7 @@ class CharacterConfiguration(BaseConfiguration):
                 self.is_light = False
                 self.eth_provider_uri = None
                 self.registry_filepath = None
+                self.policy_registry_filepath = None
                 self.gas_strategy = None
                 self.max_gas_price = None
 
@@ -533,13 +539,27 @@ class CharacterConfiguration(BaseConfiguration):
             self.testnet = self.domain != NetworksInventory.MAINNET
             self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
 
-            # Onchain Payments
-            # TODO: Enforce this for Ursula/Alice but not Bob?
-            # if not payment_provider:
-            #     raise self.ConfigurationError("payment provider is required.")
-            self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
-            self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
-            self.payment_provider = payment_provider or (self.eth_provider_uri or None)  # default to L1 payments
+            #
+            # Onchain Payments & Policies
+            #
+
+            # FIXME: Enforce this for Ursula/Alice but not Bob?
+            from nucypher.config.characters import BobConfiguration
+            if not isinstance(self, BobConfiguration):
+                # if not payment_provider:
+                #     raise self.ConfigurationError("payment provider is required.")
+                self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
+                self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
+                self.payment_provider = payment_provider or (self.eth_provider_uri or None)  # default to L1 payments
+
+                # TODO: Dedupe
+                if not self.policy_registry:
+                    if not self.policy_registry_filepath:
+                        self.log.info(f"Fetching latest policy registry from source.")
+                        self.policy_registry = InMemoryContractRegistry.from_latest_publication(network=self.payment_network)
+                    else:
+                        self.policy_registry = LocalContractRegistry(filepath=self.policy_registry_filepath)
+                        self.log.info(f"Using local policy registry ({self.policy_registry}).")
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -618,12 +638,21 @@ class CharacterConfiguration(BaseConfiguration):
         return self.__dev_mode
 
     def _setup_node_storage(self, node_storage=None) -> None:
-        if self.dev_mode:
-            node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
-        elif not node_storage:
-            node_storage = LocalFileBasedNodeStorage(registry=self.registry,
-                                                     config_root=self.config_root,
-                                                     federated_only=self.federated_only)
+        # TODO: Disables node metadata persistence..
+        # if self.dev_mode:
+        #     node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
+
+        # TODO: Forcibly clears the filesystem of any stored node metadata and certificates...
+        local_node_storage = LocalFileBasedNodeStorage(
+            registry=self.registry,
+            config_root=self.config_root,
+            federated_only=self.federated_only
+        )
+        local_node_storage.clear()
+        self.log.info(f'Cleared peer metadata from {local_node_storage.root_dir}')
+
+        # TODO: Always sets up nodes for in-memory node metadata storage
+        node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
         self.node_storage = node_storage
 
     def forget_nodes(self) -> None:
@@ -869,7 +898,8 @@ class CharacterConfiguration(BaseConfiguration):
         if payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
             payment_strategy = payment_class(network=self.payment_network,
-                                             provider=self.payment_provider)
+                                             eth_provider=self.payment_provider,
+                                             registry=self.policy_registry)
         else:
             payment_strategy = payment_class()
         return payment_strategy

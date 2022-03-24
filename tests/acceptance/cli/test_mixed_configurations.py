@@ -284,7 +284,14 @@ def test_corrupted_configuration(click_runner,
     # Ensure configuration creation
     top_level_config_root = [f.name for f in custom_filepath.iterdir()]
     assert default_filename in top_level_config_root, "JSON configuration file was not created"
-    for field in ['known_nodes', 'keystore', default_filename]:
+
+    expected_fields = [
+        # TODO: Only using in-memory node storage for now
+        # 'known_nodes',
+        'keystore',
+        default_filename
+    ]
+    for field in expected_fields:
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry

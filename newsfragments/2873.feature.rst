@@ -1,0 +1,3 @@
+- Full support of policy payments sumitted to polygon in demos and top-level APIs.
+- Improved certificate handling for network requests.
+- Prioritizes in-memory node storage for all node runtimes.

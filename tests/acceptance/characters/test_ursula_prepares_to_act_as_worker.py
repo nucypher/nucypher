@@ -36,8 +36,8 @@ def test_stakers_bond_to_ursulas(testerchain, test_registry, staking_providers, 
 
     assert len(ursulas) == len(staking_providers)
     for ursula in ursulas:
-        ursula.validate_worker(registry=test_registry)
-        assert ursula.verified_worker
+        ursula.validate_operator(registry=test_registry)
+        assert ursula.verified_operator
 
 
 def test_blockchain_ursula_substantiates_stamp(blockchain_ursulas):
@@ -55,7 +55,7 @@ def test_blockchain_ursula_verifies_stamp(blockchain_ursulas):
 
     # This Ursula does not yet have a verified stamp
     first_ursula.verified_stamp = False
-    first_ursula.validate_worker()
+    first_ursula.validate_operator()
 
     # ...but now it's verified.
     assert first_ursula.verified_stamp
@@ -138,7 +138,7 @@ def test_vladimir_invalidity_without_stake(testerchain, blockchain_ursulas, bloc
     # But the actual handshake proves him wrong.
     message = "Wallet address swapped out.  It appears that someone is trying to defraud this node."
     with pytest.raises(vladimir.InvalidNode, match=message):
-        vladimir.verify_node(blockchain_alice.network_middleware.client, certificate_filepath="doesn't matter")
+        vladimir.verify_node(blockchain_alice.network_middleware.client)
 
 
 # TODO: Change name of this file, extract this test

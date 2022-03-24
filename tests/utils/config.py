@@ -74,7 +74,8 @@ def make_ursula_test_configuration(rest_port: int = MOCK_URSULA_STARTING_PORT,
     ursula_config = UrsulaConfiguration(**test_params,
                                         rest_port=rest_port,
                                         payment_provider=payment_provider,
-                                        payment_network=payment_network)
+                                        payment_network=payment_network,
+                                        policy_registry=test_params['registry'])
     return ursula_config
 
 
@@ -86,7 +87,8 @@ def make_alice_test_configuration(payment_provider: str = None,
     payment_network = TEMPORARY_DOMAIN if not federated else None
     config = AliceConfiguration(**test_params,
                                 payment_provider=payment_provider,
-                                payment_network=payment_network)
+                                payment_network=payment_network,
+                                policy_registry=test_params['registry'])
     return config
 
 
