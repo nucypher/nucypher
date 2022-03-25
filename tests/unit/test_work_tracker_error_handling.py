@@ -14,7 +14,7 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
+from unittest.mock import MagicMock, Mock
 
 import pytest
 import pytest_twisted
@@ -23,9 +23,10 @@ from twisted.internet import threads
 from twisted.internet.task import Clock
 from twisted.logger import globalLogPublisher, LogLevel
 
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.utilities.gas_strategies import GasStrategyError
 
-from nucypher.blockchain.eth.token import WorkTrackerBase
+from nucypher.blockchain.eth.token import WorkTrackerBase, WorkTracker
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 logger = Logger("test-logging")
@@ -75,6 +76,43 @@ class WorkTrackerThatFailsHalfTheTime(WorkTrackerArbitraryFailureConditions):
     def check_success_conditions(self):
         if self.attempts % 2:
             raise BaseException(f"zomg something went wrong: {self.attempts} % 2 = {self.attempts % 2}")
+
+
+class WorkTrackerTrackExecutions(WorkTracker):
+    def __init__(self, clock, num_executions_before_stop: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._tracking_task.clock = clock
+        self.num_executions_before_stop = num_executions_before_stop
+        self.executions = 0
+        self.executions_when_stopped = 0
+
+    def _do_work(self) -> None:
+        super()._do_work()
+        self.executions += 1
+
+    def stop(self):
+        self.executions_when_stopped = self.executions
+        super().stop()
+
+    def _configure(self, *args):
+        client = Mock(spec=EthereumClient)
+        client.get_transaction_count.return_value = 0
+        self.client = client
+
+    def _prep_work_state(self):
+        return True
+
+    def _final_work_prep_before_transaction(self):
+        return True
+
+    def _fire_commitment(self):
+        return bytes.fromhex("deadbeef")
+
+    def _should_do_work_now(self) -> bool:
+        return self.executions < self.num_executions_before_stop
+
+    def _WorkTrackerBase__track_pending_commitments(self):
+        return False
 
 
 @pytest_twisted.inlineCallbacks
@@ -208,3 +246,30 @@ def test_worker_rate_limiting():
     yield d
 
     assert worktracker.workdone
+
+
+@pytest_twisted.inlineCallbacks
+@pytest.mark.parametrize('num_executions', [0, 1, 5])
+def test_worker_stopped_after_required_executions(num_executions):
+    # Control time
+    clock = Clock()
+    worker = MagicMock()
+    worktracker = WorkTrackerTrackExecutions(clock=clock,
+                                             num_executions_before_stop=num_executions,
+                                             worker=worker)
+
+    def start():
+        worktracker.start()
+
+    d = threads.deferToThread(start)
+
+    def advance_one_cycle(_):
+        clock.advance(WorkTrackerBase.INTERVAL_CEIL)
+
+    for i in range(10):
+        d.addCallback(advance_one_cycle)
+
+    yield d
+
+    assert worktracker.executions_when_stopped == num_executions
+    assert worktracker.executions >= num_executions

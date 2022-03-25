@@ -89,7 +89,7 @@ from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
-from nucypher.network.trackers import AvailabilityTracker
+from nucypher.network.trackers import AvailabilityTracker, OperatorBondedTracker
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import PaymentMethod, FreeReencryptions
 from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
@@ -744,9 +744,8 @@ class Ursula(Teacher, Character, Operator):
             # Health Checks
             self._availability_check = availability_check
             self._availability_tracker = AvailabilityTracker(ursula=self)
-
-            # Datastore Pruning
-            self.__pruning_task: Union[Deferred, None] = None
+            if not federated_only:
+                self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
             # Policy Payment
             if federated_only and not payment_method:
@@ -944,6 +943,12 @@ class Ursula(Teacher, Character, Operator):
         # Non-order dependant services
         #
 
+        # Continuous bonded check now that Ursula is all ready to run
+        if not self.federated_only:
+            self._operator_bonded_tracker.start(now=eager)
+            if emitter:
+                emitter.message(f"✓ Start Operator Bonded Tracker", color='green')
+
         if prometheus_config:
             # Locally scoped to prevent import without prometheus explicitly installed
             from nucypher.utilities.prometheus.metrics import start_prometheus_exporter
@@ -991,8 +996,7 @@ class Ursula(Teacher, Character, Operator):
             self.stop_learning_loop()
             if not self.federated_only:
                 self.work_tracker.stop()
-            if self._datastore_pruning_task.running:
-                self._datastore_pruning_task.stop()
+                self._operator_bonded_tracker.stop()
         if halt_reactor:
             reactor.stop()
 

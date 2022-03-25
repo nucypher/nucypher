@@ -363,7 +363,9 @@ class Operator(BaseActor):
                 if ether_balance:
                     # funds found
                     funded, balance = True, Web3.fromWei(ether_balance, 'ether')
-                    emitter.message(f"✓ Operator is funded with {balance} ETH", color='green')
+                    emitter.message(f"✓ Operator {self.operator_address} is funded with {balance} ETH", color='green')
+                else:
+                    emitter.message(f"! Operator {self.operator_address} is not funded with ETH", color="yellow")
 
             if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
                 bonded = True
