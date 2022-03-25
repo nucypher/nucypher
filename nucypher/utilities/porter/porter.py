@@ -127,16 +127,13 @@ the Pipe for PRE Application network operations
             ursula_address = to_checksum_address(ursula_address)
             ursula = self.known_nodes[ursula_address]
             try:
-                # verify node is valid
-                self.network_middleware.client.verify_and_parse_node_or_host_and_port(node_or_sprout=ursula,
-                                                                                      host=None,
-                                                                                      port=None)
-
+                # ensure node is up and reachable
+                self.network_middleware.ping(ursula)
                 return Porter.UrsulaInfo(checksum_address=ursula_address,
                                          uri=f"{ursula.rest_interface.formal_uri}",
                                          encrypting_key=ursula.public_keys(DecryptingPower))
             except Exception as e:
-                self.log.debug(f"Unable to obtain Ursula information ({ursula_address}): {str(e)}")
+                self.log.debug(f"Ursula ({ursula_address}) is unreachable: {str(e)}")
                 raise
 
         self.block_until_number_of_known_nodes_is(quantity,
