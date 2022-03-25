@@ -417,7 +417,7 @@ class WorkTrackerBase:
         raise NotImplementedError
 
     def _all_work_completed(self) -> bool:
-        """ allows the work tracker to indicate that its work is completed it can be shut down """
+        """ allows the work tracker to indicate that its work is completed and it can be shut down """
         raise NotImplementedError
 
 
