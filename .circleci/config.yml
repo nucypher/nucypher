@@ -155,7 +155,9 @@ workflows:
             tags:
               only: /.*/
             branches:
-              only: main
+              only:
+                - main
+                - development
       - request_publication_approval:
           type: approval
           requires:
@@ -201,6 +203,7 @@ workflows:
             branches:
               only:
                 - main
+                - development
     jobs:
       - validate_reqs_files:
           filters:
