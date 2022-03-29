@@ -53,9 +53,7 @@ Setup Remote Node
 Locally, we will install `NuCypher Ops <https://github.com/nucypher/nucypher-ops>`_ to handle the heavy lifting of setting up a node.
 
 .. code-block:: bash
-    $ git clone git@github.com:nucypher/nucypher-ops.git
-    $ cd nucypher-ops
-    $ pip3 install -e .
+    $ pip install nucypher-ops
 
 Now NuCypher Ops is installed we can create a droplet on Digital Ocean:
 
