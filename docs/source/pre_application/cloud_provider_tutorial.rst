@@ -1,10 +1,11 @@
-.. _digital-ocean-tutorial:
+.. _cloud-provider-tutorial:
 
-======================================================================
-Tutorial for Creating a Threshold PRE Testnet Node using Digital Ocean
-======================================================================
+=============================================================================
+Tutorial for Creating a Threshold PRE Testnet Node on a Remote Cloud Provider
+=============================================================================
 
-In this tutorial we're going to setup a Threshold PRE Node on the rinkeby testnet.
+In this tutorial we're going to setup a Threshold PRE Node on the rinkeby testnet using a remote cloud provider (Digital Ocean, AWS, etc).
+Whilst this example will demonstrate how to deploy to Digital Ocean, the steps for any other infrastructure provider are virtually identical.
 There are a few pre-requisites before we can get started.
 First, we need to create accounts at `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
 We also need at least 40,000T in our wallet.
