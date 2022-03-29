@@ -18,7 +18,7 @@ Nodes can be run on cloud infrastructure - for example, a
 satisfies the requirements listed above.
 
 The above requirements only apply if you intend to run a node yourself.
-Alternatively, a staking provider can run a node on your behalf.
+Alternatively, a :ref:`staking provider<node-providers>` can run a node on your behalf.
 
 
 PRE Node Configuration Requirements
@@ -40,6 +40,17 @@ This value is specified via the ``--eth-provider`` CLI parameter.
 It is worth noting that running a local ethereum node is quite the undertaking,
 and has its own
 `additional requirements <https://docs.ethhub.io/using-ethereum/running-an-ethereum-node/>`_.
+
+
+Polygon Node Provider URI
++++++++++++++++++++++++++
+
+As of ``nucypher`` v6.0.0, policy management occurs on the `Polygon <https://polygon.technology/>`_ layer 2 side-chain
+by default. In order to validate the payment of policies before responding to service required, PRE nodes will need to
+make requests to the Polygon side-chain. Much like an Ethereum provider endpoint, the PRE node will need
+to configure a Polygon RPC endpoint URI e.g. (``https://<URI>``) for the node to use.  This value is specified via
+the ``--payment-provider`` CLI parameter. Infrastructure providers such as
+`Infura <https://blog.infura.io/polygon-now-available/>`_, provide Polygon endpoints.
 
 
 Operator Software Ethereum Account
