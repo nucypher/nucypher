@@ -53,6 +53,8 @@ the ``--payment-provider`` CLI parameter. Infrastructure providers such as
 `Infura <https://blog.infura.io/polygon-now-available/>`_, provide Polygon endpoints.
 
 
+.. _operator-address-setup:
+
 Operator Software Ethereum Account
 ++++++++++++++++++++++++++++++++++
 
