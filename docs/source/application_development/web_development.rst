@@ -304,7 +304,7 @@ Docker Compose will start the Porter service within a Docker container.
 via CLI
 ^^^^^^^
 
-Install ``nucypher`` - see :doc:`/references/pip-installation`.
+Install ``nucypher`` - see :doc:`/references/installation`.
 
 For a full list of CLI options, run:
 

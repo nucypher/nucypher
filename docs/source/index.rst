@@ -143,7 +143,7 @@ Whitepapers
    :maxdepth: 1
    :caption: References
 
-   references/pip-installation
+   references/installation
    references/cli_reference
    references/environment_variables
    references/network_events
