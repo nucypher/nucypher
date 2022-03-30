@@ -16,10 +16,9 @@ the `Threshold Dashboard`_.
 
 .. attention::
 
-    As part of the migration to the Threshold Network, there will eventually be an eventual upgraded version of the
-    PRE Application and associated contracts, which will require some setup steps to be repeated, such as
-    application authorization and bonding an operator. At that time, there will be a related
-    announcement on `Discord <https://discord.gg/threshold>`_.
+    As part of the migration to the Threshold Network, there will eventually be a new version of the
+    PRE Application, which will require some new setup steps and other steps to be repeated, such as
+    bonding an operator. At that time, there will be a related announcement on `Discord <https://discord.gg/threshold>`_.
 
 
 .. _stake-initialization:
