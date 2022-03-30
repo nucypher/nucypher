@@ -63,12 +63,11 @@ anyone she wants by creating a policy and uploading it to
 the PRE Application on the Threshold Network.
 
 2. Alice gets information about the group of ``n`` PRE nodes (Ursulas) associated
-with the policy, which are nodes on the Threshold network providing the PRE service. Each Ursula provides their encrypting key, and Alice creates
+with the policy, which are nodes on the Threshold network providing the PRE service. Each :term:`Ursula` provides their encrypting key, and Alice creates
 ``n`` re-encryption key shares (:term:`kFrag`), each of which is encrypted with a different Ursula's encrypting key.
 The Ursulas in the group stand ready to re-encrypt data in exchange for payment in fees and token rewards.
-The list of Ursulas and their associated encrypted re-encryption key shares are stored in a treasure map. Alice
-subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic
-material to successfully request the Threshold Network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key.
+The list of Ursulas and their associated encrypted re-encryption key shares are stored in a :term:`Treasure Map`. Alice
+subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic material to successfully request the Threshold network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key.
 
 3. Each policy created by Alice has an associated encryption key, which can be used
 by any entity (Enrico) to encrypt data on Alice's behalf.
@@ -128,6 +127,7 @@ Whitepapers
    pre_application/best_practices
    pre_application/node_providers
    pre_application/testnet
+   pre_application/cloud_provider_tutorial
 
 
 .. toctree::
