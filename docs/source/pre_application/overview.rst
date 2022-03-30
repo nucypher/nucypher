@@ -11,7 +11,15 @@ the `Threshold Dashboard`_.
 
 .. note::
 
-     The current minimum stake for running a PRE node is (or equivalent to) 40,000 T but is tunable via governance.
+    The current minimum stake for running a PRE node is (or equivalent to) 40,000 T but is tunable via governance.
+
+
+.. attention::
+
+    As part of the migration to the Threshold Network, there will eventually be an eventual upgraded version of the
+    PRE Application and associated contracts, which will require some setup steps to be repeated, such as
+    application authorization and bonding an operator. At that time, there will be a related
+    announcement on `Discord <https://discord.gg/threshold>`_.
 
 
 .. _stake-initialization:
