@@ -1,29 +1,29 @@
 .. _cloud-provider-tutorial:
 
-=============================================================================
-Tutorial for Creating a Threshold PRE Testnet Node on a Remote Cloud Provider
-=============================================================================
+=================================
+PRE Testnet Node Cloud Automation
+=================================
 
 In this tutorial we're going to setup a Threshold PRE Node on the rinkeby testnet using a remote cloud provider (Digital Ocean, AWS, etc).
 Whilst this example will demonstrate how to deploy to Digital Ocean, the steps for any other infrastructure provider are virtually identical.
 There are a few pre-requisites before we can get started.
 First, we need to create accounts at `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
 We also need at least 40,000T in our wallet.
-There are currently no Threshold faucets but if you ask in the `Discord <https://discord.gg/Threshold>`_ channel, someone will be happy to help you out.
+There are currently no Threshold testnet faucets but if you ask in the `Discord <https://discord.gg/Threshold>`_ channel, someone will be happy to help you out.
 
    .. note::
 
-      Ensure that you are using a wallet on the rinkeby testnet, don't use a mainnet address.
+      Ensure that you are using a wallet on the rinkeby testnet, **don't** use a mainnet address.
 
 
 
 Digital Ocean
 -------------
-All of our Digital Ocean configuration will be done automatically, but there are two local environment variables we need to set in order to make this work:
+All of the Digital Ocean configuration will be done automatically, but there are two local environment variables we need to set in order to make this work:
 - ``DIGITALOCEAN_ACCESS_TOKEN`` - Your Digital Ocean `access token <https://docs.digitalocean.com/reference/api/create-personal-access-token/>`_`
 - ``DIGITAL_OCEAN_KEY_FINGERPRINT`` - Your Digital Ocean `key fingerprint <https://docs.digitalocean.com/products/droplets/how-to/add-ssh-keys/to-account/>`_.
 
-Follow those two blog posts and either ``export`` the variables or add them to your ``~/.bashrc`` file.
+Follow those two blog posts and either ``export`` the environment variables or add them to your ``~/.bashrc`` file.
 
 
 Infura
@@ -71,7 +71,7 @@ Now we can deploy the PRE Node:
 
     nucypher-ops ursula deploy --eth-provider $INFURA_RINKEBY_URL --nucypher-image nucypher/nucypher:experimental --payment-provider $INFURA_MUMBAI_URL --network ibex
 
-This should produce a large amount of logs as the ansible plays install all the requirements and setup the node.
+This should produce a lot of log messages as the ansible playbooks install all the requirements and setup the node.
 The final output should be similar to:
 
 .. code-block:: bash
@@ -86,8 +86,8 @@ The final output should be similar to:
     *** Local backups containing sensitive data may have been created. ***
     Backup data can be found here: /SOME_PATH//nucypher-ops/configs/ibex/nucypher/remote_worker_backups/
 
-This tells us the location of several config files and helpfully prints the ip of our newly created node (you can also see this on the Digital Ocean dashboard).
-Let's `ssh` into it and look at the logs:
+This tells us the location of several config files and helpfully prints the IP address of our newly created node (you can also see this on the Digital Ocean dashboard).
+Let's ``ssh`` into it and look at the logs:
 
 .. code-block:: bash
 
@@ -99,8 +99,8 @@ Let's `ssh` into it and look at the logs:
     ! Operator 0x06E11400xxxxxxxxxxxxxxxxxxxxxxxxxxxx1Fc0 is not bonded to a staking provider
     ...
 
-These lines will print repeatedly until the Operator is funded with some ETH and bonded to a staking provider.
-Send ETH to the operator address that is printed
+These lines will print repeatedly until the Operator is funded with some rinkeby ETH and bonded to a staking provider.
+Send rinkeby ETH to the operator address that is printed
 
 
 Stake and Bond
@@ -137,4 +137,4 @@ You should see:
     ✓ Rest Server https://123.456.789.000:9151
     Working ~ Keep Ursula Online!
 
-You can view the status of your node by visiting `https://YOUR_NODE_IP:9151/status`
+You can view the status of your node by visiting ``https://YOUR_NODE_IP:9151/status``
