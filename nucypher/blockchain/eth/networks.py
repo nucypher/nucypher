@@ -21,6 +21,7 @@ class NetworksInventory:  # TODO: See #1564
     MAINNET = 'mainnet'
     IBEX = 'ibex'
     LYNX = 'lynx'
+    ORYX = 'oryx'
 
     # TODO: Use naming scheme to preserve multiple compatibility with multiple deployments to a single network?
     POLYGON = 'polygon'
@@ -31,6 +32,7 @@ class NetworksInventory:  # TODO: See #1564
 
     __to_ethereum_chain_id = {
         MAINNET: 1,      # Ethereum Mainnet
+        ORYX: 3,         # Ropsten
         IBEX: 4,         # Rinkeby
         LYNX: 5,         # Goerli
 
