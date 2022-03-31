@@ -15,7 +15,8 @@ Running a PRE Node
     NuCypher maintains a separate self-contained CLI that automates the initialization
     and management of PRE nodes deployed on cloud infrastructure. This CLI leverages
     automation tools such as Ansible and Docker to simplify the setup and management
-    of nodes running in the cloud. See :ref:`managing-cloud-nodes`.
+    of nodes running in the cloud (*under active development and currently limited to
+    testnet automation*). See :ref:`managing-cloud-nodes`.
 
 After :ref:`staking on Threshold <stake-initialization>`, and finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following:
 
@@ -54,6 +55,14 @@ should be performed by the Staking Provider via the ``nucypher bond`` command (d
 .. important::
 
     Once the Operator address is bonded, it cannot be changed for 24 hours.
+
+via UI
+------
+
+* Navigate to https://stake.nucypher.network/manage/bond
+* Connect with the Staking Provider account to execute the bond operation
+* Enter the Operator address to bond
+* Click *"Bond Operator"*
 
 
 via Docker
