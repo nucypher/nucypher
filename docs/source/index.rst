@@ -125,7 +125,6 @@ Whitepapers
    pre_application/best_practices
    pre_application/node_providers
    pre_application/testnet
-   pre_application/cloud_provider_tutorial
 
 
 .. toctree::
