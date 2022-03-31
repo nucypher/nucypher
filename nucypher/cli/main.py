@@ -23,7 +23,6 @@ from nucypher.cli.commands import (
     enrico,
     status,
     ursula,
-    cloudworkers,
     contacts,
     porter,
     bond,
@@ -48,9 +47,9 @@ def nucypher_cli():
 #
 #             ursula
 #               |
-#               |
-#               |
-#               |
+#               |  bond
+#               |  /
+#               | /
 # stdin --> cli.main --- alice
 #               | \
 #               |  \
@@ -77,9 +76,8 @@ ENTRY_POINTS = (
     bond.unbond,
 
     # Utility Commands
-    status.status,              # Network status explorer
-    cloudworkers.cloudworkers,  # Remote node management
-    porter.porter,              # Network support services
+    status.status,      # Network status explorer
+    porter.porter,      # Network support services
 
     # Demos
     alice.alice,        # Author of Policies
