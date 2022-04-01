@@ -4,6 +4,106 @@ Releases
 
 .. towncrier release notes start
 
+v6.0.0 (2022-04-01)
+-------------------
+
+Features
+~~~~~~~~
+
+- Introduction of NuCypher Porter - a web-based service that performs ``nucypher`` protocol operations on behalf of applications for cross-platform functionality. (`#2664 <https://github.com/nucypher/nucypher/issues/2664>`__)
+- Ursula no longer stores KFrags, instead Alice encrypts them inside the treasure map.  Allow the KFrag generator and policy publisher to be different entities. (`#2687 <https://github.com/nucypher/nucypher/issues/2687>`__)
+- Characters use mnemonic seed words to derive deterministic keystore, taking the place of the "keyring". (`#2701 <https://github.com/nucypher/nucypher/issues/2701>`__)
+- Simplifies the retrieval protocol (see `#259 <https://github.com/nucypher/nucypher/issues/259>`_ for the discussion). ``PolicyMessageKit`` is renamed to ``MessageKit``. ``Bob.retrieve()`` is renamed to ``retrieve_and_decrypt()``, and its signature is simplified: it only requires the treasure map, Alice's verifying key, and the policy encrypting key. A lower-level ``Bob.retrieve()`` is added that does not decrypt, but only attempts to retrieve the capsule frags. (`#2730 <https://github.com/nucypher/nucypher/issues/2730>`__)
+- Allow importing of secret key material for power derivations. (`#2742 <https://github.com/nucypher/nucypher/issues/2742>`__)
+- Uniform versioning of bytes serializable protocol entities. (`#2767 <https://github.com/nucypher/nucypher/issues/2767>`__)
+- Modify Porter REST endpoint from ``/exec_work_order`` to ``/retrieve_cfrags`` and modify request parameters for retrieval of re-encrypted data.
+  Update Bob ``/retrieve_and_decrypt`` REST endpoint to accept a list of message kits instead of only one - to match updated ``Bob.retrieve_and_decrypt`` Python API. (`#2768 <https://github.com/nucypher/nucypher/issues/2768>`__)
+- Update WorkerPool error messages returned by Porter API. (`#2772 <https://github.com/nucypher/nucypher/issues/2772>`__)
+- Adds ansible build/deploy for Monitor (status.nucypher.network) (`#2801 <https://github.com/nucypher/nucypher/issues/2801>`__)
+- Extend brand size in ``Versioned`` to 4 bytes (`#2805 <https://github.com/nucypher/nucypher/issues/2805>`__)
+- CORS, NGINX support for Porter:
+  - Added opt-in CORS origins support to Porter; no origins allowed by default when running Porter directly.
+  - Provided docker-compose execution for Porter to run behind an NGINX reverse proxy server - all origins allowed by default for CORS, but can be customized. NGINX allows for the potential for more complex infrastructure configurations. (`#2807 <https://github.com/nucypher/nucypher/issues/2807>`__)
+-  (`#2809 <https://github.com/nucypher/nucypher/issues/2809>`__)
+- Halting NU inflation, now refund in WorkLock is possible without work (claim still needed) (`#2822 <https://github.com/nucypher/nucypher/issues/2822>`__)
+- Updates to integrate NuCypher into Threshold Network (`#2824 <https://github.com/nucypher/nucypher/issues/2824>`__)
+- Integrate StakingEscrow with Threshold Network's TokenStaking (`#2825 <https://github.com/nucypher/nucypher/issues/2825>`__)
+- Removes snapshots logic from ``StakingEscrow`` (`#2831 <https://github.com/nucypher/nucypher/issues/2831>`__)
+- Switched to Rust implementation of the protocol types (``nucypher-core``). Correspondingly, API has been simplified, and type requirements have been made more strict. (`#2832 <https://github.com/nucypher/nucypher/issues/2832>`__)
+- Simple PRE application contract (`#2838 <https://github.com/nucypher/nucypher/issues/2838>`__)
+- Renames operator to staking provider and worker to operator (`#2851 <https://github.com/nucypher/nucypher/issues/2851>`__)
+- Modifies Ursulas for usage as Operators on the Threshold Network's PRE Application. (`#2857 <https://github.com/nucypher/nucypher/issues/2857>`__)
+- - Full support of policy payments sumitted to polygon in demos and top-level APIs.
+  - Improved certificate handling for network requests.
+  - Prioritizes in-memory node storage for all node runtimes. (`#2873 <https://github.com/nucypher/nucypher/issues/2873>`__)
+- Updated nucypher-core to 0.1 (`#2883 <https://github.com/nucypher/nucypher/issues/2883>`__)
+- Proactively shut down Ursula if it is no longer bonded to any staking provider. (`#2886 <https://github.com/nucypher/nucypher/issues/2886>`__)
+- Include polygon/matic contract registry for mainnet. (`#2894 <https://github.com/nucypher/nucypher/issues/2894>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+-  (`#2727 <https://github.com/nucypher/nucypher/issues/2727>`__)
+- Cloudworkers: ignore errors on stopping of ursula containers (`#2728 <https://github.com/nucypher/nucypher/issues/2728>`__)
+- Fixed a problem with node metadata being stored to a file with an incorrect name (`#2748 <https://github.com/nucypher/nucypher/issues/2748>`__)
+- Fixed failing transactions when gas price used is not an integer. (`#2753 <https://github.com/nucypher/nucypher/issues/2753>`__)
+- Stop writing bytes to log file which causes exceptions - instead write the hex representation. (`#2762 <https://github.com/nucypher/nucypher/issues/2762>`__)
+- ``StakingEscrow.partition_stakers_by_activity()`` no longer includes stakers with expired stakes in the ``missing_stakers`` value returned, thereby no longer overstating the number of inactive stakers. (`#2764 <https://github.com/nucypher/nucypher/issues/2764>`__)
+- force pull latest tagged image on external geth deployment (`#2766 <https://github.com/nucypher/nucypher/issues/2766>`__)
+- Minor memory improvement when collecting staker/worker metrics for prometheus. (`#2785 <https://github.com/nucypher/nucypher/issues/2785>`__)
+- Fix bug when generating file for output of events from status & stake cli commands. (`#2786 <https://github.com/nucypher/nucypher/issues/2786>`__)
+- Only use public data to generate keystore IDs and filenames. (`#2800 <https://github.com/nucypher/nucypher/issues/2800>`__)
+- Fixed WebController bug caused by Path object for TLS/certificate path provided to Hendrix instead of a string. (`#2807 <https://github.com/nucypher/nucypher/issues/2807>`__)
+- Avoid crashing the learning loop if there is a problem in the metadata returned by seed nodes. (`#2815 <https://github.com/nucypher/nucypher/issues/2815>`__)
+- Fixed a missing timestamp error when a node's status is requested before it participated in metadata exchange. (`#2819 <https://github.com/nucypher/nucypher/issues/2819>`__)
+- Fixed a memory leak in Ursula: removed some teacher statistics accumulated over time, and limited the amount of old fleet states stored. (`#2820 <https://github.com/nucypher/nucypher/issues/2820>`__)
+- Fixed some occurrences of the old term for ``shares`` (``n``) (`#2829 <https://github.com/nucypher/nucypher/issues/2829>`__)
+- Fix an incorrect usage of node object in ``FleetSensor``. (`#2877 <https://github.com/nucypher/nucypher/issues/2877>`__)
+- Fix runaway WorkTracker task that ensures operator confirmed transaction occurs but continues running and making web3 requests even after operator already confirmed. (`#2886 <https://github.com/nucypher/nucypher/issues/2886>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Document how worker period commitment works. (`#2776 <https://github.com/nucypher/nucypher/issues/2776>`__)
+- Update documentation to reflect new TreasureMap con KFrags design. (`#2833 <https://github.com/nucypher/nucypher/issues/2833>`__)
+- Overhaul NuCypher documentation to accommodate the new PRE Application / Threshold Network paradigm. (`#2870 <https://github.com/nucypher/nucypher/issues/2870>`__)
+- Add documentation about bonding an operator to a staking provider. (`#2874 <https://github.com/nucypher/nucypher/issues/2874>`__)
+- Embed Threshold Network videos within docs. (`#2882 <https://github.com/nucypher/nucypher/issues/2882>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Renames enviorment variable `NUCYPHER_KEYRING_PASSWORD` to `NUCYPHER_KEYSTORE_PASSWORD` (`#2701 <https://github.com/nucypher/nucypher/issues/2701>`__)
+- ``m`` and ``n`` parameters can no longer be used in character control and Python API; ``--m`` and ``--n`` are no longer supported by the CLI (``-m`` and ``-n`` still are; the long versions are now ``--threshold`` and ``--shares``) (`#2774 <https://github.com/nucypher/nucypher/issues/2774>`__)
+- Removal of treasure map storage functionality and supporting publication APIs from the decentralized network.
+  Encrypted treasure maps must be obtained from side channels instead of Ursulas on the network (unless cached). (`#2780 <https://github.com/nucypher/nucypher/issues/2780>`__)
+- Remove an unused method of ``Amonia`` (deprecated since we do not store the treasure map on Ursulas anymore) (`#2804 <https://github.com/nucypher/nucypher/issues/2804>`__)
+- Removes the Arrangement API for Alice/Ursula negotiations.  Use a simple livliness check during grant-time. (`#2808 <https://github.com/nucypher/nucypher/issues/2808>`__)
+- Retires and removes eth/token faucet. (`#2848 <https://github.com/nucypher/nucypher/issues/2848>`__)
+- Remove NuCypher DAO specific code since we are now the Threshold DAO. (`#2864 <https://github.com/nucypher/nucypher/issues/2864>`__)
+- Removes 'cloudworkers' CLI command in favor of nucypher-ops. (`#2895 <https://github.com/nucypher/nucypher/issues/2895>`__)
+
+
+Misc
+~~~~
+
+- Switch to PyUmbral 0.2 and adjust its usage according to the changed API. (`#2612 <https://github.com/nucypher/nucypher/issues/2612>`__)
+- Add disclaimers to ``nucypher stake increase`` and ``nucypher stake merge`` CLI operations to provide warning about
+  potential reduced rewards for the first period after stake increase due to a known bug, and the workaround. (`#2693 <https://github.com/nucypher/nucypher/issues/2693>`__)
+- Added a more informative error message for ``WorkerPool`` exceptions. (`#2744 <https://github.com/nucypher/nucypher/issues/2744>`__)
+- Separated Alice and Publisher roles internally and in relevant public APIs (`#2745 <https://github.com/nucypher/nucypher/issues/2745>`__)
+- TreasureMap split into TreasureMap and EncryptedTreasureMap; external methods of Bob and Porter now take the latter, with the parameter named 'encrypted_treasure_map'. SignedTreasureMap is merged with TreasureMap. (`#2773 <https://github.com/nucypher/nucypher/issues/2773>`__)
+- Changed the names of ``m`` and ``n`` parameters to ``threshold`` and ``shares`` throughout the API. (`#2774 <https://github.com/nucypher/nucypher/issues/2774>`__)
+- Extends policy probationary period until October 31st, 2021. No policies may be created on the network beyond this date. (`#2779 <https://github.com/nucypher/nucypher/issues/2779>`__)
+- Umbral dependency bumped to v0.3.0 (`#2798 <https://github.com/nucypher/nucypher/issues/2798>`__)
+- Extracting protocol logic into an underlying layer and preparing to move it to Rust. Involves multiple ABI changes (in ``Arrangement``, ``MessageKit``, ``RevocationOrder``, ``EncryptedTreasureMap``, node metadata). In particular, old node metadata will be backward incompatible with the current version, since it now shares the versoning logic with other protocol objects. (`#2802 <https://github.com/nucypher/nucypher/issues/2802>`__)
+- Move some cryptographic operations inside the Rust extension. Remove dependency on `umbral` and `coincurve`. (`#2850 <https://github.com/nucypher/nucypher/issues/2850>`__)
+- Extend policy probationary period to 2022-6-16T23:59:59.0Z. (`#2873 <https://github.com/nucypher/nucypher/issues/2873>`__)
+
+
 v5.3.3 (2021-11-24)
 -------------------
 

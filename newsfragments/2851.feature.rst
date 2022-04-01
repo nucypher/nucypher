@@ -1,1 +1,0 @@
-Renames operator to staking provider and worker to operator

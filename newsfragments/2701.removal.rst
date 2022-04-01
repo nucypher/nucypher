@@ -1,1 +1,0 @@
-Renames enviorment variable `NUCYPHER_KEYRING_PASSWORD` to `NUCYPHER_KEYSTORE_PASSWORD`

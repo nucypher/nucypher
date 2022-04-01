@@ -1,1 +1,0 @@
-Fix bug when generating file for output of events from status & stake cli commands.

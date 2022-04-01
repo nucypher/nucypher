@@ -1,1 +1,0 @@
-Proactively shut down Ursula if it is no longer bonded to any staking provider.

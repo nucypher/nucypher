@@ -1,1 +1,0 @@
-Added a more informative error message for ``WorkerPool`` exceptions.

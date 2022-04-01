@@ -1,1 +1,0 @@
-Introduction of NuCypher Porter - a web-based service that performs ``nucypher`` protocol operations on behalf of applications for cross-platform functionality.

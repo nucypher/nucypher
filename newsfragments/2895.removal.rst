@@ -1,2 +1,0 @@
-Removes 'cloudworkers' CLI command in favor of nucypher-ops.
-
