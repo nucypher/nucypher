@@ -57,7 +57,7 @@ class NucypherMiddlewareClient:
     def get_certificate(self,
                         host,
                         port,
-                        timeout=3,
+                        timeout=4,
                         retry_attempts: int = 3,
                         retry_rate: int = 2,
                         current_attempt: int = 0):
