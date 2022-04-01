@@ -65,7 +65,7 @@ class NucypherMiddlewareClient:
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
 
         try:
-            SSL_LOGGER.info(f"Fetching {host}:{port} TLS certificate")
+            SSL_LOGGER.debug(f"Fetching {host}:{port} TLS certificate")
             certificate_pem = ssl.get_server_certificate(addr=(host, port))
             certificate = ssl.PEM_cert_to_DER_cert(certificate_pem)
 
