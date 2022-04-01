@@ -2,6 +2,99 @@
 CLI Reference
 ==============
 
+Ursula
+------
+
+"Ursula the Untrusted" PRE Re-encryption node management commands.
+
+
+.. code:: bash
+
+    (nucypher)$ nucypher ursula ACTION [OPTIONS]
+
+
+**Ursula Command Actions**
+
+
++--------------------------+---------------------------------------------------------------------+
+| Action                   | Description                                                         |
++==========================+=====================================================================+
+| ``init``                 | Create a brand new persistent Ursula.                               |
++--------------------------+---------------------------------------------------------------------+
+| ``config``               | View and optionally update an existing Ursula's configuration.      |
++--------------------------+---------------------------------------------------------------------+
+| ``destroy``              | Delete existing Ursula's configuration.                             |
++--------------------------+---------------------------------------------------------------------+
+| ``forget``               | Delete all stored peer metadata.                                    |
++--------------------------+---------------------------------------------------------------------+
+| ``save-metadata``        | Manually write node metadata to disk without running.               |
++--------------------------+---------------------------------------------------------------------+
+| ``run``                  | Start Ursula.                                                       |
++--------------------------+---------------------------------------------------------------------+
+
+
+Bond
+----
+
+Bond an Operator to a Staking Provider. The Staking Provider must be authorized to use the PREApplication.
+
+.. code:: bash
+
+    (nucypher)$ nucypher bond [OPTIONS]
+
+
+Unbond
+------
+
+Unbonds an operator from an authorized Staking Provider.
+
+.. code:: bash
+
+    (nucypher)$ nucypher unbond [OPTIONS]
+
+
+Enrico
+-------
+
+"Enrico the Encryptor" management commands.
+
+
+.. code:: bash
+
+    (nucypher)$ nucypher enrico ACTION [OPTIONS]
+
+**Enrico Command Actions**
+
+
++--------------------------+-------------------------------------------------------------------------------+
+| Action                   | Description                                                                   |
++==========================+===============================================================================+
+| ``encrypt``              | Encrypt a message under a given policy public key.                            |
++--------------------------+-------------------------------------------------------------------------------+
+| ``run``                  | Start Enrico's HTTP controller.                                               |
++--------------------------+-------------------------------------------------------------------------------+
+
+
+Status
+------
+
+Echo a snapshot of live PRE Application metadata.
+
+.. code:: bash
+
+    (nucypher)$ nucypher status ACTION [OPTIONS]
+
+
+**Status Command Actions**
+
+
++--------------------------+---------------------------------------------------------------------+
+| Action                   | Description                                                         |
++==========================+=====================================================================+
+| ``events``               | Show events associated to PRE Application contracts.                |
++--------------------------+---------------------------------------------------------------------+
+
+
 Alice
 -----
 
@@ -38,6 +131,7 @@ Alice
 | ``run``                  | Start Alice's HTTP controller.                                                |
 +--------------------------+-------------------------------------------------------------------------------+
 
+
 Bob
 ---
 
@@ -68,96 +162,3 @@ Bob
 +--------------------------+-------------------------------------------------------------------------------+
 | ``run``                  | Start Bob's HTTP controller.                                                  |
 +--------------------------+-------------------------------------------------------------------------------+
-
-
-Enrico
--------
-
-"Enrico the Encryptor" management commands.
-
-
-.. code:: bash
-
-    (nucypher)$ nucypher enrico ACTION [OPTIONS]
-
-**Enrico Command Actions**
-
-
-+--------------------------+-------------------------------------------------------------------------------+
-| Action                   | Description                                                                   |
-+==========================+===============================================================================+
-| ``encrypt``              | Encrypt a message under a given policy public key.                            |
-+--------------------------+-------------------------------------------------------------------------------+
-| ``run``                  | Start Enrico's HTTP controller.                                               |
-+--------------------------+-------------------------------------------------------------------------------+
-
-
-Ursula
-------
-
-"Ursula the Untrusted" PRE Re-encryption node management commands.
-
-
-.. code:: bash
-
-    (nucypher)$ nucypher ursula ACTION [OPTIONS]
-
-
-**Ursula Command Actions**
-
-
-+--------------------------+---------------------------------------------------------------------+
-| Action                   | Description                                                         |
-+==========================+=====================================================================+
-| ``init``                 | Create a brand new persistent Ursula.                               |
-+--------------------------+---------------------------------------------------------------------+
-| ``config``               | View and optionally update an existing Ursula's configuration.      |
-+--------------------------+---------------------------------------------------------------------+
-| ``destroy``              | Delete existing Ursula's configuration.                             |
-+--------------------------+---------------------------------------------------------------------+
-| ``forget``               | Delete all stored peer metadata.                                    |
-+--------------------------+---------------------------------------------------------------------+
-| ``save-metadata``        | Manually write node metadata to disk without running.               |
-+--------------------------+---------------------------------------------------------------------+
-| ``run``                  | Start Ursula.                                                       |
-+--------------------------+---------------------------------------------------------------------+
-
-
-Status
-------
-
-Echo a snapshot of live PRE Application metadata.
-
-.. code:: bash
-
-    (nucypher)$ nucypher status ACTION [OPTIONS]
-
-
-**Status Command Actions**
-
-
-+--------------------------+---------------------------------------------------------------------+
-| Action                   | Description                                                         |
-+==========================+=====================================================================+
-| ``events``               | Show events associated to PRE Application contracts.                |
-+--------------------------+---------------------------------------------------------------------+
-
-
-Bond
-----
-
-Bond an Operator to a Staking Provider. The Staking Provider must be authorized to use the PREApplication.
-
-.. code:: bash
-
-    (nucypher)$ nucypher bond [OPTIONS]
-
-
-Unbond
-------
-
-Unbonds an operator from an authorized Staking Provider.
-
-.. code:: bash
-
-    (nucypher)$ nucypher unbond [OPTIONS]
