@@ -1,35 +1,42 @@
 # Finnegan's Wake Demo
 
-This illustrates Alice sharing data with Bob over the NuCypher network using proxy re-encryption,
-without revealing private keys to intermediary entities.
+This illustrates Alice sharing data with Bob over the Threshold Network using proxy re-encryption (PRE),
+without revealing private keys to intermediary entities.  For more detailed information see the [official documentation](https://docs.nucypher.com/en/latest/).
 
-1. Alice sets a Policy on the NuCypher network (2/3) and grants access to Bob
-2. Label and Alice's public key provided to Bob
-4. Bob joins the policy by Label and Alice's public key
-5. Enrico created for the policy 
-6. Each plaintext message gets encapsulated through the Enrico to messageKit
-5. Bob receives and reconstructs the Enrico from Policy public key and Enrico public key
-6. Bob retrieves the original message from Enrico and MessageKit
+There are two version of the example, one using the decentralized network (ethereum/polygon), 
+and a federated example using a local network.
 
-There are two version of the example, one federated example using a local network
-and another example using the nucypher application development tesnet: Lynx.
+### Decentralized Network Demo
 
-### Federated Demo
+First, configure the demo by making exporting environment variables
+with your provider and wallet details.
+
+```bash
+export DEMO_L1_PROVIDER_URI=<YOUR ETH PROVIDER URL>
+export DEMO_L2_PROVIDER_URI=<YOUR POLYGON PROVIDER URL>
+export DEMO_L2_WALLET_FILEPATH=<YOUR WALLET FILEPATH>
+export DEMO_ALICE_ADDRESS=<YOUR ALICE ETH ADDRESS>
+```
+
+Alternatively you can use the provided .env.template file by making a copy named .env
+and adding your provider and wallet details.  To set the variables in your current session run:
+`export $(cat .env | xargs)`
+
+Optionally, you can change the network the demo is running on by changing the value of `L1_NETWORK` and `L2_NETWORK`.
+If you change these values be sure to also change `L1_PROVIDER_URI` and `L2_PROVIDER_URI` accordingly.
+
+Available options for `L1_NETOWKR` are `ibex` or `mainnet`.
+Available options for `L2_NETWORK` are `mumbai` or `mainnet`
+
+To execute the demo run:
+`python3 finnegans-wake-demo-l2.py`
+
+For more detailed logging change the value of `LOG_LEVEL` to `'debug'`.
+
+### Federated Network Demo
 
 First run the local federated network:
 `python ../run_demo_ursula_fleet.py`
 
 Then run the demo:
 `python finnegans-wake-demo-federated.py`
-
-### Testnet Demo
-
-First, configure the demo.  Be sure tat alice's address has some Goerli ETH.
-```bash
-export DEMO_ETH_PROVIDER_URI=<GOERLI RPC ENDPOINT>
-export DEMO_ALICE_ETH_ADDRESS=<ETH ADDRESS>
-export DEMO_SIGNER_URI=keystore://<PATH TO KEYSTORE>
-```
-
-Then run the demo:
-`python finnegans-wake-demo-testnet.py`
