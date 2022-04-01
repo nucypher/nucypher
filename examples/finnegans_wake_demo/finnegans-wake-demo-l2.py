@@ -57,14 +57,14 @@ try:
 except KeyError:
     raise RuntimeError('Missing environment variables to run demo.')
 
+print("\n************** Setup **************\n")
 
 ####################
 # NuCypher Network #
 ####################
 
-L1_NETWORK = 'mainnet'  # 'ibex'
-L2_NETWORK = 'polygon'  # 'mumbai'
-
+L1_NETWORK = 'ibex'    # 'mainnet'
+L2_NETWORK = 'mumbai'  # 'polygon'
 
 #####################
 # Bob the BUIDLer  ##
@@ -90,10 +90,10 @@ connect_web3_provider(eth_provider_uri=L2_PROVIDER)
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
 # Do not use mainnet keys, create a dedicated software wallet to use for this demo.
 wallet = Signer.from_signer_uri(SIGNER_URI)
-password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock {ALICE_ADDRESS[:8]}: ")
+password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): ")
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
-
+# This is Alice's payment method.
 payment_method = SubscriptionManagerPayment(
     network=L2_NETWORK,
     eth_provider=L2_PROVIDER
@@ -110,6 +110,8 @@ alice = Alice(
 
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = alice.stamp.as_umbral_pubkey()
+
+print("\n************** Grant **************\n")
 
 # Alice can get the policy's public key even before creating the policy.
 label = b"secret/files/42"
@@ -156,7 +158,7 @@ del alice
 with open(BOOK_PATH, 'rb') as file:
     finnegans_wake = file.readlines()
 
-print("\n**************Encrypt and Retrieve**************\n")
+print("\n************** Encrypt and Retrieve **************\n")
 
 for counter, plaintext in enumerate(finnegans_wake):
 
