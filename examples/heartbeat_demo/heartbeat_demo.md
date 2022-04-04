@@ -26,15 +26,31 @@ This simple use case showcases many interesting and distinctive aspects of NuCyp
   - The Doctor never interacts with Alicia or the Heart Monitor:
   he only needs the encrypted data and some policy metadata.
 
-### How to run the demo 
+### Decentralized Network Demo
+
 Ensure that you already have `nucypher` installed.
 
-Run a fleet of federated Ursulas in a separate terminal:
+First, configure the demo by making exporting environment variables
+with your provider and wallet details for ethereum and polygon.
 
-```sh
-(nucypher)$ python ../run_demo_ursula_fleet.py
+```bash
+export DEMO_L1_PROVIDER_URI=<YOUR ETH PROVIDER URL>
+export DEMO_L2_PROVIDER_URI=<YOUR POLYGON PROVIDER URL>
+export DEMO_L2_WALLET_FILEPATH=<YOUR WALLET FILEPATH>
+export DEMO_ALICE_ADDRESS=<YOUR ALICE ETH ADDRESS>
 ```
-This will create a local network of federated Ursulas that will be used by the demo for re-encryption of data.
+
+Alternatively you can use the provided .env.template file by making a copy named .env
+and adding your provider and wallet details.  To set the variables in your current session run:
+`export $(cat .env | xargs)`
+
+Optionally, you can change the network the demo is running on by changing the value of `L1_NETWORK` and `L2_NETWORK`.
+If you change these values be sure to also change `L1_PROVIDER_URI` and `L2_PROVIDER_URI` accordingly.
+
+Available options for `L1_NETOWRK` are `ibex` or `mainnet`.
+Available options for `L2_NETWORK` are `mumbai` or `mainnet`
+
+Ensure Alice's account has a bit of MATIC on polygon to pay for the policy.
 
 Subsequently, running the demo only involves running the `alicia.py` and `doctor.py` scripts.
 You should run `alicia.py` first:
