@@ -126,17 +126,16 @@ Whitepapers
    pre_application/node_providers
    pre_application/testnet
 
-
 .. toctree::
    :maxdepth: 1
    :caption: Application Development
 
    application_development/getting_started
-   application_development/local_fleet_demo
    application_development/web_development
+   application_development/testnet
+   application_development/local_fleet_demo
    application_development/http_character_control
    application_development/cli_examples
-   application_development/testnet
 
 .. toctree::
    :maxdepth: 1
@@ -146,13 +145,6 @@ Whitepapers
    references/cli_reference
    references/environment_variables
    references/network_events
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Demos
-
-   demos/finnegans_wake_demo
-   demos/heartbeat_demo
 
 .. toctree::
    :maxdepth: 1
@@ -173,16 +165,9 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: Release Notes
-
-   release_notes/genesis_release
-   release_notes/pre_release_epics
-   release_notes/releases.rst
-
-.. toctree::
-   :maxdepth: 1
    :caption: Support
 
+   release_notes/releases
    support/contribution
    support/community
    support/troubleshooting
