@@ -84,6 +84,7 @@ encrypting_key = bob.public_keys(DecryptingPower)
 
 # Connect to the ethereum provider.
 connect_web3_provider(eth_provider_uri=L1_PROVIDER)
+# Connect to the layer 2 provider.
 connect_web3_provider(eth_provider_uri=L2_PROVIDER)
 
 # Setup and unlock alice's ethereum wallet.
