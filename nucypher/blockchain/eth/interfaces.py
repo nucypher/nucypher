@@ -562,21 +562,23 @@ class BlockchainInterface:
         #
 
         # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        price = transaction_dict['gasPrice']
-        price_gwei = Web3.fromWei(price, 'gwei')
-        cost_wei = price * transaction_dict['gas']
-        cost = Web3.fromWei(cost_wei, 'ether')
+        max_tx_price = transaction_dict['maxFeePerGas']
+        max_priority_price = transaction_dict['maxPriorityFeePerGas']
+        max_price = max_tx_price + max_priority_price
+        max_price_gwei = Web3.fromWei(max_price, 'gwei')
+        max_cost_wei = max_price * transaction_dict['gas']
+        max_cost = Web3.fromWei(max_cost_wei, 'ether')
 
         if transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
-                            f'({cost} ETH @ {price_gwei} gwei)',
+                            f'({max_cost} ETH @ {max_price_gwei} gwei)',
                             color='yellow')
         signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({cost} ETH @ {price_gwei} gwei)',
+        emitter.message(f'Broadcasting {transaction_name} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
                         color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST

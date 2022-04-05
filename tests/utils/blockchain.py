@@ -20,7 +20,6 @@ import os
 from typing import List, Tuple, Union, Optional
 
 import maya
-from constant_sorrow.constants import INIT
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
@@ -44,7 +43,7 @@ from tests.constants import (
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    PYEVM_DEV_URI
+    PYEVM_DEV_URI, TEST_GAS_LIMIT
 )
 
 
@@ -139,8 +138,10 @@ class TesterBlockchain(BlockchainDeployerInterface):
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     def attach_middleware(self):
-        if self.free_transactions:
-            self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
+        # if self.free_transactions:
+        #     self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
+        # TODO: Free transaction middleware is disabled for now.
+        pass
 
     def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
 
@@ -171,7 +172,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         tx_hashes = list()
         for address in addresses:
-            tx = {'to': address, 'from': coinbase, 'value': amount}
+            tx = {'to': address, 'from': coinbase, 'value': amount, 'gasPrice': self.w3.eth.generate_gas_price()}
             txhash = self.w3.eth.sendTransaction(tx)
 
             _receipt = self.wait_for_receipt(txhash)
