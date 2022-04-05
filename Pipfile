@@ -32,12 +32,12 @@ flask = "*"
 # 2.1.0 removed `JSONWebSignatureSerializer`, which `flask_httpasswd` depends on
 # (and it does not cap the version of `itsdangerous` itself)
 itsdangerous = "<2.1.0"
+jinja2 = "<3.1.0"
 # Third-Party Ethereum
-py-evm = "<0.5"
-eth-tester = "<0.6"
-web3 = "<=5.12.3"
-eth-utils = "<1.10"
-py-geth = "*"
+py-evm = "*"
+eth-tester = "*"
+web3 = "*"
+eth-utils = "*"
 # CLI / Configuration
 appdirs = "*"
 click = ">=7.0"
@@ -48,9 +48,6 @@ tabulate = "*"
 # Pytest
 # pytest==7 causes problems with autouse mocks and config in `.circleci` folder.
 # See https://github.com/pytest-dev/pytest/issues/9703
-# Namely, the issue above was leading to an interference between `mock_transacting_power()` fixture
-# and `test_ursula_init_with_local_keystore_signer()` - the mock was still present
-# when that test was run, causing a failure.
 pytest = "<7"
 pytest-xdist = "*"
 pytest-twisted = "*"
@@ -64,7 +61,6 @@ pyflakes = "*"
 bandit = "*"
 mypy = "*"
 coverage = "*"
-# Develop & Deploy
 py-solc-x = "==0.10.1"
 
 [scripts]

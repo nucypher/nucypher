@@ -501,7 +501,7 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
     import eth
     eth._utils.headers.GAS_LIMIT_MINIMUM = TEST_GAS_LIMIT
     eth._utils.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
-    eth.vm.forks.frontier.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
+    eth.vm.forks.london.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
 
     # Monkey patch to prevent gas estimates
     def _get_buffered_gas_estimate(web3, transaction, gas_buffer=100000):
