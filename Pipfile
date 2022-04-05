@@ -33,11 +33,10 @@ flask = "*"
 # (and it does not cap the version of `itsdangerous` itself)
 itsdangerous = "<2.1.0"
 # Third-Party Ethereum
-py-evm = "<0.5"
-eth-tester = "<0.6"
-web3 = "<=5.12.3"
-eth-utils = "<1.10"
-py-geth = "*"
+py-evm = "*"
+eth-tester = "*"
+web3 = "*"
+eth-utils = "*"
 # CLI / Configuration
 appdirs = "*"
 click = ">=7.0"
