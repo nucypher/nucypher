@@ -329,7 +329,7 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
         tx = escrow.functions.withdraw(to_withdraw + 1).transact({'from': staker})
         testerchain.wait_for_receipt(tx)
 
-    to_withdraw += rate
+    # to_withdraw += rate
     tx = escrow.functions.withdraw(to_withdraw).transact({'from': staker})
     testerchain.wait_for_receipt(tx)
     assert escrow.functions.getAllTokens(staker).call() == value - to_withdraw
