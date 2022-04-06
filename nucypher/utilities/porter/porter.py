@@ -145,8 +145,7 @@ the Pipe for PRE Application network operations
                                  value_factory=value_factory,
                                  target_successes=quantity,
                                  timeout=self.DEFAULT_EXECUTION_TIMEOUT,
-                                 stagger_timeout=1,
-                                 threadpool_size=quantity)
+                                 stagger_timeout=1)
         worker_pool.start()
         try:
             successes = worker_pool.block_until_target_successes()
