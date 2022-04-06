@@ -354,9 +354,12 @@ def test_buggy_factory_raises_on_block():
 
     factory = BuggyFactory(list(outcomes))
 
-    # Non-zero stagger timeout to make BuggyFactory raise its error only in 1.5s,
-    # So that we got enough successes for `block_until_target_successes()`.
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=1.5)
+    # WorkerPool short circuits once it has sufficient successes. Therefore,
+    # the stagger timeout needs to be less than worker timeout,
+    # since BuggyFactory only fails if you do a subsequent batch
+    # Once the subsequent batch is requested, the BuggyFactory returns an error
+    # causing WorkerPool to fail
+    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=0.75)
 
     pool.start()
     time.sleep(2) # wait for the stagger timeout to finish
