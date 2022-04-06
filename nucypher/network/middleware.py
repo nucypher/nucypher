@@ -203,9 +203,7 @@ class NucypherMiddlewareClient:
                 return response
             except SSLError as e:
                 # ignore this exception - probably means that our cached cert may not be up-to-date.
-                cached_certificate_filepath.unlink()
-                SSL_LOGGER.debug(f"Cached cert for {host}:{port} is invalid {e} - "
-                                 f"removed cached copy")
+                SSL_LOGGER.debug(f"Cached cert for {host}:{port} is invalid {e}")
 
         # Fetch fresh copy of SSL certificate
         try:
