@@ -95,7 +95,7 @@ class StdoutEmitter:
     def error(self, e):
         if self.verbosity >= 1:
             e_str = str(e)
-            click.echo(message=e_str)
+            click.echo(message=e_str, color="red")
             self.log.info(e_str)
 
     def get_stream(self, verbosity: int = 0):

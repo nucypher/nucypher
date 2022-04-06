@@ -55,7 +55,7 @@ def validate_grant_command(
             # see what condition my condition was in.
             if not condition.condition:
                 triggered = True
-                emitter.error(f'Missing options in force mode: {condition.options}')
+                emitter.error(f'Missing options in force mode: {condition.options}', color="red")
         if triggered:
             raise click.Abort()
 
@@ -63,20 +63,20 @@ def validate_grant_command(
     if alice.federated_only:
         if any((value, rate)):
             message = "Can't use --value or --rate with a federated Alice."
-            raise click.BadOptionUsage(option_name="--value, --rate", message=message)
+            raise click.BadOptionUsage(option_name="--value, --rate", message=click.style(message, fg="red"))
     elif bool(value) and bool(rate):
-        raise click.BadOptionUsage(option_name="--rate", message="Can't use --value if using --rate")
+        raise click.BadOptionUsage(option_name="--rate", message=click.style("Can't use --value if using --rate", fg="red"))
 
     # From Bob card
     if bob:
         if any((bob_encrypting_key, bob_verifying_key)):
             message = '--bob cannot be used with --bob-encrypting-key or --bob-verifying key'
-            raise click.BadOptionUsage(option_name='--bob', message=message)
+            raise click.BadOptionUsage(option_name='--bob', message=click.style(message, fg="red"))
 
     # From hex public keys
     else:
         if not all((bob_encrypting_key, bob_verifying_key)):
             if force:
-                emitter.message('Missing options in force mode: --bob or --bob-encrypting-key and --bob-verifying-key.')
+                emitter.message('Missing options in force mode: --bob or --bob-encrypting-key and --bob-verifying-key.', color="red")
                 click.Abort()
             emitter.message("*Caution: Only enter public keys*")

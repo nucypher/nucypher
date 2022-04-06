@@ -161,7 +161,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     if csv or csv_file:
         if csv and csv_file:
             raise click.BadOptionUsage(option_name='--event-filter',
-                                       message=f'Pass either --csv or --csv-file, not both.')
+                                       message=click.style('Pass either --csv or --csv-file, not both.', fg="red"))
 
         # ensure that event name is specified - different events would have different columns in the csv file
         if csv_file and not all((event_name, contract_name)):
@@ -169,11 +169,11 @@ def events(general_config, registry_options, contract_name, from_block, to_block
             #  - each appended event adds their column names first
             #  - single report-type functionality, see #2561
             raise click.BadOptionUsage(option_name='--csv-file, --event-name, --contract_name',
-                                       message='--event-name and --contract-name must be specified when outputting to '
-                                               'specific file using --csv-file; alternatively use --csv')
+                                       message=click.style('--event-name and --contract-name must be specified when outputting to '
+                                               'specific file using --csv-file; alternatively use --csv', fg="red"))
     if not contract_name:
         if event_name:
-            raise click.BadOptionUsage(option_name='--event-name', message='--event-name requires --contract-name')
+            raise click.BadOptionUsage(option_name='--event-name', message=click.style('--event-name requires --contract-name', fg="red"))
         # FIXME should we force a contract name to be specified?
     else:
         contract_names = [contract_name]
@@ -190,8 +190,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         # validate block range
         if from_block > to_block:
             raise click.BadOptionUsage(option_name='--to-block, --from-block',
-                                       message=f'Invalid block range provided, '
-                                               f'from-block ({from_block}) > to-block ({to_block})')
+                                       message=click.style(f'Invalid block range provided, '
+                                               f'from-block ({from_block}) > to-block ({to_block})', fg="red"))
 
     # event argument filters
     argument_filters = None
@@ -200,8 +200,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
             argument_filters = parse_event_filters_into_argument_filters(event_filters)
         except ValueError as e:
             raise click.BadOptionUsage(option_name='--event-filter',
-                                       message=f'Event filter must be specified as name-value pairs of '
-                                               f'the form `<name>=<value>` - {str(e)}')
+                                       message=click.style(f'Event filter must be specified as name-value pairs of '
+                                               f'the form `<name>=<value>` - {str(e)}', fg="red"))
 
     emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
 
@@ -229,7 +229,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
 
         if event_name and event_name not in agent.events.names:
             raise click.BadOptionUsage(option_name='--event-name, --contract_name',
-                                       message=f'{contract_name} contract does not have an event named {event_name}')
+                                       message=click.style(f'{contract_name} contract does not have an event named {event_name}', fg="red"))
 
         title = f" {agent.contract_name} Events ".center(40, "-")
         emitter.echo(f"\n{title}\n", bold=True, color='green')
