@@ -316,8 +316,13 @@ class WorkerPool:
                     with self._results_lock:
                         self._failures[result.value] = result.exc_info
 
+            if success_event_reached:
+                # no need to continue processing results
+                self.cancel()  # to cancel the timeout thread
+                break
+
             if producer_stopped and self._finished_tasks == self._started_tasks:
-                self.cancel() # to cancel the timeout thread
+                self.cancel()  # to cancel the timeout thread
                 self._target_value.set(PRODUCER_STOPPED)
                 break
 
