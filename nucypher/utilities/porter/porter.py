@@ -148,7 +148,12 @@ the Pipe for PRE Application network operations
                                  stagger_timeout=1,
                                  threadpool_size=quantity)
         worker_pool.start()
-        successes = worker_pool.block_until_target_successes()
+        try:
+            successes = worker_pool.block_until_target_successes()
+        finally:
+            worker_pool.cancel()
+            # don't wait for it to stop by "joining" - too slow...
+
         ursulas_info = successes.values()
         return list(ursulas_info)
 
