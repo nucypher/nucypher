@@ -309,7 +309,7 @@ class UrsulaCharacterOptions:
             return ursula_config, URSULA
 
         except Keystore.AuthenticationFailed as e:
-            emitter.errpr(str(e))
+            emitter.error(str(e))
             # TODO: Exit codes (not only for this, but for other exceptions)
             return click.get_current_context().exit(1)
 
