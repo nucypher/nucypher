@@ -674,6 +674,7 @@ class WeightedSampler:
 class StakingProvidersReservoir:
 
     def __init__(self, staking_provider_map: Dict[ChecksumAddress, int]):
+        self._original_staker_data = staking_provider_map
         self._sampler = WeightedSampler(staking_provider_map)
         self._rng = random.SystemRandom()
 
@@ -688,3 +689,6 @@ class StakingProvidersReservoir:
 
     def draw_at_most(self, quantity):
         return self.draw(min(quantity, len(self)))
+
+    def original_staking_provider_map(self):
+        return dict(self._original_staker_data)

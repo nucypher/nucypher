@@ -14,19 +14,21 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Sequence
+from threading import Lock
+from typing import List, NamedTuple, Optional, Sequence, Dict
 
+import maya
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import request, Response
 from nucypher_core import TreasureMap, RetrievalKit
 from nucypher_core.umbral import PublicKey
+from twisted.internet import task
 
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent, \
+    StakingProvidersReservoir
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.characters.lawful import Ursula
@@ -38,7 +40,7 @@ from nucypher.policy.kits import RetrievalResult
 from nucypher.policy.reservoir import (
     make_federated_staker_reservoir,
     make_decentralized_staking_provider_reservoir,
-    PrefetchStrategy
+    PrefetchStrategy, MergedReservoir
 )
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
@@ -69,6 +71,11 @@ the Pipe for PRE Application network operations
     DEFAULT_EXECUTION_TIMEOUT = 15  # 15s
 
     DEFAULT_PORT = 9155
+
+    # don't want ttl to be divisible by interval - prevents windows
+    # of time where cache expired and/or not set
+    DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL = 60 * 16  # 16 minutes
+    DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL = 60 * 5  # 5 minutes
 
     _interface_class = PorterInterface
 
@@ -114,6 +121,47 @@ the Pipe for PRE Application network operations
             # TODO need to understand this better - only made it analogous to what was done for characters
             self.make_cli_controller()
         self.log.info(self.BANNER)
+
+        # StakingProviders reservoir Caching
+        if not self.federated_only:
+            self._staking_providers_cache_lock = Lock()
+            self._staking_providers_cache_dict: Dict[ChecksumAddress, int] = None
+            self._staking_providers_cache_last_updated: maya.MayaDT = None
+            self._staking_providers_cache_task = task.LoopingCall(self._cache_staking_providers_map)
+            cache_deferred = self._staking_providers_cache_task.start(interval=self.DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL, now=True)
+            cache_deferred.addErrback(self._handle_staking_provider_cache_errors)
+
+    def _cache_staking_providers_map(self):
+        # we can possibly use the cache in this instance
+        with self._staking_providers_cache_lock:
+            if self._staking_providers_cache_dict:
+                # make sure cached object won't expire before the next run of this task
+                cache_last_updated = self._staking_providers_cache_last_updated
+                cache_expiry = cache_last_updated.add(seconds=self.DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL)
+                next_task_execution = maya.now().add(seconds=self.DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL)
+                if cache_expiry >= next_task_execution:
+                    # no need to update cache before next run
+                    return
+
+        # fetch updated reservoir mapping then cache results
+        reservoir = make_decentralized_staking_provider_reservoir(
+            application_agent=self.application_agent)
+        staking_providers_map = reservoir.reservoir.original_staking_provider_map()
+        with self._staking_providers_cache_lock:
+            self._staking_providers_cache_dict = staking_providers_map
+            self._staking_providers_cache_last_updated = maya.now()
+
+    def _handle_staking_provider_cache_errors(self, failure, *args, **kwargs):
+        if args:
+            failure = args[0]
+            cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')
+            self.log.warn(f"Unhandled error during StakingProviders cache execution: {cleaned_traceback}")
+
+        # Restart on failure
+        if not self._staking_providers_cache_task.running:
+            self.log.debug(f"StakingProviders cache task crashed, restarting...")
+            self._staking_providers_cache_task.start(
+                interval=self.DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL, now=False)
 
     def get_ursulas(self,
                     quantity: int,
@@ -183,9 +231,32 @@ the Pipe for PRE Application network operations
                                                    exclude_addresses=exclude_ursulas,
                                                    include_addresses=include_ursulas)
         else:
-            return make_decentralized_staking_provider_reservoir(application_agent=self.application_agent,
-                                                                 exclude_addresses=exclude_ursulas,
-                                                                 include_addresses=include_ursulas)
+            # we can possibly use the cache in this instance
+            with self._staking_providers_cache_lock:
+                current_staking_providers_map = dict(self._staking_providers_cache_dict)
+                cached_last_updated = self._staking_providers_cache_last_updated
+
+            cache_expiry = cached_last_updated.add(seconds=self.DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL)
+            if current_staking_providers_map and cache_expiry >= maya.now():
+                # cached value present and not expired
+
+                # adjust for provided arguments
+                if exclude_ursulas:
+                    for ursula_address in exclude_ursulas:
+                        if ursula_address in current_staking_providers_map:
+                            del current_staking_providers_map[ursula_address]
+
+                reservoir = MergedReservoir(values=include_ursulas or [],
+                                            reservoir=StakingProvidersReservoir(current_staking_providers_map))
+            else:
+                # have to do it directly without the cached copy
+                # shouldn't happen if ttl is not divisible by
+                # task interval - very small window, if any, for this to happen
+                reservoir = make_decentralized_staking_provider_reservoir(
+                                application_agent=self.application_agent,
+                                exclude_addresses=exclude_ursulas,
+                                include_addresses=include_ursulas)
+            return reservoir
 
     def make_cli_controller(self, crash_on_error: bool = False):
         controller = PorterCLIController(app_name=self.APP_NAME,
