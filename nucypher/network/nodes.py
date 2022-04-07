@@ -1156,10 +1156,10 @@ class Teacher:
                 self.certificate_filepath = self._cert_store_function(self.certificate, port=self.rest_interface.port)
             certificate_filepath = self.certificate_filepath
 
-        response_data = network_middleware_client.node_information(host=self.rest_interface.host,
-                                                                   port=self.rest_interface.port)
 
         try:
+            response_data = network_middleware_client.node_information(host=self.rest_interface.host,
+                                                                       port=self.rest_interface.port)
             sprout = self.from_metadata_bytes(response_data)
         except Exception as e:
             raise self.InvalidNode(str(e))
