@@ -277,7 +277,7 @@ def download_registry(general_config, config_root, registry_outfile, network, fo
     except InMemoryContractRegistry.CantOverwriteRegistry:
         emitter.message(CANNOT_OVERWRITE_REGISTRY, color="red")
         raise click.Abort
-    emitter.message(SUCCESSFUL_REGISTRY_DOWNLOAD.format(output_filepath=output_filepath))
+    emitter.message(SUCCESSFUL_REGISTRY_DOWNLOAD.format(output_filepath=output_filepath), color="green")
 
 
 @deploy.command()
@@ -331,20 +331,20 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
 
     contract_name = actor_options.contract_name
     if not contract_name:
-        raise click.BadArgumentUsage(message="--contract-name is required when using --upgrade")
+        raise click.BadArgumentUsage(message=click.style("--contract-name is required when using --upgrade", fg="red"))
 
     try:
         # Check contract name exists
         Deployer = ADMINISTRATOR.deployers[contract_name]
     except KeyError:
         message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name, constants=ADMINISTRATOR.deployers.keys())
-        emitter.echo(message, color='red', bold=True)
+        emitter.error(message)
         raise click.Abort()
     deployer = Deployer(registry=local_registry)
 
     # Check deployer address is owner
     if Deployer._ownable and deployer_address != deployer.owner:  # blockchain read
-        emitter.echo(DEPLOYER_IS_NOT_OWNER.format(deployer_address=deployer_address,
+        emitter.error(DEPLOYER_IS_NOT_OWNER.format(deployer_address=deployer_address,
                                                   contract_name=contract_name,
                                                   agent=deployer.make_agent()))
         raise click.Abort()
@@ -357,7 +357,7 @@ def upgrade(general_config, actor_options, retarget, target_address, ignore_depl
 
     if retarget:
         if not target_address:
-            raise click.BadArgumentUsage(message="--target-address is required when using --retarget")
+            raise click.BadArgumentUsage(message=click.style("--target-address is required when using --retarget", fg="red"))
         if not actor_options.force:
             click.confirm(CONFIRM_RETARGET.format(contract_name=contract_name, target_address=target_address), abort=True)
         receipt = ADMINISTRATOR.retarget_proxy(contract_name=contract_name,target_address=target_address, confirmations=confirmations)
@@ -402,7 +402,7 @@ def rollback(general_config, actor_options):
     emitter = general_config.emitter
     ADMINISTRATOR, _, _, _ = actor_options.create_actor(emitter)
     if not actor_options.contract_name:
-        raise click.BadArgumentUsage(message="--contract-name is required when using --rollback")
+        raise click.BadArgumentUsage(message=click.style("--contract-name is required when using --rollback", fg="red"))
     receipt = ADMINISTRATOR.rollback_contract(contract_name=actor_options.contract_name)
     paint_receipt_summary(emitter=emitter, receipt=receipt)
 
@@ -440,7 +440,7 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
         contract_deployer_class = ADMINISTRATOR.deployers[contract_name]
     except KeyError:
         message = UNKNOWN_CONTRACT_NAME.format(contract_name=contract_name, constants=ADMINISTRATOR.deployers.keys())
-        emitter.echo(message, color='red', bold=True)
+        emitter.error(message)
         raise click.Abort()
 
     if activate:
@@ -448,7 +448,7 @@ def contracts(general_config, actor_options, mode, activate, gas, ignore_deploye
         staking_escrow_deployer = contract_deployer_class(registry=ADMINISTRATOR.registry)
         if contract_name != STAKING_ESCROW_CONTRACT_NAME or not staking_escrow_deployer.ready_to_activate:
             raise click.BadOptionUsage(option_name="--activate",
-                                       message=f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}")
+                                       message=click.style(f"You can only activate an idle instance of {STAKING_ESCROW_CONTRACT_NAME}", fg="red"))
 
         escrow_address = staking_escrow_deployer._get_deployed_contract().address
         prompt = CONFIRM_NETWORK_ACTIVATION.format(staking_escrow_name=STAKING_ESCROW_CONTRACT_NAME,

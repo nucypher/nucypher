@@ -85,19 +85,19 @@ def run(general_config,
     # HTTP/HTTPS
     if bool(tls_key_filepath) ^ bool(tls_certificate_filepath):
         raise click.BadOptionUsage(option_name='--tls-key-filepath, --tls-certificate-filepath',
-                                   message=PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED)
+                                   message=click.style(PORTER_BOTH_TLS_KEY_AND_CERTIFICATION_MUST_BE_PROVIDED, fg="red"))
 
     is_https = (tls_key_filepath and tls_certificate_filepath)
 
     # check authentication
     if basic_auth_filepath and not is_https:
         raise click.BadOptionUsage(option_name='--basic-auth-filepath',
-                                   message=PORTER_BASIC_AUTH_REQUIRES_HTTPS)
+                                   message=click.style(PORTER_BASIC_AUTH_REQUIRES_HTTPS, fg="red"))
 
     if federated_only:
         if not teacher_uri:
             raise click.BadOptionUsage(option_name='--teacher',
-                                       message="--teacher is required for federated porter.")
+                                       message=click.style("--teacher is required for federated porter.", fg="red"))
 
         teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
                                           federated_only=True,
@@ -111,11 +111,11 @@ def run(general_config,
         # decentralized/blockchain
         if not eth_provider_uri:
             raise click.BadOptionUsage(option_name='--eth-provider',
-                                       message="--eth-provider is required for decentralized porter.")
+                                       message=click.style("--eth-provider is required for decentralized porter.", fg="red"))
         if not network:
             # should never happen - network defaults to 'mainnet' if not specified
             raise click.BadOptionUsage(option_name='--network',
-                                       message="--network is required for decentralized porter.")
+                                       message=click.style("--network is required for decentralized porter.", "red"))
 
         registry = get_registry(network=network, registry_filepath=registry_filepath)
         teacher = None

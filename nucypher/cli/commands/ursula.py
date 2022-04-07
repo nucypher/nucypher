@@ -103,7 +103,7 @@ class UrsulaConfigOptions:
         if federated_only:
             if registry_filepath or policy_registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
-                                           message=f"--registry-filepath and --policy-registry-filepath cannot be used in federated mode.")
+                                           message=click.style("--registry-filepath and --policy-registry-filepath cannot be used in federated mode.", fg="red"))
 
         self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
@@ -180,7 +180,7 @@ class UrsulaConfigOptions:
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
             except Keystore.AuthenticationFailed as e:
-                emitter.echo(str(e), color='red', bold=True)
+                emitter.error(str(e))
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
@@ -309,7 +309,7 @@ class UrsulaCharacterOptions:
             return ursula_config, URSULA
 
         except Keystore.AuthenticationFailed as e:
-            emitter.echo(str(e), color='red', bold=True)
+            emitter.error(str(e))
             # TODO: Exit codes (not only for this, but for other exceptions)
             return click.get_current_context().exit(1)
 
@@ -340,7 +340,7 @@ def init(general_config, config_options, force, config_root, key_material):
     if not config_root:
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.eth_provider_uri:
-        raise click.BadOptionUsage('--eth-provider', message="--eth-provider is required to initialize a new ursula.")
+        raise click.BadOptionUsage('--eth-provider', message=click.style("--eth-provider is required to initialize a new ursula.", fg="red"))
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter, message="Select Staking Network")
     if not config_options.federated_only and not config_options.payment_network:
@@ -413,7 +413,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     if prometheus and not metrics_port:
         # Require metrics port when using prometheus
         raise click.BadOptionUsage(option_name='metrics-port',
-                                   message='--metrics-port is required when using --prometheus')
+                                   message=click.style('--metrics-port is required when using --prometheus', fg="red"))
 
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
@@ -483,7 +483,7 @@ def config(general_config, config_options, config_file, force, action):
         rest_host = collect_operator_ip_address(emitter=emitter, network=config_options.domain, force=force)
         config_options.rest_host = rest_host
     elif action:
-        emitter.echo(f'"{action}" is not a valid command.', color='red')
+        emitter.error(f'"{action}" is not a valid command.')
         raise click.Abort()
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
