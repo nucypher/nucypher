@@ -29,6 +29,7 @@ from hendrix.deploy.base import HendrixDeploy
 from hendrix.deploy.tls import HendrixDeployTLS
 from twisted.internet import reactor, stdio
 
+from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter, WebEmitter
 from nucypher.control.interfaces import ControlInterface
@@ -250,6 +251,7 @@ class WebController(InterfaceControlServer):
 
     _captured_status_codes = {200: 'OK',
                               400: 'BAD REQUEST',
+                              404: 'NOT FOUND',
                               500: 'INTERNAL SERVER ERROR'}
 
     def test_client(self):
@@ -302,8 +304,27 @@ class WebController(InterfaceControlServer):
     def __call__(self, *args, **kwargs):
         return self.handle_request(*args, **kwargs)
 
-    def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
+    @staticmethod
+    def json_response_from_worker_pool_exception(exception):
+        json_response = {}
+        if isinstance(exception, WorkerPool.TimedOut):
+            message_prefix = f"Execution timed out after {exception.timeout}s"
+        else:
+            message_prefix = f"Execution failed - no more values to try"
+        json_response['failure_message'] = f"{message_prefix}; " \
+                                           f"{len(exception.failures)} concurrent failures recorded"
+        if exception.failures:
+            failures = []
+            for value, exc_info in exception.failures.items():
+                failure = {'value': value}
+                _, exception, tb = exc_info
+                failure['error'] = str(exception)
+                failures.append(failure)
+            json_response['failures'] = failures
 
+        return json_response
+
+    def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
         _400_exceptions = (SpecificationError,
                            TypeError,
                            JSONDecodeError,
@@ -336,47 +357,26 @@ class WebController(InterfaceControlServer):
                 error_message=WebController._captured_status_codes[__exception_code])
 
         #
-        # Server Errors
+        # Execution Errors
         #
-        except SpecificationError as e:
-            __exception_code = 500
+        except WorkerPoolException as e:
+            # special case since WorkerPoolException contains multiple stack traces
+            # - not ideal for returning from REST endpoints
+            __exception_code = 404
             if self.crash_on_error:
                 raise
-            return self.emitter.exception(
-                e=e,
-                log_level='critical',
-                response_code=__exception_code,
-                error_message=WebController._captured_status_codes[__exception_code])
+
+            json_response_from_exception = self.json_response_from_worker_pool_exception(e)
+            return self.emitter.exception_with_response(
+                json_error_response=json_response_from_exception,
+                e=RuntimeError(json_response_from_exception['failure_message']),
+                error_message=WebController._captured_status_codes[__exception_code],
+                log_level='warn',
+                response_code=__exception_code)
 
         #
         # Unhandled Server Errors
         #
-        except WorkerPoolException as e:
-            # special case since WorkerPoolException contain stack traces - not ideal for returning from REST endpoints
-            __exception_code = 500
-            if self.crash_on_error:
-                raise
-
-            if isinstance(e, WorkerPool.TimedOut):
-                message_prefix = f"Execution timed out after {e.timeout}s"
-            else:
-                message_prefix = f"Execution failed - no more values to try"
-
-            # get random failure for context
-            if e.failures:
-                value = list(e.failures)[0]
-                _, exception, _ = e.failures[value]
-                msg = f"{message_prefix} ({len(e.failures)} concurrent failures recorded); " \
-                      f"for example, for {value}: {exception}"
-            else:
-                msg = message_prefix
-
-            return self.emitter.exception(
-                e=RuntimeError(msg),
-                log_level='warn',
-                response_code=__exception_code,
-                error_message=WebController._captured_status_codes[__exception_code])
-
         except Exception as e:
             __exception_code = 500
             if self.crash_on_error:
@@ -392,4 +392,4 @@ class WebController(InterfaceControlServer):
         #
         else:
             self.log.debug(f"{method_name} [200 - OK]")
-            return self.emitter.respond(response=response)
+            return self.emitter.respond(json_response=response)
