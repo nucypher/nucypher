@@ -307,11 +307,7 @@ class WebController(InterfaceControlServer):
     @staticmethod
     def json_response_from_worker_pool_exception(exception):
         json_response = {}
-        if isinstance(exception, WorkerPool.TimedOut):
-            message_prefix = f"Execution timed out after {exception.timeout}s"
-        else:
-            message_prefix = f"Execution failed - no more values to try"
-        json_response['failure_message'] = f"{message_prefix}; " \
+        json_response['failure_message'] = f"{exception}; " \
                                            f"{len(exception.failures)} concurrent failures recorded"
         if exception.failures:
             failures = []

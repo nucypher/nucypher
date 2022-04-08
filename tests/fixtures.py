@@ -458,6 +458,7 @@ def federated_porter(federated_ursulas):
                     known_nodes=federated_ursulas,
                     verify_node_bonding=False,
                     federated_only=True,
+                    execution_timeout=2,
                     network_middleware=MockRestMiddleware())
     yield porter
     porter.stop_learning_loop()
@@ -471,6 +472,7 @@ def blockchain_porter(blockchain_ursulas, testerchain, test_registry):
                     known_nodes=blockchain_ursulas,
                     eth_provider_uri=TEST_ETH_PROVIDER_URI,
                     registry=test_registry,
+                    execution_timeout=2,
                     network_middleware=MockRestMiddleware())
     yield porter
     porter.stop_learning_loop()

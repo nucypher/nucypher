@@ -85,6 +85,7 @@ the Pipe for PRE Application network operations
                  federated_only: bool = False,
                  node_class: object = Ursula,
                  eth_provider_uri: str = None,
+                 execution_timeout: int = DEFAULT_EXECUTION_TIMEOUT,
                  *args, **kwargs):
         self.federated_only = federated_only
 
@@ -104,6 +105,7 @@ the Pipe for PRE Application network operations
         super().__init__(save_metadata=True, domain=domain, node_class=node_class, *args, **kwargs)
 
         self.log = Logger(self.__class__.__name__)
+        self.execution_timeout = execution_timeout
 
         # Controller Interface
         self.interface = self._interface_class(porter=self)
@@ -137,14 +139,14 @@ the Pipe for PRE Application network operations
                 raise
 
         self.block_until_number_of_known_nodes_is(quantity,
-                                                  timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                                  timeout=self.execution_timeout,
                                                   learn_on_this_thread=True,
                                                   eager=True)
 
         worker_pool = WorkerPool(worker=get_ursula_info,
                                  value_factory=value_factory,
                                  target_successes=quantity,
-                                 timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                 timeout=self.execution_timeout,
                                  stagger_timeout=1)
         worker_pool.start()
         try:
@@ -174,7 +176,7 @@ the Pipe for PRE Application network operations
         if self.federated_only:
             sample_size = quantity - (len(include_ursulas) if include_ursulas else 0)
             if not self.block_until_number_of_known_nodes_is(sample_size,
-                                                             timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                                             timeout=self.execution_timeout,
                                                              learn_on_this_thread=True):
                 raise ValueError("Unable to learn about sufficient Ursulas")
             return make_federated_staker_reservoir(known_nodes=self.known_nodes,
