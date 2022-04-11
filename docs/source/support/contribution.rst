@@ -312,7 +312,7 @@ Release Cycle
 Versioning
 ^^^^^^^^^^
 
-The versioning scheme used is inspired by `semantic versioning 2.0<https://semver.org/>`_, but adds development stage and release candidate tags. The basic idea:
+The versioning scheme used is inspired by `semantic versioning 2.0 <https://semver.org/>`_, but adds development stage and release candidate tags. The basic idea:
 
 - MAJOR version when you make incompatible API changes
 - MINOR version when you add functionality in a backwards compatible manner
