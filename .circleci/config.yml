@@ -115,12 +115,12 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-      - heartbeat_demo:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - build_dev_docker_images
+#      - heartbeat_demo:
+#          filters:
+#            tags:
+#              only: /.*/
+#          requires:
+#            - build_dev_docker_images
       - build_docs:
           filters:
             tags:
@@ -335,12 +335,12 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-      - heartbeat_demo:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - build_dev_docker_images
+#      - heartbeat_demo:
+#          filters:
+#            tags:
+#              only: /.*/
+#          requires:
+#            - build_dev_docker_images
       - build_docs:
           filters:
             tags:
@@ -353,7 +353,7 @@ workflows:
               only: /.*/
           requires:
             - build_docs
-            - heartbeat_demo
+#            - heartbeat_demo
             - finnegans_wake_demo
       - build_docker:
           filters:
@@ -751,16 +751,16 @@ jobs:
     steps:
       - build_and_save_test_docker
 
-  heartbeat_demo:
-    <<: *python_37_base
-    steps:
-      - checkout
-      - prepare_dev_docker
-      - run:
-          name: Run demo Ursula fleet, Alicia and the Doctor
-          command: ./scripts/circle/run_heartbeat_demo_docker-circle.sh
-      - store_artifacts:
-          path: /tmp/ursulas-logs
+#  heartbeat_demo:
+#    <<: *python_37_base
+#    steps:
+#      - checkout
+#      - prepare_dev_docker
+#      - run:
+#          name: Run demo Ursula fleet, Alicia and the Doctor
+#          command: ./scripts/circle/run_heartbeat_demo_docker-circle.sh
+#      - store_artifacts:
+#          path: /tmp/ursulas-logs
 
   finnegans_wake_demo:
     working_directory: ~/nucypher

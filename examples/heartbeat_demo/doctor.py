@@ -14,46 +14,31 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import base64
 import json
-from pathlib import Path
+import shutil
 from timeit import default_timer as timer
 
 import maya
 import msgpack
-import shutil
-import sys
-
 from nucypher_core import MessageKit, EncryptedTreasureMap
 from nucypher_core.umbral import PublicKey
 
-from nucypher.characters.lawful import Bob, Enrico, Ursula
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
 
-GlobalLoggerSettings.start_console_logging()
-
 ######################
 # Boring setup stuff #
 ######################
 
-try:
-    SEEDNODE_URI = sys.argv[1]
-except IndexError:
-    SEEDNODE_URI = "localhost:11500"
+GlobalLoggerSettings.start_console_logging()
 
-
-TEMP_DOCTOR_DIR = Path(__file__).parent.absolute() / "doctor-files"
-
-# Remove previous demo files and create new ones
-shutil.rmtree(TEMP_DOCTOR_DIR, ignore_errors=True)
-
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
-                                         federated_only=True,
-                                         minimum_stake=0)
+L1_NETWORK = 'mainnet'  # 'ibex'
 
 # To create a Bob, we need the doctor's private keys previously generated.
 from doctor_keys import get_doctor_privkeys
@@ -69,13 +54,8 @@ power_ups = [enc_power, sig_power]
 print("Creating the Doctor ...")
 
 doctor = Bob(
-    domain=TEMPORARY_DOMAIN,
-    federated_only=True,
+    domain=L1_NETWORK,
     crypto_power_ups=power_ups,
-    start_learning_now=True,
-    abort_on_learning_error=True,
-    known_nodes=[ursula],
-    save_metadata=False,
     network_middleware=RestMiddleware(),
 )
 
