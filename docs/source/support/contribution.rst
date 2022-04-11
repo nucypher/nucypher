@@ -312,13 +312,13 @@ Release Cycle
 Versioning
 ^^^^^^^^^^
 
-The versioning scheme used is inspired by [semantic versioning 2.0](https://semver.org/), but adds development stage and release candidate tags. The basic idea:
+The versioning scheme used is inspired by `semantic versioning 2.0<https://semver.org/>`_, but adds development stage and release candidate tags. The basic idea:
 
-> MAJOR version when you make incompatible API changes,
-> MINOR version when you add functionality in a backwards compatible manner, and
-> PATCH version when you make backwards compatible bug fixes.
+- MAJOR version when you make incompatible API changes
+- MINOR version when you add functionality in a backwards compatible manner
+- PATCH version when you make backwards compatible bug fixes
 
-Two additional tags are used: ``-dev`` and ``-rc.x`` (ie ``v1.2.3-dev`` or ``v4.5.6-rc.0``)
+Two additional tags are used: ``-dev`` and ``-rc.x`` (i.e. ``v1.2.3-dev`` or ``v4.5.6-rc.0``)
 
 Upstream Branches
 ^^^^^^^^^^^^^^^^^
@@ -350,8 +350,8 @@ Sometimes changes are needed to fix a release blocker after a release candidate 
 
 In the event that a release blocker's fix introduces unexpected backwards incompatibility during a minor release, bump the major version instead skipping directly to ``-rc.0``.
 
-Patches (bugfixes, security patches,"hotfixes")
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Patches (bugfixes, security patches, "hotfixes")
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes urgent changes need to be made outside of a planned minor or major release.  If the required changes are backwards compatible open a pull request into ``main``.  Once the changes are reviewed and merged, ``development`` must be rebased over ``main``
 
