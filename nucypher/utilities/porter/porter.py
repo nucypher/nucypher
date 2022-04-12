@@ -15,8 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from pathlib import Path
-from threading import Lock
-from typing import List, NamedTuple, Optional, Sequence, Dict
+from typing import List, NamedTuple, Optional, Sequence
 
 import maya
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
@@ -42,6 +41,7 @@ from nucypher.policy.reservoir import (
     make_decentralized_staking_provider_reservoir,
     PrefetchStrategy, MergedReservoir
 )
+from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.porter.control.controllers import PorterCLIController
@@ -75,6 +75,7 @@ the Pipe for PRE Application network operations
     # don't want ttl to be divisible by interval - prevents windows
     # of time where cache expired and/or not set
     DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL = 60 * 16  # 16 minutes
+    STAKING_PROVIDERS_CACHE_KEY = "staking_providers"
     DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL = 60 * 5  # 5 minutes
 
     _interface_class = PorterInterface
@@ -124,32 +125,26 @@ the Pipe for PRE Application network operations
 
         # StakingProviders reservoir Caching
         if not self.federated_only:
-            self._staking_providers_cache_lock = Lock()
-            self._staking_providers_cache_dict: Dict[ChecksumAddress, int] = None
-            self._staking_providers_cache_last_updated: maya.MayaDT = None
+            self._staking_providers_cache = TTLCache(ttl=self.DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL)
             self._staking_providers_cache_task = task.LoopingCall(self._cache_staking_providers_map)
             cache_deferred = self._staking_providers_cache_task.start(interval=self.DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL, now=True)
             cache_deferred.addErrback(self._handle_staking_provider_cache_errors)
 
     def _cache_staking_providers_map(self):
         # we can possibly use the cache in this instance
-        with self._staking_providers_cache_lock:
-            if self._staking_providers_cache_dict:
-                # make sure cached object won't expire before the next run of this task
-                cache_last_updated = self._staking_providers_cache_last_updated
-                cache_expiry = cache_last_updated.add(seconds=self.DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL)
-                next_task_execution = maya.now().add(seconds=self.DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL)
-                if cache_expiry >= next_task_execution:
-                    # no need to update cache before next run
-                    return
+        # make sure cached object won't expire before the next run of this task
+        cache_expiry = self._staking_providers_cache.get_expiration(self.STAKING_PROVIDERS_CACHE_KEY)
+        if cache_expiry:
+            next_task_execution = maya.now().add(seconds=self.DEFAULT_STAKING_PROVIDERS_TASK_INTERVAL)
+            if cache_expiry >= next_task_execution:
+                # no need to update cache before next run
+                return
 
         # fetch updated reservoir mapping then cache results
         reservoir = make_decentralized_staking_provider_reservoir(
             application_agent=self.application_agent)
         staking_providers_map = reservoir.reservoir.original_staking_provider_map()
-        with self._staking_providers_cache_lock:
-            self._staking_providers_cache_dict = staking_providers_map
-            self._staking_providers_cache_last_updated = maya.now()
+        self._staking_providers_cache.put(self.STAKING_PROVIDERS_CACHE_KEY, staking_providers_map)
 
     def _handle_staking_provider_cache_errors(self, failure, *args, **kwargs):
         if args:
@@ -232,15 +227,11 @@ the Pipe for PRE Application network operations
                                                    include_addresses=include_ursulas)
         else:
             # we can possibly use the cache in this instance
-            with self._staking_providers_cache_lock:
-                current_staking_providers_map = dict(self._staking_providers_cache_dict)
-                cached_last_updated = self._staking_providers_cache_last_updated
-
-            cache_expiry = cached_last_updated.add(seconds=self.DEFAULT_STAKING_PROVIDERS_RESERVOIR_CACHE_TTL)
-            if current_staking_providers_map and cache_expiry >= maya.now():
+            staking_providers_map = self._staking_providers_cache.get(self.STAKING_PROVIDERS_CACHE_KEY)
+            if staking_providers_map:
                 # cached value present and not expired
-
                 # adjust for provided arguments
+                current_staking_providers_map = staking_providers_map.copy()
                 if exclude_ursulas:
                     for ursula_address in exclude_ursulas:
                         if ursula_address in current_staking_providers_map:
