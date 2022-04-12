@@ -98,17 +98,7 @@ class WorkerPoolException(Exception):
         # craft message
         msg = message_prefix
         if self.failures:
-            # Using one random failure
-            # Most probably they're all the same anyway.
-            value = list(self.failures)[0]
-            _, exception, tb = self.failures[value]
-            f = io.StringIO()
-            traceback.print_tb(tb, file=f)
-            traceback_str = f.getvalue()
-            msg = (f"{message_prefix} ({len(self.failures)} failures recorded); "
-                   f"for example, for {value}:\n"
-                   f"{traceback_str}\n"
-                   f"{exception}")
+            msg = f"{message_prefix} ({len(self.failures)} failures recorded)"
         super().__init__(msg)
 
     def get_tracebacks(self) -> Dict[Any, str]:

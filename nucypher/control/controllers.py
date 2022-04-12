@@ -306,16 +306,16 @@ class WebController(InterfaceControlServer):
 
     @staticmethod
     def json_response_from_worker_pool_exception(exception):
-        json_response = {}
-        json_response['failure_message'] = f"{exception}; " \
-                                           f"{len(exception.failures)} concurrent failures recorded"
+        json_response = {
+            'failure_message': str(exception)
+        }
         if exception.failures:
             failures = []
             for value, exc_info in exception.failures.items():
-                failure = {'value': value}
-                _, exception, tb = exc_info
-                failure['error'] = str(exception)
-                failures.append(failure)
+                failures.append({
+                    'value': value,
+                    'error': str(exc_info[1])
+                })
             json_response['failures'] = failures
 
         return json_response
@@ -367,8 +367,8 @@ class WebController(InterfaceControlServer):
                 json_error_response=json_response_from_exception,
                 e=RuntimeError(json_response_from_exception['failure_message']),
                 error_message=WebController._captured_status_codes[__exception_code],
-                log_level='warn',
-                response_code=__exception_code)
+                response_code=__exception_code,
+                log_level='warn')
 
         #
         # Unhandled Server Errors

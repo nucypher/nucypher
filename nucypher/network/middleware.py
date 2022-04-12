@@ -190,13 +190,12 @@ class NucypherMiddlewareClient:
                         endpoint,
                         *args, **kwargs):
         # Use existing cached SSL certificate or fetch fresh copy and retry
-        cached_certificate_filepath = Path(
-            self.storage.generate_certificate_filepath(host=host, port=port))
-        if cached_certificate_filepath.exists():
+        cached_cert_filepath = Path(self.storage.generate_certificate_filepath(host=host, port=port))
+        if cached_cert_filepath.exists():
             # already cached try it
             try:
                 # Send request
-                response = self.invoke_method(method, endpoint, verify=cached_certificate_filepath,
+                response = self.invoke_method(method, endpoint, verify=cached_cert_filepath,
                                               *args, **kwargs)
 
                 # successful use of cached certificate

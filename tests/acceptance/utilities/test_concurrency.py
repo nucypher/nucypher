@@ -170,10 +170,6 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
         assert 'raise Exception(f"Operator for {value} failed")' in traceback
         assert f'Operator for {value} failed' in traceback
 
-    # This will be the last line in the displayed traceback;
-    # That's where the worker actually failed. (Operator for {value} failed)
-    assert 'raise Exception(f"Operator for {value} failed")' in message
-
 
 def test_wait_for_successes_timed_out(join_worker_pool):
     """

@@ -247,8 +247,7 @@ class WebEmitter:
         exception = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
         message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {exception}"
         logger = getattr(self.log, log_level)
-        # See #724 / 2156
-        message_cleaned_for_logger = message.replace("{", "<^<").replace("}", ">^>")
+        message_cleaned_for_logger = Logger.escape_format_string(message)
         logger(message_cleaned_for_logger)
 
     @staticmethod
@@ -274,8 +273,8 @@ class WebEmitter:
                                 json_error_response,
                                 e,
                                 error_message: str,
-                                log_level: str = 'info',
-                                response_code: int = 500):
+                                response_code: int,
+                                log_level: str = 'info'):
         self._log_exception(e, error_message, log_level, response_code)
         if self.crash_on_error:
             raise e
