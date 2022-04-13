@@ -487,6 +487,7 @@ class CharacterConfiguration(BaseConfiguration):
             blockchain_args = {'filepath': registry_filepath,
                                'poa': poa,
                                'eth_provider_uri': eth_provider_uri,
+                               'payment_provider': payment_provider,
                                'gas_strategy': gas_strategy,
                                'max_gas_price': max_gas_price}
             if any(blockchain_args.values()):
