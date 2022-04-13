@@ -343,6 +343,8 @@ def init(general_config, config_options, force, config_root, key_material):
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.eth_provider_uri:
         raise click.BadOptionUsage('--eth-provider', message=click.style("--eth-provider is required to initialize a new ursula.", fg="red"))
+    if not config_options.federated_only and not config_options.payment_provider:
+        raise click.BadOptionUsage('--payment-provider', message=click.style("--payment-provider is required to initialize a new ursula.", fg="red"))
     if not config_options.federated_only and not config_options.domain:
         config_options.domain = select_network(emitter, message="Select Staking Network", network_type=NetworksInventory.ETH)
     if not config_options.federated_only and not config_options.payment_network:
