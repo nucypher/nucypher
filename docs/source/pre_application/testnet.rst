@@ -13,3 +13,25 @@ You can view it on `etherscan <https://rinkeby.etherscan.io/address/0xc3871e2c11
 .. attention::
 
     This testnet is currently being migrated to Threshold Network.
+
+
+Stake and Bond
+--------------
+You need some rinkeby testnet ETH and 40,000 T in a metamask wallet.
+Ask in the discord if you need help with this.
+
+Navigate to the `Testnet Staking Dashboard <https://dn3gsazzaajb.cloudfront.net/manage/stake>`_ and connect your metamask wallet.
+Go to the **stake** tab and click "Stake liquid T on mainnet"
+
+.. image:: ../.static/img/testnet_stake_dashboard.png
+    :target: ../.static/img/testnet_stake_dashboard.png
+
+Allow the 40,000 T spend, and then stake it.
+Both transactions will require authorization via metamask.
+You can ignore the **Configure Addresses** option - they should all default to the currently connected account.
+
+Once those transactions are confirmed, switch to the **bond** tab.
+Here you will paste the Operator address that is being printed by the docker logs:
+
+.. image:: ../.static/img/testnet_bond_dashboard.png
+    :target: ../.static/img/testnet_bond_dashboard.png
