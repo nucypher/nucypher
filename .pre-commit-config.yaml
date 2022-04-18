@@ -52,6 +52,14 @@ repos:
         files: \.py$  # only target python files, for example - skip contract_registry.json
         args: [--license-filepath, '.nucypher-license', --detect-license-in-X-top-lines=16, --comment-style, '"""||"""']
 
+  - repo: https://github.com/akaihola/darker
+    rev: 1.4.2
+    hooks:
+    -   id: darker
+        args: [--isort]
+        additional_dependencies:
+        -   isort~=5.9
+
 
 # TODO: May be incrementally introduced
 #  - repo: https://github.com/PyCQA/bandit
