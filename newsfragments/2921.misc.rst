@@ -1,0 +1,1 @@
+Add a pre-commit hook and github action for `Darker <https://github.com/akaihola/darker>`_ to ensure all future changes conform to black and isort.
