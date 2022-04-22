@@ -514,6 +514,7 @@ Some common returned status codes you may encounter are:
 - ``400 BAD REQUEST`` -- The server cannot or will not process the request due to something that is perceived to
   be a client error (e.g., malformed request syntax, invalid request message framing, or deceptive request routing).
 - ``401 UNAUTHORIZED`` -- Authentication is required and the request has failed to provide valid authentication credentials.
+- ``404 NOT FOUND`` -- Request could not be completed because requested resources could not be found.
 - ``500 INTERNAL SERVER ERROR`` -- The server encountered an unexpected condition that prevented it from
   fulfilling the request.
 

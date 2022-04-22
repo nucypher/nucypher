@@ -98,17 +98,7 @@ class WorkerPoolException(Exception):
         # craft message
         msg = message_prefix
         if self.failures:
-            # Using one random failure
-            # Most probably they're all the same anyway.
-            value = list(self.failures)[0]
-            _, exception, tb = self.failures[value]
-            f = io.StringIO()
-            traceback.print_tb(tb, file=f)
-            traceback_str = f.getvalue()
-            msg = (f"{message_prefix} ({len(self.failures)} failures recorded); "
-                   f"for example, for {value}:\n"
-                   f"{traceback_str}\n"
-                   f"{exception}")
+            msg = f"{message_prefix} ({len(self.failures)} failures recorded)"
         super().__init__(msg)
 
     def get_tracebacks(self) -> Dict[Any, str]:
@@ -316,8 +306,13 @@ class WorkerPool:
                     with self._results_lock:
                         self._failures[result.value] = result.exc_info
 
+            if success_event_reached:
+                # no need to continue processing results
+                self.cancel()  # to cancel the timeout thread
+                break
+
             if producer_stopped and self._finished_tasks == self._started_tasks:
-                self.cancel() # to cancel the timeout thread
+                self.cancel()  # to cancel the timeout thread
                 self._target_value.set(PRODUCER_STOPPED)
                 break
 

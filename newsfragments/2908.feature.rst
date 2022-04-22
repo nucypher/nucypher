@@ -1,0 +1,5 @@
+SSL Certificate fetching and Porter optimizations
+- Middleware should try cached SSL certification for a node first, and then if the requests fails, fetch the node's up-to-date SSL cert
+- Short-circuit WorkerPool background execution once sufficient successful executions occur
+- Don't limit WorkerPool size; this has consequences when smaller samples of ursulas are performed; allow threadpool to be flexible by using default min/max
+- Return more comprehensive error information for failed WorkerPool execution
