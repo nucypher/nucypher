@@ -1,0 +1,1 @@
+Bump ``nucypher-core`` dependency to 0.2
