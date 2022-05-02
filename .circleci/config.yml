@@ -187,7 +187,7 @@ workflows:
             branches:
               ignore: /.*/
       - publish_porter_docker:
-          context: "NuCypher Porter Docker"
+          context: "NuCypher Docker"  # This name much match the organization's context name on circleCI.
           requires:
             - request_publication_approval
           filters:
