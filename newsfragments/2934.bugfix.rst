@@ -1,0 +1,3 @@
+Properly support event retrieval for the PREApplication contract.
+Remove invalid support for SubscriptionManager contract - proper support will be
+added in a future release.
