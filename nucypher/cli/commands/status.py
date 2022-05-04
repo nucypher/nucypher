@@ -23,8 +23,8 @@ import click
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
+    NucypherTokenAgent,
     PREApplicationAgent,
-    SubscriptionManagerAgent,
     EthereumContractAgent
 )
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
@@ -57,7 +57,7 @@ POLICY_MANAGER = 'PolicyManager'
 
 CONTRACT_NAMES = [
     PREApplicationAgent.contract_name,
-    SubscriptionManagerAgent.contract_name,
+    NucypherTokenAgent.contract_name,
     STAKING_ESCROW,
     POLICY_MANAGER
 ]
@@ -147,7 +147,7 @@ def staking_providers(general_config, registry_options, staking_provider_address
 @status.command()
 @group_registry_options
 @group_general_config
-@option_contract_name(required=False)
+@option_contract_name(required=False, valid_options=CONTRACT_NAMES)
 @option_event_name
 @option_from_block
 @option_to_block
@@ -175,6 +175,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         if event_name:
             raise click.BadOptionUsage(option_name='--event-name', message=click.style('--event-name requires --contract-name', fg="red"))
         # FIXME should we force a contract name to be specified?
+        # default to PREApplication contract
+        contract_names = [PREApplicationAgent.contract_name]
     else:
         contract_names = [contract_name]
 
@@ -209,7 +211,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     if legacy and contract_name in LEGACY_CONTRACT_VERSIONS:
         contract_version = LEGACY_CONTRACT_VERSIONS[contract_name]
 
-    for contract_name in CONTRACT_NAMES:
+    for contract_name in contract_names:
         if legacy:
             versioned_contract = blockchain.get_contract_by_name(
                 registry=registry,
