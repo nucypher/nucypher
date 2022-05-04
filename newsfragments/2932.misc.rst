@@ -1,0 +1,2 @@
+Removes [docs] pip extra
+

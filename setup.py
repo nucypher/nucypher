@@ -122,7 +122,10 @@ def read_requirements(path):
 
 INSTALL_REQUIRES = read_requirements('requirements.txt')
 DEV_REQUIRES = read_requirements('dev-requirements.txt')
-DOC_REQUIRES = read_requirements('docs-requirements.txt')
+
+# Direct dependencies are not supported on PyPI, instead use `pip -r docs-requirements`
+# https://github.com/pypa/twine/issues/726
+# DOC_REQUIRES = read_requirements('docs-requirements.txt')
 
 BENCHMARK_REQUIRES = [
     'pytest-benchmark'
@@ -146,7 +149,7 @@ EXTRAS = {
     'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES + PORTER_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DEPLOY_REQUIRES,
-    'docs': DOC_REQUIRES,
+    # 'docs': DOC_REQUIRES,
 
     # User
     'ursula': URSULA_REQUIRES,

@@ -813,7 +813,7 @@ jobs:
       - chown_system_paths
       - run:
           name: Install Documentation Build Dependencies
-          command: python3 -m pip install --user .[docs]
+          command: python3 -m pip install --user -r docs-requirements.txt
       - run:
           name: Build Sphinx Documentation
           command: make docs
