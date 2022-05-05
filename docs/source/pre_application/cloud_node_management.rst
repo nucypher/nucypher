@@ -1,4 +1,4 @@
-.. _managing-cloud-nodes:
+    .. _managing-cloud-nodes:
 
 ===============================
 PRE Node Deployment Automation
@@ -13,48 +13,11 @@ PRE Node Deployment Automation
 
 In this tutorial we're going to setup a Threshold PRE Node using a remote cloud provider (Digital Ocean, AWS, and more in the future).
 Whilst this example will demonstrate how to deploy to Digital Ocean, the steps for any other infrastructure provider are virtually identical.
-There are a few pre-requisites before we can get started.
-First, we need to create accounts at `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
-
-In order to run a node will also need to have an existing Threshold stake.  For more information see
+There are a few pre-requisites before we can get started. First, we need to create accounts at `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
 
 
-Digital Ocean
--------------
-All of the Digital Ocean configuration will be done automatically, but there are two local environment variables we need to set in order to make this work:
-
-- ``DIGITALOCEAN_ACCESS_TOKEN`` - your Digital Ocean `access token <https://docs.digitalocean.com/reference/api/create-personal-access-token/>`_.
-- ``DIGITAL_OCEAN_KEY_FINGERPRINT`` - your Digital Ocean `key fingerprint <https://docs.digitalocean.com/products/droplets/how-to/add-ssh-keys/to-account/>`_.
-
-Follow those two blog posts and either ``export`` the environment variables or add them to your ``~/.bashrc`` file.
-
-
-Infura
-------
-We need a way to interact with both the Ethereum and Polygon networks; Infura makes this easy for us.
-Create a new project at Infura with product type ``ETHEREUM``.
-Also, add the Polygon add-on to this project.
-We're going to create two more environment variables:
-
-- ``INFURA_MAINNET_URL``
-- ``INFURA_POLYGON_URL``
-
-In the **Project Settings**, change the ``ENDPOINTS`` to ``MAINNET`` / ``POLYGON``.
-Set the above environment variables to the corresponding ``https`` endpoint.
-
-
-Overall the environment variable process should look something like:
-
-.. code-block:: bash
-
-    $ export INFURA_MAINNET_URL=https://mainnet.infura.io/v3/bd76baxxxxxxxxxxxxxxxxxxxxxf0ff0
-    $ export INFURA_POLYGON_URL=https://polygon.infura.io/v3/bd76baxxxxxxxxxxxxxxxxxxxxxf0ff0
-    $ export DIGITALOCEAN_ACCESS_TOKEN=4ade7a8701xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxbafd23
-    $ export DIGITAL_OCEAN_KEY_FINGERPRINT=28:38:e7xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx:ca:5c
-
-
-Setup Remote Node
------------------
+Launch Remote Node
+-------------------
 Locally, we will install `NuCypher Ops <https://github.com/nucypher/nucypher-ops>`_ to handle the heavy lifting of setting up a node.
 
 .. code-block:: bash
@@ -65,7 +28,7 @@ Now NuCypher Ops is installed we can create a droplet on Digital Ocean:
 
 .. code-block:: bash
 
-    nucypher-ops nodes create --network mainnet --count 1 --cloudprovider digitalocean
+    nucypher-ops nodes create
 
 At this point you should see the droplet in your Digital Ocean dashboard.
 Now we can deploy the PRE Node:
@@ -103,9 +66,24 @@ Let's ``ssh`` into it and look at the logs:
     ...
 
 These lines will print repeatedly until the Operator is funded with some mainnet ETH and bonded to a staking provider.
-Send mainnet ETH to the operator address that is printed
+Send mainnet ETH to the operator address that is printed.
 
-Once you've funded and staking transaction is confirmed, view the logs of the node. You should see:
+
+Stake an Bond
+-------------
+
+If you have not already done so you'll need to establish a stake on the threshold
+staking dashboard ``https://dashboard.threshold.network/overview/network``.
+After you've established your stake, proceed to the PRE node bonding dashboard to bond your node's
+operator address to your stake. ``https://stake.nucypher.network/manage/operator``.
+
+
+Monitor Remote Node
+-------------------
+
+Send a small amount of ETH to your operator address so it can perform the initial start transaction which signals that your
+node is open for business. Once you've funded and your staking transaction is confirmed, view the logs of the node.
+It will automatically detect that you have staked.  You should see:
 
 .. code-block:: bash
 
@@ -117,3 +95,5 @@ Once you've funded and staking transaction is confirmed, view the logs of the no
     Working ~ Keep Ursula Online!
 
 You can view the status of your node by visiting ``https://YOUR_NODE_IP:9151/status``
+
+That's all!
