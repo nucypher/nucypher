@@ -35,7 +35,9 @@ Now we can deploy the PRE Node:
 
 .. code-block:: bash
 
-    nucypher-ops ursula deploy --eth-provider $INFURA_MAINNET_URL --nucypher-image nucypher/nucypher:latest --payment-provider $INFURA_POLYGON_URL --network mainnet
+    nucypher-ops ursula deploy
+
+Follow the prompts to enter your ethereum and polygon provider URIs.
 
 This should produce a lot of log messages as the ansible playbooks install all the requirements and setup the node.
 The final output should be similar to:

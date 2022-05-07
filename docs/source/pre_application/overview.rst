@@ -88,10 +88,6 @@ In order to provide the PRE service and receive rewards, there are three options
   of the PRE client.
 * **Self-Managed, Automated**: Run your own PRE node on either Digital Ocean or AWS, leveraging :ref:`automation tools <managing-cloud-nodes>` that speed up and simplify the installation process. In this case too, stakers are entirely responsible for setup, operation, and monitoring of the PRE client.
 
-  .. note::
-
-     The :ref:`automation tools <managing-cloud-nodes>` are under active development, and should currently **only be used on testnet**.
-
 Note that setting up a PRE node from scratch is non-trivial, but is typically inexpensive and unburdensome to maintain.
 PRE end-users expect and require an on-demand service, wherein their *grant*, *revoke* and *re-encryption* requests are answered reliably, correctly, and without interruption.
 Hence the most critical responsibility for stakers is ensuring that their PRE node remains online **at all times**. If this is not certain using a local machine, it is highly recommended to use cloud infrastructure instead.
