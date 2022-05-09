@@ -12,12 +12,18 @@ PRE Node Deployment Automation
 
 
 In this tutorial we're going to setup a Threshold PRE Node using a remote cloud provider (Digital Ocean, AWS, and more in the future).
-Whilst this example will demonstrate how to deploy to Digital Ocean, the steps for any other infrastructure provider are virtually identical.
-There are a few pre-requisites before we can get started. First, we need to create accounts at `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
+This example will demonstrate how to deploy to Digital Ocean. There are a few pre-requisites before we can get started.
+First, we need to create accounts on `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
+Also ensure that your local environment has python 3.8 or later installed.
 
 
 Launch Remote Node
 -------------------
+
+.. note::
+
+    nucypher-ops requires python 3.8 or later.
+
 Locally, we will install `NuCypher Ops <https://github.com/nucypher/nucypher-ops>`_ to handle the heavy lifting of setting up a node.
 
 .. code-block:: bash
@@ -30,7 +36,8 @@ Now NuCypher Ops is installed we can create a droplet on Digital Ocean:
 
     nucypher-ops nodes create
 
-At this point you should see the droplet in your Digital Ocean dashboard.
+Follow the interactive prompts to select the Digital Ocean provider.
+After this command completes you will see a new droplet in your Digital Ocean dashboard.
 Now we can deploy the PRE Node:
 
 .. code-block:: bash
@@ -68,24 +75,25 @@ Let's ``ssh`` into it and look at the logs:
     ...
 
 These lines will print repeatedly until the Operator is funded with some mainnet ETH and bonded to a staking provider.
-Send mainnet ETH to the operator address that is printed.
 
+Stake and Bond
+--------------
 
-Stake an Bond
--------------
-
-If you have not already done so you'll need to establish a stake on the threshold
-staking dashboard ``https://dashboard.threshold.network/overview/network``.
-After you've established your stake, proceed to the PRE node bonding dashboard to bond your node's
-operator address to your stake. ``https://stake.nucypher.network/manage/operator``.
+If you have not already done so you'll need to establish a stake on the `Threshold
+Dashboard <https://dashboard.threshold.network/overview/network>`_.
+After you've established your stake, proceed to the
+`PRE node bonding dashboard <https://stake.nucypher.network/manage/operator>`_ to bond your node's
+Operator address to your stake.
 
 
 Monitor Remote Node
 -------------------
 
-Send a small amount of ETH to your operator address so it can perform the initial start transaction which signals that your
-node is open for business. Once you've funded and your staking transaction is confirmed, view the logs of the node.
-It will automatically detect that you have staked.  You should see:
+Send a small amount of ETH to your Operator address so it can perform the initial confirmation transaction which signals that your
+node is open for business. Once you've funded the Operator address and bonded to the stake, view the node's logs.
+It will automatically detect both completed actions.
+
+After funding and bonding the node will resume startup displaying the following logs:
 
 .. code-block:: bash
 
@@ -96,6 +104,6 @@ It will automatically detect that you have staked.  You should see:
     ✓ Rest Server https://123.456.789.000:9151
     Working ~ Keep Ursula Online!
 
-You can view the status of your node by visiting ``https://YOUR_NODE_IP:9151/status``
+You can view the status of your node by visiting ``https://<YOUR_NODE_IP>:9151/status``
 
 That's all!

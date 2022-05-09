@@ -17,7 +17,7 @@ You can view it on `etherscan <https://rinkeby.etherscan.io/address/0xc3871e2c11
 
 Stake and Bond
 --------------
-You need some rinkeby testnet ETH and 40,000 T in a metamask wallet.
+You need some Rinkeby testnet ETH and 40,000 T in a metamask wallet.
 Ask in the discord if you need help with this.
 
 Navigate to the `Testnet Staking Dashboard <https://dn3gsazzaajb.cloudfront.net/manage/stake>`_ and connect your metamask wallet.
