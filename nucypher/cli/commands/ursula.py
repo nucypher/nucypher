@@ -21,6 +21,7 @@ from pathlib import Path
 import click
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, recover_keystore
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -71,6 +72,7 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN
 )
 from nucypher.crypto.keystore import Keystore
+
 
 
 class UrsulaConfigOptions:
@@ -341,10 +343,12 @@ def init(general_config, config_options, force, config_root, key_material):
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.eth_provider_uri:
         raise click.BadOptionUsage('--eth-provider', message=click.style("--eth-provider is required to initialize a new ursula.", fg="red"))
+    if not config_options.federated_only and not config_options.payment_provider:
+        raise click.BadOptionUsage('--payment-provider', message=click.style("--payment-provider is required to initialize a new ursula.", fg="red"))
     if not config_options.federated_only and not config_options.domain:
-        config_options.domain = select_network(emitter, message="Select Staking Network")
+        config_options.domain = select_network(emitter, message="Select Staking Network", network_type=NetworksInventory.ETH)
     if not config_options.federated_only and not config_options.payment_network:
-        config_options.payment_network = select_network(emitter, message="Select Payment Network")
+        config_options.payment_network = select_network(emitter, message="Select Payment Network", network_type=NetworksInventory.POLYGON)
     ursula_config = config_options.generate_config(emitter=emitter,
                                                    config_root=config_root,
                                                    force=force,

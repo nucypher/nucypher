@@ -37,7 +37,8 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
     MOCK_IP_ADDRESS_2,
-    TEST_ETH_PROVIDER_URI
+    TEST_ETH_PROVIDER_URI,
+    TEST_POLYGON_PROVIDER_URI
 )
 
 
@@ -129,6 +130,7 @@ def test_coexisting_configurations(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,
                  '--eth-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
                  '--operator-address', ursula,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', str(agency_local_registry.filepath.absolute()),
@@ -152,6 +154,7 @@ def test_coexisting_configurations(click_runner,
                  '--rest-host', MOCK_IP_ADDRESS_2,
                  '--registry-filepath', str(agency_local_registry.filepath.absolute()),
                  '--eth-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
                  '--config-root', str(custom_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -239,6 +242,7 @@ def test_corrupted_configuration(click_runner,
 
     init_args = ('ursula', 'init',
                  '--eth-provider', TEST_ETH_PROVIDER_URI,
+                '--payment-provider', TEST_POLYGON_PROVIDER_URI,
                  '--operator-address', another_ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,
@@ -270,6 +274,7 @@ def test_corrupted_configuration(click_runner,
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,
                  '--eth-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
                  '--operator-address', another_ursula,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--registry-filepath', str(agency_local_registry.filepath.absolute()),
