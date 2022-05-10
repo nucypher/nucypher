@@ -1,2 +1,0 @@
-Show error message when ``--prometheus`` flag is used since functionality not currently supported. Prometheus
-monitoring functionality will be revamped in a subsequent release.

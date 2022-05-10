@@ -1,1 +1,0 @@
-Only print relevant network options when running `nucypher ursula init`

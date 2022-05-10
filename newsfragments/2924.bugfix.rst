@@ -1,1 +1,0 @@
-Retrieve contract registries from the ``development`` branch on GitHub instead of ``main``.
