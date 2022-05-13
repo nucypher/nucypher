@@ -24,13 +24,12 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Dict
 from urllib.parse import urlparse
 
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
-from typing import Dict
-
 
 #
 # Metadata
@@ -163,7 +162,6 @@ setup(
 
     # Requirements
     python_requires='>=3',
-    setup_requires=['setuptools-markdown'],
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS,
 
