@@ -562,9 +562,14 @@ class BlockchainInterface:
         #
 
         # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        max_tx_price = transaction_dict['maxFeePerGas']
-        max_priority_price = transaction_dict['maxPriorityFeePerGas']
-        max_price = max_tx_price + max_priority_price
+        
+        if transaction_dict.get('maxFeePerGas') and transaction_dict.get('maxPriorityFeePerGas'):
+            # TODO:  this probably only needs to be here to support Ropsten?
+            max_tx_price = transaction_dict['maxFeePerGas']
+            max_priority_price = transaction_dict['maxPriorityFeePerGas']
+            max_price = max_tx_price + max_priority_price
+        else:
+            max_price = transaction_dict['gasPrice']
         max_price_gwei = Web3.fromWei(max_price, 'gwei')
         max_cost_wei = max_price * transaction_dict['gas']
         max_cost = Web3.fromWei(max_cost_wei, 'ether')
