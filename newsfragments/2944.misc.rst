@@ -1,0 +1,1 @@
+Add default seed node for Oryx testnet.
