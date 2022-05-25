@@ -11,7 +11,16 @@ PRE Node Deployment Automation
     via `nucypher-ops <https://github.com/nucypher/nucypher-ops>`_.
 
 
-In this tutorial we're going to setup a Threshold PRE Node using a remote cloud provider (Digital Ocean, AWS, and more in the future).
+In this tutorial we're going to setup a Threshold PRE node using a remote cloud provider (Digital Ocean, AWS, and more in the future).
+The PRE node will run via a Docker container.
+
+.. note::
+
+    By default, ``nucypher-ops`` uses a Docker container restart policy of ``unless-stopped``.
+    This ensures that the Docker container will be automatically restarted if it exited,
+    except if the container was stopped via an appropriate command. See `Docker Restart Policies <https://docs.docker.com/engine/reference/run/#restart-policies---restart>`_
+    for more information.
+
 This example will demonstrate how to deploy to Digital Ocean. There are a few pre-requisites before we can get started.
 First, we need to create accounts on `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
 Also ensure that your local environment has python 3.8 or later installed.
@@ -20,7 +29,7 @@ Also ensure that your local environment has python 3.8 or later installed.
 Launch Remote Node
 -------------------
 
-.. note::
+.. important::
 
     nucypher-ops requires python 3.8 or later.
 
