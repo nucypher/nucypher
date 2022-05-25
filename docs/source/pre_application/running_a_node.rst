@@ -222,6 +222,7 @@ This step starts the PRE node.
 
     $ docker run -d --rm \
     --name ursula      \
+    --restart unless-stopped          \
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
     -v ~/.ethereum/:/root/.ethereum   \
     -p 9151:9151                      \
@@ -229,6 +230,14 @@ This step starts the PRE node.
     -e NUCYPHER_OPERATOR_ETH_PASSWORD \
     nucypher/nucypher:latest          \
     nucypher ursula run
+
+
+.. note::
+
+    Setting the ``--restart`` parameter to ``unless-stopped`` ensures that the Docker
+    container will be automatically restarted if it exited, except if the container was
+    stopped using the ``docker stop`` command. See `Docker Restart Policies <https://docs.docker.com/engine/reference/run/#restart-policies---restart>`_
+    for more information.
 
 View Node Logs
 ++++++++++++++
@@ -307,6 +316,7 @@ Create a file named ``ursula.service`` in ``/etc/systemd/system``, and add this 
     [Service]
     User=<YOUR USERNAME>
     Type=simple
+    Restart=on-failure
     Environment="NUCYPHER_OPERATOR_ETH_PASSWORD=<YOUR OPERATOR ADDRESS PASSWORD>"
     Environment="NUCYPHER_KEYSTORE_PASSWORD=<YOUR PASSWORD>"
     ExecStart=<VIRTUALENV PATH>/bin/nucypher ursula run
@@ -322,6 +332,15 @@ Replace the following values with your own:
 - ``<YOUR PASSWORD>`` - ``nucypher`` keystore password
 - ``<VIRTUALENV PATH>`` - The absolute path to the python virtual environment containing the ``nucypher`` executable.
   Run ``pipenv –venv`` within the virtual environment to get the virtual environment path.
+
+
+.. note::
+
+    Setting the ``Restart`` option to ``on-failure``, ensures that the systemd service
+    will be automatically restarted if it exited with a non-zero exit code, except if
+    the container was stopped using the ``systemctl stop`` command. See
+    `Systemd Restart <https://www.freedesktop.org/software/systemd/man/systemd.service.html#Restart=>`_
+    for more information.
 
 
 Enable Node Service
