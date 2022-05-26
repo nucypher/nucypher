@@ -564,10 +564,12 @@ class BlockchainInterface:
         try:
             # post-london fork transactions (Type 2)
             max_unit_price = transaction_dict['maxFeePerGas']
+            tx_type = 'EIP-1559'
         except KeyError:
             # pre-london fork "legacy" transactions (Type 0)
             max_unit_price = transaction_dict['gasPrice']
-            
+            tx_type = 'Legacy'
+
         max_price_gwei = Web3.fromWei(max_unit_price, 'gwei')
         max_cost_wei = max_unit_price * transaction_dict['gas']
         max_cost = Web3.fromWei(max_cost_wei, 'ether')
@@ -581,7 +583,7 @@ class BlockchainInterface:
         #
         # Broadcast
         #
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
+        emitter.message(f'Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
                         color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
