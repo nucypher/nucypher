@@ -468,9 +468,7 @@ class BlockchainInterface:
                       ) -> dict:
 
         nonce = self.client.get_transaction_count(account=sender_address, pending=use_pending_nonce)
-        base_payload = {
-                        'nonce': nonce,
-                        'from': sender_address}
+        base_payload = {'nonce': nonce, 'from': sender_address}
 
         # Aggregate
         if not payload:
@@ -563,15 +561,15 @@ class BlockchainInterface:
 
         # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
         
-        if transaction_dict.get('maxFeePerGas') and transaction_dict.get('maxPriorityFeePerGas'):
-            # TODO:  this probably only needs to be here to support Ropsten?
-            max_tx_price = transaction_dict['maxFeePerGas']
-            max_priority_price = transaction_dict['maxPriorityFeePerGas']
-            max_price = max_tx_price + max_priority_price
-        else:
-            max_price = transaction_dict['gasPrice']
-        max_price_gwei = Web3.fromWei(max_price, 'gwei')
-        max_cost_wei = max_price * transaction_dict['gas']
+        try:
+            # post-london fork transactions (Type 2)
+            max_unit_price = transaction_dict['maxFeePerGas']
+        except KeyError:
+            # pre-london fork "legacy" transactions (Type 0)
+            max_unit_price = transaction_dict['gasPrice']
+            
+        max_price_gwei = Web3.fromWei(max_unit_price, 'gwei')
+        max_cost_wei = max_unit_price * transaction_dict['gas']
         max_cost = Web3.fromWei(max_cost_wei, 'ether')
 
         if transacting_power.is_device:
