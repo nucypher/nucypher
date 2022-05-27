@@ -35,7 +35,7 @@ def character_span(character):
         <td>
             <span>${state.population} nodes</span>
             <br/>
-            <span class="checksum">${bytes(state.checksum)[0:8]}</span>
+            <span class="checksum">0x${bytes(state.checksum)[0:8].hex()}</span>
         </td>
     </tr>
 </table>
