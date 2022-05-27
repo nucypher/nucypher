@@ -468,9 +468,7 @@ class BlockchainInterface:
                       ) -> dict:
 
         nonce = self.client.get_transaction_count(account=sender_address, pending=use_pending_nonce)
-        base_payload = {
-                        'nonce': nonce,
-                        'from': sender_address}
+        base_payload = {'nonce': nonce, 'from': sender_address}
 
         # Aggregate
         if not payload:
@@ -562,11 +560,18 @@ class BlockchainInterface:
         #
 
         # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        max_tx_price = transaction_dict['maxFeePerGas']
-        max_priority_price = transaction_dict['maxPriorityFeePerGas']
-        max_price = max_tx_price + max_priority_price
-        max_price_gwei = Web3.fromWei(max_price, 'gwei')
-        max_cost_wei = max_price * transaction_dict['gas']
+        
+        try:
+            # post-london fork transactions (Type 2)
+            max_unit_price = transaction_dict['maxFeePerGas']
+            tx_type = 'EIP-1559'
+        except KeyError:
+            # pre-london fork "legacy" transactions (Type 0)
+            max_unit_price = transaction_dict['gasPrice']
+            tx_type = 'Legacy'
+
+        max_price_gwei = Web3.fromWei(max_unit_price, 'gwei')
+        max_cost_wei = max_unit_price * transaction_dict['gas']
         max_cost = Web3.fromWei(max_cost_wei, 'ether')
 
         if transacting_power.is_device:
@@ -578,7 +583,7 @@ class BlockchainInterface:
         #
         # Broadcast
         #
-        emitter.message(f'Broadcasting {transaction_name} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
+        emitter.message(f'Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
                         color='yellow')
         try:
             txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
