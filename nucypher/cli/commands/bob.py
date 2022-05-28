@@ -305,7 +305,7 @@ def destroy(general_config, config_options, config_file, force):
     emitter = setup_emitter(general_config)
     if config_options.dev:
         message = "'nucypher bob destroy' cannot be used in --dev mode"
-        raise click.BadOptionUsage(option_name='--dev', message=message)
+        raise click.BadOptionUsage(option_name='--dev', message=click.style(message, fg="red"))
     bob_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=bob_config, force=force)
 
@@ -371,7 +371,7 @@ def retrieve_and_decrypt(general_config,
     if not (bool(alice_verifying_key) ^ bool(alice)):
         message = f"Pass either '--alice_verifying_key' or '--alice'; " \
                   f"got {'both' if alice_verifying_key else 'neither'}"
-        raise click.BadOptionUsage(option_name='--alice_verifying_key, --alice', message=message)
+        raise click.BadOptionUsage(option_name='--alice_verifying_key, --alice', message=click.style(message, fg="red"))
 
     if not alice_verifying_key:
         if alice:  # from storage

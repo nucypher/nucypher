@@ -46,11 +46,9 @@ and encrypted while maintaining the ability to share that data with trusted part
 
 .. attention::
 
-    In order to run a PRE node on Threshold, ``nucypher`` version 6.0.0 is required,
-    but is not yet available. See `releases <https://pypi.org/project/nucypher/#history>`_.
+    In order to run a PRE node on Threshold, ``nucypher`` v6.0.0 or above will be required.
+    See `releases <https://pypi.org/project/nucypher/#history>`_ for the latest version.
 
-    However, this documentation can be used in the interim to gain a better understanding of
-    the logistics of running a PRE node.
 
 How does it Work?
 -----------------
@@ -63,12 +61,11 @@ anyone she wants by creating a policy and uploading it to
 the PRE Application on the Threshold Network.
 
 2. Alice gets information about the group of ``n`` PRE nodes (Ursulas) associated
-with the policy, which are nodes on the Threshold network providing the PRE service. Each Ursula provides their encrypting key, and Alice creates
+with the policy, which are nodes on the Threshold network providing the PRE service. Each :term:`Ursula` provides their encrypting key, and Alice creates
 ``n`` re-encryption key shares (:term:`kFrag`), each of which is encrypted with a different Ursula's encrypting key.
 The Ursulas in the group stand ready to re-encrypt data in exchange for payment in fees and token rewards.
-The list of Ursulas and their associated encrypted re-encryption key shares are stored in a treasure map. Alice
-subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic
-material to successfully request the Threshold Network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key.
+The list of Ursulas and their associated encrypted re-encryption key shares are stored in a :term:`Treasure Map`. Alice
+subsequently encrypts the treasure map for Bob. The treasure map provides Bob the requisite information and cryptographic material to successfully request the Threshold network to re-encrypt the data shared by Alice – such that he can decrypt it with his private key.
 
 3. Each policy created by Alice has an associated encryption key, which can be used
 by any entity (Enrico) to encrypt data on Alice's behalf.
@@ -129,33 +126,25 @@ Whitepapers
    pre_application/node_providers
    pre_application/testnet
 
-
 .. toctree::
    :maxdepth: 1
    :caption: Application Development
 
    application_development/getting_started
-   application_development/local_fleet_demo
    application_development/web_development
+   application_development/testnet
+   application_development/local_fleet_demo
    application_development/http_character_control
    application_development/cli_examples
-   application_development/testnet
 
 .. toctree::
    :maxdepth: 1
    :caption: References
 
-   references/pip-installation
+   references/installation
    references/cli_reference
    references/environment_variables
    references/network_events
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Demos
-
-   demos/finnegans_wake_demo
-   demos/heartbeat_demo
 
 .. toctree::
    :maxdepth: 1
@@ -176,16 +165,9 @@ Whitepapers
 
 .. toctree::
    :maxdepth: 1
-   :caption: Release Notes
-
-   release_notes/genesis_release
-   release_notes/pre_release_epics
-   release_notes/releases.rst
-
-.. toctree::
-   :maxdepth: 1
    :caption: Support
 
+   release_notes/releases
    support/contribution
    support/community
    support/troubleshooting

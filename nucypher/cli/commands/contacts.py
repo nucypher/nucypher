@@ -145,4 +145,4 @@ def import_card(filepath):
     emitter = StdoutEmitter()
     shutil.copy(filepath, Card.CARD_DIR)
     # paint_single_card(card=card)
-    emitter.message(f'Successfully imported card.')
+    emitter.message(f'Successfully imported card.', color="green")

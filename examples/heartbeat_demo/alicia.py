@@ -16,78 +16,84 @@
 """
 import base64
 import datetime
-import sys
 import json
 import os
 import shutil
+from getpass import getpass
 from pathlib import Path
 
 import maya
 
-from nucypher.characters.lawful import Bob, Ursula
-from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.blockchain.eth.signers import Signer
+from nucypher.characters.lawful import Bob, Alice
+from nucypher.policy.payment import SubscriptionManagerPayment
+from nucypher.utilities.ethereum import connect_web3_provider
 from nucypher.utilities.logging import GlobalLoggerSettings
-
 
 ######################
 # Boring setup stuff #
 ######################
 
-
-# Twisted Logger
-
+LOG_LEVEL = 'info'
+GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
 TEMP_ALICE_DIR = Path('/', 'tmp', 'heartbeat-demo-alice')
-
-
-# if your ursulas are NOT running on your current host,
-# run like this: python alicia.py 172.28.1.3:11500
-# otherwise the default will be fine.
+POLICY_FILENAME = "policy-metadata.json"
+shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
 
 try:
-    SEEDNODE_URI = sys.argv[1]
-except IndexError:
-    SEEDNODE_URI = "localhost:11500"
 
-POLICY_FILENAME = "policy-metadata.json"
+    # Replace with ethereum RPC endpoint
+    L1_PROVIDER = os.environ['DEMO_L1_PROVIDER_URI']
+    L2_PROVIDER = os.environ['DEMO_L2_PROVIDER_URI']
+
+    # Replace with wallet filepath.
+    WALLET_FILEPATH = os.environ['DEMO_L2_WALLET_FILEPATH']
+    SIGNER_URI = f'keystore://{WALLET_FILEPATH}'
+
+    # Replace with alice's ethereum address
+    ALICE_ADDRESS = os.environ['DEMO_ALICE_ADDRESS']
+
+except KeyError:
+    raise RuntimeError('Missing environment variables to run demo.')
+
+L1_NETWORK = 'mainnet'  # 'ibex'
+L2_NETWORK = 'polygon'  # 'mumbai'
 
 
 #######################################
 # Alicia, the Authority of the Policy #
 #######################################
 
+connect_web3_provider(eth_provider_uri=L1_PROVIDER)  # Connect to the ethereum provider.
+connect_web3_provider(eth_provider_uri=L2_PROVIDER)  # Connect to the layer 2 provider.
 
-# We get a persistent Alice.
-# If we had an existing Alicia in disk, let's get it from there
 
-passphrase = "TEST_ALICIA_INSECURE_DEVELOPMENT_PASSWORD"
-# If anything fails, let's create Alicia from scratch
-# Remove previous demo files and create new ones
+# Setup and unlock alice's ethereum wallet.
+# WARNING: Never give your mainnet password or mnemonic phrase to anyone.
+# Do not use mainnet keys, create a dedicated software wallet to use for this demo.
+wallet = Signer.from_signer_uri(SIGNER_URI)
+password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): ")
+wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
-shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
-
-ursula = Ursula.from_seed_and_stake_info(seed_uri=SEEDNODE_URI,
-                                         federated_only=True,
-                                         minimum_stake=0)
-
-alice_config = AliceConfiguration(
-    config_root=TEMP_ALICE_DIR,
-    domain=TEMPORARY_DOMAIN,
-    known_nodes={ursula},
-    start_learning_now=False,
-    federated_only=True,
-    learn_on_same_thread=True,
+# This is Alice's payment method.
+payment_method = SubscriptionManagerPayment(
+    network=L2_NETWORK,
+    eth_provider=L2_PROVIDER
 )
 
-alice_config.initialize(password=passphrase)
+# This is Alicia.
+alicia = Alice(
+    checksum_address=ALICE_ADDRESS,
+    signer=wallet,
+    domain=L1_NETWORK,
+    eth_provider_uri=L1_PROVIDER,
+    payment_method=payment_method
+)
 
-alice_config.keystore.unlock(password=passphrase)
-alicia = alice_config.produce()
-
-# We will save Alicia's config to a file for later use
-alice_config_file = alice_config.to_configuration_file()
+# Alice puts her public key somewhere for Bob to find later...
+alice_verifying_key = alicia.stamp.as_umbral_pubkey()
 
 # Let's get to learn about the NuCypher network
 alicia.start_learning_loop(now=True)

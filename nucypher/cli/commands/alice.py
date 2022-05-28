@@ -119,7 +119,7 @@ class AliceConfigOptions:
             if self.federated_only is False:
                 raise click.BadOptionUsage(
                     option_name="--federated-only",
-                    message="--federated-only cannot be explicitly set to False when --dev is set")
+                    message=click.style("--federated-only cannot be explicitly set to False when --dev is set", fg="red"))
 
             return AliceConfiguration(
                 emitter=emitter,
@@ -210,7 +210,7 @@ class AliceFullConfigOptions:
         if not opts.eth_provider_uri and not opts.federated_only:
             raise click.BadOptionUsage(
                 option_name='--eth-provider',
-                message="--eth-provider is required to create a new decentralized alice.")
+                message=click.style("--eth-provider is required to create a new decentralized alice.", fg="red"))
 
         pay_with = opts.pay_with
         if not pay_with and not opts.federated_only:

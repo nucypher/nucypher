@@ -59,7 +59,13 @@ contributing proposed changes:
 
    $ git remote update
 
-After acquiring a local copy of the application code, you will need to
+
+Ensure Rust is Installed
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instruction for installing Rust can be found (\ `here <https://rustup.rs/>`_\ ).
+
+After acquiring a local copy of the application code and installing rust, you will need to
 install the project dependencies, we recommend using either ``pip`` or ``pipenv``.
 
 
@@ -300,8 +306,64 @@ We provide both a ``docker-compose.yml`` and a ``Dockerfile`` which can be used 
   (nucypher)$ docker-compose -f deploy/docker/docker-compose.yml build .
 
 
-Issuing a New Release
----------------------
+Release Cycle
+-------------
+
+Versioning
+^^^^^^^^^^
+
+The versioning scheme used is inspired by `semantic versioning 2.0 <https://semver.org/>`_, but adds development stage and release candidate tags. The basic idea:
+
+- MAJOR version when you make incompatible API changes
+- MINOR version when you add functionality in a backwards compatible manner
+- PATCH version when you make backwards compatible bug fixes
+
+Two additional tags are used: ``-dev`` and ``-rc.x`` (i.e. ``v1.2.3-dev`` or ``v4.5.6-rc.0``)
+
+Upstream Branches
+^^^^^^^^^^^^^^^^^
+
+- ``main`` is the stable and released version published to PyPI and docker cloud (``v6.0.0``).
+- ``development`` is the default upstream base branch containing new changes ahead of ``main`` and tagged with ``-dev`` (``v6.1.0-dev``).
+
+Major/Minor Release Cycle
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- New pull requests are made into ``development``.
+- When a commit from ``development`` is selected as a release candidate the version tag is changed from ``-dev`` to ``rc.0`` (``v6.1.0-rc.0``).  Selecting a release candidate implies a feature freeze.
+- The release candidate is deployed to beta testers, staging, and testnet environments for QA.
+- If the candidate is suitable, it is tagged, merged into ``main``, and published:
+    - All version tags are removed (``v6.1.0-dev`` -> ``v6.1.0``)
+    - A new upstream git version tag is pushed (triggering publication on CI) (``v6.1.0``)
+    - ``development`` is merged into ``main``
+- `development` version is bumped and the `-dev` tag is appended (``v6.2.0-dev`` or ``v7.0.0-dev``)
+
+Release Blockers
+^^^^^^^^^^^^^^^^
+
+Sometimes changes are needed to fix a release blocker after a release candidate has already been selected. Normally the best course of action is to open a pull request into ``development``.
+
+- Merge the pull request into ``development``
+- Bump the release candidate's development number (``v7.0.0-rc.0`` -> ``v7.0.0-rc.1``)
+- Redeploy beta testing environments, experimental nodes, staging, testnets, etc.
+- Rinse & repeat until a suitable release candidate is found.
+
+In the event that a release blocker's fix introduces unexpected backwards incompatibility during a minor release, bump the major version instead skipping directly to ``-rc.0``.
+
+Patches (bugfixes, security patches, "hotfixes")
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Sometimes urgent changes need to be made outside of a planned minor or major release.  If the required changes are backwards compatible open a pull request into ``main``.  Once the changes are reviewed and merged, ``development`` must be rebased over ``main``
+
+- Pull request is merged into ``main``
+- The version's patch number is bumped (``v6.1.0`` -> ``v6.1.1``)
+- A new upstream tag is pushed, triggering the publication build on CI (``v6.1.1``)
+- ``development`` is rebased over ``main``, amending the existing bumpversion commit with the new patch (this will be a merge conflict).
+- Rinse & repeat
+
+
+Release Automation
+--------------------
 
 .. note::
 

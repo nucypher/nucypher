@@ -1,151 +1,109 @@
-.. _managing-cloud-nodes:
+    .. _managing-cloud-nodes:
 
-PRE Node Cloud Automation
-=========================
+===============================
+PRE Node Deployment Automation
+===============================
 
-.. important::
+.. note::
 
-    In order to run a PRE node on Threshold, ``nucypher`` version 6.0.0 is required,
-    but is not yet available. See `releases <https://pypi.org/project/nucypher/#history>`_.
-
-    However, this documentation can be used in the interim to gain a better understanding of
-    the logistics of running a PRE node.
-
-
-NuCypher maintains a CLI to assist with the initialization and management of PRE nodes
-deployed on cloud infrastructure, that leverages automation tools
-such as `Ansible <https://www.ansible.com/>`_ and `Docker <https://www.docker.com/>`_.
-
-.. important::
-
-    Only supports Digital Ocean and AWS cloud infrastructure.
-
-This tool will handle the minutiae of node configuration and operation on your behalf by
-providing high-level CLI commands.
+    Previously this functionality was provided by the ``nucypher cloudworkers`` CLI command.
+    However, that command has been deprecated and analogous functionality is now provided
+    via `nucypher-ops <https://github.com/nucypher/nucypher-ops>`_.
 
 
-.. code:: bash
-
-    (nucypher)$ nucypher cloudworkers ACTION [OPTIONS]
-
-**Command Actions**
-
-+----------------------+-------------------------------------------------------------------------------+
-| Action               |  Description                                                                  |
-+======================+===============================================================================+
-|  ``up``              | Creates and deploys hosts for stakers.                                        |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``create``          | Creates and deploys the given number of hosts independent of stakes           |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``add``             | Add an existing host to be managed by cloudworkers CLI tools                  |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``add_for_stake``   | Add an existing host to be managed for a specified staker                     |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``deploy``          | Install and run a node on existing managed hosts.                             |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``update``          | Update or manage existing installed nodes.                                    |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``destroy``         | Shut down and cleanup resources deployed on AWS or Digital Ocean              |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``stop``            | Stop the selected nodes.                                                      |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``status``          | Prints a formatted status of selected managed hosts.                          |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``logs``            | Download and display the accumulated stdout logs of selected hosts            |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``backup``          | Download local copies of critical data from selected installed nodes          |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``restore``         | Reconstitute and deploy an operating node from backed up data                 |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``list_hosts``      | Print local nicknames of all managed hosts under a given namespace            |
-+----------------------+-------------------------------------------------------------------------------+
-|  ``list_namespaces`` | Print namespaces under a given network                                        |
-+----------------------+-------------------------------------------------------------------------------+
+In this tutorial we're going to setup a Threshold PRE Node using a remote cloud provider (Digital Ocean, AWS, and more in the future).
+This example will demonstrate how to deploy to Digital Ocean. There are a few pre-requisites before we can get started.
+First, we need to create accounts on `Digital Ocean <https://cloud.digitalocean.com/>`_ and `Infura <https://infura.io>`_.
+Also ensure that your local environment has python 3.8 or later installed.
 
 
-Some examples:
+Launch Remote Node
+-------------------
 
-.. code:: bash
+.. note::
 
-    #
-    # Initialize a node
-    #
+    nucypher-ops requires python 3.8 or later.
 
-    # on Digital Ocean
-    ##################
-    $ export DIGITALOCEAN_ACCESS_TOKEN=<your access token>
-    $ export DIGITALOCEAN_REGION=<a digitalocean availability region>
-    $ nucypher cloudworkers up --cloudprovider digitalocean --remote-provider http://mainnet.infura..3epifj3rfioj
+Locally, we will install `NuCypher Ops <https://github.com/nucypher/nucypher-ops>`_ to handle the heavy lifting of setting up a node.
 
-    # OR
+.. code-block:: bash
 
-    # on AWS
-    ########
-    # configure your local aws cli with named profiles https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
-    $ nucypher cloudworkers up --cloudprovider aws --aws-profile my-aws-profile --remote-provider https://mainnet.infura..3epifj3rfioj
+    $ pip install nucypher-ops
+
+Now NuCypher Ops is installed we can create a droplet on Digital Ocean:
+
+.. code-block:: bash
+
+    nucypher-ops nodes create
+
+Follow the interactive prompts to select the Digital Ocean provider.
+After this command completes you will see a new droplet in your Digital Ocean dashboard.
+Now we can deploy the PRE Node:
+
+.. code-block:: bash
+
+    nucypher-ops ursula deploy
+
+Follow the prompts to enter your ethereum and polygon provider URIs.
+
+This should produce a lot of log messages as the ansible playbooks install all the requirements and setup the node.
+The final output should be similar to:
+
+.. code-block:: bash
+
+    some relevant info:
+    config file: "/SOME_PATH/nucypher-ops/configs/mainnet/nucypher/mainnet-nucypher.json"
+    inventory file: /SOME_PATH/nucypher-ops/configs/mainnet-nucypher-2022-03-25.ansible_inventory.yml
+    If you like, you can run the same playbook directly in ansible with the following:
+        ansible-playbook -i "/SOME_PATH/nucypher-ops/configs/mainnet-nucypher-2022-03-25.ansible_inventory.yml" "src/playbooks/setup_remote_workers.yml"
+    You may wish to ssh into your running hosts:
+        ssh root@123.456.789.xxx
+    *** Local backups containing sensitive data may have been created. ***
+    Backup data can be found here: /SOME_PATH//nucypher-ops/configs/mainnet/nucypher/remote_worker_backups/
+
+This tells us the location of several config files and helpfully prints the IP address of our newly created node (you can also see this on the Digital Ocean dashboard).
+Let's ``ssh`` into it and look at the logs:
+
+.. code-block:: bash
+
+    $ ssh root@123.456.789.xxx
+    root@nucypher-mainnet-1:~#
+    root@nucypher-mainnet-1:~# sudo docker logs --follow ursula
+    ...
+    ! Operator 0x06E11400xxxxxxxxxxxxxxxxxxxxxxxxxxxx1Fc0 is not funded with ETH
+    ! Operator 0x06E11400xxxxxxxxxxxxxxxxxxxxxxxxxxxx1Fc0 is not bonded to a staking provider
+    ...
+
+These lines will print repeatedly until the Operator is funded with some mainnet ETH and bonded to a staking provider.
+
+Stake and Bond
+--------------
+
+If you have not already done so you'll need to establish a stake on the `Threshold
+Dashboard <https://dashboard.threshold.network/overview/network>`_.
+After you've established your stake, proceed to the
+`PRE node bonding dashboard <https://stake.nucypher.network/manage/operator>`_ to bond your node's
+Operator address to your stake.
 
 
-    ####################################################################################################################################
-    #
-    # Management Commands
-    #
+Monitor Remote Node
+-------------------
 
-    # add your ubuntu machine to an existing stake
-    $ nucypher cloudworkers add_for_stake --staker-address 0x9a92354D3811938A1f35644825188cAe3103bA8e --host-address somebox.myoffice.net --login-name ubuntu --key-path ~/.ssh/id_rsa
+Send a small amount of ETH to your Operator address so it can perform the initial confirmation transaction which signals that your
+node is open for business. Once you've funded the Operator address and bonded to the stake, view the node's logs.
+It will automatically detect both completed actions.
 
-    # update all your existing hosts to the latest code
-    $ nucypher cloudworkers update --nucypher-image nucypher/nucypher:latest
+After funding and bonding the node will resume startup displaying the following logs:
 
-    # stop the running node(s) on your host(s)
-    $ nucypher cloudworkers stop
+.. code-block:: bash
 
-    # change two of your existing hosts to use alchemy instead of infura as a delegated blockchain
-    # note: hosts created for local stakers will have the staker's checksum address as their nickname by default
-    $ nucypher cloudworkers update --remote-provider https://eth-mainnet.ws.alchemyapi.io/v2/aodfh298fh2398fh2398hf3924f... --include-host 0x9a92354D3811938A1f35644825188cAe3103bA8e --include-host 0x1Da644825188cAe3103bA8e92354D3811938A1f35
+    Broadcasting CONFIRMOPERATORADDRESS Transaction (0.00416485444 ETH @ 88.58 gwei)
+    TXHASH 0x3329exxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx5ec9a6
+    ✓ Work Tracking
+    ✓ Start Operator Bonded Tracker
+    ✓ Rest Server https://123.456.789.000:9151
+    Working ~ Keep Ursula Online!
 
-    # add some random host and then deploy a node on it
-    $ nucypher cloudworkers add --host-address somebox.myoffice.net --login-name ubuntu --key-path ~/.ssh/id_rsa --nickname my_new_host
-    $ nucypher cloudworkers deploy --include-host my_new_host --remote-provider https://mainnet.infura..3epifj3rfioj
+You can view the status of your node by visiting ``https://<YOUR_NODE_IP>:9151/status``
 
-    # deploy nucypher on all your managed hosts
-    $ nucypher cloudworkers deploy --remote-provider https://mainnet.infura..3epifj3rfioj
-
-    # deploy nucypher on all your managed hosts
-    $ nucypher cloudworkers deploy --remote-provider https://mainnet.infura..3epifj3rfioj
-
-    # print the current status of all nodes across all namespaces (in bash)
-    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done
-    > local nickname: Project11-mainnet-2
-    >  nickname: Aquamarine Nine DarkViolet Foxtrot
-    >  staker address:          0xFBC052299b8B3Df05CB8351151E71f21562096F4
-    >  worker address:          0xe88bF385a6ed8C86aA153f08F999d8698B5326e0
-    >  rest url:                https://xxx.xxx.xxx.xxx:9151
-    >      missing commitments:   0
-    >      last committed period: 2657
-    >      ETH:                   0.xxx
-    >      provider:              https://mainnet.infura.io/v3/xxxx
-    >      ursula docker image:   "nucypher/nucypher:latest"
-    >      ursula command:        ""nucypher ursula run --network mainnet""
-    >      last log line:         Working ~ Keep Ursula Online!
-    .....
-
-    # see if all your managed hosts successfully committed to the next period
-    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers status --namespace $ns; done | grep "last committed period: \|last log line: \|local nickname:"
-
-    # backup all your node's critical data
-    # note: this is also done after any update or deploy operations
-    $ for ns in $(nucypher cloudworkers list-namespaces); do nucypher cloudworkers backup --namespace $ns; done
-
-    # show some info about your hosts
-    $ nucypher cloudworkers list-hosts -v
-
-    # set a max-gas-price for existing hosts
-    $ nucypher cloudworkers update --cli max-gas-price=50
-
-    # NB: environment variables and cli args function identically for both update and deploy
-
-    # set some environment variables to configure nodes on all your hosts
-    $ nucypher cloudworkers deploy -e DONT_PERFORM_WORK_ON_SUNDAY=true
-
-    # set a max gas price and gas strategy for existing hosts
-    $ nucypher cloudworkers update --cli max-gas-price=50 --cli gas-strategy=slow
+That's all!

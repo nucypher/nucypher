@@ -73,7 +73,7 @@ class GithubRegistrySource(CanonicalRegistrySource):
     is_primary = True
 
     def get_publication_endpoint(self) -> str:
-        url = f'{self._BASE_URL}/main/nucypher/blockchain/eth/contract_registry/{self.network}/{self.registry_name}'
+        url = f"{self._BASE_URL}/development/nucypher/blockchain/eth/contract_registry/{self.network}/{self.registry_name}"
         return url
 
     def fetch_latest_publication(self) -> Union[str, bytes]:

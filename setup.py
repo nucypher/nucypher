@@ -24,13 +24,12 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Dict
 from urllib.parse import urlparse
 
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
-from typing import Dict
-
 
 #
 # Metadata
@@ -122,7 +121,10 @@ def read_requirements(path):
 
 INSTALL_REQUIRES = read_requirements('requirements.txt')
 DEV_REQUIRES = read_requirements('dev-requirements.txt')
-DOC_REQUIRES = read_requirements('docs-requirements.txt')
+
+# Direct dependencies are not supported on PyPI, instead use `pip -r docs-requirements`
+# https://github.com/pypa/twine/issues/726
+# DOC_REQUIRES = read_requirements('docs-requirements.txt')
 
 BENCHMARK_REQUIRES = [
     'pytest-benchmark'
@@ -146,7 +148,7 @@ EXTRAS = {
     'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES + PORTER_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DEPLOY_REQUIRES,
-    'docs': DOC_REQUIRES,
+    # 'docs': DOC_REQUIRES,
 
     # User
     'ursula': URSULA_REQUIRES,
@@ -160,7 +162,6 @@ setup(
 
     # Requirements
     python_requires='>=3',
-    setup_requires=['setuptools-markdown'],
     install_requires=INSTALL_REQUIRES,
     extras_require=EXTRAS,
 

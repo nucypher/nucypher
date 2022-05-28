@@ -595,6 +595,8 @@ class ContractAgency:
         if name == NUCYPHER_TOKEN_CONTRACT_NAME:
             # TODO: Perhaps rename NucypherTokenAgent
             name = "NucypherToken"
+        if name == PRE_APPLICATION_CONTRACT_NAME:
+            name = "PREApplication"  # TODO not needed once full PRE Application is used
         agent_name = f"{name}Agent"
         return agent_name
 

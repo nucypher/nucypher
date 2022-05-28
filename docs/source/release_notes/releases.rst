@@ -4,6 +4,51 @@ Releases
 
 .. towncrier release notes start
 
+v6.1.0 (2022-05-10)
+-------------------
+
+Features
+~~~~~~~~
+
+- SSL Certificate fetching and Porter optimizations
+  - Middleware should try cached SSL certification for a node first, and then if the requests fails, fetch the node's up-to-date SSL cert
+  - Short-circuit WorkerPool background execution once sufficient successful executions occur
+  - Don't limit WorkerPool size; this has consequences when smaller samples of ursulas are performed; allow threadpool to be flexible by using default min/max
+  - Return more comprehensive error information for failed WorkerPool execution (`#2908 <https://github.com/nucypher/nucypher/issues/2908>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Fix Porter sampling check that ensures Ursula is reachable to be more comprehensive; previously an unreachable Ursula could still be deemed as reachable. (`#2888 <https://github.com/nucypher/nucypher/issues/2888>`__)
+- Only print relevant network options when running `nucypher ursula init` (`#2917 <https://github.com/nucypher/nucypher/issues/2917>`__)
+- Retrieve contract registries from the ``development`` branch on GitHub instead of ``main``. (`#2924 <https://github.com/nucypher/nucypher/issues/2924>`__)
+- Properly support event retrieval for the PREApplication contract.
+  Remove invalid support for SubscriptionManager contract - proper support will be
+  added in a future release. (`#2934 <https://github.com/nucypher/nucypher/issues/2934>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Remove references to ``cloudworkers`` CLI command, and update bond operator to reference UI. (`#2896 <https://github.com/nucypher/nucypher/issues/2896>`__)
+- Updated examples and demos for usage on polygon/mainnet. (`#2897 <https://github.com/nucypher/nucypher/issues/2897>`__)
+- Updates to nucypher-ops guides for mainnet usage (`#2916 <https://github.com/nucypher/nucypher/issues/2916>`__)
+
+
+Misc
+~~~~
+
+- Dependency updates - Tests target the london fork. (`#2837 <https://github.com/nucypher/nucypher/issues/2837>`__)
+- Creation of 'oryx' PRE testnet on Ropsten. (`#2893 <https://github.com/nucypher/nucypher/issues/2893>`__)
+- Add more color to cli output (`#2909 <https://github.com/nucypher/nucypher/issues/2909>`__)
+- Add a pre-commit hook and github action for `Darker <https://github.com/akaihola/darker>`_ to ensure all future changes conform to black and isort. (`#2921 <https://github.com/nucypher/nucypher/issues/2921>`__)
+- Bump ``nucypher-core`` dependency to 0.2 (`#2927 <https://github.com/nucypher/nucypher/issues/2927>`__)
+- Show error message when ``--prometheus`` flag is used since functionality not currently supported. Prometheus
+  monitoring functionality will be revamped in a subsequent release. (`#2929 <https://github.com/nucypher/nucypher/issues/2929>`__)
+- Removes [docs] pip extra (`#2932 <https://github.com/nucypher/nucypher/issues/2932>`__)
+
+
 v6.0.0 (2022-04-01)
 -------------------
 

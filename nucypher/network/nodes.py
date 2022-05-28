@@ -27,15 +27,14 @@ import requests
 from constant_sorrow.constants import (
     CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
-    NOT_SIGNED,
     NO_STORAGE_AVAILABLE,
+    NOT_SIGNED,
     RELAX,
 )
 from cryptography.hazmat.backends import default_backend
-from cryptography.x509 import Certificate
-from cryptography.x509 import load_der_x509_certificate
+from cryptography.x509 import Certificate, load_der_x509_certificate
 from eth_utils import to_checksum_address
-from nucypher_core import NodeMetadata, MetadataResponse, MetadataResponsePayload
+from nucypher_core import MetadataResponse, MetadataResponsePayload, NodeMetadata
 from nucypher_core.umbral import Signature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
@@ -55,10 +54,10 @@ from nucypher.crypto.powers import (
     NoSigningPower,
     SigningPower,
 )
-from nucypher.crypto.signing import SignatureStamp, InvalidSignature
+from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.protocols import SuspiciousActivity, InterfaceInfo
+from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
@@ -67,8 +66,9 @@ TEACHER_NODES = {
         'https://seeds.nucypher.network',
         'https://mainnet.nucypher.network:9151',
     ),
-    NetworksInventory.LYNX: ('https://lynx.nucypher.network:9151',),
-    NetworksInventory.IBEX: ('https://ibex.nucypher.network:9151',),
+    NetworksInventory.LYNX: ("https://lynx.nucypher.network:9151",),
+    NetworksInventory.IBEX: ("https://ibex.nucypher.network:9151",),
+    NetworksInventory.ORYX: ("https://oryx.nucypher.network:9151",),
 }
 
 
@@ -320,7 +320,8 @@ class Learner:
             # Very slow, but provides useful info when trying to track down a stray Character.
             # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
 
-            import inspect, os
+            import inspect
+            import os
             frames = inspect.stack(3)
             self._learning_task = task.LoopingCall(self.keep_learning_about_nodes, learner=self, frames=frames)
             self._init_frames = frames

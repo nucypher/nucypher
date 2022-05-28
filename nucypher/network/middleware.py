@@ -30,6 +30,7 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate
 from nucypher_core import MetadataRequest, FleetStateChecksum, NodeMetadata
+from requests.exceptions import SSLError
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -57,7 +58,7 @@ class NucypherMiddlewareClient:
     def get_certificate(self,
                         host,
                         port,
-                        timeout=3,
+                        timeout=4,
                         retry_attempts: int = 3,
                         retry_rate: int = 2,
                         current_attempt: int = 0):
@@ -65,7 +66,7 @@ class NucypherMiddlewareClient:
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
 
         try:
-            SSL_LOGGER.info(f"Fetching {host}:{port} TLS certificate")
+            SSL_LOGGER.debug(f"Fetching {host}:{port} TLS certificate")
             certificate_pem = ssl.get_server_certificate(addr=(host, port))
             certificate = ssl.PEM_cert_to_DER_cert(certificate_pem)
 
@@ -148,15 +149,13 @@ class NucypherMiddlewareClient:
             endpoint = f"https://{host}:{port}/{path}"
             method = getattr(http_client, method_name)
 
-            # Fetch SSL certificate
-            try:
-                certificate, filepath = self.get_certificate(host=host, port=port)
-            except NodeSeemsToBeDown as e:
-                raise RestMiddleware.Unreachable(message=f'Node {node_or_sprout} {host}:{port} is unreachable: {e}')
-
-            # Send request
-            response = self.invoke_method(method, endpoint, verify=filepath, *args, **kwargs)
-
+            response = self._execute_method(node_or_sprout,
+                                            host,
+                                            port,
+                                            method,
+                                            endpoint,
+                                            *args,
+                                            **kwargs)
             # Handle response
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
@@ -182,6 +181,40 @@ class NucypherMiddlewareClient:
             return cleaned_response
 
         return method_wrapper
+
+    def _execute_method(self,
+                        node_or_sprout,
+                        host,
+                        port,
+                        method,
+                        endpoint,
+                        *args, **kwargs):
+        # Use existing cached SSL certificate or fetch fresh copy and retry
+        cached_cert_filepath = Path(self.storage.generate_certificate_filepath(host=host, port=port))
+        if cached_cert_filepath.exists():
+            # already cached try it
+            try:
+                # Send request
+                response = self.invoke_method(method, endpoint, verify=cached_cert_filepath,
+                                              *args, **kwargs)
+
+                # successful use of cached certificate
+                return response
+            except SSLError as e:
+                # ignore this exception - probably means that our cached cert may not be up-to-date.
+                SSL_LOGGER.debug(f"Cached cert for {host}:{port} is invalid {e}")
+
+        # Fetch fresh copy of SSL certificate
+        try:
+            certificate, filepath = self.get_certificate(host=host, port=port)
+        except NodeSeemsToBeDown as e:
+            raise RestMiddleware.Unreachable(
+                message=f'Node {node_or_sprout} {host}:{port} is unreachable: {e}')
+
+        # Send request
+        response = self.invoke_method(method, endpoint, verify=filepath,
+                                      *args, **kwargs)
+        return response
 
     def node_selector(self, node):
         return node.rest_url(), self.library

@@ -66,7 +66,7 @@ the Pipe for PRE Application network operations
     _LONG_LEARNING_DELAY = 30
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 25
 
-    DEFAULT_EXECUTION_TIMEOUT = 10  # 10s
+    DEFAULT_EXECUTION_TIMEOUT = 15  # 15s
 
     DEFAULT_PORT = 9155
 
@@ -85,6 +85,7 @@ the Pipe for PRE Application network operations
                  federated_only: bool = False,
                  node_class: object = Ursula,
                  eth_provider_uri: str = None,
+                 execution_timeout: int = DEFAULT_EXECUTION_TIMEOUT,
                  *args, **kwargs):
         self.federated_only = federated_only
 
@@ -104,6 +105,7 @@ the Pipe for PRE Application network operations
         super().__init__(save_metadata=True, domain=domain, node_class=node_class, *args, **kwargs)
 
         self.log = Logger(self.__class__.__name__)
+        self.execution_timeout = execution_timeout
 
         # Controller Interface
         self.interface = self._interface_class(porter=self)
@@ -127,31 +129,32 @@ the Pipe for PRE Application network operations
             ursula_address = to_checksum_address(ursula_address)
             ursula = self.known_nodes[ursula_address]
             try:
-                # verify node is valid
-                self.network_middleware.client.verify_and_parse_node_or_host_and_port(node_or_sprout=ursula,
-                                                                                      host=None,
-                                                                                      port=None)
-
+                # ensure node is up and reachable
+                self.network_middleware.ping(ursula)
                 return Porter.UrsulaInfo(checksum_address=ursula_address,
                                          uri=f"{ursula.rest_interface.formal_uri}",
                                          encrypting_key=ursula.public_keys(DecryptingPower))
             except Exception as e:
-                self.log.debug(f"Unable to obtain Ursula information ({ursula_address}): {str(e)}")
+                self.log.debug(f"Ursula ({ursula_address}) is unreachable: {str(e)}")
                 raise
 
         self.block_until_number_of_known_nodes_is(quantity,
-                                                  timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                                  timeout=self.execution_timeout,
                                                   learn_on_this_thread=True,
                                                   eager=True)
 
         worker_pool = WorkerPool(worker=get_ursula_info,
                                  value_factory=value_factory,
                                  target_successes=quantity,
-                                 timeout=self.DEFAULT_EXECUTION_TIMEOUT,
-                                 stagger_timeout=1,
-                                 threadpool_size=quantity)
+                                 timeout=self.execution_timeout,
+                                 stagger_timeout=1)
         worker_pool.start()
-        successes = worker_pool.block_until_target_successes()
+        try:
+            successes = worker_pool.block_until_target_successes()
+        finally:
+            worker_pool.cancel()
+            # don't wait for it to stop by "joining" - too slow...
+
         ursulas_info = successes.values()
         return list(ursulas_info)
 
@@ -173,7 +176,7 @@ the Pipe for PRE Application network operations
         if self.federated_only:
             sample_size = quantity - (len(include_ursulas) if include_ursulas else 0)
             if not self.block_until_number_of_known_nodes_is(sample_size,
-                                                             timeout=self.DEFAULT_EXECUTION_TIMEOUT,
+                                                             timeout=self.execution_timeout,
                                                              learn_on_this_thread=True):
                 raise ValueError("Unable to learn about sufficient Ursulas")
             return make_federated_staker_reservoir(known_nodes=self.known_nodes,

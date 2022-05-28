@@ -138,8 +138,7 @@ class Policy(ABC):
             value_factory=value_factory,
             target_successes=self.shares,
             timeout=timeout,
-            stagger_timeout=1,
-            threadpool_size=self.shares
+            stagger_timeout=1
         )
         worker_pool.start()
         try:

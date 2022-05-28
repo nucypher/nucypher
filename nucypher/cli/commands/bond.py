@@ -23,6 +23,7 @@ from eth_typing import ChecksumAddress
 
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.select import select_network
@@ -103,7 +104,7 @@ def bond(registry_filepath, eth_provider_uri, signer_uri, operator_address, stak
         emitter.message('--signer is required', color='red')
         raise click.Abort()
     if not network:
-        network = select_network(emitter=emitter)
+        network = select_network(emitter=emitter, network_type=NetworksInventory.ETH)
 
     signer = Signer.from_signer_uri(signer_uri)
     transacting_power = TransactingPower(account=staking_provider, signer=signer)
@@ -167,7 +168,7 @@ def unbond(registry_filepath, eth_provider_uri, signer_uri, staking_provider, ne
         emitter.message('--signer is required', color='red')
         raise click.Abort()
     if not network:
-        network = select_network(emitter=emitter)
+        network = select_network(emitter=emitter, network_type=NetworksInventory.ETH)
 
     connect_to_blockchain(eth_provider_uri=eth_provider_uri, emitter=emitter)
     registry = get_registry(network=network, registry_filepath=registry_filepath)

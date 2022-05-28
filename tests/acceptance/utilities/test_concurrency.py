@@ -170,10 +170,6 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
         assert 'raise Exception(f"Operator for {value} failed")' in traceback
         assert f'Operator for {value} failed' in traceback
 
-    # This will be the last line in the displayed traceback;
-    # That's where the worker actually failed. (Operator for {value} failed)
-    assert 'raise Exception(f"Operator for {value} failed")' in message
-
 
 def test_wait_for_successes_timed_out(join_worker_pool):
     """
@@ -354,9 +350,12 @@ def test_buggy_factory_raises_on_block():
 
     factory = BuggyFactory(list(outcomes))
 
-    # Non-zero stagger timeout to make BuggyFactory raise its error only in 1.5s,
-    # So that we got enough successes for `block_until_target_successes()`.
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=1.5)
+    # WorkerPool short circuits once it has sufficient successes. Therefore,
+    # the stagger timeout needs to be less than worker timeout,
+    # since BuggyFactory only fails if you do a subsequent batch
+    # Once the subsequent batch is requested, the BuggyFactory returns an error
+    # causing WorkerPool to fail
+    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=0.75)
 
     pool.start()
     time.sleep(2) # wait for the stagger timeout to finish

@@ -95,7 +95,7 @@ class StdoutEmitter:
     def error(self, e):
         if self.verbosity >= 1:
             e_str = str(e)
-            click.echo(message=e_str)
+            click.echo(message=e_str, color="red")
             self.log.info(e_str)
 
     def get_stream(self, verbosity: int = 0):
@@ -243,6 +243,13 @@ class WebEmitter:
 
         self.log = Logger('web-emitter')
 
+    def _log_exception(self, e, error_message, log_level, response_code):
+        exception = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
+        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {exception}"
+        logger = getattr(self.log, log_level)
+        message_cleaned_for_logger = Logger.escape_format_string(message)
+        logger(message_cleaned_for_logger)
+
     @staticmethod
     def assemble_response(response: dict) -> dict:
         response_data = {'result': response,
@@ -255,25 +262,35 @@ class WebEmitter:
                   log_level: str = 'info',
                   response_code: int = 500):
 
-        exception = f"{type(e).__name__}: {str(e)}" if str(e) else type(e).__name__
-        message = f"{self} [{str(response_code)} - {error_message}] | ERROR: {exception}"
-        logger = getattr(self.log, log_level)
-        # See #724 / 2156
-        message_cleaned_for_logger = message.replace("{", "<^<").replace("}", ">^>")
-        logger(message_cleaned_for_logger)
+        self._log_exception(e, error_message, log_level, response_code)
         if self.crash_on_error:
             raise e
 
         response_message = str(e) or type(e).__name__
         return self.sink(response_message, status=response_code)
 
-    def respond(self, response) -> Response:
-        assembled_response = self.assemble_response(response=response)
+    def exception_with_response(self,
+                                json_error_response,
+                                e,
+                                error_message: str,
+                                response_code: int,
+                                log_level: str = 'info'):
+        self._log_exception(e, error_message, log_level, response_code)
+        if self.crash_on_error:
+            raise e
+
+        assembled_response = self.assemble_response(response=json_error_response)
         serialized_response = WebEmitter.transport_serializer(assembled_response)
 
-        # ---------- HTTP OUTPUT
-        response = self.sink(response=serialized_response, status=HTTPStatus.OK, content_type="application/javascript")
-        return response
+        json_response = self.sink(response=serialized_response, status=response_code, content_type="application/json")
+        return json_response
+
+    def respond(self, json_response) -> Response:
+        assembled_response = self.assemble_response(response=json_response)
+        serialized_response = WebEmitter.transport_serializer(assembled_response)
+
+        json_response = self.sink(response=serialized_response, status=HTTPStatus.OK, content_type="application/json")
+        return json_response
 
     def get_stream(self, *args, **kwargs):
         return null_stream()

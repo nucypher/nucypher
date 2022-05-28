@@ -115,12 +115,12 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-      - heartbeat_demo:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - build_dev_docker_images
+#      - heartbeat_demo:
+#          filters:
+#            tags:
+#              only: /.*/
+#          requires:
+#            - build_dev_docker_images
       - build_docs:
           filters:
             tags:
@@ -155,7 +155,9 @@ workflows:
             tags:
               only: /.*/
             branches:
-              only: main
+              only:
+                - main
+                - development
       - request_publication_approval:
           type: approval
           requires:
@@ -185,7 +187,7 @@ workflows:
             branches:
               ignore: /.*/
       - publish_porter_docker:
-          context: "NuCypher Porter Docker"
+          context: "NuCypher Docker"  # This name much match the organization's context name on circleCI.
           requires:
             - request_publication_approval
           filters:
@@ -201,6 +203,7 @@ workflows:
             branches:
               only:
                 - main
+                - development
     jobs:
       - validate_reqs_files:
           filters:
@@ -332,12 +335,12 @@ workflows:
               only: /.*/
           requires:
             - build_dev_docker_images
-      - heartbeat_demo:
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - build_dev_docker_images
+#      - heartbeat_demo:
+#          filters:
+#            tags:
+#              only: /.*/
+#          requires:
+#            - build_dev_docker_images
       - build_docs:
           filters:
             tags:
@@ -350,7 +353,7 @@ workflows:
               only: /.*/
           requires:
             - build_docs
-            - heartbeat_demo
+#            - heartbeat_demo
             - finnegans_wake_demo
       - build_docker:
           filters:
@@ -748,16 +751,16 @@ jobs:
     steps:
       - build_and_save_test_docker
 
-  heartbeat_demo:
-    <<: *python_37_base
-    steps:
-      - checkout
-      - prepare_dev_docker
-      - run:
-          name: Run demo Ursula fleet, Alicia and the Doctor
-          command: ./scripts/circle/run_heartbeat_demo_docker-circle.sh
-      - store_artifacts:
-          path: /tmp/ursulas-logs
+#  heartbeat_demo:
+#    <<: *python_37_base
+#    steps:
+#      - checkout
+#      - prepare_dev_docker
+#      - run:
+#          name: Run demo Ursula fleet, Alicia and the Doctor
+#          command: ./scripts/circle/run_heartbeat_demo_docker-circle.sh
+#      - store_artifacts:
+#          path: /tmp/ursulas-logs
 
   finnegans_wake_demo:
     working_directory: ~/nucypher
@@ -810,7 +813,7 @@ jobs:
       - chown_system_paths
       - run:
           name: Install Documentation Build Dependencies
-          command: python3 -m pip install --user .[docs]
+          command: python3 -m pip install --user -r docs-requirements.txt
       - run:
           name: Build Sphinx Documentation
           command: make docs

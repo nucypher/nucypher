@@ -6,11 +6,8 @@ Running a PRE Node
 
 .. attention::
 
-    In order to run a PRE node on Threshold, ``nucypher`` version 6.0.0 is required,
-    but is not yet available. See `releases <https://pypi.org/project/nucypher/#history>`_.
-
-    However, this documentation can be used in the interim to gain a better understanding of
-    the logistics of running a PRE node.
+    In order to run a PRE node on Threshold, ``nucypher`` v6.0.0 or above will be required.
+    See `releases <https://pypi.org/project/nucypher/#history>`_ for the latest version.
 
 
 .. note::
@@ -18,14 +15,25 @@ Running a PRE Node
     NuCypher maintains a separate self-contained CLI that automates the initialization
     and management of PRE nodes deployed on cloud infrastructure. This CLI leverages
     automation tools such as Ansible and Docker to simplify the setup and management
-    of nodes running in the cloud. See :ref:`managing-cloud-nodes`.
+    of nodes running in the cloud (*under active development and currently limited to
+    testnet automation*). See :ref:`managing-cloud-nodes`.
 
-After finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following:
+After :ref:`staking on Threshold <stake-initialization>`, and finding a server that meets the :ref:`requirements <node-requirements>`, running a PRE node entails the following:
 
+#. :ref:`install-nucypher`
 #. :ref:`bond-operator`
 #. :ref:`configure-and-run-node`
 #. :ref:`qualify-node`
 #. :ref:`manage-node`
+
+
+.. _install-nucypher:
+
+Install ``nucypher``
+====================
+
+See ``nucypher`` :doc:`installation reference</references/installation>`. There is the option
+of using Docker (recommended) or a local installation.
 
 
 .. _bond-operator:
@@ -33,22 +41,47 @@ After finding a server that meets the :ref:`requirements <node-requirements>`, r
 Bond Operator
 =============
 
-Once the Staking Provider is authorized to use the PRE Application, an Operator address must be bonded to it. This is performed by
-the Staking Provider via the ``nucypher bond`` CLI command.
+The Staking Provider must be bonded to an :ref:`Operator address<operator-address-setup>`. This
+should be performed by the Staking Provider via the ``nucypher bond`` command (directly or as part of a Docker command). Run
+``nucypher bond --help`` for usage. The Operator address is the ETH account that will be used when running the Ursula node.
+
 
 .. attention::
 
-    This command should only be run by the stake Owner for self-managed nodes, or the *node-as-a-service* :ref:`Staking Provider <node-providers>` for node delegation.
+    This command should **only** be executed by the Staking Provider account. This would be the same as the stake owner account
+    for self-managed nodes, or the *node-as-a-service* :ref:`provider <node-providers>` for node delegation.
 
 
 .. important::
 
     Once the Operator address is bonded, it cannot be changed for 24 hours.
 
+via UI
+------
+
+* Navigate to https://stake.nucypher.network/manage/bond
+* Connect with the Staking Provider account to execute the bond operation
+* Enter the Operator address to bond
+* Click *"Bond Operator"*
+
+
+via Docker
+----------
 
 .. code:: bash
 
-    (nucypher)$ nucypher bond --network <NETWORK NAME> --eth-provider <L1 PROVIDER URI> --staking-provider <STAKING PROVIDER ADDRESS> --signer <STAKING PROVIDER KEYSTORE URI> --operator-address <OPERATOR ADDRESS>
+    .. code:: bash
+
+    $ docker run -it \
+    -v ~/.local/share/nucypher:/root/.local/share/nucypher \
+    -v ~/.ethereum/:/root/.ethereum               \
+    nucypher/nucypher:latest                      \
+    nucypher bond                                 \
+    --signer <ETH KEYSTORE URI>                   \
+    --network <NETWORK NAME>                      \
+    --eth-provider <L1 PROVIDER URI>              \
+    --staking-provider <STAKING PROVIDER ADDRESS> \
+    --operator-address <OPERATOR ADDRESS>
 
     Are you sure you want to bond staking provider 0x... to operator 0x...? [y/N]: y
     Enter ethereum account password (0x...):
@@ -64,16 +97,39 @@ the Staking Provider via the ``nucypher bond`` CLI command.
 
 Replace the following values with your own:
 
+   * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///root/.ethereum/keystore`` for mainnet)
    * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
    * ``<STAKING PROVIDER ADDRESS>`` - the ethereum address of the staking provider
-   * ``<STAKING PROVIDER KEYSTORE URI>`` - the local ethereum keystore of the staking provider address
    * ``<OPERATOR ADDRESS>`` - the address of the operator to bond
 
 
-.. note::
+via Local Installation
+----------------------
 
-    See ``nucypher bond --help`` for usage.
+.. code:: bash
+
+    (nucypher)$ nucypher bond --signer <ETH KEYSTORE URI> --network <NETWORK NAME> --eth-provider <L1 PROVIDER URI> --staking-provider <STAKING PROVIDER ADDRESS> --operator-address <OPERATOR ADDRESS>
+
+    Are you sure you want to bond staking provider 0x... to operator 0x...? [y/N]: y
+    Enter ethereum account password (0x...):
+
+    Bonding operator 0x...
+    Broadcasting BONDOPERATOR Transaction ...
+    TXHASH 0x...
+
+    OK | 0x...
+    Block #14114221 | 0x...
+     See https://etherscan.io/tx/0x...
+
+
+Replace the following values with your own:
+
+   * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///home/<user>/.ethereum/keystore`` for mainnet)
+   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
+   * ``<STAKING PROVIDER ADDRESS>`` - the ethereum address of the staking provider
+   * ``<OPERATOR ADDRESS>`` - the address of the operator to bond
 
 
 .. _configure-and-run-node:
@@ -81,7 +137,7 @@ Replace the following values with your own:
 Configure and Run a PRE Node
 ============================
 
-Node management commands are issued via the ``nucypher ursula`` CLI. For more information
+Node management commands are issued via the ``nucypher ursula`` CLI (directly or as part of a Docker command). For more information
 on that command you can run ``nucypher ursula –help``.
 
 Initializing the PRE node configuration entails:
@@ -102,27 +158,13 @@ All PRE node configuration information will be stored in ``/home/user/.local/sha
 Run Node via Docker (Recommended)
 ---------------------------------
 
-Running the node via a docker container negates the need to install ``nucypher`` locally.
-Instead, the node is run as part of a docker container which greatly simplifies the installation process.
-
-
-Setup Docker
-++++++++++++
-
-- Install `docker <https://docs.docker.com/install>`_.
-- *Optional* Depending on the setup you want, post install instructions, additional
-  docker configuration is available `here <https://docs.docker.com/engine/install/linux-postinstall/>`_.
-- Get the latest ``nucypher`` docker image:
-
-  .. code:: bash
-
-    $ docker pull nucypher/nucypher:latest
-
+This section is specific to :ref:`Docker installations <docker-installation>` of ``nucypher``. The Docker commands will ensure that configuration
+information in the local ``/home/user/.local/share/nucypher/`` is used by the Docker container.
 
 Export Node Environment Variables
 +++++++++++++++++++++++++++++++++
 
-These environment variables are used to better simplify the docker installation process.
+These environment variables are used to better simplify the Docker installation process.
 
 .. code:: bash
 
@@ -148,21 +190,26 @@ This step creates and stores the PRE node configuration, and only needs to be ru
     -e NUCYPHER_KEYSTORE_PASSWORD                 \
     nucypher/nucypher:latest                      \
     nucypher ursula init                          \
-    --signer keystore:///root/.ethereum/keystore  \
+    --signer <ETH KEYSTORE URI>                   \
     --eth-provider <L1 PROVIDER URI>              \
     --network <L1 NETWORK NAME>                   \
     --payment-provider <L2 PROVIDER URI>          \
     --payment-network <L2 NETWORK NAME>           \
+    --operator-address <OPERATOR ADDRESS>         \
     --max-gas-price <GWEI>
 
 
 Replace the following values with your own:
+
+   * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///root/.ethereum/keystore`` for mainnet)
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
    * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
+
+   * ``<OPERATOR ADDRESS>`` - The local ETH address to be used by the Ursula node (the one that was bonded)
 
    * ``<GWEI>`` (*Optional*) - The maximum price of gas to spend on any transaction
 
@@ -209,45 +256,12 @@ Upgrade the Node To a Newer Version
 Run Node without Docker
 -----------------------
 
-Instead of using docker, PRE nodes can be run using a local installation of ``nucypher``.
-
-
-Install ``nucypher``
-++++++++++++++++++++
-
-- ``nucypher`` supports Python 3.7 and 3.8. If you don’t already have it, install `Python <https://www.python.org/downloads/>`_.
-- Create a `Virtual Environment <https://virtualenv.pypa.io/en/latest/>`_ in a folder
-  somewhere on your machine.This virtual environment is a self-contained directory
-  tree that will contain a python installation for a particular version of Python,
-  and various installed packages needed to run the node.
-
-  .. code:: bash
-
-    python -m venv </your/path/nucypher-venv>
-
-- Activate the newly created virtual environment:
-
-  .. code:: bash
-
-    $ source </your/path/nucypher-venv>/bin/activate
-
-- Install `nucypher` package
-
-  .. code:: bash
-
-    $ pip3 install -U nucypher
-
-- Verify that `nucypher` is installed
-
-  .. code:: bash
-
-    $ nucypher –-version
-
+Instead of using Docker, PRE nodes can be run using a :ref:`local installation<local-installation>` of ``nucypher``.
 
 Run Node via systemd (Alternate)
 ++++++++++++++++++++++++++++++++
 
-Instead of using docker, the node can be run as a `systemd <https://en.wikipedia.org/wiki/Systemd>`_ service.
+The node can be run as a `systemd <https://en.wikipedia.org/wiki/Systemd>`_ service.
 
 
 Configure the node
@@ -255,16 +269,19 @@ Configure the node
 
 .. code:: bash
 
-    $(nucypher) nucypher ursula init     \
-    --eth-provider <L1 PROVIDER URI>     \
-    --network <L1 NETWORK NAME>          \
-    --payment-provider <L2 PROVIDER URI> \
-    --payment-network <L2 NETWORK NAME>  \
-    --signer <SIGNER URI>                \
+    $(nucypher) nucypher ursula init      \
+    --signer <ETH KEYSTORE URI>           \
+    --eth-provider <L1 PROVIDER URI>      \
+    --network <L1 NETWORK NAME>           \
+    --payment-provider <L2 PROVIDER URI>  \
+    --payment-network <L2 NETWORK NAME>   \
+    --operator-address <OPERATOR ADDRESS> \
     --max-gas-price <GWEI>
 
 
 Replace the following values with your own:
+
+   * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///home/<user>/.ethereum/keystore`` for mainnet)
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
    * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
@@ -272,7 +289,8 @@ Replace the following values with your own:
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
 
-   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: ``keystore:///root/.ethereum/keystore``
+   * ``<OPERATOR ADDRESS>`` - The local ETH address to be used by the Ursula node (the one that was bonded)
+
    * ``<GWEI>`` (*Optional*) - The maximum price of gas to spend on any transaction
 
 
@@ -342,7 +360,7 @@ Restart Node Service
 
 .. code:: bash
 
-	$ sudo systemctl restart ursula
+    $ sudo systemctl restart ursula
 
 
 Run Node Manually
@@ -359,14 +377,17 @@ First initialize a Node configuration:
 .. code:: bash
 
     $(nucypher) nucypher ursula init      \
+    --signer <ETH KEYSTORE URI>           \
     --eth-provider <L1 PROVIDER URI>      \
     --network <L1 NETWORK NAME>           \
     --payment-provider <L2 PROVIDER URI>  \
     --payment-network <L2 NETWORK NAME>   \
-    --signer <SIGNER URI>                 \
+    --operator-address <OPERATOR ADDRESS> \
     --max-gas-price <GWEI>
 
 Replace the following values with your own:
+
+   * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///home/<user>/.ethereum/keystore`` for mainnet)
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
    * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
@@ -374,7 +395,8 @@ Replace the following values with your own:
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
 
-   * ``<SIGNER URI>`` - The URI to an ethereum keystore or signer: ``keystore:///root/.ethereum/keystore``
+   * ``<OPERATOR ADDRESS>`` - The local ETH address to be used by the Ursula node (the one that was bonded)
+
    * ``<GWEI>`` (*Optional*) - The maximum price of gas to spend on any transaction
 
 
@@ -477,7 +499,7 @@ Node Logs
 
 A reliable way to check the status of a node is to view the logs.
 
-* View logs for a docker-launched Ursula:
+* View logs for a Docker-launched Ursula:
 
   .. code:: bash
 

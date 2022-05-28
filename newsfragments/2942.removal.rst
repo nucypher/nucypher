@@ -1,0 +1,1 @@
+Remove set up dependency on ``setuptools-markdown`` which is no longer needed, but caused build failures.

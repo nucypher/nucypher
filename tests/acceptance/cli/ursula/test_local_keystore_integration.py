@@ -37,7 +37,7 @@ from nucypher.config.constants import (
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
+    TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD, TEST_POLYGON_PROVIDER_URI
 )
 from tests.utils.ursula import select_test_port
 
@@ -106,6 +106,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                  '--operator-address', worker_account.address,
                  '--config-root', str(config_root_path.absolute()),
                  '--eth-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
                  '--rest-host', MOCK_IP_ADDRESS,
                  '--rest-port', deploy_port,
 

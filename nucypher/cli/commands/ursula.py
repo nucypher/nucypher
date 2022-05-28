@@ -21,6 +21,7 @@ from pathlib import Path
 import click
 
 from nucypher.blockchain.eth.signers.software import ClefSigner
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, recover_keystore
 from nucypher.cli.actions.configure import (
     destroy_configuration,
@@ -73,6 +74,7 @@ from nucypher.config.constants import (
 from nucypher.crypto.keystore import Keystore
 
 
+
 class UrsulaConfigOptions:
 
     __option_name__ = 'config_options'
@@ -103,7 +105,7 @@ class UrsulaConfigOptions:
         if federated_only:
             if registry_filepath or policy_registry_filepath:
                 raise click.BadOptionUsage(option_name="--registry-filepath",
-                                           message=f"--registry-filepath and --policy-registry-filepath cannot be used in federated mode.")
+                                           message=click.style("--registry-filepath and --policy-registry-filepath cannot be used in federated mode.", fg="red"))
 
         self.eth_provider_uri = eth_provider_uri
         self.signer_uri = signer_uri
@@ -180,7 +182,7 @@ class UrsulaConfigOptions:
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
             except Keystore.AuthenticationFailed as e:
-                emitter.echo(str(e), color='red', bold=True)
+                emitter.error(str(e))
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
@@ -309,7 +311,7 @@ class UrsulaCharacterOptions:
             return ursula_config, URSULA
 
         except Keystore.AuthenticationFailed as e:
-            emitter.echo(str(e), color='red', bold=True)
+            emitter.error(str(e))
             # TODO: Exit codes (not only for this, but for other exceptions)
             return click.get_current_context().exit(1)
 
@@ -340,11 +342,13 @@ def init(general_config, config_options, force, config_root, key_material):
     if not config_root:
         config_root = general_config.config_root
     if not config_options.federated_only and not config_options.eth_provider_uri:
-        raise click.BadOptionUsage('--eth-provider', message="--eth-provider is required to initialize a new ursula.")
+        raise click.BadOptionUsage('--eth-provider', message=click.style("--eth-provider is required to initialize a new ursula.", fg="red"))
+    if not config_options.federated_only and not config_options.payment_provider:
+        raise click.BadOptionUsage('--payment-provider', message=click.style("--payment-provider is required to initialize a new ursula.", fg="red"))
     if not config_options.federated_only and not config_options.domain:
-        config_options.domain = select_network(emitter, message="Select Staking Network")
+        config_options.domain = select_network(emitter, message="Select Staking Network", network_type=NetworksInventory.ETH)
     if not config_options.federated_only and not config_options.payment_network:
-        config_options.payment_network = select_network(emitter, message="Select Payment Network")
+        config_options.payment_network = select_network(emitter, message="Select Payment Network", network_type=NetworksInventory.POLYGON)
     ursula_config = config_options.generate_config(emitter=emitter,
                                                    config_root=config_root,
                                                    force=force,
@@ -405,26 +409,37 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
         metrics_listen_address, metrics_prefix, metrics_interval, force, ip_checkup):
     """Run an "Ursula" node."""
 
-    operator_address = character_options.config_options.operator_address
     emitter = setup_emitter(general_config)
     dev_mode = character_options.config_options.dev
     lonely = character_options.config_options.lonely
 
-    if prometheus and not metrics_port:
-        # Require metrics port when using prometheus
-        raise click.BadOptionUsage(option_name='metrics-port',
-                                   message='--metrics-port is required when using --prometheus')
+    # TODO re-add prometheus logic once prometheus functionality is revamped for Threshold (#2928)
+    if prometheus:
+        raise click.BadOptionUsage(
+            option_name="prometheus",
+            message=click.style(
+                "prometheus is not currently supported "
+                "in this version as part of the merge to "
+                "the Threshold Network; it will be in a "
+                "future version",
+                fg="red"
+            )
+        )
+    # if prometheus and not metrics_port:
+    #     # Require metrics port when using prometheus
+    #     raise click.BadOptionUsage(option_name='metrics-port',
+    #                                message=click.style('--metrics-port is required when using --prometheus', fg="red"))
 
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
     prometheus_config: 'PrometheusMetricsConfig' = None
-    if prometheus and not dev_mode:
-        # Locally scoped to prevent import without prometheus explicitly installed
-        from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
-        prometheus_config = PrometheusMetricsConfig(port=metrics_port,
-                                                    metrics_prefix=metrics_prefix,
-                                                    listen_address=metrics_listen_address,
-                                                    collection_interval=metrics_interval)
+    # if prometheus and not dev_mode:
+    #     # Locally scoped to prevent import without prometheus explicitly installed
+    #     from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+    #     prometheus_config = PrometheusMetricsConfig(port=metrics_port,
+    #                                                 metrics_prefix=metrics_prefix,
+    #                                                 listen_address=metrics_listen_address,
+    #                                                 collection_interval=metrics_interval)
 
     ursula_config, URSULA = character_options.create_character(emitter=emitter,
                                                                config_file=config_file,
@@ -483,7 +498,7 @@ def config(general_config, config_options, config_file, force, action):
         rest_host = collect_operator_ip_address(emitter=emitter, network=config_options.domain, force=force)
         config_options.rest_host = rest_host
     elif action:
-        emitter.echo(f'"{action}" is not a valid command.', color='red')
+        emitter.error(f'"{action}" is not a valid command.')
         raise click.Abort()
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,

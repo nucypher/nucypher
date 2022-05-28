@@ -19,6 +19,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import functools
 from collections import namedtuple
 from pathlib import Path
+from typing import Sequence
 
 import click
 
@@ -89,11 +90,12 @@ def option_alice_verifying_key(required: bool = False):
         required=required)
 
 
-def option_contract_name(required: bool = False):
+def option_contract_name(required: bool = False,
+                         valid_options: Sequence[str] = NUCYPHER_CONTRACT_NAMES):
     return click.option(
         '--contract-name',
         help="Specify a single contract by name",
-        type=click.Choice(NUCYPHER_CONTRACT_NAMES),
+        type=click.Choice(valid_options),
         required=required
     )
 
