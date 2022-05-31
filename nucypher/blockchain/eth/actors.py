@@ -350,7 +350,7 @@ class Operator(BaseActor):
         poll_rate = poll_rate or self.READY_POLL_RATE
         timeout = timeout or self.READY_TIMEOUT
         start, funded, bonded = maya.now(), False, False
-        while not (funded and bonded):
+        while not bonded:
 
             if timeout and ((maya.now() - start).total_seconds() > timeout):
                 message = f"x Operator was not qualified after {timeout} seconds"

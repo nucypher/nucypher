@@ -1,0 +1,1 @@
+Allow nodes which have already confirmed but have 0 ETH in their operator wallet to start.
