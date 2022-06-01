@@ -188,29 +188,12 @@ class StakerMetricsCollector(BaseMetricsCollector):
         }
 
     def _collect_internal(self) -> None:
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.contract_registry)
-
-        # current period
-        self.metrics["current_period_gauge"].set(staking_agent.get_current_period())
-
         # balances
         nucypher_token_actor = NucypherTokenActor(registry=self.contract_registry,
                                                   domain=self.domain,
                                                   checksum_address=self.staker_address)
         self.metrics["eth_balance_gauge"].set(nucypher_token_actor.eth_balance)
         self.metrics["token_balance_gauge"].set(int(nucypher_token_actor.token_balance))
-
-        # stake information
-        self.metrics["substakes_count_gauge"].set(
-            staking_agent.contract.functions.getSubStakesLength(self.staker_address).call())
-
-        locked = staking_agent.get_locked_tokens(staker_address=self.staker_address, periods=1)
-        self.metrics["active_stake_gauge"].set(locked)
-
-        owned_tokens = staking_agent.owned_tokens(self.staker_address)
-        unlocked_tokens = owned_tokens - locked
-        self.metrics["unlocked_tokens_gauge"].set(unlocked_tokens)
-        self.metrics["owned_tokens_gauge"].set(owned_tokens)
 
 
 class OperatorMetricsCollector(BaseMetricsCollector):

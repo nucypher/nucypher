@@ -415,31 +415,32 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
 
     # TODO re-add prometheus logic once prometheus functionality is revamped for Threshold (#2928)
     if prometheus:
-        raise click.BadOptionUsage(
-            option_name="prometheus",
-            message=click.style(
-                "prometheus is not currently supported "
-                "in this version as part of the merge to "
-                "the Threshold Network; it will be in a "
-                "future version",
-                fg="red"
-            )
-        )
-    # if prometheus and not metrics_port:
-    #     # Require metrics port when using prometheus
-    #     raise click.BadOptionUsage(option_name='metrics-port',
-    #                                message=click.style('--metrics-port is required when using --prometheus', fg="red"))
+        pass
+        # raise click.BadOptionUsage(
+        #     option_name="prometheus",
+        #     message=click.style(
+        #         "prometheus is not currently supported "
+        #         "in this version as part of the merge to "
+        #         "the Threshold Network; it will be in a "
+        #         "future version",
+        #         fg="red"
+        #     )
+        # )
+    if prometheus and not metrics_port:
+        # Require metrics port when using prometheus
+        raise click.BadOptionUsage(option_name='metrics-port',
+                                   message=click.style('--metrics-port is required when using --prometheus', fg="red"))
 
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
     prometheus_config: 'PrometheusMetricsConfig' = None
-    # if prometheus and not dev_mode:
-    #     # Locally scoped to prevent import without prometheus explicitly installed
-    #     from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
-    #     prometheus_config = PrometheusMetricsConfig(port=metrics_port,
-    #                                                 metrics_prefix=metrics_prefix,
-    #                                                 listen_address=metrics_listen_address,
-    #                                                 collection_interval=metrics_interval)
+    if prometheus:
+        # Locally scoped to prevent import without prometheus explicitly installed
+        from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+        prometheus_config = PrometheusMetricsConfig(port=metrics_port,
+                                                    metrics_prefix=metrics_prefix,
+                                                    listen_address=metrics_listen_address,
+                                                    collection_interval=metrics_interval)
 
     ursula_config, URSULA = character_options.create_character(emitter=emitter,
                                                                config_file=config_file,
