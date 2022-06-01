@@ -434,7 +434,7 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
     prometheus_config: 'PrometheusMetricsConfig' = None
-    if prometheus:
+    if prometheus and not dev_mode:
         # Locally scoped to prevent import without prometheus explicitly installed
         from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
         prometheus_config = PrometheusMetricsConfig(port=metrics_port,
