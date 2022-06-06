@@ -36,8 +36,6 @@ You can delegate running a PRE node to one of the *node-as-a-service* Staking Pr
     * Telegram: ``@P2Pstaking``
 * `Staked <https://staked.us/>`_
     * Email: staked@staked.us
-    * Discord: ``@cole at staked.us #0429``
     * Telegram: ``@staked_official``
-    * WeChat: ``@colekennelly``
 
 More detailed profile information about each Staking Provider is available `here <https://github.com/nucypher/validator-profiles>`_.
