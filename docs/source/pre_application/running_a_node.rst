@@ -222,7 +222,7 @@ This step starts the PRE node.
 
     $ docker run -d --rm \
     --name ursula      \
-    --restart unless-stopped          \
+    --restart on-failure              \
     -v ~/.local/share/nucypher:/root/.local/share/nucypher \
     -v ~/.ethereum/:/root/.ethereum   \
     -p 9151:9151                      \
@@ -234,9 +234,9 @@ This step starts the PRE node.
 
 .. note::
 
-    Setting the ``--restart`` parameter to ``unless-stopped`` ensures that the Docker
-    container will be automatically restarted if it exited, except if the container was
-    stopped using the ``docker stop`` command. See `Docker Restart Policies <https://docs.docker.com/engine/reference/run/#restart-policies---restart>`_
+    Setting the ``--restart`` parameter to ``on-failure`` ensures that the Docker
+    container will be automatically restarted if the application exited unexpectedly (e.g. an application crash).
+    See `Docker Restart Policies <https://docs.docker.com/engine/reference/run/#restart-policies---restart>`_
     for more information.
 
 View Node Logs
