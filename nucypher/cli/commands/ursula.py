@@ -413,19 +413,6 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     dev_mode = character_options.config_options.dev
     lonely = character_options.config_options.lonely
 
-    # TODO re-add prometheus logic once prometheus functionality is revamped for Threshold (#2928)
-    if prometheus:
-        pass
-        # raise click.BadOptionUsage(
-        #     option_name="prometheus",
-        #     message=click.style(
-        #         "prometheus is not currently supported "
-        #         "in this version as part of the merge to "
-        #         "the Threshold Network; it will be in a "
-        #         "future version",
-        #         fg="red"
-        #     )
-        # )
     if prometheus and not metrics_port:
         # Require metrics port when using prometheus
         raise click.BadOptionUsage(option_name='metrics-port',
