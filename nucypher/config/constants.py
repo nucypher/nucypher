@@ -16,12 +16,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
+import os
 from collections import namedtuple
 from pathlib import Path
 
-import os
 from appdirs import AppDirs
-
 from maya import MayaDT
 
 import nucypher
@@ -75,4 +74,4 @@ TEMPORARY_DOMAIN = ":temporary-domain:"  # for use with `--dev` node runtimes
 NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS = 'NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS'
 
 # Probationary period
-END_OF_POLICIES_PROBATIONARY_PERIOD = MayaDT.from_iso8601('2022-6-16T23:59:59.0Z')
+END_OF_POLICIES_PROBATIONARY_PERIOD = MayaDT.from_iso8601("2022-08-31T23:59:59.0Z")
