@@ -56,13 +56,19 @@ def mock_registry_source_manager(test_registry):
             raw_registry_data = json.dumps(registry_data)
             return raw_registry_data
 
-    real_inventory = NetworksInventory.NETWORKS
+    real_networks = NetworksInventory.NETWORKS
+    real_eth_networks = NetworksInventory.ETH_NETWORKS
+    real_poly_networks = NetworksInventory.POLY_NETWORKS
     try:
         RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
         NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
-        yield real_inventory
+        NetworksInventory.ETH_NETWORKS = (TEMPORARY_DOMAIN,)
+        NetworksInventory.POLY_NETWORKS = (TEMPORARY_DOMAIN,)
+        yield real_networks
     finally:
-        NetworksInventory.NETWORKS = real_inventory
+        NetworksInventory.POLY_NETWORKS = real_poly_networks
+        NetworksInventory.ETH_NETWORKS = real_eth_networks
+        NetworksInventory.NETWORKS = real_networks
 
 
 class MockBlockchain(TesterBlockchain):
