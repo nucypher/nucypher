@@ -3,7 +3,6 @@ import json
 from nucypher_core.umbral import SecretKey
 
 from nucypher.characters.lawful import Bob, Alice, Ursula
-from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.set_log_level(log_level_name='info')
@@ -12,11 +11,11 @@ GlobalLoggerSettings.start_console_logging()
 # Universal Bob
 bob_verifying_secret = SecretKey.random()
 bob_verifying_key = bob_verifying_secret.public_key()
-decrypting_secret = SecretKey.random()
-decrypting_key = decrypting_secret.public_key()
+bob_decrypting_secret = SecretKey.random()
+bob_decrypting_key = bob_decrypting_secret.public_key()
 
 universal_bob = Bob.from_public_keys(verifying_key=bob_verifying_key,
-                                     encrypting_key=decrypting_key,
+                                     encrypting_key=bob_decrypting_key,
                                      federated_only=True)
 print(f'Created Universal Bob - {bytes(universal_bob.stamp).hex()}')
 
@@ -50,19 +49,21 @@ print(f'Generated network policy {bytes(policy.public_key).hex()}')
 # Store artifacts
 network_tmap = policy.treasure_map
 network_pek = policy.public_key
-universal_bob_public_key = universal_bob.public_keys(DecryptingPower)
-universal_bob_secret_key = decrypting_secret
-print(network_tmap, network_pek, universal_bob_public_key, universal_bob_secret_key, sep='\n')
 
 payload = {
+    'alice_public_key': bytes(alice.stamp).hex(),
     'tmap': bytes(network_tmap).hex(),
     'pek': bytes(network_pek).hex(),
-    'alice_public_key': bytes(alice.stamp).hex(),
-    'bob_public_key': bytes(universal_bob_public_key).hex(),
-    'bob_secret_key': universal_bob_secret_key.to_secret_bytes().hex()
+    # TODO: store Alice's secret?
+
+    'bob_verifying_key': bytes(bob_verifying_key).hex(),
+    'bob_verifying_secret': bob_verifying_secret.to_secret_bytes().hex(),
+
+    'bob_encrypting_key': bytes(bob_decrypting_key).hex(),
+    'bob_encrypting_secret': bob_decrypting_secret.to_secret_bytes().hex()
 }
 
-filename = 'network_material.json'
+filename = 'network_config.json'
 with open(filename, 'w') as file:
     data = json.dumps(payload, indent=4)
     file.write(data)
