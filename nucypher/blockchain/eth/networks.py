@@ -61,4 +61,6 @@ class NetworksInventory:  # TODO: See #1564
     @classmethod
     def validate_network_name(cls, network_name: str):
         if network_name not in cls.NETWORKS:
-            raise cls.UnrecognizedNetwork(f"{network_name} is not a recognized network of NuCypher")
+            raise cls.UnrecognizedNetwork(
+                f"{network_name} is not a recognized network."
+            )
