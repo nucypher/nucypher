@@ -170,18 +170,11 @@ class StakerMetricsCollector(BaseMetricsCollector):
         self.contract_registry = contract_registry
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        self.metrics = {
-            "token_balance_gauge": Gauge(f'{metrics_prefix}_staker_token_balance', 'NuNit balance', registry=registry),
-            "active_stake_gauge": Gauge(f'{metrics_prefix}_active_stake', 'Active stake', registry=registry),
-        }
+        pass
 
     def _collect_internal(self) -> None:
-        # balances
-        nucypher_token_actor = NucypherTokenActor(registry=self.contract_registry,
-                                                  domain=self.domain,
-                                                  checksum_address=self.staker_address)
-        self.metrics["eth_balance_gauge"].set(nucypher_token_actor.eth_balance)
-        self.metrics["token_balance_gauge"].set(int(nucypher_token_actor.token_balance))
+        # balances were here, right now collector makes nothing
+        pass
 
 
 class OperatorMetricsCollector(BaseMetricsCollector):
