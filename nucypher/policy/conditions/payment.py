@@ -15,32 +15,42 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 from abc import ABC, abstractmethod
-from typing import Optional, NamedTuple, Dict
+from typing import Optional, NamedTuple, Dict, Union
 
 import maya
+from marshmallow import fields, post_load
 from nucypher_core import ReencryptionRequest
 from web3.types import Wei, Timestamp, TxReceipt, ChecksumAddress
 
 from nucypher.blockchain.eth.agents import SubscriptionManagerAgent
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.policy.conditions import ReencryptionCondition
+from nucypher.policy.conditions.base import CamelCaseSchema
 from nucypher.policy.policies import BlockchainPolicy, Policy
 
 
-class ReencryptionPrerequisite(ABC):
-    """Baseclass for reencryption preconditions relating to a policy."""
+class ReturnValueTest:
 
-    ONCHAIN = NotImplemented
-    NAME = NotImplemented
+    class ReturnValueTestSchema(CamelCaseSchema):
+        comparator = fields.Str()
+        value = fields.Str()
 
-    @abstractmethod
-    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
-        """returns True if reencryption is permitted by the payee (ursula) for the given reencryption request."""
-        raise NotImplemented
+        @post_load
+        def make(self, data, **kwargs):
+            return ReturnValueTest(**data)
+
+    def __init__(self, comparator: str, value: Union[int, str]):
+        self.comparator = comparator
+        self.value = value
+
+    def eval(self, data) -> bool:
+        # TODO: Sanitize input
+        result = eval(f'{data}{self.comparator}{self.value}')
+        return result
 
 
-class PaymentMethod(ReencryptionPrerequisite, ABC):
+class PaymentMethod(ReencryptionCondition, ABC):
     """Extends ReencryptionPrerequisite to facilitate policy payment and payment verification."""
 
     class Quote(NamedTuple):
@@ -50,6 +60,11 @@ class PaymentMethod(ReencryptionPrerequisite, ABC):
         expiration: int    # epoch
         duration: int      # seconds or periods
         shares: int
+
+    @abstractmethod
+    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
+        """returns True if reencryption is permitted by the payee (ursula) for the given reencryption request."""
+        raise NotImplemented
 
     @abstractmethod
     def pay(self, policy: Policy) -> Dict:
@@ -113,43 +128,6 @@ class ContractPayment(PaymentMethod, ABC):
         agent = self._AGENT(eth_provider_uri=self.provider, registry=self.registry)
         self.__agent = agent
         return self.__agent  # set cache
-
-
-class FreeReencryptions(PaymentMethod):
-    """Useful for private federations and testing."""
-
-    ONCHAIN = False
-    NAME = 'Free'
-
-    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
-        return True
-
-    def pay(self, policy: Policy) -> Dict:
-        receipt = f'Receipt for free policy {bytes(policy.hrac).hex()}.'
-        return dict(receipt=receipt.encode())
-
-    @property
-    def rate(self) -> int:
-        return 0
-
-    def quote(self,
-              shares: int,
-              commencement: Optional[Timestamp] = None,
-              expiration: Optional[Timestamp] = None,
-              duration: Optional[int] = None,
-              *args, **kwargs
-              ) -> PaymentMethod.Quote:
-        return self.Quote(
-            value=0,
-            rate=0,
-            shares=shares,
-            duration=duration,
-            commencement=commencement,
-            expiration=expiration
-        )
-
-    def validate_price(self, *args, **kwargs) -> bool:
-        return True
 
 
 class SubscriptionManagerPayment(ContractPayment):
@@ -229,7 +207,38 @@ class SubscriptionManagerPayment(ContractPayment):
         return True
 
 
-PAYMENT_METHODS = {
-    FreeReencryptions.NAME: FreeReencryptions,
-    SubscriptionManagerPayment.NAME: SubscriptionManagerPayment,
-}
+class FreeReencryptions(PaymentMethod):
+    """Useful for private federations and testing."""
+
+    ONCHAIN = False
+    NAME = 'Free'
+
+    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
+        return True
+
+    def pay(self, policy: Policy) -> Dict:
+        receipt = f'Receipt for free policy {bytes(policy.hrac).hex()}.'
+        return dict(receipt=receipt.encode())
+
+    @property
+    def rate(self) -> int:
+        return 0
+
+    def quote(self,
+              shares: int,
+              commencement: Optional[Timestamp] = None,
+              expiration: Optional[Timestamp] = None,
+              duration: Optional[int] = None,
+              *args, **kwargs
+              ) -> PaymentMethod.Quote:
+        return self.Quote(
+            value=0,
+            rate=0,
+            shares=shares,
+            duration=duration,
+            commencement=commencement,
+            expiration=expiration
+        )
+
+    def validate_price(self, *args, **kwargs) -> bool:
+        return True
