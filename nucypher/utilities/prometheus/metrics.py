@@ -35,12 +35,7 @@ from nucypher.utilities.prometheus.collector import (
     UrsulaInfoMetricsCollector,
     BlockchainMetricsCollector,
     StakerMetricsCollector,
-    OperatorMetricsCollector,
-    EventMetricsCollector,
-    ReStakeEventMetricsCollector,
-    WindDownEventMetricsCollector,
-    OperatorBondedEventMetricsCollector,
-    CommitmentMadeEventMetricsCollector
+    OperatorMetricsCollector
 )
 
 from typing import List
