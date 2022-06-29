@@ -91,7 +91,7 @@ from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker, OperatorBondedTracker
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.payment import PaymentMethod, FreeReencryptions
+from nucypher.policy.conditions.payment import PaymentMethod, FreeReencryptions
 from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip

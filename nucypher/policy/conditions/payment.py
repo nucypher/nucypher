@@ -16,7 +16,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, NamedTuple, Dict, Union
+from typing import Optional, NamedTuple, Dict, Union, Tuple
 
 import maya
 from marshmallow import fields, post_load
