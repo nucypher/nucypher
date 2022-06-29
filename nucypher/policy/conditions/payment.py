@@ -32,6 +32,8 @@ from nucypher.policy.policies import BlockchainPolicy, Policy
 
 class ReturnValueTest:
 
+    COMPARATORS = ('==', '>', '<', '<=', '>=')
+
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
         value = fields.Str()
@@ -41,8 +43,14 @@ class ReturnValueTest:
             return ReturnValueTest(**data)
 
     def __init__(self, comparator: str, value: Union[int, str]):
+        comparator, value = self.sanitize(comparator, value)
         self.comparator = comparator
         self.value = value
+
+    def sanitize(self, comparator: str, value: str) -> Tuple[str, str]:
+        if comparator not in self.COMPARATORS:
+            raise ValueError(f'{comparator} is not a permitted comparator.')
+        return comparator, value
 
     def eval(self, data) -> bool:
         # TODO: Sanitize input
