@@ -17,31 +17,30 @@
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
-    from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
+    from prometheus_client import Counter, Enum, Gauge, Histogram, Info, Summary
 except ImportError:
     raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
 
 try:
     from prometheus_client.core import Timestamp
-    from prometheus_client.registry import CollectorRegistry, REGISTRY
+    from prometheus_client.registry import REGISTRY, CollectorRegistry
     from prometheus_client.utils import floatToGoString
 except ImportError:
     raise DevelopmentInstallationRequired(importable_name='prometheus_client')
 
 import json
-
-from nucypher.utilities.prometheus.collector import (
-    MetricsCollector,
-    UrsulaInfoMetricsCollector,
-    BlockchainMetricsCollector,
-    StakerMetricsCollector,
-    OperatorMetricsCollector
-)
-
 from typing import List
 
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
+
+from nucypher.utilities.prometheus.collector import (
+    BlockchainMetricsCollector,
+    MetricsCollector,
+    OperatorMetricsCollector,
+    StakingProviderMetricsCollector,
+    UrsulaInfoMetricsCollector,
+)
 
 
 class PrometheusMetricsConfig:
@@ -147,7 +146,7 @@ def start_prometheus_exporter(ursula: 'Ursula',
     from twisted.web.resource import Resource
     from twisted.web.server import Site
 
-    metrics_collectors = create_metrics_collectors(ursula, prometheus_config.metrics_prefix)
+    metrics_collectors = create_metrics_collectors(ursula)
     # initialize collectors
     for collector in metrics_collectors:
         collector.initialize(metrics_prefix=prometheus_config.metrics_prefix, registry=registry)
@@ -169,22 +168,30 @@ def start_prometheus_exporter(ursula: 'Ursula',
     reactor.listenTCP(prometheus_config.port, factory, interface=prometheus_config.listen_address)
 
 
-def create_metrics_collectors(ursula: 'Ursula', metrics_prefix: str) -> List[MetricsCollector]:
+def create_metrics_collectors(ursula: "Ursula") -> List[MetricsCollector]:
     """Create collectors used to obtain metrics."""
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 
     if not ursula.federated_only:
         # Blockchain prometheus
+        # TODO possible include information about payment
         collectors.append(BlockchainMetricsCollector(eth_provider_uri=ursula.eth_provider_uri))
 
-        # Staker prometheus
-        collectors.append(StakerMetricsCollector(domain=ursula.domain,
-                                                 staker_address=ursula.checksum_address,
-                                                 contract_registry=ursula.registry))
+        # Staking Provider prometheus
+        collectors.append(
+            StakingProviderMetricsCollector(
+                staking_provider_address=ursula.checksum_address,
+                contract_registry=ursula.registry,
+            )
+        )
 
         # Operator prometheus
-        collectors.append(OperatorMetricsCollector(domain=ursula.domain,
-                                                 operator_address=ursula.operator_address,
-                                                 contract_registry=ursula.registry))
+        collectors.append(
+            OperatorMetricsCollector(
+                domain=ursula.domain,
+                operator_address=ursula.operator_address,
+                contract_registry=ursula.registry,
+            )
+        )
 
     return collectors
