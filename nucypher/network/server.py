@@ -170,11 +170,13 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Cache & Optimize
 
         reenc_request = ReencryptionRequest.from_bytes(request.data)
+        # conditions = ReencryptionRequest.conditions
         hrac = reenc_request.hrac
         bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Reencryption request from {bob} for policy {hrac}")
 
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
+        # TODO: Can this be integrated into reencryption conditions?
         if hrac in this_node.revoked_policies:
             return Response(response=f"Policy with {hrac} has been revoked.", status=HTTPStatus.UNAUTHORIZED)
 
@@ -202,9 +204,11 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
             # TODO (#567): bucket the node as suspicious
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
-        # Enforce Policy Payment
+        # Enforce Reencryption Conditions
         # TODO: Accept multiple payment methods
         # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
+        # conditions.eval()
+
         paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
         if not paid:
             message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."

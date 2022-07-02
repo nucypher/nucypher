@@ -16,49 +16,18 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, NamedTuple, Dict, Union, Tuple
+from typing import Optional, NamedTuple, Dict
 
 import maya
-from marshmallow import fields, post_load
 from nucypher_core import ReencryptionRequest
 from web3.types import Wei, Timestamp, TxReceipt, ChecksumAddress
 
 from nucypher.blockchain.eth.agents import SubscriptionManagerAgent
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
-from nucypher.policy.conditions import ReencryptionCondition
-from nucypher.policy.conditions.base import CamelCaseSchema
 from nucypher.policy.policies import BlockchainPolicy, Policy
 
 
-class ReturnValueTest:
-
-    COMPARATORS = ('==', '>', '<', '<=', '>=')
-
-    class ReturnValueTestSchema(CamelCaseSchema):
-        comparator = fields.Str()
-        value = fields.Str()
-
-        @post_load
-        def make(self, data, **kwargs):
-            return ReturnValueTest(**data)
-
-    def __init__(self, comparator: str, value: Union[int, str]):
-        comparator, value = self.sanitize(comparator, value)
-        self.comparator = comparator
-        self.value = value
-
-    def sanitize(self, comparator: str, value: str) -> Tuple[str, str]:
-        if comparator not in self.COMPARATORS:
-            raise ValueError(f'{comparator} is not a permitted comparator.')
-        return comparator, value
-
-    def eval(self, data) -> bool:
-        # TODO: Sanitize input
-        result = eval(f'{data}{self.comparator}{self.value}')
-        return result
-
-
-class PaymentMethod(ReencryptionCondition, ABC):
+class PaymentMethod(ABC):
     """Extends ReencryptionPrerequisite to facilitate policy payment and payment verification."""
 
     class Quote(NamedTuple):
@@ -68,11 +37,6 @@ class PaymentMethod(ReencryptionCondition, ABC):
         expiration: int    # epoch
         duration: int      # seconds or periods
         shares: int
-
-    @abstractmethod
-    def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
-        """returns True if reencryption is permitted by the payee (ursula) for the given reencryption request."""
-        raise NotImplemented
 
     @abstractmethod
     def pay(self, policy: Policy) -> Dict:
@@ -250,3 +214,9 @@ class FreeReencryptions(PaymentMethod):
 
     def validate_price(self, *args, **kwargs) -> bool:
         return True
+
+
+PAYMENT_METHODS = {
+    SubscriptionManagerPayment.NAME: SubscriptionManagerPayment,
+    FreeReencryptions.NAME: FreeReencryptions
+}

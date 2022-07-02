@@ -53,7 +53,7 @@ from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.conditions import PAYMENT_METHODS
+from nucypher.policy.payment import PAYMENT_METHODS
 from nucypher.utilities.logging import Logger
 
 
