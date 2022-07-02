@@ -1,6 +1,6 @@
 import pytest
 
-from nucypher.policy.conditions.payment import ReturnValueTest
+from nucypher.policy.conditions import ReturnValueTest
 
 
 def test_return_result_test_simple():
