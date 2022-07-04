@@ -38,7 +38,7 @@ from tests.constants import (
     MOCK_IP_ADDRESS,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
-    YES_ENTER
+    YES_ENTER,
 )
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
@@ -94,9 +94,7 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
                                          catch_exceptions=False)
 
     assert result.exit_code != 0
-    # TODO prometheus not currently supported - follow-up in #2928
-    expected_error = f"prometheus is not currently supported"
-    # expected_error = f"Error: --metrics-port is required when using --prometheus"
+    expected_error = f"Error: --metrics-port is required when using --prometheus"
     assert expected_error in result.output
 
 
