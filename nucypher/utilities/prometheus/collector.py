@@ -19,22 +19,26 @@
 from nucypher.blockchain.eth.events import ContractEventsThrottler
 
 try:
-    from prometheus_client import Gauge, Enum, Counter, Info, Histogram, Summary
+    from prometheus_client import Counter, Enum, Gauge, Histogram, Info, Summary
     from prometheus_client.registry import CollectorRegistry
 except ImportError:
     raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
 
 from abc import ABC, abstractmethod
+from typing import Dict, Type
+
 from eth_typing.evm import ChecksumAddress
 
 import nucypher
 from nucypher.blockchain.eth.actors import NucypherTokenActor
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent, EthereumContractAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    EthereumContractAgent,
+    PREApplicationAgent,
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.datastore.queries import get_reencryption_requests
-
-from typing import Dict, Type
 
 
 class MetricsCollector(ABC):
@@ -100,12 +104,6 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "work_orders_gauge": Gauge(f'{metrics_prefix}_work_orders',
                                        'Number of accepted work orders',
                                        registry=registry),
-            "policies_held_gauge": Gauge(f'{metrics_prefix}_policies_held',
-                                         'Policies held',
-                                         registry=registry),
-            "availability_score_gauge": Gauge(f'{metrics_prefix}_availability_score',
-                                              'Availability score',
-                                              registry=registry),
         }
 
     def _collect_internal(self) -> None:
@@ -172,45 +170,11 @@ class StakerMetricsCollector(BaseMetricsCollector):
         self.contract_registry = contract_registry
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        self.metrics = {
-            "current_period_gauge": Gauge(f'{metrics_prefix}_current_period', 'Current period', registry=registry),
-            "eth_balance_gauge": Gauge(f'{metrics_prefix}_staker_eth_balance', 'Ethereum balance', registry=registry),
-            "token_balance_gauge": Gauge(f'{metrics_prefix}_staker_token_balance', 'NuNit balance', registry=registry),
-            "substakes_count_gauge": Gauge(f'{metrics_prefix}_substakes_count', 'Substakes count', registry=registry),
-            "active_stake_gauge": Gauge(f'{metrics_prefix}_active_stake', 'Active stake', registry=registry),
-            "unlocked_tokens_gauge": Gauge(f'{metrics_prefix}_unlocked_tokens',
-                                           'Amount of unlocked tokens',
-                                           registry=registry),
-            "owned_tokens_gauge": Gauge(f'{metrics_prefix}_owned_tokens',
-                                        'All tokens that belong to the staker, including '
-                                        'locked, unlocked and rewards',
-                                        registry=registry),
-        }
+        pass
 
     def _collect_internal(self) -> None:
-        staking_agent = ContractAgency.get_agent(StakingEscrowAgent, registry=self.contract_registry)
-
-        # current period
-        self.metrics["current_period_gauge"].set(staking_agent.get_current_period())
-
-        # balances
-        nucypher_token_actor = NucypherTokenActor(registry=self.contract_registry,
-                                                  domain=self.domain,
-                                                  checksum_address=self.staker_address)
-        self.metrics["eth_balance_gauge"].set(nucypher_token_actor.eth_balance)
-        self.metrics["token_balance_gauge"].set(int(nucypher_token_actor.token_balance))
-
-        # stake information
-        self.metrics["substakes_count_gauge"].set(
-            staking_agent.contract.functions.getSubStakesLength(self.staker_address).call())
-
-        locked = staking_agent.get_locked_tokens(staker_address=self.staker_address, periods=1)
-        self.metrics["active_stake_gauge"].set(locked)
-
-        owned_tokens = staking_agent.owned_tokens(self.staker_address)
-        unlocked_tokens = owned_tokens - locked
-        self.metrics["unlocked_tokens_gauge"].set(unlocked_tokens)
-        self.metrics["owned_tokens_gauge"].set(owned_tokens)
+        # balances were here, right now collector makes nothing
+        pass
 
 
 class OperatorMetricsCollector(BaseMetricsCollector):
@@ -226,9 +190,6 @@ class OperatorMetricsCollector(BaseMetricsCollector):
             "worker_eth_balance_gauge": Gauge(f'{metrics_prefix}_worker_eth_balance',
                                               'Operator Ethereum balance',
                                               registry=registry),
-            "worker_token_balance_gauge": Gauge(f'{metrics_prefix}_worker_token_balance',
-                                                'Operator NuNit balance',
-                                                registry=registry),
         }
 
     def _collect_internal(self) -> None:
