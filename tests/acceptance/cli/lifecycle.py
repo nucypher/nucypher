@@ -17,19 +17,16 @@
 
 import datetime
 import json
-import os
 import shutil
 from base64 import b64decode
 from collections import namedtuple
 from json import JSONDecodeError
-from pathlib import Path
 
 import maya
 import pytest
+from nucypher_core import MessageKit, EncryptedTreasureMap
 from twisted.internet import threads
 from web3 import Web3
-
-from nucypher_core import MessageKit, EncryptedTreasureMap
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
@@ -321,8 +318,8 @@ def run_entire_cli_lifecycle(click_runner,
                       '--network', TEMPORARY_DOMAIN,
                       '--teacher', teacher_uri,
                       '--config-file', str(alice_configuration_file_location.absolute()),
-                      '-m', 2,
-                      '-n', 3,
+                      '--threshold', 2,
+                      '--shares', 3,
                       '--expiration', expiration,
                       '--label', random_label,
                       '--bob-encrypting-key', bob_encrypting_key,

@@ -296,7 +296,7 @@ def test_blockchain_porter_cli_run_network_defaults_to_mainnet(click_runner,
 
     assert result.exit_code != 0
     # there is no 'mainnet' network for decentralized testing
-    assert "'mainnet' is not a NuCypher Network" in result.output
+    assert "'mainnet' is not a recognized network" in result.output
 
 
 def test_blockchain_porter_cli_run_https(click_runner,

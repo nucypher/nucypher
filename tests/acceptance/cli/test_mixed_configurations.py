@@ -242,7 +242,7 @@ def test_corrupted_configuration(click_runner,
 
     init_args = ('ursula', 'init',
                  '--eth-provider', TEST_ETH_PROVIDER_URI,
-                '--payment-provider', TEST_POLYGON_PROVIDER_URI,
+                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
                  '--operator-address', another_ursula,
                  '--network', TEMPORARY_DOMAIN,
                  '--payment-network', TEMPORARY_DOMAIN,

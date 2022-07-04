@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import NU, TToken
 from nucypher.policy.payment import PAYMENT_METHODS
-from nucypher.utilities.networking import validate_operator_ip, InvalidOperatorIP
+from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 
 
 class ChecksumAddress(click.ParamType):
@@ -114,8 +114,10 @@ class NuCypherNetworkName(click.ParamType):
     def convert(self, value, param, ctx):
         if self.validate:
             network = str(value).lower()
-            if network not in NetworksInventory.NETWORKS:
-                self.fail(f"'{value}' is not a NuCypher Network. Valid options are: {list(NetworksInventory.NETWORKS)}")
+            if network not in NetworksInventory.ETH_NETWORKS:
+                self.fail(
+                    f"'{value}' is not a recognized network. Valid options are: {list(NetworksInventory.ETH_NETWORKS)}"
+                )
             else:
                 return network
         else:
