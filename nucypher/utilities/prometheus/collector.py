@@ -95,50 +95,51 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "host_info": Info(f'{metrics_prefix}_host_info', 'Description of info', registry=registry),
-            "learning_status": Enum(f'{metrics_prefix}_node_discovery', 'Learning loop status',
-                                    states=['starting', 'running', 'stopped'], registry=registry),
-            "known_nodes_gauge": Gauge(f'{metrics_prefix}_known_nodes',
-                                       'Number of currently known nodes',
-                                       registry=registry),
-            "work_orders_gauge": Gauge(f'{metrics_prefix}_work_orders',
-                                       'Number of accepted work orders',
-                                       registry=registry),
+            "host_info": Info(
+                f"{metrics_prefix}_host", "Ursula info", registry=registry
+            ),
+            "learning_status": Enum(
+                f"{metrics_prefix}_node_discovery",
+                "Learning loop status",
+                states=["starting", "running", "stopped"],
+                registry=registry,
+            ),
+            "known_nodes_gauge": Gauge(
+                f"{metrics_prefix}_known_nodes",
+                "Number of currently known nodes",
+                registry=registry,
+            ),
+            "reencryption_requests_gauge": Gauge(
+                f"{metrics_prefix}_reencryption_requests",
+                "Number of accepted work orders",
+                registry=registry,
+            ),
         }
 
     def _collect_internal(self) -> None:
         # info
-        base_payload = {'app_version': nucypher.__version__,
-                        'host': str(self.ursula.rest_interface),
-                        'domain': self.ursula.domain,
-                        'nickname': str(self.ursula.nickname),
-                        'nickname_icon': self.ursula.nickname.icon,
-                        'fleet_state': str(self.ursula.known_nodes.checksum),
-                        'known_nodes': str(len(self.ursula.known_nodes))
-                        }
+        base_payload = {
+            "app_version": nucypher.__version__,
+            "host": str(self.ursula.rest_interface),
+            "domain": self.ursula.domain,
+            "nickname": str(self.ursula.nickname),
+            "nickname_icon": self.ursula.nickname.icon,
+        }
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
-        if self.ursula._availability_tracker and self.ursula._availability_tracker.running:
-            self.metrics["availability_score_gauge"].set(self.ursula._availability_tracker.score)
-        else:
-            self.metrics["availability_score_gauge"].set(-1)
 
-        # TODO (#2797): for now we leave a terminology discrepancy here, for backward compatibility reasons.
-        # Update "work orders" to "reencryption requests" when possible.
         reencryption_requests = get_reencryption_requests(self.ursula.datastore)
-        self.metrics["work_orders_gauge"].set(len(reencryption_requests))
+        self.metrics["reencryption_requests_gauge"].set(
+            len(reencryption_requests) if reencryption_requests else 0
+        )
 
         if not self.ursula.federated_only:
-            application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.ursula.registry)
-            authorized = application_agent.get_authorized_stake(staking_provider=self.ursula.checksum_address)
-            decentralized_payload = {'provider': str(self.ursula.eth_provider_uri),
-                                     'active_stake': str(authorized)}
+            decentralized_payload = {
+                "staking_provider_address": self.ursula.checksum_address,
+                "operator_address": self.ursula.operator_address,
+            }
             base_payload.update(decentralized_payload)
-
-            # TODO: Arrangements are deprecated and Policies are no longer trackable by arrangement storage.
-            # policy_arrangements = get_policy_arrangements(self.ursula.datastore)
-            # self.metrics["policies_held_gauge"].set(len(policy_arrangements))
 
         self.metrics["host_info"].info(base_payload)
 
@@ -151,30 +152,71 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "current_eth_block_number": Gauge(f'{metrics_prefix}_current_eth_block_number',
-                                              'Current Ethereum block',
-                                              registry=registry),
+            "eth_chain_id": Gauge(
+                f"{metrics_prefix}_eth_chain_id", "Ethereum Chain ID", registry=registry
+            ),
+            "eth_current_block_number": Gauge(
+                f"{metrics_prefix}_eth_block_number",
+                "Current Ethereum block",
+                registry=registry,
+            ),
         }
 
     def _collect_internal(self) -> None:
         blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=self.eth_provider_uri)
-        self.metrics["current_eth_block_number"].set(blockchain.client.block_number)
+        self.metrics["eth_chain_id"].set(blockchain.client.chain_id)
+        self.metrics["eth_current_block_number"].set(blockchain.client.block_number)
 
 
-class StakerMetricsCollector(BaseMetricsCollector):
-    """Collector for Staker specific metrics."""
-    def __init__(self, domain: str, staker_address: ChecksumAddress, contract_registry: BaseContractRegistry):
+class StakingProviderMetricsCollector(BaseMetricsCollector):
+    """Collector for Staking Provider associated metrics."""
+
+    def __init__(
+        self,
+        staking_provider_address: ChecksumAddress,
+        contract_registry: BaseContractRegistry,
+    ):
         super().__init__()
-        self.domain = domain
-        self.staker_address = staker_address
+        self.staking_provider_address = staking_provider_address
         self.contract_registry = contract_registry
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        pass
+        self.metrics = {
+            "active_stake_gauge": Gauge(
+                f"{metrics_prefix}_associated_active_stake",
+                "Total amount of T staked (adapted NU/KEEP and liquid T)",
+                registry=registry,
+            ),
+            "operator_confirmed_gauge": Gauge(
+                f"{metrics_prefix}_operator_confirmed",
+                "Operator already confirmed",
+                registry=registry,
+            ),
+            "operator_start_gauge": Gauge(
+                f"{metrics_prefix}_operator_start_timestamp",
+                "Operator start timestamp",
+                registry=registry,
+            ),
+        }
 
     def _collect_internal(self) -> None:
-        # balances were here, right now collector makes nothing
-        pass
+        application_agent = ContractAgency.get_agent(
+            PREApplicationAgent, registry=self.contract_registry
+        )
+        authorized = application_agent.get_authorized_stake(
+            staking_provider=self.staking_provider_address
+        )
+        self.metrics["active_stake_gauge"].set(int(authorized))
+
+        staking_provider_info = application_agent.get_staking_provider_info(
+            staking_provider=self.staking_provider_address
+        )
+        self.metrics["operator_confirmed_gauge"].set(
+            staking_provider_info.operator_confirmed
+        )
+        self.metrics["operator_start_gauge"].set(
+            staking_provider_info.operator_start_timestamp
+        )
 
 
 class OperatorMetricsCollector(BaseMetricsCollector):
@@ -187,17 +229,22 @@ class OperatorMetricsCollector(BaseMetricsCollector):
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "worker_eth_balance_gauge": Gauge(f'{metrics_prefix}_worker_eth_balance',
-                                              'Operator Ethereum balance',
-                                              registry=registry),
+            "operator_eth_balance_gauge": Gauge(
+                f"{metrics_prefix}_operator_eth_balance",
+                "Operator Ethereum balance",
+                registry=registry,
+            ),
         }
 
     def _collect_internal(self) -> None:
-        nucypher_worker_token_actor = NucypherTokenActor(registry=self.contract_registry,
-                                                         domain=self.domain,
-                                                         checksum_address=self.operator_address)
-        self.metrics["worker_eth_balance_gauge"].set(nucypher_worker_token_actor.eth_balance)
-        self.metrics["worker_token_balance_gauge"].set(int(nucypher_worker_token_actor.token_balance))
+        operator_token_actor = NucypherTokenActor(
+            registry=self.contract_registry,
+            domain=self.domain,
+            checksum_address=self.operator_address,
+        )
+        self.metrics["operator_eth_balance_gauge"].set(
+            float(operator_token_actor.eth_balance)
+        )
 
 
 class EventMetricsCollector(BaseMetricsCollector):
@@ -257,69 +304,3 @@ class EventMetricsCollector(BaseMetricsCollector):
 
     def _get_arg_metric_key(self, arg_name: str):
         return f'{self.event_name}_{arg_name}'
-
-
-class CommitmentMadeEventMetricsCollector(EventMetricsCollector):
-    """Collector for CommitmentMade event."""
-    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'CommitmentMade', *args, **kwargs):
-        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
-        self.staker_address = staker_address
-
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-
-
-class ReStakeEventMetricsCollector(EventMetricsCollector):
-    """Collector for RestakeSet event."""
-    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'ReStakeSet', *args, **kwargs):
-        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
-        self.staker_address = staker_address
-
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        metric_key = self._get_arg_metric_key("reStake")
-        self.metrics[metric_key].set(contract_agent.is_restaking(self.staker_address))
-
-
-class WindDownEventMetricsCollector(EventMetricsCollector):
-    """Collector for WindDownSet event."""
-    def __init__(self, staker_address: ChecksumAddress, event_name: str = 'WindDownSet', *args, **kwargs):
-        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
-        self.staker_address = staker_address
-
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        metric_key = self._get_arg_metric_key("windDown")
-        self.metrics[metric_key].set(contract_agent.is_winding_down(self.staker_address))
-
-
-class OperatorBondedEventMetricsCollector(EventMetricsCollector):
-    """Collector for OperatorBonded event."""
-    def __init__(self,
-                 staker_address: ChecksumAddress,
-                 operator_address: ChecksumAddress,
-                 event_name: str = 'OperatorBonded',
-                 *args,
-                 **kwargs):
-        super().__init__(event_name=event_name, argument_filters={'staker': staker_address}, *args, **kwargs)
-        self.staker_address = staker_address
-        self.operator_address = operator_address
-
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
-        super().initialize(metrics_prefix=metrics_prefix, registry=registry)
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        self.metrics["current_worker_is_me_gauge"] = Gauge(f'{metrics_prefix}_current_worker_is_me',
-                                                           'Current worker is me',
-                                                           registry=registry)
-
-        # set initial value
-        self.metrics["current_worker_is_me_gauge"].set(
-            contract_agent.get_worker_from_staker(self.staker_address) == self.operator_address)
-
-    def _event_occurred(self, event) -> None:
-        super()._event_occurred(event)
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        self.metrics["current_worker_is_me_gauge"].set(
-            contract_agent.get_worker_from_staker(self.staker_address) == self.operator_address)
