@@ -170,7 +170,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Cache & Optimize
 
         reenc_request = ReencryptionRequest.from_bytes(request.data)
-        # conditions = ReencryptionRequest.conditions
+        # conditions = ReencryptionRequest.decryption_conditions
         hrac = reenc_request.hrac
         bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Reencryption request from {bob} for policy {hrac}")
@@ -207,7 +207,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # Enforce Reencryption Conditions
         # TODO: Accept multiple payment methods
         # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
-        # conditions.eval()
+        # lingo.eval()
 
         paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
         if not paid:
