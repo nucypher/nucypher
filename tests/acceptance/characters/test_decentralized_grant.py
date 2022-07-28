@@ -20,7 +20,7 @@ import datetime
 import os
 
 import maya
-from nucypher_core import EncryptedKeyFrag
+from nucypher.core import EncryptedKeyFrag
 
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.policy.payment import SubscriptionManagerPayment

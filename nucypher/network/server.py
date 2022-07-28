@@ -27,7 +27,7 @@ from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
-from nucypher_core import (
+from nucypher.core import (
     ReencryptionRequest,
     RevocationOrder,
     MetadataRequest,

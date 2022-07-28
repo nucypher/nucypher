@@ -25,7 +25,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 
-from nucypher_core import (
+from nucypher.core import (
     MessageKit,
     EncryptedTreasureMap,
     EncryptedKeyFrag,

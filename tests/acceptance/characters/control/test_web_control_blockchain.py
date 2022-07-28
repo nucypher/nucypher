@@ -23,7 +23,7 @@ import maya
 import pytest
 from click.testing import CliRunner
 
-from nucypher_core import MessageKit, EncryptedTreasureMap
+from nucypher.core import MessageKit, EncryptedTreasureMap
 
 import nucypher
 from nucypher.crypto.powers import DecryptingPower

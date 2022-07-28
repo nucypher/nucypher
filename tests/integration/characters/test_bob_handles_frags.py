@@ -19,7 +19,7 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 
-from nucypher_core import RetrievalKit
+from nucypher.core import RetrievalKit
 
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.constants import TEMPORARY_DOMAIN

@@ -22,7 +22,7 @@ import datetime
 import maya
 import pytest
 
-from nucypher_core import (
+from nucypher.core import (
     MessageKit,
     EncryptedTreasureMap as EncryptedTreasureMapClass,
     TreasureMap as TreasureMapClass,
