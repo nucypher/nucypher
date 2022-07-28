@@ -1,6 +1,6 @@
 import pytest
 
-from nucypher.policy.conditions import ReturnValueTest
+from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
 def test_return_result_test_simple():
@@ -12,4 +12,3 @@ def test_return_result_test_simple():
 def test_return_value_sanitization():
     with pytest.raises(ValueError):
         _test = ReturnValueTest('DROP', 'TABLE')
-
