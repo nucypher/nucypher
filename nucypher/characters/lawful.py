@@ -40,7 +40,7 @@ from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
-from nucypher_core import (
+from nucypher.core import (
     MessageKit,
     EncryptedKeyFrag,
     TreasureMap,

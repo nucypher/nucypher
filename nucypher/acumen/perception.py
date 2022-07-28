@@ -25,7 +25,7 @@ from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
 import maya
 from eth_typing import ChecksumAddress
 
-from nucypher_core import FleetStateChecksum, NodeMetadata
+from nucypher.core import FleetStateChecksum, NodeMetadata
 
 from nucypher.utilities.logging import Logger
 from .nicknames import Nickname

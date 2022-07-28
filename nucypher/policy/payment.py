@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, NamedTuple, Dict
 
 import maya
-from nucypher_core import ReencryptionRequest
+from nucypher.core import ReencryptionRequest
 from web3.types import Wei, Timestamp, TxReceipt, ChecksumAddress
 
 from nucypher.blockchain.eth.agents import SubscriptionManagerAgent

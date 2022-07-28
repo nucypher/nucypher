@@ -21,7 +21,7 @@ import os
 from eth_tester.exceptions import TransactionFailed
 import pytest
 
-from nucypher_core import MessageKit
+from nucypher.core import MessageKit
 from nucypher_core.umbral import Signer, SecretKey, generate_kfrags, reencrypt
 
 

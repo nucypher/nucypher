@@ -16,7 +16,7 @@
 """
 from marshmallow import fields
 
-from nucypher_core import RetrievalKit as RetrievalKitClass
+from nucypher.core import RetrievalKit as RetrievalKitClass
 from nucypher_core.umbral import CapsuleFrag as CapsuleFragClass
 
 from nucypher.control.specifications.base import BaseSchema

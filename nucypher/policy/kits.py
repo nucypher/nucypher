@@ -21,7 +21,7 @@ from typing import Dict, Set, Union
 from eth_utils import to_canonical_address
 from eth_typing import ChecksumAddress
 
-from nucypher_core import MessageKit, RetrievalKit
+from nucypher.core import MessageKit, RetrievalKit
 from nucypher_core.umbral import PublicKey, VerifiedCapsuleFrag, SecretKey
 
 
