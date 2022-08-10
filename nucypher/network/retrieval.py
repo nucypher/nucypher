@@ -17,13 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 import random
-from typing import Dict, Sequence, List
+from typing import Dict, Sequence, List, Optional
 
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from twisted.logger import Logger
 
-from nucypher_core import (
+from nucypher.core import (
     TreasureMap,
     ReencryptionResponse,
     ReencryptionRequest,
@@ -39,6 +39,7 @@ from nucypher_core.umbral import (
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.kits import RetrievalResult
 
 
@@ -51,7 +52,7 @@ class RetrievalPlan:
     def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
         # Record the retrieval kits order
-        self._capsules = [retrieval_kit.capsule for retrieval_kit in retrieval_kits]
+        self._capsules, self._conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
 
         self._threshold = treasure_map.threshold
 
@@ -94,12 +95,19 @@ class RetrievalPlan:
             # Only request reencryption for capsules that:
             # - haven't been processed by this Ursula
             # - don't already have cfrags from `threshold` Ursulas
-            capsules = [capsule for capsule in self._capsules
-                        if (capsule not in self._processed_capsules.get(ursula_address, set())
-                            and len(self._queried_addresses[capsule]) < self._threshold)]
+            packets = []
+            for capsule, cdn in zip(self._capsules, self._conditions):
+                not_done = capsule not in self._processed_capsules.get(ursula_address, set())
+                need_more = len(self._queried_addresses[capsule]) < self._threshold
+                if not_done and need_more:
+                    result = (capsule, cdn)
+                    packets.append(result)
+
+            capsules, conditions = tuple(zip(*packets))
             if len(capsules) > 0:
                 return RetrievalWorkOrder(ursula_address=ursula_address,
-                                          capsules=capsules)
+                                          capsules=capsules,
+                                          conditions=conditions)
 
         # Execution will not reach this point if `is_complete()` returned `False` before this call.
         raise RuntimeError("No Ursulas left")
@@ -133,9 +141,10 @@ class RetrievalWorkOrder:
     A work order issued by a retrieval plan to request reencryption from an Ursula
     """
 
-    def __init__(self, ursula_address: ChecksumAddress, capsules: List[Capsule]):
+    def __init__(self, ursula_address: ChecksumAddress, capsules: List[Capsule], conditions: Optional[List[ConditionLingo]] = None):
         self.ursula_address = ursula_address
         self.capsules = capsules
+        self.conditions = conditions
 
 
 class RetrievalClient:
@@ -254,6 +263,7 @@ class RetrievalClient:
             alice_verifying_key: PublicKey, # KeyFrag signer's key
             bob_encrypting_key: PublicKey, # User's public key (reencryption target)
             bob_verifying_key: PublicKey,
+            **context,
             ) -> List[RetrievalResult]:
 
         self._ensure_ursula_availability(treasure_map)
@@ -276,9 +286,12 @@ class RetrievalClient:
             reencryption_request = ReencryptionRequest(
                 hrac=treasure_map.hrac,
                 capsules=work_order.capsules,
+                conditions=work_order.conditions,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                 bob_verifying_key=bob_verifying_key,
-                publisher_verifying_key=treasure_map.publisher_verifying_key)
+                publisher_verifying_key=treasure_map.publisher_verifying_key,
+                context=context
+            )
 
             try:
                 cfrags = self._request_reencryption(ursula=ursula,
