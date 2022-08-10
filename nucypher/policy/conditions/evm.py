@@ -13,11 +13,15 @@ from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
+
+def recover_address(signature, *args, **kwargs) -> ChecksumAddress:
+    pass
+
 _CONTEXT_DELIMITER = ':'
+
 _DIRECTIVES = {
-    'userAddress': lambda: True
+    ':userAddress': recover_address,
 }
-CONTEXT_VARIABLES = {_CONTEXT_DELIMITER + k: v for k, v in _DIRECTIVES.items()}
 
 # TODO: Move this method to a util function
 __CHAINS = {
@@ -41,19 +45,6 @@ def _is_context_variable(parameter: str) -> bool:
     return parameter.startswith(_CONTEXT_DELIMITER)
 
 
-def _is_valid_parameter(parameter: str) -> bool:
-    if _is_context_variable(parameter=parameter):
-        return parameter in CONTEXT_VARIABLES
-    else:
-        return True  # passthrough because this is not a context variable
-
-
-def _validate_parameters(parameters: List[Union[str, int]]):
-    for p in parameters:
-        if not _is_valid_parameter(parameter=p):
-            raise Exception(f'{p} is not a valid or authorized context variable')
-
-
 def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -> List:
     """Resolves the contract an/or function ABI from a standard contract name"""
     if not (function_abi or standard_contract_type):
@@ -70,17 +61,33 @@ def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -
     return function_abi
 
 
-def _process_parameters(parameters, **kwargs) -> List:
+def camel_case_to_snake(data: str) -> str:
+    data = re.sub(r'(?<!^)(?=[A-Z])', '_', data).lower()
+    return data
+
+
+def __get_context_value(real_name: str, **request) -> Any:
+    try:
+        func = _DIRECTIVES[real_name]
+    except KeyError:
+        value = request.get(real_name)
+        if not value:
+            raise ReencryptionCondition.RequiredInput(f'"{real_name}" not found in request context')
+    else:
+        try:
+            value = func(request)  # required inputs here
+        except TypeError as e:
+            raise ReencryptionCondition.RequiredInput(f'Missing condition context variable {e}')
+    return value
+
+
+def _process_parameters(parameters, **request) -> List:
+    """Handles request parameters"""
     processed_parameters = []
     for p in parameters:
         if _is_context_variable(p):
-            real_name = p.strip(_CONTEXT_DELIMITER)
-            # TODO: camel case -> snake_case
-            # TODO: adhere to camelCase for the JSON standard or dive for easier integration here?
-            real_name = re.sub(r'(?<!^)(?=[A-Z])', '_', real_name).lower()
-            p = kwargs.get(real_name)
-            if not p:
-                raise Exception(f'"{real_name}" not found in request context')
+            real_name = camel_case_to_snake(p.strip(_CONTEXT_DELIMITER))
+            p = __get_context_value(real_name=real_name, **request)
         processed_parameters.append(p)
     return processed_parameters
 
@@ -117,7 +124,7 @@ class RPCCondition(ReencryptionCondition):
                  return_value_test: ReturnValueTest):
 
         # Validate input
-        _validate_parameters(parameters=parameters)
+        # _validate_parameters(parameters=parameters)
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
 
         # internal
@@ -152,14 +159,14 @@ class RPCCondition(ReencryptionCondition):
         """Performs onchain read and return value test"""
         self._configure_provider(provider=provider)
         parameters = _process_parameters(self.parameters, **contract_kwargs)  # resolve context variables
-        eth_, method = self.method.split('_')
+        eth_, method = self.method.split('_')  # TODO: Ugly
         rpc_function = getattr(self.w3.eth, method)  # bind contract function (only exposes the eth API)
         rpc_result = rpc_function(*parameters)  # RPC read
         eval_result = self.return_value_test.eval(rpc_result)  # test
         return eval_result, rpc_result
 
 
-class EVMCondition(RPCCondition):
+class ContractCondition(RPCCondition):
     class Schema(RPCCondition.Schema):
         SKIP_VALUES = (None,)
         standard_contract_type = fields.Str(required=False)
@@ -168,7 +175,7 @@ class EVMCondition(RPCCondition):
 
         @post_load
         def make(self, data, **kwargs):
-            return EVMCondition(**data)
+            return ContractCondition(**data)
 
     def __init__(self,
                  contract_address: ChecksumAddress,

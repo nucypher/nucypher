@@ -37,5 +37,5 @@ class TimeCondition(ReencryptionCondition):
         return self.return_value_test.value
 
     def verify(self, *args, **kwargs) -> Tuple[bool, float]:
-        eval_time = time.time()
+        eval_time = time.time()   # system  clock
         return self.return_value_test.eval(data=eval_time), eval_time
