@@ -5,7 +5,7 @@ from web3 import Web3
 
 import tests.data
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, SubscriptionManagerAgent
-from nucypher.policy.conditions.evm import EVMCondition, RPCCondition
+from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest, ConditionLingo, OR, AND
 from nucypher.policy.conditions.time import TimeCondition
 
@@ -24,7 +24,7 @@ def ERC1155_balance_condition_data():
 @pytest.fixture()
 def ERC1155_balance_condition(ERC1155_balance_condition_data):
     data = ERC1155_balance_condition_data
-    condition = EVMCondition.from_json(data)
+    condition = ContractCondition.from_json(data)
     return condition
 
 
@@ -37,7 +37,7 @@ def ERC20_balance_condition_data():
 @pytest.fixture()
 def ERC20_balance_condition(ERC20_balance_condition_data):
     data = ERC20_balance_condition_data
-    condition = EVMCondition.from_json(data)
+    condition = ContractCondition.from_json(data)
     return condition
 
 
@@ -57,7 +57,7 @@ def rpc_condition():
 @pytest.fixture
 def evm_condition(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-    condition = EVMCondition(
+    condition = ContractCondition(
         contract_address=token.contract.address,
         method='balanceOf',
         standard_contract_type='ERC20',
@@ -73,7 +73,7 @@ def evm_condition(test_registry, agency):
 @pytest.fixture
 def subscription_manager_condition(test_registry, agency):
     subscription_manager = ContractAgency.get_agent(SubscriptionManagerAgent, registry=test_registry)
-    condition = EVMCondition(
+    condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
         method='getPolicy',
         chain='testerchain',

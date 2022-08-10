@@ -75,6 +75,31 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
     assert cleartexts == messages
 
 
+# TODO: MOVE ME
+def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob, federated_ursulas):
+
+    federated_bob.start_learning_loop()
+    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
+    conditions = [
+        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
+        {'operator': 'and'},
+        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
+        {'operator': 'and'},
+        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}
+
+    ]
+    for mk in message_kits:
+        mk.conditions = conditions
+
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    assert cleartexts == messages
+
+
+
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
 
     federated_bob.start_learning_loop()
