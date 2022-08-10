@@ -64,13 +64,16 @@ class ReturnValueTest:
         return comparator, value
 
     def eval(self, data) -> bool:
-        # TODO: Sanitize input
+        # TODO: Sanitize input!!!
         result = eval(f'{data}{self.comparator}{self.value}')
         return result
 
 
 class ConditionLingo:
     # TODO: 'A Collection of re-encryption conditions evaluated as a compound boolean condition'
+
+    class Failed(Exception):
+        pass
 
     def __init__(self, lingo: List[Union[ReencryptionCondition, Operator, Any]]):
         """
@@ -146,7 +149,9 @@ class ConditionLingo:
         # [True, <Operator>, False] -> 'True or False'
         eval_string = ' '.join(str(e) for e in data)
         result = self.__eval(eval_string=eval_string)
-        return result
+        if not result:
+            raise self.Failed
+        return True
 
 
 OR = Operator('or')

@@ -45,6 +45,10 @@ class _Serializable:
 
 
 class ReencryptionCondition(_Serializable, ABC):
+
+    class RequiredInput(Exception):
+        pass
+
     class Schema(Schema):
         name = NotImplemented
 

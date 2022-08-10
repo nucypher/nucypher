@@ -16,13 +16,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 
-from typing import Dict, Set, Union
-
-from eth_utils import to_canonical_address
 from eth_typing import ChecksumAddress
+from eth_utils import to_canonical_address
+from nucypher_core.umbral import PublicKey, VerifiedCapsuleFrag, SecretKey
+from typing import Dict, Set
 
 from nucypher.core import MessageKit, RetrievalKit
-from nucypher_core.umbral import PublicKey, VerifiedCapsuleFrag, SecretKey
+from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 class PolicyMessageKit:
@@ -47,7 +47,11 @@ class PolicyMessageKit:
         self._result = result
 
     def as_retrieval_kit(self) -> RetrievalKit:
-        return RetrievalKit(self.message_kit.capsule, self._result.canonical_addresses())
+        return RetrievalKit(
+            self.message_kit.capsule,
+            self._result.canonical_addresses(),
+            conditions=self.message_kit.conditions
+        )
 
     def decrypt(self, sk: SecretKey) -> bytes:
         return self.message_kit.decrypt_reencrypted(sk,
@@ -62,6 +66,10 @@ class PolicyMessageKit:
                                 threshold=self.threshold,
                                 result=self._result.with_result(result),
                                 message_kit=self.message_kit)
+
+    @property
+    def conditions(self) -> ConditionLingo:
+        return self.message_kit.conditions
 
 
 # TODO: a better name?

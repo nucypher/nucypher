@@ -36,7 +36,7 @@ def _resolve_condition_lingo(json_data) -> Union[Type['Operator'], Type['Reencry
     """
     # TODO: This is ugly but avoids circular imports :-|
     from nucypher.policy.conditions.time import TimeCondition
-    from nucypher.policy.conditions.evm import EVMCondition
+    from nucypher.policy.conditions.evm import ContractCondition
     from nucypher.policy.conditions.evm import RPCCondition
     from nucypher.policy.conditions.lingo import Operator
 
@@ -50,7 +50,7 @@ def _resolve_condition_lingo(json_data) -> Union[Type['Operator'], Type['Reencry
         if method == TimeCondition.METHOD:
             return TimeCondition
         elif contract:
-            return EVMCondition
+            return ContractCondition
         elif method.startswith(_ETH):
             return RPCCondition
     elif operator:
