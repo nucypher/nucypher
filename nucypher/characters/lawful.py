@@ -553,9 +553,10 @@ class Bob(Character):
     def retrieve(
             self,
             message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
-            alice_verifying_key: PublicKey, # KeyFrag signer's key
+            alice_verifying_key: PublicKey,  # KeyFrag signer's key
             encrypted_treasure_map: EncryptedTreasureMap,
             publisher_verifying_key: Optional[PublicKey] = None,
+            **context,  # TODO: dont use one context to rule them all
             ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
@@ -581,7 +582,7 @@ class Bob(Character):
             treasure_map = self._treasure_maps[map_hash]
         else:
             # Have to decrypt the treasure map first to find out what the threshold is.
-            # Otherwise we could check the message kits for completeness right away.
+            # Otherwise, we could check the message kits for completeness right away.
             treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
             self._treasure_maps[map_hash] = treasure_map
 
@@ -602,7 +603,9 @@ class Bob(Character):
             retrieval_kits=retrieval_kits,
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
-            bob_verifying_key=self.stamp.as_umbral_pubkey())
+            bob_verifying_key=self.stamp.as_umbral_pubkey(),
+            **context
+        )
 
         # Refill message kits with newly retrieved capsule frags
         results = []

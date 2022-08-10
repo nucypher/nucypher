@@ -170,13 +170,19 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Cache & Optimize
 
         reenc_request = ReencryptionRequest.from_bytes(request.data)
-        # conditions = ReencryptionRequest.decryption_conditions
+
+        conditions = reenc_request.conditions
+        context = reenc_request.context  # user-supplied static input for condition parameters
+
+        # TODO: This is for PRE only, relocate HRAC to RE.context
         hrac = reenc_request.hrac
+
+        # This is now either Bob or the TDec requester "Universal Bob"
         bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Reencryption request from {bob} for policy {hrac}")
 
-        # Right off the bat, if this HRAC is already known to be revoked, reject the order.
         # TODO: Can this be integrated into reencryption conditions?
+        # Right off the bat, if this HRAC is already known to be revoked, reject the order.
         if hrac in this_node.revoked_policies:
             return Response(response=f"Policy with {hrac} has been revoked.", status=HTTPStatus.UNAUTHORIZED)
 
@@ -201,18 +207,38 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         except Exception as e:
             message = f'{bob_identity_message} Invalid EncryptedKeyFrag: {e}.'
             log.info(message)
-            # TODO (#567): bucket the node as suspicious
+            # TODO (#567): bucket the node as suspicious.
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Enforce Reencryption Conditions
-        # TODO: Accept multiple payment methods
-        # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
-        # lingo.eval()
+        # TODO: back compatibility for PRE?
+        if conditions:
 
-        paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
-        if not paid:
-            message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
-            return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
+            # TODO: Authenticate these conditions
+            # lingo.verify_signature(reencryption_request, enrico)
+
+            # TODO: Enforce policy expiration as a condition
+            try:
+                # TODO: Can conditions return a useful value?
+                _result = conditions.eval(**context)
+            except conditions.RequiredInput as e:
+                message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
+                return Response(message, status=HTTPStatus.FORBIDDEN)
+            except conditions.Failed as e:
+                # TODO: Better error reporting
+                message = f'Decryption conditions not satisfied {e}'
+                return Response(message, status=HTTPStatus.FORBIDDEN)
+            except Exception as e:
+                # TODO: Unsure why we ended up here
+                return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        # FIXME: DISABLED FOR TDEC ADAPTATION
+        # TODO: Accept multiple payment methods?
+        # Subscription Manager
+        # paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
+        # if not paid:
+        #     message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
+        #     return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)
