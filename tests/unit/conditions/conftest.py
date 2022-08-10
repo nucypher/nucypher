@@ -4,7 +4,7 @@ from pathlib import Path
 from web3 import Web3
 
 import tests
-from nucypher.policy.conditions.evm import EVMCondition, RPCCondition
+from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest, ConditionLingo, OR, AND
 from nucypher.policy.conditions.time import TimeCondition
 
@@ -25,7 +25,7 @@ def ERC1155_balance_condition_data():
 @pytest.fixture()
 def ERC1155_balance_condition(ERC1155_balance_condition_data):
     data = ERC1155_balance_condition_data
-    condition = EVMCondition.from_json(data)
+    condition = ContractCondition.from_json(data)
     return condition
 
 
@@ -40,7 +40,7 @@ def ERC20_balance_condition_data():
 @pytest.fixture()
 def ERC20_balance_condition(ERC20_balance_condition_data):
     data = ERC20_balance_condition_data
-    condition = EVMCondition.from_json(data)
+    condition = ContractCondition.from_json(data)
     return condition
 
 
@@ -59,14 +59,28 @@ def rpc_condition():
 
 @pytest.fixture
 def evm_condition(test_registry):
-    condition = EVMCondition(
+    condition = ContractCondition(
         contract_address='0xadd9d957170DF6f33982001E4C22eCcDd5539118',
         method='balanceOf',
         standard_contract_type='ERC20',
         chain='testerchain',
         return_value_test=ReturnValueTest('==', 0),
         parameters=[
-            ':userAddress'
+            ':userAddress',
+        ]
+    )
+    return condition
+
+@pytest.fixture
+def sm_condition(test_registry):
+    condition = ContractCondition(
+        contract_address='0xadd9d957170DF6f33982001E4C22eCcDd5539118',
+        method='getPolicy',
+        chain='testerchain',
+        function_abi=ABI,
+        return_value_test=ReturnValueTest('!=', None),
+        parameters=[
+            ':hrac',
         ]
     )
     return condition

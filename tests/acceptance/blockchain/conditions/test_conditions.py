@@ -33,6 +33,7 @@ def test_time_condition_evaluation(testerchain, timelock_condition):
 
 
 def test_simple_compound_conditions_evaluation(testerchain):
+    # TODO Improve internals of evaluation here (natural vs recursive approach)
     conditions = [
         {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
         {'operator': 'and'},
