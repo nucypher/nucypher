@@ -96,18 +96,20 @@ class RetrievalPlan:
             # - haven't been processed by this Ursula
             # - don't already have cfrags from `threshold` Ursulas
             packets = []
-            for capsule, cdn in zip(self._capsules, self._conditions):
+            for capsule, lingo in zip(self._capsules, self._conditions):
                 not_done = capsule not in self._processed_capsules.get(ursula_address, set())
                 need_more = len(self._queried_addresses[capsule]) < self._threshold
                 if not_done and need_more:
-                    result = (capsule, cdn)
+                    result = (capsule, lingo)
                     packets.append(result)
 
-            capsules, conditions = tuple(zip(*packets))
+            capsules, lingos = tuple(zip(*packets))
+            # (<lingo>, None, <lingo>)
+
             if len(capsules) > 0:
                 return RetrievalWorkOrder(ursula_address=ursula_address,
                                           capsules=capsules,
-                                          conditions=conditions)
+                                          lingos=lingos)
 
         # Execution will not reach this point if `is_complete()` returned `False` before this call.
         raise RuntimeError("No Ursulas left")
@@ -141,10 +143,10 @@ class RetrievalWorkOrder:
     A work order issued by a retrieval plan to request reencryption from an Ursula
     """
 
-    def __init__(self, ursula_address: ChecksumAddress, capsules: List[Capsule], conditions: Optional[List[ConditionLingo]] = None):
+    def __init__(self, ursula_address: ChecksumAddress, capsules: List[Capsule], lingos: Optional[List[ConditionLingo]] = None):
         self.ursula_address = ursula_address
         self.capsules = capsules
-        self.conditions = conditions
+        self.lingos = lingos
 
 
 class RetrievalClient:
@@ -286,7 +288,7 @@ class RetrievalClient:
             reencryption_request = ReencryptionRequest(
                 hrac=treasure_map.hrac,
                 capsules=work_order.capsules,
-                conditions=work_order.conditions,
+                lingos=work_order.lingos,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                 bob_verifying_key=bob_verifying_key,
                 publisher_verifying_key=treasure_map.publisher_verifying_key,

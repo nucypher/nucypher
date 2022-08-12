@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import json
 
 import pytest
 import pytest_twisted
@@ -24,6 +25,7 @@ from nucypher.core import RetrievalKit
 from nucypher.characters.lawful import Enrico, Bob
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.network.retrieval import RetrievalClient
+from nucypher.policy.conditions.lingo import ConditionLingo
 
 from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
 
@@ -84,12 +86,9 @@ def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob
         {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
         {'operator': 'and'},
         {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}
-
     ]
     for mk in message_kits:
-        mk.conditions = conditions
+        mk.conditions = ConditionLingo.from_json(json.dumps(conditions))
 
     cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=message_kits,

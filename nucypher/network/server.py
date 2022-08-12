@@ -43,6 +43,7 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -168,11 +169,10 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         from nucypher.characters.lawful import Bob
 
         # TODO: Cache & Optimize
-
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
-        conditions = reenc_request.conditions
-        context = reenc_request.context  # user-supplied static input for condition parameters
+        packets = zip(reenc_request.lingos, reenc_request.capsules)
+        context = reenc_request.context or dict()  # user-supplied static input for condition parameters
 
         # TODO: This is for PRE only, relocate HRAC to RE.context
         hrac = reenc_request.hrac
@@ -212,25 +212,38 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
 
         # Enforce Reencryption Conditions
         # TODO: back compatibility for PRE?
-        if conditions:
 
-            # TODO: Authenticate these conditions
-            # lingo.verify_signature(reencryption_request, enrico)
+        if not this_node.federated_only:
+            # TODO: Detect whether or not a provider is required by introspecting the condition instead.
+            context.update({'provider': this_node.application_agent.blockchain.provider})
 
-            # TODO: Enforce policy expiration as a condition
-            try:
-                # TODO: Can conditions return a useful value?
-                _result = conditions.eval(**context)
-            except conditions.RequiredInput as e:
-                message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
-                return Response(message, status=HTTPStatus.FORBIDDEN)
-            except conditions.Failed as e:
-                # TODO: Better error reporting
-                message = f'Decryption conditions not satisfied {e}'
-                return Response(message, status=HTTPStatus.FORBIDDEN)
-            except Exception as e:
-                # TODO: Unsure why we ended up here
-                return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        results = list()
+        for lingo, capsule in packets:
+            error = None
+            if lingo:
+
+                # TODO: Authenticate these conditions
+                # lingo.verify_signature(reencryption_request, enrico)
+
+                # TODO: Enforce policy expiration as a condition
+                try:
+                    # TODO: Can conditions return a useful value?
+                    lingo.eval(**context)
+                except ReencryptionCondition.RequiredInput as e:
+                    message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
+                    error = (message, HTTPStatus.FORBIDDEN)
+                except lingo.Failed as e:
+                    # TODO: Better error reporting
+                    message = f'Decryption conditions not satisfied {e}'
+                    error = (message, HTTPStatus.FORBIDDEN)
+                except Exception as e:
+                    # TODO: Unsure why we ended up here
+                    return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+
+            result = error or True
+            results.append((lingo, capsule, result))
+
+        capsules_to_process, condition_results = zip(*list((r[1], r[2]) for r in results if r[2]))
 
         # FIXME: DISABLED FOR TDEC ADAPTATION
         # TODO: Accept multiple payment methods?
@@ -242,7 +255,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
 
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)
-        response = this_node._reencrypt(kfrag=verified_kfrag, capsules=reenc_request.capsules)
+        response = this_node._reencrypt(kfrag=verified_kfrag, capsules=capsules_to_process)
 
         # Now, Ursula saves evidence of this workorder to her database...
         # Note: we give the work order a random ID to store it under.

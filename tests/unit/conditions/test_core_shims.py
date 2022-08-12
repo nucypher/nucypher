@@ -13,7 +13,7 @@ def test_conditional_message_kit_serialization(enacted_federated_policy, ERC1155
     )
     mk_bytes = bytes(mk)
     restored_mk = MessageKit.from_bytes(mk_bytes)
-    assert restored_mk.conditions is None
+    assert restored_mk.lingos is None
 
     # Version 1.1
     plaintext = b'llamas with conditions'
@@ -24,4 +24,4 @@ def test_conditional_message_kit_serialization(enacted_federated_policy, ERC1155
     )
     mk_bytes = bytes(mk)
     restored_mk = MessageKit.from_bytes(mk_bytes)
-    assert bytes(restored_mk.conditions) == bytes(ERC1155_balance_condition)
+    assert bytes(restored_mk.lingos) == bytes(ERC1155_balance_condition)
