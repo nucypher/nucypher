@@ -96,7 +96,7 @@ def timelock_condition():
 
 @pytest.fixture()
 def lingo(timelock_condition, rpc_condition, evm_condition):
-    lingo = ConditionLingo(lingo=(
+    lingo = ConditionLingo(conditions=(
         timelock_condition,
         OR,
         rpc_condition,

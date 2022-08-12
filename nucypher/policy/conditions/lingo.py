@@ -75,7 +75,7 @@ class ConditionLingo:
     class Failed(Exception):
         pass
 
-    def __init__(self, lingo: List[Union[ReencryptionCondition, Operator, Any]]):
+    def __init__(self, conditions: List[Union[ReencryptionCondition, Operator, Any]]):
         """
         The input list must be structured:
         condition
@@ -83,8 +83,8 @@ class ConditionLingo:
         condition
         ...
         """
-        self._validate(lingo=lingo)
-        self.lingo = lingo
+        self._validate(lingo=conditions)
+        self.conditions = conditions
 
     @staticmethod
     def _validate(lingo) -> None:
@@ -96,16 +96,24 @@ class ConditionLingo:
             elif (index % 2) and (not isinstance(element, Operator)):
                 raise Exception(f'{index} element must be an operator; Got {type(element)}.')
 
+    @classmethod
+    def from_list(cls, payload: List[Dict[str, str]]) -> 'ConditionLingo':
+        conditions = [_deserialize_condition_lingo(c) for c in payload]
+        instance = cls(conditions=conditions)
+        return instance
+
+    def to_list(self):  # TODO: __iter__ ?
+        payload = [c.to_dict() for c in self.conditions]
+        return payload
+
     def to_json(self) -> str:
-        json_serialized_lingo = [l.to_dict() for l in self.lingo]
-        data = json.dumps(json_serialized_lingo)
+        data = json.dumps(self.to_list())
         return data
 
     @classmethod
     def from_json(cls, data: str) -> 'ConditionLingo':
         data = json.loads(data)
-        lingo = [_deserialize_condition_lingo(l) for l in data]
-        instance = cls(lingo=lingo)
+        instance = cls.from_list(payload=data)
         return instance
 
     def to_base64(self) -> bytes:
@@ -133,7 +141,7 @@ class ConditionLingo:
         return result
 
     def __process(self, *args, **kwargs):
-        for task in self.lingo:
+        for task in self.conditions:
             if isinstance(task, ReencryptionCondition):
                 condition = task
                 result, value = condition.verify(*args, **kwargs)

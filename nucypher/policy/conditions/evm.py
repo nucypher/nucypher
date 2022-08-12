@@ -68,7 +68,7 @@ def camel_case_to_snake(data: str) -> str:
 
 def __get_context_value(real_name: str, **request) -> Any:
     try:
-        func = _DIRECTIVES[real_name]
+        func = _DIRECTIVES[real_name]  # These are special context vars that will pre-processed by ursula
     except KeyError:
         value = request.get(real_name)
         if not value:
