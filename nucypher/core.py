@@ -1,31 +1,28 @@
 import base64
-
 import json
-
 from nucypher_core import *
 from nucypher_core import MessageKit as CoreMessageKit
 from nucypher_core import ReencryptionRequest as CoreReencryptionRequest
 from nucypher_core import RetrievalKit as CoreRetrievalKit
-from typing import Optional, Tuple, Dict, Union, List
+from typing import Optional, Tuple, Dict, Union
 
 from nucypher.policy.conditions._utils import _deserialize_condition_lingo
-from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 class BoltOnConditions:
     _CORE_CLASS = NotImplemented
-    _DELIMITER = b'0xBC'  # ESCAPE
+    _DELIMITER = 0xBC  # ESCAPE
 
     def __init__(self,
                  *args,
-                 conditions: Optional['ConditionLingo'] = None,
+                 lingo: Optional['ConditionLingo'] = None,
                  core_instance: Optional = None,
                  **kwargs):
         if not core_instance:
             core_instance = self._CORE_CLASS(*args, **kwargs)
         self._core_instance = core_instance
-        self.conditions = conditions
+        self.lingo = lingo
 
     def __getattr__(self, attr):
         if attr in self.__dict__:
@@ -34,26 +31,27 @@ class BoltOnConditions:
 
     def __bytes__(self):
         payload = bytes(self._core_instance)
-        if self.conditions:
-            payload += self._DELIMITER
-            payload += bytes(self.conditions)
+        if self.lingo:
+            payload += bytes(self._DELIMITER)
+            payload += bytes(self.lingo)
         return payload
 
     @classmethod
     def _parse(cls, data) -> Tuple[bytes, bytes]:
         if cls._DELIMITER in data:
-            data, condition_bytes = data.split(cls._DELIMITER)
+            split_location = data.index(cls._DELIMITER)
+            data, condition_bytes = data[:split_location], data[split_location+1:]
             return data, condition_bytes
         return data, b''  # TODO: Handle empty conditions better
 
     @classmethod
     def from_bytes(cls, data: bytes):
-        condition = None
+        lingo = None
         if cls._DELIMITER in data:
-            data, condition_bytes = cls._parse(data)
-            condition = ContractCondition.from_bytes(condition_bytes)  # TODO: This might not be a contract condition but how can we know whct type it is by it's bytes only?
+            data, lingo_bytes = cls._parse(data)
+            lingo = ConditionLingo.from_bytes(lingo_bytes)
         core_instance = cls._CORE_CLASS.from_bytes(data)
-        instance = cls(core_instance=core_instance, decryption_condition=condition)
+        instance = cls(core_instance=core_instance, lingo=lingo)
         return instance
 
 
@@ -62,10 +60,14 @@ class RetrievalKit(BoltOnConditions):
 
     @classmethod
     def from_message_kit(cls, message_kit: MessageKit, *args, **kwargs):
-        # TODO: strip away the conditions for the lower layer
-        data, condition_bytes = cls._parse(bytes(message_kit))
+        data, lingo_bytes = cls._parse(bytes(message_kit))
         core_mk_instance = MessageKit._CORE_CLASS.from_bytes(data)
-        core_instance = cls._CORE_CLASS.from_message_kit(message_kit=core_mk_instance, *args, **kwargs)
+        lingo = ConditionLingo.from_bytes(lingo_bytes)
+        core_instance = cls._CORE_CLASS.from_message_kit(
+            message_kit=core_mk_instance,
+            lingo=lingo,
+            *args, **kwargs
+        )
         instance = cls(core_instance=core_instance)
         return instance
 
@@ -82,10 +84,12 @@ class ReencryptionRequest(BoltOnConditions):
                  context: Optional[Dict[str, Union[str, int]]] = None,
                  *args, **kwargs):
         self.context = context
-        super().__init__(conditions=lingos, *args, **kwargs)
+        super().__init__(lingo=lingos, *args, **kwargs)
+
     @property
     def lingos(self):
-        return self.conditions  # hack
+        return self.lingo  # hack
+
     def to_base64(self) -> bytes:
         data = base64.b64encode(self.to_json().encode())
         return data
@@ -121,7 +125,7 @@ class ReencryptionRequest(BoltOnConditions):
 
     def __bytes__(self):
         payload = bytes(self._core_instance)
-        if self.conditions:
+        if self.lingo:
             payload += self._DELIMITER
             json_lingos = json.dumps([l.to_list() if l else None for l in self.lingos])
             b64_lingos = base64.b64encode(json_lingos.encode())

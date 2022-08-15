@@ -50,7 +50,7 @@ class PolicyMessageKit:
         return RetrievalKit(
             self.message_kit.capsule,
             self._result.canonical_addresses(),
-            conditions=self.message_kit.conditions
+            conditions=self.message_kit.lingo
         )
 
     def decrypt(self, sk: SecretKey) -> bytes:
@@ -69,7 +69,7 @@ class PolicyMessageKit:
 
     @property
     def conditions(self) -> ConditionLingo:
-        return self.message_kit.conditions
+        return self.message_kit.lingo
 
 
 # TODO: a better name?

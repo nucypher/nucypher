@@ -174,6 +174,7 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         packets = zip(reenc_request.lingos, reenc_request.capsules)
         context = reenc_request.context or dict()  # user-supplied static input for condition parameters
 
+        # TODO: Detect if we are dealing with PRE or tDec here
         # TODO: This is for PRE only, relocate HRAC to RE.context
         hrac = reenc_request.hrac
 
