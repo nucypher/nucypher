@@ -25,7 +25,7 @@ def test_type_resolution_from_json(timelock_condition, rpc_condition, evm_condit
 
 
 def test_conditions_lingo_serialization(timelock_condition, rpc_condition, evm_condition, lingo):
-    json_serialized_lingo = json.dumps([l.to_dict() for l in lingo.conditions])
+    json_serialized_lingo = json.dumps([l.to_dict() for l in lingo.lingo])
     lingo_json = lingo.to_json()
     restored_lingo = ConditionLingo.from_json(data=lingo_json)
     assert lingo_json == json_serialized_lingo

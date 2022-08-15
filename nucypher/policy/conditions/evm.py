@@ -2,7 +2,7 @@ import re
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import fields, post_load
-from typing import List, Union, Tuple, Any
+from typing import List, Union, Tuple, Any, Optional
 from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
@@ -106,7 +106,7 @@ class RPCCondition(ReencryptionCondition):
         name = fields.Str()
         chain = fields.Str()
         method = fields.Str()
-        parameters = fields.List(fields.String, attribute='parameters')
+        parameters = fields.List(fields.Field, attribute='parameters', required=False)
         return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema())
 
         @post_load
@@ -120,8 +120,9 @@ class RPCCondition(ReencryptionCondition):
     def __init__(self,
                  chain: str,
                  method: str,
-                 parameters: List[str],
-                 return_value_test: ReturnValueTest):
+                 return_value_test: ReturnValueTest,
+                 parameters: Optional[List[str]] = None
+                 ):
 
         # Validate input
         # _validate_parameters(parameters=parameters)

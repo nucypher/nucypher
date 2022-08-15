@@ -88,7 +88,7 @@ def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob
         {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
     ]
     for mk in message_kits:
-        mk.conditions = ConditionLingo.from_json(json.dumps(conditions))
+        mk.lingo = ConditionLingo.from_json(json.dumps(conditions))
 
     cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=message_kits,

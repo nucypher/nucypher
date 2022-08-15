@@ -52,7 +52,7 @@ class RetrievalPlan:
     def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
         # Record the retrieval kits order
-        self._capsules, self._conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
+        self._capsules, self._conditions = tuple(zip(*((rk.capsule, rk.lingo) for rk in retrieval_kits)))
 
         self._threshold = treasure_map.threshold
 
