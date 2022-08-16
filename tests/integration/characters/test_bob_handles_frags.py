@@ -16,18 +16,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import json
 
-import pytest
-import pytest_twisted
-from twisted.internet import threads
-
+from nucypher.characters.lawful import Enrico
 from nucypher.core import RetrievalKit
-
-from nucypher.characters.lawful import Enrico, Bob
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.network.retrieval import RetrievalClient
 from nucypher.policy.conditions.lingo import ConditionLingo
-
-from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
+from tests.utils.middleware import NodeIsDownMiddleware
 
 
 def _policy_info_kwargs(enacted_policy):

@@ -1,3 +1,20 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
 
 from nucypher.policy.conditions._utils import _deserialize_condition_lingo
@@ -25,7 +42,7 @@ def test_type_resolution_from_json(timelock_condition, rpc_condition, evm_condit
 
 
 def test_conditions_lingo_serialization(timelock_condition, rpc_condition, evm_condition, lingo):
-    json_serialized_lingo = json.dumps([l.to_dict() for l in lingo.lingo])
+    json_serialized_lingo = json.dumps([l.to_dict() for l in lingo.conditions])
     lingo_json = lingo.to_json()
     restored_lingo = ConditionLingo.from_json(data=lingo_json)
     assert lingo_json == json_serialized_lingo
