@@ -26,6 +26,7 @@ from nucypher_core import *
 
 from nucypher.policy.conditions._utils import _deserialize_condition_lingo
 from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.utilities.logging import Logger
 
 
 class BoltOnConditions:
@@ -35,6 +36,7 @@ class BoltOnConditions:
     """
     _CORE_CLASS = NotImplemented
     _DELIMITER = 0xbc.to_bytes(1, 'big')  # ESCAPE
+    LOG = Logger('CORE-SHIM-LOG')
 
     def __init__(self,
                  *args,
@@ -73,6 +75,7 @@ class BoltOnConditions:
 
     @classmethod
     def from_bytes(cls, data: bytes):
+        cls.LOG.info(f'>>>>> {cls.__name__} incoming bytes \n {data}')
         lingo = None
         if cls._DELIMITER in data:
             data, lingo_bytes = cls._parse(data)
@@ -141,6 +144,7 @@ class ReencryptionRequest(BoltOnConditions):
 
     @classmethod
     def from_bytes(cls, data: bytes):
+        cls.LOG.info(f'>>>> {cls.__name__} incoming bytes \n {data}')
         lingos = None
         if cls._DELIMITER in data:
             data, lingos_bytes = cls._parse(data)

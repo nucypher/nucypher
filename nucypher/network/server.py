@@ -228,16 +228,19 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                 # TODO: Enforce policy expiration as a condition
                 try:
                     # TODO: Can conditions return a useful value?
+                    log.info(f'Evaluating decryption condition')
                     lingo.eval(**context)
                 except ReencryptionCondition.RequiredInput as e:
                     message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
                     error = (message, HTTPStatus.FORBIDDEN)
+                    log.info(message)
                     return Response(str(e), status=error[1])
 
                 except lingo.Failed as e:
                     # TODO: Better error reporting
                     message = f'Decryption conditions not satisfied {e}'
                     error = (message, HTTPStatus.FORBIDDEN)
+                    log.info(message)
                     return Response(str(e), status=error[1])
 
                 except Exception as e:
