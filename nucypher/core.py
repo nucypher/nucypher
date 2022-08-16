@@ -29,8 +29,12 @@ from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 class BoltOnConditions:
+    """
+    Multi-use shim; wraps _CORE_CLASS and manages serialization by adding zero
+    or more additional payloads.
+    """
     _CORE_CLASS = NotImplemented
-    _DELIMITER = b"0xBC"  # ESCAPE
+    _DELIMITER = 0xbc.to_bytes(1, 'big')  # ESCAPE
 
     def __init__(self,
                  *args,
@@ -47,6 +51,9 @@ class BoltOnConditions:
             return getattr(self, attr)
         return getattr(self._core_instance, attr)
 
+    def __repr__(self):
+        return f'<CORE SHIM {self.__class__.__name__} {id(self)}>'
+
     def __bytes__(self):
         payload = bytes(self._core_instance)
         if self.lingo:
@@ -57,8 +64,10 @@ class BoltOnConditions:
     @classmethod
     def _parse(cls, data) -> Tuple[bytes, bytes]:
         if cls._DELIMITER in data:
-            split_location = data.index(cls._DELIMITER)
-            data, condition_bytes = data[:split_location], data[split_location+1:]
+            try:
+                data, _, condition_bytes = data.rpartition(cls._DELIMITER)
+            except ValueError:
+                raise Exception(f'Invalid tDec entity bytes \n\n {data} \n\n')
             return data, condition_bytes
         return data, b''  # TODO: Handle empty conditions better
 
@@ -119,7 +128,7 @@ class ReencryptionRequest(BoltOnConditions):
 
     def to_json(self) -> str:
         # [{}, null, {...lingo..}]
-        json_serialized_lingo = [l.to_dict() if l else None for l in self.lingos]
+        json_serialized_lingo = [l.to_dict() if l else None for l in self.lingo]
         data = json.dumps(json_serialized_lingo)
         return data
 
@@ -132,6 +141,7 @@ class ReencryptionRequest(BoltOnConditions):
 
     @classmethod
     def from_bytes(cls, data: bytes):
+        lingos = None
         if cls._DELIMITER in data:
             data, lingos_bytes = cls._parse(data)
             try:

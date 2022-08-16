@@ -218,9 +218,8 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
             # TODO: Detect whether or not a provider is required by introspecting the condition instead.
             context.update({'provider': this_node.application_agent.blockchain.provider})
 
-        results = list()
+        capsules_to_process = list()
         for lingo, capsule in packets:
-            error = None
             if lingo:
 
                 # TODO: Authenticate these conditions
@@ -233,18 +232,20 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                 except ReencryptionCondition.RequiredInput as e:
                     message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
                     error = (message, HTTPStatus.FORBIDDEN)
+                    return Response(str(e), status=error[1])
+
                 except lingo.Failed as e:
                     # TODO: Better error reporting
                     message = f'Decryption conditions not satisfied {e}'
                     error = (message, HTTPStatus.FORBIDDEN)
+                    return Response(str(e), status=error[1])
+
                 except Exception as e:
                     # TODO: Unsure why we ended up here
                     return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
-            result = error or True
-            results.append((lingo, capsule, result))
-
-        capsules_to_process, condition_results = zip(*list((r[1], r[2]) for r in results if r[2]))
+            capsules_to_process.append((lingo, capsule))
+        capsules_to_process = tuple(p[1] for p in capsules_to_process)
 
         # FIXME: DISABLED FOR TDEC ADAPTATION
         # TODO: Accept multiple payment methods?

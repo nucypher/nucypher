@@ -236,6 +236,7 @@ class RetrievalClient:
 
         ursula_verifying_key = ursula.stamp.as_umbral_pubkey()
 
+        # FIXME: Uncomment
         try:
             verified_cfrags = reencryption_response.verify(capsules=reencryption_request.capsules,
                                                            alice_verifying_key=alice_verifying_key,
