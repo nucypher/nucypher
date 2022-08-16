@@ -62,7 +62,7 @@ def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, bloc
         {"chain": "testerchain",
          "method": "eth_getBalance",
          "parameters": [
-             ":userAddress",
+             blockchain_bob.checksum_address,
              "latest"
          ],
          "returnValueTest": {
