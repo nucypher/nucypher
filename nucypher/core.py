@@ -117,7 +117,10 @@ class ReencryptionRequest(BoltOnConditions):
     def from_bytes(cls, data: bytes):
         if cls._DELIMITER in data:
             data, lingos_bytes = cls._parse(data)
-            json_lingos = json.loads(base64.b64decode(lingos_bytes))
+            try:
+                json_lingos = json.loads(base64.b64decode(lingos_bytes))
+            except UnicodeDecodeError as e:
+                raise AttributeError(f"could not parse data: {data} bytes: {lingos_bytes}: {e}")
             lingos = [ConditionLingo.from_list(lb) if lb else None for lb in json_lingos]
         core_instance = cls._CORE_CLASS.from_bytes(data)
         instance = cls(core_instance=core_instance, lingos=lingos)
@@ -126,7 +129,7 @@ class ReencryptionRequest(BoltOnConditions):
     def __bytes__(self):
         payload = bytes(self._core_instance)
         if self.lingo:
-            payload += self._DELIMITER
+            payload += bytes(self._DELIMITER)
             json_lingos = json.dumps([l.to_list() if l else None for l in self.lingos])
             b64_lingos = base64.b64encode(json_lingos.encode())
             payload += b64_lingos
