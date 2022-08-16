@@ -1,10 +1,28 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import base64
 import json
-from nucypher_core import *
+from typing import Dict, Optional, Tuple, Union
+
 from nucypher_core import MessageKit as CoreMessageKit
 from nucypher_core import ReencryptionRequest as CoreReencryptionRequest
 from nucypher_core import RetrievalKit as CoreRetrievalKit
-from typing import Optional, Tuple, Dict, Union
+from nucypher_core import *
 
 from nucypher.policy.conditions._utils import _deserialize_condition_lingo
 from nucypher.policy.conditions.lingo import ConditionLingo
@@ -12,7 +30,7 @@ from nucypher.policy.conditions.lingo import ConditionLingo
 
 class BoltOnConditions:
     _CORE_CLASS = NotImplemented
-    _DELIMITER = 0xBC  # ESCAPE
+    _DELIMITER = b"0xBC"  # ESCAPE
 
     def __init__(self,
                  *args,
@@ -32,7 +50,7 @@ class BoltOnConditions:
     def __bytes__(self):
         payload = bytes(self._core_instance)
         if self.lingo:
-            payload += bytes(self._DELIMITER)
+            payload += self._DELIMITER
             payload += bytes(self.lingo)
         return payload
 
@@ -65,10 +83,9 @@ class RetrievalKit(BoltOnConditions):
         lingo = ConditionLingo.from_bytes(lingo_bytes)
         core_instance = cls._CORE_CLASS.from_message_kit(
             message_kit=core_mk_instance,
-            lingo=lingo,
             *args, **kwargs
         )
-        instance = cls(core_instance=core_instance)
+        instance = cls(core_instance=core_instance, lingo=lingo)
         return instance
 
 
@@ -129,7 +146,7 @@ class ReencryptionRequest(BoltOnConditions):
     def __bytes__(self):
         payload = bytes(self._core_instance)
         if self.lingo:
-            payload += bytes(self._DELIMITER)
+            payload += self._DELIMITER
             json_lingos = json.dumps([l.to_list() if l else None for l in self.lingos])
             b64_lingos = base64.b64encode(json_lingos.encode())
             payload += b64_lingos
