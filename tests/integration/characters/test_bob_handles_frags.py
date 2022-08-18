@@ -14,18 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import json
 
-import pytest
-import pytest_twisted
-from twisted.internet import threads
-
-from nucypher_core import RetrievalKit
-
-from nucypher.characters.lawful import Enrico, Bob
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.network.retrieval import RetrievalClient
-
-from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
+from nucypher.characters.lawful import Enrico
+from nucypher.core import RetrievalKit
+from nucypher.policy.conditions.lingo import ConditionLingo
+from tests.utils.middleware import NodeIsDownMiddleware
 
 
 def _policy_info_kwargs(enacted_policy):
@@ -73,6 +67,28 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
         )
 
     assert cleartexts == messages
+
+
+# TODO: MOVE ME
+def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob, federated_ursulas):
+
+    federated_bob.start_learning_loop()
+    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
+    conditions = [
+        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
+        {'operator': 'and'},
+        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
+    ]
+    for mk in message_kits:
+        mk.lingo = ConditionLingo.from_json(json.dumps(conditions))
+
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    assert cleartexts == messages
+
 
 
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):

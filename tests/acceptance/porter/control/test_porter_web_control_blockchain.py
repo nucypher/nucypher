@@ -20,7 +20,7 @@ import os
 from base64 import b64encode
 from urllib.parse import urlencode
 
-from nucypher_core import RetrievalKit
+from nucypher.core import RetrievalKit
 
 from nucypher.characters.lawful import Enrico
 from nucypher.crypto.powers import DecryptingPower

@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address, to_canonical_address
 
-from nucypher_core import RevocationOrder
+from nucypher.core import RevocationOrder
 from nucypher.crypto.signing import SignatureStamp
 
 

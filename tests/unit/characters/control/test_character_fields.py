@@ -19,7 +19,7 @@ from base64 import b64encode
 
 import maya
 import pytest
-from nucypher_core import (
+from nucypher.core import (
     MessageKit as MessageKitClass,
     EncryptedTreasureMap as EncryptedTreasureMapClass)
 from nucypher_core.umbral import SecretKey

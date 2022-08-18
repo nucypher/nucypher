@@ -16,7 +16,7 @@
 """
 from marshmallow import fields
 
-from nucypher_core import RetrievalKit as RetrievalKitClass
+from nucypher.core import RetrievalKit as RetrievalKitClass
 from nucypher_core.umbral import CapsuleFrag as CapsuleFragClass
 
 from nucypher.control.specifications.base import BaseSchema
@@ -33,7 +33,7 @@ class RetrievalKit(Base64BytesRepresentation):
             retrieval_kit_bytes = super()._deserialize(value, attr, data, **kwargs)
             return RetrievalKitClass.from_bytes(retrieval_kit_bytes)
         except Exception as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid checksum address: {e}")
+            raise InvalidInputData(f"Could not convert input for {self.name} to a valid RetrievalKit: {e}")
 
 
 class CapsuleFrag(Base64BytesRepresentation):

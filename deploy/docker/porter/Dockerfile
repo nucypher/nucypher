@@ -1,4 +1,4 @@
-FROM python:3.8.12-slim
+FROM nucypher/rust-python:3.8.12
 
 # Update
 RUN apt-get update -y && apt upgrade -y

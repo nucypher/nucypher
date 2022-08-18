@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 from eth_utils import to_checksum_address
-from nucypher_core import NodeMetadata, NodeMetadataPayload
+from nucypher.core import NodeMetadata, NodeMetadataPayload
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.acumen.perception import FleetSensor

@@ -23,7 +23,7 @@ from timeit import default_timer as timer
 
 import maya
 import msgpack
-from nucypher_core import MessageKit, EncryptedTreasureMap
+from nucypher.core import MessageKit, EncryptedTreasureMap
 from nucypher_core.umbral import PublicKey
 
 from nucypher.characters.lawful import Bob
