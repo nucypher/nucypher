@@ -21,7 +21,7 @@ from typing import Sequence, Optional, Iterable, List, Dict
 
 import maya
 from eth_typing.evm import ChecksumAddress
-from nucypher.core import HRAC, TreasureMap
+from nucypher_core import HRAC, TreasureMap
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
 from nucypher.blockchain.eth.utils import calculate_period_duration

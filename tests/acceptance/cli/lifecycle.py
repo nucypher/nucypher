@@ -24,6 +24,7 @@ from json import JSONDecodeError
 
 import maya
 import pytest
+from nucypher.core import MessageKit, EncryptedTreasureMap
 from twisted.internet import threads
 from web3 import Web3
 
@@ -35,7 +36,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
 )
-from nucypher.core import MessageKit, EncryptedTreasureMap
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_ETH_PROVIDER_URI
 

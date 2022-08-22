@@ -19,7 +19,7 @@ from typing import Union, List
 
 import maya
 
-from nucypher.core import MessageKit, HRAC, EncryptedTreasureMap
+from nucypher_core import MessageKit, HRAC, EncryptedTreasureMap
 from nucypher_core.umbral import PublicKey
 
 from nucypher.characters.base import Character

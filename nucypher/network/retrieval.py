@@ -14,27 +14,26 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 from collections import defaultdict
-import random
-from typing import Dict, Sequence, List, Optional
 
+import json
+import random
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
-from twisted.logger import Logger
-
-from nucypher.core import (
+from nucypher_core import (
     TreasureMap,
     ReencryptionResponse,
     ReencryptionRequest,
     RetrievalKit,
-    )
+)
 from nucypher_core.umbral import (
     Capsule,
     PublicKey,
     VerifiedCapsuleFrag,
     VerificationError,
 )
+from twisted.logger import Logger
+from typing import Dict, Sequence, List, Optional, Union
 
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -52,7 +51,8 @@ class RetrievalPlan:
     def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
         # Record the retrieval kits order
-        self._capsules, self._conditions = tuple(zip(*((rk.capsule, rk.lingo) for rk in retrieval_kits)))
+        self._capsules, _conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
+        self._conditions = (ConditionLingo.from_bytes(l) if l else None for l in _conditions)
 
         self._threshold = treasure_map.threshold
 
@@ -100,16 +100,14 @@ class RetrievalPlan:
                 not_done = capsule not in self._processed_capsules.get(ursula_address, set())
                 need_more = len(self._queried_addresses[capsule]) < self._threshold
                 if not_done and need_more:
-                    result = (capsule, lingo)
+                    result = [capsule, lingo]
                     packets.append(result)
 
-            capsules, lingos = tuple(zip(*packets))
-            # (<lingo>, None, <lingo>)
-
-            if len(capsules) > 0:
+            if len(packets) > 0:
+                capsules, lingos = list(zip(*packets))  # (<lingo>, None, <lingo>)
                 return RetrievalWorkOrder(ursula_address=ursula_address,
-                                          capsules=capsules,
-                                          lingos=lingos)
+                                          capsules=list(capsules),
+                                          lingo=list(lingos))
 
         # Execution will not reach this point if `is_complete()` returned `False` before this call.
         raise RuntimeError("No Ursulas left")
@@ -143,10 +141,20 @@ class RetrievalWorkOrder:
     A work order issued by a retrieval plan to request reencryption from an Ursula
     """
 
-    def __init__(self, ursula_address: ChecksumAddress, capsules: List[Capsule], lingos: Optional[List[ConditionLingo]] = None):
+    def __init__(self,
+                 ursula_address: ChecksumAddress, capsules: List[Capsule],
+                 lingo: Optional[List[ConditionLingo]] = None
+                 ):
         self.ursula_address = ursula_address
         self.capsules = capsules
-        self.lingos = lingos
+        self.__lingo = lingo
+
+    def conditions(self, as_json=True) -> Union[str, List[ConditionLingo]]:
+        if not self.__lingo:
+            return list()
+        if as_json:
+            return json.dumps([l.to_json() if l else None for l in self.__lingo])
+        return self.__lingo
 
 
 class RetrievalClient:
@@ -286,14 +294,21 @@ class RetrievalClient:
                 continue
 
             ursula = self._learner.known_nodes[ursula_checksum_address]
+
+            # TODO: Move to a method and handle errors?
+            # TODO: This serialization is rather low-level compared to the rest of this method.
+            # nucypher-core consumes bytes only for conditions and context.
+            conditions = work_order.conditions(as_json=True).encode()  # [[lingo], null, [lingo]]
+            request_context = json.dumps(context).encode()
+
             reencryption_request = ReencryptionRequest(
                 hrac=treasure_map.hrac,
                 capsules=work_order.capsules,
-                lingos=work_order.lingos,
+                conditions=conditions,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                 bob_verifying_key=bob_verifying_key,
                 publisher_verifying_key=treasure_map.publisher_verifying_key,
-                context=context
+                context=request_context
             )
 
             try:

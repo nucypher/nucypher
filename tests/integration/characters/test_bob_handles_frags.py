@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 
 from nucypher.characters.lawful import Enrico
-from nucypher.core import RetrievalKit
+from nucypher_core import RetrievalKit
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.utils.middleware import NodeIsDownMiddleware
 
@@ -71,23 +71,29 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
 
 # TODO: MOVE ME
 def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob, federated_ursulas):
+    from nucypher_core import MessageKit
 
     federated_bob.start_learning_loop()
-    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
     conditions = [
         {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
         {'operator': 'and'},
         {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
     ]
-    for mk in message_kits:
-        mk.lingo = ConditionLingo.from_json(json.dumps(conditions))
+
+    message_kits = [
+        MessageKit(
+            enacted_federated_policy.public_key,
+            b'lab',
+            json.dumps(conditions).encode()
+        )
+    ]
 
     cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
         )
 
-    assert cleartexts == messages
+    assert cleartexts == b'lab'
 
 
 

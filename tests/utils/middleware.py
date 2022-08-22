@@ -23,7 +23,7 @@ from pathlib import Path
 
 import requests
 from flask import Response
-from nucypher.core import MetadataRequest, FleetStateChecksum
+from nucypher_core import MetadataRequest, FleetStateChecksum
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware

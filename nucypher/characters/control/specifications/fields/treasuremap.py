@@ -15,7 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from nucypher.core import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
+from nucypher_core import EncryptedTreasureMap as EncryptedTreasureMapClass, TreasureMap as TreasureMapClass
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields.base import Base64BytesRepresentation

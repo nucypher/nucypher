@@ -150,7 +150,7 @@ class ConditionLingo:
                 operator = task
                 yield operator
             else:
-                raise RuntimeError
+                raise TypeError
 
     def eval(self, *args, **kwargs) -> bool:
         data = self.__process(*args, **kwargs)

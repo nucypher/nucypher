@@ -30,7 +30,7 @@ from constant_sorrow.constants import (
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address
 
-from nucypher.core import MessageKit
+from nucypher_core import MessageKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname

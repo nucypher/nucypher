@@ -18,7 +18,7 @@
 
 import pytest
 
-from nucypher.core import HRAC
+from nucypher_core import HRAC
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.utils import keccak_digest
