@@ -21,7 +21,7 @@ from eth_utils import to_canonical_address
 
 import pytest
 
-from nucypher.core import RetrievalKit as RetrievalKitClass, MessageKit
+from nucypher_core import RetrievalKit as RetrievalKitClass, MessageKit
 from nucypher_core.umbral import SecretKey
 
 from nucypher.control.specifications.exceptions import InvalidInputData

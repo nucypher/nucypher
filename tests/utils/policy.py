@@ -20,7 +20,7 @@ import random
 import string
 from typing import Dict, Tuple
 
-from nucypher.core import MessageKit, RetrievalKit
+from nucypher_core import MessageKit, RetrievalKit
 
 from nucypher.characters.control.specifications.fields import Key, TreasureMap
 from nucypher.characters.lawful import Enrico

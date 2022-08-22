@@ -23,7 +23,7 @@ from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTO
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import request, Response
-from nucypher.core import TreasureMap, RetrievalKit
+from nucypher_core import TreasureMap, RetrievalKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent

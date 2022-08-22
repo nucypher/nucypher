@@ -69,11 +69,11 @@ def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, bloc
              "comparator": ">=",
              "value": "10000000000000"
          }
-         }
+        }
 
     ]
     for mk in message_kits:
-        mk.lingo = ConditionLingo.from_json(json.dumps(conditions))
+        mk.conditions = ConditionLingo.from_json(json.dumps(conditions))
 
     policy_info_kwargs = dict(
         encrypted_treasure_map=enacted_blockchain_policy.treasure_map,

@@ -1,5 +1,16 @@
 {
-  "SubscriptionManagerPayment": "",
+  "SubscriptionManagerPayment": {
+    "contractAddress": "0xadd9d957170DF6f33982001E4C22eCcDd5539118",
+    "chain": "polygon",
+    "method": "isValidPolicy",
+    "parameters": [
+      ":hrac"
+    ],
+    "returnValueTest": {
+      "comparator": "==",
+      "value": "true"
+    }
+  },
   "ERC1155_balance": {
     "contractAddress": "0xadd9d957170DF6f33982001E4C22eCcDd5539118",
     "standardContractType": "ERC1155",

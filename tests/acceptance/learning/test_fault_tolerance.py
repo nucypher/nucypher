@@ -16,7 +16,7 @@
 """
 
 import pytest
-from nucypher.core import MetadataResponse, MetadataResponsePayload
+from nucypher_core import MetadataResponse, MetadataResponsePayload
 from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.perception import FleetSensor

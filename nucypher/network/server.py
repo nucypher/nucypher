@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import json
 import uuid
 import weakref
 from http import HTTPStatus
@@ -27,7 +26,7 @@ from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
-from nucypher.core import (
+from nucypher_core import (
     ReencryptionRequest,
     RevocationOrder,
     MetadataRequest,
@@ -44,6 +43,7 @@ from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -171,8 +171,10 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Cache & Optimize
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
-        packets = zip(reenc_request.lingos, reenc_request.capsules)
-        context = reenc_request.context or dict()  # user-supplied static input for condition parameters
+        json_lingo = json.loads(reenc_request.conditions.decode())
+        lingo = [ConditionLingo.from_json(l) if l else None for l in json_lingo]
+        context = json.loads(reenc_request.context.decode()) or dict()  # user-supplied static input for condition parameters
+        packets = zip(reenc_request.capsules, lingo)
 
         # TODO: Detect if we are dealing with PRE or tDec here
         # TODO: This is for PRE only, relocate HRAC to RE.context
@@ -219,8 +221,8 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
             context.update({'provider': this_node.application_agent.blockchain.provider})
 
         capsules_to_process = list()
-        for lingo, capsule in packets:
-            if lingo:
+        for capsule, lingo in packets:
+            if lingo is not None:
 
                 # TODO: Authenticate these conditions
                 # lingo.verify_signature(reencryption_request, enrico)
