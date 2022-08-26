@@ -1,7 +1,8 @@
 import base64
 import json
-from marshmallow import fields, post_load
 from typing import Union, Tuple, List, Dict, Any
+
+from marshmallow import fields, post_load
 
 from nucypher.policy.conditions._utils import CamelCaseSchema, _deserialize_condition_lingo
 from nucypher.policy.conditions.base import ReencryptionCondition
@@ -126,13 +127,13 @@ class ConditionLingo:
         instance = cls.from_json(data)
         return instance
 
-    def __bytes__(self):
-        data = self.to_base64()
+    def __bytes__(self) -> bytes:
+        data = self.to_json().encode()
         return data
 
     @classmethod
     def from_bytes(cls, data: bytes) -> 'ConditionLingo':
-        instance = cls.from_base64(data)
+        instance = cls.from_json(data.decode())
         return instance
 
     def __eval(self, eval_string: str):
