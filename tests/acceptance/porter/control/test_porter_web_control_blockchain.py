@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 from nucypher_core import RetrievalKit
 
 from nucypher.characters.lawful import Enrico
+from nucypher.control.specifications.fields import Base64JSON
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.kits import PolicyMessageKit, RetrievalResult
 from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit as RetrievalKitField
@@ -91,7 +92,8 @@ def test_retrieve_cfrags(blockchain_porter,
                          blockchain_porter_web_controller,
                          random_blockchain_policy,
                          blockchain_bob,
-                         blockchain_alice):
+                         blockchain_alice,
+                         random_context):
     # Send bad data to assert error return
     response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
@@ -161,6 +163,21 @@ def test_retrieve_cfrags(blockchain_porter,
         retrieval_kit_field._serialize(value=retrieval_kit_2, attr=None, obj=None)
     ]
     response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(multiple_retrieval_kits_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+    assert len(retrieval_results) == 2
+
+    #
+    # Use context
+    #
+    context_field = Base64JSON()
+    multiple_retrieval_kits_params['context'] = context_field._serialize(random_context, attr=None, obj=None)
+
+    response = blockchain_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(
+        multiple_retrieval_kits_params))
     assert response.status_code == 200
 
     response_data = json.loads(response.data)
