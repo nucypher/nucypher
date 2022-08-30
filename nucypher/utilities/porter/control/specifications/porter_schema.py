@@ -160,7 +160,7 @@ class BobRetrieveCFrags(BaseSchema):
             required=True))
 
     # optional
-    context = base_fields.Base64JSON(
+    context = base_fields.JSON(
         required=False,
         load_only=True,
         click=click.option(

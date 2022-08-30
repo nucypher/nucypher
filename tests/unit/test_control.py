@@ -22,7 +22,7 @@ import pytest
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import (
     Base64BytesRepresentation,
-    Base64JSON,
+    JSON,
     PositiveInteger,
     String,
     StringList,
@@ -74,7 +74,7 @@ def test_base64_representation_field():
         field._deserialize(value=b"raw bytes with non base64 chars ?&^%", attr=None, data=None)
 
 
-def test_base64_json_field():
+def test_json_field():
     # test data
     dict_data = {
         "domain": {"name": "tdec", "version": 1, "chainId": 1, "salt": "blahblahblah"},
@@ -94,10 +94,10 @@ def test_base64_json_field():
 
     # test serialization/deserialization of data
     test_data = [dict_data, list_data, str_data, num_data, bool_data]
-    field = Base64JSON()
+    field = JSON()
     for d in test_data:
         serialized = field._serialize(value=d, attr=None, obj=None)
-        assert serialized == b64encode(json.dumps(d).encode()).decode()
+        assert serialized == json.dumps(d)
 
         deserialized = field._deserialize(value=serialized, attr=None, data=None)
         assert deserialized == d
@@ -109,5 +109,5 @@ def test_base64_json_field():
     with pytest.raises(InvalidInputData):
         # attempt to deserialize invalid data
         field._deserialize(
-            value=b"raw bytes with non base64 chars ?&^%", attr=None, data=None
+            value=b"raw bytes", attr=None, data=None
         )

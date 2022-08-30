@@ -674,9 +674,9 @@ Parameters
 +-------------------------------------------+---------------+----------------------------------------+
 | ``bob_verifying_key``                     | String        | Bob's verifying key encoded as hex.    |
 +-------------------------------------------+---------------+----------------------------------------+
-| ``context`` *(Optional)*                  | String        | | Associated data required during      |
+| ``context`` *(Optional)*                  | String        | | Associated JSON data required during |
 |                                           |               | | re-encryption e.g. data to satisfy   |
-|                                           |               | | conditions.                          |
+|                                           |               | | re-encryption conditions.            |
 +-------------------------------------------+---------------+----------------------------------------+
 
 
@@ -703,7 +703,7 @@ Parameters
         because some Ursulas may have experienced a blip in connectivity. This is an optional optimization that provides
         retry functionality that skips previously successful reencryption operations.
 
-    * A *context* is associated data required during re-encryption. One such example is when a condition for re-encryption
+    * A *context* is associated JSON data required during re-encryption. One such example is when a condition for re-encryption
       requires proof of ownership of a wallet address; the *context* is used to provide the data and signature required for proof.
 
 

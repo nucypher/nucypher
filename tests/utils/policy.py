@@ -24,7 +24,7 @@ from nucypher_core import MessageKit, RetrievalKit
 
 from nucypher.characters.control.specifications.fields import Key, TreasureMap
 from nucypher.characters.lawful import Enrico
-from nucypher.control.specifications.fields import Base64JSON
+from nucypher.control.specifications.fields import JSON
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.porter.control.specifications.fields import (
     RetrievalKit as RetrievalKitField,
@@ -76,7 +76,7 @@ def retrieval_request_setup(enacted_policy,
     )
     # context is optional
     if context:
-        retrieval_params["context"] = encode_bytes(Base64JSON, context)
+        retrieval_params["context"] = encode_bytes(JSON, context)
 
     return retrieval_params, message_kit
 
@@ -98,7 +98,7 @@ def retrieval_params_decode_from_rest(retrieval_params: Dict) -> Dict:
     # context is optional
     if "context" in retrieval_params:
         decoded_params["context"] = decode_bytes(
-            Base64JSON, retrieval_params["context"]
+            JSON, retrieval_params["context"]
         )
 
     return decoded_params
