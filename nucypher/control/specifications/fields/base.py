@@ -87,25 +87,20 @@ class Base64BytesRepresentation(BaseField, fields.Field):
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
 
-class Base64JSON(Base64BytesRepresentation):
-    """Serializes/Deserializes JSON objects as base64 byte representation."""
-
+class JSON(BaseField, fields.Field):
+    """Serializes/Deserializes objects to/from JSON strings."""
     def _serialize(self, value, attr, obj, **kwargs):
         try:
             value_json = json.dumps(value)
+            return value_json
         except Exception as e:
             raise InvalidInputData(
                 f"Provided object type, {type(value)}, is not JSON serializable: {e}"
             )
-        else:
-            json_base64_bytes = super()._serialize(
-                value_json.encode(), attr, obj, **kwargs
-            )
-            return json_base64_bytes
 
     def _deserialize(self, value, attr, data, **kwargs):
-        json_bytes = super()._deserialize(value, attr, data, **kwargs)
         try:
-            return json.loads(json_bytes)
+            result = json.loads(value)
+            return result
         except Exception as e:
-            raise InvalidInputData(f"Invalid JSON bytes: {e}")
+            raise InvalidInputData(f"Invalid JSON: {e}")
