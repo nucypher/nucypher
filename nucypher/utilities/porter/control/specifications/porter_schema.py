@@ -159,5 +159,18 @@ class BobRetrieveCFrags(BaseSchema):
             type=click.STRING,
             required=True))
 
+    # optional
+    context = base_fields.Base64JSON(
+        required=False,
+        load_only=True,
+        click=click.option(
+            "--context",
+            "-ctx",
+            help="Context data for retrieval conditions",
+            type=click.STRING,
+            required=False,
+        ),
+    )
+
     # output
     retrieval_results = marshmallow_fields.List(marshmallow_fields.Nested(fields.RetrievalResultSchema), dump_only=True)

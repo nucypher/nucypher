@@ -14,11 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from eth_typing import ChecksumAddress
-
-from nucypher_core import TreasureMap, RetrievalKit
+from nucypher_core import RetrievalKit, TreasureMap
 from nucypher_core.umbral import PublicKey
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
@@ -59,12 +58,15 @@ class PorterInterface(ControlInterface):
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        ) -> dict:
-        retrieval_results = self.implementer.retrieve_cfrags(treasure_map=treasure_map,
-                                                             retrieval_kits=retrieval_kits,
-                                                             alice_verifying_key=alice_verifying_key,
-                                                             bob_encrypting_key=bob_encrypting_key,
-                                                             bob_verifying_key=bob_verifying_key)
-        results = retrieval_results   # list of RetrievalResult objects
-        response_data = {'retrieval_results': results}
+                        context: Optional[Dict] = None) -> dict:
+        retrieval_results = self.implementer.retrieve_cfrags(
+            treasure_map=treasure_map,
+            retrieval_kits=retrieval_kits,
+            alice_verifying_key=alice_verifying_key,
+            bob_encrypting_key=bob_encrypting_key,
+            bob_verifying_key=bob_verifying_key,
+            context=context,
+        )
+        results = retrieval_results  # list of RetrievalResult objects
+        response_data = {"retrieval_results": results}
         return response_data

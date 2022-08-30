@@ -15,17 +15,23 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
+from base64 import b64encode
 
 import pytest
-
 from nucypher_core.umbral import SecretKey
 
 from nucypher.characters.control.specifications.fields import Key
-from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
-from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema, RetrievalResultSchema
+from nucypher.control.specifications.exceptions import (
+    InvalidArgumentCombo,
+    InvalidInputData,
+)
+from nucypher.utilities.porter.control.specifications.fields import (
+    RetrievalResultSchema,
+    UrsulaInfoSchema,
+)
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
-    BobRetrieveCFrags
+    BobRetrieveCFrags,
 )
 from nucypher.utilities.porter.porter import Porter
 from tests.utils.policy import retrieval_request_setup
@@ -170,11 +176,32 @@ def test_bob_retrieve_cfrags(federated_porter,
     with pytest.raises(InvalidInputData):
         bob_retrieve_cfrags_schema.load({})
 
-    # Setup
+    # Setup - no context
     retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
                                                 federated_bob,
                                                 federated_alice,
                                                 encode_for_rest=True)
+    bob_retrieve_cfrags_schema.load(retrieval_args)
+
+    # simple schema load w/ optional context
+    context = {
+        "domain": {"name": "tdec", "version": 1, "chainId": 1, "salt": "blahblahblah"},
+        "message": {
+            "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+            "conditions": b64encode(
+                "random condition for reencryption".encode()
+            ).decode(),
+            "blockNumber": 15440685,
+            "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
+        },
+    }
+    retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=True,
+        context=context,
+    )
     bob_retrieve_cfrags_schema.load(retrieval_args)
 
     # missing required argument
@@ -186,12 +213,15 @@ def test_bob_retrieve_cfrags(federated_porter,
         bob_retrieve_cfrags_schema.load(updated_data)
 
     #
-    # Output i.e. dump
+    # Actual retrieval output
     #
-    non_encoded_retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
-                                                            federated_bob,
-                                                            federated_alice,
-                                                            encode_for_rest=False)
+    non_encoded_retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=False,
+        context=context,
+    )
     retrieval_results = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
     expected_retrieval_results_json = []
     retrieval_result_schema = RetrievalResultSchema()
