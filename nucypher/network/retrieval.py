@@ -52,7 +52,7 @@ class RetrievalPlan:
 
         # Record the retrieval kits order
         self._capsules, _conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
-        self._conditions = (ConditionLingo.from_bytes(l) if l else None for l in _conditions)
+        self._conditions = list(ConditionLingo.from_bytes(l) if l else None for l in _conditions)
 
         self._threshold = treasure_map.threshold
 
@@ -95,19 +95,14 @@ class RetrievalPlan:
             # Only request reencryption for capsules that:
             # - haven't been processed by this Ursula
             # - don't already have cfrags from `threshold` Ursulas
-            packets = []
-            for capsule, lingo in zip(self._capsules, self._conditions):
-                not_done = capsule not in self._processed_capsules.get(ursula_address, set())
-                need_more = len(self._queried_addresses[capsule]) < self._threshold
-                if not_done and need_more:
-                    result = [capsule, lingo]
-                    packets.append(result)
-
+            packets = [(capsule, lingo) for capsule, lingo in zip(self._capsules, self._conditions)
+                        if (capsule not in self._processed_capsules.get(ursula_address, set())
+                            and len(self._queried_addresses[capsule]) < self._threshold)]
             if len(packets) > 0:
-                capsules, lingos = list(zip(*packets))  # (<lingo>, None, <lingo>)
+                capsules, conditions = list(zip(*packets))
                 return RetrievalWorkOrder(ursula_address=ursula_address,
                                           capsules=list(capsules),
-                                          lingo=list(lingos))
+                                          lingo=list(conditions))
 
         # Execution will not reach this point if `is_complete()` returned `False` before this call.
         raise RuntimeError("No Ursulas left")
@@ -150,11 +145,10 @@ class RetrievalWorkOrder:
         self.__lingo = lingo
 
     def conditions(self, as_json=True) -> Union[str, List[ConditionLingo]]:
-        if not self.__lingo:
-            return list()
+        lingo = self.__lingo or list()
         if as_json:
-            return json.dumps([l.to_json() if l else None for l in self.__lingo])
-        return self.__lingo
+            return json.dumps([l.to_json() if l else None for l in lingo])
+        return lingo
 
 
 class RetrievalClient:
@@ -250,8 +244,7 @@ class RetrievalClient:
                                                            alice_verifying_key=alice_verifying_key,
                                                            ursula_verifying_key=ursula_verifying_key,
                                                            policy_encrypting_key=policy_encrypting_key,
-                                                           bob_encrypting_key=bob_encrypting_key,
-                                                           )
+                                                           bob_encrypting_key=bob_encrypting_key)
         except InvalidSignature as e:
             self.log.warn(str(e))
             raise
