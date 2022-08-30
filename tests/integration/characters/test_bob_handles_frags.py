@@ -93,8 +93,7 @@ def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob
         **_policy_info_kwargs(enacted_federated_policy),
         )
 
-    assert cleartexts == b'lab'
-
+    assert b'lab' in cleartexts
 
 
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
