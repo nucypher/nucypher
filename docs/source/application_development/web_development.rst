@@ -649,7 +649,7 @@ Example Response
              }
           ]
        },
-       "version": "6.0.0"
+       "version": "6.1.0"
     }
 
 
@@ -674,6 +674,11 @@ Parameters
 +-------------------------------------------+---------------+----------------------------------------+
 | ``bob_verifying_key``                     | String        | Bob's verifying key encoded as hex.    |
 +-------------------------------------------+---------------+----------------------------------------+
+| ``context`` *(Optional)*                  | String        | | Associated data required during      |
+|                                           |               | | re-encryption e.g. data to satisfy   |
+|                                           |               | | conditions.                          |
++-------------------------------------------+---------------+----------------------------------------+
+
 
     * A single *retrieval kit* is an encapsulation of the information necessary to obtain cfrags from Ursulas.
       It contains a capsule and the checksum addresses of the Ursulas from which the requester has
@@ -697,6 +702,10 @@ Parameters
         previous ``/retrieve_cfrags`` call; for example, retrying after receiving less than a threshold of cfrags
         because some Ursulas may have experienced a blip in connectivity. This is an optional optimization that provides
         retry functionality that skips previously successful reencryption operations.
+
+    * A *context* is associated data required during re-encryption. One such example is when a condition for re-encryption
+      requires proof of ownership of a wallet address; the *context* is used to provide the data and signature required for proof.
+
 
 Returns
 ^^^^^^^
@@ -747,7 +756,7 @@ Example Response
              }
           ]
        },
-       "version": "6.0.0"
+       "version": "6.1.0"
     }
 
 
