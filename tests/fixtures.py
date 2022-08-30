@@ -21,6 +21,7 @@ import os
 import random
 import shutil
 import tempfile
+from base64 import b64encode
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -1034,3 +1035,23 @@ def basic_auth_file(temp_dir_path):
         f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
     yield basic_auth
     basic_auth.unlink()
+
+
+#
+# Condition Context
+#
+@pytest.fixture(scope='module')
+def random_context():
+    context = {
+        "domain": {"name": "tdec", "version": 1, "chainId": 1, "salt": "blahblahblah"},
+        "message": {
+            "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+            "conditions": b64encode(
+                "random condition for reencryption".encode()
+            ).decode(),
+            "blockNumber": 15440685,
+            "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
+        },
+    }
+
+    return context

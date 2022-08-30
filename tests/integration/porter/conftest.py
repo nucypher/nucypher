@@ -14,10 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from base64 import b64decode
 
 import pytest
-
 from nucypher_core import HRAC, TreasureMap
 
 from nucypher.crypto.powers import DecryptingPower

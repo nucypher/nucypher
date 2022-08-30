@@ -75,7 +75,8 @@ def test_retrieve_cfrags(federated_porter,
                          enacted_federated_policy,
                          federated_bob,
                          federated_alice,
-                         random_federated_treasure_map_data):
+                         random_federated_treasure_map_data,
+                         random_context):
     method = 'retrieve_cfrags'
 
     # Setup
@@ -96,6 +97,19 @@ def test_retrieve_cfrags(federated_porter,
     retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
     expected_results = federated_porter.retrieve_cfrags(**retrieve_args)
     assert len(retrieval_results) == len(expected_results)
+
+    # Use context
+    retrieve_cfrags_params_with_context, _ = retrieval_request_setup(enacted_federated_policy,
+                                                                     federated_bob,
+                                                                     federated_alice,
+                                                                     context=random_context,
+                                                                     encode_for_rest=True)
+    request_data = {'method': method, 'params': retrieve_cfrags_params_with_context}
+    response = federated_porter_rpc_controller.send(request_data)
+    assert response.success
+
+    retrieval_results = response.data['result']['retrieval_results']
+    assert retrieval_results
 
     # Failure - use encrypted treasure map
     failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)

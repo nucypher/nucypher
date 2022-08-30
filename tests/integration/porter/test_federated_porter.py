@@ -74,3 +74,18 @@ def test_retrieve_cfrags(federated_porter,
     result = federated_porter.retrieve_cfrags(**retrieval_args)
 
     assert result, "valid result returned"
+
+
+def test_retrieve_cfrags_with_context(federated_porter,
+                                      federated_bob,
+                                      federated_alice,
+                                      enacted_federated_policy,
+                                      random_context):
+    # Setup
+    retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
+                                                federated_bob,
+                                                federated_alice,
+                                                context=random_context)
+
+    result = federated_porter.retrieve_cfrags(**retrieval_args)
+    assert result, "valid result returned"

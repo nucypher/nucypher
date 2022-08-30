@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 from nucypher_core import RetrievalKit
 
 from nucypher.characters.lawful import Enrico
+from nucypher.control.specifications.fields import Base64JSON
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.kits import PolicyMessageKit, RetrievalResult
 from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit as RetrievalKitField
@@ -90,7 +91,8 @@ def test_retrieve_cfrags(federated_porter,
                          enacted_federated_policy,
                          federated_bob,
                          federated_alice,
-                         random_federated_treasure_map_data):
+                         random_federated_treasure_map_data,
+                         random_context):
     # Send bad data to assert error return
     response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
@@ -161,6 +163,19 @@ def test_retrieve_cfrags(federated_porter,
         retrieval_kit_field._serialize(value=retrieval_kit_3, attr=None, obj=None),
         retrieval_kit_field._serialize(value=retrieval_kit_4, attr=None, obj=None)
     ]
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(multiple_retrieval_kits_params))
+    assert response.status_code == 200
+
+    response_data = json.loads(response.data)
+    retrieval_results = response_data['result']['retrieval_results']
+    assert retrieval_results
+    assert len(retrieval_results) == 4
+
+    #
+    # Use context
+    #
+    context_field = Base64JSON()
+    multiple_retrieval_kits_params['context'] = context_field._serialize(random_context, attr=None, obj=None)
     response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(multiple_retrieval_kits_params))
     assert response.status_code == 200
 
