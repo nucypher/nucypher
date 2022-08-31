@@ -674,9 +674,9 @@ Parameters
 +-------------------------------------------+---------------+----------------------------------------+
 | ``bob_verifying_key``                     | String        | Bob's verifying key encoded as hex.    |
 +-------------------------------------------+---------------+----------------------------------------+
-| ``context`` *(Optional)*                  | String        | | Associated JSON data required during |
-|                                           |               | | re-encryption e.g. data to satisfy   |
-|                                           |               | | re-encryption conditions.            |
+| ``context`` *(Optional)*                  | String        | | Associated JSON dictionary required  |
+|                                           |               | | during re-encryption e.g. data to    |
+|                                           |               | | satisfy re-encryption conditions.    |
 +-------------------------------------------+---------------+----------------------------------------+
 
 
@@ -703,8 +703,8 @@ Parameters
         because some Ursulas may have experienced a blip in connectivity. This is an optional optimization that provides
         retry functionality that skips previously successful reencryption operations.
 
-    * A *context* is associated JSON data required during re-encryption. One such example is when a condition for re-encryption
-      requires proof of ownership of a wallet address; the *context* is used to provide the data and signature required for proof.
+    * A *context* is an associated JSON dictionary of data required during re-encryption. One such example is when a condition for re-encryption
+      requires proof of ownership of a wallet address; the *context* is used to provide the data and signature required for the proof.
 
 
 Returns
@@ -728,12 +728,6 @@ Example Request
              "bob_encrypting_key": "03d41cb7aa2df98cb9fb1591b5556363862a367faae6d0e4874a860321141788cb",
              "bob_verifying_key": "039c19e5d44b016af126d89488c4ae5599e0fde9ea30047754d1fe173d05eee468",
              "policy_encrypting_key": "02cdb2cec70b568c0624b72450c2043836aa831b06b196a50db461e87acddb791e"}'
-
-OR
-
-.. code:: bash
-
-    curl -X POST "<PORTER URI>/retrieve_crags?retrieval_kits=%5B%27gANDYgMKitDPd%2FQttLGy%2Bs7Oacnm8pfbl3Qs2UD3IS1d9wF3awJsXnjFq7OkRQE45DV4%2BMa2lDSJ5SeKEBqJK5GdPMB6CRwJ1hX7Y5SYgzpZtr%2FZ5%2FS3DHgVKn%2B8fWX92FaqEXIGcQBjYnVpbHRpbnMKc2V0CnEBXXEChXEDUnEEhnEFLg%3D%3D%27%5D&alice_verifying_key=02d3389864e9e7206ae1d18301bbd67ad8e0bdf257b3085c9aa13e9438ff9133f2&bob_encrypting_key=03d41cb7aa2df98cb9fb1591b5556363862a367faae6d0e4874a860321141788cb&bob_verifying_key=039c19e5d44b016af126d89488c4ae5599e0fde9ea30047754d1fe173d05eee468&policy_encrypting_key=02cdb2cec70b568c0624b72450c2043836aa831b06b196a50db461e87acddb791e&treasure_map=ivOS2%2FMarBpkLAksM0O%2BpgLUHAV%2F0ceIBarBKwqUpAXARhpvuwAAAm0DoDAtioScWJSHWNGzQd9pMGW2dRF4IvJX%2FExALF6AcLICLCBP%2Btte8QR4l0GLNy3YwK4oO8f8Ht0Ij%2Bv0feWWwgeo3R7FVeC4ExDuYvgdsV6jCP3vqZnLphIPk8LQeo1XVAABAtM4mGTp5yBq4dGDAbvWetjgvfJXswhcmqE%2BlDj%2FkTPyAAAB5H0rD40N1u5Ct455sh4SicbHTGsXcRSt%2FadeHVl3zylNpWDsFbeon7VI5fGGmWLAKmCJ5ARU1Mgfwg0pfsXDgHTky6XOeXnNw630z9muBE4NMUiESOQm%2FRAsphMR%2FDEIMRaCgjhaE2diVdVAm15JjRXV9JN5gAp58Y1ecPcWR2lMcgAMHBFMX60bpbgjySha94Hwb0kR2SKIFkPQnuMljoQxutTDAyh55eE2sHf9ZOAVZkpKQu8NkaWy7adx%2F1QefezNbngX9c2yYml133Al4oGrLWYA3fnbod2Y6F1oeG5As5ZIW%2FO8k7Rf%2B3i9a%2BDS1i%2BKbgETHQGxOkQSpNPUmwJjtzDJQ1xFMmKkxgwUtXenfyrzDDPU6EQloWK2PmyTD%2FhSKHLpkLyzYp95gadzDiS8RlOnNw%2FuP8vfMPSrXYGZSKXvHvlrQxKOjnF7FrheauwwRPjM0yYTftPs3jNkZwCTl%2BEwn6NdLur927SeGyAB3gHCjHenje%2B3hU1jsn%2FmwfwLJwSMT7V0rbXV6I0NYhjQy2Ajj%2B7ev%2FNSvRdeneeYTU3iHoO6nIhWHBLVExWafu59B6hhsm261kvXw718eiUcL%2B1X1eZ5WApplCuXGQV7L6DZxlQPanRJy7BZZQmFwEUoMCnx9mGbOKmNbeCADx3vwKY5nrbTDAAAAm0Cccv5a3jS2QiICCzCyA0Ot3U7VT1F3d%2BB3cHcmv8DaCwDODb8IadnsiVK%2BdfbPLn3ne%2Blm8d9yqhh6bLi6KNDb6yiWrjWnd4Irnnh3amMwik00vdyQKYvdsaSEJqtVLmtcQABAtM4mGTp5yBq4dGDAbvWetjgvfJXswhcmqE%2BlDj%2FkTPyAAAB5Do%2Feww%2BG709VPQwkxd0tRFyJh97Wcb5uSGs%2B4fK9O%2B5CTf5rDQSO3ueWLRF4ytRzd3QjK6%2B8FlXsJQM5n5pGLUNNWpUlimk2MmPaLehC9uGBfQzoTfQof%2BU8CBXkTTnRi0IeAYMq8eiuEnNR%2FoOJjpjuwgZH4gue%2FsSDF8FyhFU4SwF%2FWdjLg0FgmZzRlqABNXeE8vOofydEMYgUMPd8qxjimAGhkYlBUNjlme4BUdA2AqndMttpc3y9ILTobaGSnjgWfq9Ztw%2Fn72scPI11T%2BYMaaXd33dacNPx%2BpVzcgqi358PT8WQ6U3n%2B1be8mhF8VGEO7%2F5zLFHECRCv06erER8ChTZvr4rb8Y0xRCz%2FpatllLqvWZkGSmotmsi9qAptgG%2FXkozOZIqmBuM2AuQTwaePyuJzelc5xD51OlkQRahV6%2Bok3CokckwtOXtC6dzq4dmh03Uj5ZeKj8IgITDPN6jCf5TwLmXSuEGl5W%2FxmrEUeNlrthlJm7Cdd1NpLn3RZNCgSS4%2BPw9cpY6fj%2FmF8yR0erf9Tkrxr7FXzSe%2FUWkfeB3aQPulP4U3nM7vJIz9DBcJxtdozfqHchZ%2FK%2BVnaW%2F7IlNhvu3Cwk%2BN3D9sUwf%2FuHQuE%2FQSsYZ0fjUCnB1UgJMjho5Sd4CHLNoCFroNj71YtnpdXjUQAAAm0D5ITdM1U28%2B6%2FLU%2B%2BJw%2FUTMOefScVULkEyaojkyJK574Dc96zie3HtMN0ahALfOg5yn2z2zZpwqsLk9mpT23GD8AYR55RcvLHGIjJTubtuMINy7ZBgbZmisPDt5DvHVKj1wABAtM4mGTp5yBq4dGDAbvWetjgvfJXswhcmqE%2BlDj%2FkTPyAAAB5B9Wn5rfJ8LS81DIkZj6By39KZPYLoNSpR%2BVEZsLaSEo%2FHTMG43Q%2FgG%2FYjZMQHBEZwleE1H35P3EuDlWOriEQxveH7ihmHVSDfj8R%2B6xo%2F263QCLqtg9djSFPW7h6QRx5JBM%2BWABcmIZQrAvMDe1q7F8VOGRDMf8tW%2F7sySMFn9pQ7735kasw8iNsGPX9gVNcncSuh8hmgWGzwciUU%2FY5SYmQvl0Oc15G5%2FkFhIA9nDVfZR4sMBRB9ApYbnNYsxtH12wWhTo04hPEGfzsqKK10muLy%2Bqpo3VBhX24HPTBAvYm68f0UVD%2Ba0cZWmgYKypmMqApJ87RnPvXbE3rmKepJM8u02O4X1OBlfDZBrTsbCbMxeniS6bzE6VPE62jOW6GIuyV6%2BNQS3PZTuTWG%2Fp7T5n2EC%2FPf%2FCvGLq41gQDU9VT2aCbHkbr9C0klVJfUwqdE%2F51zLmcY8wpx3P%2BOS%2BlrIjxQzOpWSKQfsNyt1DhKpKb5Y1wWrUGm6s0sBEG7FQK2SmWMhpjB36ZRdmtQ8%2Fmvh20KELR6W%2BocGosR20TXdGINzJEnobbTkkGNz2sqzePvL7Ql5Utc%2FGCaZYC2yIvJEGBOSBVtKvwqTOaMOFTaCIx4R5f3X17umkMD1YCvir39cREkU%3D"
 
 
 Example Response
