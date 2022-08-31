@@ -91,9 +91,10 @@ def test_json_field():
     str_data = "Everything in the universe has a rhythm, everything dances."  # -- Maya Angelou
     num_data = 1234567890
     bool_data = True
+    float_data = 2.35
 
-    # test serialization/deserialization of data
-    test_data = [dict_data, list_data, str_data, num_data, bool_data]
+    # test serialization/deserialization of data - no expected type specified
+    test_data = [dict_data, list_data, str_data, num_data, bool_data, float_data]
     field = JSON()
     for d in test_data:
         serialized = field._serialize(value=d, attr=None, obj=None)
@@ -111,3 +112,25 @@ def test_json_field():
         field._deserialize(
             value=b"raw bytes", attr=None, data=None
         )
+
+    # test expected type enforcement
+    test_types = [type(d) for d in test_data]
+    for expected_type in test_types:
+        field = JSON(expected_type=expected_type)
+        for d in test_data:
+            if type(d) == expected_type:
+                # serialization/deserialization should work
+                serialized = field._serialize(value=d, attr=None, obj=None)
+                assert serialized == json.dumps(d)
+
+                deserialized = field._deserialize(value=serialized, attr=None, data=None)
+                assert deserialized == d
+            else:
+                # serialization/deserialization should fail
+                with pytest.raises(InvalidInputData):
+                    # attempt to serialize non-json serializable object
+                    field._serialize(d, attr=None, obj=None)
+
+                with pytest.raises(InvalidInputData):
+                    # attempt to deserialize invalid data
+                    field._deserialize(value=json.dumps(d), attr=None, data=None)

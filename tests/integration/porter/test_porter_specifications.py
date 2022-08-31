@@ -194,6 +194,18 @@ def test_bob_retrieve_cfrags(federated_porter,
     )
     bob_retrieve_cfrags_schema.load(retrieval_args)
 
+    # invalid context specified
+    retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=True,
+        context=[1, 2, 3],  # list instead of dict
+    )
+    with pytest.raises(InvalidInputData):
+        # invalid context type
+        bob_retrieve_cfrags_schema.load(retrieval_args)
+
     # missing required argument
     updated_data = dict(retrieval_args)
     key_to_remove = random.choice(list(updated_data.keys()))

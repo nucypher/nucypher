@@ -161,6 +161,7 @@ class BobRetrieveCFrags(BaseSchema):
 
     # optional
     context = base_fields.JSON(
+        expected_type=dict,
         required=False,
         load_only=True,
         click=click.option(
