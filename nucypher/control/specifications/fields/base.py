@@ -89,7 +89,16 @@ class Base64BytesRepresentation(BaseField, fields.Field):
 
 class JSON(BaseField, fields.Field):
     """Serializes/Deserializes objects to/from JSON strings."""
+    def __init__(self, expected_type=None, *args, **kwargs):
+        # enforce type-safety (TODO too strict?)
+        self.expected_type = expected_type
+        super().__init__(*args, **kwargs)
+
     def _serialize(self, value, attr, obj, **kwargs):
+        if self.expected_type and (type(value) != self.expected_type):
+            raise InvalidInputData(
+                f"Unexpected object type, {type(value)}; expected {self.expected_type}")
+
         try:
             value_json = json.dumps(value)
             return value_json
@@ -101,6 +110,11 @@ class JSON(BaseField, fields.Field):
     def _deserialize(self, value, attr, data, **kwargs):
         try:
             result = json.loads(value)
-            return result
         except Exception as e:
             raise InvalidInputData(f"Invalid JSON: {e}")
+        else:
+            if self.expected_type and (type(result) != self.expected_type):
+                raise InvalidInputData(
+                    f"Unexpected object type, {type(result)}; expected {self.expected_type}")
+
+            return result
