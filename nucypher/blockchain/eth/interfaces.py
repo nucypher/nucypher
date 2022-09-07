@@ -505,11 +505,11 @@ class BlockchainInterface:
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             if 'gas' not in payload:  # i.e., transaction_gas_limit is not None
-                # As web3 buildTransaction() will estimate gas with block identifier "pending" by default,
+                # As web3 build_transaction() will estimate gas with block identifier "pending" by default,
                 # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
                 # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
-                payload['gas'] = contract_function.estimateGas(payload, block_identifier='latest')
-            transaction_dict = contract_function.buildTransaction(payload)
+                payload['gas'] = contract_function.estimate_gas(payload, block_identifier='latest')
+            transaction_dict = contract_function.build_transaction(payload)
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth (1.9.15) raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.

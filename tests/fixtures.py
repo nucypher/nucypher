@@ -294,7 +294,7 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
 def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
     random_label = generate_random_label()
     seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
-    now = testerchain.w3.eth.getBlock('latest').timestamp
+    now = testerchain.w3.eth.get_block('latest').timestamp
     expiration = maya.MayaDT(now).add(seconds=seconds)
     shares = 3
     threshold = 2
@@ -544,7 +544,7 @@ def testerchain(_testerchain) -> TesterBlockchain:
 
         if spent > 0:
             tx = {'to': address, 'from': coinbase, 'value': spent}
-            txhash = testerchain.w3.eth.sendTransaction(tx)
+            txhash = testerchain.w3.eth.send_transaction(tx)
 
             _receipt = testerchain.wait_for_receipt(txhash)
             eth_amount = Web3().fromWei(spent, 'ether')
@@ -757,7 +757,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
           'from': testerchain.etherbase_account,
           'value': Web3.toWei('1', 'ether')}
 
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
 
     # Mock TransactingPower consumption (Etherbase)
@@ -800,7 +800,7 @@ def manual_operator(testerchain):
           'from': testerchain.etherbase_account,
           'value': Web3.toWei('1', 'ether')}
 
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
 

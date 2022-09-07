@@ -29,14 +29,14 @@ def _policy_info_kwargs(enacted_policy):
         )
 
 
-def _make_message_kits(policy_pubkey):
+def _make_message_kits(policy_pubkey, conditions=None):
     messages = [b"plaintext1", b"plaintext2", b"plaintext3"]
 
     message_kits = []
     for message in messages:
         # Using different Enricos, because why not.
         enrico = Enrico(policy_encrypting_key=policy_pubkey)
-        message_kit = enrico.encrypt_message(message)
+        message_kit = enrico.encrypt_message(message, conditions=conditions)
         message_kits.append(message_kit)
 
     return messages, message_kits

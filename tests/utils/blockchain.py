@@ -173,7 +173,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         tx_hashes = list()
         for address in addresses:
             tx = {'to': address, 'from': coinbase, 'value': amount, 'gasPrice': self.w3.eth.generate_gas_price()}
-            txhash = self.w3.eth.sendTransaction(tx)
+            txhash = self.w3.eth.send_transaction(tx)
 
             _receipt = self.wait_for_receipt(txhash)
             tx_hashes.append(txhash)
@@ -203,11 +203,11 @@ class TesterBlockchain(BlockchainDeployerInterface):
         else:
             raise ValueError("Specify either hours, or seconds.")
 
-        now = self.w3.eth.getBlock('latest').timestamp
+        now = self.w3.eth.get_block('latest').timestamp
         end_timestamp = ((now+duration)//base) * base
 
-        self.w3.eth.web3.testing.timeTravel(timestamp=end_timestamp)
-        self.w3.eth.web3.testing.mine(1)
+        self.w3.eth.w3.testing.timeTravel(timestamp=end_timestamp)
+        self.w3.eth.w3.testing.mine(1)
 
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "

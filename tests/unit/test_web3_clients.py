@@ -68,8 +68,8 @@ class SyncedMockW3Eth:
 
     # Support older and newer versions of web3 py in-test
     version = 5
-    chainId = hex(5)
-    blockNumber = 5
+    chain_id = hex(5)
+    block_number = 5
 
     def getBlock(self, blockNumber):
         return {
@@ -322,8 +322,8 @@ def test_ganache_web3_client():
 def test_gas_prices(mocker, mock_ethereum_client):
     web3_mock = mock_ethereum_client.w3
 
-    web3_mock.eth.generateGasPrice = mocker.Mock(side_effect=[None, GAS_PRICE_FROM_STRATEGY])
-    type(web3_mock.eth).gasPrice = PropertyMock(return_value=DEFAULT_GAS_PRICE)  # See docs of PropertyMock
+    web3_mock.eth.generate_gas_price = mocker.Mock(side_effect=[None, GAS_PRICE_FROM_STRATEGY])
+    type(web3_mock.eth).gas_price = PropertyMock(return_value=DEFAULT_GAS_PRICE)  # See docs of PropertyMock
 
     assert mock_ethereum_client.gas_price == DEFAULT_GAS_PRICE
     assert mock_ethereum_client.gas_price_for_transaction("there's no gas strategy") == DEFAULT_GAS_PRICE

@@ -59,7 +59,7 @@ def test_use_pending_nonce_when_building_payload(mock_testerchain, mocker):
     def mock_get_transaction_count(sender, block_identifier) -> int:
         return transaction_count[block_identifier]
 
-    mock_testerchain.client.w3.eth.getTransactionCount = mocker.Mock(side_effect=mock_get_transaction_count)
+    mock_testerchain.client.w3.eth.get_transaction_count = mocker.Mock(side_effect=mock_get_transaction_count)
 
     def simulate_successful_transaction():
         transaction_count['pending'] += 1
