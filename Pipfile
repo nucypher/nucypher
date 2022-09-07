@@ -12,7 +12,7 @@ constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=3.4"
 lmdb = "*"
-nucypher-core = ">=0.2"
+nucypher-core = "==0.4.0a0"
 # Cryptography
 pyopenssl = "*"
 cryptography = ">=3.2"
