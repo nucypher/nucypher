@@ -238,7 +238,7 @@ class EthereumClient:
         return self.w3.eth.accounts
 
     def get_balance(self, account):
-        return self.w3.eth.getBalance(account)
+        return self.w3.eth.get_balance(account)
 
     def inject_middleware(self, middleware, **kwargs):
         self.w3.middleware_onion.inject(middleware, **kwargs)
@@ -247,16 +247,16 @@ class EthereumClient:
         self.w3.middleware_onion.add(middleware)
 
     def set_gas_strategy(self, gas_strategy):
-        self.w3.eth.setGasPriceStrategy(gas_strategy)
+        self.w3.eth.set_gas_price_strategy(gas_strategy)
 
     @property
     def chain_id(self) -> int:
         try:
             # from hex-str
-            return int(self.w3.eth.chainId, 16)
+            return int(self.w3.eth.chain_id, 16)
         except TypeError:
             # from str
-            return int(self.w3.eth.chainId)
+            return int(self.w3.eth.chain_id)
 
     @property
     def net_version(self) -> int:
@@ -270,18 +270,18 @@ class EthereumClient:
         """
         Returns client's gas price. Underneath, it uses the eth_gasPrice JSON-RPC method
         """
-        return self.w3.eth.gasPrice
+        return self.w3.eth.gas_price
 
     def gas_price_for_transaction(self, transaction=None) -> Wei:
         """
         Obtains a gas price via the current gas strategy, if any; otherwise, it resorts to the client's gas price.
         This method mirrors the behavior of web3._utils.transactions when building transactions.
         """
-        return self.w3.eth.generateGasPrice(transaction) or self.gas_price
+        return self.w3.eth.generate_gas_price(transaction) or self.gas_price
 
     @property
     def block_number(self) -> BlockNumber:
-        return self.w3.eth.blockNumber
+        return self.w3.eth.block_number
 
     @property
     def coinbase(self) -> ChecksumAddress:
@@ -310,7 +310,7 @@ class EthereumClient:
         else:
             # If not asking for confirmations, just use web3 and assume the returned receipt is final
             try:
-                receipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
+                receipt = self.w3.eth.wait_for_transaction_receipt(transaction_hash=transaction_hash,
                                                                 timeout=timeout,
                                                                 poll_latency=self.TRANSACTION_POLLING_TIME)
             except TimeExhausted:
@@ -320,9 +320,11 @@ class EthereumClient:
 
     def block_until_enough_confirmations(self, transaction_hash: str, timeout: float, confirmations: int) -> dict:
 
-        receipt: TxReceipt = self.w3.eth.waitForTransactionReceipt(transaction_hash=transaction_hash,
-                                                                   timeout=timeout,
-                                                                   poll_latency=self.TRANSACTION_POLLING_TIME)
+        receipt: TxReceipt = self.w3.eth.wait_for_transaction_receipt(
+            transaction_hash=transaction_hash,
+            timeout=timeout,
+            poll_latency=self.TRANSACTION_POLLING_TIME
+        )
 
         preliminary_block_hash = Web3.toHex(receipt['blockHash'])
         tx_block_number = Web3.toInt(receipt['blockNumber'])
@@ -348,7 +350,7 @@ class EthereumClient:
     def check_transaction_is_on_chain(self, receipt: TxReceipt) -> bool:
         transaction_hash = Web3.toHex(receipt['transactionHash'])
         try:
-            new_receipt = self.w3.eth.getTransactionReceipt(transaction_hash)
+            new_receipt = self.w3.eth.get_transaction_receipt(transaction_hash)
         except TransactionNotFound:
             reorg_detected = True
         else:
@@ -365,20 +367,20 @@ class EthereumClient:
         raise NotImplementedError
 
     def get_transaction(self, transaction_hash) -> dict:
-        return self.w3.eth.getTransaction(transaction_hash)
+        return self.w3.eth.get_transaction(transaction_hash)
 
     def get_transaction_receipt(self, transaction_hash) -> Union[dict, None]:
-        return self.w3.eth.getTransactionReceipt(transaction_hash)
+        return self.w3.eth.get_transaction_receipt(transaction_hash)
 
     def get_transaction_count(self, account: str, pending: bool) -> int:
         block_identifier = 'pending' if pending else 'latest'
-        return self.w3.eth.getTransactionCount(account, block_identifier)
+        return self.w3.eth.get_transaction_count(account, block_identifier)
 
     def send_transaction(self, transaction_dict: dict) -> str:
-        return self.w3.eth.sendTransaction(transaction_dict)
+        return self.w3.eth.send_transaction(transaction_dict)
 
     def send_raw_transaction(self, transaction_bytes: bytes) -> str:
-        return self.w3.eth.sendRawTransaction(transaction_bytes)
+        return self.w3.eth.send_raw_transaction(transaction_bytes)
 
     def sign_message(self, account: str, message: bytes) -> str:
         """
@@ -389,12 +391,12 @@ class EthereumClient:
         return self.w3.eth.sign(account, data=message)
 
     def get_blocktime(self):
-        highest_block = self.w3.eth.getBlock('latest')
+        highest_block = self.w3.eth.get_block('latest')
         now = highest_block['timestamp']
         return now
 
     def get_block(self, block_identifier):
-        return self.w3.eth.getBlock(block_identifier)
+        return self.w3.eth.get_block(block_identifier)
 
     def _has_latest_block(self) -> bool:
         # TODO: Investigate using `web3.middleware.make_stalecheck_middleware` #2060
@@ -457,7 +459,7 @@ class GethClient(EthereumClient):
             transaction_dict = dissoc(transaction_dict, 'to')
 
         # Sign
-        result = self.w3.eth.signTransaction(transaction_dict)
+        result = self.w3.eth.sign_transaction(transaction_dict)
 
         # Return RLP bytes
         rlp_encoded_transaction = result.raw

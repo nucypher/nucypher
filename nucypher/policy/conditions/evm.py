@@ -26,7 +26,7 @@ _DIRECTIVES = {
 # TODO: Move this method to a util function
 __CHAINS = {
     60: 'ethereum',  # TODO: make a few edits for now
-    61: 'testerchain',  # TODO: this one can be moved to a pytest fixture / setup logic
+    131277322940537: 'testerchain',  # TODO: this one can be moved to a pytest fixture / setup logic
     **PUBLIC_CHAINS,
 }
 
@@ -145,6 +145,7 @@ class RPCCondition(ReencryptionCondition):
             raise Exception(f'{method} is not a permitted RPC endpoint for conditions.')
         if not method.startswith('eth_'):
             raise Exception(f'Only eth RPC methods are accepted for conditions.')
+        method = camel_case_to_snake(method)
         return method
 
     def _configure_provider(self, provider: BaseProvider):
@@ -160,8 +161,9 @@ class RPCCondition(ReencryptionCondition):
         """Performs onchain read and return value test"""
         self._configure_provider(provider=provider)
         parameters = _process_parameters(self.parameters, **contract_kwargs)  # resolve context variables
-        eth_, method = self.method.split('_')  # TODO: Ugly
-        rpc_function = getattr(self.w3.eth, method)  # bind contract function (only exposes the eth API)
+        rpc_endpoint_, rpc_method = self.method.split('_', 1)
+        web3_py_method = camel_case_to_snake(rpc_method)
+        rpc_function = getattr(self.w3.eth, web3_py_method)  # bind contract function (only exposes the eth API)
         rpc_result = rpc_function(*parameters)  # RPC read
         eval_result = self.return_value_test.eval(rpc_result)  # test
         return eval_result, rpc_result
@@ -212,7 +214,7 @@ class ContractCondition(RPCCondition):
 
     def _configure_provider(self, *args, **kwargs):
         super()._configure_provider(*args, **kwargs)
-        self.contract_function.web3 = self.w3
+        self.contract_function.w3 = self.w3
 
     def _get_unbound_contract_function(self) -> ContractFunction:
         """Gets an unbound contract function to evaluate for this condition"""

@@ -55,7 +55,6 @@ def test_onchain_conditions_lingo_evaluation(testerchain, timelock_condition, rp
 
 def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
     blockchain_bob.start_learning_loop()
-    messages, message_kits = _make_message_kits(enacted_blockchain_policy.public_key)
     conditions = [
         {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
         {'operator': 'and'},
@@ -72,9 +71,7 @@ def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, bloc
         }
 
     ]
-    for mk in message_kits:
-        mk.conditions = ConditionLingo.from_json(json.dumps(conditions))
-
+    messages, message_kits = _make_message_kits(enacted_blockchain_policy.public_key, conditions)
     policy_info_kwargs = dict(
         encrypted_treasure_map=enacted_blockchain_policy.treasure_map,
         alice_verifying_key=enacted_blockchain_policy.publisher_verifying_key,

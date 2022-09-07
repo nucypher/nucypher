@@ -63,8 +63,8 @@ def test_transacting_power_sign_transaction(testerchain):
                              signer=Web3Signer(testerchain.client),
                              account=eth_address)
 
-    transaction_dict = {'nonce': testerchain.client.w3.eth.getTransactionCount(eth_address),
-                        'gasPrice': testerchain.client.w3.eth.gasPrice,
+    transaction_dict = {'nonce': testerchain.client.w3.eth.get_transaction_count(eth_address),
+                        'gasPrice': testerchain.client.w3.eth.gas_price,
                         'gas': 100000,
                         'from': eth_address,
                         'to': testerchain.unassigned_accounts[1],
@@ -94,12 +94,12 @@ def test_transacting_power_sign_agent_transaction(testerchain, agency, test_regi
     contract_function = agent.contract.functions.confirmOperatorAddress()
 
     payload = {'chainId': int(testerchain.client.chain_id),
-               'nonce': testerchain.client.w3.eth.getTransactionCount(testerchain.etherbase_account),
+               'nonce': testerchain.client.w3.eth.get_transaction_count(testerchain.etherbase_account),
                'from': testerchain.etherbase_account,
                'gasPrice': testerchain.client.gas_price,
                'gas': 500_000}
 
-    unsigned_transaction = contract_function.buildTransaction(payload)
+    unsigned_transaction = contract_function.build_transaction(payload)
 
     # Sign with Transacting Power
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
