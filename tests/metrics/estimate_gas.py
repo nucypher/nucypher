@@ -202,7 +202,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     print("********* Estimating Gas *********")
 
     def transact_and_log(label, function, transaction):
-        estimates = function.estimateGas(transaction)
+        estimates = function.estimate_gas(transaction)
         transaction.update(gas=estimates)
         tx = function.transact(transaction)
         receipt = testerchain.wait_for_receipt(tx)
@@ -288,7 +288,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     rate = 100
     one_period = economics.hours_per_period * 60 * 60
     value = number_of_periods * rate
-    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    current_timestamp = testerchain.w3.eth.get_block('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 10 periods, pre-committed), first",
                      policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1]),
@@ -363,7 +363,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     value = 3 * number_of_periods * rate
-    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    current_timestamp = testerchain.w3.eth.get_block('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (3 nodes, 100 periods, pre-committed), first",
                      policy_functions.createPolicy(policy_id_1, alice1, end_timestamp, [staker1, staker2, staker3]),
@@ -392,13 +392,13 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     policy_id_3 = os.urandom(int(POLICY_ID_LENGTH))
     number_of_periods = 100
     value = number_of_periods * rate
-    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    current_timestamp = testerchain.w3.eth.get_block('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 100 periods)",
                      policy_functions.createPolicy(policy_id_1, alice2, end_timestamp, [staker2]),
                      {'from': alice1, 'value': value})
     testerchain.time_travel(periods=1)
-    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    current_timestamp = testerchain.w3.eth.get_block('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     transact_and_log("Creating policy (1 node, 100 periods), next period",
                      policy_functions.createPolicy(policy_id_2, alice2, end_timestamp, [staker2]),
@@ -440,7 +440,7 @@ def estimate_gas(analyzer: AnalyzeGas = None) -> None:
     #
     policy_id_1 = os.urandom(int(POLICY_ID_LENGTH))
     policy_id_2 = os.urandom(int(POLICY_ID_LENGTH))
-    current_timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    current_timestamp = testerchain.w3.eth.get_block('latest').timestamp
     end_timestamp = current_timestamp + (number_of_periods - 1) * one_period
     value = 3 * number_of_periods * rate
     transact_and_log("Creating 2 policies (3 nodes, 100 periods, pre-committed)",

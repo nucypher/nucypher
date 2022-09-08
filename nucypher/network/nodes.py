@@ -34,7 +34,7 @@ from constant_sorrow.constants import (
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_der_x509_certificate
 from eth_utils import to_checksum_address
-from nucypher.core import MetadataResponse, MetadataResponsePayload, NodeMetadata
+from nucypher_core import MetadataResponse, MetadataResponsePayload, NodeMetadata
 from nucypher_core.umbral import Signature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task

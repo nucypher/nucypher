@@ -22,7 +22,7 @@ from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from nucypher_core.umbral import PublicKey, SecretKey, VerifiedCapsuleFrag
 
-from nucypher.core import MessageKit, RetrievalKit
+from nucypher_core import MessageKit, RetrievalKit
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 
@@ -49,9 +49,9 @@ class PolicyMessageKit:
 
     def as_retrieval_kit(self) -> RetrievalKit:
         return RetrievalKit(
-            self.message_kit.capsule,
-            self._result.canonical_addresses(),
-            lingo=self.message_kit.lingo,
+            capsule=self.message_kit.capsule,
+            queried_addresses=self._result.canonical_addresses(),
+            conditions=self.message_kit.conditions,
         )
 
     def decrypt(self, sk: SecretKey) -> bytes:
@@ -70,7 +70,7 @@ class PolicyMessageKit:
 
     @property
     def conditions(self) -> ConditionLingo:
-        return self.message_kit.lingo
+        return self.message_kit.conditions
 
 
 # TODO: a better name?

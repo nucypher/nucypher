@@ -89,7 +89,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     # Staking provider bonds operator and now operator can make a confirmation
     tx = pre_application.functions.bondOperator(staking_provider_3, operator1).transact({'from': owner3})
     testerchain.wait_for_receipt(tx)
-    timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    timestamp = testerchain.w3.eth.get_block('latest').timestamp
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_3).call() == operator1
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == staking_provider_3
     assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
@@ -151,7 +151,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     testerchain.time_travel(seconds=min_operator_seconds)
     tx = pre_application.functions.bondOperator(staking_provider_3, NULL_ADDRESS).transact({'from': staking_provider_3})
     testerchain.wait_for_receipt(tx)
-    timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    timestamp = testerchain.w3.eth.get_block('latest').timestamp
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_3).call() == NULL_ADDRESS
     assert pre_application.functions.stakingProviderFromOperator(staking_provider_3).call() == NULL_ADDRESS
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == NULL_ADDRESS
@@ -178,7 +178,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     # The staking provider can bond now a new operator, without waiting additional time.
     tx = pre_application.functions.bondOperator(staking_provider_3, operator2).transact({'from': staking_provider_3})
     testerchain.wait_for_receipt(tx)
-    timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    timestamp = testerchain.w3.eth.get_block('latest').timestamp
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_3).call() == operator2
     assert pre_application.functions.stakingProviderFromOperator(operator2).call() == staking_provider_3
     assert not pre_application.functions.stakingProviderInfo(staking_provider_3).call()[CONFIRMATION_SLOT]
@@ -208,7 +208,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     # Another staker can bond a free operator
     tx = pre_application.functions.bondOperator(staking_provider_4, operator1).transact({'from': staking_provider_4})
     testerchain.wait_for_receipt(tx)
-    timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    timestamp = testerchain.w3.eth.get_block('latest').timestamp
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_4).call() == operator1
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == staking_provider_4
     assert not pre_application.functions.isOperatorConfirmed(operator1).call()
@@ -242,7 +242,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     testerchain.time_travel(seconds=min_operator_seconds)
     tx = pre_application.functions.bondOperator(staking_provider_4, operator3).transact({'from': staking_provider_4})
     testerchain.wait_for_receipt(tx)
-    timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    timestamp = testerchain.w3.eth.get_block('latest').timestamp
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_4).call() == operator3
     assert pre_application.functions.stakingProviderFromOperator(operator3).call() == staking_provider_4
     assert pre_application.functions.stakingProviderFromOperator(operator1).call() == NULL_ADDRESS
@@ -289,7 +289,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     tx = pre_application.functions.bondOperator(
         staking_provider_1, staking_provider_1).transact({'from': staking_provider_1})
     testerchain.wait_for_receipt(tx)
-    timestamp = testerchain.w3.eth.getBlock('latest').timestamp
+    timestamp = testerchain.w3.eth.get_block('latest').timestamp
     assert pre_application.functions.getOperatorFromStakingProvider(staking_provider_1).call() == staking_provider_1
     assert pre_application.functions.stakingProviderFromOperator(staking_provider_1).call() == staking_provider_1
     assert pre_application.functions.getStakingProvidersLength().call() == 3

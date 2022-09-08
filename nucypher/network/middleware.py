@@ -29,7 +29,7 @@ from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate
-from nucypher.core import MetadataRequest, FleetStateChecksum, NodeMetadata
+from nucypher_core import MetadataRequest, FleetStateChecksum, NodeMetadata
 from requests.exceptions import SSLError
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry

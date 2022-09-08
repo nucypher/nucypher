@@ -18,7 +18,7 @@ from base64 import b64decode
 
 import pytest
 
-from nucypher.core import HRAC, TreasureMap
+from nucypher_core import HRAC, TreasureMap
 
 from nucypher.crypto.powers import DecryptingPower
 
