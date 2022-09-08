@@ -37,20 +37,28 @@ from web3.types import TxReceipt
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PREApplicationAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    PREApplicationAgent,
+)
 from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer, NucypherTokenDeployer
+    SubscriptionManagerDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    InMemoryContractRegistry,
+    LocalContractRegistry,
+)
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    UrsulaConfiguration
+    UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.control.emitters import StdoutEmitter
@@ -74,8 +82,8 @@ from tests.constants import (
     MOCK_POLICY_DEFAULT_THRESHOLD,
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
-    TEST_ETH_PROVIDER_URI
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
@@ -87,21 +95,24 @@ from tests.mock.performance_mocks import (
     mock_record_fleet_state,
     mock_remember_node,
     mock_rest_app_creation,
-    mock_verify_node
+    mock_verify_node,
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
-    make_ursula_test_configuration
+    make_ursula_test_configuration,
 )
-from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
+from tests.utils.middleware import (
+    MockRestMiddleware,
+    MockRestMiddlewareForLargeFleetTests,
+)
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import (
     MOCK_KNOWN_URSULAS_CACHE,
     MOCK_URSULA_STARTING_PORT,
     make_decentralized_ursulas,
-    make_federated_ursulas
+    make_federated_ursulas,
 )
 
 test_logger = Logger("test-logger")
@@ -1043,15 +1054,26 @@ def basic_auth_file(temp_dir_path):
 @pytest.fixture(scope='module')
 def random_context():
     context = {
-        "domain": {"name": "tdec", "version": 1, "chainId": 1, "salt": "blahblahblah"},
-        "message": {
+        ":userAddress": {
+            "signature": "16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b",
             "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
-            "conditions": b64encode(
-                "random condition for reencryption".encode()
-            ).decode(),
-            "blockNumber": 15440685,
-            "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
-        },
+            "typedMessage": {
+                "domain": {
+                    "name": "tdec",
+                    "version": 1,
+                    "chainId": 1,
+                    "salt": "0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558",
+                },
+                "message": {
+                    "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+                    "conditions": b64encode(
+                        "random condition for reencryption".encode()
+                    ).decode(),
+                    "blockNumber": 15440685,
+                    "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
+                },
+            },
+        }
     }
 
     return context
