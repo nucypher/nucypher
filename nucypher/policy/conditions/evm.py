@@ -145,7 +145,6 @@ class RPCCondition(ReencryptionCondition):
             raise Exception(f'{method} is not a permitted RPC endpoint for conditions.')
         if not method.startswith('eth_'):
             raise Exception(f'Only eth RPC methods are accepted for conditions.')
-        method = camel_case_to_snake(method)
         return method
 
     def _configure_provider(self, provider: BaseProvider):

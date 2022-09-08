@@ -1334,10 +1334,13 @@ class Enrico(Character):
         if is_me:
             self.log.info(self.banner.format(policy_encrypting_key))
 
-    def encrypt_message(self, plaintext: bytes) -> MessageKit:
+    def encrypt_message(self, plaintext: bytes, conditions: Optional[Dict[str, Union[str, int]]] = None) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
+        if conditions:
+            conditions = json.dumps(conditions).encode()
         message_kit = MessageKit(policy_encrypting_key=self.policy_pubkey,
-                                 plaintext=plaintext)
+                                 plaintext=plaintext,
+                                 conditions=conditions)
         return message_kit
 
     @classmethod
