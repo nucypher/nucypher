@@ -69,7 +69,7 @@ def token_airdrop(token_agent, amount: NU, transacting_power: TransactingPower, 
 
 
 def free_gas_price_strategy(w3, transaction_params=None):
-    return 0
+    return None
 
 
 class TesterBlockchain(BlockchainDeployerInterface):
