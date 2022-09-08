@@ -208,6 +208,7 @@ def test_bob_retrieve_cfrags(federated_porter,
 
     # missing required argument
     updated_data = dict(retrieval_args)
+    updated_data.pop("context")  # context is not a required param
     key_to_remove = random.choice(list(updated_data.keys()))
     del updated_data[key_to_remove]
     with pytest.raises(InvalidInputData):
