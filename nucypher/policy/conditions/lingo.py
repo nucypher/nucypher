@@ -151,7 +151,7 @@ class ConditionLingo:
                 operator = task
                 yield operator
             else:
-                raise TypeError
+                raise TypeError(f"Unrecognized type {type(task)} for ConditionLingo")
 
     def eval(self, *args, **kwargs) -> bool:
         data = self.__process(*args, **kwargs)
