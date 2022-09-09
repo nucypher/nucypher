@@ -18,14 +18,17 @@
 
 import json
 from base64 import b64encode
-from urllib.parse import urlencode
 
 from nucypher_core import RetrievalKit
 
 from nucypher.characters.lawful import Enrico
+from nucypher.control.specifications.fields import JSON
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.kits import PolicyMessageKit, RetrievalResult
-from nucypher.utilities.porter.control.specifications.fields import RetrievalResultSchema, RetrievalKit as RetrievalKitField
+from nucypher.utilities.porter.control.specifications.fields import (
+    RetrievalResultSchema,
+    RetrievalKit as RetrievalKitField,
+)
 from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
 
 
@@ -90,7 +93,8 @@ def test_retrieve_cfrags(federated_porter,
                          enacted_federated_policy,
                          federated_bob,
                          federated_alice,
-                         random_federated_treasure_map_data):
+                         random_federated_treasure_map_data,
+                         random_context):
     # Send bad data to assert error return
     response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps({'bad': 'input'}))
     assert response.status_code == 400
@@ -170,14 +174,13 @@ def test_retrieve_cfrags(federated_porter,
     assert len(retrieval_results) == 4
 
     #
-    # Try same retrieval (with multiple retrieval kits) using query parameters
+    # Use context
     #
-    url_retrieve_params = dict(multiple_retrieval_kits_params)  # use multiple kit params from above
-    # adjust parameter for url query parameter list format
-    url_retrieve_params['retrieval_kits'] = ",".join(url_retrieve_params['retrieval_kits'])
-    response = federated_porter_web_controller.post(f'/retrieve_cfrags'
-                                                    f'?{urlencode(url_retrieve_params)}')
+    context_field = JSON()
+    multiple_retrieval_kits_params['context'] = context_field._serialize(random_context, attr=None, obj=None)
+    response = federated_porter_web_controller.post('/retrieve_cfrags', data=json.dumps(multiple_retrieval_kits_params))
     assert response.status_code == 200
+
     response_data = json.loads(response.data)
     retrieval_results = response_data['result']['retrieval_results']
     assert retrieval_results

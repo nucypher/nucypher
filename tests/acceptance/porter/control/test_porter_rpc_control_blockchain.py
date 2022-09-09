@@ -77,7 +77,8 @@ def test_retrieve_cfrags(blockchain_porter,
                          blockchain_porter_rpc_controller,
                          random_blockchain_policy,
                          blockchain_bob,
-                         blockchain_alice):
+                         blockchain_alice,
+                         random_context):
     method = 'retrieve_cfrags'
 
     # Setup
@@ -101,6 +102,19 @@ def test_retrieve_cfrags(blockchain_porter,
     retrieve_args = retrieval_params_decode_from_rest(retrieve_cfrags_params)
     expected_results = blockchain_porter.retrieve_cfrags(**retrieve_args)
     assert len(retrieval_results) == len(expected_results)
+
+    # Use context
+    retrieve_cfrags_params_with_context, _ = retrieval_request_setup(enacted_policy,
+                                                                     blockchain_bob,
+                                                                     blockchain_alice,
+                                                                     context=random_context,
+                                                                     encode_for_rest=True)
+    request_data = {'method': method, 'params': retrieve_cfrags_params_with_context}
+    response = blockchain_porter_rpc_controller.send(request_data)
+    assert response.success
+
+    retrieval_results = response.data['result']['retrieval_results']
+    assert retrieval_results
 
     # Failure - use encrypted treasure map
     failure_retrieve_cfrags_params = dict(retrieve_cfrags_params)

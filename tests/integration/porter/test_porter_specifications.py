@@ -15,17 +15,23 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
+from base64 import b64encode
 
 import pytest
-
 from nucypher_core.umbral import SecretKey
 
 from nucypher.characters.control.specifications.fields import Key
-from nucypher.control.specifications.exceptions import InvalidArgumentCombo, InvalidInputData
-from nucypher.utilities.porter.control.specifications.fields import UrsulaInfoSchema, RetrievalResultSchema
+from nucypher.control.specifications.exceptions import (
+    InvalidArgumentCombo,
+    InvalidInputData,
+)
+from nucypher.utilities.porter.control.specifications.fields import (
+    RetrievalResultSchema,
+    UrsulaInfoSchema,
+)
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
-    BobRetrieveCFrags
+    BobRetrieveCFrags,
 )
 from nucypher.utilities.porter.porter import Porter
 from tests.utils.policy import retrieval_request_setup
@@ -163,22 +169,46 @@ def test_alice_revoke():
 def test_bob_retrieve_cfrags(federated_porter,
                              enacted_federated_policy,
                              federated_bob,
-                             federated_alice):
+                             federated_alice,
+                             random_context):
     bob_retrieve_cfrags_schema = BobRetrieveCFrags()
 
     # no args
     with pytest.raises(InvalidInputData):
         bob_retrieve_cfrags_schema.load({})
 
-    # Setup
+    # Setup - no context
     retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
                                                 federated_bob,
                                                 federated_alice,
                                                 encode_for_rest=True)
     bob_retrieve_cfrags_schema.load(retrieval_args)
 
+    # simple schema load w/ optional context
+    retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=True,
+        context=random_context,
+    )
+    bob_retrieve_cfrags_schema.load(retrieval_args)
+
+    # invalid context specified
+    retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=True,
+        context=[1, 2, 3],  # list instead of dict
+    )
+    with pytest.raises(InvalidInputData):
+        # invalid context type
+        bob_retrieve_cfrags_schema.load(retrieval_args)
+
     # missing required argument
     updated_data = dict(retrieval_args)
+    updated_data.pop("context")  # context is not a required param
     key_to_remove = random.choice(list(updated_data.keys()))
     del updated_data[key_to_remove]
     with pytest.raises(InvalidInputData):
@@ -186,12 +216,15 @@ def test_bob_retrieve_cfrags(federated_porter,
         bob_retrieve_cfrags_schema.load(updated_data)
 
     #
-    # Output i.e. dump
+    # Actual retrieval output
     #
-    non_encoded_retrieval_args, _ = retrieval_request_setup(enacted_federated_policy,
-                                                            federated_bob,
-                                                            federated_alice,
-                                                            encode_for_rest=False)
+    non_encoded_retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=False,
+        context=random_context,
+    )
     retrieval_results = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
     expected_retrieval_results_json = []
     retrieval_result_schema = RetrievalResultSchema()

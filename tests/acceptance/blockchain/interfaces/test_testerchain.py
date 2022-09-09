@@ -53,7 +53,7 @@ def test_testerchain_creation(testerchain, another_testerchain):
         assert 'tester' in chain.eth_provider_uri
 
         # ... and that there are already some blocks mined
-        chain.w3.eth.web3.testing.mine(1)
+        chain.w3.eth.w3.testing.mine(1)
         assert chain.w3.eth.blockNumber > 0
 
         # Check that we have enough test accounts

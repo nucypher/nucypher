@@ -14,7 +14,8 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from base64 import b64encode, b64decode
+import json
+from base64 import b64decode, b64encode
 
 import click
 from marshmallow import fields
@@ -71,11 +72,49 @@ class PositiveInteger(Integer):
 class Base64BytesRepresentation(BaseField, fields.Field):
     """Serializes/Deserializes any object's byte representation to/from bae64."""
     def _serialize(self, value, attr, obj, **kwargs):
-        value_bytes = value if isinstance(value, bytes) else bytes(value)
-        return b64encode(value_bytes).decode()
+        try:
+            value_bytes = value if isinstance(value, bytes) else bytes(value)
+            return b64encode(value_bytes).decode()
+        except Exception as e:
+            raise InvalidInputData(
+                f"Provided object type, {type(value)}, is not serializable: {e}"
+            )
 
     def _deserialize(self, value, attr, data, **kwargs):
         try:
             return b64decode(value)
         except ValueError as e:
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
+
+
+class JSON(BaseField, fields.Field):
+    """Serializes/Deserializes objects to/from JSON strings."""
+    def __init__(self, expected_type=None, *args, **kwargs):
+        # enforce type-safety (TODO too strict?)
+        self.expected_type = expected_type
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if self.expected_type and (type(value) != self.expected_type):
+            raise InvalidInputData(
+                f"Unexpected object type, {type(value)}; expected {self.expected_type}")
+
+        try:
+            value_json = json.dumps(value)
+            return value_json
+        except Exception as e:
+            raise InvalidInputData(
+                f"Provided object type, {type(value)}, is not JSON serializable: {e}"
+            )
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        try:
+            result = json.loads(value)
+        except Exception as e:
+            raise InvalidInputData(f"Invalid JSON: {e}")
+        else:
+            if self.expected_type and (type(result) != self.expected_type):
+                raise InvalidInputData(
+                    f"Unexpected object type, {type(result)}; expected {self.expected_type}")
+
+            return result
