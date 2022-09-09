@@ -1,12 +1,34 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 from web3 import Web3
 
 import tests.data
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, SubscriptionManagerAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    SubscriptionManagerAgent,
+)
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
-from nucypher.policy.conditions.lingo import ReturnValueTest, ConditionLingo, OR, AND
+from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 
 VECTORS_FILE = Path(tests.__file__).parent / "data" / "test_conditions.json"
@@ -95,11 +117,7 @@ def timelock_condition():
 
 @pytest.fixture()
 def lingo(timelock_condition, rpc_condition, evm_condition):
-    lingo = ConditionLingo(conditions=(
-        timelock_condition,
-        OR,
-        rpc_condition,
-        AND,
-        evm_condition)
+    lingo = ConditionLingo(
+        conditions=[timelock_condition, OR, rpc_condition, AND, evm_condition]
     )
     return lingo

@@ -21,8 +21,8 @@ import pytest
 
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import (
-    Base64BytesRepresentation,
     JSON,
+    Base64BytesRepresentation,
     PositiveInteger,
     String,
     StringList,
@@ -80,9 +80,6 @@ def test_json_field():
         "domain": {"name": "tdec", "version": 1, "chainId": 1, "salt": "blahblahblah"},
         "message": {
             "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
-            "conditions": b64encode(
-                "random condition for reencryption".encode()
-            ).decode(),
             "blockNumber": 15440685,
             "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
         },
