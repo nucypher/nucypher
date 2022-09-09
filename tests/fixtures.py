@@ -1066,9 +1066,6 @@ def random_context():
                 },
                 "message": {
                     "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
-                    "conditions": b64encode(
-                        "random condition for reencryption".encode()
-                    ).decode(),
                     "blockNumber": 15440685,
                     "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
                 },
