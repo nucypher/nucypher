@@ -27,11 +27,11 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
-    ReencryptionRequest,
-    RevocationOrder,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
+    ReencryptionRequest,
+    RevocationOrder,
 )
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -234,10 +234,15 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                     lingo.eval(**context)
                 except ReencryptionCondition.RequiredInput as e:
                     message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
+                    # TODO BAD_REQUEST instead of FORBIDDEN?
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
                     return Response(str(e), status=error[1])
-
+                except ReencryptionCondition.InvalidContextVariableData as e:
+                    message = f"Invalid data provided for context variable {e}"
+                    error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(str(e), status=error[1])
                 except lingo.Failed as e:
                     # TODO: Better error reporting
                     message = f'Decryption conditions not satisfied {e}'

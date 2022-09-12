@@ -1,8 +1,26 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
+from typing import Any, Dict, Tuple
+
 from marshmallow import Schema
-from typing import Any, Tuple, Dict
 
 
 class _Serializable:
@@ -47,6 +65,9 @@ class _Serializable:
 class ReencryptionCondition(_Serializable, ABC):
 
     class RequiredInput(Exception):
+        pass
+
+    class InvalidContextVariableData(Exception):
         pass
 
     class Schema(Schema):
