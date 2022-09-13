@@ -16,10 +16,10 @@
 """
 
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
-import tempfile
 
 
 @pytest.fixture(scope='module')
@@ -31,10 +31,8 @@ def ursula(blockchain_ursulas):
 @pytest.fixture(scope='module')
 def client(ursula):
     db_fd, db_path = tempfile.mkstemp()
-    ursula.rest_app.config['DATABASE'] = Path(db_path)
-    ursula.rest_app.config['TESTING'] = True
-    with ursula.rest_app.test_client() as client:
-        yield client
+    ursula.rest_app.config.update({"TESTING": True, "DATABASE": Path(db_path)})
+    yield ursula.rest_app.test_client()
     os.close(db_fd)
     ursula.rest_app.config['DATABASE'].unlink()
 
@@ -49,7 +47,6 @@ def test_ursula_html_renders(ursula, client):
     assert str(ursula.nickname).encode() in response.data
 
 
-@pytest.mark.skip(reason="Fails sometimes with LookupError: <ContextVar name='flask.request_ctx' at 0x7f30ce70d800>")
 @pytest.mark.parametrize('omit_known_nodes', [False, True])
 def test_decentralized_json_status_endpoint(ursula, client, omit_known_nodes):
     omit_known_nodes_str = 'true' if omit_known_nodes else 'false'
