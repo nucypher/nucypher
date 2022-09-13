@@ -33,11 +33,27 @@ def test_erc20_evm_condition_evaluation(testerchain, evm_condition):
     assert result is False
 
 
+def test_erc20_evm_condition_evaluation_with_custom_context_variable(
+    testerchain, custom_context_variable_evm_condition
+):
+    context = {":addressToUse": testerchain.unassigned_accounts[0]}
+    result, value = custom_context_variable_evm_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert result is True
+
+    context[":addressToUse"] = testerchain.etherbase_account
+    result, value = custom_context_variable_evm_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert result is False
+
+
 @pytest.mark.skip('Need a way to handle user inputs like HRAC as context variables')
 def test_subscription_manager_condition_evaluation(testerchain, subscription_manager_condition):
-    hrac = None  # TODO
+    context = {":hrac": None}
     result, value = subscription_manager_condition.verify(
-        provider=testerchain.provider, hrac=hrac
+        provider=testerchain.provider, **context
     )
     assert result is True
     result, value = subscription_manager_condition.verify(provider=testerchain.provider)
