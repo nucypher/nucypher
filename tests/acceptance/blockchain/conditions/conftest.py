@@ -93,6 +93,20 @@ def evm_condition(test_registry, agency):
 
 
 @pytest.fixture
+def custom_context_variable_evm_condition(test_registry, agency):
+    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    condition = ContractCondition(
+        contract_address=token.contract.address,
+        method="balanceOf",
+        standard_contract_type="ERC20",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", 0),
+        parameters=[":addressToUse"],
+    )
+    return condition
+
+
+@pytest.fixture
 def subscription_manager_condition(test_registry, agency):
     subscription_manager = ContractAgency.get_agent(SubscriptionManagerAgent, registry=test_registry)
     condition = ContractCondition(
