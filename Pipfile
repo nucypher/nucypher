@@ -38,6 +38,7 @@ py-evm = "*"
 eth-tester = "*"
 web3 = "*"
 eth-utils = "*"
+eip712-structs = "*"
 # CLI / Configuration
 appdirs = "*"
 click = ">=7.0"
