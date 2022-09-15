@@ -233,19 +233,24 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                     log.info(f'Evaluating decryption condition')
                     lingo.eval(**context)
                 except ReencryptionCondition.RequiredInput as e:
-                    message = f'Missing required inputs {e}'  # TODO: be more specific and name the missing inputs, etc
+                    message = f"Missing required inputs - {e}"  # TODO: be more specific and name the missing inputs, etc
                     # TODO BAD_REQUEST instead of FORBIDDEN?
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
                     return Response(str(e), status=error[1])
                 except ReencryptionCondition.InvalidContextVariableData as e:
-                    message = f"Invalid data provided for context variable {e}"
+                    message = f"Invalid data provided for context variable - {e}"
                     error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(str(e), status=error[1])
+                except ReencryptionCondition.ContextVariableVerificationFailed as e:
+                    message = f"Context variable data could not be verified - {e}"
+                    error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
                     return Response(str(e), status=error[1])
                 except lingo.Failed as e:
                     # TODO: Better error reporting
-                    message = f'Decryption conditions not satisfied {e}'
+                    message = f"Decryption conditions not satisfied - {e}"
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
                     return Response(str(e), status=error[1])
