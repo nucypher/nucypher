@@ -70,6 +70,9 @@ class ReencryptionCondition(_Serializable, ABC):
     class InvalidContextVariableData(Exception):
         pass
 
+    class ContextVariableVerificationFailed(Exception):
+        pass
+
     class Schema(Schema):
         name = NotImplemented
 
