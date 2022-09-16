@@ -78,11 +78,11 @@ def rpc_condition():
 @pytest.fixture
 def evm_condition(test_registry):
     condition = ContractCondition(
-        contract_address='0xadd9d957170DF6f33982001E4C22eCcDd5539118',
-        method='balanceOf',
-        standard_contract_type='ERC20',
-        chain='testerchain',
-        return_value_test=ReturnValueTest('==', 0),
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        method="balanceOf",
+        standard_contract_type="ERC20",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", 0),
         parameters=[
             ':userAddress',
         ]
@@ -92,9 +92,9 @@ def evm_condition(test_registry):
 @pytest.fixture
 def sm_condition(test_registry):
     condition = ContractCondition(
-        contract_address='0xadd9d957170DF6f33982001E4C22eCcDd5539118',
-        method='getPolicy',
-        chain='testerchain',
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        method="getPolicy",
+        chain="testerchain",
         function_abi=ABI,
         return_value_test=ReturnValueTest('!=', None),
         parameters=[

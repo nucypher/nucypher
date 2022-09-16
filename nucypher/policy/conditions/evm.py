@@ -1,8 +1,26 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import re
+from typing import Any, List, Optional, Tuple, Union
+
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import fields, post_load
-from typing import List, Union, Tuple, Any, Optional
 from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
@@ -14,13 +32,31 @@ from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
-def recover_address(signature, *args, **kwargs) -> ChecksumAddress:
-    pass
+def recover_user_address(**request) -> ChecksumAddress:
+    # Expected format:
+    # {
+    #     ":userAddress":
+    #         {
+    #             "signature": "<signature>",
+    #             "address": "<address>",
+    #             "typedMessage": "<a complicated EIP712 data structure>"
+    #         }
+    # }
+    try:
+        user_address_info = request[":userAddress"]
+        # TODO using address as is, but validation should be performed before use
+        user_address = user_address_info["address"]
+        return user_address
+    except KeyError:
+        raise ReencryptionCondition.InvalidContextVariableData(
+            f'Invalid data provided for ":userAddress" context variable: {request}'
+        )
+
 
 _CONTEXT_DELIMITER = ':'
 
 _DIRECTIVES = {
-    ':userAddress': recover_address,
+    ":userAddress": recover_user_address,
 }
 
 # TODO: Move this method to a util function
@@ -66,18 +102,22 @@ def camel_case_to_snake(data: str) -> str:
     return data
 
 
-def __get_context_value(real_name: str, **request) -> Any:
+def __get_context_value(context_variable: str, **request) -> Any:
     try:
-        func = _DIRECTIVES[real_name]  # These are special context vars that will pre-processed by ursula
+        func = _DIRECTIVES[
+            context_variable
+        ]  # These are special context vars that will pre-processed by ursula
     except KeyError:
-        value = request.get(real_name)
+        # fallback for context variable without directive - assume key,value pair
+        # handles the case for user customized context variables
+        value = request.get(context_variable)
         if not value:
-            raise ReencryptionCondition.RequiredInput(f'"{real_name}" not found in request context')
+            raise ReencryptionCondition.RequiredInput(
+                f'"No value provided for unrecognized context variable "{context_variable}"'
+            )
     else:
-        try:
-            value = func(request)  # required inputs here
-        except TypeError as e:
-            raise ReencryptionCondition.RequiredInput(f'Missing condition context variable {e}')
+        value = func(**request)  # required inputs here
+
     return value
 
 
@@ -86,8 +126,7 @@ def _process_parameters(parameters, **request) -> List:
     processed_parameters = []
     for p in parameters:
         if _is_context_variable(p):
-            real_name = camel_case_to_snake(p.strip(_CONTEXT_DELIMITER))
-            p = __get_context_value(real_name=real_name, **request)
+            p = __get_context_value(context_variable=p, **request)
         processed_parameters.append(p)
     return processed_parameters
 
