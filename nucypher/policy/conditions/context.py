@@ -26,7 +26,7 @@ _CONTEXT_DELIMITER = ":"
 
 _USER_ADDRESS_CONTEXT = ":userAddress"
 
-_EIP712_VERSION_1 = b"\x01"
+_EIP712_VERSION_BYTE = b"\x01"
 
 
 class RequiredContextVariable(Exception):
@@ -57,6 +57,7 @@ def _recover_user_address(**context) -> ChecksumAddress:
         blockHash = Bytes(32)
         signatureText = String()
 
+    # setup
     try:
         user_address_info = context[_USER_ADDRESS_CONTEXT]
         signature = user_address_info["signature"]
@@ -64,26 +65,33 @@ def _recover_user_address(**context) -> ChecksumAddress:
         eip712_message = user_address_info["typedData"]
         message, domain = Wallet.from_message(eip712_message)
         signable_message = SignableMessage(
-            HexBytes(_EIP712_VERSION_1),
+            HexBytes(_EIP712_VERSION_BYTE),
             header=domain.hash_struct(),
             body=message.hash_struct(),
         )
-
-        address = Account.recover_message(
-            signable_message=signable_message, signature=signature
-        )
-        if address == user_address:
-            return user_address
-
-        # verification failed
-        raise ContextVariableVerificationFailed(
-            f"Invalid signature for associated user address"
-        )
-    except KeyError as e:
+    except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(
-            f'Invalid data provided for ":userAddress" context variable; value not found - {e}'
+            f'Invalid data provided for ":userAddress" context variable; {e.__class__.__name__} - {e}'
         )
+
+    # actual verification
+    try:
+        address_for_signature = Account.recover_message(
+            signable_message=signable_message, signature=signature
+        )
+        if address_for_signature == user_address:
+            return user_address
+    except Exception as e:
+        # exception during verification
+        raise ContextVariableVerificationFailed(
+            f"Invalid signature for associated user address; {e.__class__.__name__} - {e}"
+        )
+
+    # verification failed - addresses don't match
+    raise ContextVariableVerificationFailed(
+        f"Invalid signature for associated user address"
+    )
 
 
 _DIRECTIVES = {
