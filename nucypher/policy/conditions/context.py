@@ -22,13 +22,23 @@ from eth_account.messages import HexBytes, SignableMessage
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
-from nucypher.policy.conditions.base import ReencryptionCondition
-
 _CONTEXT_DELIMITER = ":"
 
 _USER_ADDRESS_CONTEXT = ":userAddress"
 
 _EIP712_VERSION_1 = b"\x01"
+
+
+class RequiredContextVariable(Exception):
+    pass
+
+
+class InvalidContextVariableData(Exception):
+    pass
+
+
+class ContextVariableVerificationFailed(Exception):
+    pass
 
 
 def _recover_user_address(**context) -> ChecksumAddress:
@@ -66,12 +76,12 @@ def _recover_user_address(**context) -> ChecksumAddress:
             return user_address
 
         # verification failed
-        raise ReencryptionCondition.ContextVariableVerificationFailed(
-            f"Invalid signature for provided user address"
+        raise ContextVariableVerificationFailed(
+            f"Invalid signature for associated user address"
         )
     except KeyError as e:
         # data could not be processed
-        raise ReencryptionCondition.InvalidContextVariableData(
+        raise InvalidContextVariableData(
             f'Invalid data provided for ":userAddress" context variable; value not found - {e}'
         )
 
@@ -95,7 +105,7 @@ def get_context_value(context_variable: str, **context) -> Any:
         # handles the case for user customized context variables
         value = context.get(context_variable)
         if not value:
-            raise ReencryptionCondition.RequiredInput(
+            raise RequiredContextVariable(
                 f'"No value provided for unrecognized context variable "{context_variable}"'
             )
     else:

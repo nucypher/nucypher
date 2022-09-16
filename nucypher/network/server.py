@@ -42,7 +42,11 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.context import (
+    ContextVariableVerificationFailed,
+    InvalidContextVariableData,
+    RequiredContextVariable,
+)
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
@@ -232,18 +236,18 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                     # TODO: Can conditions return a useful value?
                     log.info(f'Evaluating decryption condition')
                     lingo.eval(**context)
-                except ReencryptionCondition.RequiredInput as e:
+                except RequiredContextVariable as e:
                     message = f"Missing required inputs - {e}"  # TODO: be more specific and name the missing inputs, etc
                     # TODO BAD_REQUEST instead of FORBIDDEN?
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
                     return Response(str(e), status=error[1])
-                except ReencryptionCondition.InvalidContextVariableData as e:
+                except InvalidContextVariableData as e:
                     message = f"Invalid data provided for context variable - {e}"
                     error = (message, HTTPStatus.BAD_REQUEST)
                     log.info(message)
                     return Response(str(e), status=error[1])
-                except ReencryptionCondition.ContextVariableVerificationFailed as e:
+                except ContextVariableVerificationFailed as e:
                     message = f"Context variable data could not be verified - {e}"
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)

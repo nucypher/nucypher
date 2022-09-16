@@ -21,7 +21,12 @@ import mock
 import pytest
 
 from nucypher.policy.conditions.base import ReencryptionCondition
-from nucypher.policy.conditions.context import _recover_user_address
+from nucypher.policy.conditions.context import (
+    ContextVariableVerificationFailed,
+    InvalidContextVariableData,
+    RequiredContextVariable,
+    _recover_user_address,
+)
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.integration.characters.test_bob_handles_frags import _make_message_kits
 
@@ -67,14 +72,14 @@ def _dont_validate_user_address(context_variable: str, **context):
 
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
-def test_user_address_context_missing_entries(expected_entry):
+def test_user_address_context_missing_required_entries(expected_entry):
     context = copy.deepcopy(VALID_USER_ADDRESS_CONTEXT)
     del context[":userAddress"][expected_entry]
-    with pytest.raises(ReencryptionCondition.InvalidContextVariableData):
+    with pytest.raises(InvalidContextVariableData):
         _recover_user_address(**context)
 
 
-def test_user_address_context_verification(testerchain):
+def test_user_address_context_variable_verification(testerchain):
     # valid user address context - signature matches address
     address = _recover_user_address(**VALID_USER_ADDRESS_CONTEXT)
     assert address == VALID_USER_ADDRESS_CONTEXT[":userAddress"]["address"]
@@ -85,7 +90,7 @@ def test_user_address_context_verification(testerchain):
     invalid_user_address_context[":userAddress"][
         "address"
     ] = testerchain.etherbase_account
-    with pytest.raises(ReencryptionCondition.ContextVariableVerificationFailed):
+    with pytest.raises(ContextVariableVerificationFailed):
         _recover_user_address(**invalid_user_address_context)
 
     # invalid user address context - signature does not match address
@@ -96,8 +101,13 @@ def test_user_address_context_verification(testerchain):
         "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
     )
     invalid_user_address_context[":userAddress"]["signature"] = signature
-    with pytest.raises(ReencryptionCondition.ContextVariableVerificationFailed):
+    with pytest.raises(ContextVariableVerificationFailed):
         _recover_user_address(**invalid_user_address_context)
+
+
+def test_required_context_variable(testerchain, custom_context_variable_evm_condition):
+    with pytest.raises(RequiredContextVariable):
+        custom_context_variable_evm_condition.verify(provider=testerchain.provider)
 
 
 @mock.patch(
