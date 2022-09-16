@@ -22,7 +22,7 @@ from eth_account.messages import HexBytes, SignableMessage
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
-_CONTEXT_DELIMITER = ":"
+_CONTEXT_PREFIX = ":"
 
 _USER_ADDRESS_CONTEXT = ":userAddress"
 
@@ -100,7 +100,7 @@ _DIRECTIVES = {
 
 
 def is_context_variable(parameter: str) -> bool:
-    return parameter.startswith(_CONTEXT_DELIMITER)
+    return parameter.startswith(_CONTEXT_PREFIX)
 
 
 def get_context_value(context_variable: str, **context) -> Any:
