@@ -64,15 +64,6 @@ class _Serializable:
 
 class ReencryptionCondition(_Serializable, ABC):
 
-    class RequiredInput(Exception):
-        pass
-
-    class InvalidContextVariableData(Exception):
-        pass
-
-    class ContextVariableVerificationFailed(Exception):
-        pass
-
     class Schema(Schema):
         name = NotImplemented
 
