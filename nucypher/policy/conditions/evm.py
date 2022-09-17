@@ -29,35 +29,8 @@ from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.policy.conditions import STANDARD_ABIS
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.lingo import ReturnValueTest
-
-
-def recover_user_address(**request) -> ChecksumAddress:
-    # Expected format:
-    # {
-    #     ":userAddress":
-    #         {
-    #             "signature": "<signature>",
-    #             "address": "<address>",
-    #             "typedMessage": "<a complicated EIP712 data structure>"
-    #         }
-    # }
-    try:
-        user_address_info = request[":userAddress"]
-        # TODO using address as is, but validation should be performed before use
-        user_address = user_address_info["address"]
-        return user_address
-    except KeyError:
-        raise ReencryptionCondition.InvalidContextVariableData(
-            f'Invalid data provided for ":userAddress" context variable: {request}'
-        )
-
-
-_CONTEXT_DELIMITER = ':'
-
-_DIRECTIVES = {
-    ":userAddress": recover_user_address,
-}
 
 # TODO: Move this method to a util function
 __CHAINS = {
@@ -75,10 +48,6 @@ def _resolve_chain(chain: Union[str, int]) -> Tuple[str, int]:
             return chain_name, chain_id
     else:
         raise Exception(f'{chain} is not a known blockchain.')
-
-
-def _is_context_variable(parameter: str) -> bool:
-    return parameter.startswith(_CONTEXT_DELIMITER)
 
 
 def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -> List:
@@ -102,31 +71,12 @@ def camel_case_to_snake(data: str) -> str:
     return data
 
 
-def __get_context_value(context_variable: str, **request) -> Any:
-    try:
-        func = _DIRECTIVES[
-            context_variable
-        ]  # These are special context vars that will pre-processed by ursula
-    except KeyError:
-        # fallback for context variable without directive - assume key,value pair
-        # handles the case for user customized context variables
-        value = request.get(context_variable)
-        if not value:
-            raise ReencryptionCondition.RequiredInput(
-                f'"No value provided for unrecognized context variable "{context_variable}"'
-            )
-    else:
-        value = func(**request)  # required inputs here
-
-    return value
-
-
 def _process_parameters(parameters, **request) -> List:
     """Handles request parameters"""
     processed_parameters = []
     for p in parameters:
-        if _is_context_variable(p):
-            p = __get_context_value(context_variable=p, **request)
+        if is_context_variable(p):
+            p = get_context_value(context_variable=p, **request)
         processed_parameters.append(p)
     return processed_parameters
 
