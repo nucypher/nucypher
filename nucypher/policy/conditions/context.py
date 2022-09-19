@@ -22,9 +22,9 @@ from eth_account.messages import HexBytes, SignableMessage
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
-_CONTEXT_PREFIX = ":"
+USER_ADDRESS_CONTEXT = ":userAddress"
 
-_USER_ADDRESS_CONTEXT = ":userAddress"
+_CONTEXT_PREFIX = ":"
 
 _EIP712_VERSION_BYTE = b"\x01"
 
@@ -41,6 +41,13 @@ class ContextVariableVerificationFailed(Exception):
     pass
 
 
+class UserAddress(EIP712Struct):
+    address = String()
+    blockNumber = Uint()
+    blockHash = Bytes(32)
+    signatureText = String()
+
+
 def _recover_user_address(**context) -> ChecksumAddress:
     # Expected format:
     # {
@@ -51,19 +58,14 @@ def _recover_user_address(**context) -> ChecksumAddress:
     #             "typedData": "<a complicated EIP712 data structure>"
     #         }
     # }
-    class Wallet(EIP712Struct):
-        address = String()
-        blockNumber = Uint()
-        blockHash = Bytes(32)
-        signatureText = String()
 
     # setup
     try:
-        user_address_info = context[_USER_ADDRESS_CONTEXT]
+        user_address_info = context[USER_ADDRESS_CONTEXT]
         signature = user_address_info["signature"]
         user_address = to_checksum_address(user_address_info["address"])
         eip712_message = user_address_info["typedData"]
-        message, domain = Wallet.from_message(eip712_message)
+        message, domain = UserAddress.from_message(eip712_message)
         signable_message = SignableMessage(
             HexBytes(_EIP712_VERSION_BYTE),
             header=domain.hash_struct(),
@@ -72,7 +74,7 @@ def _recover_user_address(**context) -> ChecksumAddress:
     except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(
-            f'Invalid data provided for ":userAddress" context variable; {e.__class__.__name__} - {e}'
+            f'Invalid data provided for "{USER_ADDRESS_CONTEXT}" context variable; {e.__class__.__name__} - {e}'
         )
 
     # actual verification
@@ -90,12 +92,12 @@ def _recover_user_address(**context) -> ChecksumAddress:
 
     # verification failed - addresses don't match
     raise ContextVariableVerificationFailed(
-        f"Invalid signature for associated user address"
+        f"Invalid signature for associated user address; expected {user_address}"
     )
 
 
 _DIRECTIVES = {
-    _USER_ADDRESS_CONTEXT: _recover_user_address,
+    USER_ADDRESS_CONTEXT: _recover_user_address,
 }
 
 

@@ -27,6 +27,7 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     SubscriptionManagerAgent,
 )
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
@@ -66,12 +67,10 @@ def ERC20_balance_condition(ERC20_balance_condition_data):
 @pytest.fixture
 def rpc_condition():
     condition = RPCCondition(
-        method='eth_getBalance',
-        chain='testerchain',
-        return_value_test=ReturnValueTest('==', Web3.toWei(1_000_000, 'ether')),
-        parameters=[
-            ':userAddress'
-        ]
+        method="eth_getBalance",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", Web3.toWei(1_000_000, "ether")),
+        parameters=[USER_ADDRESS_CONTEXT],
     )
     return condition
 
@@ -81,13 +80,11 @@ def evm_condition(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
-        method='balanceOf',
-        standard_contract_type='ERC20',
-        chain='testerchain',
-        return_value_test=ReturnValueTest('==', 0),
-        parameters=[
-            ':userAddress'
-        ]
+        method="balanceOf",
+        standard_contract_type="ERC20",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", 0),
+        parameters=[USER_ADDRESS_CONTEXT],
     )
     return condition
 
