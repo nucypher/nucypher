@@ -22,6 +22,7 @@ import pytest
 from web3 import Web3
 
 import tests
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
@@ -65,12 +66,10 @@ def ERC20_balance_condition(ERC20_balance_condition_data):
 @pytest.fixture
 def rpc_condition():
     condition = RPCCondition(
-        method='eth_getBalance',
-        chain='testerchain',
-        return_value_test=ReturnValueTest('==', Web3.toWei(1_000_000, 'ether')),
-        parameters=[
-            ':userAddress'
-        ]
+        method="eth_getBalance",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", Web3.toWei(1_000_000, "ether")),
+        parameters=[USER_ADDRESS_CONTEXT],
     )
     return condition
 
@@ -84,7 +83,7 @@ def evm_condition(test_registry):
         chain="testerchain",
         return_value_test=ReturnValueTest("==", 0),
         parameters=[
-            ':userAddress',
+            USER_ADDRESS_CONTEXT,
         ]
     )
     return condition
