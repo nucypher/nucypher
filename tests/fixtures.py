@@ -21,7 +21,6 @@ import os
 import random
 import shutil
 import tempfile
-from base64 import b64encode
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
@@ -66,6 +65,7 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.porter.porter import Porter
 from tests.constants import (
@@ -74,7 +74,6 @@ from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     DATETIME_FORMAT,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -1054,20 +1053,21 @@ def basic_auth_file(temp_dir_path):
 @pytest.fixture(scope='module')
 def random_context():
     context = {
-        ":userAddress": {
+        USER_ADDRESS_CONTEXT: {
             "signature": "16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b",
-            "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+            "address": "0x03e75d7DD38CCE2e20FfEE35EC914C57780A8e29",
             "typedMessage": {
                 "domain": {
-                    "name": "tdec",
-                    "version": 1,
+                    "name": "tDec",
+                    "version": "1",
                     "chainId": 1,
                     "salt": "0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558",
                 },
                 "message": {
-                    "address": "0x03e75d7dd38cce2e20ffee35ec914c57780a8e29",
+                    "address": "0x03e75d7DD38CCE2e20FfEE35EC914C57780A8e29",
                     "blockNumber": 15440685,
                     "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
+                    "signatureText": "I'm the owner of address 0x03e75d7dd38cce2e20ffee35ec914c57780a8e29 as of block number 15440685",
                 },
             },
         }
