@@ -17,12 +17,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 import random
 from collections import defaultdict
-from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
-    ReencryptionRequest,
+    Conditions,
+    Context,
     ReencryptionResponse,
     RetrievalKit,
     TreasureMap,
@@ -320,8 +321,13 @@ class RetrievalClient:
             # TODO: Move to a method and handle errors?
             # TODO: This serialization is rather low-level compared to the rest of this method.
             # nucypher-core consumes bytes only for conditions and context.
-            conditions = work_order.conditions(as_json=True).encode()  # [[lingo], null, [lingo]]
-            request_context = json.dumps(context).encode()
+            condition_string = work_order.conditions(as_json=True)  # [[lingo], null, [lingo]]
+            request_context_string = json.dumps(context_dict)
+
+            # TODO: As this pattern swells further, it makes sense to do this in a purpose-built facility,
+            # such as a factory that makes helper classes and casts the appropriate types.
+            conditions = Conditions(condition_string)
+            context = Context(request_context_string)
 
             reencryption_request = ReencryptionRequest(
                 hrac=treasure_map.hrac,
@@ -330,7 +336,7 @@ class RetrievalClient:
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                 bob_verifying_key=bob_verifying_key,
                 publisher_verifying_key=treasure_map.publisher_verifying_key,
-                context=request_context
+                context=context
             )
 
             try:
