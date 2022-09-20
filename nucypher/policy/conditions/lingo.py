@@ -1,3 +1,4 @@
+import ast
 import base64
 import json
 from typing import Union, Tuple, List, Dict, Any
@@ -60,13 +61,16 @@ class ReturnValueTest:
         self.value = value
 
     def sanitize(self, comparator: str, value: str) -> Tuple[str, str]:
+        # Note that we're not sanitizing the value
         if comparator not in self.COMPARATORS:
             raise ValueError(f'{comparator} is not a permitted comparator.')
         return comparator, value
 
     def eval(self, data) -> bool:
         # TODO: Sanitize input!!!
-        result = eval(f'{data}{self.comparator}{self.value}')
+        left_operand = ast.literal_eval(str(data))
+        right_operand = ast.literal_eval(str(self.value))
+        result = eval(f'{left_operand}{self.comparator}{right_operand}')
         return result
 
 
