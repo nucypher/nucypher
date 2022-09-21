@@ -15,18 +15,16 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 import random
-from base64 import b64encode
 
 import pytest
 from nucypher_core.umbral import SecretKey
 
-from nucypher.characters.control.specifications.fields import Key
 from nucypher.control.specifications.exceptions import (
     InvalidArgumentCombo,
     InvalidInputData,
 )
 from nucypher.utilities.porter.control.specifications.fields import (
-    RetrievalResultSchema,
+    RetrievalOutcomeSchema,
     UrsulaInfoSchema,
 )
 from nucypher.utilities.porter.control.specifications.porter_schema import (
@@ -170,7 +168,8 @@ def test_bob_retrieve_cfrags(federated_porter,
                              enacted_federated_policy,
                              federated_bob,
                              federated_alice,
-                             random_context):
+                             random_context,
+                             get_random_checksum_address):
     bob_retrieve_cfrags_schema = BobRetrieveCFrags()
 
     # no args
@@ -225,13 +224,35 @@ def test_bob_retrieve_cfrags(federated_porter,
         encode_for_rest=False,
         context=random_context,
     )
-    retrieval_results = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
+    retrieval_outcomes = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
     expected_retrieval_results_json = []
-    retrieval_result_schema = RetrievalResultSchema()
+    retrieval_outcome_schema = RetrievalOutcomeSchema()
 
-    for result in retrieval_results:
-        data = retrieval_result_schema.dump(result)
+    assert len(retrieval_outcomes) == 1
+    assert len(retrieval_outcomes[0].cfrags) > 0
+    assert len(retrieval_outcomes[0].errors) == 0
+    for outcome in retrieval_outcomes:
+        data = retrieval_outcome_schema.dump(outcome)
         expected_retrieval_results_json.append(data)
 
-    output = bob_retrieve_cfrags_schema.dump(obj={'retrieval_results': retrieval_results})
+    output = bob_retrieve_cfrags_schema.dump(
+        obj={"retrieval_results": retrieval_outcomes}
+    )
+    assert output == {"retrieval_results": expected_retrieval_results_json}
+
+    # retrieval results and errors
+    errors = {
+        get_random_checksum_address(): "Error Message 1",
+        get_random_checksum_address(): "Error Message 2",
+        get_random_checksum_address(): "Error Message 3",
+    }
+    new_retrieval_outcome = Porter.RetrievalOutcome(
+        cfrags=retrieval_outcomes[0].cfrags, errors=errors
+    )
+    expected_retrieval_results_json = [
+        retrieval_outcome_schema.dump(new_retrieval_outcome)
+    ]
+    output = bob_retrieve_cfrags_schema.dump(
+        obj={"retrieval_results": [new_retrieval_outcome]}
+    )
     assert output == {"retrieval_results": expected_retrieval_results_json}
