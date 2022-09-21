@@ -215,7 +215,7 @@ def test_bob_retrieve_cfrags(federated_porter,
         bob_retrieve_cfrags_schema.load(updated_data)
 
     #
-    # Actual retrieval output
+    # Retrieval output for 1 retrieval kit
     #
     non_encoded_retrieval_args, _ = retrieval_request_setup(
         enacted_federated_policy,
@@ -239,8 +239,11 @@ def test_bob_retrieve_cfrags(federated_porter,
         obj={"retrieval_results": retrieval_outcomes}
     )
     assert output == {"retrieval_results": expected_retrieval_results_json}
+    assert len(output["retrieval_results"]) == 1
+    assert len(output["retrieval_results"][0]["cfrags"]) > 0
+    assert len(output["retrieval_results"][0]["errors"]) == 0
 
-    # retrieval results and errors
+    # now include errors
     errors = {
         get_random_checksum_address(): "Error Message 1",
         get_random_checksum_address(): "Error Message 2",
@@ -256,3 +259,70 @@ def test_bob_retrieve_cfrags(federated_porter,
         obj={"retrieval_results": [new_retrieval_outcome]}
     )
     assert output == {"retrieval_results": expected_retrieval_results_json}
+    assert len(output["retrieval_results"]) == 1
+    assert len(output["retrieval_results"][0]["cfrags"]) > 0
+    assert len(output["retrieval_results"][0]["errors"]) == len(errors)
+
+    #
+    # Retrieval output for multiple retrieval kits
+    #
+    num_retrieval_kits = 4
+    non_encoded_retrieval_args, _ = retrieval_request_setup(
+        enacted_federated_policy,
+        federated_bob,
+        federated_alice,
+        encode_for_rest=False,
+        context=random_context,
+        num_random_messages=num_retrieval_kits,
+    )
+    retrieval_outcomes = federated_porter.retrieve_cfrags(**non_encoded_retrieval_args)
+    expected_retrieval_results_json = []
+    retrieval_outcome_schema = RetrievalOutcomeSchema()
+
+    assert len(retrieval_outcomes) == num_retrieval_kits
+    for i in range(num_retrieval_kits):
+        assert len(retrieval_outcomes[i].cfrags) > 0
+        assert len(retrieval_outcomes[i].errors) == 0
+    for outcome in retrieval_outcomes:
+        data = retrieval_outcome_schema.dump(outcome)
+        expected_retrieval_results_json.append(data)
+
+    output = bob_retrieve_cfrags_schema.dump(
+        obj={"retrieval_results": retrieval_outcomes}
+    )
+    assert output == {"retrieval_results": expected_retrieval_results_json}
+
+    # now include errors
+    error_message_template = "Retrieval Kit {} - Error Message {}"
+    new_retrieval_outcomes_with_errors = []
+    for i in range(num_retrieval_kits):
+        specific_kit_errors = dict()
+        for j in range(i):
+            # different number of errors for each kit; 1 error for kit 1, 2 errors for kit 2 etc.
+            specific_kit_errors[
+                get_random_checksum_address()
+            ] = error_message_template.format(i, j)
+        new_retrieval_outcomes_with_errors.append(
+            Porter.RetrievalOutcome(
+                cfrags=retrieval_outcomes[i].cfrags, errors=specific_kit_errors
+            )
+        )
+
+    expected_retrieval_results_json = []
+    for outcome in new_retrieval_outcomes_with_errors:
+        data = retrieval_outcome_schema.dump(outcome)
+        expected_retrieval_results_json.append(data)
+
+    output = bob_retrieve_cfrags_schema.dump(
+        obj={"retrieval_results": new_retrieval_outcomes_with_errors}
+    )
+    assert output == {"retrieval_results": expected_retrieval_results_json}
+    assert len(output["retrieval_results"]) == num_retrieval_kits
+    for i in range(num_retrieval_kits):
+        assert len(output["retrieval_results"][i]["cfrags"]) > 0
+        # ensures errors are associated appropriately
+        kit_errors = output["retrieval_results"][i]["errors"]
+        assert len(kit_errors) == i
+        values = kit_errors.values()  # ordered?
+        for j in range(i):
+            assert error_message_template.format(i, j) in values

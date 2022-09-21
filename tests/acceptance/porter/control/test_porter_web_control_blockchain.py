@@ -111,11 +111,13 @@ def test_retrieve_cfrags(blockchain_porter,
     enacted_policy = random_blockchain_policy.enact(network_middleware=network_middleware)
 
     original_message = b"Those who say it can't be done are usually interrupted by others doing it."  # - James Baldwin
-    retrieve_cfrags_params, message_kit = retrieval_request_setup(enacted_policy,
+    retrieve_cfrags_params, message_kits = retrieval_request_setup(enacted_policy,
                                                                   blockchain_bob,
                                                                   blockchain_alice,
-                                                                  original_message=original_message,
+                                                                  specific_messages=[original_message],
                                                                   encode_for_rest=True)
+    assert len(message_kits) == 1
+    message_kit = message_kits[0]
 
     #
     # Success
