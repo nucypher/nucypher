@@ -108,11 +108,13 @@ def test_retrieve_cfrags(federated_porter,
     original_message = b'The paradox of education is precisely this - that as one begins to become ' \
                        b'conscious one begins to examine the society in which ' \
                        b'he is (they are) being educated.'  # - James Baldwin
-    retrieve_cfrags_params, message_kit = retrieval_request_setup(enacted_federated_policy,
+    retrieve_cfrags_params, message_kits = retrieval_request_setup(enacted_federated_policy,
                                                                   federated_bob,
                                                                   federated_alice,
-                                                                  original_message=original_message,
+                                                                  specific_messages=[original_message],
                                                                   encode_for_rest=True)
+    assert len(message_kits) == 1
+    message_kit = message_kits[0]
 
     #
     # Success

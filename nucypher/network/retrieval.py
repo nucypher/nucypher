@@ -17,7 +17,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import json
 import random
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -42,9 +42,8 @@ from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.kits import RetrievalResult
 
 
-class RetrievalError:
-    def __init__(self, errors: Dict[ChecksumAddress, str]):
-        self.errors = errors
+class RetrievalError(NamedTuple):
+    errors: Dict[ChecksumAddress, str]
 
 
 class RetrievalPlan:
@@ -155,7 +154,7 @@ class RetrievalPlan:
                     }
                 )
             )
-            errors.append(RetrievalError(self._errors[capsule]))
+            errors.append(RetrievalError(errors=self._errors[capsule]))
 
         return results, errors
 
