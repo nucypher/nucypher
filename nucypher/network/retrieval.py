@@ -25,6 +25,7 @@ from nucypher_core import (
     Conditions,
     Context,
     ReencryptionResponse,
+    ReencryptionRequest,
     RetrievalKit,
     TreasureMap,
 )
@@ -57,8 +58,11 @@ class RetrievalPlan:
     def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
         # Record the retrieval kits order
-        self._capsules, _conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
-        self._conditions = list(ConditionLingo.from_bytes(l) if l else None for l in _conditions)
+        self._capsules, rust_conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
+
+        # Transform Conditions -> ConditionsLingo
+        json_conditions = (json.loads(str(c)) for c in rust_conditions)
+        self._conditions = list(ConditionLingo.from_list(lingo) if lingo else None for lingo in json_conditions)
 
         self._threshold = treasure_map.threshold
 
@@ -177,7 +181,7 @@ class RetrievalWorkOrder:
     def conditions(self, as_json=True) -> Union[str, List[ConditionLingo]]:
         lingo = self.__lingo or list()
         if as_json:
-            return json.dumps([l.to_json() if l else None for l in lingo])
+            return json.dumps([l.to_list() if l else None for l in lingo])
         return lingo
 
 
@@ -321,22 +325,22 @@ class RetrievalClient:
             # TODO: Move to a method and handle errors?
             # TODO: This serialization is rather low-level compared to the rest of this method.
             # nucypher-core consumes bytes only for conditions and context.
-            condition_string = work_order.conditions(as_json=True)  # [[lingo], null, [lingo]]
-            request_context_string = json.dumps(context_dict)
+            condition_string = work_order.conditions(as_json=True)  # '[[lingo], null, [lingo]]'
+            request_context_string = json.dumps(context)
 
             # TODO: As this pattern swells further, it makes sense to do this in a purpose-built facility,
             # such as a factory that makes helper classes and casts the appropriate types.
-            conditions = Conditions(condition_string)
-            context = Context(request_context_string)
+            rust_conditions = Conditions(condition_string)
+            rust_context = Context(request_context_string)
 
             reencryption_request = ReencryptionRequest(
                 hrac=treasure_map.hrac,
                 capsules=work_order.capsules,
-                conditions=conditions,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                 bob_verifying_key=bob_verifying_key,
                 publisher_verifying_key=treasure_map.publisher_verifying_key,
-                context=context
+                conditions=rust_conditions,
+                context=rust_context
             )
 
             try:

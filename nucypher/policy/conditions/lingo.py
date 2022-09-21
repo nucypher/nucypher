@@ -188,11 +188,6 @@ class ConditionLingo:
         data = self.to_json().encode()
         return data
 
-    @classmethod
-    def from_bytes(cls, data: bytes) -> 'ConditionLingo':
-        instance = cls.from_json(data.decode())
-        return instance
-
     def __eval(self, eval_string: str):
         # TODO: Additional protection and/or sanitation here
         result = eval(eval_string)

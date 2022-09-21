@@ -176,9 +176,9 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # TODO: Cache & Optimize
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
-        json_lingo = json.loads(reenc_request.conditions.decode())
-        lingo = [ConditionLingo.from_json(l) if l else None for l in json_lingo]
-        context = json.loads(reenc_request.context.decode()) or dict()  # user-supplied static input for condition parameters
+        json_lingo = json.loads(str(reenc_request.conditions))
+        lingo = [ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingo]
+        context = json.loads(str(reenc_request.context)) or dict()  # requester-supplied input
         packets = zip(reenc_request.capsules, lingo)
 
         # TODO: Detect if we are dealing with PRE or tDec here
