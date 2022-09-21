@@ -228,9 +228,6 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         for capsule, lingo in packets:
             if lingo is not None:
 
-                # TODO: Authenticate these conditions
-                # lingo.verify_signature(reencryption_request, enrico)
-
                 # TODO: Enforce policy expiration as a condition
                 try:
                     # TODO: Can conditions return a useful value?
