@@ -52,7 +52,12 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
 from nucypher_core import (
+<<<<<<< HEAD
     HRAC,
+=======
+    Conditions,
+    MessageKit,
+>>>>>>> 40817db8d (Handle rust-native conditions newtype just-in-time; Co-existing with ConditionsLingo)
     EncryptedKeyFrag,
     EncryptedTreasureMap,
     MessageKit,
@@ -1353,8 +1358,7 @@ class Enrico(Character):
 
     def encrypt_message(self, plaintext: bytes, conditions: Optional[Dict[str, Union[str, int]]] = None) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
-        if conditions:
-            conditions = json.dumps(conditions).encode()
+        conditions = Conditions(json.dumps(conditions or list()))
         message_kit = MessageKit(policy_encrypting_key=self.policy_pubkey,
                                  plaintext=plaintext,
                                  conditions=conditions)

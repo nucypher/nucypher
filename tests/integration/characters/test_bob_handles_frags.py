@@ -14,11 +14,13 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
 
+from nucypher_core import RetrievalKit, Conditions
+
 from nucypher.characters.lawful import Enrico
-from nucypher_core import RetrievalKit
-from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.utils.middleware import NodeIsDownMiddleware
 
 
@@ -79,12 +81,13 @@ def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob
         {'operator': 'and'},
         {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
     ]
-
+    json_conditions = json.dumps(conditions)
+    rust_conditions = Conditions(json_conditions)
     message_kits = [
         MessageKit(
             enacted_federated_policy.public_key,
             b'lab',
-            json.dumps(conditions).encode()
+            rust_conditions
         )
     ]
 
