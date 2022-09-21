@@ -237,9 +237,9 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                     log.info(f'Evaluating decryption condition')
                     lingo.eval(**context)
                 except RequiredContextVariable as e:
-                    message = f"Missing required inputs - {e}"  # TODO: be more specific and name the missing inputs, etc
-                    # TODO BAD_REQUEST instead of FORBIDDEN?
-                    error = (message, HTTPStatus.FORBIDDEN)
+                    message = f"Missing required inputs - {e}"
+                    # TODO: be more specific and name the missing inputs, etc
+                    error = (message, HTTPStatus.BAD_REQUEST)
                     log.info(message)
                     return Response(str(e), status=error[1])
                 except InvalidContextVariableData as e:
