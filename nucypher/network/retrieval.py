@@ -14,32 +14,37 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from collections import defaultdict
-
 import json
 import random
+from collections import defaultdict
+from typing import Dict, List, Optional, Sequence, Tuple, Union
+
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
-    TreasureMap,
-    ReencryptionResponse,
     ReencryptionRequest,
+    ReencryptionResponse,
     RetrievalKit,
+    TreasureMap,
 )
 from nucypher_core.umbral import (
     Capsule,
     PublicKey,
-    VerifiedCapsuleFrag,
     VerificationError,
+    VerifiedCapsuleFrag,
 )
 from twisted.logger import Logger
-from typing import Dict, Sequence, List, Optional, Union
 
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.kits import RetrievalResult
+
+
+class RetrievalError:
+    def __init__(self, errors: Dict[ChecksumAddress, str]):
+        self.errors = errors
 
 
 class RetrievalPlan:
@@ -57,8 +62,14 @@ class RetrievalPlan:
         self._threshold = treasure_map.threshold
 
         # Records the retrieval results, indexed by capsule
-        self._results = {retrieval_kit.capsule: {}
-                         for retrieval_kit in retrieval_kits} # {capsule: {ursula_address: cfrag}}
+        self._results = {
+            retrieval_kit.capsule: {} for retrieval_kit in retrieval_kits
+        }  # {capsule: {ursula_address: cfrag}}
+
+        # Records the retrieval result errors, indexed by capsule
+        self._errors = {
+            retrieval_kit.capsule: {} for retrieval_kit in retrieval_kits
+        }  # {capsule: {ursula_address: error}}
 
         # Records the addresses of Ursulas that were already queried, indexed by capsule.
         self._queried_addresses = {retrieval_kit.capsule: set(retrieval_kit.queried_addresses)
@@ -116,6 +127,13 @@ class RetrievalPlan:
             self._processed_capsules[work_order.ursula_address].add(capsule)
             self._results[capsule][work_order.ursula_address] = cfrag
 
+    def update_errors(self,
+                      work_order: "RetrievalWorkOrder",
+                      ursula_address: ChecksumAddress,
+                      error_message: str):
+        for capsule in work_order.capsules:
+            self._errors[capsule][ursula_address] = error_message
+
     def is_complete(self) -> bool:
         return (
             # there are no more Ursulas to query
@@ -124,11 +142,22 @@ class RetrievalPlan:
             all(len(addresses) >= self._threshold for addresses in self._queried_addresses.values())
             )
 
-    def results(self) -> List['RetrievalResult']:
-        # TODO (#1995): when that issue is fixed, conversion is no longer needed
-        return [RetrievalResult({to_checksum_address(address): cfrag
-                                 for address, cfrag in self._results[capsule].items()})
-                for capsule in self._capsules]
+    def results(self) -> Tuple[List["RetrievalResult"], List[RetrievalError]]:
+        results = []
+        errors = []
+        # maintain the same order with both lists
+        for capsule in self._capsules:
+            results.append(
+                RetrievalResult(
+                    {
+                        to_checksum_address(address): cfrag
+                        for address, cfrag in self._results[capsule].items()
+                    }
+                )
+            )
+            errors.append(RetrievalError(self._errors[capsule]))
+
+        return results, errors
 
 
 class RetrievalWorkOrder:
@@ -227,7 +256,15 @@ class RetrievalClient:
             self.log.warn(message)
             raise RuntimeError(message) from e
         except middleware.UnexpectedResponse:
-            raise # TODO: Handle this
+            raise  # TODO: Handle this
+
+        # non-success code
+        if response.status_code != 200:
+            # failed to re-encrypt
+            raise RuntimeError(
+                f"Ursula ({ursula}) failure response: "
+                f"{response.status_code} - {response.content}"
+            )
 
         try:
             reencryption_response = ReencryptionResponse.from_bytes(response.content)
@@ -260,15 +297,13 @@ class RetrievalClient:
         return {capsule: vcfrag for capsule, vcfrag
                 in zip(reencryption_request.capsules, verified_cfrags)}
 
-    def retrieve_cfrags(
-            self,
-            treasure_map: TreasureMap,
-            retrieval_kits: Sequence[RetrievalKit],
-            alice_verifying_key: PublicKey, # KeyFrag signer's key
-            bob_encrypting_key: PublicKey, # User's public key (reencryption target)
-            bob_verifying_key: PublicKey,
-            **context,
-            ) -> List[RetrievalResult]:
+    def retrieve_cfrags(self,
+                        treasure_map: TreasureMap,
+                        retrieval_kits: Sequence[RetrievalKit],
+                        alice_verifying_key: PublicKey,  # KeyFrag signer's key
+                        bob_encrypting_key: PublicKey,  # User's public key (reencryption target)
+                        bob_verifying_key: PublicKey,
+                        **context) -> Tuple[List[RetrievalResult], List[RetrievalError]]:
 
         self._ensure_ursula_availability(treasure_map)
 
@@ -311,8 +346,9 @@ class RetrievalClient:
                                                     policy_encrypting_key=treasure_map.policy_encrypting_key,
                                                     bob_encrypting_key=bob_encrypting_key)
             except Exception as e:
-                # TODO (#2789): at this point we can separate the exceptions to "acceptable"
-                # (Ursula is not reachable) and "unacceptable" (Ursula provided bad results).
+                retrieval_plan.update_errors(
+                    work_order, ursula_checksum_address, str(e)
+                )
                 self.log.warn(f"Ursula {ursula} failed to reencrypt: {e}")
                 continue
 

@@ -174,4 +174,6 @@ class BobRetrieveCFrags(BaseSchema):
     )
 
     # output
-    retrieval_results = marshmallow_fields.List(marshmallow_fields.Nested(fields.RetrievalResultSchema), dump_only=True)
+    retrieval_results = marshmallow_fields.List(
+        marshmallow_fields.Nested(fields.RetrievalOutcomeSchema), dump_only=True
+    )

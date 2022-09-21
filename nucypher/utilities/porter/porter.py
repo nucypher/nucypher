@@ -37,7 +37,6 @@ from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.retrieval import RetrievalClient
-from nucypher.policy.kits import RetrievalResult
 from nucypher.policy.reservoir import (
     PrefetchStrategy,
     make_decentralized_staking_provider_reservoir,
@@ -80,6 +79,15 @@ the Pipe for PRE Application network operations
         checksum_address: ChecksumAddress
         uri: str
         encrypting_key: PublicKey
+
+    class RetrievalOutcome(NamedTuple):
+        """
+        Simple object that stores the results and errors of re-encryption operations across
+        one or more Ursulas.
+        """
+
+        cfrags: Dict
+        errors: Dict
 
     def __init__(self,
                  domain: str = None,
@@ -167,10 +175,10 @@ the Pipe for PRE Application network operations
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        context: Optional[Dict] = None) -> List[RetrievalResult]:
+                        context: Optional[Dict] = None) -> List[RetrievalOutcome]:
         client = RetrievalClient(self)
         context = context or dict()  # must not be None
-        return client.retrieve_cfrags(
+        results, errors = client.retrieve_cfrags(
             treasure_map,
             retrieval_kits,
             alice_verifying_key,
@@ -178,6 +186,13 @@ the Pipe for PRE Application network operations
             bob_verifying_key,
             **context,
         )
+        result_outcomes = []
+        for result, error in zip(results, errors):
+            result_outcome = Porter.RetrievalOutcome(
+                cfrags=result.cfrags, errors=error.errors
+            )
+            result_outcomes.append(result_outcome)
+        return result_outcomes
 
     def _make_reservoir(self,
                         quantity: int,

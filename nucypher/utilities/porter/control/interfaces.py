@@ -35,12 +35,14 @@ class PorterInterface(ControlInterface):
     def get_ursulas(self,
                     quantity: int,
                     exclude_ursulas: Optional[List[ChecksumAddress]] = None,
-                    include_ursulas: Optional[List[ChecksumAddress]] = None) -> dict:
-        ursulas_info = self.implementer.get_ursulas(quantity=quantity,
-                                                    exclude_ursulas=exclude_ursulas,
-                                                    include_ursulas=include_ursulas)
+                    include_ursulas: Optional[List[ChecksumAddress]] = None) -> Dict:
+        ursulas_info = self.implementer.get_ursulas(
+            quantity=quantity,
+            exclude_ursulas=exclude_ursulas,
+            include_ursulas=include_ursulas,
+        )
 
-        response_data = {"ursulas": ursulas_info}
+        response_data = {"ursulas": ursulas_info}  # list of UrsulaInfo objects
         return response_data
 
     @attach_schema(porter_schema.AliceRevoke)
@@ -58,8 +60,8 @@ class PorterInterface(ControlInterface):
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        context: Optional[Dict] = None) -> dict:
-        retrieval_results = self.implementer.retrieve_cfrags(
+                        context: Optional[Dict] = None) -> Dict:
+        retrieval_outcomes = self.implementer.retrieve_cfrags(
             treasure_map=treasure_map,
             retrieval_kits=retrieval_kits,
             alice_verifying_key=alice_verifying_key,
@@ -67,6 +69,7 @@ class PorterInterface(ControlInterface):
             bob_verifying_key=bob_verifying_key,
             context=context,
         )
-        results = retrieval_results  # list of RetrievalResult objects
-        response_data = {"retrieval_results": results}
+        response_data = {
+            "retrieval_results": retrieval_outcomes
+        }  # list of RetrievalOutcome objects
         return response_data

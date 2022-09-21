@@ -26,10 +26,15 @@ from nucypher.control.specifications.fields import JSON
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.policy.kits import PolicyMessageKit, RetrievalResult
 from nucypher.utilities.porter.control.specifications.fields import (
-    RetrievalResultSchema,
     RetrievalKit as RetrievalKitField,
 )
-from tests.utils.policy import retrieval_request_setup, retrieval_params_decode_from_rest
+from nucypher.utilities.porter.control.specifications.fields import (
+    RetrievalOutcomeSchema,
+)
+from tests.utils.policy import (
+    retrieval_params_decode_from_rest,
+    retrieval_request_setup,
+)
 
 
 def test_get_ursulas(federated_porter_web_controller, federated_ursulas):
@@ -130,7 +135,7 @@ def test_retrieve_cfrags(federated_porter,
                                                            policy_encrypting_key=enacted_federated_policy.public_key,
                                                            threshold=treasure_map.threshold)
     assert len(retrieval_results) == 1
-    field = RetrievalResultSchema()
+    field = RetrievalOutcomeSchema()
     cfrags = field.load(retrieval_results[0])['cfrags']
     verified_cfrags = {}
     for ursula, cfrag in cfrags.items():
@@ -172,6 +177,9 @@ def test_retrieve_cfrags(federated_porter,
     retrieval_results = response_data['result']['retrieval_results']
     assert retrieval_results
     assert len(retrieval_results) == 4
+    for i in range(0, 4):
+        assert len(retrieval_results[i]["cfrags"]) > 0
+        assert len(retrieval_results[i]["errors"]) == 0
 
     #
     # Use context

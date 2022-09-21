@@ -15,7 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 from marshmallow import fields
-
+from marshmallow.fields import String
 from nucypher_core import RetrievalKit as RetrievalKitClass
 from nucypher_core.umbral import CapsuleFrag as CapsuleFragClass
 
@@ -45,9 +45,10 @@ class CapsuleFrag(Base64BytesRepresentation):
             raise InvalidInputData(f"Could not parse {self.name}: {e}")
 
 
-class RetrievalResultSchema(BaseSchema):
-    """Schema for the result of retrieve_cfrags."""
+class RetrievalOutcomeSchema(BaseSchema):
+    """Schema for the result of /retrieve_cfrags endpoint."""
     cfrags = fields.Dict(keys=UrsulaChecksumAddress(), values=CapsuleFrag())
+    errors = fields.Dict(keys=UrsulaChecksumAddress(), values=String())
 
     # maintain field declaration ordering
     class Meta:
