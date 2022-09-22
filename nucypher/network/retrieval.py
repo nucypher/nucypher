@@ -42,8 +42,9 @@ from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.kits import RetrievalResult
 
 
-class RetrievalError(NamedTuple):
-    errors: Dict[ChecksumAddress, str]
+class RetrievalError:
+    def __init__(self, errors: Dict[ChecksumAddress, str]):
+        self.errors = errors
 
 
 class RetrievalPlan:
@@ -257,14 +258,6 @@ class RetrievalClient:
         except middleware.UnexpectedResponse:
             raise  # TODO: Handle this
 
-        # non-success code
-        if response.status_code != 200:
-            # failed to re-encrypt
-            raise RuntimeError(
-                f"Ursula ({ursula}) failure response: "
-                f"{response.status_code} - {response.content}"
-            )
-
         try:
             reencryption_response = ReencryptionResponse.from_bytes(response.content)
         except Exception as e:
@@ -282,14 +275,16 @@ class RetrievalClient:
                                                            policy_encrypting_key=policy_encrypting_key,
                                                            bob_encrypting_key=bob_encrypting_key)
         except InvalidSignature as e:
-            self.log.warn(str(e))
+            self.log.warn(f"Invalid signature for ReencryptionResponse: {e}")
             raise
-        except VerificationError:
+        except VerificationError as e:
             # In future we may want to remember this Ursula and do something about it
-            self.log.warn("Failed to verify capsule frags in the ReencryptionResponse")
+            self.log.warn(
+                f"Failed to verify capsule frags in the ReencryptionResponse: {e}"
+            )
             raise
         except Exception as e:
-            message = f"Failed to verify the ReencryptionResponse: {e}"
+            message = f"Failed to verify the ReencryptionResponse ({e.__class__.__name__}): {e}"
             self.log.warn(message)
             raise RuntimeError(message)
 
@@ -345,10 +340,13 @@ class RetrievalClient:
                                                     policy_encrypting_key=treasure_map.policy_encrypting_key,
                                                     bob_encrypting_key=bob_encrypting_key)
             except Exception as e:
+                exception_message = f"{e.__class__.__name__}: {e}"
                 retrieval_plan.update_errors(
-                    work_order, ursula_checksum_address, str(e)
+                    work_order, ursula_checksum_address, exception_message
                 )
-                self.log.warn(f"Ursula {ursula} failed to reencrypt: {e}")
+                self.log.warn(
+                    f"Ursula {ursula} failed to reencrypt; {exception_message}"
+                )
                 continue
 
             retrieval_plan.update(work_order, cfrags)

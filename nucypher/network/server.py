@@ -203,9 +203,12 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # Verify & Decrypt KFrag Payload
         try:
             verified_kfrag = this_node._decrypt_kfrag(reenc_request.encrypted_kfrag, hrac, publisher_verifying_key)
-        except DecryptingKeypair.DecryptionFailed:
+        except DecryptingKeypair.DecryptionFailed as e:
             # TODO: don't we want to record suspicious activities here too?
-            return Response(response="EncryptedKeyFrag decryption failed.", status=HTTPStatus.FORBIDDEN)
+            return Response(
+                response=f"EncryptedKeyFrag decryption failed: {e}",
+                status=HTTPStatus.FORBIDDEN,
+            )
         except InvalidSignature as e:
             message = f'{bob_identity_message} Invalid signature for KeyFrag: {e}.'
             log.info(message)
@@ -234,31 +237,34 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                     log.info(f'Evaluating decryption condition')
                     lingo.eval(**context)
                 except RequiredContextVariable as e:
-                    message = f"Missing required inputs - {e}"
+                    message = f"Missing required inputs: {e}"
                     # TODO: be more specific and name the missing inputs, etc
                     error = (message, HTTPStatus.BAD_REQUEST)
                     log.info(message)
-                    return Response(str(e), status=error[1])
+                    return Response(message, status=error[1])
                 except InvalidContextVariableData as e:
-                    message = f"Invalid data provided for context variable - {e}"
+                    message = f"Invalid data provided for context variable: {e}"
                     error = (message, HTTPStatus.BAD_REQUEST)
                     log.info(message)
-                    return Response(str(e), status=error[1])
+                    return Response(message, status=error[1])
                 except ContextVariableVerificationFailed as e:
-                    message = f"Context variable data could not be verified - {e}"
+                    message = f"Context variable data could not be verified: {e}"
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
-                    return Response(str(e), status=error[1])
+                    return Response(message, status=error[1])
                 except lingo.Failed as e:
                     # TODO: Better error reporting
-                    message = f"Decryption conditions not satisfied - {e}"
+                    message = f"Decryption conditions not satisfied: {e}"
                     error = (message, HTTPStatus.FORBIDDEN)
                     log.info(message)
-                    return Response(str(e), status=error[1])
-
+                    return Response(message, status=error[1])
                 except Exception as e:
                     # TODO: Unsure why we ended up here
-                    return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+                    message = f"Unexpected exception while evaluating " \
+                              f"decryption condition ({e.__class__.__name__}): {e}"
+                    error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
+                    log.warn(message)
+                    return Response(message, status=error[1])
 
             capsules_to_process.append((lingo, capsule))
         capsules_to_process = tuple(p[1] for p in capsules_to_process)
