@@ -74,7 +74,7 @@ def _recover_user_address(**context) -> ChecksumAddress:
     except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(
-            f'Invalid data provided for "{USER_ADDRESS_CONTEXT}" context variable; {e.__class__.__name__} - {e}'
+            f'Invalid data provided for "{USER_ADDRESS_CONTEXT}"; {e.__class__.__name__} - {e}'
         )
 
     # actual verification
@@ -87,12 +87,12 @@ def _recover_user_address(**context) -> ChecksumAddress:
     except Exception as e:
         # exception during verification
         raise ContextVariableVerificationFailed(
-            f"Invalid signature for associated user address; {e.__class__.__name__} - {e}"
+            f"Could not determine address of signature for '{USER_ADDRESS_CONTEXT}'; {e.__class__.__name__} - {e}"
         )
 
     # verification failed - addresses don't match
     raise ContextVariableVerificationFailed(
-        f"Invalid signature for associated user address; expected {user_address}"
+        f"Signer address for '{USER_ADDRESS_CONTEXT}' signature does not match; expected {user_address}"
     )
 
 

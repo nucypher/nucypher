@@ -24,16 +24,27 @@ from http import HTTPStatus
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from queue import Queue
-from typing import Dict, Iterable, List, NamedTuple, Tuple, Union, Optional, Sequence, Set, Any
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 
 import maya
 from constant_sorrow import constants
 from constant_sorrow.constants import (
-    PUBLIC_ONLY,
-    STRANGER_ALICE,
-    READY,
     INVALIDATED,
-    NOT_SIGNED
+    NOT_SIGNED,
+    PUBLIC_ONLY,
+    READY,
+    STRANGER_ALICE,
 )
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
@@ -41,35 +52,40 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
 from nucypher_core import (
-    MessageKit,
+    HRAC,
     EncryptedKeyFrag,
-    TreasureMap,
     EncryptedTreasureMap,
-    ReencryptionResponse,
+    MessageKit,
     NodeMetadata,
     NodeMetadataPayload,
-    HRAC,
+    ReencryptionResponse,
+    TreasureMap,
 )
-from nucypher_core.umbral import (
-    PublicKey, VerifiedKeyFrag, reencrypt,
-
-)
+from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt
 from twisted.internet import reactor, stdio
-from twisted.internet.defer import Deferred
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import Operator, BlockchainPolicyAuthor
+from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Operator
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.characters.banners import ALICE_BANNER, BOB_BANNER, ENRICO_BANNER, URSULA_BANNER
+from nucypher.characters.banners import (
+    ALICE_BANNER,
+    BOB_BANNER,
+    ENRICO_BANNER,
+    URSULA_BANNER,
+)
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.interfaces import AliceInterface, BobInterface, EnricoInterface
+from nucypher.characters.control.interfaces import (
+    AliceInterface,
+    BobInterface,
+    EnricoInterface,
+)
 from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import NodeStorage
 from nucypher.control.controllers import WebController
@@ -80,19 +96,19 @@ from nucypher.crypto.powers import (
     DelegatingPower,
     PowerUpError,
     SigningPower,
-    TransactingPower,
     TLSHostingPower,
+    TransactingPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import NodeSprout, TEACHER_NODES, Teacher
+from nucypher.network.nodes import TEACHER_NODES, NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker, OperatorBondedTracker
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.payment import PaymentMethod, FreeReencryptions
-from nucypher.policy.policies import Policy, BlockchainPolicy, FederatedPolicy
+from nucypher.policy.payment import FreeReencryptions, PaymentMethod
+from nucypher.policy.policies import BlockchainPolicy, FederatedPolicy, Policy
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
 
@@ -598,7 +614,7 @@ class Bob(Character):
 
         # Retrieve capsule frags
         client = RetrievalClient(learner=self)
-        retrieval_results = client.retrieve_cfrags(
+        retrieval_results, _ = client.retrieve_cfrags(
             treasure_map=treasure_map,
             retrieval_kits=retrieval_kits,
             alice_verifying_key=alice_verifying_key,
@@ -955,6 +971,7 @@ class Ursula(Teacher, Character, Operator):
         if prometheus_config:
             # Locally scoped to prevent import without prometheus explicitly installed
             from nucypher.utilities.prometheus.metrics import start_prometheus_exporter
+
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
