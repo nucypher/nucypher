@@ -45,7 +45,14 @@ class Operator:
 
 
 class ReturnValueTest:
-    COMPARATORS = ('==', '>', '<', '<=', '>=')
+    _COMPARATOR_FUNCTIONS = {
+        '==': lambda x, y: x == y,
+        '>': lambda x, y: x > y,
+        '<': lambda x, y: x < y,
+        '<=': lambda x, y: x <= y,
+        '>=': lambda x, y: x >= y,
+    }
+    COMPARATORS = tuple(_COMPARATOR_FUNCTIONS.keys())
 
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
@@ -68,7 +75,7 @@ class ReturnValueTest:
     def eval(self, data) -> bool:
         left_operand = ast.literal_eval(str(data))
         right_operand = self.value
-        result = eval(f'{left_operand}{self.comparator}{right_operand}')
+        result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
 
 
