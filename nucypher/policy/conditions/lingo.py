@@ -61,15 +61,13 @@ class ReturnValueTest:
         self.value = value
 
     def sanitize(self, comparator: str, value: str) -> Tuple[str, str]:
-        # Note that we're not sanitizing the value
         if comparator not in self.COMPARATORS:
             raise ValueError(f'{comparator} is not a permitted comparator.')
-        return comparator, value
+        return comparator, ast.literal_eval(str(value))
 
     def eval(self, data) -> bool:
-        # TODO: Sanitize input!!!
         left_operand = ast.literal_eval(str(data))
-        right_operand = ast.literal_eval(str(self.value))
+        right_operand = self.value
         result = eval(f'{left_operand}{self.comparator}{right_operand}')
         return result
 
