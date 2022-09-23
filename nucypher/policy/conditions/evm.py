@@ -75,7 +75,9 @@ def _process_parameters(parameters, **request) -> List:
     """Handles request parameters"""
     processed_parameters = []
     for p in parameters:
-        if is_context_variable(p):
+        # TODO needs additional support for ERC1155 which has lists of values
+        # context variables can only be strings, but other types of parameters can be passed
+        if type(p) == str and is_context_variable(p):
             p = get_context_value(context_variable=p, **request)
         processed_parameters.append(p)
     return processed_parameters

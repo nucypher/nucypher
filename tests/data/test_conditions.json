@@ -18,7 +18,7 @@
     "method": "balanceOf",
     "parameters": [
       ":userAddress",
-      "9541"
+      9541
     ],
     "returnValueTest": {
       "comparator": ">",
@@ -31,8 +31,8 @@
     "chain": "ethereum",
     "method": "balanceOfBatch",
     "parameters": [
-      ":userAddress,:userAddress,:userAddress,:userAddress",
-      "1,2,10003,10004"
+      [":userAddress",":userAddress",":userAddress",":userAddress"],
+      [1,2,10003,10004]
     ],
     "returnValueTest": {
       "comparator": ">",
@@ -45,14 +45,14 @@
     "chain":  "ethereum",
     "method": "ownerOf",
     "parameters": [
-      "5954"
+      5954
     ],
     "returnValueTest": {
       "comparator": "=",
       "value": ":userAddress"
     }
   },
-  "ERC721_ownership_batch":   {
+  "ERC721_balance":   {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC721",
     "chain":  "ethereum",

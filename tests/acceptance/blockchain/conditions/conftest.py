@@ -76,7 +76,7 @@ def rpc_condition():
 
 
 @pytest.fixture
-def evm_condition(test_registry, agency):
+def erc20_evm_condition(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
@@ -90,7 +90,7 @@ def evm_condition(test_registry, agency):
 
 
 @pytest.fixture
-def custom_context_variable_evm_condition(test_registry, agency):
+def custom_context_variable_erc20_condition(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
@@ -99,6 +99,21 @@ def custom_context_variable_evm_condition(test_registry, agency):
         chain="testerchain",
         return_value_test=ReturnValueTest("==", 0),
         parameters=[":addressToUse"],
+    )
+    return condition
+
+
+@pytest.fixture
+def erc721_evm_condition(test_registry):
+    condition = ContractCondition(
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",  # TODO not a valid ERC721 contract
+        method="ownerOf",
+        standard_contract_type="ERC721",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+        parameters=[
+            5954,
+        ],
     )
     return condition
 
@@ -127,8 +142,8 @@ def timelock_condition():
 
 
 @pytest.fixture()
-def lingo(timelock_condition, rpc_condition, evm_condition):
+def lingo(timelock_condition, rpc_condition, erc20_evm_condition):
     lingo = ConditionLingo(
-        conditions=[timelock_condition, OR, rpc_condition, AND, evm_condition]
+        conditions=[timelock_condition, OR, rpc_condition, AND, erc20_evm_condition]
     )
     return lingo
