@@ -34,11 +34,14 @@ def test_evm_condition_json_serializers(ERC1155_balance_condition_data):
     assert json.loads(original_data) == deserialized_data
 
 
-def test_type_resolution_from_json(timelock_condition, rpc_condition, evm_condition):
+def test_type_resolution_from_json(
+    timelock_condition, rpc_condition, erc20_evm_condition, erc721_evm_condition
+):
     conditions = (
         timelock_condition,
         rpc_condition,
-        evm_condition
+        erc20_evm_condition,
+        erc721_evm_condition,
     )
     for condition in conditions:
         condition_json = condition.to_json()
@@ -46,7 +49,7 @@ def test_type_resolution_from_json(timelock_condition, rpc_condition, evm_condit
         assert isinstance(resolved_condition, type(condition))
 
 
-def test_conditions_lingo_serialization(timelock_condition, rpc_condition, evm_condition, lingo):
+def test_conditions_lingo_serialization(lingo):
     json_serialized_lingo = json.dumps([l.to_dict() for l in lingo.conditions])
     lingo_json = lingo.to_json()
     restored_lingo = ConditionLingo.from_json(data=lingo_json)

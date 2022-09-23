@@ -19,6 +19,7 @@ import json
 from unittest import mock
 
 import pytest
+from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
@@ -71,9 +72,11 @@ def _dont_validate_user_address(context_variable: str, **context):
     return context[USER_ADDRESS_CONTEXT]["address"]
 
 
-def test_required_context_variable(testerchain, custom_context_variable_evm_condition):
+def test_required_context_variable(
+    testerchain, custom_context_variable_erc20_condition
+):
     with pytest.raises(RequiredContextVariable):
-        custom_context_variable_evm_condition.verify(
+        custom_context_variable_erc20_condition.verify(
             provider=testerchain.provider
         )  # no context
 
@@ -136,31 +139,47 @@ def test_user_address_context_variable_verification(testerchain):
     side_effect=_dont_validate_user_address,
 )
 def test_erc20_evm_condition_evaluation(
-    get_context_value_mock, testerchain, evm_condition
+    get_context_value_mock, testerchain, erc20_evm_condition
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
-    result, value = evm_condition.verify(provider=testerchain.provider, **context)
+    result, value = erc20_evm_condition.verify(provider=testerchain.provider, **context)
     assert result is True
 
     context[USER_ADDRESS_CONTEXT]["address"] = testerchain.etherbase_account
-    result, value = evm_condition.verify(provider=testerchain.provider, **context)
+    result, value = erc20_evm_condition.verify(provider=testerchain.provider, **context)
     assert result is False
 
 
 def test_erc20_evm_condition_evaluation_with_custom_context_variable(
-    testerchain, custom_context_variable_evm_condition
+    testerchain, custom_context_variable_erc20_condition
 ):
     context = {":addressToUse": testerchain.unassigned_accounts[0]}
-    result, value = custom_context_variable_evm_condition.verify(
+    result, value = custom_context_variable_erc20_condition.verify(
         provider=testerchain.provider, **context
     )
     assert result is True
 
     context[":addressToUse"] = testerchain.etherbase_account
-    result, value = custom_context_variable_evm_condition.verify(
+    result, value = custom_context_variable_erc20_condition.verify(
         provider=testerchain.provider, **context
     )
     assert result is False
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_erc721_evm_condition_evaluation_of_parameters(
+    get_context_value_mock, testerchain, erc721_evm_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+    with pytest.raises(BadFunctionCallOutput):
+        # TODO: need NFT contract on testerchain and an account to hold an NFT.
+        # The evaluation here will fail; ensure we get to the actual contract call part before
+        # failure to ensure condition parameters are actually processed which is the point of
+        # this commit.
+        erc721_evm_condition.verify(provider=testerchain.provider, **context)
 
 
 @pytest.mark.skip('Need a way to handle user inputs like HRAC as context variables')
@@ -218,9 +237,6 @@ def test_simple_compound_conditions_evaluation(testerchain):
 def test_onchain_conditions_lingo_evaluation(
     get_context_value_mock,
     testerchain,
-    timelock_condition,
-    rpc_condition,
-    evm_condition,
     lingo,
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.etherbase_account}}
