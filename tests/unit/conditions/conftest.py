@@ -88,6 +88,7 @@ def evm_condition(test_registry):
     )
     return condition
 
+
 @pytest.fixture
 def sm_condition(test_registry):
     condition = ContractCondition(
