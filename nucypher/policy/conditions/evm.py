@@ -71,16 +71,23 @@ def camel_case_to_snake(data: str) -> str:
     return data
 
 
-def _process_parameters(parameters, **request) -> List:
+def _process_parameters(parameters, **context) -> List:
     """Handles request parameters"""
     processed_parameters = []
     for p in parameters:
         # TODO needs additional support for ERC1155 which has lists of values
         # context variables can only be strings, but other types of parameters can be passed
         if type(p) == str and is_context_variable(p):
-            p = get_context_value(context_variable=p, **request)
+            p = get_context_value(context_variable=p, **context)
         processed_parameters.append(p)
     return processed_parameters
+
+
+def _process_return_value_test(return_value_test, **context) -> ReturnValueTest:
+    v = return_value_test.value
+    if type(v) == str and is_context_variable(v):
+        v = get_context_value(context_variable=v, **context)
+    return ReturnValueTest(return_value_test.comparator, value=v)
 
 
 class RPCCondition(ReencryptionCondition):
@@ -150,12 +157,17 @@ class RPCCondition(ReencryptionCondition):
     def verify(self, provider: BaseProvider, *args, **contract_kwargs) -> Tuple[bool, Any]:
         """Performs onchain read and return value test"""
         self._configure_provider(provider=provider)
-        parameters = _process_parameters(self.parameters, **contract_kwargs)  # resolve context variables
-        rpc_endpoint_, rpc_method = self.method.split('_', 1)
+        parameters = _process_parameters(
+            self.parameters, **contract_kwargs
+        )  # resolve context variables
+        return_value_test = _process_return_value_test(
+            self.return_value_test, **contract_kwargs
+        )  # resolve context variables
+        rpc_endpoint_, rpc_method = self.method.split("_", 1)
         web3_py_method = camel_case_to_snake(rpc_method)
         rpc_function = getattr(self.w3.eth, web3_py_method)  # bind contract function (only exposes the eth API)
         rpc_result = rpc_function(*parameters)  # RPC read
-        eval_result = self.return_value_test.eval(rpc_result)  # test
+        eval_result = return_value_test.eval(rpc_result)  # test
         return eval_result, rpc_result
 
 
@@ -214,10 +226,17 @@ class ContractCondition(RPCCondition):
 
     def _evaluate(self, **contract_kwargs) -> Tuple[bool, Any]:
         """Performs onchain read and return value test"""
-        parameters = _process_parameters(self.parameters, **contract_kwargs)  # resolve context variables
-        bound_contract_function = self.contract_function(*parameters)  # bind contract function
+        parameters = _process_parameters(
+            self.parameters, **contract_kwargs
+        )  # resolve context variables
+        return_value_test = _process_return_value_test(
+            self.return_value_test, **contract_kwargs
+        )  # resolve context variables
+        bound_contract_function = self.contract_function(
+            *parameters
+        )  # bind contract function
         contract_result = bound_contract_function.call()  # onchain read
-        eval_result = self.return_value_test.eval(contract_result)  # test
+        eval_result = return_value_test.eval(contract_result)  # test
         return eval_result, contract_result
 
     def verify(self, provider: BaseProvider, **contract_kwargs) -> Tuple[bool, Any]:
