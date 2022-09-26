@@ -77,7 +77,7 @@ def _process_parameters(parameters, **context) -> List:
     for p in parameters:
         # TODO needs additional support for ERC1155 which has lists of values
         # context variables can only be strings, but other types of parameters can be passed
-        if type(p) == str and is_context_variable(p):
+        if is_context_variable(p):
             p = get_context_value(context_variable=p, **context)
         processed_parameters.append(p)
     return processed_parameters
@@ -85,7 +85,7 @@ def _process_parameters(parameters, **context) -> List:
 
 def _process_return_value_test(return_value_test, **context) -> ReturnValueTest:
     v = return_value_test.value
-    if type(v) == str and is_context_variable(v):
+    if is_context_variable(v):
         v = get_context_value(context_variable=v, **context)
     return ReturnValueTest(return_value_test.comparator, value=v)
 

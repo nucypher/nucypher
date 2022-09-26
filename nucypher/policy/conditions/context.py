@@ -101,8 +101,8 @@ _DIRECTIVES = {
 }
 
 
-def is_context_variable(parameter: str) -> bool:
-    return parameter.startswith(_CONTEXT_PREFIX)
+def is_context_variable(parameter) -> bool:
+    return type(parameter) == str and parameter.startswith(_CONTEXT_PREFIX)
 
 
 def get_context_value(context_variable: str, **context) -> Any:
