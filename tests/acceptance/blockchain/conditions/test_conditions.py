@@ -16,6 +16,7 @@
 """
 import copy
 import json
+import os
 from unittest import mock
 
 import pytest
@@ -28,11 +29,7 @@ from nucypher.policy.conditions.context import (
     RequiredContextVariable,
     _recover_user_address,
 )
-from nucypher.policy.conditions.evm import (
-    ContractCondition,
-    RPCCondition,
-    get_context_value,
-)
+from nucypher.policy.conditions.evm import RPCCondition, get_context_value
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from tests.integration.characters.test_bob_handles_frags import _make_message_kits
 
@@ -270,15 +267,25 @@ def test_erc721_evm_condition_balanceof_evaluation(
     assert not result
 
 
-@pytest.mark.skip('Need a way to handle user inputs like HRAC as context variables')
-def test_subscription_manager_condition_evaluation(testerchain, subscription_manager_condition):
-    context = {":hrac": None}
+def test_subscription_manager_condition_evaluation(
+    testerchain, enacted_blockchain_policy, subscription_manager_condition
+):
+    context = {
+        ":hrac": bytes(enacted_blockchain_policy.hrac)
+    }  # user-defined context var
     result, value = subscription_manager_condition.verify(
         provider=testerchain.provider, **context
     )
-    assert result is True
-    result, value = subscription_manager_condition.verify(provider=testerchain.provider)
-    assert result is False
+    assert value
+    assert result
+
+    # non-active policy hrac
+    context[":hrac"] = os.urandom(16)
+    result, value = subscription_manager_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert not value
+    assert not result
 
 
 @mock.patch(
