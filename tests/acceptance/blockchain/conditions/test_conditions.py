@@ -288,15 +288,8 @@ def test_subscription_manager_condition_evaluation(
     assert not result
 
 
-@mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
-    side_effect=_dont_validate_user_address,
-)
-def test_time_condition_evaluation(
-    get_context_value_mock, testerchain, timelock_condition
-):
-    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
-    result, value = timelock_condition.verify(provider=testerchain.provider, **context)
+def test_time_condition_evaluation(testerchain, timelock_condition):
+    result, value = timelock_condition.verify(provider=testerchain.provider)
     assert result is True
 
 
