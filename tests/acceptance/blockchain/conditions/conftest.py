@@ -166,12 +166,11 @@ def subscription_manager_condition(test_registry, agency):
     subscription_manager = ContractAgency.get_agent(SubscriptionManagerAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        method='getPolicy',
-        chain='testerchain',
-        return_value_test=ReturnValueTest('==', 0),
-        parameters=[
-            ':hrac'
-        ]
+        function_abi=subscription_manager.contract.abi,
+        method="isPolicyActive",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", "True"),
+        parameters=[":hrac"],
     )
     return condition
 
