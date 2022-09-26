@@ -13,7 +13,7 @@ You can delegate running a PRE node to one of the *node-as-a-service* Staking Pr
 
 * `Ankr <https://www.ankr.com>`_
     * Email: sales@ankr.com
-* `BisonTrails <https://bisontrails.co/>`_
+* `Coinbase Cloud <https://www.coinbase.com/cloud>`_
     * Email: cloud-sales@coinbase.com
 * `DELIGHT <https://delightlabs.io>`_
     * Email: contact@delightlabs.io
@@ -21,9 +21,8 @@ You can delegate running a PRE node to one of the *node-as-a-service* Staking Pr
     * Email: support@figment.io
     * Discord: ``@claymenzel#0569``
     * Telegram: ``@claymenzel``
-* `InfStones <https://infstones.io/>`_
-    * Email: contact@infinitystones.io
-    * Discord: ``@infinitystones#2856``
+* `InfStones <https://infstones.com/>`_
+    * Email: sales@infstones.com
     * Telegram: https://t.me/infstones
     * WeChat: ``@InfStones``
 * `Nodefolio <https://nodefolio.io/>`_
