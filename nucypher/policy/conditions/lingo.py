@@ -62,12 +62,12 @@ class ReturnValueTest:
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Union[int, str]):
-        comparator, value = self.sanitize(comparator, value)
+    def __init__(self, comparator: str, value):
+        comparator, value = self._sanitize(comparator, value)
         self.comparator = comparator
         self.value = value
 
-    def sanitize(self, comparator: str, value: str) -> Tuple[str, str]:
+    def _sanitize(self, comparator: str, value) -> Tuple[str, Any]:
         if comparator not in self.COMPARATORS:
             raise ValueError(f'{comparator} is not a permitted comparator.')
         return comparator, ast.literal_eval(str(value))
