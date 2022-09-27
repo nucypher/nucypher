@@ -1,6 +1,7 @@
 import ast
 import base64
 import json
+import operator
 from typing import Union, Tuple, List, Dict, Any
 
 from marshmallow import fields, post_load
@@ -46,11 +47,11 @@ class Operator:
 
 class ReturnValueTest:
     _COMPARATOR_FUNCTIONS = {
-        '==': lambda x, y: x == y,
-        '>': lambda x, y: x > y,
-        '<': lambda x, y: x < y,
-        '<=': lambda x, y: x <= y,
-        '>=': lambda x, y: x >= y,
+        '==': operator.eq,
+        '>': operator.gt,
+        '<': operator.lt,
+        '<=': operator.le,
+        '>=': operator.ge,
     }
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS.keys())
 
