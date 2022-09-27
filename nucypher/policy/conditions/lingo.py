@@ -1,3 +1,4 @@
+import ast
 import base64
 import json
 from typing import Union, Tuple, List, Dict, Any
@@ -44,7 +45,14 @@ class Operator:
 
 
 class ReturnValueTest:
-    COMPARATORS = ('==', '>', '<', '<=', '>=')
+    _COMPARATOR_FUNCTIONS = {
+        '==': lambda x, y: x == y,
+        '>': lambda x, y: x > y,
+        '<': lambda x, y: x < y,
+        '<=': lambda x, y: x <= y,
+        '>=': lambda x, y: x >= y,
+    }
+    COMPARATORS = tuple(_COMPARATOR_FUNCTIONS.keys())
 
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
@@ -54,19 +62,20 @@ class ReturnValueTest:
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Union[int, str]):
-        comparator, value = self.sanitize(comparator, value)
+    def __init__(self, comparator: str, value):
+        comparator, value = self._sanitize(comparator, value)
         self.comparator = comparator
         self.value = value
 
-    def sanitize(self, comparator: str, value: str) -> Tuple[str, str]:
+    def _sanitize(self, comparator: str, value) -> Tuple[str, Any]:
         if comparator not in self.COMPARATORS:
             raise ValueError(f'{comparator} is not a permitted comparator.')
-        return comparator, value
+        return comparator, ast.literal_eval(str(value))
 
     def eval(self, data) -> bool:
-        # TODO: Sanitize input!!!
-        result = eval(f'{data}{self.comparator}{self.value}')
+        left_operand = ast.literal_eval(str(data))
+        right_operand = self.value
+        result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
 
 
