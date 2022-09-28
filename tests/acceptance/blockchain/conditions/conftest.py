@@ -152,7 +152,7 @@ def erc721_evm_condition_balanceof(erc721_contract):
         method="balanceOf",
         standard_contract_type="ERC721",
         chain="testerchain",
-        return_value_test=ReturnValueTest(">", "0"),
+        return_value_test=ReturnValueTest(">", 0),
         parameters=[
             ":userAddress",
         ],
@@ -169,7 +169,7 @@ def subscription_manager_condition(test_registry, agency):
         function_abi=subscription_manager.contract.abi,
         method="isPolicyActive",
         chain="testerchain",
-        return_value_test=ReturnValueTest("==", "True"),
+        return_value_test=ReturnValueTest("==", True),
         parameters=[":hrac"],
     )
     return condition

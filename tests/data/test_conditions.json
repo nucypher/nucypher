@@ -8,7 +8,7 @@
     ],
     "returnValueTest": {
       "comparator": "==",
-      "value": "true"
+      "value": true
     }
   },
   "ERC1155_balance": {
@@ -22,7 +22,7 @@
     ],
     "returnValueTest": {
       "comparator": ">",
-      "value": "0"
+      "value": 0
     }
   },
   "ERC1155_balance_batch": {
@@ -36,7 +36,7 @@
     ],
     "returnValueTest": {
       "comparator": ">",
-      "value": "0"
+      "value": 0
     }
   },
   "ERC721_ownership":   {
@@ -62,7 +62,7 @@
     ],
     "returnValueTest": {
       "comparator": ">",
-      "value": "0"
+      "value": 0
     }
   },
   "ERC20_balance":   {
@@ -75,7 +75,7 @@
     ],
     "returnValueTest": {
       "comparator": ">",
-      "value": "0"
+      "value": 0
     }
   },
   "ETH_balance":   {
@@ -89,7 +89,7 @@
     ],
     "returnValueTest": {
       "comparator": ">=",
-      "value": "10000000000000"
+      "value": 10000000000000
     }
   },
   "specific_wallet_address":   {
@@ -113,7 +113,7 @@
     "parameters": ["latest"],
     "returnValueTest": {
       "comparator": ">=",
-      "value": "1234567890"
+      "value": 1234567890
     }
   }
 }
