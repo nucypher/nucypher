@@ -133,6 +133,7 @@ def test_return_value_test_string():
         comparator="==", value="0xaDD9D957170dF6F33982001E4c22eCCdd5539118"
     )
     assert test.eval(992513598061863249514433594012370110655092723992)
+    assert test.eval("0xaDD9D957170dF6F33982001E4c22eCCdd5539118")
     assert not test.eval("0xdeadbeef")
 
     test = ReturnValueTest(

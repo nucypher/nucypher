@@ -71,8 +71,9 @@ def camel_case_to_snake(data: str) -> str:
     return data
 
 
-def _process_parameters(parameters, **context) -> List:
-    """Handles request parameters"""
+def _resolve_any_context_variables(
+    parameters: List[Any], return_value_test: ReturnValueTest, **context
+):
     processed_parameters = []
     for p in parameters:
         # TODO needs additional support for ERC1155 which has lists of values
@@ -80,14 +81,13 @@ def _process_parameters(parameters, **context) -> List:
         if is_context_variable(p):
             p = get_context_value(context_variable=p, **context)
         processed_parameters.append(p)
-    return processed_parameters
 
-
-def _process_return_value_test(return_value_test, **context) -> ReturnValueTest:
     v = return_value_test.value
-    if is_context_variable(v):
+    if is_context_variable(return_value_test.value):
         v = get_context_value(context_variable=v, **context)
-    return ReturnValueTest(return_value_test.comparator, value=v)
+    processed_return_value_test = ReturnValueTest(return_value_test.comparator, value=v)
+
+    return processed_parameters, processed_return_value_test
 
 
 class RPCCondition(ReencryptionCondition):
@@ -119,7 +119,7 @@ class RPCCondition(ReencryptionCondition):
                  chain: str,
                  method: str,
                  return_value_test: ReturnValueTest,
-                 parameters: Optional[List[str]] = None
+                 parameters: Optional[List[Any]] = None
                  ):
 
         # Validate input
@@ -154,15 +154,12 @@ class RPCCondition(ReencryptionCondition):
                             f'connection is to {provider_chain}')
         return provider
 
-    def verify(self, provider: BaseProvider, *args, **contract_kwargs) -> Tuple[bool, Any]:
+    def verify(self, provider: BaseProvider, **context) -> Tuple[bool, Any]:
         """Performs onchain read and return value test"""
         self._configure_provider(provider=provider)
-        parameters = _process_parameters(
-            self.parameters, **contract_kwargs
-        )  # resolve context variables
-        return_value_test = _process_return_value_test(
-            self.return_value_test, **contract_kwargs
-        )  # resolve context variables
+        parameters, return_value_test = _resolve_any_context_variables(
+            self.parameters, self.return_value_test, **context
+        )
         rpc_endpoint_, rpc_method = self.method.split("_", 1)
         web3_py_method = camel_case_to_snake(rpc_method)
         rpc_function = getattr(self.w3.eth, web3_py_method)  # bind contract function (only exposes the eth API)
@@ -224,14 +221,11 @@ class ContractCondition(RPCCondition):
         contract_function = getattr(contract.functions, self.method)  # TODO: Use function selector instead/also?
         return contract_function
 
-    def _evaluate(self, **contract_kwargs) -> Tuple[bool, Any]:
+    def _evaluate(self, **context) -> Tuple[bool, Any]:
         """Performs onchain read and return value test"""
-        parameters = _process_parameters(
-            self.parameters, **contract_kwargs
-        )  # resolve context variables
-        return_value_test = _process_return_value_test(
-            self.return_value_test, **contract_kwargs
-        )  # resolve context variables
+        parameters, return_value_test = _resolve_any_context_variables(
+            self.parameters, self.return_value_test, **context
+        )
         bound_contract_function = self.contract_function(
             *parameters
         )  # bind contract function
@@ -239,8 +233,8 @@ class ContractCondition(RPCCondition):
         eval_result = return_value_test.eval(contract_result)  # test
         return eval_result, contract_result
 
-    def verify(self, provider: BaseProvider, **contract_kwargs) -> Tuple[bool, Any]:
+    def verify(self, provider: BaseProvider, **context) -> Tuple[bool, Any]:
         """Public API: Evaluate this condition using the given a blockchain provider and any supplied context kwargs"""
         self._configure_provider(provider=provider)
-        result = self._evaluate(**contract_kwargs)
+        result = self._evaluate(**context)
         return result

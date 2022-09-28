@@ -111,11 +111,10 @@ class ReturnValueTest:
 
     def eval(self, data) -> bool:
         if is_context_variable(self.value):
-            # should never get in here
+            # programming error if we get here
             raise RuntimeError(
-                "'value' should never be a context variable here - this object "
-                "should have been replaced by one whose context variable's value"
-                "has been populated"
+                f"'{self.value}' is an unprocessed context variable and is not valid "
+                f"for condition evaluation."
             )
         left_operand = self._sanitize_value(data)
         right_operand = self._sanitize_value(self.value)
