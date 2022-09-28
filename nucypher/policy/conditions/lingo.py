@@ -121,14 +121,6 @@ class ReturnValueTest:
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
 
-    def __eq__(self, other):
-        if not isinstance(other, ReturnValueTest):
-            return False
-        try:
-            return (self.comparator == other.comparator) and (self.value == other.value)
-        except AttributeError:
-            return False
-
 
 class ConditionLingo:
     # TODO: 'A Collection of re-encryption conditions evaluated as a compound boolean condition'
