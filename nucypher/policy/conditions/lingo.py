@@ -28,6 +28,7 @@ from nucypher.policy.conditions._utils import (
     _deserialize_condition_lingo,
 )
 from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.context import is_context_variable
 
 
 class Operator:
@@ -66,39 +67,68 @@ class Operator:
 
 
 class ReturnValueTest:
+    class InvalidExpression(ValueError):
+        pass
+
     _COMPARATOR_FUNCTIONS = {
         "==": operator.eq,
+        "!=": operator.ne,
         ">": operator.gt,
         "<": operator.lt,
         "<=": operator.le,
         ">=": operator.ge,
-        "!=": operator.ne,
     }
-    COMPARATORS = tuple(_COMPARATOR_FUNCTIONS.keys())
+    COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
-        value = fields.Str()
+        value = fields.Raw(allow_none=True)  # any valid type including None
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
     def __init__(self, comparator: str, value):
-        comparator, value = self._sanitize(comparator, value)
+        if comparator not in self.COMPARATORS:
+            raise self.InvalidExpression(
+                f'"{comparator}" is not a permitted comparator.'
+            )
+
+        if not is_context_variable(value):
+            # verify that value is valid, but don't set it here so as not to change the value;
+            # it will be sanitized at eval time. Need to maintain serialization/deserialization
+            # consistency
+            self._sanitize_value(value)
+
         self.comparator = comparator
         self.value = value
 
-    def _sanitize(self, comparator: str, value) -> Tuple[str, Any]:
-        if comparator not in self.COMPARATORS:
-            raise ValueError(f'{comparator} is not a permitted comparator.')
-        return comparator, ast.literal_eval(str(value))
+    def _sanitize_value(self, value):
+        try:
+            return ast.literal_eval(str(value))
+        except Exception:
+            raise self.InvalidExpression(f'"{value}" is not a permitted value.')
 
     def eval(self, data) -> bool:
-        left_operand = ast.literal_eval(str(data))
-        right_operand = self.value
+        if is_context_variable(self.value):
+            # should never get in here
+            raise RuntimeError(
+                "'value' should never be a context variable here - this object "
+                "should have been replaced by one whose context variable's value"
+                "has been populated"
+            )
+        left_operand = self._sanitize_value(data)
+        right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
+
+    def __eq__(self, other):
+        if not isinstance(other, ReturnValueTest):
+            return False
+        try:
+            return (self.comparator == other.comparator) and (self.value == other.value)
+        except AttributeError:
+            return False
 
 
 class ConditionLingo:
