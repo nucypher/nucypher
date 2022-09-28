@@ -205,4 +205,6 @@ def test_return_value_serialization(test_value):
     comparator = random.choice(ReturnValueTest.COMPARATORS)
     test = ReturnValueTest(comparator=comparator, value=test_value)
     reloaded = schema.load(schema.dump(test))
-    assert test == reloaded, f"test for '{comparator} {test_value}'"
+    assert (test.comparator == reloaded.comparator) and (
+        test.value == reloaded.value
+    ), f"test for '{comparator} {test_value}'"
