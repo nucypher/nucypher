@@ -82,7 +82,7 @@ class ReturnValueTest:
 
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
-        value = fields.Raw(allow_none=True)  # any valid type including None
+        value = fields.Raw(allow_none=False)  # any valid type (excludes None)
 
         @post_load
         def make(self, data, **kwargs):

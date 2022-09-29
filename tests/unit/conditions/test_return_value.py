@@ -143,18 +143,6 @@ def test_return_value_test_string():
     assert test.eval("0xdeadbeef")
 
 
-def test_return_value_test_none():
-    test = ReturnValueTest(comparator="!=", value=None)
-    assert test.eval("0xaDD9D957170dF6F33982001E4c22eCCdd5539118")
-
-    test = ReturnValueTest(comparator="==", value=None)
-    assert not test.eval("0xaDD9D957170dF6F33982001E4c22eCCdd5539118")
-
-    test = ReturnValueTest(comparator="==", value=None)
-    assert test.eval("None")
-    assert not test.eval('"None"')
-
-
 def test_return_value_test_bool():
     test = ReturnValueTest(comparator="==", value=True)
     assert test.eval(True)
@@ -192,8 +180,6 @@ def test_return_value_test_bool():
         os.urandom(16),  # bytes
         True,  # bool
         "True",  # bool as string
-        None,  # None
-        "None",  # None as string
         (1, True, "love"),  # tuple
         ["a", "b", "c"],  # list
         {"name": "John", "age": 22},  # dict
