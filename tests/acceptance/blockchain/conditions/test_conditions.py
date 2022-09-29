@@ -237,20 +237,33 @@ def test_erc721_evm_condition_owner_evaluation(
 ):
     account, *other_accounts = testerchain.client.accounts
     # valid owner of nft
-    context = {USER_ADDRESS_CONTEXT: {"address": account}}
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": account},
+        ":tokenId": 1,  # valid token id
+    }
     condition_result, call_result = erc721_evm_condition_owner.verify(
         provider=testerchain.provider, **context
     )
     assert condition_result is True
     assert call_result == account
 
-    # invalid owner of nft
-    other_account = other_accounts[0]
-    context = {USER_ADDRESS_CONTEXT: {"address": other_account}}
+    # invalid token id
+    context[":tokenId"] = 255
     condition_result, call_result = erc721_evm_condition_owner.verify(
         provider=testerchain.provider, **context
     )
-    assert not condition_result
+    assert condition_result is False
+
+    # invalid owner of nft
+    other_account = other_accounts[0]
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": other_account},
+        ":tokenId": 1,  # valid token id
+    }
+    condition_result, call_result = erc721_evm_condition_owner.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is False
     assert call_result != other_account
 
 

@@ -19,7 +19,7 @@ import ast
 import base64
 import json
 import operator
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Union
 
 from marshmallow import fields, post_load
 

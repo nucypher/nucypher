@@ -139,7 +139,7 @@ def erc721_evm_condition_owner(erc721_contract):
         chain="testerchain",
         return_value_test=ReturnValueTest("==", ":userAddress"),
         parameters=[
-            1,
+            ":tokenId",
         ],
     )
     return condition
