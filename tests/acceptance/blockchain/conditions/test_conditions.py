@@ -16,9 +16,11 @@
 """
 import copy
 import json
+import os
 from unittest import mock
 
 import pytest
+from web3 import Web3
 
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
@@ -27,7 +29,8 @@ from nucypher.policy.conditions.context import (
     RequiredContextVariable,
     _recover_user_address,
 )
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.evm import RPCCondition, get_context_value
+from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from tests.integration.characters.test_bob_handles_frags import _make_message_kits
 
 VALID_USER_ADDRESS_CONTEXT = {
@@ -68,12 +71,16 @@ VALID_USER_ADDRESS_CONTEXT = {
 
 
 def _dont_validate_user_address(context_variable: str, **context):
-    return context[USER_ADDRESS_CONTEXT]["address"]
+    if context_variable == USER_ADDRESS_CONTEXT:
+        return context[USER_ADDRESS_CONTEXT]["address"]
+    return get_context_value(context_variable, **context)
 
 
-def test_required_context_variable(testerchain, custom_context_variable_evm_condition):
+def test_required_context_variable(
+    testerchain, custom_context_variable_erc20_condition
+):
     with pytest.raises(RequiredContextVariable):
-        custom_context_variable_evm_condition.verify(
+        custom_context_variable_erc20_condition.verify(
             provider=testerchain.provider
         )  # no context
 
@@ -135,65 +142,202 @@ def test_user_address_context_variable_verification(testerchain):
     "nucypher.policy.conditions.evm.get_context_value",
     side_effect=_dont_validate_user_address,
 )
+def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condition):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+    condition_result, call_result = rpc_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is True
+    assert call_result == Web3.toWei(
+        1_000_000, "ether"
+    )  # same value used in rpc_condition fixture
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
+    get_context_value_mock, testerchain
+):
+    account, *other_accounts = testerchain.client.accounts
+    balance = testerchain.client.get_balance(account)
+
+    # we have balance stored, use for rpc condition with context variable
+    rpc_condition = RPCCondition(
+        method="eth_getBalance",
+        chain="testerchain",
+        return_value_test=ReturnValueTest(
+            "==", ":balanceContextVar"
+        ),  # user-defined context var
+        parameters=[USER_ADDRESS_CONTEXT],
+    )
+    context = {
+        USER_ADDRESS_CONTEXT: {"address": account},
+        ":balanceContextVar": balance,
+    }
+    condition_result, call_result = rpc_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is True
+    assert call_result == balance
+
+    # modify balance to make it false
+    invalid_balance = balance + 1
+    context[":balanceContextVar"] = invalid_balance
+    condition_result, call_result = rpc_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is False
+    assert call_result != invalid_balance
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
 def test_erc20_evm_condition_evaluation(
-    get_context_value_mock, testerchain, evm_condition
+    get_context_value_mock, testerchain, erc20_evm_condition
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
-    result, value = evm_condition.verify(provider=testerchain.provider, **context)
-    assert result is True
+    condition_result, call_result = erc20_evm_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is True
 
     context[USER_ADDRESS_CONTEXT]["address"] = testerchain.etherbase_account
-    result, value = evm_condition.verify(provider=testerchain.provider, **context)
-    assert result is False
+    condition_result, call_result = erc20_evm_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is False
 
 
 def test_erc20_evm_condition_evaluation_with_custom_context_variable(
-    testerchain, custom_context_variable_evm_condition
+    testerchain, custom_context_variable_erc20_condition
 ):
     context = {":addressToUse": testerchain.unassigned_accounts[0]}
-    result, value = custom_context_variable_evm_condition.verify(
+    condition_result, call_result = custom_context_variable_erc20_condition.verify(
         provider=testerchain.provider, **context
     )
-    assert result is True
+    assert condition_result is True
 
     context[":addressToUse"] = testerchain.etherbase_account
-    result, value = custom_context_variable_evm_condition.verify(
+    condition_result, call_result = custom_context_variable_erc20_condition.verify(
         provider=testerchain.provider, **context
     )
-    assert result is False
-
-
-@pytest.mark.skip('Need a way to handle user inputs like HRAC as context variables')
-def test_subscription_manager_condition_evaluation(testerchain, subscription_manager_condition):
-    context = {":hrac": None}
-    result, value = subscription_manager_condition.verify(
-        provider=testerchain.provider, **context
-    )
-    assert result is True
-    result, value = subscription_manager_condition.verify(provider=testerchain.provider)
-    assert result is False
+    assert condition_result is False
 
 
 @mock.patch(
     "nucypher.policy.conditions.evm.get_context_value",
     side_effect=_dont_validate_user_address,
 )
-def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condition):
-    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
-    result, value = rpc_condition.verify(provider=testerchain.provider, **context)
-    assert result is True
-
-
-@mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
-    side_effect=_dont_validate_user_address,
-)
-def test_time_condition_evaluation(
-    get_context_value_mock, testerchain, timelock_condition
+def test_erc721_evm_condition_owner_evaluation(
+    get_context_value_mock, testerchain, test_registry, erc721_evm_condition_owner
 ):
-    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
-    result, value = timelock_condition.verify(provider=testerchain.provider, **context)
-    assert result is True
+    account, *other_accounts = testerchain.client.accounts
+    # valid owner of nft
+    context = {USER_ADDRESS_CONTEXT: {"address": account}}
+    condition_result, call_result = erc721_evm_condition_owner.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is True
+    assert call_result == account
+
+    # invalid owner of nft
+    other_account = other_accounts[0]
+    context = {USER_ADDRESS_CONTEXT: {"address": other_account}}
+    condition_result, call_result = erc721_evm_condition_owner.verify(
+        provider=testerchain.provider, **context
+    )
+    assert not condition_result
+    assert call_result != other_account
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_erc721_evm_condition_balanceof_evaluation(
+    get_context_value_mock, testerchain, test_registry, erc721_evm_condition_balanceof
+):
+    account, *other_accounts = testerchain.client.accounts
+    context = {USER_ADDRESS_CONTEXT: {"address": account}}  # owner of NFT
+    condition_result, call_result = erc721_evm_condition_balanceof.verify(
+        provider=testerchain.provider, **context
+    )
+    assert condition_result is True
+
+    # invalid owner of nft
+    other_account = other_accounts[0]  # not an owner of NFT
+    context = {USER_ADDRESS_CONTEXT: {"address": other_account}}
+    condition_result, call_result = erc721_evm_condition_balanceof.verify(
+        provider=testerchain.provider, **context
+    )
+    assert not condition_result
+
+
+def test_subscription_manager_is_active_policy_condition_evaluation(
+    testerchain,
+    enacted_blockchain_policy,
+    subscription_manager_is_active_policy_condition,
+):
+    context = {
+        ":hrac": bytes(enacted_blockchain_policy.hrac)
+    }  # user-defined context var
+    condition_result, call_result = subscription_manager_is_active_policy_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert call_result
+    assert condition_result is True
+
+    # non-active policy hrac
+    context[":hrac"] = os.urandom(16)
+    condition_result, call_result = subscription_manager_is_active_policy_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert not call_result
+    assert not condition_result
+
+
+def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
+    testerchain,
+    enacted_blockchain_policy,
+    subscription_manager_get_policy_zeroized_policy_struct_condition,
+):
+
+    # zeroized policy struct
+    zeroized_policy_struct = (
+        "0x0000000000000000000000000000000000000000",
+        0,
+        0,
+        0,
+        "0x0000000000000000000000000000000000000000",
+    )
+    context = {
+        ":hrac": bytes(enacted_blockchain_policy.hrac),
+        ":expectedPolicyStruct": zeroized_policy_struct,
+    }  # user-defined context vars
+    condition_result, call_result = subscription_manager_get_policy_zeroized_policy_struct_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert call_result != zeroized_policy_struct
+    assert not condition_result  # not zeroized policy
+
+    # unknown policy hrac
+    context[":hrac"] = os.urandom(16)
+    condition_result, call_result = subscription_manager_get_policy_zeroized_policy_struct_condition.verify(
+        provider=testerchain.provider, **context
+    )
+    assert call_result == zeroized_policy_struct
+    assert condition_result is True  # zeroized policy was indeed returned
+
+
+def test_time_condition_evaluation(testerchain, timelock_condition):
+    condition_result, call_result = timelock_condition.verify(
+        provider=testerchain.provider
+    )
+    assert condition_result is True
 
 
 def test_simple_compound_conditions_evaluation(testerchain):
@@ -218,9 +362,6 @@ def test_simple_compound_conditions_evaluation(testerchain):
 def test_onchain_conditions_lingo_evaluation(
     get_context_value_mock,
     testerchain,
-    timelock_condition,
-    rpc_condition,
-    evm_condition,
     lingo,
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.etherbase_account}}

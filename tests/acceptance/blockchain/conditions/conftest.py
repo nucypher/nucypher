@@ -27,6 +27,10 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     SubscriptionManagerAgent,
 )
+from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
+from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
@@ -76,7 +80,7 @@ def rpc_condition():
 
 
 @pytest.fixture
-def evm_condition(test_registry, agency):
+def erc20_evm_condition(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
@@ -90,7 +94,7 @@ def evm_condition(test_registry, agency):
 
 
 @pytest.fixture
-def custom_context_variable_evm_condition(test_registry, agency):
+def custom_context_variable_erc20_condition(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
@@ -104,16 +108,87 @@ def custom_context_variable_evm_condition(test_registry, agency):
 
 
 @pytest.fixture
-def subscription_manager_condition(test_registry, agency):
+def erc721_contract(testerchain, test_registry):
+    solidity_root = Path(__file__).parent / "contracts"
+    source_bundle = SourceBundle(base_path=solidity_root)
+    compiled_constracts = multiversion_compile([source_bundle], True)
+    testerchain._raw_contract_cache = compiled_constracts
+
+    origin, *everybody_else = testerchain.client.accounts
+    transacting_power = TransactingPower(
+        account=origin, signer=Web3Signer(testerchain.client)
+    )
+    contract, receipt = testerchain.deploy_contract(
+        transacting_power=transacting_power,
+        registry=test_registry,
+        contract_name="ConditionNFT",
+    )
+    # mint an NFT with tokenId = 1
+    tx = contract.functions.mint(origin, 1).transact({"from": origin})
+    testerchain.wait_for_receipt(tx)
+
+    return contract
+
+
+@pytest.fixture
+def erc721_evm_condition_owner(erc721_contract):
+    condition = ContractCondition(
+        contract_address=erc721_contract.address,
+        method="ownerOf",
+        standard_contract_type="ERC721",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+        parameters=[
+            1,
+        ],
+    )
+    return condition
+
+
+@pytest.fixture
+def erc721_evm_condition_balanceof(erc721_contract):
+    condition = ContractCondition(
+        contract_address=erc721_contract.address,
+        method="balanceOf",
+        standard_contract_type="ERC721",
+        chain="testerchain",
+        return_value_test=ReturnValueTest(">", 0),
+        parameters=[
+            ":userAddress",
+        ],
+    )
+
+    return condition
+
+
+@pytest.fixture
+def subscription_manager_is_active_policy_condition(test_registry, agency):
     subscription_manager = ContractAgency.get_agent(SubscriptionManagerAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        method='getPolicy',
-        chain='testerchain',
-        return_value_test=ReturnValueTest('==', 0),
-        parameters=[
-            ':hrac'
-        ]
+        function_abi=subscription_manager.contract.abi,
+        method="isPolicyActive",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", True),
+        parameters=[":hrac"],
+    )
+    return condition
+
+
+@pytest.fixture
+def subscription_manager_get_policy_zeroized_policy_struct_condition(
+    test_registry, agency
+):
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent, registry=test_registry
+    )
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.abi,
+        method="getPolicy",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
+        parameters=[":hrac"],
     )
     return condition
 
@@ -127,8 +202,8 @@ def timelock_condition():
 
 
 @pytest.fixture()
-def lingo(timelock_condition, rpc_condition, evm_condition):
+def lingo(timelock_condition, rpc_condition, erc20_evm_condition):
     lingo = ConditionLingo(
-        conditions=[timelock_condition, OR, rpc_condition, AND, evm_condition]
+        conditions=[timelock_condition, OR, rpc_condition, AND, erc20_evm_condition]
     )
     return lingo

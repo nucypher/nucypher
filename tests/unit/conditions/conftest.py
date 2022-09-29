@@ -75,7 +75,7 @@ def rpc_condition():
 
 
 @pytest.fixture
-def evm_condition(test_registry):
+def erc20_evm_condition(test_registry):
     condition = ContractCondition(
         contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
         method="balanceOf",
@@ -84,6 +84,21 @@ def evm_condition(test_registry):
         return_value_test=ReturnValueTest("==", 0),
         parameters=[
             USER_ADDRESS_CONTEXT,
+        ],
+    )
+    return condition
+
+
+@pytest.fixture
+def erc721_evm_condition(test_registry):
+    condition = ContractCondition(
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        method="ownerOf",
+        standard_contract_type="ERC721",
+        chain="testerchain",
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+        parameters=[
+            5954,
         ]
     )
     return condition
@@ -113,8 +128,16 @@ def timelock_condition():
 
 
 @pytest.fixture()
-def lingo(timelock_condition, rpc_condition, evm_condition):
+def lingo(timelock_condition, rpc_condition, erc20_evm_condition, erc721_evm_condition):
     lingo = ConditionLingo(
-        conditions=[timelock_condition, OR, rpc_condition, AND, evm_condition]
+        conditions=[
+            erc721_evm_condition,
+            OR,
+            timelock_condition,
+            OR,
+            rpc_condition,
+            AND,
+            erc20_evm_condition,
+        ]
     )
     return lingo

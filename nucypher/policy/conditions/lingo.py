@@ -1,12 +1,34 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import ast
 import base64
 import json
-from typing import Union, Tuple, List, Dict, Any
+import operator
+from typing import Any, Dict, List, Tuple, Union
 
 from marshmallow import fields, post_load
 
-from nucypher.policy.conditions._utils import CamelCaseSchema, _deserialize_condition_lingo
+from nucypher.policy.conditions._utils import (
+    CamelCaseSchema,
+    _deserialize_condition_lingo,
+)
 from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.context import is_context_variable
 
 
 class Operator:
@@ -45,36 +67,57 @@ class Operator:
 
 
 class ReturnValueTest:
+    class InvalidExpression(ValueError):
+        pass
+
     _COMPARATOR_FUNCTIONS = {
-        '==': lambda x, y: x == y,
-        '>': lambda x, y: x > y,
-        '<': lambda x, y: x < y,
-        '<=': lambda x, y: x <= y,
-        '>=': lambda x, y: x >= y,
+        "==": operator.eq,
+        "!=": operator.ne,
+        ">": operator.gt,
+        "<": operator.lt,
+        "<=": operator.le,
+        ">=": operator.ge,
     }
-    COMPARATORS = tuple(_COMPARATOR_FUNCTIONS.keys())
+    COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
-        value = fields.Str()
+        value = fields.Raw(allow_none=False)  # any valid type (excludes None)
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
     def __init__(self, comparator: str, value):
-        comparator, value = self._sanitize(comparator, value)
+        if comparator not in self.COMPARATORS:
+            raise self.InvalidExpression(
+                f'"{comparator}" is not a permitted comparator.'
+            )
+
+        if not is_context_variable(value):
+            # verify that value is valid, but don't set it here so as not to change the value;
+            # it will be sanitized at eval time. Need to maintain serialization/deserialization
+            # consistency
+            self._sanitize_value(value)
+
         self.comparator = comparator
         self.value = value
 
-    def _sanitize(self, comparator: str, value) -> Tuple[str, Any]:
-        if comparator not in self.COMPARATORS:
-            raise ValueError(f'{comparator} is not a permitted comparator.')
-        return comparator, ast.literal_eval(str(value))
+    def _sanitize_value(self, value):
+        try:
+            return ast.literal_eval(str(value))
+        except Exception:
+            raise self.InvalidExpression(f'"{value}" is not a permitted value.')
 
     def eval(self, data) -> bool:
-        left_operand = ast.literal_eval(str(data))
-        right_operand = self.value
+        if is_context_variable(self.value):
+            # programming error if we get here
+            raise RuntimeError(
+                f"'{self.value}' is an unprocessed context variable and is not valid "
+                f"for condition evaluation."
+            )
+        left_operand = self._sanitize_value(data)
+        right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
 
