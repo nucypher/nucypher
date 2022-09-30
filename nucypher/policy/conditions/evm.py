@@ -47,19 +47,23 @@ def _resolve_chain(chain: Union[str, int]) -> Tuple[str, int]:
             chain_id, chain_name = pair
             return chain_name, chain_id
     else:
-        raise Exception(f'{chain} is not a known blockchain.')
+        raise ReencryptionCondition.InvalidCondition(
+            f"{chain} is not a known blockchain."
+        )
 
 
 def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -> List:
     """Resolves the contract an/or function ABI from a standard contract name"""
     if not (function_abi or standard_contract_type):
         # TODO: Is this protection needed?
-        raise ValueError(f'Ambiguous ABI - Supply either an ABI or a standard contract name.')
+        raise ReencryptionCondition.InvalidCondition(
+            f"Ambiguous ABI - Supply either an ABI or a standard contract name."
+        )
     try:
         function_abi = STANDARD_ABIS[standard_contract_type]
     except KeyError:
         if not function_abi:
-            raise Exception(f'No function ABI found')
+            raise ReencryptionCondition.InvalidCondition(f"No function ABI found")
 
     # TODO: Verify that the function and ABI pair match?
     # ABI(function_abi)
@@ -99,6 +103,10 @@ class RPCCondition(ReencryptionCondition):
         # RPC
         'eth_getBalance',
     )
+
+    class RPCExecutionFailed(ReencryptionCondition.ConditionEvaluationFailed):
+        """Raised when an exception is raised from an RPC call."""
+        pass
 
     class Schema(CamelCaseSchema):
         name = fields.Str()
@@ -140,9 +148,13 @@ class RPCCondition(ReencryptionCondition):
 
     def validate_method(self, method):
         if method not in self.ALLOWED_METHODS:
-            raise Exception(f'{method} is not a permitted RPC endpoint for conditions.')
+            raise ReencryptionCondition.InvalidCondition(
+                f"{method} is not a permitted RPC endpoint for conditions."
+            )
         if not method.startswith('eth_'):
-            raise Exception(f'Only eth RPC methods are accepted for conditions.')
+            raise ReencryptionCondition.InvalidCondition(
+                f"Only eth RPC methods are accepted for conditions."
+            )
         return method
 
     def _configure_provider(self, provider: BaseProvider):
@@ -150,9 +162,21 @@ class RPCCondition(ReencryptionCondition):
         self.w3 = Web3(provider)
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain_id:
-            raise Exception(f'This condition can only be evaluated on {self.chain_id} but the providers '
-                            f'connection is to {provider_chain}')
+            raise ReencryptionCondition.InvalidCondition(
+                f"This condition can only be evaluated on {self.chain_id} but the providers "
+                f"connection is to {provider_chain}"
+            )
         return provider
+
+    def _execute_call(self, parameters: List[Any]) -> Any:
+        """Execute onchain read and return result."""
+        rpc_endpoint_, rpc_method = self.method.split("_", 1)
+        web3_py_method = camel_case_to_snake(rpc_method)
+        rpc_function = getattr(
+            self.w3.eth, web3_py_method
+        )  # bind contract function (only exposes the eth API)
+        rpc_result = rpc_function(*parameters)  # RPC read
+        return rpc_result
 
     def verify(self, provider: BaseProvider, **context) -> Tuple[bool, Any]:
         """Performs onchain read and return value test"""
@@ -160,12 +184,13 @@ class RPCCondition(ReencryptionCondition):
         parameters, return_value_test = _resolve_any_context_variables(
             self.parameters, self.return_value_test, **context
         )
-        rpc_endpoint_, rpc_method = self.method.split("_", 1)
-        web3_py_method = camel_case_to_snake(rpc_method)
-        rpc_function = getattr(self.w3.eth, web3_py_method)  # bind contract function (only exposes the eth API)
-        rpc_result = rpc_function(*parameters)  # RPC read
-        eval_result = return_value_test.eval(rpc_result)  # test
-        return eval_result, rpc_result
+        try:
+            result = self._execute_call(parameters=parameters)
+        except Exception as e:
+            raise self.RPCExecutionFailed(f"Contract call '{self.method}' failed: {e}")
+
+        eval_result = return_value_test.eval(result)  # test
+        return eval_result, result
 
 
 class ContractCondition(RPCCondition):
@@ -217,24 +242,23 @@ class ContractCondition(RPCCondition):
 
     def _get_unbound_contract_function(self) -> ContractFunction:
         """Gets an unbound contract function to evaluate for this condition"""
-        contract = self.w3.eth.contract(address=self.contract_address, abi=self.function_abi)
-        contract_function = getattr(contract.functions, self.method)  # TODO: Use function selector instead/also?
-        return contract_function
+        try:
+            contract = self.w3.eth.contract(
+                address=self.contract_address, abi=self.function_abi
+            )
+            contract_function = getattr(
+                contract.functions, self.method
+            )  # TODO: Use function selector instead/also?
+            return contract_function
+        except Exception as e:
+            raise ReencryptionCondition.InvalidCondition(
+                f"Unable to obtain contract function, '{self.method}', for condition: {e}"
+            )
 
-    def _evaluate(self, **context) -> Tuple[bool, Any]:
-        """Performs onchain read and return value test"""
-        parameters, return_value_test = _resolve_any_context_variables(
-            self.parameters, self.return_value_test, **context
-        )
+    def _execute_call(self, parameters: List[Any]) -> Any:
+        """Execute onchain read and return result."""
         bound_contract_function = self.contract_function(
             *parameters
         )  # bind contract function
         contract_result = bound_contract_function.call()  # onchain read
-        eval_result = return_value_test.eval(contract_result)  # test
-        return eval_result, contract_result
-
-    def verify(self, provider: BaseProvider, **context) -> Tuple[bool, Any]:
-        """Public API: Evaluate this condition using the given a blockchain provider and any supplied context kwargs"""
-        self._configure_provider(provider=provider)
-        result = self._evaluate(**context)
-        return result
+        return contract_result

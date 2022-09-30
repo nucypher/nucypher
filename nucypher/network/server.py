@@ -42,6 +42,7 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import (
     ContextVariableVerificationFailed,
     InvalidContextVariableData,
@@ -236,6 +237,11 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                     # TODO: Can conditions return a useful value?
                     log.info(f'Evaluating decryption condition')
                     lingo.eval(**context)
+                except ReencryptionCondition.InvalidCondition as e:
+                    message = f"Incorrect value provided for condition: {e}"
+                    error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(message, status=error[1])
                 except RequiredContextVariable as e:
                     message = f"Missing required inputs: {e}"
                     # TODO: be more specific and name the missing inputs, etc
@@ -250,6 +256,11 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
                 except ContextVariableVerificationFailed as e:
                     message = f"Context variable data could not be verified: {e}"
                     error = (message, HTTPStatus.FORBIDDEN)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except ReencryptionCondition.ConditionEvaluationFailed as e:
+                    message = f"Decryption condition not evaluated: {e}"
+                    error = (message, HTTPStatus.BAD_REQUEST)
                     log.info(message)
                     return Response(message, status=error[1])
                 except lingo.Failed as e:

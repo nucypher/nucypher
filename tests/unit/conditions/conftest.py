@@ -106,12 +106,19 @@ def erc721_evm_condition(test_registry):
 
 @pytest.fixture
 def sm_condition(test_registry):
+    zeroized_policy_struct = (
+        "0x0000000000000000000000000000000000000000",
+        0,
+        0,
+        0,
+        "0x0000000000000000000000000000000000000000",
+    )
     condition = ContractCondition(
         contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
         method="getPolicy",
         chain="testerchain",
         function_abi=ABI,
-        return_value_test=ReturnValueTest('!=', None),
+        return_value_test=ReturnValueTest("!=", zeroized_policy_struct),
         parameters=[
             ':hrac',
         ]
