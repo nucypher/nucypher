@@ -25,11 +25,6 @@ You can delegate running a PRE node to one of the *node-as-a-service* Staking Pr
     * Email: sales@infstones.com
     * Telegram: https://t.me/infstones
     * WeChat: ``@InfStones``
-* `Nodefolio <https://nodefolio.io/>`_
-    * Email: stake@nodefolio.io
-    * Discord: ``@Mike_Jamso_Nodefolio``
-    * Telegram: https://t.me/nodefolioo
-    * WeChat: ``@Mike_Jamso_Nodefolio``
 * `P2P Validator <https://p2p.org>`_
     * Email: am@p2p.org
     * Telegram: ``@P2Pstaking``
