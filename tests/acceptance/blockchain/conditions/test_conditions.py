@@ -248,11 +248,11 @@ def test_erc721_evm_condition_owner_evaluation(
     assert call_result == account
 
     # invalid token id
-    context[":tokenId"] = 255
-    condition_result, call_result = erc721_evm_condition_owner.verify(
-        provider=testerchain.provider, **context
-    )
-    assert condition_result is False
+    with pytest.raises(RPCCondition.RPCExecutionFailed):
+        context[":tokenId"] = 255
+        _, _ = erc721_evm_condition_owner.verify(
+            provider=testerchain.provider, **context
+        )
 
     # invalid owner of nft
     other_account = other_accounts[0]

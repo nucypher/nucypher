@@ -1,6 +1,24 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import time
-from marshmallow import fields, post_load
 from typing import Tuple
+
+from marshmallow import fields, post_load
 
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
@@ -25,7 +43,9 @@ class TimeCondition(ReencryptionCondition):
 
     def __init__(self, return_value_test: ReturnValueTest, method: str = METHOD):
         if method != self.METHOD:
-            raise Exception(f'{self.__class__.__name__} must be instantiated with the {self.METHOD} method.')
+            raise ReencryptionCondition.InvalidCondition(
+                f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
+            )
         self.return_value_test = return_value_test
 
     @property
