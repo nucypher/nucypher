@@ -52,12 +52,9 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from flask import Response, request
 from nucypher_core import (
-<<<<<<< HEAD
+    Address,
     HRAC,
-=======
     Conditions,
-    MessageKit,
->>>>>>> 40817db8d (Handle rust-native conditions newtype just-in-time; Co-existing with ConditionsLingo)
     EncryptedKeyFrag,
     EncryptedTreasureMap,
     MessageKit,
