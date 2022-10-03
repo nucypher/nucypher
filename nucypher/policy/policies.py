@@ -21,10 +21,9 @@ from typing import Sequence, Optional, Iterable, List, Dict
 
 import maya
 from eth_typing.evm import ChecksumAddress
-from nucypher_core import HRAC, TreasureMap
+from nucypher_core import Address, HRAC, TreasureMap
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
-from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
@@ -171,7 +170,7 @@ class Policy(ABC):
         self._publish(ursulas=ursulas)
 
         assigned_kfrags = {
-            ursula.canonical_address: (ursula.public_keys(DecryptingPower), vkfrag)
+            Address(ursula.canonical_address): (ursula.public_keys(DecryptingPower), vkfrag)
             for ursula, vkfrag in zip(ursulas, self.kfrags)
         }
 

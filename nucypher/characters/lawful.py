@@ -1067,7 +1067,7 @@ class Ursula(Teacher, Character, Operator):
             operator_signature = None
         else:
             operator_signature = self.operator_signature
-        payload = NodeMetadataPayload(staking_provider_address=self.canonical_address,
+        payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
                                       operator_signature=operator_signature,
@@ -1257,10 +1257,8 @@ class Ursula(Teacher, Character, Operator):
             cfrag = reencrypt(capsule, kfrag)
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
-
-        return ReencryptionResponse(signer=self.stamp.as_umbral_signer(),
-                                    capsules=capsules,
-                                    vcfrags=cfrags)
+        results = list(zip(capsules, cfrags))
+        return ReencryptionResponse(signer=self.stamp.as_umbral_signer(), capsules_and_vcfrags=results)
 
     def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
 

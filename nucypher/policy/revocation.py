@@ -15,10 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address, to_canonical_address
 
-from nucypher_core import RevocationOrder
+from nucypher_core import Address, RevocationOrder
 from nucypher.crypto.signing import SignatureStamp
 
 
@@ -29,7 +30,7 @@ class RevocationKit:
         self.revocations = dict()
         for staking_provider_address, encrypted_kfrag in treasure_map.destinations.items():
             self.revocations[staking_provider_address] = RevocationOrder(signer=signer.as_umbral_signer(),
-                                                                         staking_provider_address=staking_provider_address,
+                                                                         staking_provider_address=Address(staking_provider_address),
                                                                          encrypted_kfrag=encrypted_kfrag)
 
     def __iter__(self):
