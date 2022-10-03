@@ -78,7 +78,7 @@ TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
 # Policy Parameters
 THRESHOLD: int = 1
 SHARES: int = 1
-RATE: Wei = Web3.toWei(50, 'gwei')
+RATE: Wei = Web3.to_wei(50, 'gwei')
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
 # Tuning

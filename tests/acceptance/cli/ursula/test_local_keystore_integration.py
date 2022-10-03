@@ -58,7 +58,7 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
         testerchain.client.w3.eth.send_transaction({
             'to': account.address,
             'from': testerchain.etherbase_account,
-            'value': Web3.toWei('1', 'ether')}))
+            'value': Web3.to_wei('1', 'ether')}))
 
     # initialize threshold stake
     provider_address = testerchain.unassigned_accounts[0]

@@ -177,7 +177,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
             _receipt = self.wait_for_receipt(txhash)
             tx_hashes.append(txhash)
-            eth_amount = Web3().fromWei(amount, 'ether')
+            eth_amount = Web3().from_wei(amount, 'ether')
             self.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
 
         return tx_hashes

@@ -110,7 +110,7 @@ class BaseActor:
         """Return this actor's current ETH balance"""
         blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.wallet_address)
-        return Web3.fromWei(balance, 'ether')
+        return Web3.from_wei(balance, 'ether')
 
     @property
     def wallet_address(self):
@@ -362,7 +362,7 @@ class Operator(BaseActor):
                 ether_balance = client.get_balance(self.operator_address)
                 if ether_balance:
                     # funds found
-                    funded, balance = True, Web3.fromWei(ether_balance, 'ether')
+                    funded, balance = True, Web3.from_wei(ether_balance, 'ether')
                     emitter.message(f"✓ Operator {self.operator_address} is funded with {balance} ETH", color='green')
                 else:
                     emitter.message(f"! Operator {self.operator_address} is not funded with ETH", color="yellow")

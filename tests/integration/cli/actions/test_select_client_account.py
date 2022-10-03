@@ -207,7 +207,7 @@ def test_select_client_account_with_balance_display(mock_stdin,
 
         if show_eth:
             balance = mock_testerchain.client.get_balance(account=account)
-            assert str(Web3.fromWei(balance, 'ether')) in captured.out
+            assert str(Web3.from_wei(balance, 'ether')) in captured.out
 
         if show_staking:
             if len(stake_info) == 0:

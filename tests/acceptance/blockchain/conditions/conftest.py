@@ -73,7 +73,7 @@ def rpc_condition():
     condition = RPCCondition(
         method="eth_getBalance",
         chain="testerchain",
-        return_value_test=ReturnValueTest("==", Web3.toWei(1_000_000, "ether")),
+        return_value_test=ReturnValueTest("==", Web3.to_wei(1_000_000, "ether")),
         parameters=[USER_ADDRESS_CONTEXT],
     )
     return condition

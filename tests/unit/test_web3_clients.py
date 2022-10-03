@@ -122,7 +122,7 @@ class SyncedMockWeb3:
         return self.provider.clientVersion
 
     @property
-    def isConnected(self):
+    def is_connected(self):
         return lambda: True
 
 

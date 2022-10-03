@@ -117,7 +117,7 @@ def collect_policy_rate_and_value(alice: Alice, rate: int, value: int, shares: i
         rate = alice.payment_method.rate  # wei
 
         if not force:
-            default_gwei = Web3.fromWei(rate, 'gwei')  # wei -> gwei
+            default_gwei = Web3.from_wei(rate, 'gwei')  # wei -> gwei
             prompt = "Confirm rate of {node_rate} gwei * {shares} nodes ({period_rate} gwei per period)?"
 
             if not click.confirm(prompt.format(node_rate=default_gwei, period_rate=default_gwei * shares, shares=shares), default=True):
@@ -125,7 +125,7 @@ def collect_policy_rate_and_value(alice: Alice, rate: int, value: int, shares: i
                 # TODO: Interactive rate sampling & validation (#1709)
                 interactive_prompt = prompt.format(node_rate=interactive_rate, period_rate=interactive_rate * shares, shares=shares)
                 click.confirm(interactive_prompt, default=True, abort=True)
-                rate = Web3.toWei(interactive_rate, 'gwei')  # gwei -> wei
+                rate = Web3.to_wei(interactive_rate, 'gwei')  # gwei -> wei
 
     return rate, value
 
