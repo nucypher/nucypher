@@ -558,7 +558,7 @@ def testerchain(_testerchain) -> TesterBlockchain:
             txhash = testerchain.w3.eth.send_transaction(tx)
 
             _receipt = testerchain.wait_for_receipt(txhash)
-            eth_amount = Web3().fromWei(spent, 'ether')
+            eth_amount = Web3().from_wei(spent, 'ether')
             testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
 
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
@@ -707,7 +707,7 @@ def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test
 
 @pytest.fixture(scope='module')
 def policy_rate():
-    rate = Web3.toWei(21, 'gwei')
+    rate = Web3.to_wei(21, 'gwei')
     return rate
 
 
@@ -766,7 +766,7 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
+          'value': Web3.to_wei('1', 'ether')}
 
     txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
@@ -809,7 +809,7 @@ def manual_operator(testerchain):
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
+          'value': Web3.to_wei('1', 'ether')}
 
     txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)

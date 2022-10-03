@@ -16,11 +16,6 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from pathlib import Path
-
-from nucypher.blockchain.eth.signers import Signer
-from nucypher.network.nodes import TEACHER_NODES
-from nucypher.policy.payment import SubscriptionManagerPayment
 
 """
 WARNING: This script makes automatic transactions.
@@ -29,21 +24,27 @@ are doing and intend to spend ETH measuring live
 policy availability.
 """
 
-
 import datetime
-import maya
 import os
 import shutil
 import time
-from eth_typing.evm import ChecksumAddress
+from pathlib import Path
 from typing import Set, Optional, List, Tuple
 
+import maya
+from eth_typing.evm import ChecksumAddress
 from nucypher_core.umbral import SecretKey
+from web3 import Web3
+from web3.types import Wei
 
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
+from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
+
 
 # Signer Configuration
 # In order to use this script, you must configure a wallet for alice
@@ -76,8 +77,9 @@ INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
-THRESHOLD: int = 2
-SHARES: int = 3
+THRESHOLD: int = 1
+SHARES: int = 1
+RATE: Wei = Web3.to_wei(50, 'gwei')
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
 # Tuning

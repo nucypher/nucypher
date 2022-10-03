@@ -333,7 +333,7 @@ def run_entire_cli_lifecycle(click_runner,
             grant_args += ('--federated-only',)
         else:
             grant_args += ('--eth-provider', TEST_ETH_PROVIDER_URI,
-                           '--value', Web3.toWei(9, 'gwei'))
+                           '--value', Web3.to_wei(9, 'gwei'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0, (grant_result.output, grant_result.exception)

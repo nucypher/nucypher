@@ -148,7 +148,7 @@ def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condi
         provider=testerchain.provider, **context
     )
     assert condition_result is True
-    assert call_result == Web3.toWei(
+    assert call_result == Web3.to_wei(
         1_000_000, "ether"
     )  # same value used in rpc_condition fixture
 

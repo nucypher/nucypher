@@ -308,7 +308,7 @@ class BlockchainInterface:
         configuration_message = f"Using gas strategy '{reported_gas_strategy}'"
 
         if self.max_gas_price:
-            __price = Web3.toWei(self.max_gas_price, 'gwei')  # from gwei to wei
+            __price = Web3.to_wei(self.max_gas_price, 'gwei')  # from gwei to wei
             gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
             configuration_message += f", with a max price of {self.max_gas_price} gwei."
 
@@ -316,7 +316,7 @@ class BlockchainInterface:
 
         # TODO: This line must not be called prior to establishing a connection
         #        Move it down to a lower layer, near the client.
-        # gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
+        # gwei_gas_price = Web3.from_wei(self.client.gas_price_for_transaction(), 'gwei')
 
         self.log.info(configuration_message)
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
@@ -570,9 +570,9 @@ class BlockchainInterface:
             max_unit_price = transaction_dict['gasPrice']
             tx_type = 'Legacy'
 
-        max_price_gwei = Web3.fromWei(max_unit_price, 'gwei')
+        max_price_gwei = Web3.from_wei(max_unit_price, 'gwei')
         max_cost_wei = max_unit_price * transaction_dict['gas']
-        max_cost = Web3.fromWei(max_cost_wei, 'ether')
+        max_cost = Web3.from_wei(max_cost_wei, 'ether')
 
         if transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '

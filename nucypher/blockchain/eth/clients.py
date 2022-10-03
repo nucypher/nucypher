@@ -227,7 +227,7 @@ class EthereumClient:
 
     @property
     def is_connected(self):
-        return self.w3.isConnected()
+        return self.w3.is_connected()
 
     @property
     def etherbase(self) -> str:

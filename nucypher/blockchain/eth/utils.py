@@ -128,11 +128,11 @@ def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
     """
     try:
         # First obtain canonical representation in wei. Works for int, float, Decimal and str amounts
-        amount_in_wei = Web3.toWei(Decimal(amount), original_denomination)
+        amount_in_wei = Web3.to_wei(Decimal(amount), original_denomination)
 
         common_denominations = ('wei', 'gwei', 'ether')
 
-        options = [str(Web3.fromWei(amount_in_wei, d)) for d in common_denominations]
+        options = [str(Web3.from_wei(amount_in_wei, d)) for d in common_denominations]
 
         best_option = min(zip(map(len, options), options, common_denominations))
         _length, pretty_amount, denomination = best_option
