@@ -60,8 +60,5 @@ def test_conditions_lingo_serialization(lingo):
     lingo_b64 = restored_lingo.to_base64()
     restored_lingo = ConditionLingo.from_base64(lingo_b64)
 
-    lingo_bytes = bytes(restored_lingo)
-    restored_lingo = ConditionLingo.from_bytes(lingo_bytes)
-
     # after all the serialization and transformation the content must remain identical
     assert restored_lingo.to_json() == lingo_json
