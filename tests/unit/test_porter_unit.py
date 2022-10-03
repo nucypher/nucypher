@@ -21,7 +21,7 @@ from eth_utils import to_canonical_address
 
 import pytest
 
-from nucypher_core import RetrievalKit as RetrievalKitClass, MessageKit
+from nucypher_core import RetrievalKit as RetrievalKitClass, Address, MessageKit
 from nucypher_core.umbral import SecretKey
 
 from nucypher.control.specifications.exceptions import InvalidInputData
@@ -106,7 +106,7 @@ def test_retrieval_kit_field(get_random_checksum_address):
     encrypting_key = SecretKey.random().public_key()
     capsule = MessageKit(encrypting_key, b'testing retrieval kit with 2 ursulas').capsule
     ursulas = [get_random_checksum_address(), get_random_checksum_address()]
-    run_tests_on_kit(kit=RetrievalKitClass(capsule, {to_canonical_address(ursula) for ursula in ursulas}))
+    run_tests_on_kit(kit=RetrievalKitClass(capsule, {Address(to_canonical_address(ursula)) for ursula in ursulas}))
 
     # kit with no ursulas
     encrypting_key = SecretKey.random().public_key()

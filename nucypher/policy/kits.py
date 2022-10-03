@@ -22,7 +22,7 @@ from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
 from nucypher_core.umbral import PublicKey, SecretKey, VerifiedCapsuleFrag
 
-from nucypher_core import MessageKit, RetrievalKit
+from nucypher_core import Address, MessageKit, RetrievalKit
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 
@@ -88,7 +88,7 @@ class RetrievalResult:
 
     def canonical_addresses(self) -> Set[bytes]:
         # TODO (#1995): propagate this to use canonical addresses everywhere
-        return set([to_canonical_address(address) for address in self.cfrags])
+        return set([Address(to_canonical_address(address)) for address in self.cfrags])
 
     def with_result(self, result: 'RetrievalResult') -> 'RetrievalResult':
         """

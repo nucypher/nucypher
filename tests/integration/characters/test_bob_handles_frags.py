@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 
-from nucypher_core import RetrievalKit, Conditions
+from nucypher_core import Address, RetrievalKit, Conditions
 
 from nucypher.characters.lawful import Enrico
 from tests.utils.middleware import NodeIsDownMiddleware
@@ -48,7 +48,7 @@ def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
     messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
     capsule = message_kits[0].capsule
-    addresses = {ursula.canonical_address for ursula in list(federated_ursulas)[:2]}
+    addresses = {Address(ursula.canonical_address) for ursula in list(federated_ursulas)[:2]}
 
     retrieval_kit = RetrievalKit(capsule, addresses)
     serialized = bytes(retrieval_kit)

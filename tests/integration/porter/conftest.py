@@ -15,8 +15,9 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import pytest
-from nucypher_core import HRAC, TreasureMap
+from nucypher_core import Address, HRAC, TreasureMap
 
 from nucypher.crypto.powers import DecryptingPower
 
@@ -33,7 +34,7 @@ def random_federated_treasure_map_data(federated_alice, federated_bob, federated
                 label=label)
 
     assigned_kfrags = {
-        ursula.canonical_address: (ursula.public_keys(DecryptingPower), vkfrag)
+        Address(ursula.canonical_address): (ursula.public_keys(DecryptingPower), vkfrag)
         for ursula, vkfrag in zip(list(federated_ursulas)[:shares], kfrags)}
 
     random_treasure_map = TreasureMap(signer=federated_alice.stamp.as_umbral_signer(),
