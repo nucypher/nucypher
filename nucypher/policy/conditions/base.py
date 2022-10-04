@@ -66,11 +66,9 @@ class ReencryptionCondition(_Serializable, ABC):
 
     class InvalidCondition(ValueError):
         """Invalid value for condition."""
-        pass
 
     class ConditionEvaluationFailed(Exception):
         """Could not evaluate condition for some reason."""
-        pass
 
     class Schema(Schema):
         name = NotImplemented
