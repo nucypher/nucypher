@@ -26,7 +26,7 @@ from web3.contract import ContractFunction
 from web3.providers import BaseProvider
 
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
-from nucypher.policy.conditions import STANDARD_ABIS
+from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
@@ -57,13 +57,21 @@ def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -
     if not (function_abi or standard_contract_type):
         # TODO: Is this protection needed?
         raise ReencryptionCondition.InvalidCondition(
-            f"Ambiguous ABI - Supply either an ABI or a standard contract name."
+            f"Ambiguous ABI - Supply either an ABI or a standard contract type ({STANDARD_ABI_CONTRACT_TYPES})."
         )
-    try:
-        function_abi = STANDARD_ABIS[standard_contract_type]
-    except KeyError:
-        if not function_abi:
-            raise ReencryptionCondition.InvalidCondition(f"No function ABI found")
+
+    if standard_contract_type:
+        try:
+            function_abi = STANDARD_ABIS[standard_contract_type]
+        except KeyError:
+            raise ReencryptionCondition.InvalidCondition(
+                f"Invalid standard contract type {standard_contract_type}; Must be one of {STANDARD_ABI_CONTRACT_TYPES}"
+            )
+
+    if not function_abi:
+        raise ReencryptionCondition.InvalidCondition(
+            f"No function ABI supplied for '{method}'"
+        )
 
     # TODO: Verify that the function and ABI pair match?
     # ABI(function_abi)
@@ -95,18 +103,17 @@ def _resolve_any_context_variables(
 
 
 class RPCCondition(ReencryptionCondition):
-    ALLOWED_METHODS = (  # TODO: Deny list instead of allow list, if any?
+    ALLOWED_METHODS = (
 
         # Contract
         'balanceOf',
 
         # RPC
         'eth_getBalance',
-    )
+    )  # TODO other allowed methods (tDEC #64)
 
     class RPCExecutionFailed(ReencryptionCondition.ConditionEvaluationFailed):
         """Raised when an exception is raised from an RPC call."""
-        pass
 
     class Schema(CamelCaseSchema):
         name = fields.Str()
@@ -149,11 +156,11 @@ class RPCCondition(ReencryptionCondition):
     def validate_method(self, method):
         if method not in self.ALLOWED_METHODS:
             raise ReencryptionCondition.InvalidCondition(
-                f"{method} is not a permitted RPC endpoint for conditions."
+                f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
         if not method.startswith('eth_'):
             raise ReencryptionCondition.InvalidCondition(
-                f"Only eth RPC methods are accepted for conditions."
+                f"Only eth RPC methods are accepted for condition evaluation; '{method}' is not permitted"
             )
         return method
 
@@ -163,8 +170,8 @@ class RPCCondition(ReencryptionCondition):
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain_id:
             raise ReencryptionCondition.InvalidCondition(
-                f"This condition can only be evaluated on {self.chain_id} but the providers "
-                f"connection is to {provider_chain}"
+                f"This condition can only be evaluated on {self.chain_id} but the provider's "
+                f"connection is to chain {provider_chain}"
             )
         return provider
 
@@ -246,13 +253,11 @@ class ContractCondition(RPCCondition):
             contract = self.w3.eth.contract(
                 address=self.contract_address, abi=self.function_abi
             )
-            contract_function = getattr(
-                contract.functions, self.method
-            )  # TODO: Use function selector instead/also?
+            contract_function = getattr(contract.functions, self.method)
             return contract_function
         except Exception as e:
             raise ReencryptionCondition.InvalidCondition(
-                f"Unable to obtain contract function, '{self.method}', for condition: {e}"
+                f"Unable to find contract function, '{self.method}', for condition: {e}"
             )
 
     def _execute_call(self, parameters: List[Any]) -> Any:
