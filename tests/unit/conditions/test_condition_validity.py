@@ -17,7 +17,7 @@
 import pytest
 
 from nucypher.policy.conditions.base import ReencryptionCondition
-from nucypher.policy.conditions.evm import RPCCondition, ContractCondition
+from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 
@@ -52,7 +52,7 @@ def test_invalid_rpc_condition():
     # invalid chain id
     with pytest.raises(RPCCondition.InvalidCondition):
         _ = RPCCondition(
-            method="eth_randoMethod",
+            method="eth_getBalance",
             chain="90210",  # Beverly Hills Chain :)
             return_value_test=ReturnValueTest("==", 0),
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
