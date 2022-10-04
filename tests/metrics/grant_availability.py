@@ -18,7 +18,9 @@
 """
 from pathlib import Path
 
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.payment import SubscriptionManagerPayment
 
 """
 WARNING: This script makes automatic transactions.
@@ -35,12 +37,9 @@ import shutil
 import time
 from eth_typing.evm import ChecksumAddress
 from typing import Set, Optional, List, Tuple
-from web3.main import Web3
-from web3.types import Wei
 
 from nucypher_core.umbral import SecretKey
 
-from nucypher.network.middleware import RestMiddleware
 from nucypher.characters.lawful import Bob, Ursula, Alice
 from nucypher.config.characters import AliceConfiguration
 from nucypher.policy.policies import Policy
@@ -52,13 +51,14 @@ ADDRESS_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_ADDRESS'
 PASSWORD_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PASSWORD'
 SIGNER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_KEYFILE_PATH'
 PROVIDER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PROVIDER'
-
+POLYGON_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_POLYGON_PROVIDER'
 
 try:
     ALICE_ADDRESS: ChecksumAddress = os.environ[ADDRESS_ENVVAR]
     SIGNER_PASSWORD: str = os.environ[PASSWORD_ENVVAR]
     SIGNER_URI: str = os.environ[SIGNER_ENVVAR]
     ETHEREUM_PROVIDER_URI: str = os.environ[PROVIDER_ENVVAR]
+    POLYGON_PROVIDER_URI: str = os.environ[POLYGON_ENVVAR]
 except KeyError:
     message = f'{ADDRESS_ENVVAR}, ' \
               f'{PROVIDER_ENVVAR}, ' \
@@ -76,13 +76,12 @@ INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
 
 # Policy Parameters
-THRESHOLD: int = 1
-SHARES: int = 1
-RATE: Wei = Web3.toWei(50, 'gwei')
+THRESHOLD: int = 2
+SHARES: int = 3
 DURATION: datetime.timedelta = datetime.timedelta(days=1)
 
 # Tuning
-DEFAULT_ITERATIONS = 1  # `None` will run forever
+DEFAULT_ITERATIONS = None  # `None` will run forever
 SAMPLE_RATE: int = 15  # seconds
 GAS_STRATEGY: str = 'fast'
 MAX_GAS_PRICE: int = 200  # gwei
@@ -115,11 +114,10 @@ def metric_grant(alice, ursulas: Optional[Set[Ursula]] = None) -> Policy:
     policy_end_datetime = maya.now() + DURATION
     policy = alice.grant(threshold=THRESHOLD,
                          shares=SHARES,
-                         ursulas=handpicked_ursulas,
+                         # ursulas=handpicked_ursulas,
                          expiration=policy_end_datetime,
                          bob=BOB,
-                         label=label,
-                         rate=RATE)
+                         label=label)
     return policy
 
 
@@ -164,8 +162,18 @@ def collect(alice: Alice,
 
 def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     """Initializes a new 'persistent alice configuration' for grant metrics collection."""
+
+    # This is Alice's payment method.
+    payment_method = SubscriptionManagerPayment(
+        network='polygon',
+        eth_provider=POLYGON_PROVIDER_URI
+    )
+
+    wallet = Signer.from_signer_uri(f'keystore://{SIGNER_URI}')
+    wallet.unlock_account(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
+
     alice_config = AliceConfiguration(
-        provider_uri=ETHEREUM_PROVIDER_URI,
+        eth_provider_uri=ETHEREUM_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
         config_root=TEMP_ALICE_DIR,
@@ -180,8 +188,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
     alice_config.initialize(password=INSECURE_PASSWORD)
     alice_config.keystore.unlock(password=INSECURE_PASSWORD)
-    alice = alice_config.produce()
-    alice.signer.unlock(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
+    alice = alice_config.produce(payment_method=payment_method, signer=wallet)
     alice.start_learning_loop(now=True)
     return alice
 
@@ -190,6 +197,7 @@ def setup():
     """Prepares the filesystem and logger for grant metrics collection"""
     shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
     GlobalLoggerSettings.start_console_logging()
+    GlobalLoggerSettings.start_text_file_logging()
     GlobalLoggerSettings.set_log_level('info')
 
 
