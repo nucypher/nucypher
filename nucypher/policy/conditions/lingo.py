@@ -124,10 +124,10 @@ class ReturnValueTest:
 
 class ConditionLingo:
     """
-    A Collection of re-encryption conditions evaluated as a compound boolean condition.
+    A Collection of re-encryption conditions evaluated as a compound boolean expression.
 
-    This is an alternate implementation of the condition expression format used in the Lit Protocol,
-    credit to the authors for inspiring this work. https://github.com/LIT-Protocol
+    This is an alternate implementation of the condition expression format used in the Lit Protocol (https://github.com/LIT-Protocol);
+    credit to the authors for inspiring this work. 
     """
 
     class Failed(Exception):
