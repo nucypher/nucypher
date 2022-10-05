@@ -175,13 +175,17 @@ class RPCCondition(ReencryptionCondition):
             )
         return provider
 
-    def _execute_call(self, parameters: List[Any]) -> Any:
-        """Execute onchain read and return result."""
-        rpc_endpoint_, rpc_method = self.method.split("_", 1)
+    def _get_web3_py_function(self, rpc_method: str):
         web3_py_method = camel_case_to_snake(rpc_method)
         rpc_function = getattr(
             self.w3.eth, web3_py_method
         )  # bind contract function (only exposes the eth API)
+        return rpc_function
+
+    def _execute_call(self, parameters: List[Any]) -> Any:
+        """Execute onchain read and return result."""
+        rpc_endpoint_, rpc_method = self.method.split("_", 1)
+        rpc_function = self._get_web3_py_function(rpc_method)
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 

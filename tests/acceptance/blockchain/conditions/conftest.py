@@ -202,8 +202,19 @@ def timelock_condition():
 
 
 @pytest.fixture()
-def lingo(timelock_condition, rpc_condition, erc20_evm_condition):
+def lingo(erc721_evm_condition_balanceof,
+          timelock_condition,
+          rpc_condition,
+          erc20_evm_condition):
     lingo = ConditionLingo(
-        conditions=[timelock_condition, OR, rpc_condition, AND, erc20_evm_condition]
+        conditions=[
+            erc721_evm_condition_balanceof,
+            OR,
+            timelock_condition,
+            OR,
+            rpc_condition,
+            AND,
+            erc20_evm_condition,
+        ]
     )
     return lingo
