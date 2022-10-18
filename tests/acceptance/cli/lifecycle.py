@@ -24,7 +24,7 @@ from json import JSONDecodeError
 
 import maya
 import pytest
-from nucypher.core import MessageKit, EncryptedTreasureMap
+from nucypher_core import MessageKit, EncryptedTreasureMap
 from twisted.internet import threads
 from web3 import Web3
 
