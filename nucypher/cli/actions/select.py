@@ -117,7 +117,7 @@ def select_client_account(emitter,
             is_staking = 'Yes' if bool(staker.stakes) else 'No'
             row.append(is_staking)
         if show_eth_balance:
-            ether_balance = Web3.fromWei(blockchain.client.get_balance(account), 'ether')
+            ether_balance = Web3.from_wei(blockchain.client.get_balance(account), 'ether')
             row.append(f'{ether_balance} ETH')
         if show_nu_balance:
             token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=registry)

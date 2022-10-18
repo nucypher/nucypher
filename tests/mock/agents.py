@@ -33,7 +33,7 @@ MOCK_TESTERCHAIN = MockBlockchain()
 CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN, emitter=None)
 BlockchainInterfaceFactory._interfaces[MOCK_ETH_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
 
-CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.getBlock('latest')
+CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.get_block('latest')
 
 
 class MockContractAgent:

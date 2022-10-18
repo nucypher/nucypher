@@ -30,8 +30,12 @@ from web3 import Web3
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import AliceConfiguration, BobConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN, \
-    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD, NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    TEMPORARY_DOMAIN,
+    NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
+)
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_ETH_PROVIDER_URI
 
@@ -329,7 +333,7 @@ def run_entire_cli_lifecycle(click_runner,
             grant_args += ('--federated-only',)
         else:
             grant_args += ('--eth-provider', TEST_ETH_PROVIDER_URI,
-                           '--value', Web3.toWei(9, 'gwei'))
+                           '--value', Web3.to_wei(9, 'gwei'))
 
         grant_result = click_runner.invoke(nucypher_cli, grant_args, catch_exceptions=False, env=envvars)
         assert grant_result.exit_code == 0, (grant_result.output, grant_result.exception)

@@ -159,10 +159,10 @@ def test_etherchain():
 
     with patch.object(feed, '_probe_feed'):
         feed._raw_data = etherchain_json
-        assert feed.get_gas_price('safeLow') == Web3.toWei(99.0, 'gwei')
-        assert feed.get_gas_price('standard') == Web3.toWei(105.0, 'gwei')
-        assert feed.get_gas_price('fast') == Web3.toWei(108.0, 'gwei')
-        assert feed.get_gas_price('fastest') == Web3.toWei(119.9, 'gwei')
+        assert feed.get_gas_price('safeLow') == Web3.to_wei(99.0, 'gwei')
+        assert feed.get_gas_price('standard') == Web3.to_wei(105.0, 'gwei')
+        assert feed.get_gas_price('fast') == Web3.to_wei(108.0, 'gwei')
+        assert feed.get_gas_price('fastest') == Web3.to_wei(119.9, 'gwei')
         assert feed.get_gas_price() == feed.get_gas_price('fast')  # Default
         parsed_gas_prices = feed.gas_prices
 
@@ -170,7 +170,7 @@ def test_etherchain():
         EtherchainGasPriceDatafeed.gas_prices = dict()
         with patch.dict(EtherchainGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
             gas_strategy = feed.construct_gas_strategy()
-            assert gas_strategy("web3", "tx") == Web3.toWei(108.0, 'gwei')
+            assert gas_strategy("web3", "tx") == Web3.to_wei(108.0, 'gwei')
 
 
 def test_upvest():
@@ -181,10 +181,10 @@ def test_upvest():
 
     with patch.object(feed, '_probe_feed'):
         feed._raw_data = upvest_json
-        assert feed.get_gas_price('slow') == Web3.toWei(87.19, 'gwei')
-        assert feed.get_gas_price('medium') == Web3.toWei(91.424, 'gwei')
-        assert feed.get_gas_price('fast') == Web3.toWei(97.158, 'gwei')
-        assert feed.get_gas_price('fastest') == Web3.toWei(105.2745, 'gwei')
+        assert feed.get_gas_price('slow') == Web3.to_wei(87.19, 'gwei')
+        assert feed.get_gas_price('medium') == Web3.to_wei(91.424, 'gwei')
+        assert feed.get_gas_price('fast') == Web3.to_wei(97.158, 'gwei')
+        assert feed.get_gas_price('fastest') == Web3.to_wei(105.2745, 'gwei')
         assert feed.get_gas_price() == feed.get_gas_price('fastest')  # Default
         parsed_gas_prices = feed.gas_prices
 
@@ -192,7 +192,7 @@ def test_upvest():
         UpvestGasPriceDatafeed.gas_prices = dict()
         with patch.dict(UpvestGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
             gas_strategy = feed.construct_gas_strategy()
-            assert gas_strategy("web3", "tx") == Web3.toWei(105.2745, 'gwei')
+            assert gas_strategy("web3", "tx") == Web3.to_wei(105.2745, 'gwei')
 
 
 def test_zoltu():
@@ -203,10 +203,10 @@ def test_zoltu():
 
     with patch.object(feed, '_probe_feed'):
         feed._raw_data = zoltu_json
-        assert feed.get_gas_price('slow') == Web3.toWei(41, 'gwei')
-        assert feed.get_gas_price('medium') == Web3.toWei(58, 'gwei')
-        assert feed.get_gas_price('fast') == Web3.toWei(67, 'gwei')
-        assert feed.get_gas_price('fastest') == Web3.toWei(70, 'gwei')
+        assert feed.get_gas_price('slow') == Web3.to_wei(41, 'gwei')
+        assert feed.get_gas_price('medium') == Web3.to_wei(58, 'gwei')
+        assert feed.get_gas_price('fast') == Web3.to_wei(67, 'gwei')
+        assert feed.get_gas_price('fastest') == Web3.to_wei(70, 'gwei')
         assert feed.get_gas_price() == feed.get_gas_price('fast')  # Default
         parsed_gas_prices = feed.gas_prices
 
@@ -214,7 +214,7 @@ def test_zoltu():
         ZoltuGasPriceDatafeed.gas_prices = dict()
         with patch.dict(ZoltuGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
             gas_strategy = feed.construct_gas_strategy()
-            assert gas_strategy("web3", "tx") == Web3.toWei(67, 'gwei')
+            assert gas_strategy("web3", "tx") == Web3.to_wei(67, 'gwei')
 
 
 def test_datafeed_median_gas_price_strategy():

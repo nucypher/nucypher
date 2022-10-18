@@ -308,7 +308,7 @@ def test_withdraw(testerchain, token, worklock, threshold_staking, escrow):
     # Set vesting for the staker
     tx = threshold_staking.functions.setStakedNu(staking_provider, value // 2).transact()
     testerchain.wait_for_receipt(tx)
-    now = testerchain.w3.eth.getBlock('latest').timestamp
+    now = testerchain.w3.eth.get_block('latest').timestamp
     release_timestamp = now + ONE_HOUR
     rate = 2 * value // ONE_HOUR
     tx = escrow.functions.setupVesting([staker], [release_timestamp], [rate]).transact({'from': creator})
@@ -397,7 +397,7 @@ def test_vesting(testerchain, token, worklock, escrow):
     tx = worklock.functions.depositFromWorkLock(staker1, value, 0).transact()
     testerchain.wait_for_receipt(tx)
 
-    now = testerchain.w3.eth.getBlock('latest').timestamp
+    now = testerchain.w3.eth.get_block('latest').timestamp
     release_timestamp = now + ONE_HOUR
     rate = 2 * value // ONE_HOUR
 
@@ -455,7 +455,7 @@ def test_vesting(testerchain, token, worklock, escrow):
     assert event_args['releaseRate'] == rate
 
     testerchain.time_travel(seconds=40 * 60)
-    now = testerchain.w3.eth.getBlock('latest').timestamp
+    now = testerchain.w3.eth.get_block('latest').timestamp
     vested = (release_timestamp - now) * rate
     assert escrow.functions.getUnvestedTokens(staker1).call() == vested
 
@@ -476,7 +476,7 @@ def test_vesting(testerchain, token, worklock, escrow):
     tx = worklock.functions.depositFromWorkLock(staker4, value, 0).transact()
     testerchain.wait_for_receipt(tx)
 
-    now = testerchain.w3.eth.getBlock('latest').timestamp + 1  # +1 sec because tx will be executed in new block
+    now = testerchain.w3.eth.get_block('latest').timestamp + 1  # +1 sec because tx will be executed in new block
     release_timestamp_2 = now + ONE_HOUR
     release_timestamp_3 = now + 2 * ONE_HOUR
     release_timestamp_4 = now + 2 * ONE_HOUR

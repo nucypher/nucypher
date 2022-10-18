@@ -308,7 +308,7 @@ class BlockchainInterface:
         configuration_message = f"Using gas strategy '{reported_gas_strategy}'"
 
         if self.max_gas_price:
-            __price = Web3.toWei(self.max_gas_price, 'gwei')  # from gwei to wei
+            __price = Web3.to_wei(self.max_gas_price, 'gwei')  # from gwei to wei
             gas_strategy = max_price_gas_strategy_wrapper(gas_strategy=gas_strategy, max_gas_price_wei=__price)
             configuration_message += f", with a max price of {self.max_gas_price} gwei."
 
@@ -316,7 +316,7 @@ class BlockchainInterface:
 
         # TODO: This line must not be called prior to establishing a connection
         #        Move it down to a lower layer, near the client.
-        # gwei_gas_price = Web3.fromWei(self.client.gas_price_for_transaction(), 'gwei')
+        # gwei_gas_price = Web3.from_wei(self.client.gas_price_for_transaction(), 'gwei')
 
         self.log.info(configuration_message)
         # self.log.debug(f"Gas strategy currently reports a gas price of {gwei_gas_price} gwei.")
@@ -505,11 +505,11 @@ class BlockchainInterface:
         self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             if 'gas' not in payload:  # i.e., transaction_gas_limit is not None
-                # As web3 buildTransaction() will estimate gas with block identifier "pending" by default,
+                # As web3 build_transaction() will estimate gas with block identifier "pending" by default,
                 # explicitly estimate gas here with block identifier 'latest' if not otherwise specified
                 # as a pending transaction can cause gas estimation to fail, notably in case of worklock refunds.
-                payload['gas'] = contract_function.estimateGas(payload, block_identifier='latest')
-            transaction_dict = contract_function.buildTransaction(payload)
+                payload['gas'] = contract_function.estimate_gas(payload, block_identifier='latest')
+            transaction_dict = contract_function.build_transaction(payload)
         except (TestTransactionFailed, ValidationError, ValueError) as error:
             # Note: Geth (1.9.15) raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
@@ -570,9 +570,9 @@ class BlockchainInterface:
             max_unit_price = transaction_dict['gasPrice']
             tx_type = 'Legacy'
 
-        max_price_gwei = Web3.fromWei(max_unit_price, 'gwei')
+        max_price_gwei = Web3.from_wei(max_unit_price, 'gwei')
         max_cost_wei = max_unit_price * transaction_dict['gas']
-        max_cost = Web3.fromWei(max_cost_wei, 'ether')
+        max_cost = Web3.from_wei(max_cost_wei, 'ether')
 
         if transacting_power.is_device:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '

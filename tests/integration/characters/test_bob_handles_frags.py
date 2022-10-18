@@ -15,17 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import pytest
-import pytest_twisted
-from twisted.internet import threads
 
-from nucypher_core import RetrievalKit
+import json
 
-from nucypher.characters.lawful import Enrico, Bob
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.network.retrieval import RetrievalClient
+from nucypher_core import Address, RetrievalKit, Conditions
 
-from tests.utils.middleware import MockRestMiddleware, NodeIsDownMiddleware
+from nucypher.characters.lawful import Enrico
+from tests.utils.middleware import NodeIsDownMiddleware
 
 
 def _policy_info_kwargs(enacted_policy):
@@ -35,14 +31,14 @@ def _policy_info_kwargs(enacted_policy):
         )
 
 
-def _make_message_kits(policy_pubkey):
+def _make_message_kits(policy_pubkey, conditions=None):
     messages = [b"plaintext1", b"plaintext2", b"plaintext3"]
 
     message_kits = []
     for message in messages:
         # Using different Enricos, because why not.
         enrico = Enrico(policy_encrypting_key=policy_pubkey)
-        message_kit = enrico.encrypt_message(message)
+        message_kit = enrico.encrypt_message(message, conditions=conditions)
         message_kits.append(message_kit)
 
     return messages, message_kits
@@ -52,7 +48,7 @@ def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
     messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
     capsule = message_kits[0].capsule
-    addresses = {ursula.canonical_address for ursula in list(federated_ursulas)[:2]}
+    addresses = {Address(ursula.canonical_address) for ursula in list(federated_ursulas)[:2]}
 
     retrieval_kit = RetrievalKit(capsule, addresses)
     serialized = bytes(retrieval_kit)
@@ -73,6 +69,34 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
         )
 
     assert cleartexts == messages
+
+
+# TODO: MOVE ME
+def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob, federated_ursulas):
+    from nucypher_core import MessageKit
+
+    federated_bob.start_learning_loop()
+    conditions = [
+        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
+        {'operator': 'and'},
+        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
+    ]
+    json_conditions = json.dumps(conditions)
+    rust_conditions = Conditions(json_conditions)
+    message_kits = [
+        MessageKit(
+            enacted_federated_policy.public_key,
+            b'lab',
+            rust_conditions
+        )
+    ]
+
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=message_kits,
+        **_policy_info_kwargs(enacted_federated_policy),
+        )
+
+    assert b'lab' in cleartexts
 
 
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):

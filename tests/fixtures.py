@@ -36,20 +36,28 @@ from web3.types import TxReceipt
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, PREApplicationAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    PREApplicationAgent,
+)
 from nucypher.blockchain.eth.deployers import (
+    NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer, NucypherTokenDeployer
+    SubscriptionManagerDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, LocalContractRegistry
+from nucypher.blockchain.eth.registry import (
+    InMemoryContractRegistry,
+    LocalContractRegistry,
+)
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    UrsulaConfiguration
+    UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.control.emitters import StdoutEmitter
@@ -57,6 +65,7 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.datastore import datastore
 from nucypher.network.nodes import TEACHER_NODES
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.porter.porter import Porter
 from tests.constants import (
@@ -65,7 +74,6 @@ from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     DATETIME_FORMAT,
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    DEVELOPMENT_TOKEN_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -73,8 +81,8 @@ from tests.constants import (
     MOCK_POLICY_DEFAULT_THRESHOLD,
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
-    TEST_ETH_PROVIDER_URI
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
@@ -86,21 +94,24 @@ from tests.mock.performance_mocks import (
     mock_record_fleet_state,
     mock_remember_node,
     mock_rest_app_creation,
-    mock_verify_node
+    mock_verify_node,
 )
 from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
-    make_ursula_test_configuration
+    make_ursula_test_configuration,
 )
-from tests.utils.middleware import MockRestMiddleware, MockRestMiddlewareForLargeFleetTests
+from tests.utils.middleware import (
+    MockRestMiddleware,
+    MockRestMiddlewareForLargeFleetTests,
+)
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import (
     MOCK_KNOWN_URSULAS_CACHE,
     MOCK_URSULA_STARTING_PORT,
     make_decentralized_ursulas,
-    make_federated_ursulas
+    make_federated_ursulas,
 )
 
 test_logger = Logger("test-logger")
@@ -294,7 +305,7 @@ def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
 def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
     random_label = generate_random_label()
     seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
-    now = testerchain.w3.eth.getBlock('latest').timestamp
+    now = testerchain.w3.eth.get_block('latest').timestamp
     expiration = maya.MayaDT(now).add(seconds=seconds)
     shares = 3
     threshold = 2
@@ -544,10 +555,10 @@ def testerchain(_testerchain) -> TesterBlockchain:
 
         if spent > 0:
             tx = {'to': address, 'from': coinbase, 'value': spent}
-            txhash = testerchain.w3.eth.sendTransaction(tx)
+            txhash = testerchain.w3.eth.send_transaction(tx)
 
             _receipt = testerchain.wait_for_receipt(txhash)
-            eth_amount = Web3().fromWei(spent, 'ether')
+            eth_amount = Web3().from_wei(spent, 'ether')
             testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
 
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
@@ -696,7 +707,7 @@ def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test
 
 @pytest.fixture(scope='module')
 def policy_rate():
-    rate = Web3.toWei(21, 'gwei')
+    rate = Web3.to_wei(21, 'gwei')
     return rate
 
 
@@ -755,9 +766,9 @@ def software_stakeholder(testerchain, agency, stakeholder_config_file_location, 
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
+          'value': Web3.to_wei('1', 'ether')}
 
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
 
     # Mock TransactingPower consumption (Etherbase)
@@ -798,9 +809,9 @@ def manual_operator(testerchain):
 
     tx = {'to': address,
           'from': testerchain.etherbase_account,
-          'value': Web3.toWei('1', 'ether')}
+          'value': Web3.to_wei('1', 'ether')}
 
-    txhash = testerchain.client.w3.eth.sendTransaction(tx)
+    txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
 
@@ -1034,3 +1045,32 @@ def basic_auth_file(temp_dir_path):
         f.write("admin:$apr1$hlEpWVoI$0qjykXrvdZ0yO2TnBggQO0\n")
     yield basic_auth
     basic_auth.unlink()
+
+
+#
+# Condition Context
+#
+@pytest.fixture(scope='module')
+def random_context():
+    context = {
+        USER_ADDRESS_CONTEXT: {
+            "signature": "16b15f88bbd2e0a22d1d0084b8b7080f2003ea83eab1a00f80d8c18446c9c1b6224f17aa09eaf167717ca4f355bb6dc94356e037edf3adf6735a86fc3741f5231b",
+            "address": "0x03e75d7DD38CCE2e20FfEE35EC914C57780A8e29",
+            "typedMessage": {
+                "domain": {
+                    "name": "tDec",
+                    "version": "1",
+                    "chainId": 1,
+                    "salt": "0xf2d857f4a3edcb9b78b4d503bfe733db1e3f6cdc2b7971ee739626c97e86a558",
+                },
+                "message": {
+                    "address": "0x03e75d7DD38CCE2e20FfEE35EC914C57780A8e29",
+                    "blockNumber": 15440685,
+                    "blockHash": "0x2220da8b777767df526acffd5375ebb340fc98e53c1040b25ad1a8119829e3bd",
+                    "signatureText": "I'm the owner of address 0x03e75d7dd38cce2e20ffee35ec914c57780a8e29 as of block number 15440685",
+                },
+            },
+        }
+    }
+
+    return context

@@ -114,7 +114,7 @@ Registry  ................ {registry.filepath}
         token_contract_info = f"""
 
 {token_agent.contract_name} ........... {token_agent.contract_address}
-    ~ Ethers ............ {Web3.fromWei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
+    ~ Ethers ............ {Web3.from_wei(blockchain.client.get_balance(token_agent.contract_address), 'ether')} ETH
     ~ Tokens ............ {NU.from_units(token_agent.get_balance(token_agent.contract_address))}"""
     except BaseContractRegistry.UnknownContract:
         message = f"\n{NucypherTokenAgent.contract_name} is not enrolled in {registry.filepath}"
@@ -146,12 +146,12 @@ Registry  ................ {registry.filepath}
 {agent.contract_name} .... {bare_contract.address}
     ~ Version ............ {bare_contract.version}
     ~ Owner .............. {bare_contract.functions.owner().call()}
-    ~ Ethers ............. {Web3.fromWei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
+    ~ Ethers ............. {Web3.from_wei(blockchain.client.get_balance(bare_contract.address), 'ether')} ETH
     ~ Tokens ............. {NU.from_units(token_agent.get_balance(bare_contract.address))}
     ~ Dispatcher ......... {dispatcher_deployer.contract_address}
         ~ Owner .......... {dispatcher_deployer.contract.functions.owner().call()}
         ~ Target ......... {dispatcher_deployer.contract.functions.target().call()}
-        ~ Ethers ......... {Web3.fromWei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
+        ~ Ethers ......... {Web3.from_wei(blockchain.client.get_balance(dispatcher_deployer.contract_address), 'ether')} ETH
         ~ Tokens ......... {NU.from_units(token_agent.get_balance(dispatcher_deployer.contract_address))}"""
             emitter.echo(proxy_payload)
             emitter.echo(sep, nl=False)

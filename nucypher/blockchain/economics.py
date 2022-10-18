@@ -32,7 +32,7 @@ class Economics:
 
     _default_min_authorization = TToken(40_000, 'T').to_units()
     _default_min_operator_seconds = 60 * 60 * 24  # one day in seconds
-    _default_fee_rate = Wei(Web3.toWei(1, 'gwei'))
+    _default_fee_rate = Wei(Web3.to_wei(1, 'gwei'))
 
     # TODO: Reintroduce Adjudicator
     # Slashing parameters

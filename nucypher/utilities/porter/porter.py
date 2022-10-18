@@ -17,28 +17,30 @@
 
 
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Sequence
+from typing import Dict, List, NamedTuple, Optional, Sequence
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION, NO_CONTROL_PROTOCOL
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
-from flask import request, Response
-from nucypher_core import TreasureMap, RetrievalKit
+from flask import Response, request
+from nucypher_core import RetrievalKit, TreasureMap
 from nucypher_core.umbral import PublicKey
 
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.characters.lawful import Ursula
 from nucypher.control.controllers import JSONRPCController, WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.retrieval import RetrievalClient
-from nucypher.policy.kits import RetrievalResult
 from nucypher.policy.reservoir import (
-    make_federated_staker_reservoir,
+    PrefetchStrategy,
     make_decentralized_staking_provider_reservoir,
-    PrefetchStrategy
+    make_federated_staker_reservoir,
 )
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
@@ -77,6 +79,15 @@ the Pipe for PRE Application network operations
         checksum_address: ChecksumAddress
         uri: str
         encrypting_key: PublicKey
+
+    class RetrievalOutcome(NamedTuple):
+        """
+        Simple object that stores the results and errors of re-encryption operations across
+        one or more Ursulas.
+        """
+
+        cfrags: Dict
+        errors: Dict
 
     def __init__(self,
                  domain: str = None,
@@ -164,10 +175,24 @@ the Pipe for PRE Application network operations
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        ) -> List[RetrievalResult]:
+                        context: Optional[Dict] = None) -> List[RetrievalOutcome]:
         client = RetrievalClient(self)
-        return client.retrieve_cfrags(treasure_map, retrieval_kits,
-            alice_verifying_key, bob_encrypting_key, bob_verifying_key)
+        context = context or dict()  # must not be None
+        results, errors = client.retrieve_cfrags(
+            treasure_map,
+            retrieval_kits,
+            alice_verifying_key,
+            bob_encrypting_key,
+            bob_verifying_key,
+            **context,
+        )
+        result_outcomes = []
+        for result, error in zip(results, errors):
+            result_outcome = Porter.RetrievalOutcome(
+                cfrags=result.cfrags, errors=error.errors
+            )
+            result_outcomes.append(result_outcome)
+        return result_outcomes
 
     def _make_reservoir(self,
                         quantity: int,

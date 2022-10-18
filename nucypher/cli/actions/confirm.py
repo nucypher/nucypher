@@ -103,7 +103,7 @@ def confirm_staged_grant(emitter, grant_request: Dict, federated: bool, seconds_
         emitter.echo(tabulate(table, tablefmt="simple"))
         return
 
-    period_rate = Web3.fromWei(pretty_request['shares'] * pretty_request['rate'], 'gwei')
+    period_rate = Web3.from_wei(pretty_request['shares'] * pretty_request['rate'], 'gwei')
     pretty_request['rate'] = f"{pretty_request['rate']} wei/period * {pretty_request['shares']} nodes"
 
     expiration = pretty_request['expiration']

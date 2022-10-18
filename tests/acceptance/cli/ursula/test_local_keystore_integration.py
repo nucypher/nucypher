@@ -55,10 +55,10 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
     json.dump(account.encrypt(password), open(path, 'x+t'))
 
     testerchain.wait_for_receipt(
-        testerchain.client.w3.eth.sendTransaction({
+        testerchain.client.w3.eth.send_transaction({
             'to': account.address,
             'from': testerchain.etherbase_account,
-            'value': Web3.toWei('1', 'ether')}))
+            'value': Web3.to_wei('1', 'ether')}))
 
     # initialize threshold stake
     provider_address = testerchain.unassigned_accounts[0]
@@ -151,7 +151,7 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
         # ...and that transactions are signed by the keystore signer
         txhash = ursula.confirm_address()
         receipt = testerchain.wait_for_receipt(txhash)
-        transaction_data = testerchain.client.w3.eth.getTransaction(receipt['transactionHash'])
+        transaction_data = testerchain.client.w3.eth.get_transaction(receipt['transactionHash'])
         assert transaction_data['from'] == worker_account.address
     finally:
         ursula.stop()

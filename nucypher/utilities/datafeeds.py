@@ -112,7 +112,7 @@ class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
 
     def _parse_gas_prices(self):
         self._probe_feed()
-        self.gas_prices = {self.get_canonical_speed(k): int(Web3.toWei(v, 'gwei')) for k, v in self._raw_data.items()}
+        self.gas_prices = {self.get_canonical_speed(k): int(Web3.to_wei(v, 'gwei')) for k, v in self._raw_data.items()}
 
 
 class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
@@ -130,7 +130,7 @@ class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
 
     def _parse_gas_prices(self):
         self._probe_feed()
-        self.gas_prices = {self.get_canonical_speed(k): int(Web3.toWei(v, 'gwei'))
+        self.gas_prices = {self.get_canonical_speed(k): int(Web3.to_wei(v, 'gwei'))
                            for k, v in self._raw_data['estimates'].items()}
 
 
@@ -152,5 +152,5 @@ class ZoltuGasPriceDatafeed(EthereumGasPriceDatafeed):
         self.gas_prices = dict()
         for canonical_speed_name, zoltu_speed in self._speed_names.items():
             gwei_price = self._raw_data[zoltu_speed].split(" ")[0]
-            wei_price = int(Web3.toWei(gwei_price, 'gwei'))
+            wei_price = int(Web3.to_wei(gwei_price, 'gwei'))
             self.gas_prices[canonical_speed_name] = wei_price

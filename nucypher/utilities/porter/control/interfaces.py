@@ -14,11 +14,10 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from eth_typing import ChecksumAddress
-
-from nucypher_core import TreasureMap, RetrievalKit
+from nucypher_core import RetrievalKit, TreasureMap
 from nucypher_core.umbral import PublicKey
 
 from nucypher.control.interfaces import ControlInterface, attach_schema
@@ -36,12 +35,14 @@ class PorterInterface(ControlInterface):
     def get_ursulas(self,
                     quantity: int,
                     exclude_ursulas: Optional[List[ChecksumAddress]] = None,
-                    include_ursulas: Optional[List[ChecksumAddress]] = None) -> dict:
-        ursulas_info = self.implementer.get_ursulas(quantity=quantity,
-                                                    exclude_ursulas=exclude_ursulas,
-                                                    include_ursulas=include_ursulas)
+                    include_ursulas: Optional[List[ChecksumAddress]] = None) -> Dict:
+        ursulas_info = self.implementer.get_ursulas(
+            quantity=quantity,
+            exclude_ursulas=exclude_ursulas,
+            include_ursulas=include_ursulas,
+        )
 
-        response_data = {"ursulas": ursulas_info}
+        response_data = {"ursulas": ursulas_info}  # list of UrsulaInfo objects
         return response_data
 
     @attach_schema(porter_schema.AliceRevoke)
@@ -59,12 +60,16 @@ class PorterInterface(ControlInterface):
                         alice_verifying_key: PublicKey,
                         bob_encrypting_key: PublicKey,
                         bob_verifying_key: PublicKey,
-                        ) -> dict:
-        retrieval_results = self.implementer.retrieve_cfrags(treasure_map=treasure_map,
-                                                             retrieval_kits=retrieval_kits,
-                                                             alice_verifying_key=alice_verifying_key,
-                                                             bob_encrypting_key=bob_encrypting_key,
-                                                             bob_verifying_key=bob_verifying_key)
-        results = retrieval_results   # list of RetrievalResult objects
-        response_data = {'retrieval_results': results}
+                        context: Optional[Dict] = None) -> Dict:
+        retrieval_outcomes = self.implementer.retrieve_cfrags(
+            treasure_map=treasure_map,
+            retrieval_kits=retrieval_kits,
+            alice_verifying_key=alice_verifying_key,
+            bob_encrypting_key=bob_encrypting_key,
+            bob_verifying_key=bob_verifying_key,
+            context=context,
+        )
+        response_data = {
+            "retrieval_results": retrieval_outcomes
+        }  # list of RetrievalOutcome objects
         return response_data

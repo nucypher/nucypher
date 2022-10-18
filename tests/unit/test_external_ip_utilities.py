@@ -14,11 +14,13 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 from pathlib import Path
 
 import pytest
 from eth_utils import to_checksum_address
-from nucypher_core import NodeMetadata, NodeMetadataPayload
+from nucypher_core import Address, NodeMetadata, NodeMetadataPayload
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.acumen.perception import FleetSensor
@@ -78,7 +80,7 @@ class Dummy:  # Teacher
         # A dummy signature with the recovery byte
         dummy_signature = bytes(signer.sign(b'whatever')) + b'\x00'
 
-        payload = NodeMetadataPayload(staking_provider_address=self.canonical_address,
+        payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
                                       domain=':dummy:',
                                       timestamp_epoch=0,
                                       operator_signature=dummy_signature,

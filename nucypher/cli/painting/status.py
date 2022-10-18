@@ -35,7 +35,7 @@ def paint_contract_status(registry, emitter):
 
     blockchain = f"""
 | '{blockchain.client.chain_name}' Blockchain Network |
-Gas Price ................ {Web3.fromWei(blockchain.client.gas_price, 'gwei')} Gwei
+Gas Price ................ {Web3.from_wei(blockchain.client.gas_price, 'gwei')} Gwei
 ETH Provider URI ......... {blockchain.eth_provider_uri}
 Registry ................. {registry.filepath}
     """

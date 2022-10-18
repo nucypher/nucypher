@@ -14,8 +14,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
-
+import json
 import uuid
 import weakref
 from http import HTTPStatus
@@ -28,11 +27,11 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
-    ReencryptionRequest,
-    RevocationOrder,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
+    ReencryptionRequest,
+    RevocationOrder,
 )
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -43,6 +42,13 @@ from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequest
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.context import (
+    ContextVariableVerificationFailed,
+    InvalidContextVariableData,
+    RequiredContextVariable,
+)
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -168,12 +174,22 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         from nucypher.characters.lawful import Bob
 
         # TODO: Cache & Optimize
-
         reenc_request = ReencryptionRequest.from_bytes(request.data)
+
+        json_lingo = json.loads(str(reenc_request.conditions))
+        lingo = [ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingo]
+        context = json.loads(str(reenc_request.context)) or dict()  # requester-supplied input
+        packets = zip(reenc_request.capsules, lingo)
+
+        # TODO: Detect if we are dealing with PRE or tDec here
+        # TODO: This is for PRE only, relocate HRAC to RE.context
         hrac = reenc_request.hrac
+
+        # This is now either Bob or the TDec requester "Universal Bob"
         bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Reencryption request from {bob} for policy {hrac}")
 
+        # TODO: Can this be integrated into reencryption conditions?
         # Right off the bat, if this HRAC is already known to be revoked, reject the order.
         if hrac in this_node.revoked_policies:
             return Response(response=f"Policy with {hrac} has been revoked.", status=HTTPStatus.UNAUTHORIZED)
@@ -188,9 +204,12 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # Verify & Decrypt KFrag Payload
         try:
             verified_kfrag = this_node._decrypt_kfrag(reenc_request.encrypted_kfrag, hrac, publisher_verifying_key)
-        except DecryptingKeypair.DecryptionFailed:
+        except DecryptingKeypair.DecryptionFailed as e:
             # TODO: don't we want to record suspicious activities here too?
-            return Response(response="EncryptedKeyFrag decryption failed.", status=HTTPStatus.FORBIDDEN)
+            return Response(
+                response=f"EncryptedKeyFrag decryption failed: {e}",
+                status=HTTPStatus.FORBIDDEN,
+            )
         except InvalidSignature as e:
             message = f'{bob_identity_message} Invalid signature for KeyFrag: {e}.'
             log.info(message)
@@ -199,20 +218,79 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         except Exception as e:
             message = f'{bob_identity_message} Invalid EncryptedKeyFrag: {e}.'
             log.info(message)
-            # TODO (#567): bucket the node as suspicious
+            # TODO (#567): bucket the node as suspicious.
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
-        # Enforce Policy Payment
-        # TODO: Accept multiple payment methods
-        # TODO: Evaluate multiple reencryption prerequisites & enforce policy expiration
-        paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
-        if not paid:
-            message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
-            return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
+        # Enforce Reencryption Conditions
+        # TODO: back compatibility for PRE?
+
+        if not this_node.federated_only:
+            # TODO: Detect whether or not a provider is required by introspecting the condition instead.
+            context.update({'provider': this_node.application_agent.blockchain.provider})
+
+        capsules_to_process = list()
+        for capsule, lingo in packets:
+            if lingo is not None:
+
+                # TODO: Enforce policy expiration as a condition
+                try:
+                    # TODO: Can conditions return a useful value?
+                    log.info(f'Evaluating decryption condition')
+                    lingo.eval(**context)
+                except ReencryptionCondition.InvalidCondition as e:
+                    message = f"Incorrect value provided for condition: {e}"
+                    error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except RequiredContextVariable as e:
+                    message = f"Missing required inputs: {e}"
+                    # TODO: be more specific and name the missing inputs, etc
+                    error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except InvalidContextVariableData as e:
+                    message = f"Invalid data provided for context variable: {e}"
+                    error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except ContextVariableVerificationFailed as e:
+                    message = f"Context variable data could not be verified: {e}"
+                    error = (message, HTTPStatus.FORBIDDEN)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except ReencryptionCondition.ConditionEvaluationFailed as e:
+                    message = f"Decryption condition not evaluated: {e}"
+                    error = (message, HTTPStatus.BAD_REQUEST)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except lingo.Failed as e:
+                    # TODO: Better error reporting
+                    message = f"Decryption conditions not satisfied: {e}"
+                    error = (message, HTTPStatus.FORBIDDEN)
+                    log.info(message)
+                    return Response(message, status=error[1])
+                except Exception as e:
+                    # TODO: Unsure why we ended up here
+                    message = f"Unexpected exception while evaluating " \
+                              f"decryption condition ({e.__class__.__name__}): {e}"
+                    error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
+                    log.warn(message)
+                    return Response(message, status=error[1])
+
+            capsules_to_process.append((lingo, capsule))
+        capsules_to_process = tuple(p[1] for p in capsules_to_process)
+
+        # FIXME: DISABLED FOR TDEC ADAPTATION
+        # TODO: Accept multiple payment methods?
+        # Subscription Manager
+        # paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
+        # if not paid:
+        #     message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
+        #     return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)
-        response = this_node._reencrypt(kfrag=verified_kfrag, capsules=reenc_request.capsules)
+        response = this_node._reencrypt(kfrag=verified_kfrag, capsules=capsules_to_process)
 
         # Now, Ursula saves evidence of this workorder to her database...
         # Note: we give the work order a random ID to store it under.
