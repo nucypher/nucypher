@@ -35,7 +35,7 @@ from tests.constants import (
     YES
 )
 
-CONFIG_CLASSES = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
+CONFIG_CLASSES = (UrsulaConfiguration, )
 
 
 ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}

@@ -39,11 +39,9 @@ from nucypher.cli.literature import (
     IGNORE_OLD_CONFIGURATION,
     DEFAULT_TO_LONE_CONFIG_FILE
 )
-from nucypher.cli.painting.policies import paint_cards
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_OPERATOR_ADDRESS, DEFAULT_CONFIG_ROOT
 from nucypher.control.emitters import StdoutEmitter
-from nucypher.policy.identity import Card
 
 
 def select_client_account(emitter,
@@ -240,18 +238,3 @@ def select_config_file(emitter: StdoutEmitter,
                                                         config_file=config_file))
 
     return config_file
-
-
-def select_card(emitter, card_identifier: str) -> Card:
-    if not card_identifier:
-        cards = []
-        for filename in Card.CARD_DIR.iterdir():
-            filepath = Card.CARD_DIR / filename
-            card = Card.load(filepath=filepath)
-            cards.append(card)
-        paint_cards(emitter=emitter, cards=cards, as_table=True)
-        selection = click.prompt('Select card', type=click.IntRange(0, len(cards)))
-        card = cards[selection]
-    else:
-        card = Card.load(identifier=card_identifier)
-    return card
