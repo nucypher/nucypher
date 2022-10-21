@@ -1,0 +1,2 @@
+Deprecates alice, bob, and contact CLI commands.
+
