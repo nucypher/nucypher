@@ -95,24 +95,6 @@ Path to Keystore: {new_configuration.keystore_dir}
 * Start working         -> nucypher ursula run
 '''
 
-    elif character_name == 'alice':
-        hint = '''
-* Review configuration  -> nucypher alice config
-* View public keys      -> nucypher alice public-keys
-* Grant access          -> nucypher alice grant
-* Revoke access         -> nucypher alice revoke
-* Start HTTP server     -> nucypher alice run
-'''
-
-    elif character_name == 'bob':
-        hint = '''
-* Review configuration  -> nucypher bob config
-* View public keys      -> nucypher bob public-keys
-* Fetch & Decrypt       -> nucypher bob retrieve
-* Open dispute          -> nucypher bob challenge
-* Start HTTP server     -> nucypher bob run
-'''
-
     else:
         raise ValueError(f'Unknown character type "{character_name}"')
 

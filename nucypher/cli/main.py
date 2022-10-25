@@ -18,12 +18,9 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 
 from nucypher.cli.commands import (
-    alice,
-    bob,
     enrico,
     status,
     ursula,
-    contacts,
     porter,
     bond,
 )
@@ -42,27 +39,7 @@ def nucypher_cli():
 
 
 #
-# Character CLI Entry Points (Fan Out Input)
-#
-#
-#             ursula
-#               |
-#               |  bond
-#               |  /
-#               | /
-# stdin --> cli.main --- alice
-#               | \
-#               |  \
-#               |  bob
-#               |
-#             enrico
-#
-#
-#
-# New character CLI modules must be added here
-# for the entry point to be attached to the nucypher base command.
-#
-# Inversely, commenting out an entry point here will disable it.
+# Character CLI Entry Points
 #
 
 ENTRY_POINTS = (
@@ -78,11 +55,6 @@ ENTRY_POINTS = (
     # Utility Commands
     status.status,      # Network status explorer
     porter.porter,      # Network support services
-
-    # Demos
-    alice.alice,        # Author of Policies
-    bob.bob,            # Builder of Capsules
-    contacts.contacts,  # "character card" management
 
 )
 
