@@ -15,6 +15,7 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 import os
 from base64 import b64encode

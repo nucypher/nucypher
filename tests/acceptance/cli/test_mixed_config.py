@@ -71,7 +71,7 @@ def test_corrupted_configuration(click_runner,
     if custom_filepath.exists():
         shutil.rmtree(custom_filepath, ignore_errors=True)
     assert not custom_filepath.exists()
-    
+
     alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
 
     #
