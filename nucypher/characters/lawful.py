@@ -19,9 +19,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import contextlib
 import json
 import time
-from base64 import b64encode
-from http import HTTPStatus
-from json.decoder import JSONDecodeError
 from pathlib import Path
 from queue import Queue
 from typing import (
@@ -50,7 +47,6 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
-from flask import Response, request
 from nucypher_core import (
     Address,
     HRAC,
@@ -83,14 +79,7 @@ from nucypher.characters.banners import (
     URSULA_BANNER,
 )
 from nucypher.characters.base import Character, Learner
-from nucypher.characters.control.interfaces import (
-    AliceInterface,
-    BobInterface,
-    EnricoInterface,
-)
-from nucypher.cli.processes import UrsulaCommandProtocol
 from nucypher.config.storages import NodeStorage
-from nucypher.control.controllers import WebController
 from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
@@ -117,7 +106,6 @@ from nucypher.utilities.networking import validate_operator_ip
 
 class Alice(Character, BlockchainPolicyAuthor):
     banner = ALICE_BANNER
-    _interface_class = AliceInterface
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
     def __init__(self,
@@ -142,12 +130,10 @@ class Alice(Character, BlockchainPolicyAuthor):
 
                  # Policy Storage
                  store_policy_credentials: bool = None,
-                 store_character_cards: bool = None,
 
                  # Middleware
                  timeout: int = 10,  # seconds  # TODO: configure  NRN
                  network_middleware: RestMiddleware = None,
-                 controller: bool = True,
 
                  *args, **kwargs) -> None:
 
@@ -192,8 +178,6 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
-            if controller:
-                self.make_cli_controller()
 
             # Policy Payment
             if federated_only and not payment_method:
@@ -209,14 +193,8 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.active_policies = dict()
             self.revocation_kits = dict()
             self.store_policy_credentials = store_policy_credentials
-            self.store_character_cards = store_character_cards
 
             self.log.info(self.banner)
-
-    def get_card(self) -> 'Card':
-        from nucypher.policy.identity import Card
-        card = Card.from_character(self)
-        return card
 
     def add_active_policy(self, active_policy):
         """
@@ -453,74 +431,9 @@ class Alice(Character, BlockchainPolicyAuthor):
         # Shouldn't it be able to take a list of them too?
         return [cleartext]
 
-    def make_web_controller(drone_alice, crash_on_error: bool = False):
-        app_name = bytes(drone_alice.stamp).hex()[:6]
-        controller = WebController(app_name=app_name,
-                                   crash_on_error=crash_on_error,
-                                   interface=drone_alice._interface_class(character=drone_alice))
-        drone_alice.controller = controller
-
-        # Register Flask Decorator
-        alice_flask_control = controller.make_control_transport()
-
-        #
-        # Character Control HTTP Endpoints
-        #
-
-        @alice_flask_control.route('/public_keys', methods=['GET'])
-        def public_keys():
-            """
-            Character control endpoint for getting Alice's encrypting and signing public keys
-            """
-            return controller(method_name='public_keys', control_request=request)
-
-        @alice_flask_control.route("/create_policy", methods=['PUT'])
-        def create_policy() -> Response:
-            """
-            Character control endpoint for creating an enacted network policy
-            """
-            response = controller(method_name='create_policy', control_request=request)
-            return response
-
-        @alice_flask_control.route("/decrypt", methods=['POST'])
-        def decrypt():
-            """
-            Character control endpoint for decryption of Alice's own policy data.
-            """
-            response = controller(method_name='decrypt', control_request=request)
-            return response
-
-        @alice_flask_control.route('/derive_policy_encrypting_key/<label>', methods=['POST'])
-        def derive_policy_encrypting_key(label) -> Response:
-            """
-            Character control endpoint for deriving a policy encrypting given a unicode label.
-            """
-            response = controller(method_name='derive_policy_encrypting_key', control_request=request, label=label)
-            return response
-
-        @alice_flask_control.route("/grant", methods=['PUT'])
-        def grant() -> Response:
-            """
-            Character control endpoint for policy granting.
-            """
-            response = controller(method_name='grant', control_request=request)
-            return response
-
-        @alice_flask_control.route("/revoke", methods=['DELETE'])
-        def revoke():
-            """
-            Character control endpoint for policy revocation.
-            """
-            response = controller(method_name='revoke', control_request=request)
-            return response
-
-        return controller
-
 
 class Bob(Character):
     banner = BOB_BANNER
-    _interface_class = BobInterface
-
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     class IncorrectCFragsReceived(Exception):
@@ -533,7 +446,6 @@ class Bob(Character):
 
     def __init__(self,
                  is_me: bool = True,
-                 controller: bool = True,
                  verify_node_bonding: bool = False,
                  eth_provider_uri: str = None,
                  *args, **kwargs) -> None:
@@ -545,20 +457,12 @@ class Bob(Character):
                            eth_provider_uri=eth_provider_uri,
                            *args, **kwargs)
 
-        if controller:
-            self.make_cli_controller()
-
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[int, TreasureMap] = {}
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
             self.log.info(self.banner)
-
-    def get_card(self) -> 'Card':
-        from nucypher.policy.identity import Card
-        card = Card.from_character(self)
-        return card
 
     def _decrypt_treasure_map(self,
                               encrypted_treasure_map: EncryptedTreasureMap,
@@ -653,38 +557,6 @@ class Bob(Character):
             cleartexts.append(cleartext)
 
         return cleartexts
-
-    def make_web_controller(drone_bob, crash_on_error: bool = False):
-        app_name = bytes(drone_bob.stamp).hex()[:6]
-        controller = WebController(app_name=app_name,
-                                   crash_on_error=crash_on_error,
-                                   interface=drone_bob._interface_class(character=drone_bob))
-
-        drone_bob.controller = controller.make_control_transport()
-
-        # Register Flask Decorator
-        bob_control = controller.make_control_transport()
-
-        #
-        # Character Control HTTP Endpoints
-        #
-
-        @bob_control.route('/public_keys', methods=['GET'])
-        def public_keys():
-            """
-            Character control endpoint for getting Bob's encrypting and signing public keys
-            """
-            return controller(method_name='public_keys', control_request=request)
-
-        @bob_control.route('/retrieve_and_decrypt', methods=['POST'])
-        def retrieve_and_decrypt():
-            """
-            Character control endpoint for re-encrypting and decrypting policy
-            data.
-            """
-            return controller(method_name='retrieve_and_decrypt', control_request=request)
-
-        return controller
 
 
 class Ursula(Teacher, Character, Operator):
@@ -977,9 +849,6 @@ class Ursula(Teacher, Character, Operator):
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
                 emitter.message(f"✓ Prometheus Exporter", color='green')
-
-        if interactive and emitter:
-            stdio.StandardIO(UrsulaCommandProtocol(ursula=self, emitter=emitter))
 
         if hendrix:
             if emitter:
@@ -1328,13 +1197,11 @@ class Enrico(Character):
     """A Character that represents a Data Source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
-    _interface_class = EnricoInterface
     _default_crypto_powerups = [SigningPower]
 
     def __init__(self,
                  is_me: bool = True,
                  policy_encrypting_key: Optional[PublicKey] = None,
-                 controller: bool = True,
                  *args, **kwargs):
 
         self._policy_pubkey = policy_encrypting_key
@@ -1343,9 +1210,6 @@ class Enrico(Character):
         kwargs['federated_only'] = True
         kwargs['known_node_class'] = None
         super().__init__(is_me=is_me, *args, **kwargs)
-
-        if controller:
-            self.make_cli_controller()
 
         self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
         if is_me:
@@ -1376,48 +1240,4 @@ class Enrico(Character):
         return self._policy_pubkey
 
     def _set_known_node_class(self, *args, **kwargs):
-        """
-        Enrico doesn't init nodes, so it doesn't care what class they are.
-        """
-
-    def make_web_controller(drone_enrico, crash_on_error: bool = False):
-
-        app_name = bytes(drone_enrico.stamp).hex()[:6]
-        controller = WebController(app_name=app_name,
-                                   crash_on_error=crash_on_error,
-                                   interface=drone_enrico._interface_class(character=drone_enrico))
-
-        drone_enrico.controller = controller
-
-        # Register Flask Decorator
-        enrico_control = controller.make_control_transport()
-
-        #
-        # Character Control HTTP Endpoints
-        #
-
-        @enrico_control.route('/encrypt_message', methods=['POST'])
-        def encrypt_message():
-            """
-            Character control endpoint for encrypting data for a policy and
-            receiving the messagekit (and signature) to give to Bob.
-            """
-            try:
-                request_data = json.loads(request.data)
-                message = request_data['message']
-            except (KeyError, JSONDecodeError) as e:
-                return Response(str(e), status=HTTPStatus.BAD_REQUEST)
-
-            # Encrypt
-            message_kit = drone_enrico.encrypt_message(bytes(message, encoding='utf-8'))
-
-            response_data = {
-                'result': {
-                    'message_kit': b64encode(bytes(message_kit)).decode(),  # FIXME, but NRN
-                },
-                'version': str(nucypher.__version__)
-            }
-
-            return Response(json.dumps(response_data), status=HTTPStatus.OK)
-
-        return controller
+        """Enrico doesn't init nodes, so it doesn't care what class they are."""
