@@ -28,44 +28,15 @@ from nucypher.cli import options, types
 
 class PolicyBaseSchema(BaseSchema):
 
-    bob_encrypting_key = character_fields.Key(
-        required=True, load_only=True,
-        click=click.option(
-            '--bob-encrypting-key',
-            '-bek',
-            help="Bob's encrypting key as a hexadecimal string",
-            type=click.STRING, required=False))
-    bob_verifying_key = character_fields.Key(
-        required=True, load_only=True,
-        click=click.option(
-            '--bob-verifying-key',
-            '-bvk',
-            help="Bob's verifying key as a hexadecimal string",
-            type=click.STRING, required=False))
-    threshold = base_fields.PositiveInteger(
-        required=True, load_only=True,
-        click=options.option_threshold)
-    shares = base_fields.PositiveInteger(
-        required=True, load_only=True,
-        click=options.option_shares)
-    expiration = character_fields.DateTime(
-        required=True, load_only=True,
-        click=click.option(
-            '--expiration',
-            help="Expiration Datetime of a policy",
-            type=click.DateTime())
-    )
+    bob_encrypting_key = character_fields.Key(required=True, load_only=True)
+    bob_verifying_key = character_fields.Key(required=True, load_only=True)
+    threshold = base_fields.PositiveInteger(required=True, load_only=True)
+    shares = base_fields.PositiveInteger(required=True, load_only=True)
+    expiration = character_fields.DateTime(required=True, load_only=True)
 
     # optional input
-    value = character_fields.Wei(
-        load_only=True,
-        click=click.option('--value', help="Total policy value (in Wei)", type=types.WEI))
-
-    rate = character_fields.Wei(
-        load_only=True,
-        required=False,
-        click=options.option_rate
-    )
+    value = character_fields.Wei(load_only=True)
+    rate = character_fields.Wei(load_only=True, required=False)
 
     # output
     policy_encrypting_key = character_fields.Key(dump_only=True)
@@ -88,59 +59,36 @@ class PolicyBaseSchema(BaseSchema):
 
 
 class CreatePolicy(PolicyBaseSchema):
-
-    label = character_fields.Label(
-        required=True,
-        click=options.option_label(required=True))
+    label = character_fields.Label(required=True)
 
 
 class GrantPolicy(PolicyBaseSchema):
-
-    label = character_fields.Label(
-        load_only=True, required=True,
-        click=options.option_label(required=False))
+    label = character_fields.Label(load_only=True, required=True)
 
     # output fields
     # treasure map only used for serialization so no need to provide federated/non-federated context
     treasure_map = character_fields.EncryptedTreasureMap(dump_only=True)
-
     alice_verifying_key = character_fields.Key(dump_only=True)
 
 
 class DerivePolicyEncryptionKey(BaseSchema):
-
-    label = character_fields.Label(
-        required=True,
-        click=options.option_label(required=True))
+    label = character_fields.Label(required=True)
 
     # output
     policy_encrypting_key = character_fields.Key(dump_only=True)
 
 
 class Revoke(BaseSchema):
-
-    label = character_fields.Label(
-        required=True, load_only=True,
-        click=options.option_label(required=True))
-    bob_verifying_key = character_fields.Key(
-        required=True, load_only=True,
-        click=click.option(
-            '--bob-verifying-key',
-            '-bvk',
-            help="Bob's verifying key as a hexadecimal string", type=click.STRING,
-            required=True))
+    label = character_fields.Label(required=True, load_only=True)
+    bob_verifying_key = character_fields.Key(required=True, load_only=True)
 
     # output
     failed_revocations = base_fields.Integer(dump_only=True)
 
 
 class Decrypt(BaseSchema):
-    label = character_fields.Label(
-        required=True, load_only=True,
-        click=options.option_label(required=True))
-    message_kit = character_fields.MessageKit(
-        load_only=True,
-        click=options.option_message_kit(required=True))
+    label = character_fields.Label(required=True, load_only=True)
+    message_kit = character_fields.MessageKit(load_only=True)
 
     # output
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)

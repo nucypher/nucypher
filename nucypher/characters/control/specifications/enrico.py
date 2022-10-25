@@ -15,13 +15,11 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import click
 from marshmallow import post_load
 
 import nucypher.control.specifications.exceptions
 from nucypher.characters.control.specifications import fields
 from nucypher.cli import options
-from nucypher.cli.types import EXISTING_READABLE_FILE
 from nucypher.control.specifications.base import BaseSchema
 
 
@@ -31,13 +29,11 @@ class EncryptMessage(BaseSchema):
     message = fields.Cleartext(
         load_only=True,
         allow_none=True,
-        click=click.option('--message', help="A unicode message to encrypt for a policy")
     )
 
     file = fields.FileField(
         load_only=True,
         allow_none=True,
-        click=click.option('--file', help="Filepath to plaintext file to encrypt", type=EXISTING_READABLE_FILE)
     )
 
     policy_encrypting_key = fields.Key(

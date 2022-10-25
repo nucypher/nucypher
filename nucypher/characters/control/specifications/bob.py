@@ -24,20 +24,12 @@ from nucypher.control.specifications.base import BaseSchema
 
 class RetrieveAndDecrypt(BaseSchema):
 
-    alice_verifying_key = character_fields.Key(
-        required=True,
-        load_only=True,
-        click=options.option_alice_verifying_key(required=True)
-    )
+    alice_verifying_key = character_fields.Key(required=True, load_only=True)
     message_kits = base_fields.StringList(
         character_fields.MessageKit(),
-        required=True,
-        load_only=True,
-        click=options.option_message_kit(required=True, multiple=True)
+        required=True, load_only=True
     )
-    encrypted_treasure_map = EncryptedTreasureMap(required=True,
-                                                  load_only=True,
-                                                  click=options.option_treasure_map)
+    encrypted_treasure_map = EncryptedTreasureMap(required=True, load_only=True)
 
     # output
     cleartexts = base_fields.List(character_fields.Cleartext(), dump_only=True)
