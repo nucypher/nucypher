@@ -782,7 +782,6 @@ class Ursula(Teacher, Character, Operator):
             discovery: bool = True,  # TODO: see below
             availability: bool = False,
             worker: bool = True,
-            interactive: bool = False,
             hendrix: bool = True,
             start_reactor: bool = True,
             prometheus_config: 'PrometheusMetricsConfig' = None,

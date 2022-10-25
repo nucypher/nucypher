@@ -404,7 +404,7 @@ def forget(general_config, config_options, config_file):
 @click.option("--metrics-prefix", help="Create metrics params with specified prefix", default="ursula")
 @click.option("--metrics-interval", help="The frequency of metrics collection", type=click.INT, default=90)
 @click.option("--ip-checkup/--no-ip-checkup", help="Verify external IP matches configuration", default=True)
-def run(general_config, character_options, config_file, interactive, dry_run, prometheus, metrics_port,
+def run(general_config, character_options, config_file, dry_run, prometheus, metrics_port,
         metrics_listen_address, metrics_prefix, metrics_interval, force, ip_checkup):
     """Run an "Ursula" node."""
 
@@ -439,7 +439,6 @@ def run(general_config, character_options, config_file, interactive, dry_run, pr
     try:
         URSULA.run(emitter=emitter,
                    start_reactor=not dry_run,
-                   interactive=interactive,
                    prometheus_config=prometheus_config,
                    preflight=not dev_mode)
     finally:
