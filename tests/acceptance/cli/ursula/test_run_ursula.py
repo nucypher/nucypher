@@ -30,7 +30,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
 )
-from nucypher.network.nodes import Teacher
 from nucypher.utilities.networking import LOOPBACK_ADDRESS, UnknownIPAddress
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
@@ -204,7 +203,6 @@ def test_persistent_node_storage_integration(click_runner,
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--debug',
-                '--interactive',
                 '--config-file', str(another_ursula_configuration_file_location.absolute()),
                 '--teacher', teacher_uri)
 
@@ -222,7 +220,6 @@ def test_persistent_node_storage_integration(click_runner,
     run_args = ('ursula', 'run',
                 '--dry-run',
                 '--debug',
-                '--interactive',
                 '--config-file',  str(another_ursula_configuration_file_location.absolute()))
 
     with pytest.raises(Operator.ActorError):

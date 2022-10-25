@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
 )
 from nucypher.characters.lawful import Ursula
-from nucypher.control.controllers import JSONRPCController, WebController
+from nucypher.control.controllers import WebController
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.retrieval import RetrievalClient
@@ -216,14 +216,6 @@ the Pipe for PRE Application network operations
         controller = PorterCLIController(app_name=self.APP_NAME,
                                          crash_on_error=crash_on_error,
                                          interface=self.interface)
-        self.controller = controller
-        return controller
-
-    def make_rpc_controller(self, crash_on_error: bool = False):
-        controller = JSONRPCController(app_name=self.APP_NAME,
-                                       crash_on_error=crash_on_error,
-                                       interface=self.interface)
-
         self.controller = controller
         return controller
 

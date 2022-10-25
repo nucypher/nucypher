@@ -27,16 +27,15 @@ import maya
 from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.deploy.tls import HendrixDeployTLS
-from twisted.internet import reactor, stdio
+from twisted.internet import reactor
 
-from nucypher.cli.processes import JSONRPCLineReceiver
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter, WebEmitter
 from nucypher.control.interfaces import ControlInterface
 from nucypher.control.specifications.exceptions import SpecificationError
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.network.resources import get_static_resources
-from nucypher.utilities.concurrency import WorkerPool, WorkerPoolException
+from nucypher.utilities.concurrency import WorkerPoolException
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
 
 
@@ -156,10 +155,6 @@ class JSONRPCController(InterfaceControlServer):
 
         test_client = JSONRPCTestClient(rpc_controller=self)
         return test_client
-
-    def make_control_transport(self):
-        transport = stdio.StandardIO(JSONRPCLineReceiver(rpc_controller=self))
-        return transport
 
     def handle_procedure_call(self, control_request) -> int:
 

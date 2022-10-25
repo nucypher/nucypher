@@ -18,9 +18,6 @@
 import pytest
 
 
-#
-# Web
-#
 @pytest.fixture(scope='module')
 def blockchain_porter_web_controller(blockchain_porter):
     web_controller = blockchain_porter.make_web_controller(crash_on_error=False)
@@ -31,12 +28,3 @@ def blockchain_porter_web_controller(blockchain_porter):
 def blockchain_porter_basic_auth_web_controller(blockchain_porter, basic_auth_file):
     web_controller = blockchain_porter.make_web_controller(crash_on_error=False, htpasswd_filepath=basic_auth_file)
     yield web_controller.test_client()
-
-
-#
-# RPC
-#
-@pytest.fixture(scope='module')
-def blockchain_porter_rpc_controller(blockchain_porter):
-    rpc_controller = blockchain_porter.make_rpc_controller(crash_on_error=True)
-    yield rpc_controller.test_client()
