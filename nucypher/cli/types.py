@@ -26,7 +26,6 @@ from eth_utils import to_checksum_address
 from nucypher_core.umbral import PublicKey
 
 from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import TToken
 from nucypher.policy.payment import PAYMENT_METHODS
@@ -157,6 +156,4 @@ NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
 OPERATOR_IP = OperatorIPAddress()
 
-GAS_STRATEGY_CHOICES = click.Choice(list(BlockchainInterface.GAS_STRATEGIES.keys()))
 PAYMENT_METHOD_CHOICES = click.Choice(list(PAYMENT_METHODS))
-UMBRAL_PUBLIC_KEY_HEX = UmbralPublicKeyHex()

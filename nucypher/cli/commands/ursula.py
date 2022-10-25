@@ -398,7 +398,6 @@ def forget(general_config, config_options, config_file):
 @option_dry_run
 @option_force
 @group_general_config
-@click.option('--interactive', '-I', help="Run interactively", is_flag=True, default=False)
 @click.option('--prometheus', help="Run the ursula prometheus exporter", is_flag=True, default=False)
 @click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
 @click.option("--metrics-listen-address", help="Run a prometheus metrics exporter on specified IP address", default='')

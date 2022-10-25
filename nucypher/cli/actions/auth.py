@@ -23,7 +23,6 @@ from constant_sorrow.constants import NO_PASSWORD
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.software import ClefSigner
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
@@ -33,6 +32,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.keystore import Keystore, _WORD_COUNT
 
 

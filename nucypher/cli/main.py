@@ -18,7 +18,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 import click
 
 from nucypher.cli.commands import (
-    enrico,
     status,
     ursula,
     porter,
@@ -46,7 +45,6 @@ ENTRY_POINTS = (
 
     # Characters & Actors
     ursula.ursula,  # Untrusted Re-Encryption Proxy
-    enrico.enrico,  # Encryptor of Data
 
     # PRE Application
     bond.bond,
