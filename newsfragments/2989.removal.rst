@@ -1,0 +1,2 @@
+Removes clef and trezor signer support
+
