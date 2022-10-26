@@ -16,7 +16,6 @@
 """
 
 import json
-import sys
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -27,12 +26,8 @@ from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
 from eth_utils.address import is_address, to_checksum_address
-from eth_utils.applicators import apply_formatters_to_dict
 from hexbytes.main import HexBytes
-from web3.main import Web3
-from web3.providers.ipc import IPCProvider
 
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 
@@ -101,131 +96,6 @@ class Web3Signer(Signer):
     def sign_transaction(self, transaction_dict: dict) -> HexBytes:
         signed_raw_transaction = self.__client.sign_transaction(transaction_dict=transaction_dict)
         return signed_raw_transaction
-
-
-class ClefSigner(Signer):
-    DEFAULT_IPC_PATH = Path('~/Library/Signer/clef.ipc' if sys.platform == 'darwin' else '~/.clef/clef.ipc')  # TODO: #1808
-
-    SIGN_DATA_FOR_VALIDATOR = 'data/validator'   # a.k.a. EIP 191 version 0
-    SIGN_DATA_FOR_CLIQUE = 'application/clique'  # not relevant for us
-    SIGN_DATA_FOR_ECRECOVER = 'text/plain'       # a.k.a. geth's `personal_sign`, EIP-191 version 45 (E)
-
-    DEFAULT_CONTENT_TYPE = SIGN_DATA_FOR_ECRECOVER
-    SIGN_DATA_CONTENT_TYPES = (SIGN_DATA_FOR_VALIDATOR, SIGN_DATA_FOR_CLIQUE, SIGN_DATA_FOR_ECRECOVER)
-
-    TIMEOUT = 180  # Default timeout for Clef of 180 seconds
-
-    def __init__(self,
-                 ipc_path: Path = DEFAULT_IPC_PATH,
-                 timeout: int = TIMEOUT,
-                 testnet: bool = False):
-        super().__init__()
-        self.w3 = Web3(provider=IPCProvider(ipc_path=ipc_path, timeout=timeout))  # TODO: Unify with clients or build error handling
-        self.ipc_path = ipc_path
-        self.testnet = testnet
-
-    @classmethod
-    def uri_scheme(cls) -> str:
-        return 'clef'
-
-    def __ipc_request(self, endpoint: str, *request_args):
-        """Error handler for clef IPC requests  # TODO: Use web3 RequestHandler"""
-        try:
-            response = self.w3.manager.request_blocking(endpoint, request_args)
-        except FileNotFoundError:
-            raise FileNotFoundError(f'Clef IPC file not found. Is clef running and available at "{self.ipc_path}"?')
-        except ConnectionRefusedError:
-            raise ConnectionRefusedError(f'Clef refused connection. Is clef running and available at "{self.ipc_path}"?')
-        return response
-
-    @classmethod
-    def is_valid_clef_uri(cls, uri: str) -> bool:  # TODO: Workaround for #1941
-        uri_breakdown = urlparse(uri)
-        return uri_breakdown.scheme == cls.uri_scheme()
-
-    @classmethod
-    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'ClefSigner':
-        uri_breakdown = urlparse(uri)
-        if not uri_breakdown.path and not uri_breakdown.netloc:
-            raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
-        if uri_breakdown.scheme != cls.uri_scheme():
-            raise cls.InvalidSignerURI(f"{uri} is not a valid clef signer URI.")
-        signer = cls(ipc_path=uri_breakdown.path, testnet=testnet)
-        return signer
-
-    def is_connected(self) -> bool:
-        return self.w3.isConnected()
-
-    @validate_checksum_address
-    def is_device(self, account: str):
-        return True  # TODO: Detect HW v. SW Wallets via clef API - #1772
-
-    @property
-    def accounts(self) -> List[str]:
-        normalized_addresses = self.__ipc_request(endpoint="account_list")
-        checksum_addresses = [to_checksum_address(addr) for addr in normalized_addresses]
-        return checksum_addresses
-
-    @validate_checksum_address
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
-        formatters = {
-            'nonce': Web3.toHex,
-            'gasPrice': Web3.toHex,
-            'gas': Web3.toHex,
-            'value': Web3.toHex,
-            'chainId': Web3.toHex,
-            'from': to_checksum_address
-        }
-
-        # Workaround for contract creation TXs
-        if transaction_dict['to'] == b'':
-            transaction_dict['to'] = None
-        elif transaction_dict['to']:
-            formatters['to'] = to_checksum_address
-
-        formatted_transaction = apply_formatters_to_dict(formatters, transaction_dict)
-        signed = self.__ipc_request("account_signTransaction", formatted_transaction)
-        return HexBytes(signed.raw)
-
-    @validate_checksum_address
-    def sign_message(self, account: str, message: bytes, content_type: str = None, validator_address: str = None, **kwargs) -> HexBytes:
-        """
-        See https://github.com/ethereum/go-ethereum/blob/a32a2b933ad6793a2fe4172cd46c5c5906da259a/signer/core/signed_data.go#L185
-        """
-        if isinstance(message, bytes):
-            message = Web3.toHex(message)
-
-        if not content_type:
-            content_type = self.DEFAULT_CONTENT_TYPE
-        elif content_type not in self.SIGN_DATA_CONTENT_TYPES:
-            raise ValueError(f'{content_type} is not a valid content type. '
-                             f'Valid types are {self.SIGN_DATA_CONTENT_TYPES}')
-        if content_type == self.SIGN_DATA_FOR_VALIDATOR:
-            if not validator_address or validator_address == NULL_ADDRESS:
-                raise ValueError('When using the intended validator type, a validator address is required.')
-            data = {'address': validator_address, 'message': message}
-        elif content_type == self.SIGN_DATA_FOR_ECRECOVER:
-            data = message
-        else:
-            raise NotImplementedError
-
-        signed_data = self.__ipc_request("account_signData", content_type, account, data)
-        return HexBytes(signed_data)
-
-    def sign_data_for_validator(self, account: str, message: bytes, validator_address: str):
-        signature = self.sign_message(account=account,
-                                      message=message,
-                                      content_type=self.SIGN_DATA_FOR_VALIDATOR,
-                                      validator_address=validator_address)
-        return signature
-
-    @validate_checksum_address
-    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
-        return True
-
-    @validate_checksum_address
-    def lock_account(self, account: str) -> bool:
-        return True
 
 
 class KeystoreSigner(Signer):
