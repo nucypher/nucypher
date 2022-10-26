@@ -225,8 +225,5 @@ def test_destroy_configuration(config,
         assert config.checksum_address in filepath
 
     expected_removal = 7  # TODO: Source this number from somewhere else
-    if config_class is UrsulaConfiguration:
-        expected_removal += 1
-        mock_os_remove.assert_called_with(config.db_filepath)
 
     assert mock_os_remove.call_count == expected_removal

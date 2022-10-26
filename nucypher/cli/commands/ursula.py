@@ -85,7 +85,6 @@ class UrsulaConfigOptions:
                  federated_only: bool,
                  rest_host: str,
                  rest_port: int,
-                 db_filepath: Path,
                  network: str,
                  registry_filepath: Path,
                  policy_registry_filepath: Path,
@@ -113,7 +112,6 @@ class UrsulaConfigOptions:
         self.federated_only = federated_only
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
-        self.db_filepath = db_filepath
         self.domain = network
         self.registry_filepath = registry_filepath
         self.policy_registry_filepath = policy_registry_filepath
@@ -146,7 +144,6 @@ class UrsulaConfigOptions:
                 federated_only=self.federated_only,
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
-                db_filepath=self.db_filepath,
                 availability_check=self.availability_check,
                 payment_method=self.payment_method,
                 payment_provider=self.payment_provider,
@@ -170,7 +167,6 @@ class UrsulaConfigOptions:
                     max_gas_price=self.max_gas_price,
                     rest_host=self.rest_host,
                     rest_port=self.rest_port,
-                    db_filepath=self.db_filepath,
                     poa=self.poa,
                     light=self.light,
                     federated_only=self.federated_only,
@@ -207,7 +203,6 @@ class UrsulaConfigOptions:
                                             config_root=config_root,
                                             rest_host=self.rest_host,
                                             rest_port=self.rest_port,
-                                            db_filepath=self.db_filepath,
                                             domain=self.domain,
                                             federated_only=self.federated_only,
                                             operator_address=self.operator_address,
@@ -228,7 +223,6 @@ class UrsulaConfigOptions:
     def get_updates(self) -> dict:
         payload = dict(rest_host=self.rest_host,
                        rest_port=self.rest_port,
-                       db_filepath=self.db_filepath,
                        domain=self.domain,
                        federated_only=self.federated_only,
                        operator_address=self.operator_address,

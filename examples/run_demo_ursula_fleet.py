@@ -46,7 +46,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     if not sage_dir.exists():
         sage_dir.mkdir(parents=True)
 
-    sage = ursula_maker(rest_port=ports[0], db_filepath=sage_dir)
+    sage = ursula_maker(rest_port=ports[0])
 
     ursulas.append(sage)
     for index, port in enumerate(ports[1:]):
@@ -54,7 +54,6 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
             rest_port=port,
             seed_nodes=[sage.seed_node_metadata()],
             start_learning_now=True,
-            db_filepath=f"{USER_CACHE / port}.db",
         )
         ursulas.append(u)
 

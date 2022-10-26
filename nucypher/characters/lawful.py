@@ -590,7 +590,6 @@ class Ursula(Teacher, Character, Operator):
                  certificate: Certificate = None,
                  certificate_filepath: Optional[Path] = None,
 
-                 db_filepath: Optional[Path] = None,
                  availability_check: bool = False,  # TODO: Remove from init
                  metadata: Optional[NodeMetadata] = None,
 

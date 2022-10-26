@@ -81,7 +81,6 @@ def test_characters_use_keystore(temp_dir_path, test_registry_source_manager):
            keystore=keystore,
            rest_host=LOOPBACK_ADDRESS,
            rest_port=12345,
-           db_filepath=tempfile.mkdtemp(),
            domain=TEMPORARY_DOMAIN,
            payment_method=FreeReencryptions())
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
@@ -96,14 +95,12 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     rest_port = 12345
-    db_filepath = tempfile.mkdtemp()
 
     ursula = Ursula(federated_only=True,
                     start_learning_now=False,
                     keystore=keystore,
                     rest_host=LOOPBACK_ADDRESS,
                     rest_port=rest_port,
-                    db_filepath=db_filepath,
                     domain=TEMPORARY_DOMAIN)
 
     assert ursula.keystore is keystore
@@ -119,7 +116,6 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
                               keystore=keystore,
                               rest_host=LOOPBACK_ADDRESS,
                               rest_port=rest_port,
-                              db_filepath=db_filepath,
                               domain=TEMPORARY_DOMAIN)
 
     assert recreated_ursula.keystore is keystore

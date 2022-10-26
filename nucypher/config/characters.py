@@ -52,7 +52,6 @@ class UrsulaConfiguration(CharacterConfiguration):
                  rest_host: str = None,
                  operator_address: str = None,
                  dev_mode: bool = False,
-                 db_filepath: Optional[Path] = None,
                  keystore_path: Optional[Path] = None,
                  rest_port: int = None,
                  certificate: Certificate = None,
@@ -72,7 +71,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_port = rest_port
         self.rest_host = rest_host
         self.certificate = certificate
-        self.db_filepath = db_filepath or UNINITIALIZED_CONFIGURATION
         self.operator_address = operator_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
         super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
@@ -93,7 +91,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def generate_runtime_filepaths(self, config_root: Path) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)
-        filepaths = dict(db_filepath=config_root / self.DEFAULT_DB_NAME)
+        filepaths = dict()
         base_filepaths.update(filepaths)
         return base_filepaths
 
@@ -106,7 +104,6 @@ class UrsulaConfiguration(CharacterConfiguration):
             operator_address=self.operator_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
-            db_filepath=self.db_filepath,
             availability_check=self.availability_check,
 
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
@@ -132,21 +129,14 @@ class UrsulaConfiguration(CharacterConfiguration):
         ursula = self.CHARACTER_CLASS(**merged_parameters)
         return ursula
 
-    def destroy(self) -> None:
-        if self.db_filepath.is_file():
-            self.db_filepath.unlink()
-        super().destroy()
-
     @classmethod
     def deserialize(cls, payload: str, deserializer=json.loads, payload_label: Optional[str] = None) -> dict:
         deserialized_payload = super().deserialize(payload, deserializer, payload_label)
-        deserialized_payload['db_filepath'] = Path(deserialized_payload['db_filepath'])
         return deserialized_payload
 
     @classmethod
     def assemble(cls, filepath: Optional[Path] = None, **overrides) -> dict:
         payload = super().assemble(filepath, **overrides)
-        payload['db_filepath'] = Path(payload['db_filepath'])  # TODO: this can be moved to dynamic payload
         return payload
 
 
