@@ -40,11 +40,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
     # Ports
     starting_port = DEMO_NODE_STARTING_PORT
     ports = list(map(str, range(starting_port, starting_port + quantity)))
-    sage_dir = USER_CACHE / 'sage.db'
     ursulas = []
-
-    if not sage_dir.exists():
-        sage_dir.mkdir(parents=True)
 
     sage = ursula_maker(rest_port=ports[0])
 
