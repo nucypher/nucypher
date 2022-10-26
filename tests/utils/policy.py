@@ -22,13 +22,13 @@ from typing import Dict, List, Optional, Tuple
 
 from nucypher_core import MessageKit, RetrievalKit
 
-from nucypher.characters.control.specifications.fields import Key, TreasureMap
 from nucypher.characters.lawful import Enrico
 from nucypher.control.specifications.fields import JSON
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.porter.control.specifications.fields import (
-    RetrievalKit as RetrievalKitField,
+    RetrievalKit as RetrievalKitField, Key,
 )
+from nucypher.utilities.porter.control.specifications.fields.treasuremap import TreasureMap
 
 
 def generate_random_label() -> bytes:

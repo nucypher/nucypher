@@ -20,12 +20,13 @@ import click
 from marshmallow import fields as marshmallow_fields
 from marshmallow import validates_schema
 
-from nucypher.characters.control.specifications import fields as character_fields
 from nucypher.cli import types
 from nucypher.control.specifications import fields as base_fields
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import InvalidArgumentCombo
 from nucypher.utilities.porter.control.specifications import fields
+from nucypher.utilities.porter.control.specifications.fields.key import Key
+from nucypher.utilities.porter.control.specifications.fields.treasuremap import TreasureMap
 
 
 def option_ursula():
@@ -114,8 +115,9 @@ class AliceRevoke(BaseSchema):
 #
 # Bob Endpoints
 #
+
 class BobRetrieveCFrags(BaseSchema):
-    treasure_map = character_fields.TreasureMap(
+    treasure_map = TreasureMap(
         required=True,
         load_only=True,
         click=click.option(
@@ -136,7 +138,7 @@ class BobRetrieveCFrags(BaseSchema):
             default=[]),
         required=True,
         load_only=True)
-    alice_verifying_key = character_fields.Key(
+    alice_verifying_key = Key(
         required=True,
         load_only=True,
         click=click.option(
@@ -145,11 +147,11 @@ class BobRetrieveCFrags(BaseSchema):
             help="Alice's verifying key as a hexadecimal string",
             type=click.STRING,
             required=True))
-    bob_encrypting_key = character_fields.Key(
+    bob_encrypting_key = Key(
         required=True,
         load_only=True,
         click=option_bob_encrypting_key())
-    bob_verifying_key = character_fields.Key(
+    bob_verifying_key = Key(
         required=True,
         load_only=True,
         click=click.option(

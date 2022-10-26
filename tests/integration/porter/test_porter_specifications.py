@@ -14,19 +14,25 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import base64
 import random
 
 import pytest
+from nucypher_core import (
+    MessageKit,
+    TreasureMap as TreasureMapClass,
+)
+from nucypher_core.umbral import PublicKey
 from nucypher_core.umbral import SecretKey
 
-from nucypher.control.specifications.exceptions import (
-    InvalidArgumentCombo,
-    InvalidInputData,
-)
+from nucypher.control.specifications.base import BaseSchema
+from nucypher.control.specifications.exceptions import SpecificationError, InvalidInputData, InvalidArgumentCombo
+from nucypher.crypto.powers import DecryptingPower
 from nucypher.utilities.porter.control.specifications.fields import (
     RetrievalOutcomeSchema,
-    UrsulaInfoSchema,
+    UrsulaInfoSchema, Key,
 )
+from nucypher.utilities.porter.control.specifications.fields.treasuremap import TreasureMap
 from nucypher.utilities.porter.control.specifications.porter_schema import (
     AliceGetUrsulas,
     BobRetrieveCFrags,
@@ -326,3 +332,69 @@ def test_bob_retrieve_cfrags(federated_porter,
         values = kit_errors.values()  # ordered?
         for j in range(i):
             assert error_message_template.format(i, j) in values
+
+
+def make_header(brand: bytes, major: int, minor: int) -> bytes:
+    # Hardcoding this since it's too much trouble to expose it all the way from Rust
+    assert len(brand) == 4
+    major_bytes = major.to_bytes(2, 'big')
+    minor_bytes = minor.to_bytes(2, 'big')
+    header = brand + major_bytes + minor_bytes
+    return header
+
+
+def test_treasure_map_validation(enacted_federated_policy,
+                                 federated_bob):
+    class UnenncryptedTreasureMapsOnly(BaseSchema):
+        tmap = TreasureMap()
+
+    # this will raise a base64 error
+    with pytest.raises(SpecificationError) as e:
+        UnenncryptedTreasureMapsOnly().load({'tmap': "your face looks like a treasure map"})
+
+    # assert that field name is in the error message
+    assert "Could not parse tmap" in str(e)
+    assert "Invalid base64-encoded string" in str(e)
+
+    # valid base64 but invalid treasuremap
+    bad_map = make_header(b'TMap', 1, 0) + b"your face looks like a treasure map"
+    bad_map_b64 = base64.b64encode(bad_map).decode()
+
+    with pytest.raises(InvalidInputData) as e:
+        UnenncryptedTreasureMapsOnly().load({'tmap': bad_map_b64})
+
+    assert "Could not convert input for tmap to a TreasureMap" in str(e)
+    assert "Failed to deserialize" in str(e)
+
+    # a valid treasuremap
+    decrypted_treasure_map = federated_bob._decrypt_treasure_map(enacted_federated_policy.treasure_map,
+                                                                 enacted_federated_policy.publisher_verifying_key)
+    tmap_bytes = bytes(decrypted_treasure_map)
+    tmap_b64 = base64.b64encode(tmap_bytes).decode()
+    result = UnenncryptedTreasureMapsOnly().load({'tmap': tmap_b64})
+    assert isinstance(result['tmap'], TreasureMapClass)
+
+
+def test_key_validation(federated_bob):
+
+    class BobKeyInputRequirer(BaseSchema):
+        bobkey = Key()
+
+    with pytest.raises(InvalidInputData) as e:
+        BobKeyInputRequirer().load({'bobkey': "I am the key to nothing"})
+    assert "non-hexadecimal number found in fromhex()" in str(e)
+    assert "bobkey" in str(e)
+
+    with pytest.raises(InvalidInputData) as e:
+        BobKeyInputRequirer().load({'bobkey': "I am the key to nothing"})
+    assert "non-hexadecimal number found in fromhex()" in str(e)
+    assert "bobkey" in str(e)
+
+    with pytest.raises(InvalidInputData) as e:
+        # lets just take a couple bytes off
+        BobKeyInputRequirer().load({'bobkey': "02f0cb3f3a33f16255d9b2586e6c56570aa07bbeb1157e169f1fb114ffb40037"})
+    assert "Could not convert input for bobkey to an Umbral Key" in str(e)
+    assert "xpected 33 bytes, got 32" in str(e)
+
+    result = BobKeyInputRequirer().load(dict(bobkey=bytes(federated_bob.public_keys(DecryptingPower)).hex()))
+    assert isinstance(result['bobkey'], PublicKey)
