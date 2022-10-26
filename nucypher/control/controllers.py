@@ -27,13 +27,11 @@ import maya
 from flask import Flask, Response
 from hendrix.deploy.base import HendrixDeploy
 from hendrix.deploy.tls import HendrixDeployTLS
-from twisted.internet import reactor
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter, WebEmitter
+from nucypher.control.emitters import StdoutEmitter, WebEmitter
 from nucypher.control.interfaces import ControlInterface
 from nucypher.control.specifications.exceptions import SpecificationError
-from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.network.resources import get_static_resources
 from nucypher.utilities.concurrency import WorkerPoolException
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
@@ -137,102 +135,6 @@ class CLIController(InterfaceControlServer):
         else:
             self.emitter.pretty(response)
         return response
-
-
-class JSONRPCController(InterfaceControlServer):
-
-    _emitter_class = JSONRPCStdoutEmitter
-
-    def start(self):
-        _transport = self.make_control_transport()
-        reactor.run()  # < ------ Blocking Call (Reactor)
-
-    def test_client(self):
-        try:
-            from tests.utils.controllers import JSONRPCTestClient
-        except ImportError:
-            raise DevelopmentInstallationRequired(importable_name='tests.utils.controllers.JSONRPCTestClient')
-
-        test_client = JSONRPCTestClient(rpc_controller=self)
-        return test_client
-
-    def handle_procedure_call(self, control_request) -> int:
-
-        # Validate request and read request metadata
-        jsonrpc2 = control_request['jsonrpc']
-        if jsonrpc2 != '2.0':
-            raise self.emitter.InvalidRequest
-
-        request_id = control_request['id']
-
-        # Read the interface's signature metadata
-        method_name = control_request['method']
-        method_params = control_request.get('params', dict())  # optional
-        if method_name not in self._get_interfaces():
-            raise self.emitter.MethodNotFound(f'No method called {method_name}')
-
-        return self.call_interface(method_name=method_name,
-                                   request=method_params,
-                                   request_id=request_id)
-
-    def handle_message(self, message: dict, *args, **kwargs) -> int:
-        """Handle single JSON RPC message"""
-
-        try:
-            _request_id = message['id']
-
-        except KeyError:  # Notification
-            raise self.emitter.InvalidRequest('No request id')
-        except TypeError:
-            raise self.emitter.InvalidRequest(f'Request object not valid: {type(message)}')
-        else:             # RPC
-            return self.handle_procedure_call(control_request=message)
-
-    def handle_batch(self, control_requests: list) -> int:
-
-        if not control_requests:
-            e = self.emitter.InvalidRequest()
-            return self.emitter.error(e)
-
-        batch_size = 0
-        for request in control_requests:  # TODO: parallelism
-            response_size = self.handle_message(message=request)
-            batch_size += response_size
-        return batch_size
-
-    def handle_request(self, control_request: bytes, *args, **kwargs) -> int:
-
-        try:
-            control_request = json.loads(control_request)
-        except JSONDecodeError:
-            e = self.emitter.ParseError()
-            return self.emitter.error(e)
-
-        # Handle batch of messages
-        if isinstance(control_request, list):
-            return self.handle_batch(control_requests=control_request)
-
-        # Handle single message
-        try:
-            return self.handle_message(message=control_request, *args, **kwargs)
-
-        except self.emitter.JSONRPCError as e:
-            return self.emitter.error(e)
-
-        except Exception as e:
-            if self.crash_on_error:
-                raise
-            return self.emitter.error(e)
-
-    def call_interface(self, method_name, request, request_id: int = None):
-        received = maya.now()
-        internal_request_id = received.epoch
-        if request_id is None:
-            request_id = internal_request_id
-        response = self._perform_action(action=method_name, request=request)
-        responded = maya.now()
-        duration = responded - received
-        return self.emitter.ipc(response=response, request_id=request_id, duration=duration)
 
 
 class WebController(InterfaceControlServer):

@@ -17,16 +17,20 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import math
-import os
 import pprint
 from pathlib import Path
-
-from eth.typing import TransactionDict
 from typing import Callable, NamedTuple, Tuple, Union, Optional
 from typing import List
 from urllib.parse import urlparse
 
 import requests
+from constant_sorrow.constants import (
+    INSUFFICIENT_ETH,
+    NO_BLOCKCHAIN_CONNECTION,
+    NO_COMPILATION_PERFORMED,
+    UNKNOWN_TX_STATUS
+)
+from eth.typing import TransactionDict
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
 from eth_typing import ChecksumAddress
@@ -39,15 +43,6 @@ from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
-from constant_sorrow.constants import (
-    INSUFFICIENT_ETH,
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_COMPILATION_PERFORMED,
-    READ_ONLY_INTERFACE,
-    UNKNOWN_TX_STATUS
-)
-
-from nucypher.crypto.powers import TransactingPower
 from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
@@ -63,7 +58,8 @@ from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
 from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
-from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
+from nucypher.control.emitters import StdoutEmitter
+from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.ethereum import encode_constructor_arguments
 from nucypher.utilities.gas_strategies import (
     construct_datafeed_median_strategy,

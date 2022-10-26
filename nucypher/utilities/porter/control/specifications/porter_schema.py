@@ -50,6 +50,8 @@ def option_bob_encrypting_key():
 #
 # Alice Endpoints
 #
+
+
 class AliceGetUrsulas(BaseSchema):
     quantity = base_fields.PositiveInteger(
         required=True,

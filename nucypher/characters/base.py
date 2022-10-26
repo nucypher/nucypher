@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from contextlib import suppress
 from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Union
+from typing import ClassVar, Dict, List, Optional
 
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
@@ -29,14 +29,12 @@ from constant_sorrow.constants import (
 )
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address
-
 from nucypher_core import MessageKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
     CryptoPower,
