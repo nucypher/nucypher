@@ -65,12 +65,7 @@ def spin_up_federated_ursulas(quantity: int = FLEET_POPULATION):
         deployer.start()
         print(f"{u}: {deployer._listening_message()}")
 
-    try:
-        reactor.run()
-    finally:
-        for u in ursulas:
-            with suppress(FileNotFoundError):
-                shutil.rmtree(u.datastore.db_path)
+    reactor.run()
 
 
 if __name__ == "__main__":

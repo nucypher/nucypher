@@ -38,7 +38,6 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.datastore.queries import get_reencryption_requests
 
 
 class MetricsCollector(ABC):
@@ -128,11 +127,6 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
-
-        reencryption_requests = get_reencryption_requests(self.ursula.datastore)
-        self.metrics["reencryption_requests_gauge"].set(
-            len(reencryption_requests) if reencryption_requests else 0
-        )
 
         if not self.ursula.federated_only:
             decentralized_payload = {

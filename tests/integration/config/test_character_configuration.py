@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -175,7 +174,6 @@ def test_ursula_development_configuration(federated_only=True):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert tempfile.gettempdir() in str(ursula_one.datastore.db_path)
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
     assert ':memory:' in ursula_one.node_storage._name

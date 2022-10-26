@@ -683,9 +683,7 @@ class Ursula(Teacher, Character, Operator):
             self.payment_method = payment_method
 
             # Server
-            self.rest_server = self._make_local_server(host=rest_host,
-                                                       port=rest_port,
-                                                       db_filepath=db_filepath)
+            self.rest_server = self._make_local_server(host=rest_host, port=rest_port)
 
             # Self-signed TLS certificate of self for Teacher.__init__
             certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
@@ -727,15 +725,11 @@ class Ursula(Teacher, Character, Operator):
             self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
         return tls_hosting_power
 
-    def _make_local_server(self, host, port, db_filepath) -> ProxyRESTServer:
-        rest_app, datastore = make_rest_app(
-            this_node=self,
-            db_filepath=db_filepath,
-        )
+    def _make_local_server(self, host, port) -> ProxyRESTServer:
+        rest_app = make_rest_app(this_node=self)
         rest_server = ProxyRESTServer(rest_host=host,
                                       rest_port=port,
                                       rest_app=rest_app,
-                                      datastore=datastore,
                                       hosting_power=self.__get_hosting_power(host=host))
         return rest_server
 
@@ -899,9 +893,6 @@ class Ursula(Teacher, Character, Operator):
 
         **Warning:** invalidates the Ursula.
         """
-
-        # `rest_server` holds references to the datastore (directly and via `rest_app`).
-        # An open datastore hogs up file descriptors.
         self.rest_server = INVALIDATED
 
     def rest_information(self):
@@ -1083,12 +1074,6 @@ class Ursula(Teacher, Character, Operator):
     #
     # Properties
     #
-    @property
-    def datastore(self):
-        try:
-            return self.rest_server.datastore
-        except AttributeError:
-            raise AttributeError("No rest server attached")
 
     @property
     def rest_url(self):

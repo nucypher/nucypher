@@ -130,13 +130,6 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         merged_parameters = self.generate_parameters(**overrides)
         ursula = self.CHARACTER_CLASS(**merged_parameters)
-
-        if self.dev_mode:
-            class MockDatastoreThreadPool(object):
-                def callInThread(self, f, *args, **kwargs):
-                    return f(*args, **kwargs)
-            ursula.datastore_threadpool = MockDatastoreThreadPool()
-
         return ursula
 
     def destroy(self) -> None:

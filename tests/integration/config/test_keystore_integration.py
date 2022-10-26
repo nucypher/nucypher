@@ -29,7 +29,6 @@ from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, TLSHostingPower
-from nucypher.datastore.datastore import Datastore
 from nucypher.network.server import ProxyRESTServer
 from nucypher.policy.payment import FreeReencryptions
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -130,6 +129,5 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
                                                  rest_host=LOOPBACK_ADDRESS,
                                                  rest_port=rest_port,
                                                  rest_app=IsType(Flask),
-                                                 datastore=IsType(Datastore),
                                                  hosting_power=tls_hosting_power)
     recreated_ursula.disenchant()

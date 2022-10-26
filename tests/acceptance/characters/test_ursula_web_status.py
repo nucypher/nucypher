@@ -30,11 +30,8 @@ def ursula(blockchain_ursulas):
 
 @pytest.fixture(scope='module')
 def client(ursula):
-    db_fd, db_path = tempfile.mkstemp()
-    ursula.rest_app.config.update({"TESTING": True, "DATABASE": Path(db_path)})
+    ursula.rest_app.config.update({"TESTING": True})
     yield ursula.rest_app.test_client()
-    os.close(db_fd)
-    ursula.rest_app.config['DATABASE'].unlink()
 
 
 def test_ursula_html_renders(ursula, client):

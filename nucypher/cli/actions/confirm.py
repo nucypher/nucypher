@@ -57,16 +57,11 @@ def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDep
 def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
     """Interactively confirm destruction of nucypher configuration files"""
     # TODO: This is a workaround for ursula - needs follow up
-    try:
-        database = config.db_filepath
-    except AttributeError:
-        database = "No database found"
     confirmation = CHARACTER_DESTRUCTION.format(name=config.NAME,
                                                 root=config.config_root,
                                                 keystore=config.keystore_dir,
                                                 nodestore=config.node_storage.source,
-                                                config=config.filepath,
-                                                database=database)
+                                                config=config.filepath)
     click.confirm(confirmation, abort=True)
     return True
 
