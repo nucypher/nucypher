@@ -84,14 +84,6 @@ workflows:
           requires:
             - unit
             - integration
-      - porter:
-          context: "NuCypher Tests"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - unit
-            - integration
       - tests_ok:
           filters:
             tags:
@@ -104,7 +96,6 @@ workflows:
             - cli
             - deployers
             - utilities
-            - porter
       - build_dev_docker_images:
           filters:
             tags:
@@ -139,14 +130,6 @@ workflows:
               only: main
           requires:
             - test_build
-      - build_porter_docker:
-          filters:
-            tags:
-              only: /v[0-9]+.*/
-            branches:
-              only: main
-          requires:
-            - test_build
       - publish_docker_experimental:
           context: "NuCypher Docker"
           requires:
@@ -162,7 +145,6 @@ workflows:
           type: approval
           requires:
             - build_docker
-            - build_porter_docker
           filters:
             tags:
               only: /v[0-9]+.*/
@@ -179,15 +161,6 @@ workflows:
               ignore: /.*/
       - publish_docker:
           context: "NuCypher Docker"
-          requires:
-            - request_publication_approval
-          filters:
-            tags:
-              only: /v[0-9]+.*/
-            branches:
-              ignore: /.*/
-      - publish_porter_docker:
-          context: "NuCypher Docker"  # This name much match the organization's context name on circleCI.
           requires:
             - request_publication_approval
           filters:
@@ -303,13 +276,6 @@ workflows:
               only: /.*/
           requires:
             - pip_install_37
-      - porter:
-          context: "Nightly"
-          filters:
-            tags:
-              only: /.*/
-          requires:
-            - pip_install_37
       - tests_ok:
           filters:
             tags:
@@ -322,7 +288,6 @@ workflows:
             - cli
             - deployers
             - utilities
-            - porter
       - build_dev_docker_images:
           filters:
             tags:
@@ -356,14 +321,6 @@ workflows:
 #            - heartbeat_demo
             - finnegans_wake_demo
       - build_docker:
-          filters:
-            tags:
-              only: /v[0-9]+.*/
-            branches:
-              only: main
-          requires:
-            - test_build
-      - build_porter_docker:
           filters:
             tags:
               only: /v[0-9]+.*/
@@ -727,18 +684,6 @@ jobs:
       - run_test_suite
       - capture_test_results
 
-  porter:
-    <<: *python_37_base
-    parallelism: 1
-    steps:
-      - prepare_environment
-      - run:
-          name: Preparing Nucypher Porter Tests
-          command: |
-            circleci tests glob "tests/acceptance/porter/**/test_*.py" | circleci tests split --split-by=timings | tee test-names.tmp
-      - run_test_suite
-      - capture_test_results
-
   tests_ok:
     <<: *python_37_base
     steps:
@@ -862,37 +807,6 @@ jobs:
           paths:
             - ~/docker/nucypher.tar
 
-  build_porter_docker:
-    working_directory: ~/nucypher
-    docker:
-      - image: cimg/python:3.8.6
-    steps:
-      - checkout
-      - setup_remote_docker
-      - restore_cache:
-          keys:
-            - v3-{{ .Branch }}-{{ arch }}
-          paths:
-            - ~/docker/nucypher-porter.tar
-      - run:
-          name: Load Porter Docker Image Layer Cache
-          command: |
-            set +o pipefail
-            docker load -i ~/docker/nucypher-porter.tar | true
-      - run:
-          name: Build Porter Docker Image
-          command: |
-            docker build -f deploy/docker/porter/Dockerfile --cache-from=nucypher-porter -t nucypher/porter:circle .
-      - run:
-          name: Save Porter Docker Image Layer Cache
-          command: |
-            mkdir -p ~/docker
-            docker save -o ~/docker/nucypher-porter.tar nucypher/porter:circle
-      - save_cache:
-          key: v3-{{ .Branch }}-{{ arch }}
-          paths:
-            - ~/docker/nucypher-porter.tar
-
   publish_pypi:
     <<: *python_37_base
     steps:
@@ -969,32 +883,6 @@ jobs:
             docker tag nucypher/nucypher:circle nucypher/nucypher:latest
             docker push nucypher/nucypher:$CIRCLE_TAG
             docker push nucypher/nucypher:latest
-
-  publish_porter_docker:
-    working_directory: ~/nucypher
-    docker:
-      - image: cimg/python:3.8.6
-    steps:
-      - checkout
-      - setup_remote_docker
-      - restore_cache:
-          keys:
-            - v3-{{ .Branch }}-{{ arch }}
-          paths:
-            - ~/docker/nucypher-porter.tar
-      - run:
-          name: Load Porter Docker Image Layer Cache
-          command: |
-            set +o pipefail
-            docker load -i ~/docker/nucypher-porter.tar | true
-      - deploy:
-          name: Push Tagged NuCypher Porter Docker Images
-          command: |
-            echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-            docker tag nucypher/porter:circle nucypher/porter:$CIRCLE_TAG
-            docker tag nucypher/porter:circle nucypher/porter:latest
-            docker push nucypher/porter:$CIRCLE_TAG
-            docker push nucypher/porter:latest
 
   statistical_tests:
       <<: *python_37_base
