@@ -20,15 +20,11 @@ from collections import defaultdict
 import pytest
 from eth_utils.crypto import keccak
 
-from nucypher.utilities.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import MOCK_IP_ADDRESS
-
-# Crash on server error by default
-WebEmitter._crash_on_error_default = True
 
 # Dont re-lock account in background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account

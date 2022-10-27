@@ -82,16 +82,3 @@ def test_get_pyevm_backend_without_development_installation(import_mocker):
         with pytest.raises(DevelopmentInstallationRequired, match=message):     # Expect lazy failure
             _get_pyevm_test_backend()
 
-
-def test_rpc_test_client_without_development_installation(import_mocker, mocker):
-
-    # Expected error message (Related object)
-    from tests.utils.controllers import JSONRPCTestClient
-    import_path = f'{JSONRPCTestClient.__module__}.{JSONRPCTestClient.__name__}'
-    message = DevelopmentInstallationRequired.MESSAGE.format(importable_name=import_path)
-    del JSONRPCTestClient
-
-    with import_mocker:
-        from nucypher.control.controllers import JSONRPCController
-        with pytest.raises(DevelopmentInstallationRequired, match=message):    # Expect lazy failure
-            JSONRPCController.test_client(self=mocker.Mock())
