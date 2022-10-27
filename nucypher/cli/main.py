@@ -20,10 +20,13 @@ import click
 from nucypher.cli.commands import (
     status,
     ursula,
-    porter,
-    bond,
+    bond
 )
-from nucypher.cli.painting.help import echo_version, echo_config_root_path, echo_logging_root_path
+from nucypher.cli.painting.help import (
+    echo_version,
+    echo_config_root_path,
+    echo_logging_root_path
+)
 
 
 @click.group()
@@ -51,8 +54,7 @@ ENTRY_POINTS = (
     bond.unbond,
 
     # Utility Commands
-    status.status,      # Network status explorer
-    porter.porter,      # Network support services
+    status.status,  # Network status explorer
 
 )
 

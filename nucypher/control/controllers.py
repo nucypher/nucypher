@@ -31,7 +31,6 @@ from hendrix.deploy.tls import HendrixDeployTLS
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.control.emitters import StdoutEmitter, WebEmitter
 from nucypher.control.interfaces import ControlInterface
-from nucypher.control.specifications.exceptions import SpecificationError
 from nucypher.network.resources import get_static_resources
 from nucypher.utilities.concurrency import WorkerPoolException
 from nucypher.utilities.logging import Logger, GlobalLoggerSettings
@@ -218,7 +217,7 @@ class WebController(InterfaceControlServer):
         return json_response
 
     def handle_request(self, method_name, control_request, *args, **kwargs) -> Response:
-        _400_exceptions = (SpecificationError,
+        _400_exceptions = (ValueError,
                            TypeError,
                            JSONDecodeError,
                            self.emitter.MethodNotFound)
