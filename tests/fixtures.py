@@ -60,7 +60,7 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import TEACHER_NODES

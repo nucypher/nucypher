@@ -22,7 +22,7 @@ from constant_sorrow.constants import NO_PASSWORD
 from mnemonic.mnemonic import Mnemonic
 
 from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,

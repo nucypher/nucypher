@@ -89,7 +89,7 @@ from nucypher.cli.utils import (
     establish_deployer_registry,
     initialize_deployer_interface
 )
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)

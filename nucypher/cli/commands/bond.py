@@ -50,7 +50,7 @@ from nucypher.cli.options import (
 from nucypher.cli.painting.transactions import paint_receipt_summary
 from nucypher.cli.utils import connect_to_blockchain, get_registry
 from nucypher.config.constants import NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 
 

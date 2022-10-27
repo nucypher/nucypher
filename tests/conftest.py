@@ -20,7 +20,7 @@ from collections import defaultdict
 import pytest
 from eth_utils.crypto import keccak
 
-from nucypher.control.emitters import WebEmitter
+from nucypher.utilities.emitters import WebEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker

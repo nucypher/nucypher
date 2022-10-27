@@ -16,25 +16,21 @@
 """
 
 
-from typing import Type, Union, Dict
+from typing import Type, Union
 
 import click
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from maya import MayaDT
-from tabulate import tabulate
-from web3.main import Web3
 
 from nucypher.blockchain.eth.deployers import BaseContractDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, VersionedContract, BlockchainInterface
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.blockchain.eth.utils import calculate_period_duration
 from nucypher.cli.literature import (
     ABORT_DEPLOYMENT,
     CHARACTER_DESTRUCTION
 )
 from nucypher.cli.literature import CONFIRM_VERSIONED_UPGRADE
 from nucypher.config.base import CharacterConfiguration
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 
 
 def confirm_deployment(emitter: StdoutEmitter, deployer_interface: BlockchainDeployerInterface) -> bool:

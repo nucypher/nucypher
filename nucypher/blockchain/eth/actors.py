@@ -49,7 +49,7 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 

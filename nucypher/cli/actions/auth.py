@@ -31,7 +31,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keystore import Keystore, _WORD_COUNT
 
 

@@ -40,7 +40,7 @@ from nucypher.cli.literature import (
 from nucypher.cli.types import OPERATOR_IP
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
 

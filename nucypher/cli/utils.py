@@ -38,7 +38,7 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry
 )
 from nucypher.characters.base import Character
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_nucypher_password,
     unlock_nucypher_keystore,
