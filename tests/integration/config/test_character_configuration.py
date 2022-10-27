@@ -15,7 +15,6 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -175,7 +174,6 @@ def test_ursula_development_configuration(federated_only=True):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert tempfile.gettempdir() in str(ursula_one.datastore.db_path)
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
     assert ':memory:' in ursula_one.node_storage._name
@@ -227,8 +225,5 @@ def test_destroy_configuration(config,
         assert config.checksum_address in filepath
 
     expected_removal = 7  # TODO: Source this number from somewhere else
-    if config_class is UrsulaConfiguration:
-        expected_removal += 1
-        mock_os_remove.assert_called_with(config.db_filepath)
 
     assert mock_os_remove.call_count == expected_removal

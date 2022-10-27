@@ -145,14 +145,13 @@ class NotARestApp:
     _actual_rest_apps = []
     _replaced_routes = {}
 
-    def __init__(self, this_node, db_filepath, *args, **kwargs):
+    def __init__(self, this_node, *args, **kwargs):
         self._actual_rest_app = None
         self.this_node = this_node
-        self.db_filepath = db_filepath
 
     @classmethod
-    def create_with_not_a_datastore(cls, *args, **kwargs):
-        return cls(*args, **kwargs), "this is not a datastore."
+    def create(cls, *args, **kwargs):
+        return cls(*args, **kwargs)
 
     @classmethod
     @contextmanager
@@ -173,8 +172,7 @@ class NotARestApp:
 
     def actual_rest_app(self):
         if self._actual_rest_app is None:
-            self._actual_rest_app, self._datastore = make_rest_app(db_filepath=self.db_filepath,
-                                                                   this_node=self.this_node)
+            self._actual_rest_app = make_rest_app(this_node=self.this_node)
             _new_view_functions = self._ViewFunctions(self._actual_rest_app.view_functions)
             self._actual_rest_app.view_functions = _new_view_functions
             self._actual_rest_apps.append(
@@ -201,7 +199,7 @@ class VerificationTracker:
 
 mock_cert_generation = patch("nucypher.crypto.tls.generate_self_signed_certificate", new=do_not_create_cert)
 mock_rest_app_creation = patch("nucypher.characters.lawful.make_rest_app",
-                               new=NotARestApp.create_with_not_a_datastore)
+                               new=NotARestApp.create)
 
 mock_remember_node = patch("nucypher.characters.lawful.Ursula.remember_node", new=simple_remember)
 mock_verify_node = patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify_node)
@@ -219,9 +217,9 @@ def mock_secret_source(*args, **kwargs):
 
 
 def _determine_good_serials(start, end):
-    '''
+    """
     Figure out which serials are good to use in mocks because they won't result in non-viable public keys.
-    '''
+    """
     good_serials = []
     for i in range(start, end):
         try:

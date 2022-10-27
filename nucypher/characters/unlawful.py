@@ -39,7 +39,6 @@ class Vladimir(Ursula):
 
     fraud_address = '0xbad022A87Df21E4c787C7B1effD5077014b8CC45'
     fraud_key = 'a75d701cc4199f7646909d15f22e2e0ef6094b3e2aa47a188f35f47e8932a7b9'
-    db_filepath = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -67,11 +66,8 @@ class Vladimir(Ursula):
         blockchain = target_ursula.application_agent.blockchain
         cls.attach_transacting_key(blockchain=blockchain)
 
-        db_filepath = tempfile.mkdtemp(prefix='Vladimir')
-
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
-                       db_filepath=db_filepath,
                        domain=TEMPORARY_DOMAIN,
                        rest_host=target_ursula.rest_interface.host,
                        rest_port=target_ursula.rest_interface.port,

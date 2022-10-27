@@ -18,7 +18,6 @@
 
 import pytest
 import pytest_twisted
-from constant_sorrow.constants import MOCK_DB
 from twisted.internet import threads
 from twisted.internet.task import Clock
 from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
@@ -201,7 +200,6 @@ def test_ursula_operator_confirmation(ursula_decentralized_test_config,
     # make an ursula.
     blockchain_ursula = ursula_decentralized_test_config.produce(
         operator_address=operator_address,
-        db_filepath=MOCK_DB,
         rest_port=9151)
 
     # it's not confirmed
@@ -258,7 +256,6 @@ def test_ursula_operator_confirmation_autopilot(mocker,
     # Make the Operator
     ursula = ursula_decentralized_test_config.produce(
         operator_address=operator2,
-        db_filepath=MOCK_DB,
         rest_port=9151)
 
     ursula.run(preflight=False,

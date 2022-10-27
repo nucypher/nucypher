@@ -18,23 +18,13 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import time
-from datetime import datetime
-from unittest.mock import patch
 
 import maya
-import pytest
-from flask import Response
-
-from nucypher_core.umbral import SecretKey, Signer, PublicKey
+from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.characters.lawful import Ursula
 from nucypher.crypto.signing import SignatureStamp
-from nucypher.datastore.base import RecordField
-from nucypher.network.nodes import Teacher
-from tests.markers import skip_on_circleci
 from tests.mock.performance_mocks import (
-    NotAPublicKey,
-    NotARestApp,
     VerificationTracker,
     mock_cert_loading,
     mock_cert_storage,
@@ -43,7 +33,6 @@ from tests.mock.performance_mocks import (
     mock_secret_source,
     mock_verify_node
 )
-from tests.utils.middleware import SluggishLargeFleetMiddleware
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
 """

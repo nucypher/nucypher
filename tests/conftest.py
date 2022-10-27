@@ -17,7 +17,6 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from collections import defaultdict
 
-import lmdb
 import pytest
 from eth_utils.crypto import keccak
 
@@ -26,8 +25,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_IP_ADDRESS
-from tests.mock.datastore import mock_lmdb_open
+from tests.constants import MOCK_IP_ADDRESS
 
 # Crash on server error by default
 WebEmitter._crash_on_error_default = True
@@ -181,12 +179,6 @@ def check_character_state_after_test(request):
         still_tracking  = [learner for learner in test_learners if hasattr(learner, 'work_tracker') and learner.work_tracker._tracking_task.running]
         for tracker in still_tracking:
             tracker.work_tracker.stop()
-
-
-@pytest.fixture(scope='session', autouse=True)
-def mock_datastore(monkeysession):
-    monkeysession.setattr(lmdb, 'open', mock_lmdb_open)
-    yield
 
 
 @pytest.fixture(scope='session', autouse=True)

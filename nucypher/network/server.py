@@ -37,8 +37,6 @@ from nucypher_core import (
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.datastore.datastore import Datastore
-from nucypher.datastore.models import ReencryptionRequest as ReencryptionRequestModel
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
@@ -65,14 +63,12 @@ class ProxyRESTServer:
                  rest_host: str,
                  rest_port: int,
                  hosting_power=None,
-                 rest_app=None,
-                 datastore=None,
+                 rest_app=None
                  ) -> None:
 
         self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
         if rest_app:  # if is me
             self.rest_app = rest_app
-            self.datastore = datastore
         else:
             self.rest_app = constants.PUBLIC_ONLY
 
@@ -83,30 +79,20 @@ class ProxyRESTServer:
 
 
 def make_rest_app(
-        db_filepath: Path,
         this_node,
         log: Logger = Logger("http-application-layer")
-        ) -> Tuple[Flask, Datastore]:
-    """
-    Creates a REST application and an associated ``Datastore`` object.
-    Note that the REST app **does not** hold a reference to the datastore;
-    it is your responsibility to ensure it lives for as long as the app does.
-    """
+        ) -> Flask:
+    """Creates a REST application."""
 
     # A trampoline function for the real REST app,
-    # to ensure that a reference to the node and the datastore object is not held by the app closure.
+    # to ensure that a reference to the node object is not held by the app closure.
     # One would think that it's enough to only remove a reference to the node,
-    # but `rest_app` somehow holds a reference to itself, Uroboros-like,
-    # and will hold the datastore reference if it is created there.
-
-    log.info("Starting datastore {}".format(db_filepath))
-    datastore = Datastore(db_filepath)
-    rest_app = _make_rest_app(weakref.proxy(datastore), weakref.proxy(this_node), log)
-
-    return rest_app, datastore
+    # but `rest_app` somehow holds a reference to itself, Uroboros-like...
+    rest_app = _make_rest_app(weakref.proxy(this_node), log)
+    return rest_app
 
 
-def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
+def _make_rest_app(this_node, log: Logger) -> Flask:
 
     # TODO: Avoid circular imports :-(
     from nucypher.characters.lawful import Alice, Bob, Ursula
@@ -291,11 +277,6 @@ def _make_rest_app(datastore: Datastore, this_node, log: Logger) -> Flask:
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)
         response = this_node._reencrypt(kfrag=verified_kfrag, capsules=capsules_to_process)
-
-        # Now, Ursula saves evidence of this workorder to her database...
-        # Note: we give the work order a random ID to store it under.
-        with datastore.describe(ReencryptionRequestModel, str(uuid.uuid4()), writeable=True) as new_request:
-            new_request.bob_verifying_key = bob_verifying_key
 
         headers = {'Content-Type': 'application/octet-stream'}
         return Response(headers=headers, response=bytes(response))

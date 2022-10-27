@@ -25,7 +25,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
-from tests.mock.datastore import MOCK_DB
 
 
 def select_test_port() -> int:
@@ -61,7 +60,6 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
     federated_ursulas = set()
     for port in range(starting_port, starting_port+quantity):
         ursula = ursula_config.produce(rest_port=port + 100,
-                                       db_filepath=MOCK_DB,
                                        **ursula_overrides)
 
         federated_ursulas.add(ursula)
@@ -96,7 +94,6 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
     for port, (staking_provider_address, operator_address) in enumerate(providers_and_operators, start=starting_port):
         ursula = ursula_config.produce(checksum_address=staking_provider_address,
                                        operator_address=operator_address,
-                                       db_filepath=MOCK_DB,
                                        rest_port=port + 100,
                                        **ursula_overrides)
 
