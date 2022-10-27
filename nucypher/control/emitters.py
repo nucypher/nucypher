@@ -16,11 +16,11 @@
 """
 
 
-from http import HTTPStatus
 import json
 import os
 from functools import partial
-from typing import Callable, Union
+from http import HTTPStatus
+from typing import Callable
 
 import click
 from flask import Response
@@ -103,124 +103,6 @@ class StdoutEmitter:
             return click.get_text_stream('stdout')
         else:
             return null_stream()
-
-
-class JSONRPCStdoutEmitter(StdoutEmitter):
-
-    transport_serializer = json.dumps
-    delimiter = '\n'
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.log = Logger("JSON-RPC-Emitter")
-
-    class JSONRPCError(RuntimeError):
-        code = None
-        message = "Unknown JSON-RPC Error"
-
-    class ParseError(JSONRPCError):
-        code = -32700
-        message = "Invalid JSON was received by the server."
-
-    class InvalidRequest(JSONRPCError):
-        code = -32600
-        message = "The JSON sent is not a valid Request object."
-
-    class MethodNotFound(JSONRPCError):
-        code = -32601
-        message = "The method does not exist / is not available."
-
-    class InvalidParams(JSONRPCError):
-        code = -32602
-        message = "Invalid method parameter(s)."
-
-    class InternalError(JSONRPCError):
-        code = -32603
-        message = "Internal JSON-RPC error."
-
-    @staticmethod
-    def assemble_response(response: dict, message_id: int) -> dict:
-        response_data = {'jsonrpc': '2.0',
-                         'id': str(message_id),
-                         'result': response}
-        return response_data
-
-    @staticmethod
-    def assemble_error(message, code, data=None) -> dict:
-        response_data = {'jsonrpc': '2.0',
-                         'error': {'code': str(code),
-                                   'message': str(message),
-                                   'data': data},
-                         'id': None}  # error has no ID
-        return response_data
-
-    def __serialize(self, data: dict, delimiter=delimiter, as_bytes: bool = False) -> Union[str, bytes]:
-
-        # Serialize
-        serialized_response = JSONRPCStdoutEmitter.transport_serializer(data)   # type: str
-
-        if as_bytes:
-            serialized_response = bytes(serialized_response, encoding='utf-8')  # type: bytes
-
-        # Add delimiter
-        if delimiter:
-            if as_bytes:
-                delimiter = bytes(delimiter, encoding='utf-8')
-            serialized_response = delimiter + serialized_response
-
-        return serialized_response
-
-    def __write(self, data: dict):
-        """Outlet"""
-
-        serialized_response = self.__serialize(data=data)
-
-        # Write to stdout file descriptor
-        number_of_written_bytes = self.sink(serialized_response)  # < ------ OUTLET
-        return number_of_written_bytes
-
-    def clear(self):
-        pass
-
-    def message(self, message: str, **kwds):
-        pass
-
-    def echo(self, *args, **kwds):
-        pass
-
-    def banner(self, banner):
-        pass
-
-    def ipc(self, response: dict, request_id: int, duration) -> int:
-        """
-        Write RPC response object to stdout and return the number of bytes written.
-        """
-
-        # Serialize JSON RPC Message
-        assembled_response = self.assemble_response(response=response, message_id=request_id)
-        size = self.__write(data=assembled_response)
-        self.log.info(f"OK | Responded to IPC request #{request_id} with {size} bytes, took {duration}")
-        return size
-
-    def error(self, e):
-        """
-        Write RPC error object to stdout and return the number of bytes written.
-        """
-        try:
-            assembled_error = self.assemble_error(message=e.message, code=e.code)
-        except AttributeError:
-            if not isinstance(e, self.JSONRPCError):
-                self.log.info(str(e))
-                raise e  # a different error was raised
-            else:
-                raise self.JSONRPCError
-
-        size = self.__write(data=assembled_error)
-        # self.log.info(f"Error {e.code} | {e.message}")  # TODO: Restore this log message
-        return size
-
-    def get_stream(self, *args, **kwargs):
-        return null_stream()
 
 
 class WebEmitter:

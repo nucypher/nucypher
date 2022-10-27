@@ -152,7 +152,6 @@ def test_run_federated_ursula_from_config_file(custom_filepath: Path, click_runn
     # Run Ursula
     run_args = ('ursula', 'run',
                 '--dry-run',
-                '--interactive',
                 '--lonely',
                 '--config-file', str(custom_config_filepath.absolute()))
 
@@ -164,7 +163,6 @@ def test_run_federated_ursula_from_config_file(custom_filepath: Path, click_runn
     assert result.exit_code == 0, result.output
     assert 'Federated' in result.output, 'WARNING: Federated ursula is not running in federated mode'
     assert 'Running' in result.output
-    assert "'help' or '?'" in result.output
 
 
 def test_ursula_save_metadata(click_runner, custom_filepath):

@@ -15,14 +15,16 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import os
 
 import click
 
-from nucypher.control.emitters import StdoutEmitter, JSONRPCStdoutEmitter
 from nucypher.cli.options import group_options
 from nucypher.cli.utils import get_env_bool
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_SENTRY_ENDPOINT
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 

@@ -15,20 +15,16 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-import maya
-from marshmallow import fields
-
-from nucypher.control.specifications.exceptions import InvalidInputData
-from nucypher.control.specifications.fields.base import BaseField
+import pytest
 
 
-class DateTime(BaseField, fields.Field):
+@pytest.fixture(scope='module')
+def blockchain_porter_web_controller(blockchain_porter):
+    web_controller = blockchain_porter.make_web_controller(crash_on_error=False)
+    yield web_controller.test_client()
 
-    def _serialize(self, value, attr, obj, **kwargs):
-        return value.iso8601()
 
-    def _deserialize(self, value, attr, data, **kwargs):
-        try:
-            return maya.MayaDT.from_iso8601(iso8601_string=value)
-        except maya.pendulum.parsing.ParserError as e:
-            raise InvalidInputData(f"Could not convert input for {self.name} to a valid date time: {e}")
+@pytest.fixture(scope='module')
+def blockchain_porter_basic_auth_web_controller(blockchain_porter, basic_auth_file):
+    web_controller = blockchain_porter.make_web_controller(crash_on_error=False, htpasswd_filepath=basic_auth_file)
+    yield web_controller.test_client()

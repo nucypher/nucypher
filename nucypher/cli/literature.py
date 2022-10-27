@@ -22,8 +22,6 @@
 # Common
 #
 
-IS_THIS_CORRECT = "Is this correct?"
-
 FORCE_MODE_WARNING = "WARNING: Force is enabled"
 
 DEVELOPMENT_MODE_WARNING = "WARNING: Running in Development mode"
@@ -138,24 +136,6 @@ CONFIRM_FORGET_NODES = "Permanently delete all known node data?"
 
 SUCCESSFUL_FORGET_NODES = "Removed all stored known nodes metadata and certificates"
 
-CONFIRM_OVERWRITE_DATABASE = "Overwrite existing database?"
-
-SUCCESSFUL_DATABASE_DESTRUCTION = "Destroyed existing database {path}"
-
-SUCCESSFUL_DATABASE_CREATION = "\nCreated new database at {path}"
-
-SUCCESSFUL_NEW_STAKEHOLDER_CONFIG = """
-Configured new stakeholder!
-Wrote JSON configuration to {filepath}
-
-* Review configuration     -> nucypher stake config
-* View connected accounts  -> nucypher stake accounts
-* Create a new stake       -> nucypher stake create
-* Bond a worker            -> nucypher stake bond-worker
-* List active stakes       -> nucypher stake list
-
-"""
-
 IGNORE_OLD_CONFIGURATION = "Ignoring configuration file '{config_file}' - version is too old"
 
 DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: '{config_file}'"
@@ -189,29 +169,10 @@ COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address"
 
 
 #
-# Seednodes
-#
-
-START_LOADING_SEEDNODES = "Connecting to preferred teacher nodes..."
-
-UNREADABLE_SEEDNODE_ADVISORY = "Failed to connect to teacher: {uri}"
-
-NO_DOMAIN_PEERS = "WARNING: No Peers Available for domain: {domain}"
-
-SEEDNODE_NOT_STAKING_WARNING = "Teacher ({uri}) is not actively staking, skipping"
-
-
-#
 # Deployment
 #
 
-PROMPT_NEW_MIN_RANGE_VALUE = "Enter new minimum value for range"
-
-PROMPT_NEW_MAXIMUM_RANGE_VALUE = "Enter new maximum value for range"
-
 PROMPT_NEW_OWNER_ADDRESS = "Enter new owner's checksum address"
-
-PROMPT_NEW_DEFAULT_VALUE_FOR_RANGE = "Enter new default value for range"
 
 CONFIRM_MANUAL_REGISTRY_DOWNLOAD = "Fetch and download latest contract registry from {source}?"
 
@@ -221,29 +182,8 @@ The staker's fee rate was set to the default value {default} such that it falls 
 
 CONTRACT_IS_NOT_OWNABLE = "Contract {contract_name} is not ownable."
 
-CONFIRM_TOKEN_ALLOWANCE = "Approve allowance of {value} from {deployer_address} to {spender_address}?"
-
-CONFIRM_TOKEN_TRANSFER = "Transfer {value} from {deployer_address} to {target_address}?"
-
-PROMPT_TOKEN_VALUE = "Enter value in NU"
-
-PROMPT_RECIPIENT_CHECKSUM_ADDRESS = "Enter recipient's checksum address"
-
-DISPLAY_SENDER_TOKEN_BALANCE_BEFORE_TRANSFER = "Deployer NU balance: {token_balance}"
-
-PROMPT_FOR_ALLOCATION_DATA_FILEPATH = "Enter allocations data filepath"
-
-SUCCESSFUL_SAVE_DEPLOY_RECEIPTS = "Saved deployment receipts to {receipts_filepath}"
-
 SUCCESSFUL_REGISTRY_CREATION = 'Wrote to registry {registry_outfile}'
 
-CONFIRM_LOCAL_REGISTRY_DESTRUCTION = "*DESTROY* existing local registry and continue?"
-
-EXISTING_REGISTRY_FOR_DOMAIN = """
-There is an existing contract registry at {registry_filepath}.
-
-Did you mean 'nucypher-deploy upgrade'?
-"""
 
 CONTRACT_DEPLOYMENT_SERIES_BEGIN_ADVISORY = "Deploying {contract_name}"
 
@@ -293,8 +233,6 @@ WARNING: --etherscan is disabled. If you want to see deployed contracts and TXs 
 # Upgrade
 #
 
-IDENTICAL_REGISTRY_WARNING = "Local registry ({local_registry.id}) is identical to the one on GitHub ({github_registry.id})."
-
 DEPLOYER_IS_NOT_OWNER = "Address {deployer_address} is not the owner of {contract_name}'s Dispatcher ({agent.contract_address}). Aborting."
 
 CONFIRM_VERSIONED_UPGRADE = "Confirm upgrade {contract_name} from version {old_version} to version {new_version}?"
@@ -318,10 +256,6 @@ Compiled with solc version {solc_version}
 #
 # Ursula
 #
-
-CONFIRMING_ACTIVITY_NOW = "Making a commitment to period {committed_period}"
-
-SUCCESSFUL_CONFIRM_ACTIVITY = '\nCommitment was made to period #{committed_period} (starting at {date})'
 
 SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metadata_path}."
 

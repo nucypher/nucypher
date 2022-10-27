@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 from contextlib import suppress
 from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Union
+from typing import ClassVar, Dict, List, Optional
 
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
@@ -29,15 +29,12 @@ from constant_sorrow.constants import (
 )
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address
-
 from nucypher_core import MessageKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.characters.control.controllers import CharacterCLIController
-from nucypher.control.controllers import JSONRPCController
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -379,24 +376,6 @@ class Character(Learner):
         else:
             raise RuntimeError('Federated address can only be derived for federated characters.')
         return federated_address
-
-    def make_rpc_controller(self, crash_on_error: bool = False):
-        app_name = bytes(self.stamp).hex()[:6]
-        controller = JSONRPCController(app_name=app_name,
-                                       crash_on_error=crash_on_error,
-                                       interface=self.interface)
-
-        self.controller = controller
-        return controller
-
-    def make_cli_controller(self, crash_on_error: bool = False):
-        app_name = bytes(self.stamp).hex()[:6]
-        controller = CharacterCLIController(app_name=app_name,
-                                            crash_on_error=crash_on_error,
-                                            interface=self.interface)
-
-        self.controller = controller
-        return controller
 
     def disenchant(self):
         self.log.debug(f"Disenchanting {self}")

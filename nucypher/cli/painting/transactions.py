@@ -15,19 +15,9 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.utils import etherscan_url
-
-
-def paint_decoded_transaction(emitter, proposal, contract, registry):
-    emitter.echo("Decoded transaction:\n")
-    contract_function, params = proposal.decode_transaction_data(contract, registry)
-    emitter.echo(str(contract_function), color='yellow', bold=True)
-    for param, value in params.items():
-        emitter.echo(f"  {param}", color='green', nl=False)
-        emitter.echo(" = ", nl=False)
-        emitter.echo(str(value), color='green')
-    emitter.echo()
 
 
 def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, eth_provider_uri: str = None):

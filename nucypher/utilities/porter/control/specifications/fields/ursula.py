@@ -18,11 +18,11 @@
 from eth_utils import to_checksum_address
 from marshmallow import fields
 
-from nucypher.characters.control.specifications.fields import Key
 from nucypher.cli import types
 from nucypher.control.specifications.base import BaseSchema
 from nucypher.control.specifications.exceptions import InvalidInputData
 from nucypher.control.specifications.fields import String
+from nucypher.utilities.porter.control.specifications.fields.key import Key
 
 
 class UrsulaChecksumAddress(String):

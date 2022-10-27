@@ -1,0 +1,8 @@
+Removals: 
+- RPC servers
+- character WebControllers
+- unused literature
+- unused CLI option definitions
+- CLI helper functions for Alice, Bob, Contacts interactivity
+- interactive Ursula mode
+- enrico CLI commands
