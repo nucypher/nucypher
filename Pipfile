@@ -24,7 +24,6 @@ marshmallow = "*"
 msgpack = "*"
 mako = "*"
 qrcode = {extras = ["pil"], version = "*"}
-trezor = "*"
 # Web
 requests = "*"
 flask = "*"

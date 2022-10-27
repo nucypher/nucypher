@@ -95,7 +95,6 @@ class EthereumClient:
     GANACHE = 'EthereumJS TestRPC'
 
     ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
-    CLEF = 'Clef'  # Signer-only
 
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
     TRANSACTION_POLLING_TIME = 0.5  # seconds

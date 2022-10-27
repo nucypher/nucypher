@@ -18,13 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 from pathlib import Path
+from typing import Tuple
 
 import click
 from constant_sorrow import constants
-from typing import Tuple
 
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import STAKING_ESCROW_CONTRACT_NAME
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
@@ -36,9 +35,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager
 )
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
-from nucypher.control.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import get_client_password
 from nucypher.cli.actions.confirm import confirm_deployment, verify_upgrade_details
 from nucypher.cli.actions.select import select_client_account
@@ -46,7 +43,6 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     CANNOT_OVERWRITE_REGISTRY,
     CONFIRM_BEGIN_UPGRADE,
-    CONFIRM_BUILD_RETARGET_TRANSACTION,
     CONFIRM_MANUAL_REGISTRY_DOWNLOAD,
     CONFIRM_NETWORK_ACTIVATION,
     CONFIRM_RETARGET,
@@ -55,14 +51,12 @@ from nucypher.cli.literature import (
     CONTRACT_IS_NOT_OWNABLE,
     DEPLOYER_ADDRESS_ZERO_ETH,
     DEPLOYER_BALANCE,
-    MINIMUM_POLICY_RATE_EXCEEDED_WARNING,
     PROMPT_NEW_OWNER_ADDRESS,
     REGISTRY_NOT_AVAILABLE,
     SELECT_DEPLOYER_ACCOUNT,
     SUCCESSFUL_REGISTRY_CREATION,
     SUCCESSFUL_REGISTRY_DOWNLOAD,
     SUCCESSFUL_RETARGET,
-    SUCCESSFUL_RETARGET_TX_BUILT,
     SUCCESSFUL_UPGRADE,
     UNKNOWN_CONTRACT_NAME,
     DEPLOYER_IS_NOT_OWNER,
@@ -88,13 +82,14 @@ from nucypher.cli.painting.deployment import (
 )
 from nucypher.cli.painting.help import echo_solidity_version
 from nucypher.cli.painting.transactions import paint_receipt_summary
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE, WEI
+from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, EXISTING_READABLE_FILE
 from nucypher.cli.utils import (
     deployer_pre_launch_warnings,
     ensure_config_root,
     establish_deployer_registry,
     initialize_deployer_interface
 )
+from nucypher.control.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
 
 option_deployer_address = click.option('--deployer-address', help="Deployer's checksum address", type=EIP55_CHECKSUM_ADDRESS)
@@ -193,9 +188,7 @@ class ActorOptions:
             click.confirm(CONFIRM_SELECTED_ACCOUNT.format(address=deployer_address), abort=True)
 
         # Authenticate
-        is_clef = ClefSigner.is_valid_clef_uri(self.signer_uri)
-        password_required = all((not is_clef,
-                                 not signer.is_device(account=deployer_address),
+        password_required = all((not signer.is_device(account=deployer_address),
                                  not deployer_interface.client.is_local,
                                  not self.hw_wallet))
         if password_required:

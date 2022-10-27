@@ -104,13 +104,9 @@ Alice uses an ethereum wallet to create publish access control policies to the e
 and a set of related keys derived from a *"nucypher keystore"*.
 
 First, instantiate a ``Signer`` to use for signing transactions. This is an API for Alice's ethereum
-wallet, which can be an keystore file, trezor, ethereum node, or clef.  The signer type and address
-are specified using a ``signer_uri``:
+wallet, which can be an keystore file.
 
-- Trezor Hardware Wallet: ``'trezor'``
 - Keystore directory or keyfile: ``'keystore://<ABSOLUTE PATH TO KEYSTORE>'``
-- Local geth node: ``'web3://<ABSOLUTE PATH TO IPC ENDPOINT>'``
-- Clef external signer: ``'clef'``
 
 Here are some examples of usage:
 
@@ -118,14 +114,6 @@ Here are some examples of usage:
 
     from nucypher.blockchain.eth.signers import Signer
     wallet = Signer.from_signer_uri('<YOUR SIGNER URI>')
-
-    # Trezor Wallet
-    trezor = Signer.from_signer_uri('trezor')
-
-    # Local Geth Wallet
-    geth_signer = Signer.from_signer_uri('web3:///home/user/.ethereum/geth.ipc')
-
-    # Keyfile Wallet
     software_wallet = Signer.from_signer_uri('keystore:///home/user/.ethereum/keystore/<KEY FILENAME>')
 
 If you are using a software wallet, be sure to unlock it:

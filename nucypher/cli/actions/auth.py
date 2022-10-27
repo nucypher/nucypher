@@ -22,7 +22,6 @@ import click
 from constant_sorrow.constants import NO_PASSWORD
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
@@ -64,11 +63,9 @@ def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> Non
     else:
         account = config.checksum_address
 
-    is_clef = ClefSigner.is_valid_clef_uri(config.signer_uri)
     eth_password_is_needed = all((not config.federated_only,
                                   not config.signer.is_device(account=account),
-                                  not config.dev_mode,
-                                  not is_clef))
+                                  not config.dev_mode))
 
     __password = None
     if eth_password_is_needed:

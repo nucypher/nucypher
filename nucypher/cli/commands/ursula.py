@@ -20,7 +20,6 @@ from pathlib import Path
 
 import click
 
-from nucypher.blockchain.eth.signers.software import ClefSigner
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.actions.auth import get_client_password, get_nucypher_password, recover_keystore
 from nucypher.cli.actions.configure import (
@@ -279,11 +278,9 @@ class UrsulaCharacterOptions:
 
     def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
         ursula_config = self.config_options.create_config(emitter, config_file)
-        is_clef = ClefSigner.is_valid_clef_uri(self.config_options.signer_uri)
         password_required = all((not ursula_config.federated_only,
                                  not self.config_options.dev,
-                                 not json_ipc,
-                                 not is_clef))
+                                 not json_ipc))
         __password = None
         if password_required:
             __password = get_client_password(checksum_address=ursula_config.operator_address,
