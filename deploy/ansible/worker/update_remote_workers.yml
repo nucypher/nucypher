@@ -1,8 +1,0 @@
-- name: "Update Remote Workers to latest NuCypher, Geth"
-  hosts: "{{ play_hosts }}"
-  remote_user: "{{default_user}}"
-
-- import_playbook: include/stop_containers.yml
-- import_playbook: include/update_existing_ursula.yml
-- import_playbook: include/check_running_ursula.yml
-- import_playbook: include/backup_ursula_data.yml
