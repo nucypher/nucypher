@@ -1,9 +1,0 @@
-- name: "Setup Nucypher User"
-  hosts: "{{ play_hosts }}"
-  remote_user: "{{default_user}}"
-  gather_facts: no
-  become: yes
-  tasks:
-    - name: "create nucypher user as {{default_user}}"
-      user:
-        name: nucypher
