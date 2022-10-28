@@ -41,7 +41,7 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_OPERATOR_ADDRESS, DEFAULT_CONFIG_ROOT
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 
 
 def select_client_account(emitter,

@@ -140,12 +140,11 @@ DEPLOY_REQUIRES = [
 URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
 ALICE_REQUIRES = ['qrcode']
 BOB_REQUIRES = ['qrcode']
-PORTER_REQUIRES = ['flask-htpasswd', 'flask-cors']  # needed for basic authentication, cors
 
 EXTRAS = {
 
     # Admin
-    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES + PORTER_REQUIRES,
+    'dev': DEV_REQUIRES + URSULA_REQUIRES + ALICE_REQUIRES,
     'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
     'deploy': DEPLOY_REQUIRES,
     # 'docs': DOC_REQUIRES,
@@ -154,7 +153,6 @@ EXTRAS = {
     'ursula': URSULA_REQUIRES,
     'alice': ALICE_REQUIRES,
     'bob': BOB_REQUIRES,
-    'porter': PORTER_REQUIRES
 }
 
 

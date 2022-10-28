@@ -211,13 +211,6 @@ class Character(Learner):
 
         self.__setup_nickname(is_me=is_me)
 
-        # Character Control
-        # TODO: have argument about meaning of 'lawful' and whether maybe only Lawful characters have an interface
-        if hasattr(self, '_interface_class'):
-            # Controller Interface
-            self.interface = self._interface_class(character=self)
-        self.controller = NO_CONTROL_PROTOCOL
-
     def __eq__(self, other) -> bool:
         try:
             other_stamp = other.stamp

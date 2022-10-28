@@ -93,14 +93,6 @@ def option_contract_name(required: bool = False,
     )
 
 
-def option_controller_port(default=None):
-    return click.option(
-        '--controller-port',
-        help="The host port to run HTTP services on",
-        type=NETWORK_PORT,
-        default=default)
-
-
 def option_discovery_port(default=None):
     return click.option(
         '--discovery-port',

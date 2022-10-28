@@ -325,7 +325,6 @@ class CharacterConfiguration(BaseConfiguration):
     VERSION = 4  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
-    DEFAULT_CONTROLLER_PORT = NotImplemented
     MNEMONIC_KEYSTORE = False
     DEFAULT_DOMAIN = NetworksInventory.DEFAULT
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
@@ -383,7 +382,6 @@ class CharacterConfiguration(BaseConfiguration):
                  start_learning_now: bool = True,
 
                  # Network
-                 controller_port: int = None,
                  domain: str = DEFAULT_DOMAIN,
                  network_middleware: RestMiddleware = None,
                  lonely: bool = False,
@@ -573,7 +571,6 @@ class CharacterConfiguration(BaseConfiguration):
             self._setup_node_storage(node_storage=node_storage)
 
         # Network
-        self.controller_port = controller_port or self.DEFAULT_CONTROLLER_PORT
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(registry=self.registry)
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)

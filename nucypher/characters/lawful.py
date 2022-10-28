@@ -60,7 +60,7 @@ from nucypher_core import (
     TreasureMap,
 )
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt
-from twisted.internet import reactor, stdio
+from twisted.internet import reactor
 from twisted.logger import Logger
 from web3.types import TxReceipt
 
@@ -80,7 +80,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,

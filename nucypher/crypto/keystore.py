@@ -34,7 +34,7 @@ from mnemonic.mnemonic import Mnemonic
 from nucypher_core.umbral import SecretKey, SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.passwords import (
     secret_box_decrypt,

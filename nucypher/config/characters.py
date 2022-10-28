@@ -145,8 +145,6 @@ class AliceConfiguration(CharacterConfiguration):
     CHARACTER_CLASS = Alice
     NAME = CHARACTER_CLASS.__name__.lower()
 
-    DEFAULT_CONTROLLER_PORT = 8151
-
     # TODO: Best (Sane) Defaults
     DEFAULT_THRESHOLD = 2
     DEFAULT_SHARES = 3
@@ -211,7 +209,6 @@ class BobConfiguration(CharacterConfiguration):
 
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
-    DEFAULT_CONTROLLER_PORT = 7151
     DEFAULT_STORE_POLICIES = True
     DEFAULT_STORE_CARDS = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD

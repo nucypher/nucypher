@@ -31,7 +31,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.config.constants import NUCYPHER_ENVVAR_ETH_PROVIDER_URI
-from nucypher.control.emitters import StdoutEmitter
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 NO_BLOCKCHAIN_CONNECTION.bool_value(False)  # FIXME
