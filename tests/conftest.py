@@ -76,10 +76,6 @@ def monkeysession():
 # Pytest configuration
 #
 
-pytest_plugins = [
-    'tests.fixtures',  # Includes external fixtures module
-]
-
 
 def pytest_addoption(parser):
     parser.addoption("--run-nightly",

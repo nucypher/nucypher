@@ -164,15 +164,20 @@ setup(
     extras_require=EXTRAS,
 
     # Package Data
-    packages=find_packages(exclude=["tests", "scripts"]),
+    packages=find_packages(exclude=["scripts"]),
     include_package_data=True,
     zip_safe=False,
 
     # Entry Points
-    entry_points={'console_scripts': [
-      'nucypher = nucypher.cli.main:nucypher_cli',
-      'nucypher-deploy = nucypher.cli.commands.deploy:deploy',
-    ]},
+    entry_points={
+        'console_scripts': [
+            'nucypher = nucypher.cli.main:nucypher_cli',
+            'nucypher-deploy = nucypher.cli.commands.deploy:deploy'
+        ],
+        'pytest11': [
+            "pytest-nucypher = tests.fixtures"
+        ]
+    },
 
     # setup.py commands
     cmdclass={

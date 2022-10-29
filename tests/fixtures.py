@@ -1036,3 +1036,8 @@ def random_context():
     }
 
     return context
+
+
+@pytest.fixture(scope='module')
+def mock_rest_middleware():
+    return MockRestMiddleware()
