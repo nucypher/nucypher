@@ -700,69 +700,6 @@ def funded_blockchain(testerchain, agency, application_economics, test_registry)
     yield testerchain, deployer_address
 
 
-@pytest.fixture(scope='session')
-def stakeholder_config_file_location():
-    path = Path('/', 'tmp', 'nucypher-test-stakeholder.json')
-    if path.exists():
-        path.unlink()
-    yield path
-    if path.exists():
-        path.unlink()
-
-
-@pytest.fixture(scope='module')
-def software_stakeholder(testerchain, agency, stakeholder_config_file_location, test_registry):
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
-
-    # Setup
-    path = stakeholder_config_file_location
-    if path.exists():
-        path.unlink()
-
-    #                          0xaAa482c790b4301bE18D75A0D1B11B2ACBEF798B
-    stakeholder_private_key = '255f64a948eeb1595b8a2d1e76740f4683eca1c8f1433d13293db9b6e27676cc'
-    address = testerchain.provider.ethereum_tester.add_account(private_key=stakeholder_private_key,
-                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    testerchain.provider.ethereum_tester.unlock_account(account=address, password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    tx = {'to': address,
-          'from': testerchain.etherbase_account,
-          'value': Web3.to_wei('1', 'ether')}
-
-    txhash = testerchain.client.w3.eth.send_transaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-
-    # Mock TransactingPower consumption (Etherbase)
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         signer=Web3Signer(testerchain.client),
-                                         password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    token_agent.transfer(amount=NU(200_000, 'NU').to_units(),
-                         transacting_power=transacting_power,
-                         target_address=address)
-
-    # Create stakeholder from on-chain values given accounts over a web3 provider
-    signer = Web3Signer(testerchain.client)
-    signer.unlock_account(account=address, password=INSECURE_DEVELOPMENT_PASSWORD)
-    stakeholder = StakeHolder(registry=test_registry,
-                              domain=TEMPORARY_DOMAIN,
-                              signer=signer,
-                              initial_address=address)
-
-    # Teardown
-    yield stakeholder
-    if path.exists():
-        path.unlink()
-
-
-@pytest.fixture(scope="module")
-def stakeholder_configuration(testerchain, agency_local_registry):
-    config = StakeHolderConfiguration(eth_provider_uri=testerchain.eth_provider_uri,
-                                      registry_filepath=agency_local_registry.filepath)
-    return config
-
-
 @pytest.fixture(scope='module')
 def manual_operator(testerchain):
     worker_private_key = os.urandom(32).hex()
@@ -919,26 +856,6 @@ def nominal_federated_configuration_fields():
     del config
 
 
-# TODO: Not used?
-@pytest.fixture(scope='module')
-def mock_allocation_infile(testerchain, application_economics, get_random_checksum_address):
-    accounts = [get_random_checksum_address() for _ in range(10)]
-    # accounts = testerchain.unassigned_accounts
-    allocation_data = list()
-    amount = 2 * application_economics.min_authorization
-    min_periods = application_economics.min_operator_seconds
-    for account in accounts:
-        substake = [{'checksum_address': account, 'amount': amount, 'lock_periods': min_periods + i} for i in range(24)]
-        allocation_data.extend(substake)
-
-    with open(MOCK_ALLOCATION_INFILE, 'w') as file:
-        file.write(json.dumps(allocation_data))
-
-    yield MOCK_ALLOCATION_INFILE
-    if MOCK_ALLOCATION_INFILE.is_file():
-        MOCK_ALLOCATION_INFILE.unlink()
-
-
 @pytest.fixture(scope='function')
 def new_local_registry():
     filename = f'{BASE_TEMP_PREFIX}mock-empty-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
@@ -975,12 +892,6 @@ def custom_filepath_2():
 @pytest.fixture(scope='module')
 def worker_configuration_file_location(custom_filepath) -> Path:
     _configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH / UrsulaConfiguration.generate_filename()
-    return _configuration_file_location
-
-
-@pytest.fixture(scope='module')
-def stakeholder_configuration_file_location(custom_filepath) -> Path:
-    _configuration_file_location = MOCK_CUSTOM_INSTALLATION_PATH / StakeHolderConfiguration.generate_filename()
     return _configuration_file_location
 
 
