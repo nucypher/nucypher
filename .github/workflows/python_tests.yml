@@ -1,0 +1,80 @@
+name: 'Python Tests'
+
+on:
+  pull_request:
+    branches:
+      - main
+      - development
+  push:
+    branches:
+      - main
+      - development
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+
+      - name: Install Solidity Compiler (Pipenv Entrypoint)
+        run: pipenv run install-solc
+
+      - name: Check Python Entrypoint
+        run: python -c "import nucypher; print(nucypher.__version__)"
+
+      - name: Check CLI Entrypoint
+        run: nucypher --help
+
+      - name: Unit Tests
+        run: pytest tests/unit
+
+      - name: Integration Tests
+        run: pytest tests/integration
+
+      - name: Agents Tests
+        run: pytest tests/acceptance/blockchain/agents
+
+      - name: Actors Tests
+        run: pytest tests/acceptance/blockchain/actors
+
+      - name: Agents Tests
+        run: pytest tests/acceptance/blockchain/agents
+
+      - name: Deployer Tests
+        run: pytest tests/acceptance/blockchain/deployers
+
+      - name: Interfaces Tests
+        run: pytest tests/acceptance/blockchain/interfaces
+
+      - name: Conditions Tests
+        run: pytest tests/acceptance/blockchain/interfaces
+
+      - name: Characters Tests
+        run: pytest tests/acceptance/characters
+
+      - name: CLI Tests
+        run: pytest tests/acceptance/characters
+
+      - name: Node Discovery Tests
+        run: pytest tests/acceptance/learning
+
+      - name: Network Tests
+        run: pytest tests/acceptance/network
+
+      - name: Utility Tests
+        run: pytest tests/acceptance/utilities
