@@ -33,4 +33,4 @@ jobs:
         run: python ./scripts/installation/install_solc.py
 
       - name: Run Contract tests
-        run: pytest tests/acceptance/blockchain/contracts
+        run: pytest tests/contracts
