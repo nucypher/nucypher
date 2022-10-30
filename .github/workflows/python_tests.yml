@@ -31,8 +31,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
-      - name: Install Solidity Compiler (Pipenv Entrypoint)
-        run: pipenv run install-solc
+      - name: Install Solidity Compiler
+        run: python ./scripts/installation/install_solc.py
 
       - name: Check Python Entrypoint
         run: python -c "import nucypher; print(nucypher.__version__)"

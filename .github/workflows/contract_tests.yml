@@ -1,4 +1,4 @@
-name: 'contract Tests'
+name: 'Contract Tests'
 
 on:
   pull_request:
@@ -29,8 +29,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
-      - name: Install Solidity Compiler (Pipenv Entrypoint)
-        run: pipenv run install-solc
+      - name: Install Solidity Compiler
+        run: python ./scripts/installation/install_solc.py
 
       - name: Run Contract tests
         run: pytest tests/acceptance/blockchain/contracts
