@@ -1,4 +1,4 @@
-name: Lint
+name: 🧹 Darker
 
 on: [push, pull_request]
 

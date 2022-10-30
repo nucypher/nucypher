@@ -1,14 +1,10 @@
-name: 'Python Tests'
+name: '🔎 Python Tests'
 
-on:
-  pull_request:
-    branches:
-      - main
-      - development
-  push:
-    branches:
-      - main
-      - development
+on: [push, pull_request]
+
+concurrency:
+  group: ci-tests-${{ github.ref }}-1
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -37,9 +33,6 @@ jobs:
       - name: Check Python Entrypoint
         run: python -c "import nucypher; print(nucypher.__version__)"
 
-      - name: Check CLI Entrypoint
-        run: nucypher --help
-
       - name: Unit Tests
         run: pytest tests/unit
 
@@ -52,22 +45,16 @@ jobs:
       - name: Actors Tests
         run: pytest tests/acceptance/blockchain/actors
 
-      - name: Agents Tests
-        run: pytest tests/acceptance/blockchain/agents
-
-      - name: Deployer Tests
+      - name: Deployers Tests
         run: pytest tests/acceptance/blockchain/deployers
 
       - name: Interfaces Tests
         run: pytest tests/acceptance/blockchain/interfaces
 
       - name: Conditions Tests
-        run: pytest tests/acceptance/blockchain/interfaces
+        run: pytest tests/acceptance/blockchain/conditions
 
       - name: Characters Tests
-        run: pytest tests/acceptance/characters
-
-      - name: CLI Tests
         run: pytest tests/acceptance/characters
 
       - name: Node Discovery Tests
@@ -78,3 +65,9 @@ jobs:
 
       - name: Utility Tests
         run: pytest tests/acceptance/utilities
+
+      - name: Check CLI Entrypoint
+        run: nucypher --help
+
+      - name: CLI Tests
+        run: pytest tests/acceptance/cli

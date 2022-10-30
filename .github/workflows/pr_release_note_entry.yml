@@ -1,4 +1,4 @@
-name: 'Check PR Release Note Entry'
+name: '📝 Check Release Note'
 
 on:
   pull_request:
