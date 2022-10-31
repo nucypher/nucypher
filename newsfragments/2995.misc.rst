@@ -1,0 +1,2 @@
+Introduces testnet staking contract supporting tokenless staking.
+
