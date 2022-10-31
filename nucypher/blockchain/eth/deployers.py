@@ -35,7 +35,7 @@ from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     NucypherTokenAgent,
     PREApplicationAgent,
-    SubscriptionManagerAgent
+    SubscriptionManagerAgent, TestnetThresholdStakingAgent
 )
 from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import (
@@ -945,3 +945,33 @@ class PREApplicationDeployer(BaseContractDeployer):
         self._contract = contract
         self.deployment_receipts = dict(zip(self.deployment_steps, (receipt, )))
         return self.deployment_receipts
+
+
+class TestnetThresholdStakingDeployer(BaseContractDeployer, OwnableContractMixin):
+
+    agency = TestnetThresholdStakingAgent
+    contract_name = agency.contract_name
+    deployment_steps = ('contract_deployment',)
+    _upgradeable = False
+    _ownable = True
+
+    def deploy(self,
+               transacting_power: TransactingPower,
+               gas_limit: int = None,
+               progress=None,
+               confirmations: int = 0,
+               emitter=None,
+               ignore_deployed: bool = False,
+               deployment_mode=FULL,
+               **overrides) -> dict:
+
+        contract, deployment_receipt = self.blockchain.deploy_contract(
+            transacting_power,
+            self.registry,
+            self.contract_name,
+            gas_limit=gas_limit,
+            confirmations=confirmations
+        )
+
+        self._contract = contract
+        return {self.deployment_steps[0]: deployment_receipt}
