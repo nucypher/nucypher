@@ -44,7 +44,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer,
+    SubscriptionManagerDeployer, TestnetThresholdStakingDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
@@ -557,6 +557,9 @@ def _make_agency(test_registry, token_economics, deployer_transacting_power, thr
 
     subscription_manager_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
     subscription_manager_deployer.deploy(transacting_power=transacting_power)
+
+    testnet_staking_deployer = TestnetThresholdStakingDeployer(economics=token_economics, registry=test_registry)
+    testnet_staking_deployer.deploy(transacting_power=transacting_power)
 
 
 @pytest.fixture(scope='module')

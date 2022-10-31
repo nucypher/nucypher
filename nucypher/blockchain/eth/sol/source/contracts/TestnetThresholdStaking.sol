@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 
 import "contracts/SimplePREApplication.sol";
-import "../../../nucypher/blockchain/eth/sol/source/zeppelin/ownership/Ownable.sol";
+import "../zeppelin/ownership/Ownable.sol";
 
 
 contract TestnetThresholdStaking is Ownable {

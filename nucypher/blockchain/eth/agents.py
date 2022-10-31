@@ -18,11 +18,10 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import random
-import sys
 from bisect import bisect_right
-from itertools import accumulate
 from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
 
+import sys
 from constant_sorrow.constants import (  # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
@@ -30,6 +29,7 @@ from constant_sorrow.constants import (  # type: ignore
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
+from itertools import accumulate
 from web3.contract import Contract, ContractFunction
 from web3.types import Wei, Timestamp, TxReceipt, TxParams
 
@@ -40,7 +40,7 @@ from nucypher.blockchain.eth.constants import (
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
-    PRE_APPLICATION_CONTRACT_NAME
+    PRE_APPLICATION_CONTRACT_NAME, TESTNET_THRESHOLD_STAKING_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
@@ -560,7 +560,7 @@ class PREApplicationAgent(EthereumContractAgent):
 
 class TestnetThresholdStakingAgent(EthereumContractAgent):
 
-    contract_name = 'TestnetThresholdStaking'
+    contract_name = TESTNET_THRESHOLD_STAKING_CONTRACT_NAME
 
     class StakeInfo(NamedTuple):
         t_stake: Wei
@@ -591,8 +591,8 @@ class TestnetThresholdStakingAgent(EthereumContractAgent):
                   ) -> TxReceipt:
         params = [staking_provider]
         if all((owner, beneficiary, authorizer)):
-            params.extend([staking_provider, owner, beneficiary, authorizer])
-        contract_function: ContractFunction = self.contract.functions.setApplication(*params)
+            params.extend([owner, beneficiary, authorizer])
+        contract_function: ContractFunction = self.contract.functions.setRoles(*params)
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power
@@ -600,13 +600,13 @@ class TestnetThresholdStakingAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def set_stakes(self,
-                   staking_provider: ChecksumAddress,
-                   t_stake: Wei,
-                   keep_stake: Wei,
-                   nu_stake: NuNits,
-                   transacting_power: TransactingPower
-                   ) -> TxReceipt:
+    def set_stake(self,
+                  staking_provider: ChecksumAddress,
+                  transacting_power: TransactingPower,
+                  t_stake: Wei = 0,
+                  keep_stake: Wei = 0,
+                  nu_stake: NuNits = 0,
+                  ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.setStakes(
             staking_provider,
             t_stake,
@@ -618,6 +618,11 @@ class TestnetThresholdStakingAgent(EthereumContractAgent):
             transacting_power=transacting_power
         )
         return receipt
+
+    @contract_api(CONTRACT_CALL)
+    def pre_application(self) -> ChecksumAddress:
+        pre_application_address = self.contract.functions.preApplication().call()
+        return pre_application_address
 
     @contract_api(CONTRACT_CALL)
     def stakes(self, staking_provider: ChecksumAddress) -> StakeInfo:
