@@ -558,6 +558,80 @@ class PREApplicationAgent(EthereumContractAgent):
         return receipt
 
 
+class TestnetThresholdStakingAgent(EthereumContractAgent):
+
+    contract_name = 'TestnetThresholdStaking'
+
+    class StakeInfo(NamedTuple):
+        t_stake: Wei
+        keep_stake: Wei
+        nu_stake: Wei
+
+    class RoleInfo(NamedTuple):
+        owner: ChecksumAddress
+        beneficiary: ChecksumAddress
+        authorizer: ChecksumAddress
+
+    @contract_api(TRANSACTION)
+    def set_application(self, transacting_power: TransactingPower, contract_address: ChecksumAddress) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.setApplication(contract_address)
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def set_roles(self,
+                  staking_provider: ChecksumAddress,
+                  transacting_power: TransactingPower,
+                  owner: Optional[ChecksumAddress] = None,
+                  beneficiary: Optional[ChecksumAddress] = None,
+                  authorizer: Optional[ChecksumAddress] = None,
+                  ) -> TxReceipt:
+        params = [staking_provider]
+        if all((owner, beneficiary, authorizer)):
+            params.extend([staking_provider, owner, beneficiary, authorizer])
+        contract_function: ContractFunction = self.contract.functions.setApplication(*params)
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def set_stakes(self,
+                   staking_provider: ChecksumAddress,
+                   t_stake: Wei,
+                   keep_stake: Wei,
+                   nu_stake: NuNits,
+                   transacting_power: TransactingPower
+                   ) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.setStakes(
+            staking_provider,
+            t_stake,
+            keep_stake,
+            nu_stake
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(CONTRACT_CALL)
+    def stakes(self, staking_provider: ChecksumAddress) -> StakeInfo:
+        t_stake, keep_stake, nu_stake = self.contract.functions.stakes(staking_provider).call()
+        stake_info = self.StakeInfo(t_stake, keep_stake, nu_stake)
+        return stake_info
+
+    @contract_api(CONTRACT_CALL)
+    def roles(self, staking_provider: ChecksumAddress) -> RoleInfo:
+        owner, beneficiary, authorizer = self.contract.functions.rolesOf(staking_provider).call()
+        role_info = self.RoleInfo(owner, beneficiary, authorizer)
+        return role_info
+
+
 class ContractAgency:
     """Where agents live and die."""
 
