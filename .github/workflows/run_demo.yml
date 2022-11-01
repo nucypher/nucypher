@@ -1,0 +1,25 @@
+name: '👷 Run Demo'
+
+on: [push, pull_request]
+
+jobs:
+  run-demo:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.7'
+
+    - name: Install docker compose
+      run: pip3 install docker-compose
+
+    - name: Start containers
+      run: docker-compose -f ./scripts/ci/docker-compose.yml build nucypher-ci-dev
+
+    - name: Run demo ursula fleet, finnegan's wake demo
+      run: ./scripts/ci/run_finnegans_wake_demo_docker-ci.sh

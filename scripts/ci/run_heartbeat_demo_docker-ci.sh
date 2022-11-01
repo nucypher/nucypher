@@ -15,8 +15,8 @@ sleep 3
 
 echo "running heartbeat demo"
 
-# run alicia and bob all in one running of docker since we lack persistent disks in circle
-docker-compose run nucypher-circle-dev bash /code/scripts/circle/run_heartbeat_alicia_and_bob.sh
+# run alicia and bob all in one running of docker since we lack persistent disks in ci
+docker-compose run nucypher-ci-dev bash /code/scripts/ci/run_heartbeat_alicia_and_bob.sh
 
 # spit out logs
 ./logOutput.sh
