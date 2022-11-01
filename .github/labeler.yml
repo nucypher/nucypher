@@ -4,9 +4,6 @@ ETH Contracts:
 CLI:
   - nucypher/cli/**/*
 
-circleci:
-  - .circleci/**/*
-
 Demos:
   - examples/**/*
 

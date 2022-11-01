@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# runs in circleCI's build environment
+# runs in ci environment
 # runs finnegan's wake demo in a docker container
 
 set -e
@@ -21,7 +21,7 @@ sleep 3
 # Run demo
 echo "Starting Demo"
 echo "working in directory: $PWD"
-docker-compose run nucypher-circle-dev bash /code/scripts/circle/run_finnegans_wake.sh
+docker-compose run nucypher-ci-dev bash /code/scripts/ci/run_finnegans_wake.sh
 
 # spit out logs
 ./logOutput.sh

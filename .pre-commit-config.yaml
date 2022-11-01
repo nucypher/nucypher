@@ -4,12 +4,6 @@ repos:
   - repo: local
     hooks:
 
-      # Custom
-      - id: Validate CircleCI
-        name: Validate CircleCI Config
-        entry: ./scripts/hooks/validate_circleci_config.sh
-        language: script
-
       - id: tests
         name: Run Nucypher Unit Tests
         entry: scripts/hooks/run_unit_tests.sh

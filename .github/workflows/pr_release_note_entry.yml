@@ -13,6 +13,6 @@ jobs:
     name: 'Checking release note entry for PR ${{ github.event.number }}'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: |
           ls -l ${{ github.workspace }}/newsfragments/${{ github.event.number }}.*.rst
