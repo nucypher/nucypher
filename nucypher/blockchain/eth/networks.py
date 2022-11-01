@@ -18,11 +18,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 class NetworksInventory:  # TODO: See #1564
 
-    MAINNET = 'mainnet'
-    IBEX = 'ibex'
-    LYNX = 'lynx'
-    ORYX = 'oryx'
-    ETH = 'ethereum'
+    MAINNET = "mainnet"
+    IBEX = "ibex"
+    LYNX = "lynx"
+    ORYX = "oryx"
+    ETH = "ethereum"
+    TAPIR = "tapir"
 
     # TODO: Use naming scheme to preserve multiple compatibility with multiple deployments to a single network?
     POLYGON = 'polygon'
@@ -32,10 +33,11 @@ class NetworksInventory:  # TODO: See #1564
     DEFAULT = MAINNET
 
     __to_chain_id_eth = {
-        MAINNET: 1,      # Ethereum Mainnet
-        ORYX: 3,         # Ropsten
-        IBEX: 4,         # Rinkeby
-        LYNX: 5,         # Goerli
+        MAINNET: 1,  # Ethereum Mainnet
+        ORYX: 3,  # Ropsten
+        IBEX: 4,  # Rinkeby
+        LYNX: 5,  # Goerli
+        TAPIR: 5,  # Goerli
     }
     __to_chain_id_polygon = {
         # TODO: Use naming scheme?
