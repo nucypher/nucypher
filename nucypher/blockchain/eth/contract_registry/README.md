@@ -21,7 +21,8 @@ These registries comprise the official addresses and ABIs for the networks' smar
   * [**TestnetThresholdStaking**](https://goerli.etherscan.io/address/0x09B5065d2924De33C85F76474A89A27189402064): `0x09B5065d2924De33C85F76474A89A27189402064`
   * [**SimplePREApplication**](https://goerli.etherscan.io/address/0xaF96aa6000ec2B6CF0Fe6B505B6C33fa246967Ca): `0xaF96aa6000ec2B6CF0Fe6B505B6C33fa246967Ca`
 * `lynx`: Internal development testnet, chaotic, used for experimental code and staging. (Goerli). 
-  * TBD 
+  * [**TestnetThresholdStaking**](https://goerli.etherscan.io/address/0x81eEefb7B1b3313C89976910096F8f1487301Bb1): `0x81eEefb7B1b3313C89976910096F8f1487301Bb1`
+  * [**SimplePREApplication**](https://goerli.etherscan.io/address/0x685b8Fd02aB87d8FfFff7346cB101A5cE4185bf3): `0x685b8Fd02aB87d8FfFff7346cB101A5cE4185bf3`
 
 ## Historical deployments
 
