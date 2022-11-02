@@ -22,7 +22,7 @@ import maya
 from nucypher_core import ReencryptionRequest
 from web3.types import Wei, Timestamp, TxReceipt, ChecksumAddress
 
-from nucypher.blockchain.eth.agents import SubscriptionManagerAgent
+from nucypher.blockchain.eth.agents import SubscriptionManagerAgent, ContractAgency
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
 from nucypher.policy.policies import BlockchainPolicy, Policy
 
@@ -97,7 +97,11 @@ class ContractPayment(PaymentMethod, ABC):
         """Returns an instance of the agent used to carry out contract payments."""
         if self.__agent:
             return self.__agent  # get cache
-        agent = self._AGENT(eth_provider_uri=self.provider, registry=self.registry)
+        agent = ContractAgency.get_agent(
+            agent_class=self._AGENT,
+            eth_provider_uri=self.provider,
+            registry=self.registry
+        )
         self.__agent = agent
         return self.__agent  # set cache
 
