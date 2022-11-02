@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 from collections import defaultdict
 
 import pytest
@@ -76,8 +77,9 @@ def monkeysession():
 # Pytest configuration
 #
 
+
 pytest_plugins = [
-    'tests.fixtures',  # Includes external fixtures module
+    'pytest-nucypher',  # Includes external fixtures module via plugin
 ]
 
 
