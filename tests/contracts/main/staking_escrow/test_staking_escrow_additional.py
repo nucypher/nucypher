@@ -15,16 +15,11 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from bisect import bisect
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from web3 import Web3
 from web3.contract import Contract
 
-from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.token import NU
-from nucypher.utilities.ethereum import get_array_data_location, get_mapping_entry_location, to_bytes32
 from tests.contracts.main.staking_escrow.conftest import TOTAL_SUPPLY
 
 
