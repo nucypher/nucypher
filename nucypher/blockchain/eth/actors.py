@@ -17,12 +17,12 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import json
-import time
 from decimal import Decimal
 from typing import Optional, Tuple
 from typing import Union
 
 import maya
+import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
@@ -49,8 +49,9 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.payment import ContractPayment
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 
 
@@ -304,6 +305,7 @@ class Operator(BaseActor):
 
     def __init__(self,
                  is_me: bool,
+                 payment_method: ContractPayment,
                  work_tracker: WorkTracker = None,
                  operator_address: ChecksumAddress = None,
                  *args, **kwargs):
@@ -316,6 +318,16 @@ class Operator(BaseActor):
         if is_me:
             self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
             self.work_tracker = work_tracker or WorkTracker(worker=self)
+            
+            # Multi-provider support
+            # TODO: Abstract away payment provider
+            eth_chain = self.application_agent.blockchain
+            polygon_chain = payment_method.agent.blockchain
+
+            self.condition_providers = {
+                eth_chain.client.chain_id: eth_chain.provider,
+                polygon_chain.client.chain_id: polygon_chain.provider
+            }
 
     def _local_operator_address(self):
         return self.__operator_address

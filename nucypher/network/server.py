@@ -14,12 +14,12 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+
+
 import json
-import uuid
 import weakref
 from http import HTTPStatus
 from pathlib import Path
-from typing import Tuple
 
 from constant_sorrow import constants
 from constant_sorrow.constants import RELAX
@@ -169,12 +169,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # Populate default request context for decentralized nodes
         if not this_node.federated_only:
-            # TODO: Detect whether or not a provider is required by introspecting the condition instead.
-            providers = {
-                1: this_node.application_agent.blockchain.provider,
-                137: this_node.payment_provider,
-            }
-            context.update({'providers': providers})
+            context.update({'providers': this_node.condition_providers})
 
         # TODO: Detect if we are dealing with PRE or tDec here
         # TODO: This is for PRE only, relocate HRAC to RE.context
