@@ -98,7 +98,7 @@ via Docker
 Replace the following values with your own:
 
    * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///root/.ethereum/keystore`` for mainnet)
-   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, tapir, or lynx)
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
    * ``<STAKING PROVIDER ADDRESS>`` - the ethereum address of the staking provider
    * ``<OPERATOR ADDRESS>`` - the address of the operator to bond
@@ -126,7 +126,7 @@ via Local Installation
 Replace the following values with your own:
 
    * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///home/<user>/.ethereum/keystore`` for mainnet)
-   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<NETWORK NAME>`` - The name of the PRE network (mainnet, tapir, or lynx)
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
    * ``<STAKING PROVIDER ADDRESS>`` - the ethereum address of the staking provider
    * ``<OPERATOR ADDRESS>`` - the address of the operator to bond
@@ -204,7 +204,7 @@ Replace the following values with your own:
    * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///root/.ethereum/keystore`` for mainnet)
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, tapir, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -293,7 +293,7 @@ Replace the following values with your own:
    * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///home/<user>/.ethereum/keystore`` for mainnet)
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, tapir, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -409,7 +409,7 @@ Replace the following values with your own:
    * ``<ETH KEYSTORE URI>`` - The local ethereum keystore (e.g. ``keystore:///home/<user>/.ethereum/keystore`` for mainnet)
 
    * ``<L1 PROVIDER URI>`` - The URI of a local or hosted ethereum node (infura/geth, e.g. ``https://infura.io/…``)
-   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, ibex, or lynx)
+   * ``<L1 NETWORK NAME>`` - The name of the PRE network (mainnet, tapir, or lynx)
 
    * ``<L2 PROVIDER URI>`` - The URI of a local or hosted level-two node (infura/bor)
    * ``<L2 NETWORK NAME>`` - The name of a payment network (polygon or mumbai)
@@ -547,7 +547,7 @@ Once the node is running, you can view its public status page at ``https://<node
 - *Staking Provider Nickname* - A nickname/codename for the node derived from the Staking Provider address
 - *Staking Provider Address* - The Staking Provider address this node is bonded to
 - *Client Version* - The version of nucypher this node is running
-- *Network Name* - The network this node is running on (mainnet, lynx, or ibex).
+- *Network Name* - The network this node is running on (mainnet, lynx, or tapir).
 - *Peer Count* - The total number of peers this node has discovered.
 - *Fleet State Checksum* - A checksum representing all currently known peers
 - *Fleet State Icon* - A visual representation of the fleet state's checksum word and color

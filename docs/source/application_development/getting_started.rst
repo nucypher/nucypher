@@ -72,7 +72,7 @@ the role of a ``Teacher``\ , or "seednode":
 
     - mainnet: ``https://mainnet.nucypher.network:9151``
     - lynx: ``https://lynx.nucypher.network:9151``
-    - ibex: ``https://ibex.nucypher.network:9151``
+    - tapir: ``https://tapir.nucypher.network:9151``
 
     .. code::
 
@@ -163,7 +163,7 @@ After generating a keystore, any future usage can decrypt the keys from the disk
    from nucypher.characters.lawful import Alice, Ursula
 
    # Instantiate a default peer (optional)
-   ursula = Ursula.from_seed_and_stake_info(seed_uri='https://lynx.nucypher.network:9151')
+   ursula = Ursula.from_seed_and_stake_info(seed_uri='https://tapir.nucypher.network:9151')
 
    # Instantiate Alice
    alice = Alice(
@@ -171,7 +171,7 @@ After generating a keystore, any future usage can decrypt the keys from the disk
        known_nodes=[ursula],         # Peers (Optional)
        signer=signer,                # Alice Wallet
        eth_provider_uri=<RPC ENDPOINT>,  # Ethereum RPC endpoint
-       domain='lynx'                 # PRE Application network (mainnet, lynx, ibex)
+       domain='tapir'                # PRE Application network (mainnet, lynx, tapir)
    )
 
    # Alice is identified by her ethereum address
@@ -252,7 +252,7 @@ software wallet and an existing keystore:
 
     # Make Alice
     alice = Alice(
-        domain='lynx',  # testnet
+        domain='tapir',  # testnet
         eth_provider_uri='GOERLI RPC ENDPOINT',
         keystore=keystore,
         signer=wallet,
@@ -325,7 +325,7 @@ Bob's setup is similar to Alice's above.
    # alice_verifying_key = <Side Channel>
 
    # Everyone!
-   ursula = Ursula.from_seed_and_stake_info(seed_uri='https://lynx.nucypher.network:9151')
+   ursula = Ursula.from_seed_and_stake_info(seed_uri='https://tapir.nucypher.network:9151')
    alice = Alice.from_public_keys(verifying_key=alice_verifying_key)
    enrico = Enrico(policy_encrypting_key=policy_encrypting_key)
 
@@ -337,7 +337,7 @@ Bob's setup is similar to Alice's above.
    bob = Bob(
        keystore=keystore,
        known_nodes=[ursula],
-       domain='lynx'
+       domain='tapir'
    )
 
 

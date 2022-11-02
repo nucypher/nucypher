@@ -47,7 +47,7 @@ and adding your provider and wallet details.  To set the variables in your curre
 Optionally, you can change the network the demo is running on by changing the value of `L1_NETWORK` and `L2_NETWORK`.
 If you change these values be sure to also change `L1_PROVIDER_URI` and `L2_PROVIDER_URI` accordingly.
 
-Available options for `L1_NETOWRK` are `ibex` or `mainnet`.
+Available options for `L1_NETOWRK` are `tapir` or `mainnet`.
 Available options for `L2_NETWORK` are `mumbai` or `polygon`
 
 Ensure Alice's account has a bit of MATIC on polygon to pay for the policy.
