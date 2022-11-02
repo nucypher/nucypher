@@ -38,7 +38,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
 
-L1_NETWORK = 'mainnet'  # 'ibex'
+L1_NETWORK = 'mainnet'  # 'tapir'
 
 # To create a Bob, we need the doctor's private keys previously generated.
 from doctor_keys import get_doctor_privkeys

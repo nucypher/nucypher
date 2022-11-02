@@ -69,7 +69,7 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-DOMAIN: str = 'mainnet'  # ibex
+DOMAIN: str = 'mainnet'  # tapir
 DEFAULT_SEEDNODE_URIS: List[str] = [
     *TEACHER_NODES[DOMAIN],
 ]

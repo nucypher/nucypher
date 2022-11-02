@@ -63,7 +63,7 @@ print("\n************** Setup **************\n")
 # NuCypher Network #
 ####################
 
-L1_NETWORK = 'mainnet'  # or 'ibex'
+L1_NETWORK = 'mainnet'  # or 'tapir'
 L2_NETWORK = 'polygon'  # or 'mumbai'
 
 #####################

@@ -58,7 +58,7 @@ try:
 except KeyError:
     raise RuntimeError('Missing environment variables to run demo.')
 
-L1_NETWORK = 'mainnet'  # 'ibex'
+L1_NETWORK = 'mainnet'  # 'tapir'
 L2_NETWORK = 'polygon'  # 'mumbai'
 
 

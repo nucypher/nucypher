@@ -51,7 +51,7 @@ except IndexError:
 try:
     network = sys.argv[1]
 except IndexError:
-    network = "ibex"
+    network = "tapir"
 
 BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri, light=False, emitter=emitter)
 blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
