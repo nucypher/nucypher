@@ -18,7 +18,7 @@
 import ast
 import base64
 import json
-import operator
+import operator as pyoperator
 from hashlib import md5
 from typing import Any, Dict, List, Union
 
@@ -35,10 +35,10 @@ from nucypher.policy.conditions.context import is_context_variable
 class Operator:
     OPERATORS = ('and', 'or')
 
-    def __init__(self, operator: str):
-        if operator not in self.OPERATORS:
-            raise Exception(f'{operator} is not a valid operator')
-        self.operator = operator
+    def __init__(self, _operator: str):
+        if _operator not in self.OPERATORS:
+            raise Exception(f'{_operator} is not a valid operator')
+        self.operator = _operator
 
     def __str__(self) -> str:
         return self.operator
@@ -49,10 +49,10 @@ class Operator:
     @classmethod
     def from_dict(cls, data: Dict[str, str]) -> 'Operator':
         try:
-            operator = data['operator']
+            _operator = data['operator']  # underscore prefix to avoid name shadowing
         except KeyError:
             raise Exception(f'Invalid operator JSON')
-        instance = cls(operator=operator)
+        instance = cls(_operator=_operator)
         return instance
 
     @classmethod
@@ -72,12 +72,12 @@ class ReturnValueTest:
         pass
 
     _COMPARATOR_FUNCTIONS = {
-        "==": operator.eq,
-        "!=": operator.ne,
-        ">": operator.gt,
-        "<": operator.lt,
-        "<=": operator.le,
-        ">=": operator.ge,
+        "==": pyoperator.eq,
+        "!=": pyoperator.ne,
+        ">": pyoperator.gt,
+        "<": pyoperator.lt,
+        "<=": pyoperator.le,
+        ">=": pyoperator.ge,
     }
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
