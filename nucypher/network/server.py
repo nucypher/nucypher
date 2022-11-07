@@ -40,12 +40,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.base import ReencryptionCondition
-from nucypher.policy.conditions.context import (
-    ContextVariableVerificationFailed,
-    InvalidContextVariableData,
-    RequiredContextVariable,
-)
+from nucypher.policy.conditions._utils import evaluate_conditions_for_ursula
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
@@ -156,30 +151,49 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
+        pass
 
+    @rest_app.route('/reencrypt', methods=["POST"])
+    def reencrypt():
+        # TODO: Cache & Optimize
         from nucypher.characters.lawful import Bob
 
-        # TODO: Cache & Optimize
+        # Deserialize and instantiate the request
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
+        # Deserialize and instantiate ConditionLingo from the request data
         json_lingo = json.loads(str(reenc_request.conditions))
         lingo = [ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingo]
-        context = json.loads(str(reenc_request.context)) or dict()  # requester-supplied input
+
+        # requester-supplied reencryption condition context
+        context = json.loads(str(reenc_request.context)) or dict()
+
+        # zip capsules with their respective conditions
         packets = zip(reenc_request.capsules, lingo)
+
+        # Populate default request context for decentralized nodes
+        if not this_node.federated_only:
+            # TODO: Detect whether or not a provider is required by introspecting the condition instead.
+            providers = {
+                1: this_node.application_agent.blockchain.provider,
+                137: this_node.payment_provider,
+            }
+            context.update({'providers': providers})
 
         # TODO: Detect if we are dealing with PRE or tDec here
         # TODO: This is for PRE only, relocate HRAC to RE.context
         hrac = reenc_request.hrac
 
-        # This is now either Bob or the TDec requester "Universal Bob"
+        # This is either PRE Bob or a CBD requester
         bob = Bob.from_public_keys(verifying_key=reenc_request.bob_verifying_key)
         log.info(f"Reencryption request from {bob} for policy {hrac}")
 
         # TODO: Can this be integrated into reencryption conditions?
-        # Right off the bat, if this HRAC is already known to be revoked, reject the order.
+        # Stateful revocation by HRAC storage below
         if hrac in this_node.revoked_policies:
             return Response(response=f"Policy with {hrac} has been revoked.", status=HTTPStatus.UNAUTHORIZED)
 
+        # Alice or Publisher
         publisher_verifying_key = reenc_request.publisher_verifying_key
 
         # Bob
@@ -189,7 +203,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # Verify & Decrypt KFrag Payload
         try:
-            verified_kfrag = this_node._decrypt_kfrag(reenc_request.encrypted_kfrag, hrac, publisher_verifying_key)
+            verified_kfrag = this_node._decrypt_kfrag(
+                reenc_request.encrypted_kfrag,
+                hrac,
+                publisher_verifying_key
+            )
         except DecryptingKeypair.DecryptionFailed as e:
             # TODO: don't we want to record suspicious activities here too?
             return Response(
