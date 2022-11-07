@@ -173,10 +173,13 @@ def erc721_evm_condition_balanceof(erc721_contract):
 
 @pytest.fixture
 def subscription_manager_is_active_policy_condition(test_registry, agency):
-    subscription_manager = ContractAgency.get_agent(SubscriptionManagerAgent, registry=test_registry)
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent,
+        registry=test_registry
+    )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.abi,
+        function_abi=[subscription_manager.contract.find_functions_by_name('isPolicyActive')[0].abi],
         method="isPolicyActive",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", True),
@@ -194,7 +197,7 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.abi,
+        function_abi=[subscription_manager.contract.find_functions_by_name('getPolicy')[0].abi],
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
