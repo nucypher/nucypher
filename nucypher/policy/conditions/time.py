@@ -30,7 +30,7 @@ class TimeCondition(ReencryptionCondition):
 
     class Schema(CamelCaseSchema):
         name = fields.Str()
-        method = fields.Str(default='timelock')
+        method = fields.Str(dump_default="timelock")
         return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema())
 
         @post_load
