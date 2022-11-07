@@ -85,12 +85,13 @@ class ReturnValueTest:
     class ReturnValueTestSchema(CamelCaseSchema):
         comparator = fields.Str()
         value = fields.Raw(allow_none=False)  # any valid type (excludes None)
+        key = fields.Raw(allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Any):
+    def __init__(self, comparator: str, value: Any, key: str = ""):
         if comparator not in self.COMPARATORS:
             raise self.InvalidExpression(
                 f'"{comparator}" is not a permitted comparator.'
@@ -104,6 +105,7 @@ class ReturnValueTest:
 
         self.comparator = comparator
         self.value = value
+        self.key = key
 
     def _sanitize_value(self, value):
         try:
@@ -118,6 +120,19 @@ class ReturnValueTest:
                 f"'{self.value}' is an unprocessed context variable and is not valid "
                 f"for condition evaluation."
             )
+        if is_context_variable(self.key):
+            # programming error if we get here
+            raise RuntimeError(
+                f"'{self.value}' is an unprocessed context variable and is not valid "
+                f"for condition evaluation."
+            )
+        if self.key:
+            try:
+                data = data[self.key]
+            except KeyError:
+                raise self.InvalidExpression(
+                    f"Key '{self.key}' not found in return data."
+                )
         left_operand = self._sanitize_value(data)
         right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
