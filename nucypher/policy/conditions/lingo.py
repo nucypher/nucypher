@@ -19,6 +19,7 @@ import ast
 import base64
 import json
 import operator
+from hashlib import md5
 from typing import Any, Dict, List, Union
 
 from marshmallow import fields, post_load
@@ -126,8 +127,8 @@ class ConditionLingo:
     """
     A Collection of re-encryption conditions evaluated as a compound boolean expression.
 
-    This is an alternate implementation of the condition expression format used in the Lit Protocol (https://github.com/LIT-Protocol);
-    credit to the authors for inspiring this work. 
+    This is an alternate implementation of the condition expression format used in
+    the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
     class Failed(Exception):
@@ -135,7 +136,7 @@ class ConditionLingo:
 
     def __init__(self, conditions: List[Union[ReencryptionCondition, Operator, Any]]):
         """
-        The input list must be structured:
+        The input list *must* be structured as follows:
         condition
         operator
         condition
@@ -143,6 +144,7 @@ class ConditionLingo:
         """
         self._validate(lingo=conditions)
         self.conditions = conditions
+        self.id = md5(bytes(self)).hexdigest()[:6]
 
     @staticmethod
     def _validate(lingo) -> None:

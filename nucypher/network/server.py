@@ -151,10 +151,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
-        pass
-
-    @rest_app.route('/reencrypt', methods=["POST"])
-    def reencrypt():
         # TODO: Cache & Optimize
         from nucypher.characters.lawful import Bob
 
