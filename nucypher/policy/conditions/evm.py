@@ -201,7 +201,10 @@ class RPCCondition(ReencryptionCondition):
         return rpc_result
 
     def verify(self, providers: Dict[int, BaseProvider], **context) -> Tuple[bool, Any]:
-        """Performs onchain read and evaluates return value test"""
+        """
+        Verifies the onchain condition is met by performing a
+        read operation and evaluating the return value test.
+        """
         self._configure_provider(providers=providers)
         parameters, return_value_test = _resolve_any_context_variables(
             self.parameters, self.return_value_test, **context

@@ -324,6 +324,9 @@ class Operator(BaseActor):
             eth_chain = self.application_agent.blockchain
             polygon_chain = payment_method.agent.blockchain
 
+            # TODO: Verify consistency between network names and provider connection?
+            # TODO: Allow bypassing of the enforcement above ^
+            # TODO: Is chain ID stable and completely reliable?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
                 polygon_chain.client.chain_id: polygon_chain.provider

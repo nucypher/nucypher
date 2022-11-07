@@ -15,12 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import ast
 import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Iterator
 
 from marshmallow import fields, post_load
 
@@ -195,7 +196,9 @@ class ConditionLingo:
         result = eval(eval_string)
         return result
 
-    def __process(self, *args, **kwargs):
+    def __process(self, *args, **kwargs) -> Iterator:
+        # TODO: Prevent this lino from bein evaluated if this node does not have
+        #       a connection to all the required blockchains (optimization)
         for task in self.conditions:
             if isinstance(task, ReencryptionCondition):
                 condition = task
