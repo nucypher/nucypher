@@ -16,7 +16,7 @@
 """
 
 import re
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, Dict
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -164,9 +164,20 @@ class RPCCondition(ReencryptionCondition):
             )
         return method
 
-    def _configure_provider(self, provider: BaseProvider):
+    def _configure_provider(self, providers: Dict[int, BaseProvider]):
         """Binds the condition's contract function to a blockchian provider for evaluation"""
+        try:
+            provider = providers[self.chain_id]
+        except KeyError:
+            # TODO Use a custom exception class, and catch bubble it up to include info about the node
+            # QUESTION Are nodes required to provide connections to all providers?
+            raise Exception(f'This node does not have a connection to chain {self.chain_id}')
+
+        # Instantiate a local web3 instance
         self.w3 = Web3(provider)
+
+        # This next block validates that the actual web3 provider is *actually*
+        # connected to the condition's chain ID by reading its RPC endpoint.
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain_id:
             raise ReencryptionCondition.InvalidCondition(
@@ -189,9 +200,9 @@ class RPCCondition(ReencryptionCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
-    def verify(self, provider: BaseProvider, **context) -> Tuple[bool, Any]:
-        """Performs onchain read and return value test"""
-        self._configure_provider(provider=provider)
+    def verify(self, providers: Dict[int, BaseProvider], **context) -> Tuple[bool, Any]:
+        """Performs onchain read and evaluates return value test"""
+        self._configure_provider(providers=providers)
         parameters, return_value_test = _resolve_any_context_variables(
             self.parameters, self.return_value_test, **context
         )

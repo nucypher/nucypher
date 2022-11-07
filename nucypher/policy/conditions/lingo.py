@@ -200,8 +200,7 @@ class ConditionLingo:
                 result, value = condition.verify(*args, **kwargs)
                 yield result
             elif isinstance(task, Operator):
-                operator = task
-                yield operator
+                yield task
             else:
                 raise TypeError(f"Unrecognized type {type(task)} for ConditionLingo")
 
