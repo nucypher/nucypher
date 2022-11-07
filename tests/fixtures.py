@@ -60,6 +60,7 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
@@ -621,7 +622,12 @@ def staking_providers(testerchain, agency, test_registry, threshold_staking):
                             operator_address=operator_address,
                             domain=TEMPORARY_DOMAIN,
                             registry=test_registry,
-                            transacting_power=operator_power)
+                            transacting_power=operator_power,
+                            payment_method=SubscriptionManagerPayment(
+                                eth_provider=testerchain.eth_provider_uri,
+                                network=TEMPORARY_DOMAIN,
+                                registry=test_registry)
+                            )
         operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
 
         # track
