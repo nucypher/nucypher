@@ -91,7 +91,7 @@ class ReturnValueTest:
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Any, key: str = ""):
+    def __init__(self, comparator: str, value: Any, key: Optional[Union[int, str]] = None):
         if comparator not in self.COMPARATORS:
             raise self.InvalidExpression(
                 f'"{comparator}" is not a permitted comparator.'
@@ -123,7 +123,7 @@ class ReturnValueTest:
         if is_context_variable(self.key):
             # programming error if we get here
             raise RuntimeError(
-                f"'{self.value}' is an unprocessed context variable and is not valid "
+                f"'{self.key}' is an unprocessed context variable and is not valid "
                 f"for condition evaluation."
             )
         if self.key:
