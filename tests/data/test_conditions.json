@@ -1,4 +1,46 @@
 {
+  "TStaking": {
+    "contractAddress": "0x01B67b1194C75264d06F808A921228a95C765dd7",
+    "chain": "ethereum",
+    "method": "stakes",
+    "functionAbi": {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "stakingProvider",
+          "type": "address"
+        }
+      ],
+      "name": "stakes",
+      "outputs": [
+        {
+          "internalType": "uint96",
+          "name": "tStake",
+          "type": "uint96"
+        },
+        {
+          "internalType": "uint96",
+          "name": "keepInTStake",
+          "type": "uint96"
+        },
+        {
+          "internalType": "uint96",
+          "name": "nuInTStake",
+          "type": "uint96"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    "parameters": [
+      ":userAddress"
+    ],
+    "returnValueTest": {
+      "key": "tStake",
+      "comparator": ">",
+      "value": 0
+    }
+  },
   "SubscriptionManagerPayment": {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "chain": 137,

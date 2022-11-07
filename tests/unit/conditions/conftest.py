@@ -41,6 +41,11 @@ def mock_condition_blockchains(mocker):
     mocker.patch.object(nucypher.policy.conditions.evm, '_CONDITION_CHAINS', tuple([131277322940537]))
 
 
+@pytest.fixture()
+def TStaking_data():
+    return json.dumps(VECTORS["TStaking"])
+
+
 # ERC1155
 
 @pytest.fixture()

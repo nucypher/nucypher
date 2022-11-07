@@ -22,12 +22,20 @@ from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 
+def test_evm_condition_function_abi(TStaking_data):
+    original_data = TStaking_data
+    condition = ContractCondition.from_json(original_data)
+    serialized_data = condition.to_json()
+
+    deserialized_data = json.loads(serialized_data)
+    assert deserialized_data["functionAbi"] == condition.function_abi
+
+
 def test_evm_condition_json_serializers(ERC1155_balance_condition_data):
     original_data = ERC1155_balance_condition_data
     condition = ContractCondition.from_json(original_data)
     serialized_data = condition.to_json()
 
-    # TODO functionAbi is present in serialized data
     deserialized_data = json.loads(serialized_data)
     deserialized_data.pop("functionAbi")
 
