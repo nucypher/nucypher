@@ -1,6 +1,16 @@
 import json
-from marshmallow import Schema, post_dump
+from http import HTTPStatus
 from typing import Union, Type, Dict
+
+from flask import Response
+from marshmallow import Schema, post_dump
+
+from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.context import (
+    ContextVariableVerificationFailed,
+    InvalidContextVariableData,
+    RequiredContextVariable,
+)
 
 _ETH = 'eth_'
 
@@ -66,3 +76,51 @@ def _deserialize_condition_lingo(data: Union[str, Dict[str, str]]) -> Union['Ope
     lingo_class = _resolve_condition_lingo(json_data=data)
     instance = lingo_class.from_dict(data)
     return instance
+
+
+def evaluate_conditions_for_ursula(lingo, context, log, ursula):
+    if lingo is not None:
+        # TODO: Enforce policy expiration as a condition
+        # TODO: Evaluate all conditions even if one fails and report the result
+        try:
+            log.info(f'Evaluating access conditions {lingo.id}')
+            _results = lingo.eval(**context)
+        except ReencryptionCondition.InvalidCondition as e:
+            message = f"Incorrect value provided for condition: {e}"
+            error = (message, HTTPStatus.BAD_REQUEST)
+            log.info(message)
+            return Response(message, status=error[1])
+        except RequiredContextVariable as e:
+            message = f"Missing required inputs: {e}"
+            # TODO: be more specific and name the missing inputs, etc
+            error = (message, HTTPStatus.BAD_REQUEST)
+            log.info(message)
+            return Response(message, status=error[1])
+        except InvalidContextVariableData as e:
+            message = f"Invalid data provided for context variable: {e}"
+            error = (message, HTTPStatus.BAD_REQUEST)
+            log.info(message)
+            return Response(message, status=error[1])
+        except ContextVariableVerificationFailed as e:
+            message = f"Context variable data could not be verified: {e}"
+            error = (message, HTTPStatus.FORBIDDEN)
+            log.info(message)
+            return Response(message, status=error[1])
+        except ReencryptionCondition.ConditionEvaluationFailed as e:
+            message = f"Decryption condition not evaluated: {e}"
+            error = (message, HTTPStatus.BAD_REQUEST)
+            log.info(message)
+            return Response(message, status=error[1])
+        except lingo.Failed as e:
+            # TODO: Better error reporting
+            message = f"Decryption conditions not satisfied: {e}"
+            error = (message, HTTPStatus.FORBIDDEN)
+            log.info(message)
+            return Response(message, status=error[1])
+        except Exception as e:
+            # TODO: Unsure why we ended up here
+            message = f"Unexpected exception while evaluating " \
+                      f"decryption condition ({e.__class__.__name__}): {e}"
+            error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
+            log.warn(message)
+            return Response(message, status=error[1])

@@ -226,65 +226,21 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Enforce Reencryption Conditions
-        # TODO: back compatibility for PRE?
-
-        if not this_node.federated_only:
-            # TODO: Detect whether or not a provider is required by introspecting the condition instead.
-            context.update({'provider': this_node.application_agent.blockchain.provider})
-
         capsules_to_process = list()
         for capsule, lingo in packets:
-            if lingo is not None:
-
-                # TODO: Enforce policy expiration as a condition
-                try:
-                    # TODO: Can conditions return a useful value?
-                    log.info(f'Evaluating decryption condition')
-                    lingo.eval(**context)
-                except ReencryptionCondition.InvalidCondition as e:
-                    message = f"Incorrect value provided for condition: {e}"
-                    error = (message, HTTPStatus.BAD_REQUEST)
-                    log.info(message)
-                    return Response(message, status=error[1])
-                except RequiredContextVariable as e:
-                    message = f"Missing required inputs: {e}"
-                    # TODO: be more specific and name the missing inputs, etc
-                    error = (message, HTTPStatus.BAD_REQUEST)
-                    log.info(message)
-                    return Response(message, status=error[1])
-                except InvalidContextVariableData as e:
-                    message = f"Invalid data provided for context variable: {e}"
-                    error = (message, HTTPStatus.BAD_REQUEST)
-                    log.info(message)
-                    return Response(message, status=error[1])
-                except ContextVariableVerificationFailed as e:
-                    message = f"Context variable data could not be verified: {e}"
-                    error = (message, HTTPStatus.FORBIDDEN)
-                    log.info(message)
-                    return Response(message, status=error[1])
-                except ReencryptionCondition.ConditionEvaluationFailed as e:
-                    message = f"Decryption condition not evaluated: {e}"
-                    error = (message, HTTPStatus.BAD_REQUEST)
-                    log.info(message)
-                    return Response(message, status=error[1])
-                except lingo.Failed as e:
-                    # TODO: Better error reporting
-                    message = f"Decryption conditions not satisfied: {e}"
-                    error = (message, HTTPStatus.FORBIDDEN)
-                    log.info(message)
-                    return Response(message, status=error[1])
-                except Exception as e:
-                    # TODO: Unsure why we ended up here
-                    message = f"Unexpected exception while evaluating " \
-                              f"decryption condition ({e.__class__.__name__}): {e}"
-                    error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
-                    log.warn(message)
-                    return Response(message, status=error[1])
-
+            # raises an exception or continues
+            evaluate_conditions_for_ursula(
+                lingo=lingo,
+                context=context,
+                log=log,
+                ursula=this_node
+            )
             capsules_to_process.append((lingo, capsule))
+
+        # Strip away conditions that have already been evaluated
         capsules_to_process = tuple(p[1] for p in capsules_to_process)
 
-        # FIXME: DISABLED FOR TDEC ADAPTATION
+        # FIXME: DISABLED FOR PRE-adapted-TDEC
         # TODO: Accept multiple payment methods?
         # Subscription Manager
         # paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
