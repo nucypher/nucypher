@@ -25,13 +25,11 @@ from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
 
-from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.lingo import ReturnValueTest
-
 
 # Permitted blockchains for condition evaluation
 _CONDITION_CHAINS = {
@@ -252,7 +250,7 @@ class ContractCondition(RPCCondition):
     def __repr__(self) -> str:
         r = f'{self.__class__.__name__}(function={self.method}, ' \
             f'contract={self.contract_address[:6]}..., ' \
-            f'chain={self.chain_name})'
+            f'chain={self.chain})'
         return r
 
     def validate_method(self, method):

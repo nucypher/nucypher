@@ -21,7 +21,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, List, Union, Iterator
+from typing import Any, Dict, List, Union, Iterator, Optional
 
 from marshmallow import fields, post_load
 
@@ -90,7 +90,7 @@ class ReturnValueTest:
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value):
+    def __init__(self, comparator: str, value: Any):
         if comparator not in self.COMPARATORS:
             raise self.InvalidExpression(
                 f'"{comparator}" is not a permitted comparator.'
