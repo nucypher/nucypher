@@ -31,6 +31,25 @@ def test_return_value_key():
     with pytest.raises(KeyError):
         test.eval({"bond": 1})
 
+    test = ReturnValueTest(comparator=">", value="0", key=4)
+    assert test.eval({4: 1})
+    assert not test.eval({4: -1})
+
+    with pytest.raises(KeyError):
+        test.eval({5: 1})
+
+
+def test_return_value_index():
+    test = ReturnValueTest(comparator=">", value="0", key=0)
+    assert test.eval([1])
+    assert not test.eval([-1])
+
+    test = ReturnValueTest(comparator="==", value='"james"', key=3)
+    assert test.eval([0, 1, 2, '"james"'])
+
+    with pytest.raises(IndexError):
+        test.eval([0, 1, 2])
+
 
 def test_return_value_test_invalid_comparators():
     with pytest.raises(ReturnValueTest.InvalidExpression):

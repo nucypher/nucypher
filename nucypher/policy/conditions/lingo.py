@@ -126,11 +126,18 @@ class ReturnValueTest:
                 f"'{self.key}' is an unprocessed context variable and is not valid "
                 f"for condition evaluation."
             )
-        if self.key:
+        if self.key and type(data) is dict:
             try:
                 data = data[self.key]
             except KeyError:
                 raise KeyError(f"Key '{self.key}' not found in return data.")
+
+        if type(self.key) is int and type(data) is list:
+            try:
+                data = data[self.key]
+            except IndexError:
+                raise IndexError(f"Index '{self.key}' not found in return data.")
+
         left_operand = self._sanitize_value(data)
         right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
