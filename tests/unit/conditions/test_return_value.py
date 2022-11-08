@@ -23,6 +23,15 @@ import pytest
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
+def test_return_value_key():
+    test = ReturnValueTest(comparator=">", value="0", key="james")
+    assert test.eval({"james": 1})
+    assert not test.eval({"james": -1})
+
+    with pytest.raises(KeyError):
+        test.eval({"bond": 1})
+
+
 def test_return_value_test_invalid_comparators():
     with pytest.raises(ReturnValueTest.InvalidExpression):
         _ = ReturnValueTest(comparator="eq", value=1)

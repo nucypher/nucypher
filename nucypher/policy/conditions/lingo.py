@@ -21,7 +21,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, Iterator, List, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from marshmallow import fields, post_load
 
@@ -130,9 +130,7 @@ class ReturnValueTest:
             try:
                 data = data[self.key]
             except KeyError:
-                raise self.InvalidExpression(
-                    f"Key '{self.key}' not found in return data."
-                )
+                raise KeyError(f"Key '{self.key}' not found in return data.")
         left_operand = self._sanitize_value(data)
         right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
