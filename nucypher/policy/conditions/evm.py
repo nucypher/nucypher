@@ -31,17 +31,14 @@ from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
+
 # Permitted blockchains for condition evaluation
-_CONDITION_CHAINS = {
-    1: "Ethereum",  # TODO: 60 ?
-    5: "Goerli",
-    # 6: "Kotti",
-    # 42: "Kovan",
-    # 77: "Sokol",
-    # 100: "xDai",
-    137: "Polygon/Mainnet",
-    80001: "Polygon/Mumbai"
-}
+_CONDITION_CHAINS = (
+    1,     # ethereum/mainnet
+    5,     # ethereum/goerli
+    137,   # polygon/mainnet
+    80001  # polygon/mumbai
+)
 
 
 def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -> List:

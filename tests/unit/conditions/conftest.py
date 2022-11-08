@@ -21,9 +21,10 @@ from pathlib import Path
 import pytest
 from web3 import Web3
 
+import nucypher
 import tests
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.evm import ContractCondition, RPCCondition, _CONDITION_CHAINS
+from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TESTERCHAIN_CHAIN_ID
@@ -36,7 +37,8 @@ with open(VECTORS_FILE, 'r') as file:
 
 @pytest.fixture(autouse=True)
 def mock_condition_blockchains(mocker):
-    mocker.patch.dict(_CONDITION_CHAINS, {131277322940537: 'testerchain'})
+    """adds testerchain to permitted conditional chains"""
+    mocker.patch.object(nucypher.policy.conditions.evm, '_CONDITION_CHAINS', tuple([131277322940537]))
 
 
 # ERC1155
