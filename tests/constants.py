@@ -16,15 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import string
+import tempfile
 from datetime import datetime
 from pathlib import Path
-
-import tempfile
 from random import SystemRandom
+
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
+)
 
 #
 # Ursula
@@ -143,4 +146,4 @@ CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD
 
 CLI_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
            NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
-TESTERCHAIN_CHAIN_ID = 131277322940537
+TESTERCHAIN_CHAIN_ID = 80001
