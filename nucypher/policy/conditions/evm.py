@@ -55,7 +55,8 @@ def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -
 
     if standard_contract_type:
         try:
-            function_abi = STANDARD_ABIS[standard_contract_type]
+            contract_abi = STANDARD_ABIS[standard_contract_type]
+            function_abi = [x for x in contract_abi if x.get("name") == method][0]
         except KeyError:
             raise InvalidCondition(
                 f"Invalid standard contract type {standard_contract_type}; Must be one of {STANDARD_ABI_CONTRACT_TYPES}"
@@ -227,11 +228,14 @@ class ContractCondition(RPCCondition):
         def make(self, data, **kwargs):
             return ContractCondition(**data)
 
-    def __init__(self,
-                 contract_address: ChecksumAddress,
-                 standard_contract_type: str = None,
-                 function_abi: List = None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        contract_address: ChecksumAddress,
+        standard_contract_type: str = None,
+        function_abi: dict = None,
+        *args,
+        **kwargs,
+    ):
         # internal
         super().__init__(*args, **kwargs)
         self.w3 = Web3()  # used to instantiate contract function without a provider
