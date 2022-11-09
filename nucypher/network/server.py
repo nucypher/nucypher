@@ -252,7 +252,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             # TODO (#567): bucket the node as suspicious.
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
-        # Enforce Reencryption Conditions
+        # Enforce Subscription Manager Payment
+        paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
+        if not paid:
+            message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
+            return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
+
+        # Enforce Conditions
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
             if condition_lingo:
@@ -266,14 +272,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                     #  even if other unrelated capsules (message kits) are present.
                     return Response(error.message, status=error.status_code)
             capsules_to_process.append(capsule)
-
-        # FIXME: DISABLED FOR PRE-adapted-TDEC
-        # TODO: Accept multiple payment methods?
-        # Subscription Manager
-        # paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
-        # if not paid:
-        #     message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
-        #     return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)
