@@ -217,7 +217,17 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         capsules_to_process = list()
         for capsule, lingo in packets:
             # raises an exception or continues
-            evaluate_conditions_for_ursula(lingo=lingo, providers=providers, context=context)
+            result, error = evaluate_conditions_for_ursula(
+                lingo=lingo, providers=providers, context=context
+            )
+            if error:
+                # error cases
+                return Response(*error)
+            elif not result:
+                # explicit condition failure
+                return Response(
+                    "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
+                )
             capsules_to_process.append((lingo, capsule))
 
         # Strip away conditions that have already been evaluated

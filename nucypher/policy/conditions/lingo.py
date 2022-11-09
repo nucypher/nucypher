@@ -21,7 +21,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, List, Union, Iterator
+from typing import Any, Dict, Iterator, List, Union
 
 from marshmallow import fields, post_load
 
@@ -191,6 +191,9 @@ class ConditionLingo:
         data = self.to_json().encode()
         return data
 
+    def __repr__(self):
+        return f"{self.__class__.__name__} (id={self.id} | size={len(bytes(self))})"
+
     def __eval(self, eval_string: str):
         # TODO: Additional protection and/or sanitation here
         result = eval(eval_string)
@@ -214,9 +217,7 @@ class ConditionLingo:
         # [True, <Operator>, False] -> 'True or False'
         eval_string = ' '.join(str(e) for e in data)
         result = self.__eval(eval_string=eval_string)
-        if not result:
-            raise self.Failed
-        return True
+        return result
 
 
 OR = Operator('or')

@@ -16,7 +16,7 @@
 """
 
 import re
-from typing import Any, List, Optional, Tuple, Dict
+from typing import Any, Dict, List, Optional, Tuple
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -30,7 +30,6 @@ from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.lingo import ReturnValueTest
-
 
 # Permitted blockchains for condition evaluation
 _CONDITION_CHAINS = (
@@ -113,6 +112,13 @@ class RPCCondition(ReencryptionCondition):
     class RPCExecutionFailed(ReencryptionCondition.ConditionEvaluationFailed):
         """Raised when an exception is raised from an RPC call."""
 
+    class NoConnectionToChain(RuntimeError):
+        """Raised when a node does not have an associated provider for a chain."""
+
+        def __init__(self, chain: int, *args, **kwargs):
+            self.chain = chain
+            super().__init__(*args, **kwargs)
+
     class Schema(CamelCaseSchema):
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
@@ -163,9 +169,10 @@ class RPCCondition(ReencryptionCondition):
         try:
             provider = providers[self.chain]
         except KeyError:
-            # TODO Use a custom exception class, and catch bubble it up to include info about the node
-            # QUESTION Are nodes required to provide connections to all providers?
-            raise Exception(f'This node does not have a connection to chain {self.chain}')
+            raise self.NoConnectionToChain(
+                chain=self.chain,
+                message=f"This node does not have a connection to chain ID {self.chain}",
+            )
 
         # Instantiate a local web3 instance
         self.w3 = Web3(provider)
