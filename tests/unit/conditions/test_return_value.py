@@ -57,6 +57,13 @@ def test_return_value_index_tuple():
     assert not test.eval((-1,))
 
 
+def test_return_value_with_context_variable_key_cant_run_eval():
+    # known context variable
+    test = ReturnValueTest(comparator="==", value="0", key=":userAddress")
+    with pytest.raises(RuntimeError):
+        test.eval({"0xaDD9D957170dF6F33982001E4c22eCCdd5539118": 0})
+
+
 def test_return_value_test_invalid_comparators():
     with pytest.raises(ReturnValueTest.InvalidExpression):
         _ = ReturnValueTest(comparator="eq", value=1)
