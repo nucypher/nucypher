@@ -114,7 +114,7 @@ class RPCCondition(ReencryptionCondition):
         """Raised when an exception is raised from an RPC call."""
 
     class Schema(CamelCaseSchema):
-        name = fields.Str()
+        name = fields.Str(required=False)
         chain = fields.Int(required=True)
         method = fields.Str(required=True)
         parameters = fields.List(fields.Field, attribute='parameters', required=False)
@@ -154,7 +154,7 @@ class RPCCondition(ReencryptionCondition):
             )
         if not method.startswith('eth_'):
             raise ReencryptionCondition.InvalidCondition(
-                f"Only eth RPC methods are accepted for condition evaluation; '{method}' is not permitted"
+                f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."
             )
         return method
 
@@ -175,8 +175,8 @@ class RPCCondition(ReencryptionCondition):
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain:
             raise ReencryptionCondition.InvalidCondition(
-                f"This condition can only be evaluated on {self.chain} but the provider's "
-                f"connection is to chain {provider_chain}"
+                f"This condition can only be evaluated on chain ID {self.chain} but the provider's "
+                f"connection is to chain ID {provider_chain}"
             )
         return provider
 
