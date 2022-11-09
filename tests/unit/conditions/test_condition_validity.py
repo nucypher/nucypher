@@ -105,7 +105,7 @@ def test_invalid_contract_condition():
             contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
             method="getPolicy",
             chain=TESTERCHAIN_CHAIN_ID,
-            standard_contract_type="ERC20",  # Beverly Hills contract type :)
+            standard_contract_type="ERC20",
             return_value_test=ReturnValueTest("!=", 0),
             parameters=[
                 ":hrac",

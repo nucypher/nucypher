@@ -25,11 +25,7 @@ from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
 
-from nucypher.policy.conditions import (
-    STANDARD_ABI_CONTRACT_METHODS,
-    STANDARD_ABI_CONTRACT_TYPES,
-    STANDARD_ABIS,
-)
+from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
@@ -64,11 +60,17 @@ def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -
             raise InvalidCondition(
                 f"Invalid standard contract type {standard_contract_type}; Must be one of {STANDARD_ABI_CONTRACT_TYPES}"
             )
-        if method not in STANDARD_ABI_CONTRACT_METHODS[standard_contract_type]:
+        functions = Web3().eth.contract(abi=contract_abi).find_functions_by_name(method)
+        if not functions:
             raise ReencryptionCondition.InvalidCondition(
-                f"Invalid method {method} for standard contract type {standard_contract_type}; Must be one of {STANDARD_ABI_CONTRACT_METHODS[standard_contract_type]}"
+                f"Invalid method {method} for standard contract type {standard_contract_type}"
             )
-        function_abi = [x for x in contract_abi if x.get("name") == method][0]
+        if len(functions) > 1:
+            raise ReencryptionCondition.InvalidCondition(
+                f"Multiple functions with name {method} for standard contract type {standard_contract_type}"
+            )
+        function_abi = [func.abi for func in functions][0]
+
 
     if not function_abi:
         raise InvalidCondition(f"No function ABI supplied for '{method}'")

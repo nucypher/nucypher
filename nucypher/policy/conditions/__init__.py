@@ -23,7 +23,3 @@ with open(STANDARD_ABIS_FILEPATH, 'r') as file:
     STANDARD_ABIS = json.loads(file.read())
 
 STANDARD_ABI_CONTRACT_TYPES = set(STANDARD_ABIS)
-STANDARD_ABI_CONTRACT_METHODS = {
-    contract_type: set(x.get("name") for x in abi)
-    for contract_type, abi in STANDARD_ABIS.items()
-}
