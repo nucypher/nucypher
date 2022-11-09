@@ -50,7 +50,7 @@ with open(VECTORS_FILE, 'r') as file:
 def mock_condition_blockchains(mocker):
     """adds testerchain to permitted conditional chains"""
     mocker.patch.object(
-        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([80001])
+        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([131277322940537])
     )
 
 
@@ -108,7 +108,9 @@ def erc20_evm_condition(test_registry, agency):
 
 
 @pytest.fixture
-def custom_context_variable_erc20_condition(test_registry, agency, testerchain):
+def custom_context_variable_erc20_condition(
+    test_registry, agency, testerchain, mock_condition_blockchains
+):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,

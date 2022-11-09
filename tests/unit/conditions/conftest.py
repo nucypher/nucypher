@@ -39,7 +39,7 @@ with open(VECTORS_FILE, 'r') as file:
 def mock_condition_blockchains(mocker):
     """adds testerchain to permitted conditional chains"""
     mocker.patch.object(
-        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([80001])
+        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([131277322940537])
     )
 
 

@@ -91,7 +91,7 @@ def _dont_validate_user_address(context_variable: str, **context):
 
 
 def test_required_context_variable(
-    testerchain, custom_context_variable_erc20_condition, condition_providers
+    custom_context_variable_erc20_condition, condition_providers
 ):
     with pytest.raises(RequiredContextVariable):
         custom_context_variable_erc20_condition.verify(
