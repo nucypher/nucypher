@@ -113,6 +113,22 @@ class ReturnValueTest:
         except Exception:
             raise self.InvalidExpression(f'"{value}" is not a permitted value.')
 
+    def _process_data(self, data: Any) -> Any:
+        if self.key and isinstance(data, dict):
+            try:
+                processed_data = data[self.key]
+            except KeyError:
+                raise KeyError(f"Key '{self.key}' not found in return data.")
+        elif isinstance(self.key, int) and isinstance(data, (list, tuple)):
+            try:
+                processed_data = data[self.key]
+            except IndexError:
+                raise IndexError(f"Index '{self.key}' not found in return data.")
+        else:
+            processed_data = data
+
+        return processed_data
+
     def eval(self, data) -> bool:
         if is_context_variable(self.value):
             # programming error if we get here
@@ -126,19 +142,9 @@ class ReturnValueTest:
                 f"'{self.key}' is an unprocessed context variable and is not valid "
                 f"for condition evaluation."
             )
-        if self.key and isinstance(data, dict):
-            try:
-                data = data[self.key]
-            except KeyError:
-                raise KeyError(f"Key '{self.key}' not found in return data.")
 
-        if isinstance(self.key, int) and isinstance(data, (list, tuple)):
-            try:
-                data = data[self.key]
-            except IndexError:
-                raise IndexError(f"Index '{self.key}' not found in return data.")
-
-        left_operand = self._sanitize_value(data)
+        processed_data = self._process_data(data)
+        left_operand = self._sanitize_value(processed_data)
         right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
