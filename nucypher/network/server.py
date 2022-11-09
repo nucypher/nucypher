@@ -167,10 +167,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # zip capsules with their respective conditions
         packets = zip(reenc_request.capsules, lingo)
 
-        # Populate default request context for decentralized nodes
-        if not this_node.federated_only:
-            context.update({'providers': this_node.condition_providers})
-
         # TODO: Detect if we are dealing with PRE or tDec here
         # TODO: This is for PRE only, relocate HRAC to RE.context
         hrac = reenc_request.hrac
@@ -217,15 +213,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Enforce Reencryption Conditions
+        providers = this_node.condition_providers if not this_node.federated_only else dict()
         capsules_to_process = list()
         for capsule, lingo in packets:
             # raises an exception or continues
-            evaluate_conditions_for_ursula(
-                lingo=lingo,
-                context=context,
-                log=log,
-                ursula=this_node
-            )
+            evaluate_conditions_for_ursula(lingo=lingo, providers=providers, context=context)
             capsules_to_process.append((lingo, capsule))
 
         # Strip away conditions that have already been evaluated

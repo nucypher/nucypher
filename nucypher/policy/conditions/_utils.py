@@ -1,9 +1,10 @@
 import json
 from http import HTTPStatus
-from typing import Union, Type, Dict
+from typing import Union, Type, Dict, Optional
 
 from flask import Response
 from marshmallow import Schema, post_dump
+from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import (
@@ -11,8 +12,10 @@ from nucypher.policy.conditions.context import (
     InvalidContextVariableData,
     RequiredContextVariable,
 )
+from nucypher.utilities.logging import Logger
 
 _ETH = 'eth_'
+__LOGGER = Logger('condition-eval')
 
 
 def to_camelcase(s):
@@ -78,13 +81,21 @@ def _deserialize_condition_lingo(data: Union[str, Dict[str, str]]) -> Union['Ope
     return instance
 
 
-def evaluate_conditions_for_ursula(lingo, context, log, ursula):
+def evaluate_conditions_for_ursula(lingo: 'ConditionLingo',
+                                   providers: Optional[Dict[str, BaseProvider]] = None,
+                                   context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
+                                   log: Logger = __LOGGER,
+                                   ) -> Response:
+
+    # avoid using a mutable defaults and support federated mode
+    context = context or dict()
+    providers = providers or dict()
+
     if lingo is not None:
-        # TODO: Enforce policy expiration as a condition
         # TODO: Evaluate all conditions even if one fails and report the result
         try:
             log.info(f'Evaluating access conditions {lingo.id}')
-            _results = lingo.eval(**context)
+            _results = lingo.eval(providers=providers, **context)
         except ReencryptionCondition.InvalidCondition as e:
             message = f"Incorrect value provided for condition: {e}"
             error = (message, HTTPStatus.BAD_REQUEST)

@@ -93,9 +93,11 @@ def _resolve_any_context_variables(
 
 def _validate_chain(chain: int):
     if not isinstance(chain, int):
-        raise ValueError(f'"chain" must be a the integer of a chain ID (got "{chain}").')
+        raise ValueError(f'"The chain" field of c a condition must be the '
+                         f'integer of a chain ID (got "{chain}").')
     if chain not in _CONDITION_CHAINS:
-        raise RPCCondition.InvalidCondition(f'chain ID {chain} is not a permitted blockchain for condition evaluation.')
+        raise RPCCondition.InvalidCondition(f'chain ID {chain} is not a permitted '
+                                            f'blockchain for condition evaluation.')
 
 
 class RPCCondition(ReencryptionCondition):

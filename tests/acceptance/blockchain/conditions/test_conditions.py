@@ -412,7 +412,6 @@ def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, bloc
              "value": "10000000000000"
          }
         }
-
     ]
     messages, message_kits = _make_message_kits(enacted_blockchain_policy.public_key, conditions)
     policy_info_kwargs = dict(
