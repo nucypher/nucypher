@@ -16,7 +16,7 @@
 """
 
 import re
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Dict
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -25,31 +25,20 @@ from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
 
-from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
-# TODO: Move this method to a util function
-__CHAINS = {
-    60: 'ethereum',  # TODO: make a few edits for now
-    131277322940537: 'testerchain',  # TODO: this one can be moved to a pytest fixture / setup logic
-    **PUBLIC_CHAINS,
-}
 
-
-def _resolve_chain(chain: Union[str, int]) -> Tuple[str, int]:
-    """Returns the name *and* chain ID given only a name *or* chain ID"""
-    for pair in __CHAINS.items():
-        if chain in pair:
-            chain_id, chain_name = pair
-            return chain_name, chain_id
-    else:
-        raise ReencryptionCondition.InvalidCondition(
-            f"{chain} is not a known blockchain."
-        )
+# Permitted blockchains for condition evaluation
+_CONDITION_CHAINS = (
+    1,     # ethereum/mainnet
+    5,     # ethereum/goerli
+    137,   # polygon/mainnet
+    80001  # polygon/mumbai
+)
 
 
 def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -> List:
@@ -84,7 +73,7 @@ def camel_case_to_snake(data: str) -> str:
 
 
 def _resolve_any_context_variables(
-    parameters: List[Any], return_value_test: ReturnValueTest, **context
+        parameters: List[Any], return_value_test: ReturnValueTest, **context
 ):
     processed_parameters = []
     for p in parameters:
@@ -102,6 +91,15 @@ def _resolve_any_context_variables(
     return processed_parameters, processed_return_value_test
 
 
+def _validate_chain(chain: int):
+    if not isinstance(chain, int):
+        raise ValueError(f'"The chain" field of c a condition must be the '
+                         f'integer of a chain ID (got "{chain}").')
+    if chain not in _CONDITION_CHAINS:
+        raise RPCCondition.InvalidCondition(f'chain ID {chain} is not a permitted '
+                                            f'blockchain for condition evaluation.')
+
+
 class RPCCondition(ReencryptionCondition):
     ALLOWED_METHODS = (
 
@@ -116,42 +114,38 @@ class RPCCondition(ReencryptionCondition):
         """Raised when an exception is raised from an RPC call."""
 
     class Schema(CamelCaseSchema):
-        name = fields.Str()
-        chain = fields.Str()
-        method = fields.Str()
+        name = fields.Str(required=False)
+        chain = fields.Int(required=True)
+        method = fields.Str(required=True)
         parameters = fields.List(fields.Field, attribute='parameters', required=False)
-        return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema())
+        return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema(), required=True)
 
         @post_load
         def make(self, data, **kwargs):
             return RPCCondition(**data)
 
     def __repr__(self) -> str:
-        r = f'{self.__class__.__name__}(function={self.method}, chain={self.chain_name})'
+        r = f'{self.__class__.__name__}(function={self.method}, chain={self.chain})'
         return r
 
     def __init__(self,
-                 chain: str,
+                 chain: int,
                  method: str,
                  return_value_test: ReturnValueTest,
                  parameters: Optional[List[Any]] = None
                  ):
 
         # Validate input
-        # _validate_parameters(parameters=parameters)
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
+        _validate_chain(chain=chain)
 
         # internal
-        self.chain_name, self.chain_id = _resolve_chain(chain=chain)
+        self.chain = chain
         self.method = self.validate_method(method=method)
 
         # test
         self.parameters = parameters  # input
         self.return_value_test = return_value_test  # output
-
-    @property
-    def chain(self) -> str:
-        return self.chain_name
 
     def validate_method(self, method):
         if method not in self.ALLOWED_METHODS:
@@ -160,18 +154,29 @@ class RPCCondition(ReencryptionCondition):
             )
         if not method.startswith('eth_'):
             raise ReencryptionCondition.InvalidCondition(
-                f"Only eth RPC methods are accepted for condition evaluation; '{method}' is not permitted"
+                f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."
             )
         return method
 
-    def _configure_provider(self, provider: BaseProvider):
+    def _configure_provider(self, providers: Dict[int, BaseProvider]):
         """Binds the condition's contract function to a blockchian provider for evaluation"""
+        try:
+            provider = providers[self.chain]
+        except KeyError:
+            # TODO Use a custom exception class, and catch bubble it up to include info about the node
+            # QUESTION Are nodes required to provide connections to all providers?
+            raise Exception(f'This node does not have a connection to chain {self.chain}')
+
+        # Instantiate a local web3 instance
         self.w3 = Web3(provider)
+
+        # This next block validates that the actual web3 provider is *actually*
+        # connected to the condition's chain ID by reading its RPC endpoint.
         provider_chain = self.w3.eth.chain_id
-        if provider_chain != self.chain_id:
+        if provider_chain != self.chain:
             raise ReencryptionCondition.InvalidCondition(
-                f"This condition can only be evaluated on {self.chain_id} but the provider's "
-                f"connection is to chain {provider_chain}"
+                f"This condition can only be evaluated on chain ID {self.chain} but the provider's "
+                f"connection is to chain ID {provider_chain}"
             )
         return provider
 
@@ -189,9 +194,12 @@ class RPCCondition(ReencryptionCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
-    def verify(self, provider: BaseProvider, **context) -> Tuple[bool, Any]:
-        """Performs onchain read and return value test"""
-        self._configure_provider(provider=provider)
+    def verify(self, providers: Dict[int, BaseProvider], **context) -> Tuple[bool, Any]:
+        """
+        Verifies the onchain condition is met by performing a
+        read operation and evaluating the return value test.
+        """
+        self._configure_provider(providers=providers)
         parameters, return_value_test = _resolve_any_context_variables(
             self.parameters, self.return_value_test, **context
         )
@@ -241,7 +249,7 @@ class ContractCondition(RPCCondition):
     def __repr__(self) -> str:
         r = f'{self.__class__.__name__}(function={self.method}, ' \
             f'contract={self.contract_address[:6]}..., ' \
-            f'chain={self.chain_name})'
+            f'chain={self.chain})'
         return r
 
     def validate_method(self, method):

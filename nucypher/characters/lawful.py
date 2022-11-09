@@ -669,7 +669,8 @@ class Ursula(Teacher, Character, Operator):
                                       domain=self.domain,
                                       transacting_power=self.transacting_power,
                                       registry=self.registry,
-                                      operator_address=operator_address)
+                                      operator_address=operator_address,
+                                      payment_method=payment_method)
                 except (Exception, self.OperatorError):
                     # TODO: Do not announce self to "other nodes" until this init is finished.
                     # It's not possible to finish constructing this node.
@@ -677,7 +678,7 @@ class Ursula(Teacher, Character, Operator):
                     raise
 
             # Payment Method
-            # TODO: What value can be here for a remote node...
+            # TODO: What value is acceptable here for a remote node?
             # TODO: Include accepted payment method announcements in metadata?
             self.payment_method = payment_method
 

@@ -20,6 +20,7 @@ from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
 def test_invalid_time_condition():
@@ -35,7 +36,7 @@ def test_invalid_rpc_condition():
     with pytest.raises(ReencryptionCondition.InvalidCondition):
         _ = RPCCondition(
             method="no_eth_prefix_eth_getBalance",
-            chain="testerchain",
+            chain=TESTERCHAIN_CHAIN_ID,
             return_value_test=ReturnValueTest("==", 0),
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
@@ -44,16 +45,16 @@ def test_invalid_rpc_condition():
     with pytest.raises(RPCCondition.InvalidCondition):
         _ = RPCCondition(
             method="eth_randoMethod",
-            chain="testerchain",
+            chain=TESTERCHAIN_CHAIN_ID,
             return_value_test=ReturnValueTest("==", 0),
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
 
-    # invalid chain id
+    # unsupported chain id
     with pytest.raises(RPCCondition.InvalidCondition):
         _ = RPCCondition(
             method="eth_getBalance",
-            chain="90210",  # Beverly Hills Chain :)
+            chain=90210,  # Beverly Hills Chain :)
             return_value_test=ReturnValueTest("==", 0),
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
@@ -65,7 +66,7 @@ def test_invalid_contract_condition():
         _ = ContractCondition(
                 contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
                 method="getPolicy",
-                chain="testerchain",
+                chain=TESTERCHAIN_CHAIN_ID,
                 return_value_test=ReturnValueTest('!=', 0),
                 parameters=[
                     ':hrac',
@@ -77,7 +78,7 @@ def test_invalid_contract_condition():
         _ = ContractCondition(
                 contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
                 method="getPolicy",
-                chain="testerchain",
+                chain=TESTERCHAIN_CHAIN_ID,
                 standard_contract_type="ERC90210",  # Beverly Hills contract type :)
                 return_value_test=ReturnValueTest('!=', 0),
                 parameters=[
@@ -90,7 +91,7 @@ def test_invalid_contract_condition():
         _ = ContractCondition(
                 contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
                 method="getPolicy",
-                chain="testerchain",
+                chain=TESTERCHAIN_CHAIN_ID,
                 function_abi=["rando ABI"],
                 return_value_test=ReturnValueTest('!=', 0),
                 parameters=[

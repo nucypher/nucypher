@@ -18,7 +18,7 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 import tempfile
 from copy import copy
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from eth_tester.exceptions import ValidationError
 from nucypher_core import NodeMetadata
@@ -66,6 +66,10 @@ class Vladimir(Ursula):
         blockchain = target_ursula.application_agent.blockchain
         cls.attach_transacting_key(blockchain=blockchain)
 
+        # Vladimir does not care about payment.
+        bogus_payment_method = FreeReencryptions()
+        bogus_payment_method.agent = Mock()
+
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
                        domain=TEMPORARY_DOMAIN,
@@ -77,7 +81,7 @@ class Vladimir(Ursula):
                        operator_address=cls.fraud_address,
                        signer=Web3Signer(blockchain.client),
                        eth_provider_uri=blockchain.eth_provider_uri,
-                       payment_method=FreeReencryptions(),  # Vladimir does not care about money.
+                       payment_method=bogus_payment_method,
                        )
 
         # Let's use the target's public info, and try to make some changes.

@@ -15,11 +15,13 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import ast
 import base64
 import json
-import operator
-from typing import Any, Dict, List, Union
+import operator as pyoperator
+from hashlib import md5
+from typing import Any, Dict, List, Union, Iterator
 
 from marshmallow import fields, post_load
 
@@ -34,10 +36,10 @@ from nucypher.policy.conditions.context import is_context_variable
 class Operator:
     OPERATORS = ('and', 'or')
 
-    def __init__(self, operator: str):
-        if operator not in self.OPERATORS:
-            raise Exception(f'{operator} is not a valid operator')
-        self.operator = operator
+    def __init__(self, _operator: str):
+        if _operator not in self.OPERATORS:
+            raise Exception(f'{_operator} is not a valid operator')
+        self.operator = _operator
 
     def __str__(self) -> str:
         return self.operator
@@ -48,10 +50,10 @@ class Operator:
     @classmethod
     def from_dict(cls, data: Dict[str, str]) -> 'Operator':
         try:
-            operator = data['operator']
+            _operator = data['operator']  # underscore prefix to avoid name shadowing
         except KeyError:
             raise Exception(f'Invalid operator JSON')
-        instance = cls(operator=operator)
+        instance = cls(_operator=_operator)
         return instance
 
     @classmethod
@@ -71,12 +73,12 @@ class ReturnValueTest:
         pass
 
     _COMPARATOR_FUNCTIONS = {
-        "==": operator.eq,
-        "!=": operator.ne,
-        ">": operator.gt,
-        "<": operator.lt,
-        "<=": operator.le,
-        ">=": operator.ge,
+        "==": pyoperator.eq,
+        "!=": pyoperator.ne,
+        ">": pyoperator.gt,
+        "<": pyoperator.lt,
+        "<=": pyoperator.le,
+        ">=": pyoperator.ge,
     }
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
@@ -88,7 +90,7 @@ class ReturnValueTest:
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value):
+    def __init__(self, comparator: str, value: Any):
         if comparator not in self.COMPARATORS:
             raise self.InvalidExpression(
                 f'"{comparator}" is not a permitted comparator.'
@@ -126,8 +128,8 @@ class ConditionLingo:
     """
     A Collection of re-encryption conditions evaluated as a compound boolean expression.
 
-    This is an alternate implementation of the condition expression format used in the Lit Protocol (https://github.com/LIT-Protocol);
-    credit to the authors for inspiring this work. 
+    This is an alternate implementation of the condition expression format used in
+    the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
     class Failed(Exception):
@@ -135,7 +137,7 @@ class ConditionLingo:
 
     def __init__(self, conditions: List[Union[ReencryptionCondition, Operator, Any]]):
         """
-        The input list must be structured:
+        The input list *must* be structured as follows:
         condition
         operator
         condition
@@ -143,6 +145,7 @@ class ConditionLingo:
         """
         self._validate(lingo=conditions)
         self.conditions = conditions
+        self.id = md5(bytes(self)).hexdigest()[:6]
 
     @staticmethod
     def _validate(lingo) -> None:
@@ -193,15 +196,16 @@ class ConditionLingo:
         result = eval(eval_string)
         return result
 
-    def __process(self, *args, **kwargs):
+    def __process(self, *args, **kwargs) -> Iterator:
+        # TODO: Prevent this lino from bein evaluated if this node does not have
+        #       a connection to all the required blockchains (optimization)
         for task in self.conditions:
             if isinstance(task, ReencryptionCondition):
                 condition = task
                 result, value = condition.verify(*args, **kwargs)
                 yield result
             elif isinstance(task, Operator):
-                operator = task
-                yield operator
+                yield task
             else:
                 raise TypeError(f"Unrecognized type {type(task)} for ConditionLingo")
 

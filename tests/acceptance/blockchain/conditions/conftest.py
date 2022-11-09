@@ -15,12 +15,14 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 import json
 from pathlib import Path
 
 import pytest
 from web3 import Web3
 
+import nucypher
 import tests.data
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -35,15 +37,24 @@ from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 VECTORS_FILE = Path(tests.__file__).parent / "data" / "test_conditions.json"
+
 
 with open(VECTORS_FILE, 'r') as file:
     VECTORS = json.loads(file.read())
 
 
+@pytest.fixture(autouse=True)
+def mock_condition_blockchains(mocker):
+    """adds testerchain to permitted conditional chains"""
+    mocker.patch.object(nucypher.policy.conditions.evm, '_CONDITION_CHAINS', tuple([131277322940537]))
+
+
 @pytest.fixture()
 def ERC1155_balance_condition_data():
+    VECTORS['ERC1155_balance']['chain'] = TESTERCHAIN_CHAIN_ID
     data = json.dumps(VECTORS['ERC1155_balance'])
     return data
 
@@ -57,6 +68,7 @@ def ERC1155_balance_condition(ERC1155_balance_condition_data):
 
 @pytest.fixture()
 def ERC20_balance_condition_data():
+    VECTORS['ERC20_balance']['chain'] = TESTERCHAIN_CHAIN_ID
     data = json.dumps(VECTORS['ERC20_balance'])
     return data
 
@@ -72,7 +84,7 @@ def ERC20_balance_condition(ERC20_balance_condition_data):
 def rpc_condition():
     condition = RPCCondition(
         method="eth_getBalance",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", Web3.to_wei(1_000_000, "ether")),
         parameters=[USER_ADDRESS_CONTEXT],
     )
@@ -86,7 +98,7 @@ def erc20_evm_condition(test_registry, agency):
         contract_address=token.contract.address,
         method="balanceOf",
         standard_contract_type="ERC20",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", 0),
         parameters=[USER_ADDRESS_CONTEXT],
     )
@@ -94,13 +106,13 @@ def erc20_evm_condition(test_registry, agency):
 
 
 @pytest.fixture
-def custom_context_variable_erc20_condition(test_registry, agency):
+def custom_context_variable_erc20_condition(test_registry, agency, testerchain):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
         method="balanceOf",
         standard_contract_type="ERC20",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", 0),
         parameters=[":addressToUse"],
     )
@@ -136,7 +148,7 @@ def erc721_evm_condition_owner(erc721_contract):
         contract_address=erc721_contract.address,
         method="ownerOf",
         standard_contract_type="ERC721",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":userAddress"),
         parameters=[
             ":tokenId",
@@ -151,7 +163,7 @@ def erc721_evm_condition_balanceof(erc721_contract):
         contract_address=erc721_contract.address,
         method="balanceOf",
         standard_contract_type="ERC721",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(">", 0),
         parameters=[
             ":userAddress",
@@ -163,12 +175,15 @@ def erc721_evm_condition_balanceof(erc721_contract):
 
 @pytest.fixture
 def subscription_manager_is_active_policy_condition(test_registry, agency):
-    subscription_manager = ContractAgency.get_agent(SubscriptionManagerAgent, registry=test_registry)
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent,
+        registry=test_registry
+    )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.abi,
+        function_abi=[subscription_manager.contract.find_functions_by_name('isPolicyActive')[0].abi],
         method="isPolicyActive",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", True),
         parameters=[":hrac"],
     )
@@ -184,9 +199,9 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.abi,
+        function_abi=[subscription_manager.contract.find_functions_by_name('getPolicy')[0].abi],
         method="getPolicy",
-        chain="testerchain",
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
         parameters=[":hrac"],
     )

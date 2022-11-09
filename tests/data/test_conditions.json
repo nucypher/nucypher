@@ -1,7 +1,7 @@
 {
   "SubscriptionManagerPayment": {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
-    "chain": "polygon",
+    "chain": 137,
     "method": "isValidPolicy",
     "parameters": [
       ":hrac"
@@ -14,7 +14,7 @@
   "ERC1155_balance": {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC1155",
-    "chain": "ethereum",
+    "chain": 1,
     "method": "balanceOf",
     "parameters": [
       ":userAddress",
@@ -28,7 +28,7 @@
   "ERC1155_balance_batch": {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC1155",
-    "chain": "ethereum",
+    "chain": 1,
     "method": "balanceOfBatch",
     "parameters": [
       [":userAddress",":userAddress",":userAddress",":userAddress"],
@@ -42,7 +42,7 @@
   "ERC721_ownership":   {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC721",
-    "chain":  "ethereum",
+    "chain": 1,
     "method": "ownerOf",
     "parameters": [
       5954
@@ -55,7 +55,7 @@
   "ERC721_balance":   {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC721",
-    "chain":  "ethereum",
+    "chain": 1,
     "method": "balanceOf",
     "parameters": [
       ":userAddress"
@@ -68,7 +68,7 @@
   "ERC20_balance":   {
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC20",
-    "chain":  "ethereum",
+    "chain": 1,
     "method": "balanceOf",
     "parameters": [
       ":userAddress"
@@ -81,7 +81,7 @@
   "ETH_balance":   {
     "contractAddress": "",
     "standardContractType": "",
-    "chain":  "ethereum",
+    "chain": 1,
     "method": "eth_getBalance",
     "parameters": [
       ":userAddress",
@@ -95,7 +95,7 @@
   "specific_wallet_address":   {
     "contractAddress": "",
     "standardContractType": "",
-    "chain":  "ethereum",
+    "chain": 1,
     "method": "",
     "parameters": [
       ":userAddress"
@@ -108,7 +108,7 @@
   "timestamp":   {
     "contractAddress": "",
     "standardContractType": "timestamp",
-    "chain": "ethereum",
+    "chain": 1,
     "method": "eth_getBlockByNumber",
     "parameters": ["latest"],
     "returnValueTest": {
