@@ -51,6 +51,12 @@ def test_return_value_index():
         test.eval([0, 1, 2])
 
 
+def test_return_value_index_tuple():
+    test = ReturnValueTest(comparator=">", value="0", key=0)
+    assert test.eval((1,))
+    assert not test.eval((-1,))
+
+
 def test_return_value_test_invalid_comparators():
     with pytest.raises(ReturnValueTest.InvalidExpression):
         _ = ReturnValueTest(comparator="eq", value=1)

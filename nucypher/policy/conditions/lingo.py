@@ -126,13 +126,13 @@ class ReturnValueTest:
                 f"'{self.key}' is an unprocessed context variable and is not valid "
                 f"for condition evaluation."
             )
-        if self.key and type(data) is dict:
+        if self.key and isinstance(data, dict):
             try:
                 data = data[self.key]
             except KeyError:
                 raise KeyError(f"Key '{self.key}' not found in return data.")
 
-        if type(self.key) is int and type(data) is list:
+        if isinstance(self.key, int) and isinstance(data, (list, tuple)):
             try:
                 data = data[self.key]
             except IndexError:
