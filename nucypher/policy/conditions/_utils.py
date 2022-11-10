@@ -99,22 +99,28 @@ def _deserialize_condition_lingo(data: Union[str, Dict[str, str]]) -> Union['Ope
     return instance
 
 
-def evaluate_conditions_for_ursula(
+def evaluate_conditions(
     lingo: "ConditionLingo",
     providers: Optional[Dict[str, BaseProvider]] = None,
     context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
     log: Logger = __LOGGER,
-) -> Tuple[bool, Optional[Tuple[str, HTTPStatus]]]:
+) -> Optional[Tuple[str, HTTPStatus]]:
 
     # avoid using a mutable defaults and support federated mode
     context = context or dict()
     providers = providers or dict()
-    result, error = False, None
+    error = None
     if lingo is not None:
         # TODO: Evaluate all conditions even if one fails and report the result
         try:
             log.info(f'Evaluating access conditions {lingo.id}')
             result = lingo.eval(providers=providers, **context)
+            if not result:
+                # explicit condition failure
+                error = (
+                    "Decryption conditions not satisfied",
+                    HTTPStatus.FORBIDDEN
+                )
         except InvalidCondition as e:
             error = (
                 f"Incorrect value provided for condition: {e}",
@@ -151,6 +157,6 @@ def evaluate_conditions_for_ursula(
             log.warn(message)
 
     if error:
-        log.info(error[0])  # log message info
+        log.info(error[0])  # log error message
 
-    return result, error
+    return error

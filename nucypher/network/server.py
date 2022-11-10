@@ -40,7 +40,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions._utils import evaluate_conditions_for_ursula
+from nucypher.policy.conditions._utils import evaluate_conditions
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
@@ -217,17 +217,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         capsules_to_process = list()
         for capsule, lingo in packets:
             # raises an exception or continues
-            result, error = evaluate_conditions_for_ursula(
+            error = evaluate_conditions(
                 lingo=lingo, providers=providers, context=context
             )
             if error:
                 # error cases
                 return Response(*error)
-            elif not result:
-                # explicit condition failure
-                return Response(
-                    "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
-                )
+
             capsules_to_process.append((lingo, capsule))
 
         # Strip away conditions that have already been evaluated
