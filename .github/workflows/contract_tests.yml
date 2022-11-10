@@ -5,7 +5,7 @@ on:
     types: [opened, reopened, edited, ready_for_review, synchronize]
 
 concurrency:
-  group: ci-tests-${{ github.ref }}-1
+  group: ci-tests-${{ github.ref }}-contracts
   cancel-in-progress: true
 
 jobs:
