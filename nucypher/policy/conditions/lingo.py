@@ -138,7 +138,7 @@ class ReturnValueTest:
         if is_context_variable(self.value) or is_context_variable(self.key):
             # programming error if we get here
             raise RuntimeError(
-                f"Either '{self.value}' or '{self.key}' is an unprocessed context variable and is not valid "
+                f"Return value comparator contains an unprocessed context variable (key={self.key}, value={self.value}) and is not valid "
                 f"for condition evaluation."
             )
 
