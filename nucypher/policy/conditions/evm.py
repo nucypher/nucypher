@@ -29,7 +29,11 @@ from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABI
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
-from nucypher.policy.conditions.exceptions import InvalidCondition, RPCExecutionFailed
+from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
+    NoConnectionToChain,
+    RPCExecutionFailed,
+)
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 # Permitted blockchains for condition evaluation
@@ -160,7 +164,7 @@ class RPCCondition(ReencryptionCondition):
         try:
             provider = providers[self.chain]
         except KeyError:
-            raise self.NoConnectionToChain(
+            raise NoConnectionToChain(
                 chain=self.chain,
                 message=f"This node does not have a connection to chain ID {self.chain}",
             )

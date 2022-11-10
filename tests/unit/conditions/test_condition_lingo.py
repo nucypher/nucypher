@@ -17,9 +17,7 @@
 
 from nucypher.policy.conditions.lingo import ConditionLingo
 
-
-def test_compound_condition_timelock():
-    conditions = [
+CONDITIONS = [
         {
             "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "timelock"
@@ -31,5 +29,15 @@ def test_compound_condition_timelock():
         },
     ]
 
-    clingo = ConditionLingo.from_list(conditions)
+
+def test_compound_condition_timelock():
+    clingo = ConditionLingo.from_list(CONDITIONS)
     assert clingo.eval()
+
+
+def test_condition_lingo_repr():
+    clingo = ConditionLingo.from_list(CONDITIONS)
+    clingo_string = f"{clingo}"
+    assert f"{clingo.__class__.__name__}" in clingo_string
+    assert f"id={clingo.id}" in clingo_string
+    assert f"size={len(bytes(clingo))}" in clingo_string

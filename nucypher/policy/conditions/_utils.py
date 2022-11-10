@@ -113,14 +113,11 @@ def evaluate_conditions(
     if lingo is not None:
         # TODO: Evaluate all conditions even if one fails and report the result
         try:
-            log.info(f'Evaluating access conditions {lingo.id}')
+            log.info(f"Evaluating access conditions {lingo}")
             result = lingo.eval(providers=providers, **context)
             if not result:
                 # explicit condition failure
-                error = (
-                    "Decryption conditions not satisfied",
-                    HTTPStatus.FORBIDDEN
-                )
+                error = ("Decryption conditions not satisfied", HTTPStatus.FORBIDDEN)
         except InvalidCondition as e:
             error = (
                 f"Incorrect value provided for condition: {e}",
