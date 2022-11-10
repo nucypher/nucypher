@@ -1,6 +1,8 @@
 name: '🔎 Python Tests'
 
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [opened, reopened, edited, ready_for_review, synchronize]
 
 concurrency:
   group: ci-tests-${{ github.ref }}-1
