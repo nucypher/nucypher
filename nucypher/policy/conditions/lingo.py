@@ -83,6 +83,7 @@ class ReturnValueTest:
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
     class ReturnValueTestSchema(CamelCaseSchema):
+        SKIP_VALUES = (None,)
         comparator = fields.Str()
         value = fields.Raw(allow_none=False)  # any valid type (excludes None)
         key = fields.Raw(allow_none=True)

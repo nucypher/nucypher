@@ -38,8 +38,6 @@ def test_evm_condition_json_serializers(ERC1155_balance_condition_data):
 
     deserialized_data = json.loads(serialized_data)
     deserialized_data.pop("functionAbi")
-    deserialized_data["returnValueTest"].pop("key")
-
 
     assert json.loads(original_data) == deserialized_data
 
