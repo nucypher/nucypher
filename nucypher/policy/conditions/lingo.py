@@ -115,6 +115,10 @@ class ReturnValueTest:
             raise self.InvalidExpression(f'"{value}" is not a permitted value.')
 
     def _process_data(self, data: Any) -> Any:
+        """
+        If a key is specified, return the value at that key in the data if data is a dict or list-like.
+        Otherwise, return the data.
+        """
         if self.key and isinstance(data, dict):
             try:
                 processed_data = data[self.key]
