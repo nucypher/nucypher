@@ -92,7 +92,7 @@ def test_invalid_contract_condition():
             contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
             method="getPolicy",
             chain=TESTERCHAIN_CHAIN_ID,
-            function_abi=["rando ABI"],
+            function_abi={"rando": "ABI"},
             return_value_test=ReturnValueTest("!=", 0),
             parameters=[
                 ":hrac",

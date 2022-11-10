@@ -24,6 +24,7 @@ from unittest import mock
 import pytest
 from web3 import Web3
 
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     _recover_user_address,
@@ -356,11 +357,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
 
     # zeroized policy struct
     zeroized_policy_struct = (
-        "0x0000000000000000000000000000000000000000",
-        0,
-        0,
-        0,
-        "0x0000000000000000000000000000000000000000",
+        NULL_ADDRESS, 0, 0, 0, NULL_ADDRESS,
     )
     context = {
         ":hrac": bytes(enacted_blockchain_policy.hrac),
