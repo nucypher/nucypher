@@ -132,9 +132,6 @@ class ConditionLingo:
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    class Failed(Exception):
-        pass
-
     def __init__(self, conditions: List[Union[ReencryptionCondition, Operator, Any]]):
         """
         The input list *must* be structured as follows:

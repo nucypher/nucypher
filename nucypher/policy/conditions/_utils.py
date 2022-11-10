@@ -23,12 +23,14 @@ from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.base import ReencryptionCondition
-from nucypher.policy.conditions.context import (
+from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
     ContextVariableVerificationFailed,
+    InvalidCondition,
     InvalidContextVariableData,
+    NoConnectionToChain,
     RequiredContextVariable,
 )
-from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
 
 _ETH = 'eth_'
@@ -113,25 +115,34 @@ def evaluate_conditions_for_ursula(
         try:
             log.info(f'Evaluating access conditions {lingo.id}')
             result = lingo.eval(providers=providers, **context)
-        except ReencryptionCondition.InvalidCondition as e:
-            message = f"Incorrect value provided for condition: {e}"
-            error = (message, HTTPStatus.BAD_REQUEST)
+        except InvalidCondition as e:
+            error = (
+                f"Incorrect value provided for condition: {e}",
+                HTTPStatus.BAD_REQUEST,
+            )
         except RequiredContextVariable as e:
-            message = f"Missing required inputs: {e}"
             # TODO: be more specific and name the missing inputs, etc
-            error = (message, HTTPStatus.BAD_REQUEST)
+            error = (f"Missing required inputs: {e}", HTTPStatus.BAD_REQUEST)
         except InvalidContextVariableData as e:
-            message = f"Invalid data provided for context variable: {e}"
-            error = (message, HTTPStatus.BAD_REQUEST)
+            error = (
+                f"Invalid data provided for context variable: {e}",
+                HTTPStatus.BAD_REQUEST,
+            )
         except ContextVariableVerificationFailed as e:
-            message = f"Context variable data could not be verified: {e}"
-            error = (message, HTTPStatus.FORBIDDEN)
-        except RPCCondition.NoConnectionToChain as e:
-            message = f"Node does not have a connection to chain ID {e.chain}: {e}"
-            error = (message, HTTPStatus.NOT_IMPLEMENTED)
-        except ReencryptionCondition.ConditionEvaluationFailed as e:
-            message = f"Decryption condition not evaluated: {e}"
-            error = (message, HTTPStatus.BAD_REQUEST)
+            error = (
+                f"Context variable data could not be verified: {e}",
+                HTTPStatus.FORBIDDEN,
+            )
+        except NoConnectionToChain as e:
+            error = (
+                f"Node does not have a connection to chain ID {e.chain}: {e}",
+                HTTPStatus.NOT_IMPLEMENTED,
+            )
+        except ConditionEvaluationFailed as e:
+            error = (
+                f"Decryption condition not evaluated: {e}",
+                HTTPStatus.BAD_REQUEST
+            )
         except Exception as e:
             # TODO: Unsure why we ended up here
             message = f"Unexpected exception while evaluating " \
@@ -140,6 +151,6 @@ def evaluate_conditions_for_ursula(
             log.warn(message)
 
     if error:
-        log.info(error[0])
+        log.info(error[0])  # log message info
 
     return result, error

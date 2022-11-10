@@ -29,6 +29,7 @@ from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABI
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
+from nucypher.policy.conditions.exceptions import InvalidCondition, RPCExecutionFailed
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 # Permitted blockchains for condition evaluation
@@ -44,7 +45,7 @@ def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -
     """Resolves the contract an/or function ABI from a standard contract name"""
     if not (function_abi or standard_contract_type):
         # TODO: Is this protection needed?
-        raise ReencryptionCondition.InvalidCondition(
+        raise InvalidCondition(
             f"Ambiguous ABI - Supply either an ABI or a standard contract type ({STANDARD_ABI_CONTRACT_TYPES})."
         )
 
@@ -52,14 +53,12 @@ def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -
         try:
             function_abi = STANDARD_ABIS[standard_contract_type]
         except KeyError:
-            raise ReencryptionCondition.InvalidCondition(
+            raise InvalidCondition(
                 f"Invalid standard contract type {standard_contract_type}; Must be one of {STANDARD_ABI_CONTRACT_TYPES}"
             )
 
     if not function_abi:
-        raise ReencryptionCondition.InvalidCondition(
-            f"No function ABI supplied for '{method}'"
-        )
+        raise InvalidCondition(f"No function ABI supplied for '{method}'")
 
     # TODO: Verify that the function and ABI pair match?
     # ABI(function_abi)
@@ -95,8 +94,10 @@ def _validate_chain(chain: int):
         raise ValueError(f'"The chain" field of c a condition must be the '
                          f'integer of a chain ID (got "{chain}").')
     if chain not in _CONDITION_CHAINS:
-        raise RPCCondition.InvalidCondition(f'chain ID {chain} is not a permitted '
-                                            f'blockchain for condition evaluation.')
+        raise InvalidCondition(
+            f"chain ID {chain} is not a permitted "
+            f"blockchain for condition evaluation."
+        )
 
 
 class RPCCondition(ReencryptionCondition):
@@ -108,16 +109,6 @@ class RPCCondition(ReencryptionCondition):
         # RPC
         'eth_getBalance',
     )  # TODO other allowed methods (tDEC #64)
-
-    class RPCExecutionFailed(ReencryptionCondition.ConditionEvaluationFailed):
-        """Raised when an exception is raised from an RPC call."""
-
-    class NoConnectionToChain(RuntimeError):
-        """Raised when a node does not have an associated provider for a chain."""
-
-        def __init__(self, chain: int, *args, **kwargs):
-            self.chain = chain
-            super().__init__(*args, **kwargs)
 
     class Schema(CamelCaseSchema):
         name = fields.Str(required=False)
@@ -155,11 +146,11 @@ class RPCCondition(ReencryptionCondition):
 
     def validate_method(self, method):
         if method not in self.ALLOWED_METHODS:
-            raise ReencryptionCondition.InvalidCondition(
+            raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
         if not method.startswith('eth_'):
-            raise ReencryptionCondition.InvalidCondition(
+            raise InvalidCondition(
                 f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."
             )
         return method
@@ -181,7 +172,7 @@ class RPCCondition(ReencryptionCondition):
         # connected to the condition's chain ID by reading its RPC endpoint.
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain:
-            raise ReencryptionCondition.InvalidCondition(
+            raise InvalidCondition(
                 f"This condition can only be evaluated on chain ID {self.chain} but the provider's "
                 f"connection is to chain ID {provider_chain}"
             )
@@ -213,7 +204,7 @@ class RPCCondition(ReencryptionCondition):
         try:
             result = self._execute_call(parameters=parameters)
         except Exception as e:
-            raise self.RPCExecutionFailed(f"Contract call '{self.method}' failed: {e}")
+            raise RPCExecutionFailed(f"Contract call '{self.method}' failed: {e}")
 
         eval_result = return_value_test.eval(result)  # test
         return eval_result, result
@@ -275,7 +266,7 @@ class ContractCondition(RPCCondition):
             contract_function = getattr(contract.functions, self.method)
             return contract_function
         except Exception as e:
-            raise ReencryptionCondition.InvalidCondition(
+            raise InvalidCondition(
                 f"Unable to find contract function, '{self.method}', for condition: {e}"
             )
 
