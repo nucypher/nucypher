@@ -44,7 +44,7 @@ def mock_condition_blockchains(mocker):
 
 
 @pytest.fixture()
-def TStaking_data():
+def t_staking_data():
     return json.dumps(VECTORS["TStaking"])
 
 

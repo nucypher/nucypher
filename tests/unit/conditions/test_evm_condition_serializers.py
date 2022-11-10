@@ -22,8 +22,8 @@ from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 
-def test_evm_condition_function_abi(TStaking_data):
-    original_data = TStaking_data
+def test_evm_condition_function_abi(t_staking_data):
+    original_data = t_staking_data
     condition = ContractCondition.from_json(original_data)
     serialized_data = condition.to_json()
 
