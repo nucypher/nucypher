@@ -164,10 +164,7 @@ class RPCCondition(ReencryptionCondition):
         try:
             provider = providers[self.chain]
         except KeyError:
-            raise NoConnectionToChain(
-                chain=self.chain,
-                message=f"This node does not have a connection to chain ID {self.chain}",
-            )
+            raise NoConnectionToChain(chain=self.chain)
 
         # Instantiate a local web3 instance
         self.w3 = Web3(provider)

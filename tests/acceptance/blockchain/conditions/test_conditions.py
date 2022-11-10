@@ -32,6 +32,7 @@ from nucypher.policy.conditions.evm import RPCCondition, get_context_value
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
     InvalidContextVariableData,
+    NoConnectionToChain,
     RequiredContextVariable,
     RPCExecutionFailed,
 )
@@ -164,6 +165,25 @@ def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condi
     assert call_result == Web3.to_wei(
         1_000_000, "ether"
     )  # same value used in rpc_condition fixture
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_rpc_condition_evaluation_no_connection_to_chain(
+    get_context_value_mock, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+
+    # condition providers for other unrelated chains
+    providers = {
+        1: mock.Mock(),  # mainnet
+        5: mock.Mock(),  # Goerli
+    }
+
+    with pytest.raises(NoConnectionToChain):
+        rpc_condition.verify(providers=providers, **context)
 
 
 @mock.patch(

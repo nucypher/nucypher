@@ -15,13 +15,15 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
+
 # Connectivity
 class NoConnectionToChain(RuntimeError):
     """Raised when a node does not have an associated provider for a chain."""
 
-    def __init__(self, chain: int, *args, **kwargs):
+    def __init__(self, chain: int):
         self.chain = chain
-        super().__init__(*args, **kwargs)
+        message = f"No connection to chain ID {chain}"
+        super().__init__(message)
 
 
 # Context Variable
