@@ -135,16 +135,10 @@ class ReturnValueTest:
         return processed_data
 
     def eval(self, data) -> bool:
-        if is_context_variable(self.value):
+        if is_context_variable(self.value) or is_context_variable(self.key):
             # programming error if we get here
             raise RuntimeError(
-                f"'{self.value}' is an unprocessed context variable and is not valid "
-                f"for condition evaluation."
-            )
-        if is_context_variable(self.key):
-            # programming error if we get here
-            raise RuntimeError(
-                f"'{self.key}' is an unprocessed context variable and is not valid "
+                f"Either '{self.value}' or '{self.key}' is an unprocessed context variable and is not valid "
                 f"for condition evaluation."
             )
 
