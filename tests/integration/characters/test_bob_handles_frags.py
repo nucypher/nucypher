@@ -71,34 +71,6 @@ def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursu
     assert cleartexts == messages
 
 
-# TODO: MOVE ME
-def test_single_retrieve_with_conditions(enacted_federated_policy, federated_bob, federated_ursulas):
-    from nucypher_core import MessageKit
-
-    federated_bob.start_learning_loop()
-    conditions = [
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
-    ]
-    json_conditions = json.dumps(conditions)
-    rust_conditions = Conditions(json_conditions)
-    message_kits = [
-        MessageKit(
-            enacted_federated_policy.public_key,
-            b'lab',
-            rust_conditions
-        )
-    ]
-
-    cleartexts = federated_bob.retrieve_and_decrypt(
-        message_kits=message_kits,
-        **_policy_info_kwargs(enacted_federated_policy),
-        )
-
-    assert b'lab' in cleartexts
-
-
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
 
     federated_bob.start_learning_loop()

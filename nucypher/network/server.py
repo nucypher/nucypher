@@ -224,7 +224,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 if error:
                     # TODO: This response short-circuits the entire request on falsy condition
                     #  even if other unrelated capsules (message kits) are present.
-                    return Response(message=error.message, status=error.status_code)
+                    return Response(error.message, status=error.status_code)
             capsules_to_process.append(capsule)
 
         # FIXME: DISABLED FOR PRE-adapted-TDEC
