@@ -73,3 +73,10 @@ jobs:
 
       - name: CLI Tests
         run: python -m pytest tests/acceptance/cli
+
+      - name: Upload coverage report
+        if: matrix.python-version == '3.10'
+        run: |
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ./codecov
