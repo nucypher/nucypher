@@ -215,13 +215,16 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         providers = this_node.condition_providers if not this_node.federated_only else dict()
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
-            error = evaluate_conditions(
-                lingo=condition_lingo, providers=providers, context=context
-            )
-            if error:
-                # error cases
-                return Response(*error)
-
+            if condition_lingo:
+                error = evaluate_conditions(
+                    lingo=condition_lingo,
+                    providers=providers,
+                    context=context
+                )
+                if error:
+                    # TODO: This response short-circuits the entire request on falsy condition
+                    #  even if other unrelated capsules (message kits) are present.
+                    return Response(message=error.message, status=error.status_code)
             capsules_to_process.append(capsule)
 
         # FIXME: DISABLED FOR PRE-adapted-TDEC
