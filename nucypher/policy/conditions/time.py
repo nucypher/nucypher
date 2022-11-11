@@ -22,6 +22,7 @@ from marshmallow import fields, post_load
 
 from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
@@ -43,7 +44,7 @@ class TimeCondition(ReencryptionCondition):
 
     def __init__(self, return_value_test: ReturnValueTest, method: str = METHOD):
         if method != self.METHOD:
-            raise ReencryptionCondition.InvalidCondition(
+            raise InvalidCondition(
                 f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
             )
         self.return_value_test = return_value_test

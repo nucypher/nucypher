@@ -22,23 +22,17 @@ from eth_account.messages import HexBytes, SignableMessage
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
+from nucypher.policy.conditions.exceptions import (
+    ContextVariableVerificationFailed,
+    InvalidContextVariableData,
+    RequiredContextVariable,
+)
+
 USER_ADDRESS_CONTEXT = ":userAddress"
 
 _CONTEXT_PREFIX = ":"
 
 _EIP712_VERSION_BYTE = b"\x01"
-
-
-class RequiredContextVariable(Exception):
-    pass
-
-
-class InvalidContextVariableData(Exception):
-    pass
-
-
-class ContextVariableVerificationFailed(Exception):
-    pass
 
 
 class UserAddress(EIP712Struct):

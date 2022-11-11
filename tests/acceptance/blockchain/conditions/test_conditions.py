@@ -26,12 +26,16 @@ from web3 import Web3
 
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
-    ContextVariableVerificationFailed,
-    InvalidContextVariableData,
-    RequiredContextVariable,
     _recover_user_address,
 )
 from nucypher.policy.conditions.evm import RPCCondition, get_context_value
+from nucypher.policy.conditions.exceptions import (
+    ContextVariableVerificationFailed,
+    InvalidContextVariableData,
+    NoConnectionToChain,
+    RequiredContextVariable,
+    RPCExecutionFailed,
+)
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.integration.characters.test_bob_handles_frags import _make_message_kits
@@ -167,6 +171,25 @@ def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condi
     "nucypher.policy.conditions.evm.get_context_value",
     side_effect=_dont_validate_user_address,
 )
+def test_rpc_condition_evaluation_no_connection_to_chain(
+    get_context_value_mock, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+
+    # condition providers for other unrelated chains
+    providers = {
+        1: mock.Mock(),  # mainnet
+        5: mock.Mock(),  # Goerli
+    }
+
+    with pytest.raises(NoConnectionToChain):
+        rpc_condition.verify(providers=providers, **context)
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
 def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     get_context_value_mock, testerchain, condition_providers
 ):
@@ -258,7 +281,7 @@ def test_erc721_evm_condition_owner_evaluation(
     assert call_result == account
 
     # invalid token id
-    with pytest.raises(RPCCondition.RPCExecutionFailed):
+    with pytest.raises(RPCExecutionFailed):
         context[":tokenId"] = 255
         _, _ = erc721_evm_condition_owner.verify(
             providers=condition_providers, **context

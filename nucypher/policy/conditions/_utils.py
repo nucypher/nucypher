@@ -1,21 +1,45 @@
+"""
+ This file is part of nucypher.
+
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import json
 from http import HTTPStatus
-from typing import Union, Type, Dict, Optional
+from typing import Dict, Optional, Tuple, Type, Union, NamedTuple
 
-from flask import Response
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.base import ReencryptionCondition
-from nucypher.policy.conditions.context import (
+from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
     ContextVariableVerificationFailed,
+    InvalidCondition,
     InvalidContextVariableData,
+    NoConnectionToChain,
     RequiredContextVariable,
 )
 from nucypher.utilities.logging import Logger
 
 _ETH = 'eth_'
 __LOGGER = Logger('condition-eval')
+
+
+class EvalError(NamedTuple):
+    message: str
+    status_code: int
 
 
 def to_camelcase(s):
@@ -48,10 +72,9 @@ def _resolve_condition_lingo(json_data) -> Union[Type['Operator'], Type['Reencry
     conditions expression framework.
     """
     # TODO: This is ugly but avoids circular imports :-|
-    from nucypher.policy.conditions.time import TimeCondition
-    from nucypher.policy.conditions.evm import ContractCondition
-    from nucypher.policy.conditions.evm import RPCCondition
+    from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
     from nucypher.policy.conditions.lingo import Operator
+    from nucypher.policy.conditions.time import TimeCondition
 
     # Inspect
     method = json_data.get('method')
@@ -81,57 +104,68 @@ def _deserialize_condition_lingo(data: Union[str, Dict[str, str]]) -> Union['Ope
     return instance
 
 
-def evaluate_conditions_for_ursula(lingo: 'ConditionLingo',
-                                   providers: Optional[Dict[str, BaseProvider]] = None,
-                                   context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
-                                   log: Logger = __LOGGER,
-                                   ) -> Response:
+def evaluate_conditions(
+    lingo: "ConditionLingo",
+    providers: Optional[Dict[str, BaseProvider]] = None,
+    context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
+    log: Logger = __LOGGER,
+) -> Optional[EvalError]:
+    """
+    Evaluates condition lingo with the give providers and user supplied context.
+    If all conditions are satisfied this function returns None.
 
-    # avoid using a mutable defaults and support federated mode
+    # TODO: Evaluate all conditions even if one fails and report the result
+    """
+
+    # Setup (don't use mutable defaults and support federated mode)
     context = context or dict()
     providers = providers or dict()
+    error = None
 
-    if lingo is not None:
-        # TODO: Evaluate all conditions even if one fails and report the result
-        try:
-            log.info(f'Evaluating access conditions {lingo.id}')
-            _results = lingo.eval(providers=providers, **context)
-        except ReencryptionCondition.InvalidCondition as e:
-            message = f"Incorrect value provided for condition: {e}"
-            error = (message, HTTPStatus.BAD_REQUEST)
-            log.info(message)
-            return Response(message, status=error[1])
-        except RequiredContextVariable as e:
-            message = f"Missing required inputs: {e}"
-            # TODO: be more specific and name the missing inputs, etc
-            error = (message, HTTPStatus.BAD_REQUEST)
-            log.info(message)
-            return Response(message, status=error[1])
-        except InvalidContextVariableData as e:
-            message = f"Invalid data provided for context variable: {e}"
-            error = (message, HTTPStatus.BAD_REQUEST)
-            log.info(message)
-            return Response(message, status=error[1])
-        except ContextVariableVerificationFailed as e:
-            message = f"Context variable data could not be verified: {e}"
-            error = (message, HTTPStatus.FORBIDDEN)
-            log.info(message)
-            return Response(message, status=error[1])
-        except ReencryptionCondition.ConditionEvaluationFailed as e:
-            message = f"Decryption condition not evaluated: {e}"
-            error = (message, HTTPStatus.BAD_REQUEST)
-            log.info(message)
-            return Response(message, status=error[1])
-        except lingo.Failed as e:
-            # TODO: Better error reporting
-            message = f"Decryption conditions not satisfied: {e}"
-            error = (message, HTTPStatus.FORBIDDEN)
-            log.info(message)
-            return Response(message, status=error[1])
-        except Exception as e:
-            # TODO: Unsure why we ended up here
-            message = f"Unexpected exception while evaluating " \
-                      f"decryption condition ({e.__class__.__name__}): {e}"
-            error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
-            log.warn(message)
-            return Response(message, status=error[1])
+    # Evaluate
+    try:
+        log.info(f"Evaluating access conditions {lingo}")
+        result = lingo.eval(providers=providers, **context)
+        if not result:
+            # explicit condition failure
+            error = ("Decryption conditions not satisfied", HTTPStatus.FORBIDDEN)
+    except InvalidCondition as e:
+        error = (
+            f"Incorrect value provided for condition: {e}",
+            HTTPStatus.BAD_REQUEST,
+        )
+    except RequiredContextVariable as e:
+        # TODO: be more specific and name the missing inputs, etc
+        error = (f"Missing required inputs: {e}", HTTPStatus.BAD_REQUEST)
+    except InvalidContextVariableData as e:
+        error = (
+            f"Invalid data provided for context variable: {e}",
+            HTTPStatus.BAD_REQUEST,
+        )
+    except ContextVariableVerificationFailed as e:
+        error = (
+            f"Context variable data could not be verified: {e}",
+            HTTPStatus.FORBIDDEN,
+        )
+    except NoConnectionToChain as e:
+        error = (
+            f"Node does not have a connection to chain ID {e.chain}: {e}",
+            HTTPStatus.NOT_IMPLEMENTED,
+        )
+    except ConditionEvaluationFailed as e:
+        error = (
+            f"Decryption condition not evaluated: {e}",
+            HTTPStatus.BAD_REQUEST
+        )
+    except Exception as e:
+        # TODO: Unsure why we ended up here
+        message = f"Unexpected exception while evaluating " \
+                  f"decryption condition ({e.__class__.__name__}): {e}"
+        error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
+        log.warn(message)
+
+    if error:
+        error = EvalError(*error)
+        log.info(error.message)  # log error message
+
+    return error

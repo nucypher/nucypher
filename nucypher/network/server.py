@@ -40,7 +40,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions._utils import evaluate_conditions_for_ursula
+from nucypher.policy.conditions._utils import evaluate_conditions
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import Logger
 
@@ -185,7 +185,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # Bob
         bob_ip_address = request.remote_addr
-        bob_verifying_key = bob.stamp.as_umbral_pubkey()
         bob_identity_message = f"[{bob_ip_address}] Bob({bytes(bob.stamp).hex()})"
 
         # Verify & Decrypt KFrag Payload
@@ -215,13 +214,18 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # Enforce Reencryption Conditions
         providers = this_node.condition_providers if not this_node.federated_only else dict()
         capsules_to_process = list()
-        for capsule, lingo in packets:
-            # raises an exception or continues
-            evaluate_conditions_for_ursula(lingo=lingo, providers=providers, context=context)
-            capsules_to_process.append((lingo, capsule))
-
-        # Strip away conditions that have already been evaluated
-        capsules_to_process = tuple(p[1] for p in capsules_to_process)
+        for capsule, condition_lingo in packets:
+            if condition_lingo:
+                error = evaluate_conditions(
+                    lingo=condition_lingo,
+                    providers=providers,
+                    context=context
+                )
+                if error:
+                    # TODO: This response short-circuits the entire request on falsy condition
+                    #  even if other unrelated capsules (message kits) are present.
+                    return Response(error.message, status=error.status_code)
+            capsules_to_process.append(capsule)
 
         # FIXME: DISABLED FOR PRE-adapted-TDEC
         # TODO: Accept multiple payment methods?
