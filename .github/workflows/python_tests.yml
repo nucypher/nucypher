@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+        python-version: ["3.10"] #[ "3.7", "3.8", "3.9", "3.10" ]
 
     steps:
       - uses: actions/checkout@v3
@@ -36,47 +36,68 @@ jobs:
         run: python -c "import nucypher; print(nucypher.__version__)"
 
       - name: Unit Tests
-        run: python -m pytest tests/unit
+        run: python -m pytest --cov-report=xml:unit-coverage.xml tests/unit
+
+      - name: Upload unit tests coverage to Codecov
+        if: matrix.python-version == '3.10'
+        uses: codecov/codecov-action@v3.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: unit-coverage.xml
+          flags: unit
+          verbose: true
 
       - name: Integration Tests
-        run: python -m pytest tests/integration
+        run: python -m pytest --cov-report=xml:integration-coverage.xml tests/integration
 
+      - name: Upload integration tests coverage to Codecov
+        if: matrix.python-version == '3.10'
+        uses: codecov/codecov-action@v3.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: integration-coverage.xml
+          flags: integration
+          verbose: true
+
+      # Acceptance tests
       - name: Agents Tests
-        run: python -m pytest tests/acceptance/blockchain/agents
+        run: python -m pytest --cov-report=xml:acceptance-blockchain-agents-coverage.xml tests/acceptance/blockchain/agents
 
       - name: Actors Tests
-        run: python -m pytest tests/acceptance/blockchain/actors
+        run: python -m pytest --cov-report=xml:acceptance-blockchain-actors-coverage.xml tests/acceptance/blockchain/actors
 
       - name: Deployers Tests
-        run: python -m pytest tests/acceptance/blockchain/deployers
+        run: python -m pytest --cov-report=xml:acceptance-blockchain-deployers-coverage.xml tests/acceptance/blockchain/deployers
 
       - name: Interfaces Tests
-        run: python -m pytest tests/acceptance/blockchain/interfaces
+        run: python -m pytest --cov-report=xml:acceptance-blockchain-interfaces-coverage.xml tests/acceptance/blockchain/interfaces
 
       - name: Conditions Tests
-        run: python -m pytest tests/acceptance/blockchain/conditions
+        run: python -m pytest --cov-report=xml:acceptance-blockchain-conditions-coverage.xml tests/acceptance/blockchain/conditions
 
       - name: Characters Tests
-        run: python -m pytest tests/acceptance/characters
+        run: python -m pytest --cov-report=xml:acceptance-characters-coverage.xml tests/acceptance/characters
 
       - name: Node Discovery Tests
-        run: python -m pytest tests/acceptance/learning
+        run: python -m pytest --cov-report=xml:acceptance-learning-coverage.xml tests/acceptance/learning
 
       - name: Network Tests
-        run: python -m pytest tests/acceptance/network
+        run: python -m pytest --cov-report=xml:acceptance-network-coverage.xml tests/acceptance/network
 
       - name: Utility Tests
-        run: python -m pytest tests/acceptance/utilities
+        run: python -m pytest --cov-report=xml:acceptance-utilities-coverage.xml tests/acceptance/utilities
 
       - name: Check CLI Entrypoint
         run: nucypher --help
 
       - name: CLI Tests
-        run: python -m pytest tests/acceptance/cli
+        run: python -m pytest --cov-report=xml:acceptance-cli-coverage.xml tests/acceptance/cli
 
-      - name: Upload coverage report
+      - name: Upload acceptance tests coverage to Codecov
         if: matrix.python-version == '3.10'
-        run: |
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov
+        uses: codecov/codecov-action@v3.1.1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: acceptance-blockchain-agents-coverage.xml, acceptance-blockchain-actors-coverage.xml, acceptance-blockchain-deployers-coverage.xml, acceptance-blockchain-interfaces-coverage.xml, acceptance-blockchain-conditions-coverage.xml, acceptance-characters-coverage.xml, acceptance-learning-coverage.xml, acceptance-network-coverage.xml, acceptance-utilities-coverage.xml, acceptance-cli-coverage.xml
+          flags: acceptance
+          verbose: true
