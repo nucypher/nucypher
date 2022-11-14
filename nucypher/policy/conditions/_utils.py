@@ -17,7 +17,7 @@
 
 import json
 from http import HTTPStatus
-from typing import Dict, Optional, Tuple, Type, Union, NamedTuple
+from typing import Dict, NamedTuple, Optional, Tuple, Type, Union
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
@@ -30,6 +30,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
+    ReturnValueEvaluationError,
 )
 from nucypher.utilities.logging import Logger
 
@@ -129,6 +130,11 @@ def evaluate_conditions(
         if not result:
             # explicit condition failure
             error = ("Decryption conditions not satisfied", HTTPStatus.FORBIDDEN)
+    except ReturnValueEvaluationError as e:
+        error = (
+            f"Unable to evaluate return value: {e}",
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+        )
     except InvalidCondition as e:
         error = (
             f"Incorrect value provided for condition: {e}",

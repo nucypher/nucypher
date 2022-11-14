@@ -31,6 +31,7 @@ from nucypher.policy.conditions._utils import (
 )
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import is_context_variable
+from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 
 
 class Operator:
@@ -98,6 +99,11 @@ class ReturnValueTest:
                 f'"{comparator}" is not a permitted comparator.'
             )
 
+        if not isinstance(key, (int, str)) and key is not None:
+            raise self.InvalidExpression(
+                f'"{key}" is not a permitted key. Must be a string or integer.'
+            )
+
         if not is_context_variable(value):
             # verify that value is valid, but don't set it here so as not to change the value;
             # it will be sanitized at eval time. Need to maintain serialization/deserialization
@@ -123,12 +129,16 @@ class ReturnValueTest:
             try:
                 processed_data = data[self.key]
             except KeyError:
-                raise KeyError(f"Key '{self.key}' not found in return data.")
+                raise ReturnValueEvaluationError(
+                    f"Key '{self.key}' not found in return data."
+                )
         elif isinstance(self.key, int) and isinstance(data, (list, tuple)):
             try:
                 processed_data = data[self.key]
             except IndexError:
-                raise IndexError(f"Index '{self.key}' not found in return data.")
+                raise ReturnValueEvaluationError(
+                    f"Index '{self.key}' not found in return data."
+                )
         else:
             processed_data = data
 
