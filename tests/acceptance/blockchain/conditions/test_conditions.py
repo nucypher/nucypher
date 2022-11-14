@@ -24,12 +24,17 @@ from unittest import mock
 import pytest
 from web3 import Web3
 
+from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
     _recover_user_address,
 )
-from nucypher.policy.conditions.evm import RPCCondition, get_context_value
+from nucypher.policy.conditions.evm import (
+    ContractCondition,
+    RPCCondition,
+    get_context_value,
+)
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
     InvalidContextVariableData,
@@ -376,6 +381,182 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
     )
     assert call_result == zeroized_policy_struct
     assert condition_result is True  # zeroized policy was indeed returned
+
+
+def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evaluation(
+    testerchain,
+    agency,
+    test_registry,
+    idle_blockchain_policy,
+    enacted_blockchain_policy,
+    condition_providers,
+):
+    # enacted policy created from idle policy
+    size = len(idle_blockchain_policy.kfrags)
+    start = idle_blockchain_policy.commencement
+    end = idle_blockchain_policy.expiration
+    sponsor = idle_blockchain_policy.publisher.checksum_address
+
+    context = {
+        ":hrac": bytes(enacted_blockchain_policy.hrac),
+    }  # user-defined context vars
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent, registry=test_registry
+    )
+
+    # test "sponsor" key (owner is the same as sponsor for this policy)
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="==", value=sponsor, key=0),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert condition_result
+
+    # test "sponsor" key not equal to correct value
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="!=", value=sponsor, key=0),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert not condition_result
+
+    # test "start" key
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="==", value=start, key=1),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert condition_result
+
+    # test "start" key not equal to correct value
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="!=", value=start, key=1),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert not condition_result
+
+    # test "end" key
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="==", value=end, key=2),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert condition_result
+
+    # test "size" key
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="==", value=size, key=3),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert condition_result
+
+    # test "owner" key (owner is sponsor, so owner is set to null address)
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator="==", value=NULL_ADDRESS, key=4),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert condition_result
+
+
+def test_subscription_manager_get_policy_policy_struct_condition_key_context_var_evaluation(
+    testerchain,
+    agency,
+    test_registry,
+    idle_blockchain_policy,
+    enacted_blockchain_policy,
+    condition_providers,
+):
+    # enacted policy created from idle policy
+    sponsor = idle_blockchain_policy.publisher.checksum_address
+    context = {
+        ":hrac": bytes(enacted_blockchain_policy.hrac),
+        ":sponsor": sponsor,
+        ":sponsorIndex": 0,
+    }  # user-defined context vars
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent, registry=test_registry
+    )
+
+    # test "sponsor" key (owner is the same as sponsor for this policy)
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(
+            comparator="==",
+            value=sponsor,  # don't use sponsor context var
+            key=":sponsorIndex",
+        ),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert condition_result
+
+    # test "sponsor" key not equal to correct value
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(
+            comparator="!=",
+            value=":sponsor",  # use sponsor sponsor context var
+            key=":sponsorIndex",
+        ),
+        parameters=[":hrac"],
+    )
+    condition_result, _ = condition.verify(providers=condition_providers, **context)
+    assert not condition_result
 
 
 def test_time_condition_evaluation(testerchain, timelock_condition, condition_providers):
