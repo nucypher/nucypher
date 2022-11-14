@@ -133,7 +133,7 @@ def evaluate_conditions(
     except ReturnValueEvaluationError as e:
         error = (
             f"Unable to evaluate return value: {e}",
-            HTTPStatus.INTERNAL_SERVER_ERROR,
+            HTTPStatus.BAD_REQUEST,
         )
     except InvalidCondition as e:
         error = (

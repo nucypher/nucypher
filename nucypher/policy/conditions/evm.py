@@ -55,7 +55,7 @@ def _resolve_abi(
     """Resolves the contract an/or function ABI from a standard contract name"""
 
     if not (function_abi or standard_contract_type):
-        raise ReencryptionCondition.InvalidCondition(
+        raise InvalidCondition(
             f"Ambiguous ABI - Supply either an ABI or a standard contract type ({STANDARD_ABI_CONTRACT_TYPES})."
         )
 
@@ -73,7 +73,7 @@ def _resolve_abi(
             # Will raise a ValueError if there is not exactly one match.
             function_abi = w3.eth.contract(abi=contract_abi).get_function_by_name(method).abi
         except ValueError as e:
-            raise ReencryptionCondition.InvalidCondition(str(e))
+            raise InvalidCondition(str(e))
 
     if not function_abi:
         raise InvalidCondition(f"No function ABI supplied for '{method}'")

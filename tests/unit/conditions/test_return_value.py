@@ -20,6 +20,7 @@ import random
 
 import pytest
 
+from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
@@ -28,14 +29,14 @@ def test_return_value_key():
     assert test.eval({"james": 1})
     assert not test.eval({"james": -1})
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ReturnValueEvaluationError):
         test.eval({"bond": 1})
 
     test = ReturnValueTest(comparator=">", value="0", key=4)
     assert test.eval({4: 1})
     assert not test.eval({4: -1})
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ReturnValueEvaluationError):
         test.eval({5: 1})
 
 
@@ -47,7 +48,7 @@ def test_return_value_index():
     test = ReturnValueTest(comparator="==", value='"james"', key=3)
     assert test.eval([0, 1, 2, '"james"'])
 
-    with pytest.raises(IndexError):
+    with pytest.raises(ReturnValueEvaluationError):
         test.eval([0, 1, 2])
 
 

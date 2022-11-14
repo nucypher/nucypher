@@ -100,7 +100,7 @@ def test_invalid_contract_condition():
         )
 
     # method not in ABI
-    with pytest.raises(ReencryptionCondition.InvalidCondition):
+    with pytest.raises(InvalidCondition):
         _ = ContractCondition(
             contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
             method="getPolicy",
