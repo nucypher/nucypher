@@ -26,6 +26,9 @@ class NoConnectionToChain(RuntimeError):
         super().__init__(message)
 
 
+class ReturnValueEvaluationError(Exception):
+    """Issue with Return Value and Key"""
+
 # Context Variable
 class RequiredContextVariable(Exception):
     """No value provided for context variable"""

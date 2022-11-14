@@ -20,7 +20,49 @@ import random
 
 import pytest
 
+from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 from nucypher.policy.conditions.lingo import ReturnValueTest
+
+
+def test_return_value_key():
+    test = ReturnValueTest(comparator=">", value="0", key="james")
+    assert test.eval({"james": 1})
+    assert not test.eval({"james": -1})
+
+    with pytest.raises(ReturnValueEvaluationError):
+        test.eval({"bond": 1})
+
+    test = ReturnValueTest(comparator=">", value="0", key=4)
+    assert test.eval({4: 1})
+    assert not test.eval({4: -1})
+
+    with pytest.raises(ReturnValueEvaluationError):
+        test.eval({5: 1})
+
+
+def test_return_value_index():
+    test = ReturnValueTest(comparator=">", value="0", key=0)
+    assert test.eval([1])
+    assert not test.eval([-1])
+
+    test = ReturnValueTest(comparator="==", value='"james"', key=3)
+    assert test.eval([0, 1, 2, '"james"'])
+
+    with pytest.raises(ReturnValueEvaluationError):
+        test.eval([0, 1, 2])
+
+
+def test_return_value_index_tuple():
+    test = ReturnValueTest(comparator=">", value="0", key=0)
+    assert test.eval((1,))
+    assert not test.eval((-1,))
+
+
+def test_return_value_with_context_variable_key_cant_run_eval():
+    # known context variable
+    test = ReturnValueTest(comparator="==", value="0", key=":userAddress")
+    with pytest.raises(RuntimeError):
+        test.eval({"0xaDD9D957170dF6F33982001E4c22eCCdd5539118": 0})
 
 
 def test_return_value_test_invalid_comparators():

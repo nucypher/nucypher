@@ -21,7 +21,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, Iterator, List, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from marshmallow import fields, post_load
 
@@ -31,6 +31,7 @@ from nucypher.policy.conditions._utils import (
 )
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import is_context_variable
+from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 
 
 class Operator:
@@ -83,17 +84,24 @@ class ReturnValueTest:
     COMPARATORS = tuple(_COMPARATOR_FUNCTIONS)
 
     class ReturnValueTestSchema(CamelCaseSchema):
+        SKIP_VALUES = (None,)
         comparator = fields.Str()
         value = fields.Raw(allow_none=False)  # any valid type (excludes None)
+        key = fields.Raw(allow_none=True)
 
         @post_load
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Any):
+    def __init__(self, comparator: str, value: Any, key: Optional[Union[int, str]] = None):
         if comparator not in self.COMPARATORS:
             raise self.InvalidExpression(
                 f'"{comparator}" is not a permitted comparator.'
+            )
+
+        if not isinstance(key, (int, str)) and key is not None:
+            raise self.InvalidExpression(
+                f'"{key}" is not a permitted key. Must be a string or integer.'
             )
 
         if not is_context_variable(value):
@@ -104,6 +112,7 @@ class ReturnValueTest:
 
         self.comparator = comparator
         self.value = value
+        self.key = key
 
     def _sanitize_value(self, value):
         try:
@@ -111,14 +120,44 @@ class ReturnValueTest:
         except Exception:
             raise self.InvalidExpression(f'"{value}" is not a permitted value.')
 
+    def _process_data(self, data: Any) -> Any:
+        """
+        If a key is specified, return the value at that key in the data if data is a dict or list-like.
+        Otherwise, return the data.
+        """
+        processed_data = data
+        if self.key is not None:
+            if isinstance(data, dict):
+                try:
+                    processed_data = data[self.key]
+                except KeyError:
+                    raise ReturnValueEvaluationError(
+                        f"Key '{self.key}' not found in return data."
+                    )
+            elif isinstance(self.key, int) and isinstance(data, (list, tuple)):
+                try:
+                    processed_data = data[self.key]
+                except IndexError:
+                    raise ReturnValueEvaluationError(
+                        f"Index '{self.key}' not found in return data."
+                    )
+            else:
+                raise ReturnValueEvaluationError(
+                    f"Key: {self.key} and Value: {data} are not compatible types."
+                )
+
+        return processed_data
+
     def eval(self, data) -> bool:
-        if is_context_variable(self.value):
+        if is_context_variable(self.value) or is_context_variable(self.key):
             # programming error if we get here
             raise RuntimeError(
-                f"'{self.value}' is an unprocessed context variable and is not valid "
+                f"Return value comparator contains an unprocessed context variable (key={self.key}, value={self.value}) and is not valid "
                 f"for condition evaluation."
             )
-        left_operand = self._sanitize_value(data)
+
+        processed_data = self._process_data(data)
+        left_operand = self._sanitize_value(processed_data)
         right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result

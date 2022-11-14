@@ -49,7 +49,9 @@ with open(VECTORS_FILE, 'r') as file:
 @pytest.fixture(autouse=True)
 def mock_condition_blockchains(mocker):
     """adds testerchain to permitted conditional chains"""
-    mocker.patch.object(nucypher.policy.conditions.evm, '_CONDITION_CHAINS', tuple([131277322940537]))
+    mocker.patch.object(
+        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([131277322940537])
+    )
 
 
 @pytest.fixture()
@@ -106,7 +108,9 @@ def erc20_evm_condition(test_registry, agency):
 
 
 @pytest.fixture
-def custom_context_variable_erc20_condition(test_registry, agency, testerchain):
+def custom_context_variable_erc20_condition(
+    test_registry, agency, testerchain, mock_condition_blockchains
+):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
@@ -181,7 +185,7 @@ def subscription_manager_is_active_policy_condition(test_registry, agency):
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=[subscription_manager.contract.find_functions_by_name('isPolicyActive')[0].abi],
+        function_abi=subscription_manager.contract.get_function_by_name("isPolicyActive").abi,
         method="isPolicyActive",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", True),
@@ -199,7 +203,7 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=[subscription_manager.contract.find_functions_by_name('getPolicy')[0].abi],
+        function_abi=subscription_manager.contract.get_function_by_name("getPolicy").abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),

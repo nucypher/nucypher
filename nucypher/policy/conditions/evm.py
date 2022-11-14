@@ -24,6 +24,7 @@ from marshmallow import fields, post_load
 from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
+from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions._utils import CamelCaseSchema
@@ -45,28 +46,39 @@ _CONDITION_CHAINS = (
 )
 
 
-def _resolve_abi(standard_contract_type: str, method: str, function_abi: List) -> List:
+def _resolve_abi(
+        w3: Web3,
+        method: str,
+        standard_contract_type: Optional[str] = None,
+        function_abi: Optional[ABIFunction] = None,
+) -> ABIFunction:
     """Resolves the contract an/or function ABI from a standard contract name"""
+
     if not (function_abi or standard_contract_type):
-        # TODO: Is this protection needed?
         raise InvalidCondition(
             f"Ambiguous ABI - Supply either an ABI or a standard contract type ({STANDARD_ABI_CONTRACT_TYPES})."
         )
 
     if standard_contract_type:
         try:
-            function_abi = STANDARD_ABIS[standard_contract_type]
+            # Lookup the standard ABI given it's ERC standard name (standard contract type)
+            contract_abi = STANDARD_ABIS[standard_contract_type]
         except KeyError:
             raise InvalidCondition(
                 f"Invalid standard contract type {standard_contract_type}; Must be one of {STANDARD_ABI_CONTRACT_TYPES}"
             )
 
+        try:
+            # Extract all function ABIs from the contract's ABI.
+            # Will raise a ValueError if there is not exactly one match.
+            function_abi = w3.eth.contract(abi=contract_abi).get_function_by_name(method).abi
+        except ValueError as e:
+            raise InvalidCondition(str(e))
+
     if not function_abi:
         raise InvalidCondition(f"No function ABI supplied for '{method}'")
 
-    # TODO: Verify that the function and ABI pair match?
-    # ABI(function_abi)
-    return function_abi
+    return ABIFunction(function_abi)
 
 
 def camel_case_to_snake(data: str) -> str:
@@ -86,14 +98,19 @@ def _resolve_any_context_variables(
         processed_parameters.append(p)
 
     v = return_value_test.value
+    k = return_value_test.key
     if is_context_variable(return_value_test.value):
         v = get_context_value(context_variable=v, **context)
-    processed_return_value_test = ReturnValueTest(return_value_test.comparator, value=v)
+    if is_context_variable(return_value_test.key):
+        k = get_context_value(context_variable=k, **context)
+    processed_return_value_test = ReturnValueTest(
+        return_value_test.comparator, value=v, key=k
+    )
 
     return processed_parameters, processed_return_value_test
 
 
-def _validate_chain(chain: int):
+def _validate_chain(chain: int) -> None:
     if not isinstance(chain, int):
         raise ValueError(f'"The chain" field of c a condition must be the '
                          f'integer of a chain ID (got "{chain}").')
@@ -216,17 +233,20 @@ class ContractCondition(RPCCondition):
         SKIP_VALUES = (None,)
         standard_contract_type = fields.Str(required=False)
         contract_address = fields.Str(required=True)
-        function_abi = fields.Str(required=False)
+        function_abi = fields.Dict(required=False)
 
         @post_load
         def make(self, data, **kwargs):
             return ContractCondition(**data)
 
-    def __init__(self,
-                 contract_address: ChecksumAddress,
-                 standard_contract_type: str = None,
-                 function_abi: List = None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        contract_address: ChecksumAddress,
+        standard_contract_type: Optional[str] = None,
+        function_abi: Optional[ABIFunction] = None,
+        *args,
+        **kwargs
+    ):
         # internal
         super().__init__(*args, **kwargs)
         self.w3 = Web3()  # used to instantiate contract function without a provider
@@ -234,6 +254,7 @@ class ContractCondition(RPCCondition):
         # preprocessing
         contract_address = to_checksum_address(contract_address)
         function_abi = _resolve_abi(
+            w3=self.w3,
             standard_contract_type=standard_contract_type,
             method=self.method,
             function_abi=function_abi
@@ -262,7 +283,7 @@ class ContractCondition(RPCCondition):
         """Gets an unbound contract function to evaluate for this condition"""
         try:
             contract = self.w3.eth.contract(
-                address=self.contract_address, abi=self.function_abi
+                address=self.contract_address, abi=[self.function_abi]
             )
             contract_function = getattr(contract.functions, self.method)
             return contract_function

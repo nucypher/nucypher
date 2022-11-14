@@ -16,15 +16,18 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 import string
+import tempfile
 from datetime import datetime
 from pathlib import Path
-
-import tempfile
 from random import SystemRandom
+
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
+)
 
 #
 # Ursula

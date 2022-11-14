@@ -108,7 +108,7 @@ def get_context_value(context_variable: str, **context) -> Any:
         # fallback for context variable without directive - assume key,value pair
         # handles the case for user customized context variables
         value = context.get(context_variable)
-        if not value:
+        if value is None:
             raise RequiredContextVariable(
                 f'"No value provided for unrecognized context variable "{context_variable}"'
             )

@@ -38,7 +38,14 @@ with open(VECTORS_FILE, 'r') as file:
 @pytest.fixture(autouse=True)
 def mock_condition_blockchains(mocker):
     """adds testerchain to permitted conditional chains"""
-    mocker.patch.object(nucypher.policy.conditions.evm, '_CONDITION_CHAINS', tuple([131277322940537]))
+    mocker.patch.object(
+        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([131277322940537])
+    )
+
+
+@pytest.fixture()
+def t_staking_data():
+    return json.dumps(VECTORS["TStaking"])
 
 
 # ERC1155
