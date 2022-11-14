@@ -125,22 +125,26 @@ class ReturnValueTest:
         If a key is specified, return the value at that key in the data if data is a dict or list-like.
         Otherwise, return the data.
         """
-        if self.key and isinstance(data, dict):
-            try:
-                processed_data = data[self.key]
-            except KeyError:
+        processed_data = data
+        if self.key is not None:
+            if isinstance(data, dict):
+                try:
+                    processed_data = data[self.key]
+                except KeyError:
+                    raise ReturnValueEvaluationError(
+                        f"Key '{self.key}' not found in return data."
+                    )
+            elif isinstance(self.key, int) and isinstance(data, (list, tuple)):
+                try:
+                    processed_data = data[self.key]
+                except IndexError:
+                    raise ReturnValueEvaluationError(
+                        f"Index '{self.key}' not found in return data."
+                    )
+            else:
                 raise ReturnValueEvaluationError(
-                    f"Key '{self.key}' not found in return data."
+                    f"Key: {self.key} and Value: {data} are not compatible types."
                 )
-        elif isinstance(self.key, int) and isinstance(data, (list, tuple)):
-            try:
-                processed_data = data[self.key]
-            except IndexError:
-                raise ReturnValueEvaluationError(
-                    f"Index '{self.key}' not found in return data."
-                )
-        else:
-            processed_data = data
 
         return processed_data
 
