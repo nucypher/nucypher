@@ -1,3 +1,5 @@
+import pytest
+
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 CONDITIONS = [
@@ -11,6 +13,14 @@ CONDITIONS = [
             "method": "timelock",
         },
     ]
+
+
+def test_invalid_condition():
+    with pytest.raises(Exception):
+        ConditionLingo.from_list([{}])
+
+    with pytest.raises(Exception):
+        ConditionLingo.from_list([{"dont_mind_me": "nothing_to_see_here"}])
 
 
 def test_compound_condition_timelock():

@@ -14,36 +14,42 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+from dataclasses import dataclass
 from http import HTTPStatus
-from typing import List, Tuple, Type
+from typing import List, Optional, Tuple, Type
 from unittest.mock import Mock
 
 import pytest
+from marshmallow import fields
 from web3.providers import BaseProvider
 
-from nucypher.policy.conditions._utils import evaluate_conditions
+from nucypher.policy.conditions._utils import (
+    CamelCaseSchema,
+    camel_case_to_snake,
+    evaluate_conditions,
+    to_camelcase,
+)
 from nucypher.policy.conditions.exceptions import *
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (exception, constructor parameters, expected status code)
-    (ReturnValueEvaluationError, [], HTTPStatus.BAD_REQUEST),
-    (InvalidCondition, [], HTTPStatus.BAD_REQUEST),
-    (RequiredContextVariable, [], HTTPStatus.BAD_REQUEST),
-    (InvalidContextVariableData, [], HTTPStatus.BAD_REQUEST),
-    (ContextVariableVerificationFailed, [], HTTPStatus.FORBIDDEN),
+    (ReturnValueEvaluationError, None, HTTPStatus.BAD_REQUEST),
+    (InvalidCondition, None, HTTPStatus.BAD_REQUEST),
+    (RequiredContextVariable, None, HTTPStatus.BAD_REQUEST),
+    (InvalidContextVariableData, None, HTTPStatus.BAD_REQUEST),
+    (ContextVariableVerificationFailed, None, HTTPStatus.FORBIDDEN),
     (NoConnectionToChain, [1], HTTPStatus.NOT_IMPLEMENTED),
-    (ConditionEvaluationFailed, [], HTTPStatus.BAD_REQUEST),
-    (Exception, [], HTTPStatus.INTERNAL_SERVER_ERROR),
+    (ConditionEvaluationFailed, None, HTTPStatus.BAD_REQUEST),
+    (Exception, None, HTTPStatus.INTERNAL_SERVER_ERROR),
 ]
 
 
 @pytest.mark.parametrize("failure_case", FAILURE_CASE_EXCEPTION_CODE_MATCHING)
 def test_evaluate_condition_exception_cases(
-    failure_case: Tuple[Type[Exception], List, int]
+    failure_case: Tuple[Type[Exception], Optional[List], int]
 ):
-    exception_class = failure_case[0]
-    exception_constructor_params = failure_case[1]
-    expected_status_code = failure_case[2]
+    exception_class, exception_constructor_params, expected_status_code = failure_case
+    exception_constructor_params = exception_constructor_params or []
 
     condition_lingo = Mock()
     condition_lingo.eval.side_effect = exception_class(*exception_constructor_params)
@@ -79,4 +85,42 @@ def test_evaluate_condition_eval_returns_true():
         context={"key1": "value1", "key2": "value2"},  # multiple values in fake context
     )
 
-    assert not eval_error
+    assert eval_error is None
+
+
+@pytest.mark.parametrize(
+    "test_case",
+    (
+        ("nounderscores", "nounderscores"),
+        ("one_underscore", "oneUnderscore"),
+        ("two_under_scores", "twoUnderScores"),
+    ),
+)
+def test_to_from_camel_case(test_case: Tuple[str, str]):
+    # test to_camelcase()
+    snake_case, camel_case = test_case
+    result = to_camelcase(snake_case)
+    assert result == camel_case
+
+    # test camel_case_to_snake()
+    result = camel_case_to_snake(camel_case)
+    assert result == snake_case
+
+
+def test_camel_case_schema():
+    # test CamelCaseSchema
+    @dataclass
+    class Function:
+        field_name_with_underscores: str
+
+    class FunctionSchema(CamelCaseSchema):
+        field_name_with_underscores = fields.Str()
+
+    value = "field_name_value"
+    function = Function(field_name_with_underscores=value)
+    schema = FunctionSchema()
+    output = schema.dump(function)
+    assert output == {"fieldNameWithUnderscores": f"{value}"}
+
+    reloaded_function = schema.load(output)
+    assert reloaded_function == {"field_name_with_underscores": f"{value}"}

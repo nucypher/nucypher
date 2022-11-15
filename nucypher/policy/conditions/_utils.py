@@ -1,8 +1,9 @@
 
 
 import json
+import re
 from http import HTTPStatus
-from typing import Dict, NamedTuple, Optional, Tuple, Type, Union
+from typing import Dict, NamedTuple, Optional, Type, Union
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
@@ -31,6 +32,11 @@ class EvalError(NamedTuple):
 def to_camelcase(s):
     parts = iter(s.split("_"))
     return next(parts) + "".join(i.title() for i in parts)
+
+
+def camel_case_to_snake(data: str) -> str:
+    data = re.sub(r"(?<!^)(?=[A-Z])", "_", data).lower()
+    return data
 
 
 class CamelCaseSchema(Schema):
