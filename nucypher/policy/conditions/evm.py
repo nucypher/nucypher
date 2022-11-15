@@ -251,14 +251,13 @@ class ContractCondition(RPCCondition):
         super().__init__(*args, **kwargs)
         self.w3 = Web3()  # used to instantiate contract function without a provider
 
+        if standard_contract_type and function_abi:
+            raise InvalidCondition(
+                "Only one of 'standard_contract_type' or 'function_abi' may be provided."
+            )
+
         # preprocessing
         contract_address = to_checksum_address(contract_address)
-        function_abi = _resolve_abi(
-            w3=self.w3,
-            standard_contract_type=standard_contract_type,
-            method=self.method,
-            function_abi=function_abi
-        )
 
         # spec
         self.contract_address = contract_address
@@ -281,9 +280,15 @@ class ContractCondition(RPCCondition):
 
     def _get_unbound_contract_function(self) -> ContractFunction:
         """Gets an unbound contract function to evaluate for this condition"""
+        function_abi = _resolve_abi(
+            w3=self.w3,
+            standard_contract_type=self.standard_contract_type,
+            method=self.method,
+            function_abi=self.function_abi,
+        )
         try:
             contract = self.w3.eth.contract(
-                address=self.contract_address, abi=[self.function_abi]
+                address=self.contract_address, abi=[function_abi]
             )
             contract_function = getattr(contract.functions, self.method)
             return contract_function
