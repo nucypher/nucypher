@@ -92,7 +92,7 @@ def _deserialize_condition_lingo(data: Union[str, Dict[str, str]]) -> Union['Ope
 
 def evaluate_conditions(
     lingo: "ConditionLingo",
-    providers: Optional[Dict[str, BaseProvider]] = None,
+    providers: Optional[Dict[int, BaseProvider]] = None,
     context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
     log: Logger = __LOGGER,
 ) -> Optional[EvalError]:
