@@ -45,6 +45,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: unit-coverage.xml
           flags: unit
+          fail_ci_if_error: true
           verbose: true
 
       - name: Integration Tests
@@ -57,6 +58,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: integration-coverage.xml
           flags: integration
+          fail_ci_if_error: true
           verbose: true
 
       # Acceptance tests
@@ -100,4 +102,5 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: acceptance-blockchain-agents-coverage.xml, acceptance-blockchain-actors-coverage.xml, acceptance-blockchain-deployers-coverage.xml, acceptance-blockchain-interfaces-coverage.xml, acceptance-blockchain-conditions-coverage.xml, acceptance-characters-coverage.xml, acceptance-learning-coverage.xml, acceptance-network-coverage.xml, acceptance-utilities-coverage.xml, acceptance-cli-coverage.xml
           flags: acceptance
+          fail_ci_if_error: true
           verbose: true
