@@ -63,7 +63,7 @@ nucypher-core==0.4.0
 packaging==21.3; python_version >= '3.6'
 parsimonious==0.8.1
 pendulum==2.1.2; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-pillow==9.2.0; python_version >= '3.7'
+pillow==9.3.0; python_version >= '3.7'
 protobuf==3.20.1; python_version >= '3.7'
 py-ecc==6.0.0; python_version >= '3.6' and python_version < '4'
 py-evm==0.6.0a1
