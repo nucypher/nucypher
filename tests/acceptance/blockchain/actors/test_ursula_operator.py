@@ -20,7 +20,9 @@ import pytest
 import pytest_twisted
 from twisted.internet import threads
 from twisted.internet.task import Clock
-from web3.middleware.simulate_unmined_transaction import unmined_receipt_simulator_middleware
+from web3.middleware.simulate_unmined_transaction import (
+    unmined_receipt_simulator_middleware,
+)
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
@@ -41,16 +43,20 @@ def log(message):
 
 @pytest.mark.skip()
 @pytest_twisted.inlineCallbacks
-def test_work_tracker(mocker,
-                      testerchain,
-                      test_registry,
-                      staker,
-                      agency,
-                      application_economics,
-                      ursula_decentralized_test_config):
+def test_work_tracker(
+    mocker,
+    testerchain,
+    test_registry,
+    staker,
+    agency,
+    application_economics,
+    ursula_decentralized_test_config,
+):
 
-    staker.initialize_stake(amount=NU(application_economics.min_authorization, 'NuNit'),
-                            lock_periods=int(application_economics.min_operator_seconds))
+    staker.initialize_stake(
+        amount=NU(application_economics.min_authorization, "NuNit"),
+        lock_periods=int(application_economics.min_operator_seconds),
+    )
 
     # Get an unused address and create a new worker
     worker_address = testerchain.unassigned_accounts[-1]
@@ -62,21 +68,27 @@ def test_work_tracker(mocker,
     # Bond the Worker and Staker
     staker.bond_worker(worker_address=worker_address)
 
-    commit_spy = mocker.spy(Worker, 'commit_to_next_period')
-    replacement_spy = mocker.spy(ClassicPREWorkTracker, '_ClassicPREWorkTracker__fire_replacement_commitment')
+    commit_spy = mocker.spy(Worker, "commit_to_next_period")
+    replacement_spy = mocker.spy(
+        ClassicPREWorkTracker, "_ClassicPREWorkTracker__fire_replacement_commitment"
+    )
 
     # Make the Worker
-    ursula = make_decentralized_ursulas(ursula_config=ursula_decentralized_test_config,
-                                        staking_provider_addresses=[staker.checksum_address],
-                                        operator_addresses=[worker_address],
-                                        registry=test_registry).pop()
+    ursula = make_decentralized_ursulas(
+        ursula_config=ursula_decentralized_test_config,
+        staking_provider_addresses=[staker.checksum_address],
+        operator_addresses=[worker_address],
+        registry=test_registry,
+    ).pop()
 
-    ursula.run(preflight=False,
-               discovery=False,
-               start_reactor=False,
-               worker=True,
-               eager=True,
-               block_until_ready=False)  # "start" services
+    ursula.run(
+        preflight=False,
+        discovery=False,
+        start_reactor=False,
+        worker=True,
+        eager=True,
+        block_until_ready=False,
+    )  # "start" services
 
     initial_period = staker.staking_agent.get_current_period()
 
@@ -85,36 +97,45 @@ def test_work_tracker(mocker,
         start_pytest_ursula_services(ursula=ursula)
 
     def advance_one_period(_):
-        log('Advancing one period')
+        log("Advancing one period")
         testerchain.time_travel(periods=1)
         clock.advance(ClassicPREWorkTracker.INTERVAL_CEIL + 1)
 
     def check_pending_commitments(number_of_commitments):
         def _check_pending_commitments(_):
-            log(f'Checking we have {number_of_commitments} pending commitments')
+            log(f"Checking we have {number_of_commitments} pending commitments")
             assert number_of_commitments == len(ursula.work_tracker.pending)
+
         return _check_pending_commitments
 
     def pending_commitments(_):
-        log('Starting unmined transaction simulation')
+        log("Starting unmined transaction simulation")
         testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
 
     def advance_one_cycle(_):
-        log('Advancing one tracking iteration')
+        log("Advancing one tracking iteration")
         clock.advance(ursula.work_tracker._tracking_task.interval + 1)
 
     def advance_until_replacement_indicated(_):
-        last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
+        last_committed_period = staker.staking_agent.get_last_committed_period(
+            staker_address=staker.checksum_address
+        )
         log("Advancing until replacement is indicated")
         testerchain.time_travel(periods=1)
         clock.advance(ClassicPREWorkTracker.INTERVAL_CEIL + 1)
-        mocker.patch.object(ClassicPREWorkTracker, 'max_confirmation_time', return_value=1.0)
-        mock_last_committed_period = mocker.PropertyMock(return_value=last_committed_period)
-        mocker.patch.object(Worker, 'last_committed_period', new_callable=mock_last_committed_period)
+        mocker.patch.object(
+            ClassicPREWorkTracker, "max_confirmation_time", return_value=1.0
+        )
+        mock_last_committed_period = mocker.PropertyMock(
+            return_value=last_committed_period
+        )
+        mocker.patch.object(
+            Worker, "last_committed_period", new_callable=mock_last_committed_period
+        )
         clock.advance(ursula.work_tracker.max_confirmation_time() + 1)
 
     def verify_unmined_commitment(_):
-        log('Verifying worker has unmined commitment transaction')
+        log("Verifying worker has unmined commitment transaction")
 
         # FIXME: The test doesn't model accurately an unmined TX, but an unconfirmed receipt,
         # so the tracker does not have pending TXs. If we want to model pending TXs we need to actually
@@ -125,16 +146,18 @@ def test_work_tracker(mocker,
         assert commit_spy.call_count == current_period - initial_period + 1
 
     def verify_replacement_commitment(_):
-        log('Verifying worker has replaced commitment transaction')
+        log("Verifying worker has replaced commitment transaction")
         assert replacement_spy.call_count > 0
 
     def verify_confirmed(_):
         # Verify that periods were committed on-chain automatically
-        last_committed_period = staker.staking_agent.get_last_committed_period(staker_address=staker.checksum_address)
+        last_committed_period = staker.staking_agent.get_last_committed_period(
+            staker_address=staker.checksum_address
+        )
         current_period = staker.staking_agent.get_current_period()
 
         expected_commitments = current_period - initial_period + 1
-        log(f'Verifying worker made {expected_commitments} commitments so far')
+        log(f"Verifying worker made {expected_commitments} commitments so far")
         assert (last_committed_period - current_period) == 1
         assert commit_spy.call_count == expected_commitments
         assert replacement_spy.call_count == 0
@@ -181,26 +204,37 @@ def test_work_tracker(mocker,
     yield d
 
 
-def test_ursula_operator_confirmation(ursula_decentralized_test_config,
-                                      testerchain,
-                                      threshold_staking,
-                                      agency,
-                                      application_economics,
-                                      test_registry):
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    creator, staking_provider, operator_address, *everyone_else = testerchain.client.accounts
+def test_ursula_operator_confirmation(
+    ursula_decentralized_test_config,
+    testerchain,
+    threshold_staking,
+    agency,
+    application_economics,
+    test_registry,
+):
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry
+    )
+    (
+        creator,
+        staking_provider,
+        operator_address,
+        *everyone_else,
+    ) = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(staking_provider, min_authorization, 0, 0).transact()
+    tx = threshold_staking.functions.setStakes(
+        staking_provider, min_authorization, 0, 0
+    ).transact()
     testerchain.wait_for_receipt(tx)
 
     # make an ursula.
     blockchain_ursula = ursula_decentralized_test_config.produce(
-        operator_address=operator_address,
-        rest_port=9151)
+        operator_address=operator_address, rest_port=9151
+    )
 
     # it's not confirmed
     assert blockchain_ursula.is_confirmed is False
@@ -209,10 +243,14 @@ def test_ursula_operator_confirmation(ursula_decentralized_test_config,
     assert blockchain_ursula.get_staking_provider_address() == NULL_ADDRESS
 
     # now lets visit stake.nucypher.network and bond this operator
-    tpower = TransactingPower(account=staking_provider, signer=Web3Signer(testerchain.client))
-    application_agent.bond_operator(staking_provider=staking_provider,
-                                    operator=operator_address,
-                                    transacting_power=tpower)
+    tpower = TransactingPower(
+        account=staking_provider, signer=Web3Signer(testerchain.client)
+    )
+    application_agent.bond_operator(
+        staking_provider=staking_provider,
+        operator=operator_address,
+        transacting_power=tpower,
+    )
 
     # now the worker has a staking provider
     assert blockchain_ursula.get_staking_provider_address() == staking_provider
@@ -227,43 +265,60 @@ def test_ursula_operator_confirmation(ursula_decentralized_test_config,
 
 
 @pytest_twisted.inlineCallbacks
-def test_ursula_operator_confirmation_autopilot(mocker,
-                                                ursula_decentralized_test_config,
-                                                testerchain,
-                                                threshold_staking,
-                                                agency,
-                                                application_economics,
-                                                test_registry):
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    creator, staking_provider, operator, staking_provider2, operator2, *everyone_else = testerchain.client.accounts
+def test_ursula_operator_confirmation_autopilot(
+    mocker,
+    ursula_decentralized_test_config,
+    testerchain,
+    threshold_staking,
+    agency,
+    application_economics,
+    test_registry,
+):
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry
+    )
+    (
+        creator,
+        staking_provider,
+        operator,
+        staking_provider2,
+        operator2,
+        *everyone_else,
+    ) = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
-    commit_spy = mocker.spy(Operator, 'confirm_address')
+    commit_spy = mocker.spy(Operator, "confirm_address")
     # replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
 
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider2).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(staking_provider2, min_authorization, 0, 0).transact()
+    tx = threshold_staking.functions.setStakes(
+        staking_provider2, min_authorization, 0, 0
+    ).transact()
     testerchain.wait_for_receipt(tx)
 
     # now lets bond this worker
-    tpower = TransactingPower(account=staking_provider2, signer=Web3Signer(testerchain.client))
-    application_agent.bond_operator(staking_provider=staking_provider2,
-                                    operator=operator2,
-                                    transacting_power=tpower)
+    tpower = TransactingPower(
+        account=staking_provider2, signer=Web3Signer(testerchain.client)
+    )
+    application_agent.bond_operator(
+        staking_provider=staking_provider2, operator=operator2, transacting_power=tpower
+    )
 
     # Make the Operator
     ursula = ursula_decentralized_test_config.produce(
-        operator_address=operator2,
-        rest_port=9151)
+        operator_address=operator2, rest_port=9151
+    )
 
-    ursula.run(preflight=False,
-               discovery=False,
-               start_reactor=False,
-               worker=True,
-               eager=True,
-               block_until_ready=True)  # "start" services
+    ursula.run(
+        preflight=False,
+        discovery=False,
+        start_reactor=False,
+        worker=True,
+        eager=True,
+        block_until_ready=True,
+    )  # "start" services
 
     def start():
         log("Starting Operator for auto confirm address simulation")
@@ -272,7 +327,7 @@ def test_ursula_operator_confirmation_autopilot(mocker,
     def verify_confirmed(_):
         # Verify that periods were committed on-chain automatically
         expected_commitments = 1
-        log(f'Verifying worker made {expected_commitments} commitments so far')
+        log(f"Verifying worker made {expected_commitments} commitments so far")
         assert commit_spy.call_count == expected_commitments
         # assert replacement_spy.call_count == 0
 
