@@ -161,7 +161,7 @@ class NucypherMiddlewareClient:
             if cleaned_response.status_code >= 300:
 
                 if cleaned_response.status_code == HTTPStatus.BAD_REQUEST:
-                    raise RestMiddleware.BadRequest(reason=cleaned_response.json())
+                    raise RestMiddleware.BadRequest(reason=cleaned_response.content)
 
                 elif cleaned_response.status_code == HTTPStatus.NOT_FOUND:
                     m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
