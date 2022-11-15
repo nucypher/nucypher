@@ -1,0 +1,1 @@
+Call `_resolve_abi` after the condition is initialized
