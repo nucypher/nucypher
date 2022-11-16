@@ -2,7 +2,7 @@ import json
 
 from nucypher.policy.conditions._utils import _deserialize_condition_lingo
 from nucypher.policy.conditions.evm import ContractCondition
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, Operator
 
 
 def test_evm_condition_function_abi(t_staking_data):
@@ -40,6 +40,7 @@ def test_type_resolution_from_json(
 
 
 def test_conditions_lingo_serialization(lingo):
+    # json
     json_serialized_lingo = json.dumps([l.to_dict() for l in lingo.conditions])
     lingo_json = lingo.to_json()
     restored_lingo = ConditionLingo.from_json(data=lingo_json)
@@ -47,8 +48,28 @@ def test_conditions_lingo_serialization(lingo):
     restored_lingo_json = restored_lingo.to_json()
     assert restored_lingo_json == json_serialized_lingo
 
+    # base64
     lingo_b64 = restored_lingo.to_base64()
     restored_lingo = ConditionLingo.from_base64(lingo_b64)
 
     # after all the serialization and transformation the content must remain identical
     assert restored_lingo.to_json() == lingo_json
+
+
+def test_reencryption_condition_to_from_bytes(lingo):
+    # bytes
+    for l in lingo.conditions:
+        if isinstance(l, Operator):
+            # operators don't have byte representations
+            continue
+        condition_bytes = bytes(l)
+        condition = l.__class__.from_bytes(condition_bytes)
+        assert condition.to_json() == l.to_json()
+
+
+def test_reencryption_condition_to_from_dict(lingo):
+    # bytes
+    for l in lingo.conditions:
+        condition_bytes = l.to_dict()
+        condition = l.__class__.from_dict(condition_bytes)
+        assert condition.to_json() == l.to_json()
