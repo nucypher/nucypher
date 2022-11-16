@@ -5,6 +5,25 @@ from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, Operator
 
 
+def test_condition_bug(condition_bug_data):
+    original_data = condition_bug_data
+    condition = ContractCondition.from_json(original_data)
+    serialized_data = condition.to_json()
+    deserialized_data = json.loads(serialized_data)
+    assert json.loads(original_data) == deserialized_data
+
+
+def test_replicate_porter(condition_bug_data):
+    """Porter deserializes conditions, then serializes again for sending to Ursula.
+    Here we check that the end condition are identical to the original condition.
+    """
+    original_data = condition_bug_data
+    first_condition = ContractCondition.from_json(original_data)
+    serialized_data = first_condition.to_json()
+    second_condition = ContractCondition.from_json(serialized_data)
+    final_data = second_condition.to_json()
+    assert original_data == final_data
+
 def test_evm_condition_function_abi(t_staking_data):
     original_data = t_staking_data
     condition = ContractCondition.from_json(original_data)

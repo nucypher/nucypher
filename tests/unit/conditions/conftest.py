@@ -27,6 +27,17 @@ def mock_condition_blockchains(mocker):
 
 
 @pytest.fixture()
+def condition_providers(testerchain):
+    providers = {testerchain.client.chain_id: testerchain.provider}
+    return providers
+
+
+@pytest.fixture()
+def condition_bug_data():
+    return json.dumps(VECTORS["bugCondition"])
+
+
+@pytest.fixture()
 def t_staking_data():
     return json.dumps(VECTORS["TStaking"])
 
