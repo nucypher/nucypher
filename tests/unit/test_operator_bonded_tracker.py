@@ -66,3 +66,38 @@ def test_operator_bonded_but_becomes_unbonded(mocker, get_random_checksum_addres
     finally:
         ursula.stop.assert_called_once_with(halt_reactor=True)  # stop entire reactor
         tracker.stop()
+
+
+def test_operator_handle_errors(mocker, get_random_checksum_address):
+    ursula = mocker.Mock()
+    tracker = OperatorBondedTracker(ursula=ursula)
+
+    f = mocker.Mock()
+    f.getTraceback.return_value = "traceback"
+    f.raiseException.side_effect = OperatorBondedTracker.OperatorNoLongerBonded()
+
+    # inconsequential exception so no exception raised
+    f.check.return_value = False
+    tracker.handle_errors(failure=f)  # no exception
+
+    # exception that is cared about, so exception raised
+    f.check.return_value = True
+    with pytest.raises(OperatorBondedTracker.OperatorNoLongerBonded):
+        tracker.handle_errors(failure=f)
+
+
+@pytest.mark.parametrize(
+    "traceback",
+    (
+        "just some text",
+        "text with {",
+        "test with }",
+        "test with {a} pair of curly braces" "test with {more} curly } braces {",
+    ),
+)
+def test_operator_bonded_clean_traceback(traceback, mocker):
+    f = mocker.Mock()
+    f.getTraceback.return_value = traceback
+    result = OperatorBondedTracker.clean_traceback(f)
+    assert "{" not in result
+    assert "}" not in result
