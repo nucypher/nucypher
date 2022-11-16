@@ -38,14 +38,6 @@ repos:
       # Docs
       - id: check-vcs-permalinks
 
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: ffbd448645bad2e7ca13f96fca5830058d27ccd5
-    hooks:
-      # License
-      - id: insert-license
-        files: \.py$  # only target python files, for example - skip contract_registry.json
-        args: [--license-filepath, '.nucypher-license', --detect-license-in-X-top-lines=16, --comment-style, '"""||"""']
-
   - repo: https://github.com/akaihola/darker
     rev: 1.4.2
     hooks:
@@ -56,13 +48,6 @@ repos:
 
 
 # TODO: May be incrementally introduced
-#  - repo: https://github.com/PyCQA/bandit
-#    rev: '1.6.2'
-#    hooks:
-#      - id: bandit
-#        args: [--recursive, --ini, .bandit, aggregate, file]
-#        files: .py$
-#
 #  - repo: https://gitlab.com/pycqa/flake8
 #    rev: '3.7.9'
 #    hooks:
