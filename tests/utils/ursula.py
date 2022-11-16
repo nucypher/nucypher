@@ -11,6 +11,8 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 
+__ACTIVE_PORTS = set()
+
 
 def select_test_port() -> int:
     """
@@ -24,10 +26,14 @@ def select_test_port() -> int:
     with contextlib.closing(closed_socket) as open_socket:
         open_socket.bind(('localhost', 0))
         port = open_socket.getsockname()[1]
-
-        if port == UrsulaConfiguration.DEFAULT_REST_PORT or port > 64000:
+        rules = (
+            (port in __ACTIVE_PORTS),
+            (port == UrsulaConfiguration.DEFAULT_REST_PORT),
+            (port > 64000)
+        )
+        if any(rules):
             return select_test_port()
-
+        __ACTIVE_PORTS.add(port)
         open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return port
 
@@ -135,4 +141,4 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
-MOCK_URSULA_STARTING_PORT = 51000  # select_test_port()
+MOCK_URSULA_STARTING_PORT = select_test_port()
