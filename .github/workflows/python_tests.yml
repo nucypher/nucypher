@@ -32,12 +32,145 @@ jobs:
       - name: Install Solidity Compiler
         run: python ./scripts/installation/install_solc.py
 
+      - name: Check CLI Entrypoint
+        run: nucypher --help
+
       - name: Check Python Entrypoint
         run: python -c "import nucypher; print(nucypher.__version__)"
 
-      - name: Unit Tests
-        run: python -m pytest --cov-report=xml:unit-coverage.xml tests/unit
+      # Unit tests
+      - name: Unit Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=unit_data -m pytest tests/unit
+          coverage xml -i --data-file=unit_data -o unit-coverage.xml
 
+      - name: Unit Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/unit
+
+      # Integration tests
+      - name: Integration Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=integration_data -m pytest tests/integration
+          coverage xml -i --data-file=integration_data -o integration-coverage.xml
+
+      - name: Integration Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/integration
+
+      # Acceptance tests
+      - name: Agents Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_agent_data -m pytest tests/acceptance/blockchain/agents
+          coverage xml -i --data-file=acceptance_agent_data -o acceptance-blockchain-agents-coverage.xml
+
+      - name: Agents Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/blockchain/agents
+
+      - name: Actors Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_actors_data -m pytest tests/acceptance/blockchain/actors
+          coverage xml -i --data-file=acceptance_actors_data -o acceptance-blockchain-actors-coverage.xml
+
+      - name: Actors Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/blockchain/actors
+
+
+      - name: Deployers Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_deployers_data -m pytest tests/acceptance/blockchain/deployers
+          coverage xml -i --data-file=acceptance_deployers_data -o acceptance-blockchain-deployers-coverage.xml
+
+      - name: Deployers Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/blockchain/deployers
+
+
+      - name: Interfaces Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_interfaces_data -m pytest tests/acceptance/blockchain/interfaces 
+          coverage xml -i --data-file=acceptance_interfaces_data -o acceptance-blockchain-interfaces-coverage.xml
+
+      - name: Interfaces Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/blockchain/interfaces
+
+
+      - name: Conditions Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_conditions_data -m pytest tests/acceptance/blockchain/conditions
+          coverage xml -i --data-file=acceptance_conditions_data -o acceptance-blockchain-conditions-coverage.xml
+
+      - name: Conditions Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/blockchain/conditions
+
+
+      - name: Characters Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_characters_data -m pytest tests/acceptance/characters
+          coverage xml -i --data-file=acceptance_characters_data -o acceptance-characters-coverage.xml
+
+      - name: Characters Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/characters
+
+
+      - name: Node Discovery Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_learning_data -m pytest tests/acceptance/learning
+          coverage xml -i --data-file=acceptance_learning_data -o acceptance-learning-coverage.xml
+
+      - name: Node Discovery Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/learning
+
+
+      - name: Network Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_network_data -m pytest tests/acceptance/network
+          coverage xml -i --data-file=acceptance_network_data -o acceptance-network-coverage.xml
+
+      - name: Network Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/network
+
+
+      - name: Utility Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_utilities_data -m pytest tests/acceptance/utilities
+          coverage xml -i --data-file=acceptance_utilities_data -o acceptance-utilities-coverage.xml
+
+      - name: Utility Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/utilities
+
+
+      - name: CLI Tests (Coverage)
+        if: matrix.python-version == '3.10'
+        run: |
+          coverage run --data-file=acceptance_cli_data -m pytest tests/acceptance/cli
+          coverage xml -i --data-file=acceptance_cli_data -o acceptance-cli-coverage.xml
+
+      - name: CLI Tests
+        if: matrix.python-version != '3.10'
+        run: python -m pytest tests/acceptance/cli
+
+
+      # Only upload coverage files after all tests have passed
       - name: Upload unit tests coverage to Codecov
         if: matrix.python-version == '3.10'
         uses: codecov/codecov-action@v3.1.1
@@ -48,9 +181,6 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
-      - name: Integration Tests
-        run: python -m pytest --cov-report=xml:integration-coverage.xml tests/integration
-
       - name: Upload integration tests coverage to Codecov
         if: matrix.python-version == '3.10'
         uses: codecov/codecov-action@v3.1.1
@@ -60,40 +190,6 @@ jobs:
           flags: integration
           fail_ci_if_error: true
           verbose: true
-
-      # Acceptance tests
-      - name: Agents Tests
-        run: python -m pytest --cov-report=xml:acceptance-blockchain-agents-coverage.xml tests/acceptance/blockchain/agents
-
-      - name: Actors Tests
-        run: python -m pytest --cov-report=xml:acceptance-blockchain-actors-coverage.xml tests/acceptance/blockchain/actors
-
-      - name: Deployers Tests
-        run: python -m pytest --cov-report=xml:acceptance-blockchain-deployers-coverage.xml tests/acceptance/blockchain/deployers
-
-      - name: Interfaces Tests
-        run: python -m pytest --cov-report=xml:acceptance-blockchain-interfaces-coverage.xml tests/acceptance/blockchain/interfaces
-
-      - name: Conditions Tests
-        run: python -m pytest --cov-report=xml:acceptance-blockchain-conditions-coverage.xml tests/acceptance/blockchain/conditions
-
-      - name: Characters Tests
-        run: python -m pytest --cov-report=xml:acceptance-characters-coverage.xml tests/acceptance/characters
-
-      - name: Node Discovery Tests
-        run: python -m pytest --cov-report=xml:acceptance-learning-coverage.xml tests/acceptance/learning
-
-      - name: Network Tests
-        run: python -m pytest --cov-report=xml:acceptance-network-coverage.xml tests/acceptance/network
-
-      - name: Utility Tests
-        run: python -m pytest --cov-report=xml:acceptance-utilities-coverage.xml tests/acceptance/utilities
-
-      - name: Check CLI Entrypoint
-        run: nucypher --help
-
-      - name: CLI Tests
-        run: python -m pytest --cov-report=xml:acceptance-cli-coverage.xml tests/acceptance/cli
 
       - name: Upload acceptance tests coverage to Codecov
         if: matrix.python-version == '3.10'
