@@ -34,3 +34,8 @@
         directory = "misc"
         name = "Misc"
         showcontent = true
+
+    [[tool.towncrier.type]]
+        directory = "dev"
+        name = "Internal development tasks"
+        showcontent = false  # don't include development changes in release notes

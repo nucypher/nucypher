@@ -14,5 +14,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: |
-          ls -l ${{ github.workspace }}/newsfragments/${{ github.event.number }}.*.rst
+      - run: ls -l ${{ github.workspace }}/newsfragments/ | grep -E '${{ github.event.number }}\.(feature|bugfix|doc|removal|misc|dev)\.rst'
