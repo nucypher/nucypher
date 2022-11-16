@@ -14,25 +14,10 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
-
 from nucypher_core.umbral import SecretKey
 
 _TLS_CERTIFICATE_ENCODING = Encoding.PEM
 _TLS_CURVE = ec.SECP384R1
-
-
-def _write_tls_certificate(certificate: Certificate,
-                           full_filepath: Path,
-                           force: bool = False,
-                           ) -> Path:
-    cert_already_exists = full_filepath.is_file()
-    if force is False and cert_already_exists:
-        raise FileExistsError('A TLS certificate already exists at {}.'.format(full_filepath.resolve()))
-
-    with open(full_filepath, 'wb') as certificate_file:
-        public_pem_bytes = certificate.public_bytes(_TLS_CERTIFICATE_ENCODING)
-        certificate_file.write(public_pem_bytes)
-    return full_filepath
 
 
 def _read_tls_certificate(filepath: Path) -> Certificate:

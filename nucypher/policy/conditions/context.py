@@ -95,7 +95,7 @@ def get_context_value(context_variable: str, **context) -> Any:
         value = context.get(context_variable)
         if value is None:
             raise RequiredContextVariable(
-                f'"No value provided for unrecognized context variable "{context_variable}"'
+                f'No value provided for unrecognized context variable "{context_variable}"'
             )
     else:
         value = func(**context)  # required inputs here

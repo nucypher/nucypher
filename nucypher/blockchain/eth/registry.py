@@ -1,15 +1,12 @@
 
 import hashlib
 import json
-import shutil
-import tempfile
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
 
 import requests
-from constant_sorrow.constants import REGISTRY_COMMITTED
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -402,32 +399,6 @@ class LocalContractRegistry(BaseContractRegistry):
     def to_dict(self) -> dict:
         payload = dict(filepath=self.__filepath)
         return payload
-
-
-class TemporaryContractRegistry(LocalContractRegistry):
-
-    def __init__(self, *args, **kwargs) -> None:
-        _, self.temp_filepath = tempfile.mkstemp()
-        super().__init__(filepath=self.temp_filepath, *args, **kwargs)
-
-    def clear(self):
-        self.log.info("Cleared temporary registry at {}".format(self.filepath))
-        with open(self.filepath, 'w') as registry_file:
-            registry_file.write('')
-
-    def commit(self, filepath) -> Path:
-        """writes the current state of the registry to a file"""
-        self.log.info("Committing temporary registry to {}".format(filepath))
-        self._swap_registry(filepath)                     # I'll allow it
-
-        if filepath.exists():
-            self.log.debug("Removing registry {}".format(filepath))
-            self.clear()                                  # clear prior sim runs
-
-        _ = shutil.copy(self.temp_filepath, filepath)
-        self.temp_filepath = REGISTRY_COMMITTED  # just in case
-        self.log.info("Wrote temporary registry to filesystem {}".format(filepath))
-        return filepath
 
 
 class InMemoryContractRegistry(BaseContractRegistry):

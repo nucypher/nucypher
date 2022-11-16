@@ -8,29 +8,6 @@ from web3._utils.contracts import encode_abi
 from web3.contract import ContractConstructor
 
 
-
-def to_bytes32(value=None, hexstr=None) -> bytes:
-    return Web3.toBytes(primitive=value, hexstr=hexstr).rjust(32, b'\0')
-
-
-def to_32byte_hex(value=None, hexstr=None) -> str:
-    return Web3.toHex(to_bytes32(value=value, hexstr=hexstr))
-
-
-def get_mapping_entry_location(key: bytes, mapping_location: int) -> int:
-    if not(isinstance(key, bytes) and len(key) == 32):
-        raise ValueError("Mapping key must be a 32-long bytestring")
-    # See https://solidity.readthedocs.io/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
-    entry_location = Web3.toInt(Web3.keccak(key + mapping_location.to_bytes(32, "big")))
-    return entry_location
-
-
-def get_array_data_location(array_location: int) -> int:
-    # See https://solidity.readthedocs.io/en/latest/internals/layout_in_storage.html#mappings-and-dynamic-arrays
-    data_location = Web3.toInt(Web3.keccak(to_bytes32(array_location)))
-    return data_location
-
-
 def encode_constructor_arguments(web3: Web3,
                                  constructor_function: ContractConstructor,
                                  *constructor_args, **constructor_kwargs) -> HexStr:
@@ -52,7 +29,7 @@ def connect_web3_provider(eth_provider_uri: str) -> None:
     """
     Convenience function for connecting to an ethereum provider now.
     This may be used to optimize the startup time of some applications by
-    establishing the connection eagarly.
+    establishing the connection eagerly.
     """
     from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
