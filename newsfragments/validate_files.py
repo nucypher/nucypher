@@ -28,11 +28,12 @@ class InvalidNewsFragment(RuntimeError):
 
 
 ALLOWED_EXTENSIONS = {
-    '.feature.rst',
-    '.bugfix.rst',
-    '.doc.rst',
-    '.removal.rst',
-    '.misc.rst',
+    ".feature.rst",
+    ".bugfix.rst",
+    ".doc.rst",
+    ".removal.rst",
+    ".misc.rst",
+    ".dev.rst",
 }
 
 ALLOWED_FILES = {
