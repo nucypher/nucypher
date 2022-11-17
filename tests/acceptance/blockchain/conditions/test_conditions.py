@@ -1,6 +1,3 @@
-
-
-
 import copy
 import json
 import os
@@ -38,41 +35,43 @@ def condition_providers(testerchain):
     return providers
 
 
-VALID_USER_ADDRESS_CONTEXT = {
-    USER_ADDRESS_CONTEXT: {
-        "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
-        "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-        "typedData": {
-            "primaryType": "Wallet",
-            "types": {
-                "EIP712Domain": [
-                    {"name": "name", "type": "string"},
-                    {"name": "version", "type": "string"},
-                    {"name": "chainId", "type": "uint256"},
-                    {"name": "salt", "type": "bytes32"},
-                ],
-                "Wallet": [
-                    {"name": "address", "type": "string"},
-                    {"name": "blockNumber", "type": "uint256"},
-                    {"name": "blockHash", "type": "bytes32"},
-                    {"name": "signatureText", "type": "string"},
-                ],
+@pytest.fixture(scope='module')
+def valid_user_address_context():
+    return {
+        USER_ADDRESS_CONTEXT: {
+            "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
+            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+            "typedData": {
+                "primaryType": "Wallet",
+                "types": {
+                    "EIP712Domain": [
+                        {"name": "name", "type": "string"},
+                        {"name": "version", "type": "string"},
+                        {"name": "chainId", "type": "uint256"},
+                        {"name": "salt", "type": "bytes32"},
+                    ],
+                    "Wallet": [
+                        {"name": "address", "type": "string"},
+                        {"name": "blockNumber", "type": "uint256"},
+                        {"name": "blockHash", "type": "bytes32"},
+                        {"name": "signatureText", "type": "string"},
+                    ],
+                },
+                "domain": {
+                    "name": "tDec",
+                    "version": "1",
+                    "chainId": 80001,
+                    "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
+                },
+                "message": {
+                    "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
+                    "blockNumber": 28117088,
+                    "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
+                    "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
+                },
             },
-            "domain": {
-                "name": "tDec",
-                "version": "1",
-                "chainId": 80001,
-                "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
-            },
-            "message": {
-                "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-                "blockNumber": 28117088,
-                "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
-                "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
-            },
-        },
+        }
     }
-}
 
 
 def _dont_validate_user_address(context_variable: str, **context):
@@ -91,16 +90,16 @@ def test_required_context_variable(
 
 
 @pytest.mark.parametrize("expected_entry", ["address", "signature", "typedData"])
-def test_user_address_context_missing_required_entries(expected_entry):
-    context = copy.deepcopy(VALID_USER_ADDRESS_CONTEXT)
+def test_user_address_context_missing_required_entries(expected_entry, valid_user_address_context):
+    context = copy.deepcopy(valid_user_address_context)
     del context[USER_ADDRESS_CONTEXT][expected_entry]
     with pytest.raises(InvalidContextVariableData):
         _recover_user_address(**context)
 
 
-def test_user_address_context_invalid_eip712_typed_data():
+def test_user_address_context_invalid_eip712_typed_data(valid_user_address_context):
     # invalid typed data
-    context = copy.deepcopy(VALID_USER_ADDRESS_CONTEXT)
+    context = copy.deepcopy(valid_user_address_context)
     context[USER_ADDRESS_CONTEXT]["typedData"] = dict(
         randomSaying="Comparison is the thief of joy."  # -– Theodore Roosevelt
     )
@@ -108,14 +107,14 @@ def test_user_address_context_invalid_eip712_typed_data():
         _recover_user_address(**context)
 
 
-def test_user_address_context_variable_verification(testerchain):
+def test_user_address_context_variable_verification(testerchain, valid_user_address_context):
     # valid user address context - signature matches address
-    address = _recover_user_address(**VALID_USER_ADDRESS_CONTEXT)
-    assert address == VALID_USER_ADDRESS_CONTEXT[USER_ADDRESS_CONTEXT]["address"]
+    address = _recover_user_address(**valid_user_address_context)
+    assert address == valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
 
     # invalid user address context - signature does not match address
     # internals are mutable - deepcopy
-    mismatch_with_address_context = copy.deepcopy(VALID_USER_ADDRESS_CONTEXT)
+    mismatch_with_address_context = copy.deepcopy(valid_user_address_context)
     mismatch_with_address_context[USER_ADDRESS_CONTEXT][
         "address"
     ] = testerchain.etherbase_account
@@ -124,7 +123,7 @@ def test_user_address_context_variable_verification(testerchain):
 
     # invalid user address context - signature does not match address
     # internals are mutable - deepcopy
-    mismatch_with_address_context = copy.deepcopy(VALID_USER_ADDRESS_CONTEXT)
+    mismatch_with_address_context = copy.deepcopy(valid_user_address_context)
     signature = (
         "0x93252ddff5f90584b27b5eef1915b23a8b01a703be56c8bf0660647c15cb75e9"
         "1983bde9877eaad11da5a3ebc9b64957f1c182536931f9844d0c600f0c41293d1b"
@@ -135,7 +134,7 @@ def test_user_address_context_variable_verification(testerchain):
 
     # invalid signature
     # internals are mutable - deepcopy
-    invalid_signature_context = copy.deepcopy(VALID_USER_ADDRESS_CONTEXT)
+    invalid_signature_context = copy.deepcopy(valid_user_address_context)
     invalid_signature_context[USER_ADDRESS_CONTEXT][
         "signature"
     ] = "0xdeadbeef"  # invalid signature
@@ -573,12 +572,12 @@ def test_simple_compound_conditions_evaluation(testerchain):
 def test_onchain_conditions_lingo_evaluation(
     get_context_value_mock,
     testerchain,
-    lingo,
+        compound_lingo,
     condition_providers
 
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.etherbase_account}}
-    result = lingo.eval(providers=condition_providers, **context)
+    result = compound_lingo.eval(providers=condition_providers, **context)
     assert result is True
 
 
