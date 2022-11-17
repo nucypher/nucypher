@@ -29,51 +29,6 @@ from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.integration.characters.test_bob_handles_frags import _make_message_kits
 
 
-@pytest.fixture()
-def condition_providers(testerchain):
-    providers = {testerchain.client.chain_id: testerchain.provider}
-    return providers
-
-
-@pytest.fixture(scope='module')
-def valid_user_address_context():
-    return {
-        USER_ADDRESS_CONTEXT: {
-            "signature": "0x488a7acefdc6d098eedf73cdfd379777c0f4a4023a660d350d3bf309a51dd4251abaad9cdd11b71c400cfb4625c14ca142f72b39165bd980c8da1ea32892ff071c",
-            "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-            "typedData": {
-                "primaryType": "Wallet",
-                "types": {
-                    "EIP712Domain": [
-                        {"name": "name", "type": "string"},
-                        {"name": "version", "type": "string"},
-                        {"name": "chainId", "type": "uint256"},
-                        {"name": "salt", "type": "bytes32"},
-                    ],
-                    "Wallet": [
-                        {"name": "address", "type": "string"},
-                        {"name": "blockNumber", "type": "uint256"},
-                        {"name": "blockHash", "type": "bytes32"},
-                        {"name": "signatureText", "type": "string"},
-                    ],
-                },
-                "domain": {
-                    "name": "tDec",
-                    "version": "1",
-                    "chainId": 80001,
-                    "salt": "0x3e6365d35fd4e53cbc00b080b0742b88f8b735352ea54c0534ed6a2e44a83ff0",
-                },
-                "message": {
-                    "address": "0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E",
-                    "blockNumber": 28117088,
-                    "blockHash": "0x104dfae58be4a9b15d59ce447a565302d5658914f1093f10290cd846fbe258b7",
-                    "signatureText": "I'm the owner of address 0x5ce9454909639D2D17A3F753ce7d93fa0b9aB12E as of block number 28117088",
-                },
-            },
-        }
-    }
-
-
 def _dont_validate_user_address(context_variable: str, **context):
     if context_variable == USER_ADDRESS_CONTEXT:
         return context[USER_ADDRESS_CONTEXT]["address"]
@@ -220,16 +175,16 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     side_effect=_dont_validate_user_address,
 )
 def test_erc20_evm_condition_evaluation(
-    get_context_value_mock, testerchain, erc20_evm_condition, condition_providers
+    get_context_value_mock, testerchain, erc20_evm_condition_balanceof, condition_providers
 ):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
-    condition_result, call_result = erc20_evm_condition.verify(
+    condition_result, call_result = erc20_evm_condition_balanceof.verify(
         providers=condition_providers, **context
     )
     assert condition_result is True
 
     context[USER_ADDRESS_CONTEXT]["address"] = testerchain.etherbase_account
-    condition_result, call_result = erc20_evm_condition.verify(
+    condition_result, call_result = erc20_evm_condition_balanceof.verify(
         providers=condition_providers, **context
     )
     assert condition_result is False
@@ -550,16 +505,9 @@ def test_time_condition_evaluation(testerchain, timelock_condition, condition_pr
     assert condition_result is True
 
 
-def test_simple_compound_conditions_evaluation(testerchain):
+def test_simple_compound_conditions_evaluation(testerchain, compound_timelock_lingo):
     # TODO Improve internals of evaluation here (natural vs recursive approach)
-    conditions = [
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}
-    ]
-    conditions = json.dumps(conditions)
+    conditions = json.dumps(compound_timelock_lingo)
     lingo = ConditionLingo.from_json(conditions)
     result = lingo.eval()
     assert result is True
@@ -569,10 +517,11 @@ def test_simple_compound_conditions_evaluation(testerchain):
     "nucypher.policy.conditions.evm.get_context_value",
     side_effect=_dont_validate_user_address,
 )
+@pytest.mark.usefixtures("agency")
 def test_onchain_conditions_lingo_evaluation(
     get_context_value_mock,
     testerchain,
-        compound_lingo,
+    compound_lingo,
     condition_providers
 
 ):

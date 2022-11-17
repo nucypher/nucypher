@@ -46,8 +46,7 @@ def test_type_resolution_from_json(
     conditions = (
         timelock_condition,
         rpc_condition,
-        erc20_evm_condition,
-        erc721_evm_condition,
+        erc20_evm_condition
     )
     for condition in conditions:
         condition_json = condition.to_json()
