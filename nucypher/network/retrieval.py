@@ -140,7 +140,7 @@ class RetrievalPlan:
             results.append(
                 RetrievalResult(
                     {
-                        to_checksum_address(address): cfrag
+                        to_checksum_address(bytes(address)): cfrag
                         for address, cfrag in self._results[capsule].items()
                     }
                 )
@@ -193,7 +193,7 @@ class RetrievalClient:
         ursulas_in_map = treasure_map.destinations.keys()
 
         # TODO (#1995): when that issue is fixed, conversion is no longer needed
-        ursulas_in_map = [to_checksum_address(address) for address in ursulas_in_map]
+        ursulas_in_map = [to_checksum_address(bytes(address)) for address in ursulas_in_map]
 
         all_known_ursulas = self._learner.known_nodes.addresses()
 
@@ -299,7 +299,7 @@ class RetrievalClient:
             work_order = retrieval_plan.get_work_order()
 
             # TODO (#1995): when that issue is fixed, conversion is no longer needed
-            ursula_checksum_address = to_checksum_address(work_order.ursula_address)
+            ursula_checksum_address = to_checksum_address(bytes(work_order.ursula_address))
 
             if ursula_checksum_address not in self._learner.known_nodes:
                 continue

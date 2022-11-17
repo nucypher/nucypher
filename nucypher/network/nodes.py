@@ -96,7 +96,7 @@ class NodeSprout:
     @property
     def checksum_address(self):
         if not self._checksum_address:
-            self._checksum_address = to_checksum_address(self.canonical_address)
+            self._checksum_address = to_checksum_address(bytes(self.canonical_address))
         return self._checksum_address
 
     @property

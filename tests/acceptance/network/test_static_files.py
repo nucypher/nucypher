@@ -13,7 +13,7 @@ from tests.utils.ursula import make_federated_ursulas
 def test_ursula_serves_statics(ursula_federated_test_config):
 
     with tempfile.TemporaryDirectory() as STATICS_DIR:
-        os.environ['NUCYPHER_STATIC_FILES_ROOT'] = STATICS_DIR
+        os.environ['NUCYPHER_STATIC_FILES_ROOT'] = str(STATICS_DIR)
 
         node = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=1).pop()
         node_deployer = node.get_deployer()
@@ -33,7 +33,6 @@ def test_ursula_serves_statics(ursula_federated_test_config):
             )
             assert response.status_code == 200
             assert "I am Javascript" in response.text
-            assert response.headers['Content-Type'] == 'application/javascript'
             return node
 
         def check_static_file_not_there(node, cert_file):
