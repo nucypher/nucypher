@@ -1,9 +1,5 @@
-
-
-
-import json
-
-from nucypher_core import Address, RetrievalKit, Conditions
+from nucypher_core import Address, Conditions, RetrievalKit
+from nucypher_core._nucypher_core import MessageKit
 
 from nucypher.characters.lawful import Enrico
 from tests.utils.middleware import NodeIsDownMiddleware
@@ -44,16 +40,39 @@ def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
 
 
 def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursulas):
-
     federated_bob.start_learning_loop()
     messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
 
     cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
-        )
+    )
 
     assert cleartexts == messages
+
+
+def test_single_retrieve_conditions_set_directly_to_none(
+    enacted_federated_policy, federated_bob, federated_ursulas
+):
+    federated_bob.start_learning_loop()
+    message = b"plaintext1"
+
+    # MessageKit is created directly in this test, because Enrico.encrypt_message(...)
+    # prevents `conditions` on MessageKit from being set directly to None; it uses Condition(list())
+    # instead.
+    #
+    # This test reproduces the case when null is passed from `nucypher-ts` for a condition.
+    # TODO Should python be doing the same thing i.e. pass None and not Condition(list())?
+    message_kit = MessageKit(
+        policy_encrypting_key=enacted_federated_policy.public_key,
+        plaintext=message,
+        conditions=None,
+    )
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=[message_kit],
+        **_policy_info_kwargs(enacted_federated_policy),
+    )
+    assert cleartexts == [message]
 
 
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
