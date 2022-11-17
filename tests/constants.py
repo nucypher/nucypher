@@ -132,3 +132,22 @@ CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD
 CLI_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
            NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 TESTERCHAIN_CHAIN_ID = 131277322940537
+
+
+#
+# Network
+#
+
+RPC_TOO_MANY_REQUESTS = {
+    "jsonrpc": "2.0",
+    "error": {
+        "code": 429,
+        "message": "Too many concurrent requests"
+    }
+}
+
+RPC_SUCCESSFUL_RESPONSE = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": "Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15"
+}

@@ -1,29 +1,16 @@
-
-
 from typing import Any
 from unittest.mock import Mock
 
-import maya
 import pytest
 from requests import HTTPError
 from web3.types import RPCResponse, RPCError, RPCEndpoint
 
-from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
+from nucypher.blockchain.middleware.retry import (
+    RetryRequestMiddleware,
+    AlchemyRetryRequestMiddleware,
     InfuraRetryRequestMiddleware
-
-TOO_MANY_REQUESTS = {
-    "jsonrpc": "2.0",
-    "error": {
-        "code": 429,
-        "message": "Too many concurrent requests"
-    }
-}
-
-SUCCESSFUL_RESPONSE = {
-    "jsonrpc": "2.0",
-    "id": 1,
-    "result": "Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15"
-}
+)
+from tests.constants import RPC_TOO_MANY_REQUESTS, RPC_SUCCESSFUL_RESPONSE
 
 RETRY_REQUEST_CLASSES = (RetryRequestMiddleware, AlchemyRetryRequestMiddleware, InfuraRetryRequestMiddleware)
 
@@ -33,12 +20,12 @@ def test_is_request_result_retry(retry_middleware_class):
     # base checks
     retry_middleware = retry_middleware_class(make_request=Mock(), w3=Mock())
 
-    assert retry_middleware.is_request_result_retry(result=TOO_MANY_REQUESTS)
+    assert retry_middleware.is_request_result_retry(result=RPC_TOO_MANY_REQUESTS)
 
     http_error = HTTPError(response=Mock(status_code=429))
     assert retry_middleware.is_request_result_retry(result=http_error)
 
-    assert not retry_middleware.is_request_result_retry(result=SUCCESSFUL_RESPONSE)
+    assert not retry_middleware.is_request_result_retry(result=RPC_SUCCESSFUL_RESPONSE)
 
 
 @pytest.mark.parametrize('retry_middleware_class', RETRY_REQUEST_CLASSES)
@@ -51,10 +38,10 @@ def test_request_with_retry(retry_middleware_class):
                                               exponential_backoff=False)
 
     # Retry Case - RPCResponse fails due to limits, and retry required
-    make_request.return_value = TOO_MANY_REQUESTS
+    make_request.return_value = RPC_TOO_MANY_REQUESTS
 
     retry_response = retry_middleware(method=RPCEndpoint('web3_clientVersion'), params=None)
-    assert retry_response == TOO_MANY_REQUESTS
+    assert retry_response == RPC_TOO_MANY_REQUESTS
     assert make_request.call_count == (retries + 1)   # initial call, and then the number of retries
 
 
@@ -76,40 +63,15 @@ def test_request_with_non_retry_exception(retry_middleware_class):
 def test_request_success_with_no_retry(retry_middleware_class):
     # Success Case - retry not needed
     make_request = Mock()
-    make_request.return_value = SUCCESSFUL_RESPONSE
+    make_request.return_value = RPC_SUCCESSFUL_RESPONSE
 
     retry_middleware = retry_middleware_class(make_request=make_request,
                                               w3=Mock(),
                                               retries=10,
                                               exponential_backoff=False)
     retry_response = retry_middleware(method=RPCEndpoint('web3_clientVersion'), params=None)
-    assert retry_response == SUCCESSFUL_RESPONSE
+    assert retry_response == RPC_SUCCESSFUL_RESPONSE
     assert make_request.call_count == 1  # first call was successful, no need for retries
-
-
-# TODO - since this test does exponential backoff it takes >= 2^1 = 2s, should we only run on circleci?
-def test_request_with_retry_exponential_backoff():
-    retries = 1
-    make_request = Mock()
-
-    # Retry Case - RPCResponse fails due to limits, and retry required
-    make_request.return_value = TOO_MANY_REQUESTS
-
-    retry_middleware = RetryRequestMiddleware(make_request=make_request,
-                                              w3=Mock(),
-                                              retries=1,
-                                              exponential_backoff=True)
-
-    start = maya.now()
-    retry_response = retry_middleware(RPCEndpoint('web3_clientVersion'), None)
-    end = maya.now()
-
-    assert retry_response == TOO_MANY_REQUESTS
-    assert make_request.call_count == (retries + 1)  # initial call, and then the number of retries
-
-    # check exponential backoff
-    delta = end - start
-    assert delta.total_seconds() >= 2**retries
 
 
 def test_alchemy_request_with_retry():
