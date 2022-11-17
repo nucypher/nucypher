@@ -13,6 +13,7 @@ should be named `<PR_NUMBER>.<TYPE>.rst`, where `<TYPE>` is one of:
 * `doc` - documentation
 * `removal` - deprecations and removals
 * `misc` - other
+* `dev` - internal development tasks
 
 For example: `123.feature.rst`, `456.bugfix.rst`, `789.doc.rst`.
 
