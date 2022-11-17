@@ -1,3 +1,5 @@
+import pytest
+
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 CONDITIONS = [
@@ -13,7 +15,21 @@ CONDITIONS = [
     ]
 
 
-def test_compound_condition_timelock():
+def test_invalid_condition():
+    with pytest.raises(Exception):
+        ConditionLingo.from_list([{}])
+
+    with pytest.raises(Exception):
+        ConditionLingo.from_list([{"dont_mind_me": "nothing_to_see_here"}])
+
+
+def test_condition_lingo_to_from_list():
+    clingo = ConditionLingo.from_list(CONDITIONS)
+    clingo_list = clingo.to_list()
+    assert clingo_list == CONDITIONS
+
+
+def test_compound_condition():
     clingo = ConditionLingo.from_list(CONDITIONS)
     assert clingo.eval()
 

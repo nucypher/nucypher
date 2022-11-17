@@ -10,7 +10,6 @@ __pycache__
 /MANIFEST
 /.tox
 /.idea
-.coverage
 _temp_test_datastore
 .mypy_cache
 .pytest_cache/
@@ -51,3 +50,8 @@ docs/source/contracts_api/
 
 tests/unit/.hypothesis/
 .hypothesis/
+
+# Coverage
+.coverage
+coverage.*
+htmlcov/*

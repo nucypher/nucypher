@@ -7,10 +7,9 @@ from typing import ClassVar, Dict, List, Optional
 
 from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
-    NO_CONTROL_PROTOCOL,
     NO_NICKNAME,
     NO_SIGNING_POWER,
-    STRANGER
+    STRANGER,
 )
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils import to_canonical_address
@@ -18,7 +17,10 @@ from nucypher_core import MessageKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.eth.registry import BaseContractRegistry, InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
@@ -26,12 +28,9 @@ from nucypher.crypto.powers import (
     CryptoPowerUp,
     DecryptingPower,
     NoSigningPower,
-    SigningPower
+    SigningPower,
 )
-from nucypher.crypto.signing import (
-    SignatureStamp,
-    StrangerStamp,
-)
+from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import Learner
 
