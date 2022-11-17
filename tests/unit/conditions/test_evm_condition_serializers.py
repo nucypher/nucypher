@@ -70,9 +70,9 @@ def test_conditions_lingo_serialization(compound_lingo):
     assert restored_lingo.to_json() == lingo_json
 
 
-def test_reencryption_condition_to_from_bytes(lingo):
+def test_reencryption_condition_to_from_bytes(compound_lingo):
     # bytes
-    for l in lingo.conditions:
+    for l in compound_lingo.conditions:
         if isinstance(l, Operator):
             # operators don't have byte representations
             continue
@@ -81,9 +81,9 @@ def test_reencryption_condition_to_from_bytes(lingo):
         assert condition.to_json() == l.to_json()
 
 
-def test_reencryption_condition_to_from_dict(lingo):
+def test_reencryption_condition_to_from_dict(compound_lingo):
     # bytes
-    for l in lingo.conditions:
+    for l in compound_lingo.conditions:
         condition_bytes = l.to_dict()
         condition = l.__class__.from_dict(condition_bytes)
         assert condition.to_json() == l.to_json()
