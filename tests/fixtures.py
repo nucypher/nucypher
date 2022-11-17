@@ -1,5 +1,3 @@
-
-
 import contextlib
 import json
 import os
@@ -19,11 +17,16 @@ from web3 import Web3
 from web3.contract import Contract
 from web3.types import TxReceipt
 
+import nucypher
+import tests
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
+    SubscriptionManagerAgent,
+)
+from nucypher.blockchain.eth.agents import (
     PREApplicationAgent,
 )
 from nucypher.blockchain.eth.deployers import (
@@ -37,7 +40,8 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
+from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.characters.lawful import Enrico
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -45,12 +49,16 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.policy.payment import SubscriptionManagerPayment
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
+from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
+from nucypher.policy.conditions.time import TimeCondition
+from nucypher.policy.payment import SubscriptionManagerPayment
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from tests.constants import (
     BASE_TEMP_DIR,
@@ -66,8 +74,8 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     TEST_ETH_PROVIDER_URI,
-    TEST_GAS_LIMIT,
-)
+    TEST_GAS_LIMIT, )
+from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
     mock_cert_generation,
@@ -911,9 +919,16 @@ def basic_auth_file(temp_dir_path):
     basic_auth.unlink()
 
 
+@pytest.fixture(scope='module')
+def mock_rest_middleware():
+    return MockRestMiddleware()
+
+
 #
-# Condition Context
+# Conditions
 #
+
+
 @pytest.fixture(scope='module')
 def random_context():
     context = {
@@ -940,6 +955,236 @@ def random_context():
     return context
 
 
-@pytest.fixture(scope='module')
-def mock_rest_middleware():
-    return MockRestMiddleware()
+@pytest.fixture(scope='session')
+def conditions_test_data():
+    test_conditions = Path(tests.__file__).parent / "data" / "test_conditions.json"
+    with open(test_conditions, 'r') as file:
+        data = json.loads(file.read())
+    for name, condition in data.items():
+        if condition.get('chain'):
+            condition['chain'] = TESTERCHAIN_CHAIN_ID
+    return data
+
+
+@pytest.fixture(autouse=True)
+def mock_condition_blockchains(mocker):
+    """adds testerchain's chain ID to permitted conditional chains"""
+    mocker.patch.object(
+        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([TESTERCHAIN_CHAIN_ID])
+    )
+
+
+@pytest.fixture
+def timelock_condition():
+    condition = TimeCondition(
+        return_value_test=ReturnValueTest('>', 0)
+    )
+    return condition
+
+
+@pytest.fixture()
+def erc1155_balance_condition_data(conditions_test_data):
+    data = json.dumps(conditions_test_data['ERC1155_balance'])
+    return data
+
+
+@pytest.fixture()
+def erc1155_balance_condition(erc1155_balance_condition_data):
+    data = erc1155_balance_condition_data
+    condition = ContractCondition.from_json(data)
+    return condition
+
+
+@pytest.fixture()
+def erc20_balance_condition_data(conditions_test_data):
+    data = json.dumps(conditions_test_data['ERC20_balance'])
+    return data
+
+
+@pytest.fixture()
+def erc20_balance_condition(erc20_balance_condition_data):
+    data = erc20_balance_condition_data
+    condition = ContractCondition.from_json(data)
+    return condition
+
+
+@pytest.fixture()
+def t_staking_data(conditions_test_data):
+    return json.dumps(conditions_test_data["TStaking"])
+
+
+@pytest.fixture()
+def custom_abi_with_multiple_parameters(conditions_test_data):
+    return json.dumps(conditions_test_data["customABIMultipleParameters"])
+
+
+@pytest.fixture
+def rpc_condition():
+    condition = RPCCondition(
+        method="eth_getBalance",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", Web3.to_wei(1_000_000, "ether")),
+        parameters=[USER_ADDRESS_CONTEXT],
+    )
+    return condition
+
+
+@pytest.fixture
+def erc20_evm_condition(test_registry, agency):
+    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    condition = ContractCondition(
+        contract_address=token.contract.address,
+        method="balanceOf",
+        standard_contract_type="ERC20",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", 0),
+        parameters=[USER_ADDRESS_CONTEXT],
+    )
+    return condition
+
+
+@pytest.fixture
+def custom_context_variable_erc20_condition(
+    test_registry, agency, testerchain, mock_condition_blockchains
+):
+    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    condition = ContractCondition(
+        contract_address=token.contract.address,
+        method="balanceOf",
+        standard_contract_type="ERC20",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", 0),
+        parameters=[":addressToUse"],
+    )
+    return condition
+
+
+@pytest.fixture
+def erc721_contract(testerchain, test_registry):
+    solidity_root = Path(tests.__file__).parent / 'acceptance' / 'blockchain' / 'conditions' / "contracts"
+    source_bundle = SourceBundle(base_path=solidity_root)
+    compiled_contracts = multiversion_compile([source_bundle], True)
+    testerchain._raw_contract_cache = compiled_contracts
+
+    origin, *everybody_else = testerchain.client.accounts
+    transacting_power = TransactingPower(
+        account=origin, signer=Web3Signer(testerchain.client)
+    )
+    contract, receipt = testerchain.deploy_contract(
+        transacting_power=transacting_power,
+        registry=test_registry,
+        contract_name="ConditionNFT",
+    )
+    # mint an NFT with tokenId = 1
+    tx = contract.functions.mint(origin, 1).transact({"from": origin})
+    testerchain.wait_for_receipt(tx)
+
+    return contract
+
+
+@pytest.fixture
+def erc721_evm_condition_owner(erc721_contract):
+    condition = ContractCondition(
+        contract_address=erc721_contract.address,
+        method="ownerOf",
+        standard_contract_type="ERC721",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+        parameters=[
+            ":tokenId",
+        ],
+    )
+    return condition
+
+
+@pytest.fixture
+def erc721_evm_condition(test_registry):
+    condition = ContractCondition(
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        method="ownerOf",
+        standard_contract_type="ERC721",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":userAddress"),
+        parameters=[
+            5954,
+        ]
+    )
+    return condition
+
+
+@pytest.fixture
+def erc721_evm_condition_balanceof(erc721_contract):
+    condition = ContractCondition(
+        contract_address=erc721_contract.address,
+        method="balanceOf",
+        standard_contract_type="ERC721",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(">", 0),
+        parameters=[
+            ":userAddress",
+        ],
+    )
+
+    return condition
+
+
+@pytest.fixture
+def subscription_manager_is_active_policy_condition(test_registry, agency):
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent,
+        registry=test_registry
+    )
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name("isPolicyActive").abi,
+        method="isPolicyActive",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", True),
+        parameters=[":hrac"],
+    )
+    return condition
+
+
+@pytest.fixture
+def subscription_manager_get_policy_zeroized_policy_struct_condition(
+    test_registry, agency
+):
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent, registry=test_registry
+    )
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name("getPolicy").abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
+        parameters=[":hrac"],
+    )
+    return condition
+
+
+@pytest.fixture
+def timelock_condition():
+    condition = TimeCondition(
+        return_value_test=ReturnValueTest('>', 0)
+    )
+    return condition
+
+
+@pytest.fixture()
+def compound_lingo(erc721_evm_condition_balanceof,
+                   timelock_condition,
+                   rpc_condition,
+                   erc20_evm_condition):
+    lingo = ConditionLingo(
+        conditions=[
+            erc721_evm_condition_balanceof,
+            OR,
+            timelock_condition,
+            OR,
+            rpc_condition,
+            AND,
+            erc20_evm_condition,
+        ]
+    )
+    return lingo
