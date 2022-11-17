@@ -13,28 +13,24 @@ bytestring-splitter = ">=2.4.0"
 hendrix = ">=3.4"
 nucypher-core = ">=0.4.0"
 # Cryptography
-pyopenssl = "*"
 cryptography = ">=3.2"
-pysha3="*"
+mnemonic = "*"
 pynacl= ">=1.4.0"
+pyopenssl = "*"
+pysha3="*"
 # Utilities
-maya = "*"
-tzlocal = "==2.1"
-marshmallow = "*"
-msgpack = "*"
 mako = "*"
-qrcode = {extras = ["pil"], version = "*"}
+marshmallow = "*"
+maya = "*"
+msgpack = "*"
 # Web
-requests = "*"
+aiohttp = "==3.8.1"
 flask = "*"
-# 2.1.0 removed `JSONWebSignatureSerializer`, which `flask_httpasswd` depends on
-# (and it does not cap the version of `itsdangerous` itself)
-itsdangerous = "<2.1.0"
-jinja2 = "<3.1.0"
+requests = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
-web3 = "*"
+web3 = ">=6.0.0b1"
 eth-utils = "*"
 eip712-structs = "*"
 # CLI / Configuration
@@ -48,7 +44,6 @@ tabulate = "*"
 # pytest==7 causes problems with autouse mocks and config in `.circleci` folder.
 # See https://github.com/pytest-dev/pytest/issues/9703
 pytest = "<7"
-pytest-xdist = "*"
 pytest-twisted = "*"
 pytest-cov = "*"
 pytest-mock = "*"
@@ -57,9 +52,8 @@ pytest-timeout = "*"
 hypothesis = "*"
 pre-commit = "2.12.1"
 pyflakes = "*"
-bandit = "*"
 mypy = "*"
-coverage = "*"
+coverage = "<=6.5.0"
 py-solc-x = "==0.10.1"
 
 [scripts]
