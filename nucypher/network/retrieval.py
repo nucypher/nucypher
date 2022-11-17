@@ -9,8 +9,8 @@ from eth_utils import to_checksum_address
 from nucypher_core import (
     Conditions,
     Context,
-    ReencryptionResponse,
     ReencryptionRequest,
+    ReencryptionResponse,
     RetrievalKit,
     TreasureMap,
 )
@@ -43,11 +43,15 @@ class RetrievalPlan:
     def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
         # Record the retrieval kits order
-        self._capsules, rust_conditions = tuple(zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits)))
+        self._capsules, rust_lingos = tuple(
+            zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits))
+        )
 
         # Transform Conditions -> ConditionsLingo
-        json_conditions = (json.loads(str(c)) for c in rust_conditions)
-        self._conditions = list(ConditionLingo.from_list(lingo) if lingo else None for lingo in json_conditions)
+        json_lingos = (json.loads(str(c)) if c else list() for c in rust_lingos)
+        self._conditions = list(
+            ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingos
+        )
 
         self._threshold = treasure_map.threshold
 
