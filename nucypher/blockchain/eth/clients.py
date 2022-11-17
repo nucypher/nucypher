@@ -294,9 +294,11 @@ class EthereumClient:
         else:
             # If not asking for confirmations, just use web3 and assume the returned receipt is final
             try:
-                receipt = self.w3.eth.wait_for_transaction_receipt(transaction_hash=transaction_hash,
-                                                                timeout=timeout,
-                                                                poll_latency=self.TRANSACTION_POLLING_TIME)
+                receipt = self.w3.eth.wait_for_transaction_receipt(
+                    transaction_hash=transaction_hash,
+                    timeout=timeout,
+                    poll_latency=self.TRANSACTION_POLLING_TIME
+                )
             except TimeExhausted:
                 raise  # TODO: #1504 - Handle transaction timeout
 

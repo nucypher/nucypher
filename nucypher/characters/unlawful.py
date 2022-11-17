@@ -76,11 +76,11 @@ class Vladimir(Ursula):
 
         # Since it is an object from a Rust extension, we cannot directly modify it,
         # so we have to replace stuff in the byte representation and then deserialize.
-        # We are replacinig objects with constant size,
+        # We are replacing objects with constant size,
         # so it should work regardless of the binary format.
 
         # Our basic replacement. We want to impersonate the target Ursula.
-        metadata_bytes = metadata_bytes.replace(metadata.payload.staking_provider_address,
+        metadata_bytes = metadata_bytes.replace(bytes(metadata.payload.staking_provider_address),
                                                 vladimir.canonical_address)
 
         # Use our own verifying key
