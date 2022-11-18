@@ -22,7 +22,7 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.rust_shims import _deserialize_rust_lingos
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.utilities.logging import Logger
 
@@ -140,14 +140,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
         # Deserialize and instantiate ConditionLingo from the request data
-        json_lingo = json.loads(str(reenc_request.conditions))
-        lingo = [ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingo]
+        lingos = _deserialize_rust_lingos(reenc_request=reenc_request)
 
         # requester-supplied reencryption condition context
         context = json.loads(str(reenc_request.context)) or dict()
 
         # zip capsules with their respective conditions
-        packets = zip(reenc_request.capsules, lingo)
+        packets = zip(reenc_request.capsules, lingos)
 
         # TODO: Detect if we are dealing with PRE or tDec here
         # TODO: This is for PRE only, relocate HRAC to RE.context

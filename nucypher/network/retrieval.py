@@ -2,7 +2,8 @@
 import json
 import random
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from json import JSONDecodeError
+from typing import Dict, List, Sequence, Tuple
 
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -12,7 +13,7 @@ from nucypher_core import (
     ReencryptionRequest,
     ReencryptionResponse,
     RetrievalKit,
-    TreasureMap,
+    TreasureMap, Address,
 )
 from nucypher_core.umbral import (
     Capsule,
@@ -25,7 +26,8 @@ from twisted.logger import Logger
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import Learner
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.exceptions import InvalidConditionContext
+from nucypher.policy.conditions.rust_shims import _serialize_rust_lingos
 from nucypher.policy.kits import RetrievalResult
 
 
@@ -42,22 +44,12 @@ class RetrievalPlan:
 
     def __init__(self, treasure_map: TreasureMap, retrieval_kits: Sequence[RetrievalKit]):
 
-        # Record the retrieval kits order
-        self._capsules, rust_lingos = tuple(
-            zip(*((rk.capsule, rk.conditions) for rk in retrieval_kits))
-        )
-
-        # Transform Conditions -> ConditionsLingo
-        json_lingos = (json.loads(str(c)) if c else list() for c in rust_lingos)
-        self._conditions = list(
-            ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingos
-        )
-
+        self._retrieval_kits = retrieval_kits
         self._threshold = treasure_map.threshold
 
         # Records the retrieval results, indexed by capsule
         self._results = {
-            retrieval_kit.capsule: {} for retrieval_kit in retrieval_kits
+            rk.capsule: {} for rk in retrieval_kits
         }  # {capsule: {ursula_address: cfrag}}
 
         # Records the retrieval result errors, indexed by capsule
@@ -97,17 +89,18 @@ class RetrievalPlan:
         """
         while self._ursulas_pick_order:
             ursula_address = self._ursulas_pick_order.pop(0)
-            # Only request reencryption for capsules that:
-            # - haven't been processed by this Ursula
-            # - don't already have cfrags from `threshold` Ursulas
-            packets = [(capsule, lingo) for capsule, lingo in zip(self._capsules, self._conditions)
-                        if (capsule not in self._processed_capsules.get(ursula_address, set())
-                            and len(self._queried_addresses[capsule]) < self._threshold)]
-            if len(packets) > 0:
-                capsules, conditions = list(zip(*packets))
-                return RetrievalWorkOrder(ursula_address=ursula_address,
-                                          capsules=list(capsules),
-                                          lingo=list(conditions))
+            retrieval_kits: List[RetrievalKit] = list()
+            for rk in self._retrieval_kits:
+                # Only request reencryption for capsules that:
+                # - haven't been processed by this Ursula
+                processed = rk.capsule in self._processed_capsules.get(ursula_address, set())
+                # - don't already have cfrags from `threshold` Ursulas
+                enough = len(self._queried_addresses[rk.capsule]) >= self._threshold
+                if (not processed) and (not enough):
+                    retrieval_kits.append(rk)
+
+            if len(retrieval_kits) > 0:
+                return RetrievalWorkOrder(ursula_address=ursula_address, retrieval_kits=retrieval_kits)
 
         # Execution will not reach this point if `is_complete()` returned `False` before this call.
         raise RuntimeError("No Ursulas left")
@@ -125,7 +118,7 @@ class RetrievalPlan:
                       work_order: "RetrievalWorkOrder",
                       ursula_address: ChecksumAddress,
                       error_message: str):
-        for capsule in work_order.capsules:
+        for capsule in work_order.capsules():
             self._errors[capsule][ursula_address] = error_message
 
     def is_complete(self) -> bool:
@@ -140,40 +133,34 @@ class RetrievalPlan:
         results = []
         errors = []
         # maintain the same order with both lists
-        for capsule in self._capsules:
+        for rk in self._retrieval_kits:
             results.append(
                 RetrievalResult(
                     {
                         to_checksum_address(bytes(address)): cfrag
-                        for address, cfrag in self._results[capsule].items()
+                        for address, cfrag in self._results[rk.capsule].items()
                     }
                 )
             )
-            errors.append(RetrievalError(errors=self._errors[capsule]))
+            errors.append(RetrievalError(errors=self._errors[rk.capsule]))
 
         return results, errors
 
 
 class RetrievalWorkOrder:
-    """
-    A work order issued by a retrieval plan to request reencryption from an Ursula
-    """
+    """A work order issued by a retrieval plan to request reencryption from an Ursula"""
 
-    def __init__(
-        self,
-        ursula_address: ChecksumAddress,
-        capsules: List[Capsule],
-        lingo: Optional[List[ConditionLingo]] = None,
-    ):
+    def __init__(self, ursula_address: Address, retrieval_kits: List[RetrievalKit]):
         self.ursula_address = ursula_address
-        self.capsules = capsules
-        self.__lingo = lingo
+        self.__retrieval_kits = retrieval_kits
 
-    def conditions(self, as_json=True) -> Union[str, List[ConditionLingo]]:
-        lingo = self.__lingo or list()
-        if as_json:
-            return json.dumps([l.to_list() if l else None for l in lingo])
-        return lingo
+    def capsules(self) -> List[Capsule]:
+        return [rk.capsule for rk in self.__retrieval_kits]
+
+    def lingos(self) -> Conditions:
+        _lingos = [rk.conditions for rk in self.__retrieval_kits]
+        rust_lingos = _serialize_rust_lingos(_lingos)
+        return rust_lingos
 
 
 class RetrievalClient:
@@ -312,25 +299,19 @@ class RetrievalClient:
 
             ursula = self._learner.known_nodes[ursula_checksum_address]
 
-            # TODO: Move to a method and handle errors?
-            # TODO: This serialization is rather low-level compared to the rest of this method.
-            # nucypher-core consumes bytes only for conditions and context.
-            condition_string = work_order.conditions(as_json=True)  # '[[lingo], null, [lingo]]'
-            request_context_string = json.dumps(context)
-
-            # TODO: As this pattern swells further, it makes sense to do this in a purpose-built facility,
-            # such as a factory that makes helper classes and casts the appropriate types.
-            rust_conditions = Conditions(condition_string)
-            rust_context = Context(request_context_string)
+            try:
+                request_context_string = json.dumps(context)
+            except TypeError:
+                raise InvalidConditionContext("'context' must be JSON serializable.")
 
             reencryption_request = ReencryptionRequest(
+                capsules=work_order.capsules(),
+                conditions=work_order.lingos(),
+                context=Context(request_context_string),
                 hrac=treasure_map.hrac,
-                capsules=work_order.capsules,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
                 bob_verifying_key=bob_verifying_key,
-                publisher_verifying_key=treasure_map.publisher_verifying_key,
-                conditions=rust_conditions,
-                context=rust_context
+                publisher_verifying_key=treasure_map.publisher_verifying_key
             )
 
             try:
