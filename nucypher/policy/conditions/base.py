@@ -60,6 +60,6 @@ class ReencryptionCondition(_Serializable, ABC):
 
     @classmethod
     def validate(cls, data: ConditionDict) -> None:
-        errors = cls.Schema.validate(data)
+        errors = cls.Schema().validate(data=data)
         if errors:
             raise InvalidCondition(f"Invalid {cls.__name__}: {errors}")

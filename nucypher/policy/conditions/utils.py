@@ -101,7 +101,7 @@ def deserialize_condition_lingo(
 def validate_condition_lingo(conditions: LingoList) -> None:
     for c in conditions:
         lingo_class = resolve_condition_lingo(data=c)
-        lingo_class.validate(c)
+        lingo_class.validate(data=c)
 
 
 def evaluate_condition_lingo(

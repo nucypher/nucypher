@@ -159,10 +159,12 @@ class RetrievalWorkOrder:
     A work order issued by a retrieval plan to request reencryption from an Ursula
     """
 
-    def __init__(self,
-                 ursula_address: ChecksumAddress, capsules: List[Capsule],
-                 lingo: Optional[List[ConditionLingo]] = None
-                 ):
+    def __init__(
+        self,
+        ursula_address: ChecksumAddress,
+        capsules: List[Capsule],
+        lingo: Optional[List[ConditionLingo]] = None,
+    ):
         self.ursula_address = ursula_address
         self.capsules = capsules
         self.__lingo = lingo
