@@ -1,5 +1,3 @@
-
-
 from typing import Any, Dict, List, Optional, Tuple
 
 from eth_typing import ChecksumAddress
@@ -11,7 +9,6 @@ from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
-from nucypher.policy.conditions._utils import CamelCaseSchema, camel_case_to_snake
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.exceptions import (
@@ -20,6 +17,7 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
 
 # Permitted blockchains for condition evaluation
 _CONDITION_CHAINS = (

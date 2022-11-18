@@ -1,6 +1,3 @@
-
-
-
 import ast
 import base64
 import json
@@ -10,36 +7,38 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 from marshmallow import fields, post_load
 
-from nucypher.policy.conditions._utils import (
-    CamelCaseSchema,
-    _deserialize_condition_lingo,
-)
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import is_context_variable
-from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
+from nucypher.policy.conditions.exceptions import (
+    InvalidLogicalOperator,
+    ReturnValueEvaluationError,
+)
+from nucypher.policy.conditions.types import ConditionDict, LingoList
+from nucypher.policy.conditions.utils import (
+    CamelCaseSchema,
+    deserialize_condition_lingo,
+)
 
 
 class Operator:
-    OPERATORS = ('and', 'or')
+    OPERATORS = ("and", "or")
+    _KEY = "operator"
 
     def __init__(self, _operator: str):
         if _operator not in self.OPERATORS:
-            raise Exception(f'{_operator} is not a valid operator')
+            raise InvalidLogicalOperator(f"{_operator} is not a valid operator")
         self.operator = _operator
 
     def __str__(self) -> str:
         return self.operator
 
     def to_dict(self) -> Dict[str, str]:
-        return {'operator': self.operator}
+        return {self._KEY: self.operator}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, str]) -> 'Operator':
-        try:
-            _operator = data['operator']  # underscore prefix to avoid name shadowing
-        except KeyError:
-            raise Exception(f'Invalid operator JSON')
-        instance = cls(_operator=_operator)
+    def from_dict(cls, data: ConditionDict) -> "Operator":
+        cls.validate(data)
+        instance = cls(_operator=data[cls._KEY])
         return instance
 
     @classmethod
@@ -52,6 +51,16 @@ class Operator:
         data = self.to_dict()
         data = json.dumps(data)
         return data
+
+    @classmethod
+    def validate(cls, data: ConditionDict) -> None:
+        try:
+            _operator = data[cls._KEY]  # underscore prefix to avoid name shadowing
+        except KeyError:
+            raise InvalidLogicalOperator(f"Invalid operator data: {data}")
+
+        if _operator not in cls.OPERATORS:
+            raise InvalidLogicalOperator(f"{_operator} is not a valid operator")
 
 
 class ReturnValueTest:
@@ -164,12 +173,12 @@ class ConditionLingo:
         condition
         ...
         """
-        self._validate(lingo=conditions)
+        self._validate_grammar(lingo=conditions)
         self.conditions = conditions
         self.id = md5(bytes(self)).hexdigest()[:6]
 
     @staticmethod
-    def _validate(lingo) -> None:
+    def _validate_grammar(lingo) -> None:
         if len(lingo) % 2 == 0:
             raise ValueError('conditions must be odd length, ever other element being an operator')
         for index, element in enumerate(lingo):
@@ -179,8 +188,8 @@ class ConditionLingo:
                 raise Exception(f'{index} element must be an operator; Got {type(element)}.')
 
     @classmethod
-    def from_list(cls, payload: List[Dict[str, str]]) -> 'ConditionLingo':
-        conditions = [_deserialize_condition_lingo(c) for c in payload]
+    def from_list(cls, payload: LingoList) -> "ConditionLingo":
+        conditions = [deserialize_condition_lingo(c) for c in payload]
         instance = cls(conditions=conditions)
         return instance
 
@@ -239,7 +248,6 @@ class ConditionLingo:
         eval_string = ' '.join(str(e) for e in data)
         result = self.__eval(eval_string=eval_string)
         return result
-
 
 OR = Operator('or')
 AND = Operator('and')

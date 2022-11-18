@@ -57,12 +57,7 @@ def test_single_retrieve_conditions_set_directly_to_none(
     federated_bob.start_learning_loop()
     message = b"plaintext1"
 
-    # MessageKit is created directly in this test, because Enrico.encrypt_message(...)
-    # prevents `conditions` on MessageKit from being set directly to None; it uses Condition(list())
-    # instead.
-    #
-    # This test reproduces the case when null is passed from `nucypher-ts` for a condition.
-    # TODO Should python be doing the same thing i.e. pass None and not Condition(list())?
+    # MessageKit is created directly in this test, to ensure consistency
     message_kit = MessageKit(
         policy_encrypting_key=enacted_federated_policy.public_key,
         plaintext=message,

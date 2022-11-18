@@ -1,4 +1,6 @@
-
+# Lingo Validation Errors (Grammar)
+class InvalidLogicalOperator(Exception):
+    """Invalid definition of logical lingo operator."""
 
 
 # Connectivity
@@ -13,6 +15,7 @@ class NoConnectionToChain(RuntimeError):
 
 class ReturnValueEvaluationError(Exception):
     """Issue with Return Value and Key"""
+
 
 # Context Variable
 class RequiredContextVariable(Exception):

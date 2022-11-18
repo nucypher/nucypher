@@ -5,10 +5,10 @@ from typing import Tuple
 
 from marshmallow import fields, post_load
 
-from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
 class TimeCondition(ReencryptionCondition):

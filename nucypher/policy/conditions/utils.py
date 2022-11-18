@@ -1,5 +1,3 @@
-
-
 import json
 import re
 from http import HTTPStatus
@@ -18,10 +16,11 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     ReturnValueEvaluationError,
 )
+from nucypher.policy.conditions.types import ConditionDict, LingoList
 from nucypher.utilities.logging import Logger
 
-_ETH = 'eth_'
-__LOGGER = Logger('condition-eval')
+_ETH = "eth_"
+__LOGGER = Logger("condition-eval")
 
 
 class EvalError(NamedTuple):
@@ -52,12 +51,13 @@ class CamelCaseSchema(Schema):
     @post_dump
     def remove_skip_values(self, data, **kwargs):
         return {
-            key: value for key, value in data.items()
-            if value not in self.SKIP_VALUES
+            key: value for key, value in data.items() if value not in self.SKIP_VALUES
         }
 
 
-def _resolve_condition_lingo(json_data) -> Union[Type['Operator'], Type['ReencryptionCondition']]:
+def resolve_condition_lingo(
+    data: ConditionDict,
+) -> Union[Type["Operator"], Type["ReencryptionCondition"]]:
     """
     TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
     Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
@@ -69,9 +69,9 @@ def _resolve_condition_lingo(json_data) -> Union[Type['Operator'], Type['Reencry
     from nucypher.policy.conditions.time import TimeCondition
 
     # Inspect
-    method = json_data.get('method')
-    operator = json_data.get('operator')
-    contract = json_data.get('contractAddress')
+    method = data.get("method")
+    operator = data.get("operator")
+    contract = data.get("contractAddress")
 
     # Resolve
     if method:
@@ -84,19 +84,27 @@ def _resolve_condition_lingo(json_data) -> Union[Type['Operator'], Type['Reencry
     elif operator:
         return Operator
     else:
-        raise Exception(f'Cannot resolve condition lingo type from data {json_data}')
+        raise Exception(f"Cannot resolve condition lingo type from data {data}")
 
 
-def _deserialize_condition_lingo(data: Union[str, Dict[str, str]]) -> Union['Operator', 'ReencryptionCondition']:
+def deserialize_condition_lingo(
+    data: Union[str, ConditionDict]
+) -> Union["Operator", "ReencryptionCondition"]:
     """Deserialization helper for condition lingo"""
     if isinstance(data, str):
         data = json.loads(data)
-    lingo_class = _resolve_condition_lingo(json_data=data)
+    lingo_class = resolve_condition_lingo(data=data)
     instance = lingo_class.from_dict(data)
     return instance
 
 
-def evaluate_conditions(
+def validate_condition_lingo(conditions: LingoList) -> None:
+    for c in conditions:
+        lingo_class = resolve_condition_lingo(data=c)
+        lingo_class.validate(c)
+
+
+def evaluate_condition_lingo(
     lingo: "ConditionLingo",
     providers: Optional[Dict[int, BaseProvider]] = None,
     context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
@@ -150,14 +158,13 @@ def evaluate_conditions(
             HTTPStatus.NOT_IMPLEMENTED,
         )
     except ConditionEvaluationFailed as e:
-        error = (
-            f"Decryption condition not evaluated: {e}",
-            HTTPStatus.BAD_REQUEST
-        )
+        error = (f"Decryption condition not evaluated: {e}", HTTPStatus.BAD_REQUEST)
     except Exception as e:
         # TODO: Unsure why we ended up here
-        message = f"Unexpected exception while evaluating " \
-                  f"decryption condition ({e.__class__.__name__}): {e}"
+        message = (
+            f"Unexpected exception while evaluating "
+            f"decryption condition ({e.__class__.__name__}): {e}"
+        )
         error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
         log.warn(message)
 

@@ -22,8 +22,8 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions._utils import evaluate_conditions
 from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -198,7 +198,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
             if condition_lingo:
-                error = evaluate_conditions(
+                error = evaluate_condition_lingo(
                     lingo=condition_lingo,
                     providers=providers,
                     context=context

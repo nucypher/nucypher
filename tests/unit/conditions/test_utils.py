@@ -23,13 +23,13 @@ import pytest
 from marshmallow import fields
 from web3.providers import BaseProvider
 
-from nucypher.policy.conditions._utils import (
+from nucypher.policy.conditions.exceptions import *
+from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     camel_case_to_snake,
-    evaluate_conditions,
+    evaluate_condition_lingo,
     to_camelcase,
 )
-from nucypher.policy.conditions.exceptions import *
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (exception, constructor parameters, expected status code)
@@ -54,7 +54,7 @@ def test_evaluate_condition_exception_cases(
     condition_lingo = Mock()
     condition_lingo.eval.side_effect = exception_class(*exception_constructor_params)
 
-    eval_error = evaluate_conditions(
+    eval_error = evaluate_condition_lingo(
         lingo=condition_lingo
     )  # provider and context default to empty dicts
     assert eval_error
@@ -64,7 +64,7 @@ def test_evaluate_condition_exception_cases(
 def test_evaluate_condition_eval_returns_false():
     condition_lingo = Mock()
     condition_lingo.eval.return_value = False
-    eval_error = evaluate_conditions(
+    eval_error = evaluate_condition_lingo(
         lingo=condition_lingo,
         providers={1: Mock(spec=BaseProvider)},  # fake provider
         context={"key": "value"},  # fake context
@@ -76,7 +76,7 @@ def test_evaluate_condition_eval_returns_false():
 def test_evaluate_condition_eval_returns_true():
     condition_lingo = Mock()
     condition_lingo.eval.return_value = True
-    eval_error = evaluate_conditions(
+    eval_error = evaluate_condition_lingo(
         lingo=condition_lingo,
         providers={
             1: Mock(spec=BaseProvider),

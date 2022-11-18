@@ -1,11 +1,12 @@
-
-
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 from typing import Any, Dict, Tuple
 
 from marshmallow import Schema
+
+from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.types import ConditionDict
 
 
 class _Serializable:
@@ -56,3 +57,9 @@ class ReencryptionCondition(_Serializable, ABC):
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         """Returns the boolean result of the evaluation and the returned value in a two-tuple."""
         return NotImplemented
+
+    @classmethod
+    def validate(cls, data: ConditionDict) -> None:
+        errors = cls.Schema.validate(data)
+        if errors:
+            raise InvalidCondition(f"Invalid {cls.__name__}: {errors}")
