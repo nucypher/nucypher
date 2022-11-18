@@ -10,6 +10,7 @@ from marshmallow import fields, post_load
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.exceptions import (
+    InvalidConditionLingo,
     InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
@@ -180,12 +181,18 @@ class ConditionLingo:
     @staticmethod
     def _validate_grammar(lingo) -> None:
         if len(lingo) % 2 == 0:
-            raise ValueError('conditions must be odd length, ever other element being an operator')
+            raise InvalidConditionLingo(
+                "conditions must be odd length, ever other element being an operator"
+            )
         for index, element in enumerate(lingo):
             if (not index % 2) and not (isinstance(element, ReencryptionCondition)):
-                raise Exception(f'{index} element must be a condition; Got {type(element)}.')
+                raise InvalidConditionLingo(
+                    f"{index} element must be a condition; Got {type(element)}."
+                )
             elif (index % 2) and (not isinstance(element, Operator)):
-                raise Exception(f'{index} element must be an operator; Got {type(element)}.')
+                raise InvalidConditionLingo(
+                    f"{index} element must be an operator; Got {type(element)}."
+                )
 
     @classmethod
     def from_list(cls, payload: LingoList) -> "ConditionLingo":
@@ -240,7 +247,9 @@ class ConditionLingo:
             elif isinstance(task, Operator):
                 yield task
             else:
-                raise TypeError(f"Unrecognized type {type(task)} for ConditionLingo")
+                raise InvalidConditionLingo(
+                    f"Unrecognized type {type(task)} for ConditionLingo"
+                )
 
     def eval(self, *args, **kwargs) -> bool:
         data = self.__process(*args, **kwargs)

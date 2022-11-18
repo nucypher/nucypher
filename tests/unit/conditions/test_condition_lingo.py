@@ -3,6 +3,7 @@ import pytest
 import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
+from nucypher.policy.conditions.exceptions import InvalidConditionLingo
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 
@@ -16,10 +17,10 @@ def lingo():
 
 
 def test_invalid_condition():
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_list([{}])
 
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_list([{"dont_mind_me": "nothing_to_see_here"}])
 
 

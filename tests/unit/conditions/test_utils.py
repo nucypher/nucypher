@@ -29,11 +29,13 @@ from nucypher.policy.conditions.utils import (
     camel_case_to_snake,
     evaluate_condition_lingo,
     to_camelcase,
+    validate_condition_lingo,
 )
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (exception, constructor parameters, expected status code)
     (ReturnValueEvaluationError, None, HTTPStatus.BAD_REQUEST),
+    (InvalidConditionLingo, None, HTTPStatus.BAD_REQUEST),
     (InvalidCondition, None, HTTPStatus.BAD_REQUEST),
     (RequiredContextVariable, None, HTTPStatus.BAD_REQUEST),
     (InvalidContextVariableData, None, HTTPStatus.BAD_REQUEST),
@@ -124,3 +126,25 @@ def test_camel_case_schema():
 
     reloaded_function = schema.load(output)
     assert reloaded_function == {"field_name_with_underscores": f"{value}"}
+
+
+def test_condition_lingo_validation(compound_lingo):
+    # valid compound lingo
+    compound_lingo_list = compound_lingo.to_list()
+    validate_condition_lingo(compound_lingo_list)
+
+    # no issues here
+    invalid_operator_lingo = [
+        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+        {"operator": "AND_OPERATOR"},  # replace operator with invalid one
+        {
+            "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+            "method": "timelock",
+        },
+    ]
+    with pytest.raises(InvalidLogicalOperator):
+        validate_condition_lingo(invalid_operator_lingo)
+
+    # invalid condition
+    with pytest.raises(InvalidConditionLingo):
+        validate_condition_lingo([{"dont_mind_me": "nothing_to_see_here"}])

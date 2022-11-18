@@ -11,6 +11,7 @@ from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     ContextVariableVerificationFailed,
     InvalidCondition,
+    InvalidConditionLingo,
     InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
@@ -84,7 +85,9 @@ def resolve_condition_lingo(
     elif operator:
         return Operator
     else:
-        raise Exception(f"Cannot resolve condition lingo type from data {data}")
+        raise InvalidConditionLingo(
+            f"Cannot resolve condition lingo type from data {data}"
+        )
 
 
 def deserialize_condition_lingo(
@@ -132,6 +135,11 @@ def evaluate_condition_lingo(
     except ReturnValueEvaluationError as e:
         error = (
             f"Unable to evaluate return value: {e}",
+            HTTPStatus.BAD_REQUEST,
+        )
+    except InvalidConditionLingo as e:
+        error = (
+            f"Invalid condition grammar: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except InvalidCondition as e:

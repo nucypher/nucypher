@@ -1,4 +1,8 @@
 # Lingo Validation Errors (Grammar)
+class InvalidConditionLingo(Exception):
+    """Invalid lingo grammar."""
+
+
 class InvalidLogicalOperator(Exception):
     """Invalid definition of logical lingo operator."""
 
