@@ -129,11 +129,10 @@ def test_camel_case_schema():
 
 
 def test_condition_lingo_validation(compound_lingo):
-    # valid compound lingo
+    # valid compound lingo; no issues here
     compound_lingo_list = compound_lingo.to_list()
     validate_condition_lingo(compound_lingo_list)
 
-    # no issues here
     invalid_operator_lingo = [
         {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
         {"operator": "AND_OPERATOR"},  # replace operator with invalid one

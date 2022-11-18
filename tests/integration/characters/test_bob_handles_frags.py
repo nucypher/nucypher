@@ -1,3 +1,5 @@
+import json
+
 from nucypher_core import Address, Conditions, RetrievalKit
 from nucypher_core._nucypher_core import MessageKit
 
@@ -62,6 +64,25 @@ def test_single_retrieve_conditions_set_directly_to_none(
         policy_encrypting_key=enacted_federated_policy.public_key,
         plaintext=message,
         conditions=None,
+    )
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=[message_kit],
+        **_policy_info_kwargs(enacted_federated_policy),
+    )
+    assert cleartexts == [message]
+
+
+def test_single_retrieve_conditions_empty_list(
+    enacted_federated_policy, federated_bob, federated_ursulas
+):
+    federated_bob.start_learning_loop()
+    message = b"plaintext1"
+
+    # MessageKit is created directly in this test, to ensure consistency
+    message_kit = MessageKit(
+        policy_encrypting_key=enacted_federated_policy.public_key,
+        plaintext=message,
+        conditions=Conditions(json.dumps([])),
     )
     cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=[message_kit],

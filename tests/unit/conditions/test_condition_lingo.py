@@ -23,6 +23,14 @@ def test_invalid_condition():
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_list([{"dont_mind_me": "nothing_to_see_here"}])
 
+    # operator in incorrect spot
+    invalid_operator_position_lingo = [
+        {"operator": "and"},
+        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+    ]
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_list(invalid_operator_position_lingo)
+
 
 def test_condition_lingo_to_from_list(lingo):
     clingo = ConditionLingo.from_list(lingo)
