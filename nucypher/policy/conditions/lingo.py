@@ -3,7 +3,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Iterator, List, Optional, Union
 
 from marshmallow import fields, post_load
 
@@ -14,7 +14,12 @@ from nucypher.policy.conditions.exceptions import (
     InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import ConditionDict, LingoList
+from nucypher.policy.conditions.types import (
+    LingoEntry,
+    LingoEntryObject,
+    LingoList,
+    OperatorDict,
+)
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     deserialize_condition_lingo,
@@ -23,7 +28,6 @@ from nucypher.policy.conditions.utils import (
 
 class Operator:
     OPERATORS = ("and", "or")
-    _KEY = "operator"
 
     def __init__(self, _operator: str):
         if _operator not in self.OPERATORS:
@@ -33,13 +37,13 @@ class Operator:
     def __str__(self) -> str:
         return self.operator
 
-    def to_dict(self) -> Dict[str, str]:
-        return {self._KEY: self.operator}
+    def to_dict(self) -> OperatorDict:
+        return {"operator": self.operator}
 
     @classmethod
-    def from_dict(cls, data: ConditionDict) -> "Operator":
+    def from_dict(cls, data: OperatorDict) -> "Operator":
         cls.validate(data)
-        instance = cls(_operator=data[cls._KEY])
+        instance = cls(_operator=data["operator"])
         return instance
 
     @classmethod
@@ -50,13 +54,13 @@ class Operator:
 
     def to_json(self) -> str:
         data = self.to_dict()
-        data = json.dumps(data)
-        return data
+        json_data = json.dumps(data)
+        return json_data
 
     @classmethod
-    def validate(cls, data: ConditionDict) -> None:
+    def validate(cls, data: LingoEntry) -> None:
         try:
-            _operator = data[cls._KEY]  # underscore prefix to avoid name shadowing
+            _operator = data["operator"]
         except KeyError:
             raise InvalidLogicalOperator(f"Invalid operator data: {data}")
 
@@ -168,7 +172,7 @@ class ConditionLingo:
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, conditions: List[Union[ReencryptionCondition, Operator, Any]]):
+    def __init__(self, conditions: List[LingoEntryObject]):
         """
         The input list *must* be structured as follows:
         condition
@@ -202,7 +206,7 @@ class ConditionLingo:
         instance = cls(conditions=conditions)
         return instance
 
-    def to_list(self):  # TODO: __iter__ ?
+    def to_list(self) -> LingoList:  # TODO: __iter__ ?
         payload = [c.to_dict() for c in self.conditions]
         return payload
 
@@ -212,8 +216,8 @@ class ConditionLingo:
 
     @classmethod
     def from_json(cls, data: str) -> 'ConditionLingo':
-        data = json.loads(data)
-        instance = cls.from_list(payload=data)
+        payload = json.loads(data)
+        instance = cls.from_list(payload=payload)
         return instance
 
     def to_base64(self) -> bytes:
@@ -222,8 +226,8 @@ class ConditionLingo:
 
     @classmethod
     def from_base64(cls, data: bytes) -> 'ConditionLingo':
-        data = base64.b64decode(data).decode()
-        instance = cls.from_json(data)
+        decoded_json = base64.b64decode(data).decode()
+        instance = cls.from_json(decoded_json)
         return instance
 
     def __bytes__(self) -> bytes:
@@ -259,6 +263,7 @@ class ConditionLingo:
         eval_string = ' '.join(str(e) for e in data)
         result = self.__eval(eval_string=eval_string)
         return result
+
 
 OR = Operator('or')
 AND = Operator('and')

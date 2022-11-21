@@ -1,12 +1,11 @@
 import json
 import re
 from http import HTTPStatus
-from typing import Dict, NamedTuple, Optional, Type, Union
+from typing import Dict, NamedTuple, Optional, Tuple
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
 
-from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     ContextVariableVerificationFailed,
@@ -17,7 +16,13 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import ConditionDict, LingoList
+from nucypher.policy.conditions.types import (
+    ContextDict,
+    LingoEntry,
+    LingoEntryObject,
+    LingoEntryObjectType,
+    LingoList,
+)
 from nucypher.utilities.logging import Logger
 
 _ETH = "eth_"
@@ -44,7 +49,7 @@ class CamelCaseSchema(Schema):
     and snake-case for its internal representation.
     """
 
-    SKIP_VALUES = tuple()
+    SKIP_VALUES: Tuple = tuple()
 
     def on_bind_field(self, field_name, field_obj):
         field_obj.data_key = to_camelcase(field_obj.data_key or field_name)
@@ -57,8 +62,8 @@ class CamelCaseSchema(Schema):
 
 
 def resolve_condition_lingo(
-    data: ConditionDict,
-) -> Union[Type["Operator"], Type["ReencryptionCondition"]]:
+    data: LingoEntry,
+) -> LingoEntryObjectType:
     """
     TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
     Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
@@ -90,9 +95,7 @@ def resolve_condition_lingo(
         )
 
 
-def deserialize_condition_lingo(
-    data: Union[str, ConditionDict]
-) -> Union["Operator", "ReencryptionCondition"]:
+def deserialize_condition_lingo(data: LingoEntry) -> LingoEntryObject:
     """Deserialization helper for condition lingo"""
     if isinstance(data, str):
         data = json.loads(data)
@@ -110,7 +113,7 @@ def validate_condition_lingo(conditions: LingoList) -> None:
 def evaluate_condition_lingo(
     lingo: "ConditionLingo",
     providers: Optional[Dict[int, BaseProvider]] = None,
-    context: Optional[Dict[Union[str, int], Union[str, int]]] = None,
+    context: Optional[ContextDict] = None,
     log: Logger = __LOGGER,
 ) -> Optional[EvalError]:
     """
@@ -131,49 +134,53 @@ def evaluate_condition_lingo(
         result = lingo.eval(providers=providers, **context)
         if not result:
             # explicit condition failure
-            error = ("Decryption conditions not satisfied", HTTPStatus.FORBIDDEN)
+            error = EvalError(
+                "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
+            )
     except ReturnValueEvaluationError as e:
-        error = (
+        error = EvalError(
             f"Unable to evaluate return value: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except InvalidConditionLingo as e:
-        error = (
+        error = EvalError(
             f"Invalid condition grammar: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except InvalidCondition as e:
-        error = (
+        error = EvalError(
             f"Incorrect value provided for condition: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except RequiredContextVariable as e:
         # TODO: be more specific and name the missing inputs, etc
-        error = (f"Missing required inputs: {e}", HTTPStatus.BAD_REQUEST)
+        error = EvalError(f"Missing required inputs: {e}", HTTPStatus.BAD_REQUEST)
     except InvalidContextVariableData as e:
-        error = (
+        error = EvalError(
             f"Invalid data provided for context variable: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except ContextVariableVerificationFailed as e:
-        error = (
+        error = EvalError(
             f"Context variable data could not be verified: {e}",
             HTTPStatus.FORBIDDEN,
         )
     except NoConnectionToChain as e:
-        error = (
+        error = EvalError(
             f"Node does not have a connection to chain ID {e.chain}: {e}",
             HTTPStatus.NOT_IMPLEMENTED,
         )
     except ConditionEvaluationFailed as e:
-        error = (f"Decryption condition not evaluated: {e}", HTTPStatus.BAD_REQUEST)
+        error = EvalError(
+            f"Decryption condition not evaluated: {e}", HTTPStatus.BAD_REQUEST
+        )
     except Exception as e:
         # TODO: Unsure why we ended up here
         message = (
             f"Unexpected exception while evaluating "
             f"decryption condition ({e.__class__.__name__}): {e}"
         )
-        error = (message, HTTPStatus.INTERNAL_SERVER_ERROR)
+        error = EvalError(message, HTTPStatus.INTERNAL_SERVER_ERROR)
         log.warn(message)
 
     if error:

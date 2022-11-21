@@ -1,14 +1,9 @@
-
-
-
 from typing import Dict, Set
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_canonical_address
+from nucypher_core import Address, Conditions, MessageKit, RetrievalKit
 from nucypher_core.umbral import PublicKey, SecretKey, VerifiedCapsuleFrag
-
-from nucypher_core import Address, MessageKit, RetrievalKit
-from nucypher.policy.conditions.lingo import ConditionLingo
 
 
 class PolicyMessageKit:
@@ -54,7 +49,7 @@ class PolicyMessageKit:
                                 message_kit=self.message_kit)
 
     @property
-    def conditions(self) -> ConditionLingo:
+    def conditions(self) -> Conditions:
         return self.message_kit.conditions
 
 
@@ -71,7 +66,7 @@ class RetrievalResult:
     def __init__(self, cfrags: Dict[ChecksumAddress, VerifiedCapsuleFrag]):
         self.cfrags = cfrags
 
-    def canonical_addresses(self) -> Set[bytes]:
+    def canonical_addresses(self) -> Set[Address]:
         # TODO (#1995): propagate this to use canonical addresses everywhere
         return set([Address(to_canonical_address(address)) for address in self.cfrags])
 

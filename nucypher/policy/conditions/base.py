@@ -1,12 +1,12 @@
 import json
 from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
-from typing import Any, Dict, Tuple
+from typing import Any, Tuple
 
 from marshmallow import Schema
 
 from nucypher.policy.conditions.exceptions import InvalidCondition
-from nucypher.policy.conditions.types import ConditionDict
+from nucypher.policy.conditions.types import LingoEntry
 
 
 class _Serializable:
@@ -25,7 +25,7 @@ class _Serializable:
         instance = schema.load(data)
         return instance
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self):
         schema = self.Schema()
         data = schema.dump(self)
         return data
@@ -59,7 +59,7 @@ class ReencryptionCondition(_Serializable, ABC):
         return NotImplemented
 
     @classmethod
-    def validate(cls, data: ConditionDict) -> None:
+    def validate(cls, data: LingoEntry) -> None:
         errors = cls.Schema().validate(data=data)
         if errors:
             raise InvalidCondition(f"Invalid {cls.__name__}: {errors}")
