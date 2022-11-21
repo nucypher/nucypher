@@ -80,8 +80,10 @@ class ReturnValueTest:
 
     class ReturnValueTestSchema(CamelCaseSchema):
         SKIP_VALUES = (None,)
-        comparator = fields.Str()
-        value = fields.Raw(allow_none=False)  # any valid type (excludes None)
+        comparator = fields.Str(required=True)
+        value = fields.Raw(
+            allow_none=False, required=True
+        )  # any valid type (excludes None)
         key = fields.Raw(allow_none=True)
 
         @post_load

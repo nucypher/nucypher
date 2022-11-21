@@ -109,3 +109,122 @@ def test_invalid_contract_condition():
                 ":hrac",
             ],
         )
+
+
+def test_timelock_condition_schema_validation(timelock_condition):
+    condition_dict = timelock_condition.to_dict()
+
+    # no issues here
+    TimeCondition.validate(condition_dict)
+
+    # no issues with optional name
+    condition_dict["name"] = "my_time_machine"
+    TimeCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no method
+        condition_dict = timelock_condition.to_dict()
+        del condition_dict["method"]
+        TimeCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no returnValueTest defined
+        condition_dict = timelock_condition.to_dict()
+        del condition_dict["returnValueTest"]
+        TimeCondition.validate(condition_dict)
+
+
+def test_rpc_condition_schema_validation(rpc_condition):
+    condition_dict = rpc_condition.to_dict()
+
+    # no issues here
+    RPCCondition.validate(condition_dict)
+
+    # no issues with optional name
+    condition_dict["name"] = "my_rpc_condition"
+    RPCCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no chain defined
+        condition_dict = rpc_condition.to_dict()
+        del condition_dict["chain"]
+        RPCCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no method defined
+        condition_dict = rpc_condition.to_dict()
+        del condition_dict["method"]
+        RPCCondition.validate(condition_dict)
+
+    # no issue with no parameters
+    condition_dict = rpc_condition.to_dict()
+    del condition_dict["parameters"]
+    RPCCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no returnValueTest defined
+        condition_dict = rpc_condition.to_dict()
+        del condition_dict["returnValueTest"]
+        RPCCondition.validate(condition_dict)
+
+
+def test_contract_condition_schema_validation():
+    contract_condition = ContractCondition(
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        method="balanceOf",
+        chain=TESTERCHAIN_CHAIN_ID,
+        standard_contract_type="ERC20",
+        return_value_test=ReturnValueTest("!=", 0),
+        parameters=[
+            ":hrac",
+        ],
+    )
+
+    condition_dict = contract_condition.to_dict()
+
+    # no issues here
+    ContractCondition.validate(condition_dict)
+
+    # no issues with optional name
+    condition_dict["name"] = "my_contract_condition"
+    ContractCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no contract address defined
+        condition_dict = contract_condition.to_dict()
+        del condition_dict["contractAddress"]
+        ContractCondition.validate(condition_dict)
+
+    balanceOf_abi = {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    }
+
+    with pytest.raises(InvalidCondition):
+        # no function abi or standard contract type
+        condition_dict = contract_condition.to_dict()
+        del condition_dict["standardContractType"]
+        ContractCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # provide both function abi and standard contract type
+        condition_dict = contract_condition.to_dict()
+        condition_dict["functionAbi"] = balanceOf_abi
+        ContractCondition.validate(condition_dict)
+
+    # remove standardContractType but specify function abi; no issues with that
+    condition_dict = contract_condition.to_dict()
+    del condition_dict["standardContractType"]
+    condition_dict["functionAbi"] = balanceOf_abi
+    ContractCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no returnValueTest defined
+        condition_dict = contract_condition.to_dict()
+        del condition_dict["returnValueTest"]
+        ContractCondition.validate(condition_dict)

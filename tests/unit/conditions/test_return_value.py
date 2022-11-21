@@ -7,6 +7,35 @@ from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
 
+def test_return_value_test_schema():
+    schema = ReturnValueTest.ReturnValueTestSchema()
+
+    return_value_test = ReturnValueTest(comparator=">", value=0, key="tStake")
+    test_dict = schema.dump(return_value_test)
+
+    # no issues here
+    errors = schema.validate(data=test_dict)
+    assert not errors, f"{errors}"
+
+    # missing comparator should cause error
+    test_dict = schema.dump(return_value_test)
+    del test_dict["comparator"]
+    errors = schema.validate(data=test_dict)
+    assert errors, f"{errors}"
+
+    # missing value should cause error
+    test_dict = schema.dump(return_value_test)
+    del test_dict["value"]
+    errors = schema.validate(data=test_dict)
+    assert errors, f"{errors}"
+
+    # missing key should NOT cause any error since optional
+    test_dict = schema.dump(return_value_test)
+    del test_dict["key"]
+    errors = schema.validate(data=test_dict)
+    assert not errors, f"{errors}"
+
+
 def test_return_value_key():
     test = ReturnValueTest(comparator=">", value="0", key="james")
     assert test.eval({"james": 1})
