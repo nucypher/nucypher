@@ -33,8 +33,8 @@ from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
-    Address,
     HRAC,
+    Address,
     Conditions,
     EncryptedKeyFrag,
     EncryptedTreasureMap,
@@ -65,7 +65,6 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -82,9 +81,12 @@ from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker, OperatorBondedTracker
+from nucypher.policy.conditions.types import LingoList
+from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import FreeReencryptions, PaymentMethod
 from nucypher.policy.policies import BlockchainPolicy, FederatedPolicy, Policy
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
 
@@ -1184,9 +1186,14 @@ class Enrico(Character):
         if is_me:
             self.log.info(self.banner.format(policy_encrypting_key))
 
-    def encrypt_message(self, plaintext: bytes, conditions: Optional[Dict[str, Union[str, int]]] = None) -> MessageKit:
+    def encrypt_message(
+        self, plaintext: bytes, conditions: Optional[LingoList] = None
+    ) -> MessageKit:
         # TODO: #2107 Rename to "encrypt"
-        conditions = Conditions(json.dumps(conditions or list()))
+        if conditions:
+            # validate
+            validate_condition_lingo(conditions)
+            conditions = Conditions(json.dumps(conditions))
         message_kit = MessageKit(policy_encrypting_key=self.policy_pubkey,
                                  plaintext=plaintext,
                                  conditions=conditions)

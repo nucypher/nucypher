@@ -1,17 +1,14 @@
-
-
 from typing import Any, Dict, List, Optional, Tuple
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
-from marshmallow import fields, post_load
+from marshmallow import fields, post_load, validates_schema
 from web3 import Web3
 from web3.contract import ContractFunction
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
-from nucypher.policy.conditions._utils import CamelCaseSchema, camel_case_to_snake
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.exceptions import (
@@ -20,6 +17,7 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
 
 # Permitted blockchains for condition evaluation
 _CONDITION_CHAINS = (
@@ -108,6 +106,7 @@ class RPCCondition(ReencryptionCondition):
     )  # TODO other allowed methods (tDEC #64)
 
     class Schema(CamelCaseSchema):
+        SKIP_VALUES = (None,)
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
         method = fields.Str(required=True)
@@ -122,18 +121,21 @@ class RPCCondition(ReencryptionCondition):
         r = f'{self.__class__.__name__}(function={self.method}, chain={self.chain})'
         return r
 
-    def __init__(self,
-                 chain: int,
-                 method: str,
-                 return_value_test: ReturnValueTest,
-                 parameters: Optional[List[Any]] = None
-                 ):
+    def __init__(
+        self,
+        chain: int,
+        method: str,
+        return_value_test: ReturnValueTest,
+        name: Optional[str] = None,
+        parameters: Optional[List[Any]] = None,
+    ):
 
         # Validate input
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
         _validate_chain(chain=chain)
 
         # internal
+        self.name = name
         self.chain = chain
         self.method = self.validate_method(method=method)
 
@@ -206,7 +208,6 @@ class RPCCondition(ReencryptionCondition):
 
 class ContractCondition(RPCCondition):
     class Schema(RPCCondition.Schema):
-        SKIP_VALUES = (None,)
         standard_contract_type = fields.Str(required=False)
         contract_address = fields.Str(required=True)
         function_abi = fields.Dict(required=False)
@@ -214,6 +215,15 @@ class ContractCondition(RPCCondition):
         @post_load
         def make(self, data, **kwargs):
             return ContractCondition(**data)
+
+        @validates_schema
+        def check_standard_contract_type_or_function_abi(self, data, **kwargs):
+            standard_contract_type = data.get("standard_contract_type")
+            function_abi = data.get("function_abi")
+            if not (bool(standard_contract_type) ^ bool(function_abi)):
+                raise InvalidCondition(
+                    f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
+                )
 
     def __init__(
         self,
@@ -227,9 +237,9 @@ class ContractCondition(RPCCondition):
         super().__init__(*args, **kwargs)
         self.w3 = Web3()  # used to instantiate contract function without a provider
 
-        if standard_contract_type and function_abi:
+        if not (bool(standard_contract_type) ^ bool(function_abi)):
             raise InvalidCondition(
-                "Only one of 'standard_contract_type' or 'function_abi' may be provided."
+                f"Provide 'standard_contract_type' or 'function_abi'; got ({standard_contract_type}, {function_abi})."
             )
 
         # preprocessing

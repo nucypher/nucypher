@@ -1,12 +1,10 @@
-
-
-
 import json
 
-from nucypher_core import Address, RetrievalKit, Conditions
+from nucypher_core import Address, Conditions, RetrievalKit
+from nucypher_core._nucypher_core import MessageKit
 
-from nucypher.characters.lawful import Enrico
 from tests.utils.middleware import NodeIsDownMiddleware
+from tests.utils.policy import make_message_kits
 
 
 def _policy_info_kwargs(enacted_policy):
@@ -16,21 +14,8 @@ def _policy_info_kwargs(enacted_policy):
         )
 
 
-def _make_message_kits(policy_pubkey, conditions=None):
-    messages = [b"plaintext1", b"plaintext2", b"plaintext3"]
-
-    message_kits = []
-    for message in messages:
-        # Using different Enricos, because why not.
-        enrico = Enrico(policy_encrypting_key=policy_pubkey)
-        message_kit = enrico.encrypt_message(message, conditions=conditions)
-        message_kits.append(message_kit)
-
-    return messages, message_kits
-
-
 def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
-    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
+    messages, message_kits = make_message_kits(enacted_federated_policy.public_key)
 
     capsule = message_kits[0].capsule
     addresses = {Address(ursula.canonical_address) for ursula in list(federated_ursulas)[:2]}
@@ -44,22 +29,59 @@ def test_retrieval_kit(enacted_federated_policy, federated_ursulas):
 
 
 def test_single_retrieve(enacted_federated_policy, federated_bob, federated_ursulas):
-
     federated_bob.start_learning_loop()
-    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
+    messages, message_kits = make_message_kits(enacted_federated_policy.public_key)
 
     cleartexts = federated_bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **_policy_info_kwargs(enacted_federated_policy),
-        )
+    )
 
     assert cleartexts == messages
+
+
+def test_single_retrieve_conditions_set_directly_to_none(
+    enacted_federated_policy, federated_bob, federated_ursulas
+):
+    federated_bob.start_learning_loop()
+    message = b"plaintext1"
+
+    # MessageKit is created directly in this test, to ensure consistency
+    message_kit = MessageKit(
+        policy_encrypting_key=enacted_federated_policy.public_key,
+        plaintext=message,
+        conditions=None,
+    )
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=[message_kit],
+        **_policy_info_kwargs(enacted_federated_policy),
+    )
+    assert cleartexts == [message]
+
+
+def test_single_retrieve_conditions_empty_list(
+    enacted_federated_policy, federated_bob, federated_ursulas
+):
+    federated_bob.start_learning_loop()
+    message = b"plaintext1"
+
+    # MessageKit is created directly in this test, to ensure consistency
+    message_kit = MessageKit(
+        policy_encrypting_key=enacted_federated_policy.public_key,
+        plaintext=message,
+        conditions=Conditions(json.dumps([])),
+    )
+    cleartexts = federated_bob.retrieve_and_decrypt(
+        message_kits=[message_kit],
+        **_policy_info_kwargs(enacted_federated_policy),
+    )
+    assert cleartexts == [message]
 
 
 def test_use_external_cache(enacted_federated_policy, federated_bob, federated_ursulas):
 
     federated_bob.start_learning_loop()
-    messages, message_kits = _make_message_kits(enacted_federated_policy.public_key)
+    messages, message_kits = make_message_kits(enacted_federated_policy.public_key)
 
     ursulas = list(federated_ursulas)
 

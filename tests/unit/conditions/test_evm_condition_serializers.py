@@ -1,8 +1,8 @@
 import json
 
-from nucypher.policy.conditions._utils import _deserialize_condition_lingo
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, Operator
+from nucypher.policy.conditions.utils import deserialize_condition_lingo
 
 
 def test_simple_lingo_serialization(custom_abi_with_multiple_parameters, erc1155_balance_condition_data):
@@ -50,7 +50,7 @@ def test_type_resolution_from_json(
     )
     for condition in conditions:
         condition_json = condition.to_json()
-        resolved_condition = _deserialize_condition_lingo(condition_json)
+        resolved_condition = deserialize_condition_lingo(condition_json)
         assert isinstance(resolved_condition, type(condition))
 
 

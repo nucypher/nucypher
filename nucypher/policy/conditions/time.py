@@ -1,23 +1,26 @@
 
 
 import time
-from typing import Tuple
+from typing import Optional, Tuple
 
 from marshmallow import fields, post_load
 
-from nucypher.policy.conditions._utils import CamelCaseSchema
 from nucypher.policy.conditions.base import ReencryptionCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
 class TimeCondition(ReencryptionCondition):
     METHOD = 'timelock'
 
     class Schema(CamelCaseSchema):
-        name = fields.Str()
-        method = fields.Str(dump_default="timelock")
-        return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema())
+        SKIP_VALUES = (None,)
+        name = fields.Str(required=False)
+        method = fields.Str(dump_default="timelock", required=True)
+        return_value_test = fields.Nested(
+            ReturnValueTest.ReturnValueTestSchema(), required=True
+        )
 
         @post_load
         def make(self, data, **kwargs):
@@ -27,12 +30,18 @@ class TimeCondition(ReencryptionCondition):
         r = f'{self.__class__.__name__}(timestamp={self.return_value_test.value})'
         return r
 
-    def __init__(self, return_value_test: ReturnValueTest, method: str = METHOD):
+    def __init__(
+        self,
+        return_value_test: ReturnValueTest,
+        method: str = METHOD,
+        name: Optional[str] = None,
+    ):
         if method != self.METHOD:
             raise InvalidCondition(
                 f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
             )
         self.return_value_test = return_value_test
+        self.name = name
 
     @property
     def method(self):

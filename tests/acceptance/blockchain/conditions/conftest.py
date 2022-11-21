@@ -3,14 +3,18 @@ from pathlib import Path
 import pytest
 
 import nucypher
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent, SubscriptionManagerAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    NucypherTokenAgent,
+    SubscriptionManagerAgent,
+)
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
-from nucypher.policy.conditions.lingo import ReturnValueTest, ConditionLingo, OR, AND
+from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -49,8 +53,7 @@ def compound_lingo(erc721_evm_condition_balanceof,
 
 
 @pytest.fixture()
-@pytest.mark.usefixtures('agency')
-def erc20_evm_condition_balanceof(test_registry):
+def erc20_evm_condition_balanceof(test_registry, agency):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,

@@ -26,7 +26,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from tests.constants import TESTERCHAIN_CHAIN_ID
-from tests.integration.characters.test_bob_handles_frags import _make_message_kits
+from tests.utils.policy import make_message_kits
 
 
 def _dont_validate_user_address(context_variable: str, **context):
@@ -547,7 +547,9 @@ def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, bloc
          }
         }
     ]
-    messages, message_kits = _make_message_kits(enacted_blockchain_policy.public_key, conditions)
+    messages, message_kits = make_message_kits(
+        enacted_blockchain_policy.public_key, conditions
+    )
     policy_info_kwargs = dict(
         encrypted_treasure_map=enacted_blockchain_policy.treasure_map,
         alice_verifying_key=enacted_blockchain_policy.publisher_verifying_key,
