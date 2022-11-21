@@ -8,12 +8,13 @@ from typing import Dict, List, Sequence, Tuple
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
+    Address,
     Conditions,
     Context,
     ReencryptionRequest,
     ReencryptionResponse,
     RetrievalKit,
-    TreasureMap, Address,
+    TreasureMap,
 )
 from nucypher_core.umbral import (
     Capsule,
@@ -118,7 +119,7 @@ class RetrievalPlan:
                       work_order: "RetrievalWorkOrder",
                       ursula_address: ChecksumAddress,
                       error_message: str):
-        for capsule in work_order.capsules():
+        for capsule in work_order.capsules:
             self._errors[capsule][ursula_address] = error_message
 
     def is_complete(self) -> bool:
@@ -154,9 +155,11 @@ class RetrievalWorkOrder:
         self.ursula_address = ursula_address
         self.__retrieval_kits = retrieval_kits
 
+    @property
     def capsules(self) -> List[Capsule]:
         return [rk.capsule for rk in self.__retrieval_kits]
 
+    @property
     def lingos(self) -> Conditions:
         _lingos = [rk.conditions for rk in self.__retrieval_kits]
         rust_lingos = _serialize_rust_lingos(_lingos)
@@ -305,8 +308,8 @@ class RetrievalClient:
                 raise InvalidConditionContext("'context' must be JSON serializable.")
 
             reencryption_request = ReencryptionRequest(
-                capsules=work_order.capsules(),
-                conditions=work_order.lingos(),
+                capsules=work_order.capsules,
+                conditions=work_order.lingos,
                 context=Context(request_context_string),
                 hrac=treasure_map.hrac,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],
