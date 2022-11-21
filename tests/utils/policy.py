@@ -3,6 +3,8 @@
 import os
 import random
 
+from nucypher.characters.lawful import Enrico
+
 
 def generate_random_label() -> bytes:
     """
@@ -15,3 +17,16 @@ def generate_random_label() -> bytes:
     selection = random.choice(combinations)
     random_label = f'label://{selection}-{os.urandom(4).hex()}'
     return bytes(random_label, encoding='utf-8')
+
+
+def make_message_kits(policy_pubkey, conditions=None):
+    messages = [b"plaintext1", b"plaintext2", b"plaintext3"]
+
+    message_kits = []
+    for message in messages:
+        # Using different Enricos, because why not.
+        enrico = Enrico(policy_encrypting_key=policy_pubkey)
+        message_kit = enrico.encrypt_message(message, conditions=conditions)
+        message_kits.append(message_kit)
+
+    return messages, message_kits
