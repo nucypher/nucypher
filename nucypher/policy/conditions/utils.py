@@ -1,7 +1,7 @@
 import json
 import re
 from http import HTTPStatus
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, NamedTuple, Optional, Tuple, Type, Union
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
@@ -16,13 +16,7 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import (
-    ContextDict,
-    LingoEntryObject,
-    LingoEntryObjectType,
-    LingoList,
-    LingoListEntry,
-)
+from nucypher.policy.conditions.types import ContextDict, LingoList, LingoListEntry
 from nucypher.utilities.logging import Logger
 
 _ETH = "eth_"
@@ -62,8 +56,8 @@ class CamelCaseSchema(Schema):
 
 
 def resolve_condition_lingo(
-    data: LingoListEntry,
-) -> LingoEntryObjectType:
+    data: Dict,
+) -> Union[Type["Operator"], Type["ReencryptionCondition"]]:
     """
     TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
     Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
@@ -95,7 +89,9 @@ def resolve_condition_lingo(
         )
 
 
-def deserialize_condition_lingo(data: LingoListEntry) -> LingoEntryObject:
+def deserialize_condition_lingo(
+    data: LingoListEntry,
+) -> Union["Operator", "ReencryptionCondition"]:
     """Deserialization helper for condition lingo"""
     if isinstance(data, str):
         data = json.loads(data)

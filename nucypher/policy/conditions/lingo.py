@@ -3,7 +3,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from marshmallow import fields, post_load
 
@@ -14,12 +14,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import (
-    LingoEntryObject,
-    LingoList,
-    LingoListEntry,
-    OperatorDict,
-)
+from nucypher.policy.conditions.types import LingoList, OperatorDict
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     deserialize_condition_lingo,
@@ -62,7 +57,7 @@ class Operator:
         return json_data
 
     @classmethod
-    def validate(cls, data: LingoListEntry) -> None:
+    def validate(cls, data: Dict) -> None:
         try:
             _operator = data["operator"]
         except KeyError:
@@ -176,7 +171,7 @@ class ConditionLingo:
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, conditions: List[LingoEntryObject]):
+    def __init__(self, conditions: List[Union[ReencryptionCondition, Operator]]):
         """
         The input list *must* be structured as follows:
         condition
