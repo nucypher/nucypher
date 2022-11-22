@@ -18,10 +18,10 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.types import (
     ContextDict,
-    LingoEntry,
     LingoEntryObject,
     LingoEntryObjectType,
     LingoList,
+    LingoListEntry,
 )
 from nucypher.utilities.logging import Logger
 
@@ -62,7 +62,7 @@ class CamelCaseSchema(Schema):
 
 
 def resolve_condition_lingo(
-    data: LingoEntry,
+    data: LingoListEntry,
 ) -> LingoEntryObjectType:
     """
     TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
@@ -95,7 +95,7 @@ def resolve_condition_lingo(
         )
 
 
-def deserialize_condition_lingo(data: LingoEntry) -> LingoEntryObject:
+def deserialize_condition_lingo(data: LingoListEntry) -> LingoEntryObject:
     """Deserialization helper for condition lingo"""
     if isinstance(data, str):
         data = json.loads(data)

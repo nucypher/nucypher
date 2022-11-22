@@ -15,9 +15,9 @@ from nucypher.policy.conditions.exceptions import (
     ReturnValueEvaluationError,
 )
 from nucypher.policy.conditions.types import (
-    LingoEntry,
     LingoEntryObject,
     LingoList,
+    LingoListEntry,
     OperatorDict,
 )
 from nucypher.policy.conditions.utils import (
@@ -38,7 +38,11 @@ class Operator:
         return self.operator
 
     def to_dict(self) -> OperatorDict:
-        return {"operator": self.operator}
+        # strict typing of operator value (must be a literal)
+        if self.operator == "and":
+            return {"operator": "and"}
+        else:
+            return {"operator": "or"}
 
     @classmethod
     def from_dict(cls, data: OperatorDict) -> "Operator":
@@ -58,7 +62,7 @@ class Operator:
         return json_data
 
     @classmethod
-    def validate(cls, data: LingoEntry) -> None:
+    def validate(cls, data: LingoListEntry) -> None:
         try:
             _operator = data["operator"]
         except KeyError:

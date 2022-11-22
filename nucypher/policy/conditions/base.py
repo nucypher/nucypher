@@ -6,7 +6,7 @@ from typing import Any, Tuple
 from marshmallow import Schema
 
 from nucypher.policy.conditions.exceptions import InvalidCondition
-from nucypher.policy.conditions.types import LingoEntry
+from nucypher.policy.conditions.types import LingoListEntry
 
 
 class _Serializable:
@@ -59,7 +59,7 @@ class ReencryptionCondition(_Serializable, ABC):
         return NotImplemented
 
     @classmethod
-    def validate(cls, data: LingoEntry) -> None:
+    def validate(cls, data: LingoListEntry) -> None:
         errors = cls.Schema().validate(data=data)
         if errors:
             raise InvalidCondition(f"Invalid {cls.__name__}: {errors}")

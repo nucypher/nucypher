@@ -1,9 +1,9 @@
 import sys
 
 if sys.version_info >= (3, 8):
-    from typing import TypedDict
+    from typing import Literal, TypedDict
 else:
-    from typing_extensions import TypedDict
+    from typing_extensions import Literal, TypedDict
 
 from typing import Any, Dict, List, Type, Union
 
@@ -23,20 +23,14 @@ ContextDict = Dict[str, Any]
 # OperatorDict represents:
 # - {"operator": "and" | "or"}
 class OperatorDict(TypedDict):
-    operator: str
+    operator: Literal["and", "or"]
 
 
 #
 # ConditionDict is a dictionary of:
-# - str -> Simple values (str, int, bool), or parameter list which can be anything ('Any')
-# - "returnValueTest" -> Return Value Test definitions
-# - "functionAbi" -> ABI function definitions (already defined by web3)
-#
-BaseValue = Union[str, int, bool]
-MethodParameters = List[Any]
-
-ConditionValue = Union[BaseValue, MethodParameters]  # base value or list of base values
-
+# - TimeCondition
+# - RPCCondition
+# - ContractCondition
 
 # Return Value Test
 class ReturnValueTestDict(TypedDict, total=False):
@@ -45,18 +39,40 @@ class ReturnValueTestDict(TypedDict, total=False):
     key: Union[str, int]
 
 
-ConditionDict = Dict[str, Union[ConditionValue, ReturnValueTestDict, ABIFunction]]
+class _ReencryptionConditionDict(TypedDict, total=False):
+    name: str
+
+
+class TimeConditionDict(_ReencryptionConditionDict, total=False):
+    method: Literal["timelock"]
+    returnValueTest: ReturnValueTestDict
+
+
+class RPCConditionDict(_ReencryptionConditionDict, total=False):
+    chain: int
+    method: str
+    parameters: List[Any]
+    returnValueTest: ReturnValueTestDict
+
+
+class ContractConditionDict(RPCConditionDict, total=False):
+    standardContractType: str
+    contractAddress: str
+    functionAbi: ABIFunction
+
+
+ConditionDict = Union[TimeConditionDict, RPCConditionDict, ContractConditionDict]
 
 #
 # LingoEntry is:
 # - Condition
 # - Operator
 #
-LingoEntry = Union[OperatorDict, ConditionDict]
+LingoListEntry = Union[OperatorDict, ConditionDict]
 
 #
 # LingoList contains a list of LingoEntries
-LingoList = List[LingoEntry]
+LingoList = List[LingoListEntry]
 
 
 #
