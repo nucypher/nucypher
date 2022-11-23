@@ -72,10 +72,10 @@ def _resolve_any_context_variables(
         processed_parameters.append(p)
 
     v = return_value_test.value
-    k = return_value_test.key
-    if is_context_variable(return_value_test.value):
+    if is_context_variable(v):
         v = get_context_value(context_variable=v, **context)
-    if is_context_variable(return_value_test.key):
+    k = return_value_test.key
+    if is_context_variable(k):
         k = get_context_value(context_variable=k, **context)
     processed_return_value_test = ReturnValueTest(
         return_value_test.comparator, value=v, key=k
