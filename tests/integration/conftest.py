@@ -1,6 +1,3 @@
-
-
-
 from pathlib import Path
 
 import pytest
@@ -10,7 +7,7 @@ from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
-    PREApplicationAgent
+    PREApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -18,9 +15,9 @@ from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
-    MOCK_KEYSTORE_PATH,
     MOCK_ETH_PROVIDER_URI,
-    NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS
+    MOCK_KEYSTORE_PATH,
+    NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
 )
 from tests.mock.agents import MockContractAgency, MockContractAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
@@ -28,9 +25,9 @@ from tests.mock.io import MockStdinWrapper
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
-    make_ursula_test_configuration
+    make_ursula_test_configuration,
 )
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -201,11 +198,13 @@ def bob_blockchain_test_config(mock_testerchain, test_registry):
 
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(mock_testerchain, test_registry):
-    config = make_ursula_test_configuration(federated=False,
-                                            eth_provider_uri=MOCK_ETH_PROVIDER_URI,  # L1
-                                            payment_provider=MOCK_ETH_PROVIDER_URI,  # L1/L2
-                                            test_registry=test_registry,
-                                            rest_port=MOCK_URSULA_STARTING_PORT,
-                                            checksum_address=mock_testerchain.ursula_account(index=0))
+    config = make_ursula_test_configuration(
+        federated=False,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,  # L1
+        payment_provider=MOCK_ETH_PROVIDER_URI,  # L1/L2
+        test_registry=test_registry,
+        rest_port=select_test_port(),
+        checksum_address=mock_testerchain.ursula_account(index=0),
+    )
     yield config
     config.cleanup()

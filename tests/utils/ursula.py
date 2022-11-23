@@ -1,7 +1,6 @@
-
-
 import contextlib
 import socket
+from threading import Lock
 from typing import Iterable, List, Optional, Set
 
 from cryptography.x509 import Certificate
@@ -11,7 +10,29 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 
-__ACTIVE_PORTS = set()
+
+class __ActivePortCache:
+    """Thread-safe cache for storing current active ports."""
+    def __init__(self):
+        self._lock = Lock()
+        self.active_ports = set()
+
+    def add_port_if_not_already_active(self, port: int) -> bool:
+        """
+        Atomically check if port is not already active, and if so store port and return True;
+        otherwise return False if port is already active.
+        """
+        with self._lock:
+            # check port is active and add (if not already active) atomically
+            if port in self.active_ports:
+                # port already active; don't add
+                return False
+
+            self.active_ports.add(port)
+            return True
+
+
+__ACTIVE_PORTS = __ActivePortCache()
 
 
 def select_test_port() -> int:
@@ -26,14 +47,15 @@ def select_test_port() -> int:
     with contextlib.closing(closed_socket) as open_socket:
         open_socket.bind(('localhost', 0))
         port = open_socket.getsockname()[1]
-        rules = (
-            (port in __ACTIVE_PORTS),
-            (port == UrsulaConfiguration.DEFAULT_REST_PORT),
-            (port > 64000)
-        )
-        if any(rules):
+        # active ports check should be last and short-circuited using or
+        if (
+            port > 64000
+            or port == UrsulaConfiguration.DEFAULT_REST_PORT
+            or not __ACTIVE_PORTS.add_port_if_not_already_active(port)
+        ):
+            # invalid port; retry
             return select_test_port()
-        __ACTIVE_PORTS.add(port)
+
         open_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return port
 
@@ -43,15 +65,9 @@ def make_federated_ursulas(ursula_config: UrsulaConfiguration,
                            know_each_other: bool = True,
                            **ursula_overrides) -> Set[Ursula]:
 
-    if not MOCK_KNOWN_URSULAS_CACHE:
-        starting_port = MOCK_URSULA_STARTING_PORT
-    else:
-        starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
-
     federated_ursulas = set()
-    for port in range(starting_port, starting_port+quantity):
-        ursula = ursula_config.produce(rest_port=port + 100,
-                                       **ursula_overrides)
+    for i in range(quantity):
+        ursula = ursula_config.produce(rest_port=select_test_port(), **ursula_overrides)
 
         federated_ursulas.add(ursula)
 
@@ -74,19 +90,16 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
                                commit_now=True,
                                **ursula_overrides) -> List[Ursula]:
 
-    if not MOCK_KNOWN_URSULAS_CACHE:
-        starting_port = MOCK_URSULA_STARTING_PORT
-    else:
-        starting_port = max(MOCK_KNOWN_URSULAS_CACHE.keys()) + 1
-
     providers_and_operators = zip(staking_provider_addresses, operator_addresses)
     ursulas = list()
 
-    for port, (staking_provider_address, operator_address) in enumerate(providers_and_operators, start=starting_port):
-        ursula = ursula_config.produce(checksum_address=staking_provider_address,
-                                       operator_address=operator_address,
-                                       rest_port=port + 100,
-                                       **ursula_overrides)
+    for staking_provider_address, operator_address in providers_and_operators:
+        ursula = ursula_config.produce(
+            checksum_address=staking_provider_address,
+            operator_address=operator_address,
+            rest_port=select_test_port(),
+            **ursula_overrides
+        )
 
         # TODO: Confirm operator here?
         # if commit_now:
@@ -141,4 +154,3 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()
-MOCK_URSULA_STARTING_PORT = select_test_port()

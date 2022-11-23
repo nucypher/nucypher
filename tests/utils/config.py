@@ -1,12 +1,15 @@
-
 from typing import List
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.lawful import Ursula
-from nucypher.config.characters import AliceConfiguration, BobConfiguration, UrsulaConfiguration
+from nucypher.config.characters import (
+    AliceConfiguration,
+    BobConfiguration,
+    UrsulaConfiguration,
+)
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT
+from tests.utils.ursula import select_test_port
 
 TEST_CHARACTER_CONFIG_BASE_PARAMS = dict(
     dev_mode=True,
@@ -48,10 +51,9 @@ def assemble(federated: bool,
     return base_test_params
 
 
-def make_ursula_test_configuration(rest_port: int = MOCK_URSULA_STARTING_PORT,
-                                   payment_provider: str = None,
-                                   **assemble_kwargs
-                                   ) -> UrsulaConfiguration:
+def make_ursula_test_configuration(
+    rest_port: int = select_test_port(), payment_provider: str = None, **assemble_kwargs
+) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
     federated = test_params['federated_only']
     payment_provider = payment_provider if not federated else None
