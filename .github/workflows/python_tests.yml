@@ -2,7 +2,9 @@ name: '🔎 Python Tests'
 
 on:
   pull_request:
-    types: [opened, reopened, edited, ready_for_review, synchronize]
+    branches:
+      - main
+      - development
 
 concurrency:
   group: ci-tests-${{ github.ref }}-pytest
@@ -19,15 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }} and install dependencies
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
+          cache: 'pip'  # cache pip dependencies
+      - run: pip install .[dev]
 
       - name: Install Solidity Compiler
         run: python ./scripts/installation/install_solc.py

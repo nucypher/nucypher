@@ -1,6 +1,10 @@
 name: 🧹 Darker
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches:
+      - main
+      - development
 
 jobs:
   lint:
@@ -9,7 +13,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
       - uses: akaihola/darker@1.4.2
         with:
           options: "--check --diff --isort"
