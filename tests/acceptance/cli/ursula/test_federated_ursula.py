@@ -1,26 +1,29 @@
-
-
 import json
 from json import JSONDecodeError
-
-import os
 from pathlib import Path
-
 from unittest.mock import PropertyMock
 
 import pytest
 
-from nucypher.cli.literature import SUCCESSFUL_DESTRUCTION, COLLECT_NUCYPHER_PASSWORD
+from nucypher.cli.literature import COLLECT_NUCYPHER_PASSWORD, SUCCESSFUL_DESTRUCTION
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import APP_DIR, DEFAULT_CONFIG_ROOT, NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.constants import (
+    APP_DIR,
+    DEFAULT_CONFIG_ROOT,
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    TEMPORARY_DOMAIN,
+)
 from nucypher.crypto.keystore import Keystore
 from tests.constants import (
-    FAKE_PASSWORD_CONFIRMED, INSECURE_DEVELOPMENT_PASSWORD,
+    FAKE_PASSWORD_CONFIRMED,
+    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
-    MOCK_IP_ADDRESS, YES_ENTER)
-from tests.utils.ursula import MOCK_URSULA_STARTING_PORT, select_test_port
+    MOCK_IP_ADDRESS,
+    YES_ENTER,
+)
+from tests.utils.ursula import select_test_port
 
 
 def test_initialize_ursula_defaults(click_runner, mocker, tmpdir):

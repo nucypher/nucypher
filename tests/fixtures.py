@@ -24,8 +24,6 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
-)
-from nucypher.blockchain.eth.agents import (
     PREApplicationAgent,
 )
 from nucypher.blockchain.eth.deployers import (
@@ -50,7 +48,6 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
@@ -71,8 +68,9 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     TEST_ETH_PROVIDER_URI,
-    TEST_GAS_LIMIT, )
-from tests.constants import TESTERCHAIN_CHAIN_ID
+    TEST_GAS_LIMIT,
+    TESTERCHAIN_CHAIN_ID,
+)
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
     mock_cert_generation,
@@ -98,9 +96,9 @@ from tests.utils.middleware import (
 from tests.utils.policy import generate_random_label
 from tests.utils.ursula import (
     MOCK_KNOWN_URSULAS_CACHE,
-    MOCK_URSULA_STARTING_PORT,
     make_decentralized_ursulas,
     make_federated_ursulas,
+    select_test_port,
 )
 
 test_logger = Logger("test-logger")
@@ -144,7 +142,9 @@ def certificates_tempdir():
 
 @pytest.fixture(scope="module")
 def ursula_federated_test_config(test_registry):
-    config = make_ursula_test_configuration(federated=True, rest_port=MOCK_URSULA_STARTING_PORT)
+    config = make_ursula_test_configuration(
+        federated=True, rest_port=select_test_port()
+    )
     yield config
     config.cleanup()
 
@@ -170,11 +170,13 @@ def bob_federated_test_config():
 
 @pytest.fixture(scope="module")
 def ursula_decentralized_test_config(test_registry, temp_dir_path):
-    config = make_ursula_test_configuration(federated=False,
-                                            eth_provider_uri=TEST_ETH_PROVIDER_URI,
-                                            payment_provider=TEST_ETH_PROVIDER_URI,
-                                            test_registry=test_registry,
-                                            rest_port=MOCK_URSULA_STARTING_PORT)
+    config = make_ursula_test_configuration(
+        federated=False,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        payment_provider=TEST_ETH_PROVIDER_URI,
+        test_registry=test_registry,
+        rest_port=select_test_port(),
+    )
     yield config
     config.cleanup()
     for k in list(MOCK_KNOWN_URSULAS_CACHE.keys()):
@@ -1012,4 +1014,3 @@ def valid_user_address_context():
             },
         }
     }
-
