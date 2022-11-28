@@ -124,7 +124,6 @@ Whitepapers
    pre_application/cloud_node_management
    pre_application/best_practices
    pre_application/node_providers
-   pre_application/testnet
 
 .. toctree::
    :maxdepth: 1
@@ -132,10 +131,7 @@ Whitepapers
 
    application_development/getting_started
    application_development/web_development
-   application_development/testnet
    application_development/local_fleet_demo
-   application_development/http_character_control
-   application_development/cli_examples
 
 .. toctree::
    :maxdepth: 1
