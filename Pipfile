@@ -38,6 +38,8 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 tabulate = "*"
+# Template
+jinja2 = "<3.1.0"  # because of docs
 
 [dev-packages]
 # Pytest
