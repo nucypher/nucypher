@@ -2,7 +2,9 @@ name: '👷 Run Demo'
 
 on:
   pull_request:
-    types: [opened, reopened, edited, ready_for_review, synchronize]
+    branches:
+      - main
+      - development
 
 jobs:
   run-demo:
