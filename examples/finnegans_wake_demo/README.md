@@ -3,11 +3,6 @@
 This illustrates Alice sharing data with Bob over the Threshold Network using proxy re-encryption (PRE),
 without revealing private keys to intermediary entities.  For more detailed information see the [official documentation](https://docs.nucypher.com/en/latest/).
 
-There are two version of the example, one using the decentralized network (ethereum/polygon), 
-and a federated example using a local network.
-
-### Decentralized Network Demo
-
 First, configure the demo by making exporting environment variables
 with your provider and wallet details.
 
