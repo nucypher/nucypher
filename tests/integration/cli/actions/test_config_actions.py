@@ -1,8 +1,7 @@
-
+from pathlib import Path
 
 import click
 import pytest
-from pathlib import Path
 
 from nucypher.cli.actions import configure
 from nucypher.cli.actions.configure import (
@@ -10,16 +9,16 @@ from nucypher.cli.actions.configure import (
     forget,
     get_or_update_configuration,
     handle_invalid_configuration_file,
-    handle_missing_configuration_file
+    handle_missing_configuration_file,
 )
 from nucypher.cli.literature import (
+    CONFIRM_FORGET_NODES,
     INVALID_CONFIGURATION_FILE_WARNING,
     INVALID_JSON_IN_CONFIGURATION_WARNING,
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION,
-    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
-    CONFIRM_FORGET_NODES,
     SUCCESSFUL_FORGET_NODES,
+    SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
 )
 from nucypher.config.base import CharacterConfiguration
 from tests.constants import YES
@@ -34,9 +33,9 @@ BAD_CONFIG_FILE_CONTENTS = (
 
 # For parameterized fixture
 CONFIGS = [
-    'alice_blockchain_test_config',
-    'bob_blockchain_test_config',
-    'ursula_decentralized_test_config',
+    "alice_test_config",
+    "bob_test_config",
+    "ursula_test_config",
 ]
 
 
@@ -67,10 +66,10 @@ def config(request, mocker):
     mocker.resetall()  # dont carry over context between functions
 
 
-def test_forget_cli_action(alice_blockchain_test_config, test_emitter, mock_stdin, mocker, capsys):
+def test_forget_cli_action(alice_test_config, test_emitter, mock_stdin, mocker, capsys):
     mock_forget = mocker.patch.object(CharacterConfiguration, 'forget_nodes')
     mock_stdin.line(YES)
-    forget(emitter=test_emitter, configuration=alice_blockchain_test_config)
+    forget(emitter=test_emitter, configuration=alice_test_config)
     mock_forget.assert_called_once()
     assert mock_stdin.empty()
     captured = capsys.readouterr()

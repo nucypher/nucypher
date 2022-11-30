@@ -31,12 +31,14 @@ def check(policy, bob, ursulas):
             # TODO: try to decrypt?
 
 
-def test_decentralized_grant_subscription_manager(blockchain_alice, blockchain_bob, blockchain_ursulas):
+def test_grant_subscription_manager(alice, bob, ursulas):
     payment_method = SubscriptionManagerPayment(eth_provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
-    blockchain_alice.payment_method = payment_method
-    policy = blockchain_alice.grant(bob=blockchain_bob,
-                                    label=os.urandom(16),
-                                    threshold=2,
-                                    shares=shares,
-                                    expiration=policy_end_datetime)
-    check(policy=policy, bob=blockchain_bob, ursulas=blockchain_ursulas)
+    alice.payment_method = payment_method
+    policy = alice.grant(
+        bob=bob,
+        label=os.urandom(16),
+        threshold=2,
+        shares=shares,
+        expiration=policy_end_datetime,
+    )
+    check(policy=policy, bob=bob, ursulas=ursulas)

@@ -7,8 +7,8 @@ from twisted.internet.threads import deferToThread
 
 
 @pt.inlineCallbacks
-def test_one_node_stores_a_bunch_of_others(blockchain_ursulas, lonely_ursula_maker):
-    the_chosen_seednode = list(blockchain_ursulas)[2]  # ...neo?
+def test_one_node_stores_a_bunch_of_others(ursulas, lonely_ursula_maker):
+    the_chosen_seednode = list(ursulas)[2]  # ...neo?
     seed_node = the_chosen_seednode.seed_node_metadata()
 
     newcomer = lonely_ursula_maker(

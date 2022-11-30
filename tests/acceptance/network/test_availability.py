@@ -13,10 +13,10 @@ from tests.utils.ursula import start_pytest_ursula_services
 
 @pytest.mark.skip('See #2024 - skipped tests')
 @pt.inlineCallbacks
-def test_availability_tracker_success(blockchain_ursulas):
+def test_availability_tracker_success(ursulas):
 
     # Start up self-services
-    ursula = blockchain_ursulas[6]
+    ursula = ursulas[6]
     start_pytest_ursula_services(ursula=ursula)
 
     ursula._availability_tracker = AvailabilityTracker(ursula=ursula)
@@ -80,10 +80,10 @@ def test_availability_tracker_success(blockchain_ursulas):
 
 @pytest.mark.skip('See #2024 - skipped tests')
 @pt.inlineCallbacks
-def test_availability_tracker_integration(blockchain_ursulas, monkeypatch):
+def test_availability_tracker_integration(ursulas, monkeypatch):
 
     # Start up self-services
-    ursula = blockchain_ursulas[8]
+    ursula = ursulas[8]
     start_pytest_ursula_services(ursula=ursula)
 
     ursula._availability_tracker = AvailabilityTracker(ursula=ursula)

@@ -60,7 +60,7 @@ def select_test_port() -> int:
         return port
 
 
-def make_decentralized_ursulas(
+def make_ursulas(
     ursula_config: UrsulaConfiguration,
     staking_provider_addresses: Iterable[str],
     operator_addresses: Iterable[str],
@@ -69,9 +69,7 @@ def make_decentralized_ursulas(
     **ursula_overrides
 ) -> List[Ursula]:
 
-    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[
-        :quantity
-    ]
+    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[:quantity]
     ursulas = list()
 
     for staking_provider_address, operator_address in providers_and_operators:
@@ -113,11 +111,13 @@ def make_ursula_for_staking_provider(staking_provider,
     # Assign worker to this staking provider
     staking_provider.bond_worker(operator_address=operator_address)
 
-    worker = make_decentralized_ursulas(ursula_config=ursula_config,
-                                        blockchain=blockchain,
-                                        staking_provider_addresses=[staking_provider.checksum_address],
-                                        operator_addresses=[operator_address],
-                                        **ursula_overrides).pop()
+    worker = make_ursulas(
+        ursula_config=ursula_config,
+        blockchain=blockchain,
+        staking_provider_addresses=[staking_provider.checksum_address],
+        operator_addresses=[operator_address],
+        **ursula_overrides
+    ).pop()
 
     for ursula_to_learn_about in (ursulas_to_learn_about or []):
         worker.remember_node(ursula_to_learn_about)

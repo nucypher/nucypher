@@ -8,8 +8,8 @@ import pytest
 
 
 @pytest.fixture(scope='module')
-def ursula(blockchain_ursulas):
-    ursula = blockchain_ursulas[3]
+def ursula(ursulas):
+    ursula = ursulas[3]
     return ursula
 
 
@@ -30,7 +30,7 @@ def test_ursula_html_renders(ursula, client):
 
 
 @pytest.mark.parametrize('omit_known_nodes', [False, True])
-def test_decentralized_json_status_endpoint(ursula, client, omit_known_nodes):
+def test_json_status_endpoint(ursula, client, omit_known_nodes):
     omit_known_nodes_str = 'true' if omit_known_nodes else 'false'
     response = client.get(f'/status/?json=true&omit_known_nodes={omit_known_nodes_str}')
     assert response.status_code == 200

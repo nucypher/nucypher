@@ -1102,8 +1102,10 @@ class Teacher:
             return True
 
         if not registry:  # TODO: # 466
-            self.log.debug("No registry provided for decentralized stranger node verification - "
-                           "on-chain Staking verification will not be performed.")
+            self.log.debug(
+                "No registry provided for peer verification - "
+                "on-chain stake verification will not be performed."
+            )
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
         self.validate_metadata(registry=registry, eth_provider_uri=eth_provider_uri)

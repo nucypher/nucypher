@@ -13,7 +13,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas, agency, test_registry):
+def test_all_ursulas_know_about_all_other_ursulas(ursulas, agency, test_registry):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
@@ -21,7 +21,7 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
 
     for record in application_agent.get_active_staking_providers(0, 10)[1]:
         address = to_checksum_address(record[0])   #TODO: something better
-        for propagating_ursula in blockchain_ursulas[:1]:  # Last Ursula is not staking
+        for propagating_ursula in ursulas[:1]:  # Last Ursula is not staking
             if address == propagating_ursula.checksum_address:
                 continue
             else:
@@ -29,19 +29,19 @@ def test_all_blockchain_ursulas_know_about_all_other_ursulas(blockchain_ursulas,
                     format(propagating_ursula, Nickname.from_seed(address))
 
 
-def test_blockchain_alice_finds_ursula_via_rest(blockchain_alice, blockchain_ursulas):
+def test_blockchain_alice_finds_ursula_via_rest(alice, ursulas):
     # Imagine alice knows of nobody.
-    blockchain_alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
+    alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
 
-    blockchain_alice.remember_node(blockchain_ursulas[0])
-    blockchain_alice.learn_from_teacher_node()
-    assert len(blockchain_alice.known_nodes) == len(blockchain_ursulas)
+    alice.remember_node(ursulas[0])
+    alice.learn_from_teacher_node()
+    assert len(alice.known_nodes) == len(ursulas)
 
-    for ursula in blockchain_ursulas:
-        assert ursula in blockchain_alice.known_nodes
+    for ursula in ursulas:
+        assert ursula in alice.known_nodes
 
 
-def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
+def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
     they do not propagate interface information for Vladimir.
@@ -59,7 +59,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
             warnings.append(event)
 
 
-    ursulas = list(blockchain_ursulas)
+    ursulas = list(ursulas)
     ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
 
     # Vladimir sees Ursula on the network and tries to use her public information.
@@ -97,11 +97,11 @@ def test_vladimir_illegal_interface_key_does_not_propagate(blockchain_ursulas):
     # assert vladimir not in other_ursula.known_nodes
 
 
-def test_alice_refuses_to_select_node_unless_ursula_is_valid(blockchain_alice,
-                                                             idle_blockchain_policy,
-                                                             blockchain_ursulas):
+def test_alice_refuses_to_select_node_unless_ursula_is_valid(
+    alice, idle_policy, ursulas
+):
 
-    target = list(blockchain_ursulas)[2]
+    target = list(ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
     vladimir = Vladimir.from_target_ursula(target,
                                            substitute_verifying_key=True,
@@ -112,9 +112,11 @@ def test_alice_refuses_to_select_node_unless_ursula_is_valid(blockchain_alice,
     # Ideally, a fishy node will be present in `known_nodes`,
     # This tests the case when it became fishy after discovering it
     # but before being selected for a policy.
-    blockchain_alice.known_nodes.record_node(vladimir)
-    blockchain_alice.known_nodes.record_fleet_state()
+    alice.known_nodes.record_node(vladimir)
+    alice.known_nodes.record_fleet_state()
 
     with pytest.raises(vladimir.InvalidNode):
-        idle_blockchain_policy._ping_node(address=vladimir.checksum_address,
-                                          network_middleware=blockchain_alice.network_middleware)
+        idle_policy._ping_node(
+            address=vladimir.checksum_address,
+            network_middleware=alice.network_middleware,
+        )

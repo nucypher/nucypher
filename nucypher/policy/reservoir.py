@@ -8,10 +8,12 @@ from nucypher.blockchain.eth.agents import (
 )
 
 
-def make_decentralized_staking_provider_reservoir(application_agent: PREApplicationAgent,
-                                                  exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
-                                                  include_addresses: Optional[Iterable[ChecksumAddress]] = None,
-                                                  pagination_size: int = None):
+def make_staking_provider_reservoir(
+    application_agent: PREApplicationAgent,
+    exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
+    include_addresses: Optional[Iterable[ChecksumAddress]] = None,
+    pagination_size: int = None,
+):
     """Get a sampler object containing the currently registered staking providers."""
 
     # needs to not include both exclude and include addresses

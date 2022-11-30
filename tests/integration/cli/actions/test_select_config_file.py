@@ -1,23 +1,24 @@
 
 
-from pathlib import Path
-
 import os
+from pathlib import Path
 
 import click
 import pytest
 
 from nucypher.cli.actions.select import select_config_file
-from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK, DEFAULT_TO_LONE_CONFIG_FILE
+from nucypher.cli.literature import (
+    DEFAULT_TO_LONE_CONFIG_FILE,
+    NO_CONFIGURATIONS_ON_DISK,
+)
 
 
-def test_select_config_file_with_no_config_files(test_emitter,
-                                                 capsys,
-                                                 alice_blockchain_test_config,
-                                                 temp_dir_path):
+def test_select_config_file_with_no_config_files(
+    test_emitter, capsys, alice_test_config, temp_dir_path
+):
 
     # Setup
-    config_class = alice_blockchain_test_config
+    config_class = alice_test_config
 
     # Prove there are no config files on the disk.
     assert not list(temp_dir_path.iterdir())
@@ -33,14 +34,12 @@ def test_select_config_file_with_no_config_files(test_emitter,
     assert message in captured.out
 
 
-def test_auto_select_config_file(test_emitter,
-                                 capsys,
-                                 alice_blockchain_test_config,
-                                 temp_dir_path,
-                                 mock_stdin):
+def test_auto_select_config_file(
+    test_emitter, capsys, alice_test_config, temp_dir_path, mock_stdin
+):
     """Only one configuration was found, so it was chosen automatically"""
 
-    config_class = alice_blockchain_test_config
+    config_class = alice_test_config
     config_path = temp_dir_path / config_class.generate_filename()
 
     # Make one configuration
@@ -63,18 +62,20 @@ def test_auto_select_config_file(test_emitter,
                                               config_file=str(config_path)) in captured.out
 
 
-def test_interactive_select_config_file(test_emitter,
-                                        capsys,
-                                        alice_blockchain_test_config,
-                                        temp_dir_path,
-                                        mock_stdin,
-                                        mock_accounts,
-                                        patch_keystore):
+def test_interactive_select_config_file(
+    test_emitter,
+    capsys,
+    alice_test_config,
+    temp_dir_path,
+    mock_stdin,
+    mock_accounts,
+    patch_keystore,
+):
 
     """Multiple configurations found - Prompt the user for a selection"""
 
     user_input = 0
-    config = alice_blockchain_test_config
+    config = alice_test_config
     config_class = config.__class__
 
     # Make one configuration...

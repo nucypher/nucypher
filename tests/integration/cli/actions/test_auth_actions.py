@@ -90,12 +90,14 @@ def test_get_nucypher_password(mock_stdin, mock_account, confirm, capsys):
         assert prompt in captured.out
 
 
-def test_unlock_nucypher_keystore_invalid_password(mocker,
-                                                   test_emitter,
-                                                   alice_blockchain_test_config,
-                                                   capsys,
-                                                   tmpdir,
-                                                   test_registry_source_manager):
+def test_unlock_nucypher_keystore_invalid_password(
+    mocker,
+    test_emitter,
+    alice_test_config,
+    capsys,
+    tmpdir,
+    test_registry_source_manager,
+):
 
     # Setup
     mocker.patch.object(passwords, 'secret_box_decrypt', side_effect=SecretBoxAuthenticationError)
@@ -104,19 +106,26 @@ def test_unlock_nucypher_keystore_invalid_password(mocker,
                         return_value=False,
                         new_callable=mocker.PropertyMock)
     keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
-    alice_blockchain_test_config.attach_keystore(keystore)
+    alice_test_config.attach_keystore(keystore)
 
     # Test
     with pytest.raises(Keystore.AuthenticationFailed):
-        unlock_nucypher_keystore(emitter=test_emitter,
-                                 password=INSECURE_DEVELOPMENT_PASSWORD+'typo',
-                                 character_configuration=alice_blockchain_test_config)
+        unlock_nucypher_keystore(
+            emitter=test_emitter,
+            password=INSECURE_DEVELOPMENT_PASSWORD + "typo",
+            character_configuration=alice_test_config,
+        )
 
     captured = capsys.readouterr()
-    assert DECRYPTING_CHARACTER_KEYSTORE.format(name=alice_blockchain_test_config.NAME.capitalize()) in captured.out
+    assert (
+        DECRYPTING_CHARACTER_KEYSTORE.format(name=alice_test_config.NAME.capitalize())
+        in captured.out
+    )
 
 
-def test_unlock_nucypher_keystore_dev_mode(mocker, test_emitter, capsys, alice_blockchain_test_config, tmpdir):
+def test_unlock_nucypher_keystore_dev_mode(
+    mocker, test_emitter, capsys, alice_test_config, tmpdir
+):
 
     # Setup
     unlock_spy = mocker.spy(Keystore, 'unlock')
@@ -125,26 +134,27 @@ def test_unlock_nucypher_keystore_dev_mode(mocker, test_emitter, capsys, alice_b
                         return_value=True,
                         new_callable=mocker.PropertyMock)
     keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
-    alice_blockchain_test_config.attach_keystore(keystore)
+    alice_test_config.attach_keystore(keystore)
 
-    result = unlock_nucypher_keystore(emitter=test_emitter,
-                                      password=INSECURE_DEVELOPMENT_PASSWORD,
-                                      character_configuration=alice_blockchain_test_config)
+    result = unlock_nucypher_keystore(
+        emitter=test_emitter,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        character_configuration=alice_test_config,
+    )
 
     assert result
     output = capsys.readouterr().out
-    message = DECRYPTING_CHARACTER_KEYSTORE.format(name=alice_blockchain_test_config.NAME.capitalize())
+    message = DECRYPTING_CHARACTER_KEYSTORE.format(
+        name=alice_test_config.NAME.capitalize()
+    )
     assert message in output
 
     unlock_spy.assert_not_called()
 
 
-def test_unlock_nucypher_keystore(mocker,
-                                  test_emitter,
-                                  capsys,
-                                  alice_blockchain_test_config,
-                                  patch_keystore,
-                                  tmpdir):
+def test_unlock_nucypher_keystore(
+    mocker, test_emitter, capsys, alice_test_config, patch_keystore, tmpdir
+):
 
     # Setup
     # Do not test "real" unlocking here, just the plumbing
@@ -155,15 +165,19 @@ def test_unlock_nucypher_keystore(mocker,
                         new_callable=mocker.PropertyMock)
     mocker.patch.object(Mnemonic, 'detect_language', return_value='english')
     keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
-    alice_blockchain_test_config.attach_keystore(keystore)
+    alice_test_config.attach_keystore(keystore)
 
-    result = unlock_nucypher_keystore(emitter=test_emitter,
-                                      password=INSECURE_DEVELOPMENT_PASSWORD,
-                                      character_configuration=alice_blockchain_test_config)
+    result = unlock_nucypher_keystore(
+        emitter=test_emitter,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        character_configuration=alice_test_config,
+    )
 
     assert result
     captured = capsys.readouterr()
-    message = DECRYPTING_CHARACTER_KEYSTORE.format(name=alice_blockchain_test_config.NAME.capitalize())
+    message = DECRYPTING_CHARACTER_KEYSTORE.format(
+        name=alice_test_config.NAME.capitalize()
+    )
     assert message in captured.out
 
     unlock_spy.assert_called_once_with(password=INSECURE_DEVELOPMENT_PASSWORD)

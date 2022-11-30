@@ -7,17 +7,17 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from twisted.internet import threads
 
-from tests.utils.ursula import make_decentralized_ursulas
+from tests.utils.ursula import make_ursulas
 
 
 @pytest_twisted.inlineCallbacks
-def test_ursula_serves_statics(ursula_decentralized_test_config, testerchain, agency):
+def test_ursula_serves_statics(ursula_test_config, testerchain, agency):
 
     with tempfile.TemporaryDirectory() as STATICS_DIR:
         os.environ['NUCYPHER_STATIC_FILES_ROOT'] = str(STATICS_DIR)
 
-        node = make_decentralized_ursulas(
-            ursula_config=ursula_decentralized_test_config,
+        node = make_ursulas(
+            ursula_config=ursula_test_config,
             quantity=1,
             staking_provider_addresses=testerchain.stake_providers_accounts,
             operator_addresses=testerchain.ursulas_accounts,

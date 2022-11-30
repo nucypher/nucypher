@@ -5,7 +5,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.nodes import TEACHER_NODES
-from tests.utils.ursula import make_decentralized_ursulas
+from tests.utils.ursula import make_ursulas
 
 
 def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
@@ -52,11 +52,9 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     root = tmpdir.mkdir("known_nodes")
     metadata = root.mkdir("metadata")
     certs = root.mkdir("certs")
-    old_storage = LocalFileBasedNodeStorage(
-        metadata_dir=Path(metadata),
-        certificates_dir=Path(certs),
-        storage_root=Path(root),
-    )
+    old_storage = LocalFileBasedNodeStorage(metadata_dir=Path(metadata),
+                                            certificates_dir=Path(certs),
+                                            storage_root=Path(root))
 
     # Use the ursula maker with this storage so it's populated with nodes from one domain
     _some_ursulas = lonely_ursula_maker(domain="fistro",
@@ -85,19 +83,19 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
 
 
 def test_learner_ignores_stored_nodes_from_other_domains(
-    lonely_ursula_maker, tmpdir, testerchain, ursula_decentralized_test_config
+    lonely_ursula_maker, tmpdir, testerchain, ursula_test_config
 ):
-    learner, other_staker = make_decentralized_ursulas(
-        ursula_decentralized_test_config,
+    learner, other_staker = make_ursulas(
+        ursula_test_config,
         domain="call-it-mainnet",
         quantity=2,
         know_each_other=True,
         staking_provider_addresses=testerchain.stake_providers_accounts[:2],
         operator_addresses=testerchain.ursulas_accounts[:2],
-    )
+   )
 
-    pest, *other_ursulas_from_the_wrong_side_of_the_tracks = make_decentralized_ursulas(
-        ursula_decentralized_test_config,
+    pest, *other_ursulas_from_the_wrong_side_of_the_tracks = make_ursulas(
+        ursula_test_config,
         domain="i-dunno-testt-maybe",
         quantity=5,
         know_each_other=True,
@@ -140,12 +138,7 @@ def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, moc
 
 
 def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
-    lonely_ursula_maker,
-    tmpdir,
-    mocker,
-    test_registry,
-    ursula_decentralized_test_config,
-    testerchain,
+    lonely_ursula_maker, tmpdir, mocker, test_registry, ursula_test_config, testerchain
 ):
     domain = "learner-domain"
     mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
@@ -154,15 +147,13 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
     root = tmpdir.mkdir("known_nodes")
     metadata = root.mkdir("metadata")
     certs = root.mkdir("certs")
-    node_storage = LocalFileBasedNodeStorage(
-        metadata_dir=Path(metadata),
-        certificates_dir=Path(certs),
-        storage_root=Path(root),
-    )
+    node_storage = LocalFileBasedNodeStorage(metadata_dir=Path(metadata),
+                                             certificates_dir=Path(certs),
+                                             storage_root=Path(root))
 
     # Create some nodes and persist them to local storage
-    other_nodes = make_decentralized_ursulas(
-        ursula_decentralized_test_config,
+    other_nodes = make_ursulas(
+        ursula_test_config,
         domain=domain,
         node_storage=node_storage,
         know_each_other=True,

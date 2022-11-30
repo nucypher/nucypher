@@ -46,7 +46,7 @@ from nucypher.config.characters import (
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import CryptoPower, TransactingPower
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -93,11 +93,7 @@ from tests.utils.middleware import (
     MockRestMiddlewareForLargeFleetTests,
 )
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import (
-    MOCK_KNOWN_URSULAS_CACHE,
-    make_decentralized_ursulas,
-    select_test_port,
-)
+from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, make_ursulas, select_test_port
 
 test_logger = Logger("test-logger")
 
@@ -138,7 +134,7 @@ def certificates_tempdir():
 
 
 @pytest.fixture(scope="module")
-def ursula_decentralized_test_config(test_registry, temp_dir_path):
+def ursula_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
         payment_provider=TEST_ETH_PROVIDER_URI,
@@ -152,11 +148,11 @@ def ursula_decentralized_test_config(test_registry, temp_dir_path):
 
 
 @pytest.fixture(scope="module")
-def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry):
+def alice_test_config(ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
         payment_provider=TEST_ETH_PROVIDER_URI,
-        known_nodes=blockchain_ursulas,
+        known_nodes=ursulas,
         checksum_address=testerchain.alice_account,
         test_registry=test_registry,
     )
@@ -165,12 +161,10 @@ def alice_blockchain_test_config(blockchain_ursulas, testerchain, test_registry)
 
 
 @pytest.fixture(scope="module")
-def bob_blockchain_test_config(testerchain, test_registry):
-    config = make_bob_test_configuration(
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        test_registry=test_registry,
-        checksum_address=testerchain.bob_account,
-    )
+def bob_test_config(testerchain, test_registry):
+    config = make_bob_test_configuration(eth_provider_uri=TEST_ETH_PROVIDER_URI,
+                                         test_registry=test_registry,
+                                         checksum_address=testerchain.bob_account)
     yield config
     config.cleanup()
 
@@ -181,70 +175,78 @@ def bob_blockchain_test_config(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def idle_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
+def idle_policy(testerchain, alice, bob, application_economics):
     """Creates a Policy, in a manner typical of how Alice might do it, with a unique label"""
     random_label = generate_random_label()
     expiration = maya.now() + timedelta(days=1)
     threshold, shares = 2, 3
-    price = blockchain_alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value  # TODO: use default quote option
-    policy = blockchain_alice.create_policy(blockchain_bob,
-                                            label=random_label,
-                                            value=price,
-                                            threshold=threshold,
-                                            shares=shares,
-                                            expiration=expiration)
+    price = alice.payment_method.quote(
+        expiration=expiration.epoch, shares=shares
+    ).value  # TODO: use default quote option
+    policy = alice.create_policy(
+        bob,
+        label=random_label,
+        value=price,
+        threshold=threshold,
+        shares=shares,
+        expiration=expiration,
+    )
     return policy
 
 
 @pytest.fixture(scope="module")
-def enacted_blockchain_policy(idle_blockchain_policy, blockchain_ursulas):
+def enacted_policy(idle_policy, ursulas):
     # Alice has a policy in mind and knows of enough qualified Ursulas; she crafts an offer for them.
 
-    # value and expiration were set when creating idle_blockchain_policy already
+    # value and expiration were set when creating idle_policy already
     # cannot set them again
     # deposit = NON_PAYMENT(b"0000000")
     # contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     network_middleware = MockRestMiddleware()
 
     # REST call happens here, as does population of TreasureMap.
-    enacted_policy = idle_blockchain_policy.enact(network_middleware=network_middleware,
-                                                  ursulas=list(blockchain_ursulas))
+    enacted_policy = idle_policy.enact(
+        network_middleware=network_middleware, ursulas=list(ursulas)
+    )
     return enacted_policy
 
 
 @pytest.fixture(scope="module")
-def blockchain_treasure_map(enacted_blockchain_policy, blockchain_bob):
+def treasure_map(enacted_policy, bob):
     """
-    The unencrypted treasure map corresponding to the one in `enacted_blockchain_policy`
+    The unencrypted treasure map corresponding to the one in `enacted_policy`
     """
-    yield blockchain_bob._decrypt_treasure_map(enacted_blockchain_policy.treasure_map,
-                                               enacted_blockchain_policy.publisher_verifying_key)
+    yield bob._decrypt_treasure_map(
+        enacted_policy.treasure_map, enacted_policy.publisher_verifying_key
+    )
 
 
 @pytest.fixture(scope="function")
-def random_blockchain_policy(testerchain, blockchain_alice, blockchain_bob, application_economics):
+def random_policy(testerchain, alice, bob, application_economics):
     random_label = generate_random_label()
     seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
     now = testerchain.w3.eth.get_block('latest').timestamp
     expiration = maya.MayaDT(now).add(seconds=seconds)
     shares = 3
     threshold = 2
-    policy = blockchain_alice.create_policy(blockchain_bob,
-                                            label=random_label,
-                                            threshold=threshold,
-                                            shares=shares,
-                                            value=shares * seconds * 100,  # calculation probably needs to incorporate actual cost per second
-                                            expiration=expiration)
+    policy = alice.create_policy(
+        bob,
+        label=random_label,
+        threshold=threshold,
+        shares=shares,
+        value=shares
+        * seconds
+        * 100,  # calculation probably needs to incorporate actual cost per second
+        expiration=expiration,
+    )
     return policy
 
 
 @pytest.fixture(scope="module")
-def capsule_side_channel(enacted_blockchain_policy):
+def capsule_side_channel(enacted_policy):
     class _CapsuleSideChannel:
         def __init__(self):
-            self.enrico = Enrico(
-                policy_encrypting_key=enacted_blockchain_policy.public_key
-            )
+            self.enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
             self.messages = []
             self.plaintexts = []
             self.plaintext_passthrough = False
@@ -258,7 +260,7 @@ def capsule_side_channel(enacted_blockchain_policy):
             return message_kit
 
         def reset(self, plaintext_passthrough=False):
-            self.enrico = Enrico(policy_encrypting_key=enacted_blockchain_policy.public_key)
+            self.enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
             self.messages.clear()
             self.plaintexts.clear()
             self.plaintext_passthrough = plaintext_passthrough
@@ -277,25 +279,25 @@ def random_policy_label():
 #
 
 @pytest.fixture(scope="module")
-def blockchain_alice(alice_blockchain_test_config, testerchain):
-    alice = alice_blockchain_test_config.produce()
+def alice(alice_test_config, testerchain):
+    alice = alice_test_config.produce()
     yield alice
     alice.disenchant()
 
 
 @pytest.fixture(scope="module")
-def blockchain_bob(bob_blockchain_test_config, testerchain):
-    bob = bob_blockchain_test_config.produce()
+def bob(bob_test_config, testerchain):
+    bob = bob_test_config.produce()
     yield bob
     bob.disenchant()
 
 
 @pytest.fixture(scope="function")
-def lonely_ursula_maker(ursula_decentralized_test_config, testerchain):
+def lonely_ursula_maker(ursula_test_config, testerchain):
     class _PartialUrsulaMaker:
         _partial = partial(
-            make_decentralized_ursulas,
-            ursula_config=ursula_decentralized_test_config,
+            make_ursulas,
+            ursula_config=ursula_test_config,
             know_each_other=False,
             staking_provider_addresses=testerchain.stake_providers_accounts,
             operator_addresses=testerchain.ursulas_accounts,
@@ -484,22 +486,18 @@ def staking_providers(testerchain, agency, test_registry, threshold_staking):
                                             operator=operator_address,
                                             transacting_power=provider_power)
 
-        operator_power = TransactingPower(
-            account=operator_address, signer=Web3Signer(testerchain.client)
-        )
-        operator = Operator(
-            is_me=True,
-            operator_address=operator_address,
-            domain=TEMPORARY_DOMAIN,
-            registry=test_registry,
-            transacting_power=operator_power,
-            eth_provider_uri=testerchain.eth_provider_uri,
-            payment_method=SubscriptionManagerPayment(
-                eth_provider=testerchain.eth_provider_uri,
-                network=TEMPORARY_DOMAIN,
-                registry=test_registry,
-            ),
-        )
+        operator_power = TransactingPower(account=operator_address, signer=Web3Signer(testerchain.client))
+        operator = Operator(is_me=True,
+                            operator_address=operator_address,
+                            domain=TEMPORARY_DOMAIN,
+                            registry=test_registry,
+                            transacting_power=operator_power,
+                            eth_provider_uri=testerchain.eth_provider_uri,
+                            payment_method=SubscriptionManagerPayment(
+                                eth_provider=testerchain.eth_provider_uri,
+                                network=TEMPORARY_DOMAIN,
+                                registry=test_registry)
+                            )
         operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
 
         # track
@@ -509,14 +507,14 @@ def staking_providers(testerchain, agency, test_registry, threshold_staking):
 
 
 @pytest.fixture(scope="module")
-def blockchain_ursulas(testerchain, staking_providers, ursula_decentralized_test_config):
+def ursulas(testerchain, staking_providers, ursula_test_config):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
-    _ursulas = make_decentralized_ursulas(
-        ursula_config=ursula_decentralized_test_config,
+    _ursulas = make_ursulas(
+        ursula_config=ursula_test_config,
         staking_provider_addresses=testerchain.stake_providers_accounts,
         operator_addresses=testerchain.ursulas_accounts,
         know_each_other=True,
@@ -629,9 +627,7 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope="module")
-def fleet_of_highperf_mocked_ursulas(
-    ursula_decentralized_test_config, request, testerchain
-):
+def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
 
     mocks = (
         mock_cert_storage,
@@ -652,12 +648,12 @@ def fleet_of_highperf_mocked_ursulas(
             for mock in mocks:
                 stack.enter_context(mock)
 
-            _ursulas = make_decentralized_ursulas(
-                ursula_config=ursula_decentralized_test_config,
+            _ursulas = make_ursulas(
+                ursula_config=ursula_test_config,
                 quantity=quantity,
                 know_each_other=False,
                 staking_provider_addresses=testerchain.stake_providers_accounts,
-                operator_addresses=testerchain.ursulas_accounts,
+                operator_addresses=testerchain.ursulas_accounts
             )
             all_ursulas = {u.checksum_address: u for u in _ursulas}
 
@@ -675,25 +671,16 @@ def fleet_of_highperf_mocked_ursulas(
 
 
 @pytest.fixture(scope="module")
-def highperf_mocked_alice(
-    fleet_of_highperf_mocked_ursulas,
-    test_registry_source_manager,
-    monkeymodule,
-    testerchain,
-):
-    monkeymodule.setattr(
-        CharacterConfiguration, "DEFAULT_PAYMENT_NETWORK", TEMPORARY_DOMAIN
-    )
+def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, testerchain):
+    monkeymodule.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
 
-    config = AliceConfiguration(
-        dev_mode=True,
-        domain=TEMPORARY_DOMAIN,
-        checksum_address=testerchain.alice_account,
-        network_middleware=MockRestMiddlewareForLargeFleetTests(),
-        abort_on_learning_error=True,
-        save_metadata=False,
-        reload_metadata=False,
-    )
+    config = AliceConfiguration(dev_mode=True,
+                                domain=TEMPORARY_DOMAIN,
+                                checksum_address=testerchain.alice_account,
+                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
+                                abort_on_learning_error=True,
+                                save_metadata=False,
+                                reload_metadata=False)
 
     with mock_cert_storage, mock_verify_node, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
@@ -737,11 +724,9 @@ def click_runner():
     yield runner
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope='module')
 def nominal_configuration_fields(test_registry_source_manager):
-    config = UrsulaConfiguration(
-        dev_mode=True, payment_network=TEMPORARY_DOMAIN, domain=TEMPORARY_DOMAIN
-    )
+    config = UrsulaConfiguration(dev_mode=True, payment_network=TEMPORARY_DOMAIN, domain=TEMPORARY_DOMAIN)
     config_fields = config.static_payload()
     yield tuple(config_fields.keys())
     del config

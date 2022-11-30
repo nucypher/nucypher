@@ -13,7 +13,7 @@ from tests.utils.middleware import MockRestMiddleware
 
 
 def test_alices_powers_are_persistent(
-    blockchain_ursulas, temp_dir_path, test_registry_source_manager, testerchain
+    ursulas, temp_dir_path, test_registry_source_manager, testerchain
 ):
     # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
@@ -26,7 +26,7 @@ def test_alices_powers_are_persistent(
         start_learning_now=False,
         save_metadata=False,
         reload_metadata=False,
-        known_nodes=blockchain_ursulas,
+        known_nodes=ursulas,
     )
 
     # Generate keys and write them the disk
@@ -57,11 +57,7 @@ def test_alices_powers_are_persistent(
     threshold, shares = 3, 4
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 
-    bob = Bob(
-        start_learning_now=False,
-        domain=TEMPORARY_DOMAIN,
-        network_middleware=MockRestMiddleware(),
-    )
+    bob = Bob(start_learning_now=False, domain=TEMPORARY_DOMAIN, network_middleware=MockRestMiddleware())
 
     bob_policy = alice.grant(bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
@@ -86,7 +82,7 @@ def test_alices_powers_are_persistent(
         network_middleware=MockRestMiddleware(),
         start_learning_now=False,
         config_root=config_root,
-        known_nodes=blockchain_ursulas,
+        known_nodes=ursulas,
     )
 
     # Alice unlocks her restored keystore from disk
@@ -98,11 +94,7 @@ def test_alices_powers_are_persistent(
     assert alices_receiving_key == new_alice.public_keys(DecryptingPower)
 
     # Bob's eldest brother, Roberto, appears too
-    roberto = Bob(
-        domain=TEMPORARY_DOMAIN,
-        start_learning_now=False,
-        network_middleware=MockRestMiddleware(),
-    )
+    roberto = Bob(domain=TEMPORARY_DOMAIN, start_learning_now=False, network_middleware=MockRestMiddleware())
 
     # Alice creates a new policy for Roberto. Note how all the parameters
     # except for the label (i.e., recipient, m, n, policy_end) are different

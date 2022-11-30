@@ -28,11 +28,12 @@ except ImportError:
     PROMETHEUS_INSTALLED = False
 
 
-@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
-def test_ursula_info_metrics_collector(test_registry,
-                                       blockchain_ursulas,
-                                       agency):
-    ursula = random.choice(blockchain_ursulas)
+@pytest.mark.skipif(
+    condition=(not PROMETHEUS_INSTALLED),
+    reason="prometheus_client is required for test",
+)
+def test_ursula_info_metrics_collector(test_registry, ursulas, agency):
+    ursula = random.choice(ursulas)
     collector = UrsulaInfoMetricsCollector(ursula=ursula)
 
     collector_registry = CollectorRegistry()
@@ -119,8 +120,8 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
 
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
-def test_operator_metrics_collector(test_registry, blockchain_ursulas):
-    ursula = random.choice(blockchain_ursulas)
+def test_operator_metrics_collector(test_registry, ursulas):
+    ursula = random.choice(ursulas)
     collector = OperatorMetricsCollector(
         domain=ursula.domain,
         operator_address=ursula.operator_address,
@@ -137,8 +138,8 @@ def test_operator_metrics_collector(test_registry, blockchain_ursulas):
 
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
-def test_all_metrics_collectors_sanity_collect(blockchain_ursulas):
-    ursula = random.choice(blockchain_ursulas)
+def test_all_metrics_collectors_sanity_collect(ursulas):
+    ursula = random.choice(ursulas)
 
     collector_registry = CollectorRegistry()
     prefix = 'test_all_metrics_collectors'

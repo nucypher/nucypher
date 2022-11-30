@@ -11,7 +11,7 @@ from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
     MergedReservoir,
     PrefetchStrategy,
-    make_decentralized_staking_provider_reservoir,
+    make_staking_provider_reservoir,
 )
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
@@ -181,9 +181,11 @@ class Policy(ABC):
 class BlockchainPolicy(Policy):
 
     def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
-        """Returns a reservoir of staking nodes to create a decentralized policy."""
-        reservoir = make_decentralized_staking_provider_reservoir(application_agent=self.publisher.application_agent,
-                                                                  include_addresses=handpicked_addresses)
+        """Returns a reservoir of staking nodes to create a policy."""
+        reservoir = make_staking_provider_reservoir(
+            application_agent=self.publisher.application_agent,
+            include_addresses=handpicked_addresses,
+        )
         return reservoir
 
 
