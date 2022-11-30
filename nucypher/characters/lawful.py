@@ -132,44 +132,31 @@ class Alice(Character, BlockchainPolicyAuthor):
             self.threshold = STRANGER_ALICE
             self.shares = STRANGER_ALICE
 
-        Character.__init__(
-            self,
-            known_node_class=Ursula,
-            is_me=is_me,
-            eth_provider_uri=eth_provider_uri,
-            checksum_address=checksum_address,
-            network_middleware=network_middleware,
-            *args,
-            **kwargs,
-        )
+        Character.__init__(self,
+                           known_node_class=Ursula,
+                           is_me=is_me,
+                           eth_provider_uri=eth_provider_uri,
+                           checksum_address=checksum_address,
+                           network_middleware=network_middleware,
+                           *args, **kwargs)
 
         if is_me:  # TODO: #289
-            blockchain = BlockchainInterfaceFactory.get_interface(
-                eth_provider_uri=self.eth_provider_uri
-            )
-            signer = signer or Web3Signer(
-                blockchain.client
-            )  # fallback to web3 provider by default for Alice.
-            self.transacting_power = TransactingPower(
-                account=checksum_address, signer=signer
-            )
+            blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=self.eth_provider_uri)
+            signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
+            self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
-            BlockchainPolicyAuthor.__init__(
-                self,
-                domain=self.domain,
-                transacting_power=self.transacting_power,
-                registry=self.registry,
-                eth_provider_uri=eth_provider_uri,
-            )
+            BlockchainPolicyAuthor.__init__(self,
+                                            domain=self.domain,
+                                            transacting_power=self.transacting_power,
+                                            registry=self.registry,
+                                            eth_provider_uri=eth_provider_uri)
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
 
             # Policy Payment
             if not payment_method:
-                raise ValueError(
-                    "payment_method is a required argument for a local Alice."
-                )
+                raise ValueError('payment_method is a required argument for a local Alice.')
             self.payment_method = payment_method
             self.rate = rate
             self.duration = duration
@@ -226,29 +213,31 @@ class Alice(Character, BlockchainPolicyAuthor):
         shares = policy_params.pop('shares')
 
         # Generate KFrags
-        public_key, kfrags = self.generate_kfrags(
-            bob=bob, label=label, threshold=policy_params["threshold"], shares=shares
-        )
-        payload = dict(
-            label=label, bob=bob, kfrags=kfrags, public_key=public_key, **policy_params
-        )
+        public_key, kfrags = self.generate_kfrags(bob=bob,
+                                                  label=label,
+                                                  threshold=policy_params['threshold'],
+                                                  shares=shares)
+        payload = dict(label=label,
+                       bob=bob,
+                       kfrags=kfrags,
+                       public_key=public_key,
+                       **policy_params)
 
         # Sample from blockchain
         payload.update(**policy_params)
         policy = BlockchainPolicy(publisher=self, **payload)
         return policy
 
-    def generate_policy_parameters(
-        self,
-        threshold: Optional[int] = None,
-        shares: Optional[int] = None,
-        duration: Optional[int] = None,
-        commencement: Optional[maya.MayaDT] = None,
-        expiration: Optional[maya.MayaDT] = None,
-        value: Optional[int] = None,
-        rate: Optional[int] = None,
-        payment_method: Optional[PaymentMethod] = None,
-    ) -> dict:
+    def generate_policy_parameters(self,
+                                   threshold: Optional[int] = None,
+                                   shares: Optional[int] = None,
+                                   duration: Optional[int] = None,
+                                   commencement: Optional[maya.MayaDT] = None,
+                                   expiration: Optional[maya.MayaDT] = None,
+                                   value: Optional[int] = None,
+                                   rate: Optional[int] = None,
+                                   payment_method: Optional[PaymentMethod] = None
+                                   ) -> dict:
         """Construct policy creation from default parameters or overrides."""
 
         if not duration and not expiration:
@@ -323,9 +312,7 @@ class Alice(Character, BlockchainPolicyAuthor):
         #
 
         self.log.debug(f"Enacting {policy} ... ")
-        enacted_policy = policy.enact(
-            network_middleware=self.network_middleware, ursulas=ursulas
-        )
+        enacted_policy = policy.enact(network_middleware=self.network_middleware, ursulas=ursulas)
 
         self.add_active_policy(enacted_policy)
         return enacted_policy
@@ -335,12 +322,14 @@ class Alice(Character, BlockchainPolicyAuthor):
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
 
-    def revoke(
-        self, policy: Policy, onchain: bool = True, offchain: bool = True
-    ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple["Revocation", Exception]]]:
+    def revoke(self,
+               policy: Policy,
+               onchain: bool = True,
+               offchain: bool = True
+               ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple['Revocation', Exception]]]:
 
         if not (offchain or onchain):
-            raise ValueError("offchain or onchain must be True to issue revocation")
+            raise ValueError('offchain or onchain must be True to issue revocation')
 
         receipt, failed = dict(), dict()
 
@@ -558,9 +547,7 @@ class Ursula(Teacher, Character, Operator):
         metadata: Optional[NodeMetadata] = None,
         # Blockchain
         checksum_address: Optional[ChecksumAddress] = None,
-        operator_address: Optional[
-            ChecksumAddress
-        ] = None,  # TODO: deprecate, and rename to "checksum_address"
+        operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
         operator_signature_from_metadata=NOT_SIGNED,
         eth_provider_uri: Optional[str] = None,
@@ -596,23 +583,6 @@ class Ursula(Teacher, Character, Operator):
             self._availability_check = availability_check
             self._availability_tracker = AvailabilityTracker(ursula=self)
 
-            # Decentralized Operator
-            # Prepare a TransactingPower from worker node's transacting keys
-            transacting_power = TransactingPower(
-                account=operator_address,
-                password=client_password,
-                signer=self.signer,
-                cache=True,
-            )
-            self.transacting_power = transacting_power
-            self._crypto_power.consume_power_up(transacting_power)
-
-            # Use this power to substantiate the stamp
-            self._substantiate_stamp()
-
-            self.payment_method = payment_method
-            self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
-
             try:
                 payment_method: ContractPayment
                 Operator.__init__(
@@ -620,16 +590,21 @@ class Ursula(Teacher, Character, Operator):
                     is_me=is_me,
                     domain=self.domain,
                     registry=self.registry,
+                    signer=self.signer,
+                    crypto_power=self._crypto_power,
                     operator_address=operator_address,
-                    transacting_power=transacting_power,
-                    payment_method=payment_method,
                     eth_provider_uri=eth_provider_uri,
+                    payment_method=payment_method,
+                    client_password=client_password,
                 )
             except Exception:
                 # TODO: Do not announce self to "other nodes" until this init is finished.
                 # It's not possible to finish constructing this node.
                 self.stop(halt_reactor=False)
                 raise
+
+            # Use this power to substantiate the stamp
+            self._substantiate_stamp()
 
             # Server
             self.rest_server = self._make_local_server(host=rest_host, port=rest_port)
@@ -651,7 +626,7 @@ class Ursula(Teacher, Character, Operator):
             self.log.info(self.banner.format(self.nickname))
 
         else:
-            # Stranger HTTP Server
+            # Peer HTTP Server
             # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
             self._metadata = metadata
@@ -689,9 +664,8 @@ class Ursula(Teacher, Character, Operator):
             return self._local_operator_address()
         else:
             if not self.__operator_address:
-                operator_address = to_checksum_address(
-                    self.metadata().payload.derive_operator_address()
-                )
+                address = self.metadata().payload.derive_operator_address()
+                operator_address = to_checksum_address(bytes(address))
                 self.__operator_address = operator_address
             return self.__operator_address
 
@@ -727,10 +701,8 @@ class Ursula(Teacher, Character, Operator):
         return rest_server
 
     def __preflight(self) -> None:
-        """Called immediately before running services
-        If an exception is raised, Ursula startup will be interrupted.
-
-        """
+        """Called immediately before running services.
+        If an exception is raised, Ursula startup will be interrupted."""
         validate_operator_ip(ip=self.rest_interface.host)
 
     def run(
@@ -750,12 +722,8 @@ class Ursula(Teacher, Character, Operator):
         """Schedule and start select ursula services, then optionally start the reactor."""
 
         # Connect to Provider
-        if not BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_provider_uri
-        ):
-            BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_provider_uri
-            )
+        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri)
 
         if preflight:
             self.__preflight()
@@ -770,14 +738,12 @@ class Ursula(Teacher, Character, Operator):
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
             if emitter:
-                emitter.message(
-                    f"✓ Node Discovery ({self.domain.capitalize()})", color="green"
-                )
+                emitter.message(f"✓ Node Discovery ({self.domain.capitalize()})", color='green')
 
         if self._availability_check or availability:
             self._availability_tracker.start(now=eager)
             if emitter:
-                emitter.message(f"✓ Availability Checks", color="green")
+                emitter.message(f"✓ Availability Checks", color='green')
 
         if worker:
             if block_until_ready:
@@ -787,10 +753,7 @@ class Ursula(Teacher, Character, Operator):
             work_is_needed = self.get_work_is_needed_check()(self)
             if work_is_needed:
                 message = "✓ Work Tracking"
-                self.work_tracker.start(
-                    commit_now=True,
-                    requirement_func=self.work_tracker.worker.get_work_is_needed_check(),
-                )  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+                self.work_tracker.start(commit_now=True, requirement_func=self.work_tracker.worker.get_work_is_needed_check())  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             else:
                 message = "✓ Operator already confirmed.  Not starting worktracker."
             if emitter:
@@ -847,9 +810,7 @@ class Ursula(Teacher, Character, Operator):
         """
         self.log.debug(f"---------Stopping {self}")
         # Handles the shutdown of a partially initialized character.
-        with contextlib.suppress(
-            AttributeError
-        ):  # TODO: Is this acceptable here, what are alternatives?
+        with contextlib.suppress(AttributeError):  # TODO: Is this acceptable here, what are alternatives?
             self._availability_tracker.stop()
             self.stop_learning_loop()
             self.work_tracker.stop()
@@ -896,18 +857,17 @@ class Ursula(Teacher, Character, Operator):
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
         operator_signature = self.operator_signature
-        payload = NodeMetadataPayload(
-            staking_provider_address=Address(self.canonical_address),
-            domain=self.domain,
-            timestamp_epoch=timestamp.epoch,
-            operator_signature=operator_signature,
-            verifying_key=self.public_keys(SigningPower),
-            encrypting_key=self.public_keys(DecryptingPower),
-            certificate_der=self.certificate.public_bytes(Encoding.DER),
-            host=self.rest_interface.host,
-            port=self.rest_interface.port,
-        )
-        return NodeMetadata(signer=self.stamp.as_umbral_signer(), payload=payload)
+        payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
+                                      domain=self.domain,
+                                      timestamp_epoch=timestamp.epoch,
+                                      operator_signature=operator_signature,
+                                      verifying_key=self.public_keys(SigningPower),
+                                      encrypting_key=self.public_keys(DecryptingPower),
+                                      certificate_der=self.certificate.public_bytes(Encoding.DER),
+                                      host=self.rest_interface.host,
+                                      port=self.rest_interface.port)
+        return NodeMetadata(signer=self.stamp.as_umbral_signer(),
+                            payload=payload)
 
     def metadata(self):
         if not self._metadata:
@@ -943,11 +903,11 @@ class Ursula(Teacher, Character, Operator):
         Essentially another deserialization method, but this one doesn't reconstruct a complete
         node from bytes; instead it's just enough to connect to and verify a node.
         """
-        seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
+        seed_uri = f'{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}'
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
-    def seednode_for_network(cls, network: str) -> "Ursula":
+    def seednode_for_network(cls, network: str) -> 'Ursula':
         """Returns a default seednode ursula for a given network."""
         try:
             url = TEACHER_NODES[network][0]
@@ -959,36 +919,29 @@ class Ursula(Teacher, Character, Operator):
         return ursula
 
     @classmethod
-    def from_teacher_uri(
-        cls,
-        teacher_uri: str,
-        min_stake: int,
-        network_middleware: RestMiddleware = None,
-        registry: BaseContractRegistry = None,
-        retry_attempts: int = 2,
-        retry_interval: int = 2,
-    ) -> "Ursula":
+    def from_teacher_uri(cls,
+                         teacher_uri: str,
+                         min_stake: int,
+                         network_middleware: RestMiddleware = None,
+                         registry: BaseContractRegistry = None,
+                         retry_attempts: int = 2,
+                         retry_interval: int = 2
+                         ) -> 'Ursula':
+
         def __attempt(attempt=1, interval=retry_interval) -> Ursula:
             if attempt >= retry_attempts:
-                raise ConnectionRefusedError(
-                    "Host {} Refused Connection".format(teacher_uri)
-                )
+                raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
             try:
-                teacher = cls.from_seed_and_stake_info(
-                    seed_uri=teacher_uri,
-                    minimum_stake=min_stake,
-                    network_middleware=network_middleware,
-                    registry=registry,
-                )
+                teacher = cls.from_seed_and_stake_info(seed_uri=teacher_uri,
+                                                       minimum_stake=min_stake,
+                                                       network_middleware=network_middleware,
+                                                       registry=registry)
 
             except NodeSeemsToBeDown as e:
                 log = Logger(cls.__name__)
                 log.warn(
-                    "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(
-                        attempt, interval
-                    )
-                )
+                    "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
@@ -997,13 +950,12 @@ class Ursula(Teacher, Character, Operator):
         return __attempt()
 
     @classmethod
-    def from_seed_and_stake_info(
-        cls,
-        seed_uri: str,
-        minimum_stake: int = 0,
-        registry: BaseContractRegistry = None,
-        network_middleware: RestMiddleware = None,
-    ) -> Union["Ursula", "NodeSprout"]:
+    def from_seed_and_stake_info(cls,
+                                 seed_uri: str,
+                                 minimum_stake: int = 0,
+                                 registry: BaseContractRegistry = None,
+                                 network_middleware: RestMiddleware = None,
+                                 ) -> Union['Ursula', 'NodeSprout']:
 
         if network_middleware is None:
             network_middleware = RestMiddleware(registry=registry)
@@ -1029,21 +981,15 @@ class Ursula(Teacher, Character, Operator):
 
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
-            application_agent = ContractAgency.get_agent(
-                PREApplicationAgent, registry=registry
-            )
-            seednode_stake = application_agent.get_authorized_stake(
-                staking_provider=staking_provider_address
-            )
+            application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
+            seednode_stake = application_agent.get_authorized_stake(staking_provider=staking_provider_address)
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(
-                    f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake})."
-                )
+                raise Learner.NotATeacher(f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
         return potential_seed_node
 
     @classmethod
-    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> "Ursula":
+    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> 'Ursula':
         return node_storage.get(checksum_address=checksum_adress)
 
     #
@@ -1097,27 +1043,24 @@ class Ursula(Teacher, Character, Operator):
         previous_fleet_states = self.known_nodes.previous_states(4)
 
         if not omit_known_nodes:
-            known_nodes_info = [
-                self.known_nodes.status_info(node) for node in self.known_nodes
-            ]
+            known_nodes_info = [self.known_nodes.status_info(node) for node in self.known_nodes]
         else:
             known_nodes_info = None
 
         balance_eth = float(self.eth_balance)
 
-        return LocalUrsulaStatus(
-            nickname=self.nickname,
-            staker_address=self.checksum_address,
-            operator_address=self.operator_address,
-            rest_url=self.rest_url(),
-            timestamp=self.timestamp,
-            domain=domain,
-            version=version,
-            fleet_state=fleet_state,
-            previous_fleet_states=previous_fleet_states,
-            known_nodes=known_nodes_info,
-            balance_eth=balance_eth,
-        )
+        return LocalUrsulaStatus(nickname=self.nickname,
+                                 staker_address=self.checksum_address,
+                                 operator_address=self.operator_address,
+                                 rest_url=self.rest_url(),
+                                 timestamp=self.timestamp,
+                                 domain=domain,
+                                 version=version,
+                                 fleet_state=fleet_state,
+                                 previous_fleet_states=previous_fleet_states,
+                                 known_nodes=known_nodes_info,
+                                 balance_eth=balance_eth,
+                                 )
 
 
 class LocalUrsulaStatus(NamedTuple):
@@ -1138,21 +1081,18 @@ class LocalUrsulaStatus(NamedTuple):
             known_nodes_json = None
         else:
             known_nodes_json = [status.to_json() for status in self.known_nodes]
-        return dict(
-            nickname=self.nickname.to_json(),
-            staker_address=self.staker_address,
-            operator_address=self.operator_address,
-            rest_url=self.rest_url,
-            timestamp=self.timestamp.iso8601(),
-            domain=self.domain,
-            version=self.version,
-            fleet_state=self.fleet_state.to_json(),
-            previous_fleet_states=[
-                state.to_json() for state in self.previous_fleet_states
-            ],
-            known_nodes=known_nodes_json,
-            balance_eth=self.balance_eth,
-        )
+        return dict(nickname=self.nickname.to_json(),
+                    staker_address=self.staker_address,
+                    operator_address=self.operator_address,
+                    rest_url=self.rest_url,
+                    timestamp=self.timestamp.iso8601(),
+                    domain=self.domain,
+                    version=self.version,
+                    fleet_state=self.fleet_state.to_json(),
+                    previous_fleet_states=[state.to_json() for state in self.previous_fleet_states],
+                    known_nodes=known_nodes_json,
+                    balance_eth=self.balance_eth,
+                    )
 
 
 class Enrico:
@@ -1163,9 +1103,7 @@ class Enrico:
     def __init__(self, policy_encrypting_key: PublicKey):
         self.signing_power = SigningPower()
         self._policy_pubkey = policy_encrypting_key
-        self.log = Logger(
-            f"{self.__class__.__name__}-{bytes(self.signing_power.public_key()).hex()[:6]}"
-        )
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.signing_power.public_key()).hex()[:6]}')
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(

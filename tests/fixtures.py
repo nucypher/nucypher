@@ -486,18 +486,24 @@ def staking_providers(testerchain, agency, test_registry, threshold_staking):
                                             operator=operator_address,
                                             transacting_power=provider_power)
 
-        operator_power = TransactingPower(account=operator_address, signer=Web3Signer(testerchain.client))
-        operator = Operator(is_me=True,
-                            operator_address=operator_address,
-                            domain=TEMPORARY_DOMAIN,
-                            registry=test_registry,
-                            transacting_power=operator_power,
-                            eth_provider_uri=testerchain.eth_provider_uri,
-                            payment_method=SubscriptionManagerPayment(
-                                eth_provider=testerchain.eth_provider_uri,
-                                network=TEMPORARY_DOMAIN,
-                                registry=test_registry)
-                            )
+        operator_power = TransactingPower(
+            account=operator_address, signer=Web3Signer(testerchain.client)
+        )
+        operator = Operator(
+            is_me=True,
+            operator_address=operator_address,
+            domain=TEMPORARY_DOMAIN,
+            registry=test_registry,
+            transacting_power=operator_power,
+            eth_provider_uri=testerchain.eth_provider_uri,
+            signer=Web3Signer(testerchain.client),
+            crypto_power=CryptoPower(power_ups=[operator_power]),
+            payment_method=SubscriptionManagerPayment(
+                eth_provider=testerchain.eth_provider_uri,
+                network=TEMPORARY_DOMAIN,
+                registry=test_registry,
+            ),
+        )
         operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
 
         # track

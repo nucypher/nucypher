@@ -33,9 +33,10 @@ from nucypher.blockchain.eth.deployers import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import CryptoPower, TransactingPower
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
@@ -293,24 +294,38 @@ class Operator(BaseActor):
     def __init__(
         self,
         is_me: bool,
+        eth_provider_uri: str,
         payment_method: ContractPayment,
         work_tracker: Optional[WorkTracker] = None,
         operator_address: Optional[ChecksumAddress] = None,
-        eth_provider_uri: Optional[str] = None,
+        signer: Signer = None,
+        crypto_power: CryptoPower = None,
+        client_password: str = None,
+        transacting_power: TransactingPower = None,
         *args,
         **kwargs,
     ):
 
+        # Falsy values may be passed down from the superclass
         if not eth_provider_uri:
-            raise ValueError(
-                "ETH Provider URI is required to init a decentralized character."
-            )
+            raise ValueError("ETH Provider URI is required to init a local character.")
         if not payment_method:
-            raise ValueError(
-                "Payment method is required to init a decentralized character."
-            )
+            raise ValueError("Payment method is required to init a local character.")
 
-        super().__init__(*args, **kwargs)
+        if not transacting_power:
+            transacting_power = TransactingPower(
+                account=operator_address,
+                password=client_password,
+                signer=signer,
+                cache=True,
+            )
+        self.transacting_power = transacting_power
+        crypto_power.consume_power_up(transacting_power)
+
+        self.payment_method = payment_method
+        self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
+
+        super().__init__(transacting_power=transacting_power, *args, **kwargs)
 
         self.log = Logger("worker")
         self.is_me = is_me

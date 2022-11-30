@@ -761,7 +761,7 @@ class Learner:
 
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
-        if isinstance(self, Teacher) and (current_teacher.domain == self.domain):
+        if isinstance(self, Teacher):
             announce_nodes = [self.metadata()]
         else:
             announce_nodes = []
