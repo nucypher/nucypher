@@ -1,5 +1,3 @@
-
-
 from abc import ABC, abstractmethod
 from typing import Dict, NamedTuple, Optional
 
@@ -12,7 +10,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
 )
-from nucypher.policy.policies import BlockchainPolicy, Policy
+from nucypher.policy.policies import Policy
 
 
 class PaymentMethod(ABC):
@@ -105,7 +103,7 @@ class SubscriptionManagerPayment(ContractPayment):
         result = self.agent.is_policy_active(policy_id=bytes(request.hrac))
         return result
 
-    def pay(self, policy: BlockchainPolicy) -> TxReceipt:
+    def pay(self, policy: Policy) -> TxReceipt:
         """Writes a new policy to the SubscriptionManager contract."""
         receipt = self.agent.create_policy(
             value=policy.value,                   # wei

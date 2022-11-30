@@ -49,7 +49,7 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Operator
+from nucypher.blockchain.eth.actors import Operator, PolicyAuthor
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -82,13 +82,13 @@ from nucypher.policy.conditions.types import LingoList
 from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
-from nucypher.policy.policies import BlockchainPolicy, Policy
+from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
 
 
-class Alice(Character, BlockchainPolicyAuthor):
+class Alice(Character, PolicyAuthor):
     banner = ALICE_BANNER
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
@@ -145,11 +145,13 @@ class Alice(Character, BlockchainPolicyAuthor):
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
             self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
-            BlockchainPolicyAuthor.__init__(self,
-                                            domain=self.domain,
-                                            transacting_power=self.transacting_power,
-                                            registry=self.registry,
-                                            eth_provider_uri=eth_provider_uri)
+            PolicyAuthor.__init__(
+                self,
+                domain=self.domain,
+                transacting_power=self.transacting_power,
+                registry=self.registry,
+                eth_provider_uri=eth_provider_uri,
+            )
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
@@ -225,7 +227,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         # Sample from blockchain
         payload.update(**policy_params)
-        policy = BlockchainPolicy(publisher=self, **payload)
+        policy = Policy(publisher=self, **payload)
         return policy
 
     def generate_policy_parameters(self,

@@ -8,7 +8,7 @@ from eth_account._utils.signing import to_standard_signature_bytes
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.utils import verify_eip_191
-from nucypher.policy.policies import BlockchainPolicy
+from nucypher.policy.policies import Policy
 from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.ursula import make_ursulas
 
@@ -166,7 +166,7 @@ def test_blockchain_ursulas_reencrypt(ursulas, alice, bob, policy_value):
     alice.network_middleware = NodeIsDownMiddleware()
     alice.network_middleware.node_is_down(ursulas[0])
 
-    with pytest.raises(BlockchainPolicy.NotEnoughUrsulas):
+    with pytest.raises(Policy.NotEnoughUrsulas):
         _policy = alice.grant(
             bob=bob,
             label=b"another-label",

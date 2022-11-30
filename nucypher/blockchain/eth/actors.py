@@ -413,7 +413,7 @@ class Operator(BaseActor):
         return func
 
 
-class BlockchainPolicyAuthor(NucypherTokenActor):
+class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, eth_provider_uri: str, *args, **kwargs):
@@ -426,8 +426,9 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     def create_policy(self, *args, **kwargs):
         """Hence the name, a BlockchainPolicyAuthor can create a BlockchainPolicy with themself as the author."""
-        from nucypher.policy.policies import BlockchainPolicy
-        blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)
+        from nucypher.policy.policies import Policy
+
+        blockchain_policy = Policy(publisher=self, *args, **kwargs)
         return blockchain_policy
 
 

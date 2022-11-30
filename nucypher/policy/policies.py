@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Dict, Iterable, List, Optional, Sequence
 
 import maya
@@ -8,17 +7,13 @@ from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.reservoir import (
-    MergedReservoir,
-    PrefetchStrategy,
-    make_staking_provider_reservoir,
-)
+from nucypher.policy.reservoir import PrefetchStrategy, make_staking_provider_reservoir
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
 from nucypher.utilities.logging import Logger
 
 
-class Policy(ABC):
+class Policy:
     """
     An edict by Alice, arranged with n Ursulas, to perform re-encryption for a specific Bob.
     """
@@ -72,10 +67,13 @@ class Policy(ABC):
     def __repr__(self):
         return f"{self.__class__.__name__}:{bytes(self.hrac).hex()[:6]}"
 
-    @abstractmethod
-    def _make_reservoir(self, handpicked_addresses: Sequence[ChecksumAddress]) -> MergedReservoir:
-        """Builds a `MergedReservoir` to use for drawing addresses to send proposals to."""
-        raise NotImplementedError
+    def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
+        """Returns a reservoir of staking nodes to create a policy."""
+        reservoir = make_staking_provider_reservoir(
+            application_agent=self.publisher.application_agent,
+            include_addresses=handpicked_addresses,
+        )
+        return reservoir
 
     def _publish(self, ursulas: List['Ursula']) -> Dict:
         self.nodes = [ursula.checksum_address for ursula in ursulas]
@@ -176,17 +174,6 @@ class Policy(ABC):
                                        self.publisher.stamp.as_umbral_pubkey())
 
         return enacted_policy
-
-
-class BlockchainPolicy(Policy):
-
-    def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
-        """Returns a reservoir of staking nodes to create a policy."""
-        reservoir = make_staking_provider_reservoir(
-            application_agent=self.publisher.application_agent,
-            include_addresses=handpicked_addresses,
-        )
-        return reservoir
 
 
 class EnactedPolicy:
