@@ -23,29 +23,10 @@ def make_header(brand: bytes, major: int, minor: int) -> bytes:
 
 class BaseTestNodeStorageBackends:
 
-    @pytest.fixture(scope='class')
-    def light_ursula(temp_dir_path, test_registry_source_manager, testerchain):
-        payment_method = SubscriptionManagerPayment(
-            eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
-        )
-        node = Ursula(
-            rest_host=LOOPBACK_ADDRESS,
-            rest_port=select_test_port(),
-            domain=TEMPORARY_DOMAIN,
-            payment_method=payment_method,
-            checksum_address=testerchain.stake_providers_accounts[0],
-            operator_address=testerchain.ursulas_accounts[0],
-            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-            signer=Web3Signer(testerchain.client),
-        )
-        yield node
-
     character_class = Ursula
     storage_backend = NotImplemented
 
-    def _read_and_write_metadata(
-        self, ursula, node_storage, operator_addresses, signer
-    ):
+    def _read_and_write_metadata(self, ursula, node_storage, operator_addresses, signer):
         # Write Node
         node_storage.store_node_metadata(node=ursula)
 
@@ -53,23 +34,19 @@ class BaseTestNodeStorageBackends:
         node_from_storage = node_storage.get(stamp=ursula.stamp)
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
-        payment_method = SubscriptionManagerPayment(
-            eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
-        )
+        payment_method = SubscriptionManagerPayment(eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
 
         # Save more nodes
         all_known_nodes = set()
         for i in range(ADDITIONAL_NODES_TO_LEARN_ABOUT):
-            node = Ursula(
-                rest_host=LOOPBACK_ADDRESS,
-                rest_port=select_test_port(),
-                domain=TEMPORARY_DOMAIN,
-                signer=signer,
-                eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-                checksum_address=operator_addresses[i],
-                operator_address=operator_addresses[i],
-                payment_method=payment_method,
-            )
+            node = Ursula(rest_host=LOOPBACK_ADDRESS,
+                          rest_port=select_test_port(),
+                          domain=TEMPORARY_DOMAIN,
+                          signer=signer,
+                          eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+                          checksum_address=operator_addresses[i],
+                          operator_address=operator_addresses[i],
+                          payment_method=payment_method)
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)
 
@@ -96,38 +73,25 @@ class BaseTestNodeStorageBackends:
     #
 
     def test_read_and_write_to_storage(self, light_ursula, testerchain):
-        assert self._read_and_write_metadata(
-            ursula=light_ursula,
-            node_storage=self.storage_backend,
-            operator_addresses=testerchain.ursulas_accounts,
-            signer=Web3Signer(testerchain.client),
-        )
+        assert self._read_and_write_metadata(ursula=light_ursula,
+                                             node_storage=self.storage_backend,
+                                             operator_addresses=testerchain.ursulas_accounts,
+                                             signer=Web3Signer(testerchain.client))
         self.storage_backend.clear()
 
 
 class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
-    storage_backend = ForgetfulNodeStorage(
-        character_class=BaseTestNodeStorageBackends.character_class
-    )
+    storage_backend = ForgetfulNodeStorage(character_class=BaseTestNodeStorageBackends.character_class)
     storage_backend.initialize()
 
 
 class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
-    storage_backend = TemporaryFileBasedNodeStorage(
-        character_class=BaseTestNodeStorageBackends.character_class
-    )
+    storage_backend = TemporaryFileBasedNodeStorage(character_class=BaseTestNodeStorageBackends.character_class)
     storage_backend.initialize()
 
     def test_invalid_metadata(self, light_ursula, testerchain):
-        self._read_and_write_metadata(
-            ursula=light_ursula,
-            node_storage=self.storage_backend,
-            operator_addresses=testerchain.ursulas_accounts,
-            signer=Web3Signer(testerchain.client),
-        )
-        some_node, another_node, *other = list(
-            self.storage_backend.metadata_dir.iterdir()
-        )
+        self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend, operator_addresses=testerchain.ursulas_accounts, signer=Web3Signer(testerchain.client))
+        some_node, another_node, *other = list(self.storage_backend.metadata_dir.iterdir())
 
         # Let's break the metadata (but not the version)
         metadata_path = self.storage_backend.metadata_dir / some_node
@@ -144,9 +108,7 @@ class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
             file.write(full_header[:-1])  # Not even a valid header
 
         with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(
-                stamp=another_node.name[:-5], certificate_only=False
-            )
+            self.storage_backend.get(stamp=another_node.name[:-5], certificate_only=False)
 
         # Since there are 2 broken metadata files, we should get 2 nodes less when reading all
         restored_nodes = self.storage_backend.all(certificates_only=False)

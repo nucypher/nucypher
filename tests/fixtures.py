@@ -12,6 +12,7 @@ from typing import Callable, Tuple
 import maya
 import pytest
 from click.testing import CliRunner
+from eth_account import Account
 from eth_utils import to_checksum_address
 from web3 import Web3
 from web3.contract import Contract
@@ -36,8 +37,8 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
     LocalContractRegistry,
 )
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.characters.lawful import Enrico
+from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
+from nucypher.characters.lawful import Alice, Enrico, Ursula
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -55,6 +56,7 @@ from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     BASE_TEMP_DIR,
     BASE_TEMP_PREFIX,
@@ -65,6 +67,7 @@ from tests.constants import (
     MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
+    MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
@@ -127,9 +130,24 @@ def certificates_tempdir():
     yield Path(cert_tmpdir.name)
     cert_tmpdir.cleanup()
 
+#
+# Accounts
+#
+
+
+@pytest.fixture(scope="module")
+def random_account():
+    key = Account.create(extra_entropy="lamborghini mercy")
+    account = Account.from_key(private_key=key.key)
+    return account
+
+
+@pytest.fixture(scope="module")
+def random_address(random_account):
+    return random_account.address
 
 #
-# Decentralized Configuration
+# Character Configurations
 #
 
 
@@ -510,6 +528,27 @@ def staking_providers(testerchain, agency, test_registry, threshold_staking):
         staking_providers.append(provider_address)
 
     yield staking_providers
+
+
+@pytest.fixture()
+def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mocker):
+    mocker.patch.object(
+        KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
+    )
+    payment_method = SubscriptionManagerPayment(
+        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+    )
+    ursula = Ursula(
+        rest_host=LOOPBACK_ADDRESS,
+        rest_port=select_test_port(),
+        domain=TEMPORARY_DOMAIN,
+        payment_method=payment_method,
+        checksum_address=random_account.address,
+        operator_address=random_account.address,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        signer=KeystoreSigner(path=temp_dir_path),
+    )
+    return ursula
 
 
 @pytest.fixture(scope="module")
