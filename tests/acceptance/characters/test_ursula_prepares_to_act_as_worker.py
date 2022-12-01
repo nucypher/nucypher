@@ -1,4 +1,3 @@
-
 import datetime
 
 import maya
@@ -17,14 +16,14 @@ from tests.utils.ursula import make_ursulas
 def test_stakers_bond_to_ursulas(
     testerchain, test_registry, staking_providers, ursula_test_config
 ):
-    ursulas = make_ursulas(
+    nodes = make_ursulas(
         ursula_config=ursula_test_config,
         staking_provider_addresses=testerchain.stake_providers_accounts,
         operator_addresses=testerchain.ursulas_accounts,
     )
 
-    assert len(ursulas) == len(staking_providers)
-    for ursula in ursulas:
+    assert len(nodes) == len(staking_providers)
+    for ursula in nodes:
         ursula.validate_operator(registry=test_registry)
         assert ursula.verified_operator
 

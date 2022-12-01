@@ -37,11 +37,8 @@ def paint_node_status(emitter, ursula, start_time):
              'Known Nodes ......... {}'.format(len(ursula.known_nodes)),
              teacher]
 
-    operator_address = "Operator Address ...... {}".format(ursula.operator_address)
-    current_period = (
-        f"Current Period ...... {ursula.application_agent.get_current_period()}"
-    )
-    stats.extend([current_period, operator_address])
+    operator_address = 'Operator Address ...... {}'.format(ursula.operator_address)
+    stats.extend([operator_address])
 
     if ursula._availability_tracker:
         if ursula._availability_tracker.running:
