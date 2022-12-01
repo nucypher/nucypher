@@ -1,5 +1,7 @@
 from typing import List
 
+from eth_typing import ChecksumAddress
+
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import (
@@ -8,6 +10,7 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import MOCK_IP_ADDRESS
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import select_test_port
 
@@ -21,22 +24,18 @@ TEST_CHARACTER_CONFIG_BASE_PARAMS = dict(
 )
 
 
-def assemble(
-    checksum_address: str = None,
-    eth_provider_uri: str = None,
-    test_registry: BaseContractRegistry = None,
-    known_nodes: List[Ursula] = None,
-) -> dict:
+def assemble(checksum_address: str = None,
+             eth_provider_uri: str = None,
+             test_registry: BaseContractRegistry = None,
+             known_nodes: List[Ursula] = None) -> dict:
 
     """Assemble a dictionary of keyword arguments to use when constructing a test configuration."""
     # Generate runtime config params
-    runtime_params = dict(
-        eth_provider_uri=eth_provider_uri,
-        registry=test_registry,
-        network_middleware=MockRestMiddleware(),
-        known_nodes=known_nodes,
-        checksum_address=checksum_address,
-    )
+    runtime_params = dict(eth_provider_uri=eth_provider_uri,
+                          registry=test_registry,
+                          network_middleware=MockRestMiddleware(),
+                          known_nodes=known_nodes,
+                          checksum_address=checksum_address)
 
     # Combine and return
     base_test_params = dict(**TEST_CHARACTER_CONFIG_BASE_PARAMS, **runtime_params)
@@ -44,7 +43,10 @@ def assemble(
 
 
 def make_ursula_test_configuration(
-    rest_port: int = select_test_port(), payment_provider: str = None, **assemble_kwargs
+    operator_address: ChecksumAddress,
+    rest_port: int = select_test_port(),
+    payment_provider: str = None,
+    **assemble_kwargs
 ) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
     ursula_config = UrsulaConfiguration(
@@ -52,6 +54,7 @@ def make_ursula_test_configuration(
         rest_port=rest_port,
         payment_provider=payment_provider,
         payment_network=TEMPORARY_DOMAIN,
+        operator_address=operator_address,
         policy_registry=test_params["registry"]
     )
     return ursula_config
@@ -60,12 +63,10 @@ def make_ursula_test_configuration(
 def make_alice_test_configuration(payment_provider: str = None,
                                   **assemble_kwargs) -> AliceConfiguration:
     test_params = assemble(**assemble_kwargs)
-    config = AliceConfiguration(
-        **test_params,
-        payment_provider=payment_provider,
-        payment_network=TEMPORARY_DOMAIN,
-        policy_registry=test_params["registry"]
-    )
+    config = AliceConfiguration(**test_params,
+                                payment_provider=payment_provider,
+                                payment_network=TEMPORARY_DOMAIN,
+                                policy_registry=test_params['registry'])
     return config
 
 

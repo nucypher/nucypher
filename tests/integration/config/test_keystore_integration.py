@@ -11,9 +11,13 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, TLSHostingPower
 from nucypher.network.server import ProxyRESTServer
-from nucypher.policy.payment import FreeReencryptions, SubscriptionManagerPayment
+from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
+from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_ETH_PROVIDER_URI,
+    MOCK_IP_ADDRESS,
+)
 from tests.utils.matchers import IsType
 
 

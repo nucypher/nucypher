@@ -6,7 +6,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import MOCK_ETH_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI, MOCK_IP_ADDRESS
 from tests.utils.ursula import select_test_port
 
 ADDITIONAL_NODES_TO_LEARN_ABOUT = 10

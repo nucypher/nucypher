@@ -1,6 +1,3 @@
-
-
-
 import os
 
 import click

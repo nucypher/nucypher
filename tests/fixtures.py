@@ -38,7 +38,7 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry,
 )
 from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
-from nucypher.characters.lawful import Alice, Enrico, Ursula
+from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -68,6 +68,7 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
+    MOCK_IP_ADDRESS,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
@@ -152,12 +153,13 @@ def random_address(random_account):
 
 
 @pytest.fixture(scope="module")
-def ursula_test_config(test_registry, temp_dir_path):
+def ursula_test_config(test_registry, temp_dir_path, testerchain):
     config = make_ursula_test_configuration(
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
         payment_provider=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
+        operator_address=testerchain.ursulas_accounts.pop(),
     )
     yield config
     config.cleanup()
