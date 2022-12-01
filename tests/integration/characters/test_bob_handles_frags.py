@@ -76,7 +76,6 @@ def test_single_retrieve_conditions_empty_list(enacted_policy, bob, ursulas):
     assert cleartexts == [message]
 
 
-@pytest.mark.skip("This test is not working yet.  It's not clear what the correct behavior is and if it's the same in nucypher-ts.")
 def test_use_external_cache(enacted_policy, bob, ursulas):
 
     bob.start_learning_loop()

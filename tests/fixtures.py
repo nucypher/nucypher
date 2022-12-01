@@ -199,7 +199,7 @@ def idle_policy(testerchain, alice, bob, application_economics):
     """Creates a Policy, in a manner typical of how Alice might do it, with a unique label"""
     random_label = generate_random_label()
     expiration = maya.now() + timedelta(days=1)
-    threshold, shares = 2, 3
+    threshold, shares = 3, 5
     price = alice.payment_method.quote(
         expiration=expiration.epoch, shares=shares
     ).value  # TODO: use default quote option
