@@ -29,7 +29,7 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas, agency, test_registry
                     format(propagating_ursula, Nickname.from_seed(address))
 
 
-def test_blockchain_alice_finds_ursula_via_rest(alice, ursulas):
+def test_alice_finds_ursula_via_rest(alice, ursulas):
     # Imagine alice knows of nobody.
     alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
 

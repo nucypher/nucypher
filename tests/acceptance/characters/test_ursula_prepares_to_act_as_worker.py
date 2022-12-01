@@ -131,7 +131,7 @@ def test_vladimir_invalidity_without_stake(testerchain, ursulas, alice):
 
 
 # TODO: Change name of this file, extract this test
-def test_blockchain_ursulas_reencrypt(ursulas, alice, bob, policy_value):
+def test_ursulas_reencrypt(ursulas, alice, bob, policy_value):
     label = b'bbo'
 
     # TODO: Make sample selection buffer configurable - #1061

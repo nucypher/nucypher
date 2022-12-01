@@ -12,7 +12,7 @@ from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_blockchain_bob_full_retrieve_flow(
+def test_bob_full_retrieve_flow(
     ursulas, bob, alice, capsule_side_channel, treasure_map, enacted_policy
 ):
 

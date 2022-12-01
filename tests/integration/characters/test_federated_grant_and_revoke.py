@@ -42,7 +42,7 @@ def test_grant(alice, bob, ursulas):
             assert isinstance(kfrag_kit, EncryptedKeyFrag)
 
 
-def test_blockchain_alice_can_decrypt(alice, bob):
+def test_alice_can_decrypt(alice, bob):
     """
     Test that alice can decrypt data encrypted by an enrico
     for her own derived policy pubkey.
@@ -80,7 +80,7 @@ def test_blockchain_alice_can_decrypt(alice, bob):
 
 
 @pytest.mark.skip("Needs rework post-TMcKF")  # TODO: Implement offchain revocation.
-@pytest.mark.usefixtures('blockchain_ursulas')
+@pytest.mark.usefixtures("bursulas")
 def test_revocation(alice, bob):
     threshold, shares = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)

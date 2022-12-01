@@ -14,7 +14,7 @@ real-world scenarios.
 
 def test_sign_cleartext_and_encrypt(alice, bob):
     """
-    Exhibit One: blockchain_alice signs the cleartext and encrypts her signature inside
+    Exhibit One: alice signs the cleartext and encrypts her signature inside
     the ciphertext.
     """
     message = b"Have you accepted my answer on StackOverflow yet?"
