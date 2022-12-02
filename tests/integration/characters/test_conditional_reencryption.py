@@ -21,11 +21,13 @@ def test_single_retrieve_with_truthy_conditions(enacted_federated_policy, federa
     reencrypt_spy = mocker.spy(Ursula, '_reencrypt')
 
     federated_bob.start_learning_loop()
-    conditions = [
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
-    ]
+    conditions = {
+        'operator': 'and',
+        "operands": [
+            {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
+            {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
+        ]
+    }
     json_conditions = json.dumps(conditions)
     rust_conditions = Conditions(json_conditions)
     message_kits = [
