@@ -170,8 +170,8 @@ class ConditionLingo:
     This is an alternate implementation of the condition expression format used in
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
+    def __init__(self, operator: str, conditions: List[Union[ReencryptionCondition]]):
 
-    def __init__(self, conditions: List[Union[ReencryptionCondition, Operator]]):
         """
         The input list *must* be structured as follows:
         condition
@@ -181,6 +181,7 @@ class ConditionLingo:
         """
         self._validate_grammar(lingo=conditions)
         self.conditions = conditions
+        self.operator = operator
         self.id = md5(bytes(self)).hexdigest()[:6]
 
     @staticmethod
@@ -201,8 +202,9 @@ class ConditionLingo:
 
     @classmethod
     def from_list(cls, payload: LingoList) -> "ConditionLingo":
+        operator = payload['operator']
         conditions = [deserialize_condition_lingo(c) for c in payload]
-        instance = cls(conditions=conditions)
+        instance = cls(conditions=conditions, operator=operator)
         return instance
 
     def to_list(self) -> LingoList:  # TODO: __iter__ ?
