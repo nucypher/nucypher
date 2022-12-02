@@ -184,21 +184,11 @@ class ConditionLingo:
         self.operator = operator
         self.id = md5(bytes(self)).hexdigest()[:6]
 
+
     @staticmethod
     def _validate_grammar(lingo) -> None:
-        if len(lingo) % 2 == 0:
-            raise InvalidConditionLingo(
-                "conditions must be odd length, ever other element being an operator"
-            )
-        for index, element in enumerate(lingo):
-            if (not index % 2) and not (isinstance(element, ReencryptionCondition)):
-                raise InvalidConditionLingo(
-                    f"{index} element must be a condition; Got {type(element)}."
-                )
-            elif (index % 2) and (not isinstance(element, Operator)):
-                raise InvalidConditionLingo(
-                    f"{index} element must be an operator; Got {type(element)}."
-                )
+        # TODO: If we parase-and-pass the operator as a discrete object (as with prefix notation), do we still want this?
+        return
 
     @classmethod
     def from_list(cls, payload: LingoList) -> "ConditionLingo":
