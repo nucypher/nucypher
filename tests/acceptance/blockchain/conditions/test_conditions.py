@@ -461,24 +461,6 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_context_var
         SubscriptionManagerAgent, registry=test_registry
     )
 
-    # test "sponsor" key (owner is the same as sponsor for this policy)
-    condition = ContractCondition(
-        contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.get_function_by_name(
-            "getPolicy"
-        ).abi,
-        method="getPolicy",
-        chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(
-            comparator="==",
-            value=sponsor,  # don't use sponsor context var
-            key=":sponsorIndex",
-        ),
-        parameters=[":hrac"],
-    )
-    condition_result, _ = condition.verify(providers=condition_providers, **context)
-    assert condition_result
-
     # test "sponsor" key not equal to correct value
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
@@ -490,7 +472,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_context_var
         return_value_test=ReturnValueTest(
             comparator="!=",
             value=":sponsor",  # use sponsor sponsor context var
-            key=":sponsorIndex",
+            key=0,
         ),
         parameters=[":hrac"],
     )

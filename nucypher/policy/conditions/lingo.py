@@ -93,15 +93,15 @@ class ReturnValueTest:
         def make(self, data, **kwargs):
             return ReturnValueTest(**data)
 
-    def __init__(self, comparator: str, value: Any, key: Optional[Union[int, str]] = None):
+    def __init__(self, comparator: str, value: Any, key: int = None):
         if comparator not in self.COMPARATORS:
             raise self.InvalidExpression(
                 f'"{comparator}" is not a permitted comparator.'
             )
 
-        if not isinstance(key, (int, str)) and key is not None:
+        if not isinstance(key, int) and key is not None:
             raise self.InvalidExpression(
-                f'"{key}" is not a permitted key. Must be a string or integer.'
+                f'"{key}" is not a permitted key. Must be a an integer.'
             )
 
         if not is_context_variable(value):
@@ -122,19 +122,11 @@ class ReturnValueTest:
 
     def _process_data(self, data: Any) -> Any:
         """
-        If a key is specified, return the value at that key in the data if data is a dict or list-like.
-        Otherwise, return the data.
+        Solidity will only return a list
         """
         processed_data = data
         if self.key is not None:
-            if isinstance(data, dict):
-                try:
-                    processed_data = data[self.key]
-                except KeyError:
-                    raise ReturnValueEvaluationError(
-                        f"Key '{self.key}' not found in return data."
-                    )
-            elif isinstance(self.key, int) and isinstance(data, (list, tuple)):
+            if isinstance(self.key, int) and isinstance(data, (list, tuple)):
                 try:
                     processed_data = data[self.key]
                 except IndexError:
@@ -149,10 +141,10 @@ class ReturnValueTest:
         return processed_data
 
     def eval(self, data) -> bool:
-        if is_context_variable(self.value) or is_context_variable(self.key):
+        if is_context_variable(self.value):
             # programming error if we get here
             raise RuntimeError(
-                f"Return value comparator contains an unprocessed context variable (key={self.key}, value={self.value}) and is not valid "
+                f"Return value comparator contains an unprocessed context variable (value={self.value}) and is not valid "
                 f"for condition evaluation."
             )
 
