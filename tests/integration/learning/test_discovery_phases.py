@@ -2,10 +2,11 @@
 
 
 import contextlib
+
+import pytest
 import time
 
 import maya
-import pytest
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.characters.lawful import Ursula
@@ -17,7 +18,7 @@ from tests.mock.performance_mocks import (
     mock_message_verification,
     mock_metadata_validation,
     mock_secret_source,
-    mock_verify_node,
+    mock_verify_node
 )
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
@@ -40,10 +41,7 @@ performance bottlenecks.
 """
 
 
-@pytest.mark.skip("TODO: This test is not yet unfederated.")
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(
-    highperf_mocked_alice, test_registry_source_manager
-):
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice, test_registry_source_manager):
     # During the fixture execution, Alice verified one node.
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1

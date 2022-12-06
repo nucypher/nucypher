@@ -428,7 +428,7 @@ def _mock_testerchain() -> MockBlockchain:
 @pytest.fixture(scope='module')
 def _mock_testerchain_with_5000_ursulas() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
-    testerchain = _make_testerchain(mock_backend=True, population=5000)
+    testerchain = _make_testerchain(mock_backend=True, population=30)
     BlockchainInterfaceFactory.register_interface(interface=testerchain)
     yield testerchain
 
@@ -697,6 +697,10 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, big_testerchai
         quantity = request.param
     except AttributeError:
         quantity = 5000  # Bigass fleet by default; that's kinda the point.
+
+    staking_addresses = (to_checksum_address('0x' + os.urandom(20).hex()) for _ in range(5000))
+    operator_addresses = (to_checksum_address('0x' + os.urandom(20).hex()) for _ in range(5000))
+
     with GlobalLoggerSettings.pause_all_logging_while():
         with contextlib.ExitStack() as stack:
 
@@ -705,10 +709,10 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, big_testerchai
 
             _ursulas = make_ursulas(
                 ursula_config=ursula_test_config,
-                quantity=quantity,
+                max_quantity=quantity,
                 know_each_other=False,
-                staking_provider_addresses=testerchain.stake_providers_accounts,
-                operator_addresses=testerchain.ursulas_accounts
+                staking_provider_addresses=staking_addresses,
+                operator_addresses=operator_addresses,
             )
             all_ursulas = {u.checksum_address: u for u in _ursulas}
 
@@ -726,7 +730,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, big_testerchai
 
 
 @pytest.fixture(scope="module")
-def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, big_testerchain):
+def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, testerchain):
     monkeymodule.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
 
     config = AliceConfiguration(dev_mode=True,

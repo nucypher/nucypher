@@ -88,7 +88,7 @@ def test_learner_ignores_stored_nodes_from_other_domains(
     learner, other_staker = make_ursulas(
         ursula_test_config,
         domain="call-it-mainnet",
-        quantity=2,
+        max_quantity=2,
         know_each_other=True,
         staking_provider_addresses=testerchain.stake_providers_accounts[:2],
         operator_addresses=testerchain.ursulas_accounts[:2],
@@ -97,7 +97,7 @@ def test_learner_ignores_stored_nodes_from_other_domains(
     pest, *other_ursulas_from_the_wrong_side_of_the_tracks = make_ursulas(
         ursula_test_config,
         domain="i-dunno-testt-maybe",
-        quantity=5,
+        max_quantity=5,
         know_each_other=True,
         staking_provider_addresses=testerchain.stake_providers_accounts[2:],
         operator_addresses=testerchain.ursulas_accounts[2:],
@@ -157,7 +157,7 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
         domain=domain,
         node_storage=node_storage,
         know_each_other=True,
-        quantity=3,
+        max_quantity=3,
         save_metadata=True,
         staking_provider_addresses=testerchain.stake_providers_accounts[:3],
         operator_addresses=testerchain.ursulas_accounts[:3],

@@ -18,7 +18,7 @@ def test_ursula_serves_statics(ursula_test_config, testerchain, agency):
 
         node = make_ursulas(
             ursula_config=ursula_test_config,
-            quantity=1,
+            max_quantity=1,
             staking_provider_addresses=testerchain.stake_providers_accounts,
             operator_addresses=testerchain.ursulas_accounts,
         ).pop()
