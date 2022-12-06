@@ -1,77 +1,12 @@
-
-
 from decimal import Decimal
 from typing import Union
 
-import maya
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from eth_typing import BlockNumber
 from eth_utils import is_address, is_hex, to_checksum_address
 from web3 import Web3
 from web3.contract import ContractConstructor, ContractFunction
 
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
-
-
-def epoch_to_period(epoch: int, seconds_per_period: int) -> int:
-    period = epoch // seconds_per_period
-    return period
-
-
-def datetime_to_period(datetime: maya.MayaDT, seconds_per_period: int) -> int:
-    """Converts a MayaDT instance to a period number."""
-    future_period = epoch_to_period(epoch=datetime.epoch, seconds_per_period=seconds_per_period)
-    return int(future_period)
-
-
-def period_to_epoch(period: int, seconds_per_period: int) -> int:
-    epoch = period * seconds_per_period
-    return epoch
-
-
-def get_current_period(seconds_per_period: int) -> int:
-    now = maya.now().epoch
-    period = epoch_to_period(epoch=now, seconds_per_period=seconds_per_period)
-    return period
-
-
-def datetime_at_period(period: int, seconds_per_period: int, start_of_period: bool = False) -> maya.MayaDT:
-    """
-    Returns the datetime object at a given period, future, or past.
-    If start_of_period, the datetime object represents the first second of said period.
-    """
-    if start_of_period:
-        datetime_at_start_of_period = maya.MayaDT(epoch=period_to_epoch(period, seconds_per_period))
-        return datetime_at_start_of_period
-    else:
-        now = maya.now()
-        current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
-        delta_periods = period - current_period
-        target_datetime = now + maya.timedelta(seconds=seconds_per_period) * delta_periods
-        return target_datetime
-
-
-def calculate_period_duration(future_time: maya.MayaDT, seconds_per_period: int, now: maya.MayaDT = None) -> int:
-    """Takes a future MayaDT instance and calculates the duration from now, returning in periods"""
-    if now is None:
-        now = maya.now()
-    future_period = datetime_to_period(datetime=future_time, seconds_per_period=seconds_per_period)
-    current_period = datetime_to_period(datetime=now, seconds_per_period=seconds_per_period)
-    periods = future_period - current_period
-    return periods
-
-
-def estimate_block_number_for_period(period: int, seconds_per_period: int,  latest_block: BlockNumber) -> BlockNumber:
-    """Logic for getting the approximate block height of the start of the specified period."""
-    period_start = datetime_at_period(period=period,
-                                      seconds_per_period=seconds_per_period,
-                                      start_of_period=True)
-    seconds_from_midnight = int((maya.now() - period_start).total_seconds())
-    blocks_from_midnight = seconds_from_midnight // AVERAGE_BLOCK_TIME_IN_SECONDS
-
-    block_number_for_period = latest_block - blocks_from_midnight
-    return block_number_for_period
 
 
 def etherscan_url(item, network: str, is_token=False) -> str:

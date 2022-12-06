@@ -1,8 +1,5 @@
-
-
-
 import os
-from typing import List, Tuple, Union, Optional
+from typing import List, Optional, Tuple, Union
 
 import maya
 from eth_tester.exceptions import TransactionFailed
@@ -12,10 +9,19 @@ from web3 import Web3
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainDeployerInterface,
+    BlockchainInterfaceFactory,
+)
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile.constants import TEST_SOLIDITY_SOURCE_ROOT, SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.constants import (
+    SOLIDITY_SOURCE_ROOT,
+    TEST_SOLIDITY_SOURCE_ROOT,
+)
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -28,7 +34,7 @@ from tests.constants import (
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    PYEVM_DEV_URI, TEST_GAS_LIMIT
+    PYEVM_DEV_URI,
 )
 
 
@@ -177,7 +183,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         more_than_one_arg = sum(map(bool, (hours, seconds))) > 1
         if more_than_one_arg:
-            raise ValueError("Specify hours, seconds, or periods, not a combination")
+            raise ValueError("Specify hours or seconds not a combination")
 
         if hours:
             duration = hours * (60*60)

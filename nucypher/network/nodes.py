@@ -1,5 +1,3 @@
-
-
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
@@ -877,9 +875,9 @@ class Learner:
                               f'{sprout} {NOT_SIGNED}.')
 
             except sprout.NotStaking:
-                self.log.warn(f'Verification Failed - '
-                              f'{sprout} has no active stakes in the current period '
-                              f'({self.staking_agent.get_current_period()}')
+                self.log.warn(
+                    f"Verification Failed - " f"{sprout} has no active stakes "
+                )
 
             except sprout.InvalidOperatorSignature:
                 self.log.warn(f'Verification Failed - '

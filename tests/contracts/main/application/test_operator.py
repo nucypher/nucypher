@@ -1,10 +1,8 @@
-
-
 import pytest
 from eth_tester.exceptions import TransactionFailed
+from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from eth_utils import to_checksum_address
 
 CONFIRMATION_SLOT = 1
 
@@ -157,7 +155,7 @@ def test_bond_operator(testerchain, threshold_staking, pre_application, applicat
     assert event_args['stakingProvider'] == staking_provider_3
     # Now the operator has been unbonded ...
     assert event_args['operator'] == NULL_ADDRESS
-    # ... with a new starting period.
+    # ... with a new start time.
     assert event_args['startTimestamp'] == timestamp
 
     # The staking provider can bond now a new operator, without waiting additional time.

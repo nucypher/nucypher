@@ -1,18 +1,15 @@
-
 from unittest.mock import MagicMock, Mock
 
 import pytest
 import pytest_twisted
-from twisted.internet import task
-from twisted.internet import threads
+from twisted.internet import task, threads
 from twisted.internet.task import Clock
-from twisted.logger import globalLogPublisher, LogLevel
+from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.token import WorkTracker, WorkTrackerBase
 from nucypher.utilities.gas_strategies import GasStrategyError
-
-from nucypher.blockchain.eth.token import WorkTrackerBase, WorkTracker
-from nucypher.utilities.logging import Logger, GlobalLoggerSettings
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 logger = Logger("test-logging")
 
@@ -40,14 +37,6 @@ class WorkTrackerArbitraryFailureConditions(WorkTrackerBase):
 
         self.workdone += 1
         self._consecutive_fails = 0
-
-    @property
-    def staking_agent(self):
-        class MockStakingAgent:
-            def get_current_period(self):
-                return 1
-
-        return MockStakingAgent()
 
     def _crash_gracefully(self, failure=None) -> None:
         assert 'zomg something went wrong' in failure.getErrorMessage()

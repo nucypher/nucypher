@@ -20,8 +20,8 @@ class PaymentMethod(ABC):
         rate: int
         value: int
         commencement: int  # epoch
-        expiration: int    # epoch
-        duration: int      # seconds or periods
+        expiration: int  # epoch
+        duration: int  # seconds
         shares: int
 
     @abstractmethod

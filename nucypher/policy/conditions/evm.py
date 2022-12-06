@@ -84,8 +84,10 @@ def _resolve_any_context_variables(
 
 def _validate_chain(chain: int) -> None:
     if not isinstance(chain, int):
-        raise ValueError(f'"The chain" field of c a condition must be the '
-                         f'integer of a chain ID (got "{chain}").')
+        raise ValueError(
+            f'The "chain" field of a condition must be the '
+            f'integer chain ID (got "{chain}").'
+        )
     if chain not in _CONDITION_CHAINS:
         raise InvalidCondition(
             f"chain ID {chain} is not a permitted "
