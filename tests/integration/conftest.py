@@ -103,14 +103,6 @@ def testerchain(_mock_testerchain, module_mocker) -> MockBlockchain:
     return _mock_testerchain
 
 
-@pytest.fixture(scope='module')
-def big_testerchain(_mock_testerchain_with_5000_ursulas, module_mocker) -> MockBlockchain:
-    def always_use_mock(*a, **k): return _mock_testerchain_with_5000_ursulas
-
-    module_mocker.patch.object(BlockchainInterfaceFactory, 'get_interface', always_use_mock)
-    return _mock_testerchain_with_5000_ursulas
-
-
 @pytest.fixture(scope='module', autouse=True)
 def mock_interface(module_mocker):
     # Generic Interface

@@ -15,7 +15,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import MOCK_ETH_PROVIDER_URI, NUMBER_OF_ETH_TEST_ACCOUNTS
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.blockchain import TesterBlockchain
 
 
@@ -71,8 +71,8 @@ class MockBlockchain(TesterBlockchain):
         "contractAddress": HexBytes(b"0xdeadbeef"),
     }
 
-    def __init__(self, population=NUMBER_OF_ETH_TEST_ACCOUNTS):
-        super().__init__(compile_now=False, test_accounts=population)
+    def __init__(self):
+        super().__init__(compile_now=False)
 
     def wait_for_receipt(
         self, txhash: Union[bytes, str, HexBytes], timeout: int = None

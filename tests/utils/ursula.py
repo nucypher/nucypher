@@ -64,12 +64,12 @@ def make_ursulas(
     ursula_config: UrsulaConfiguration,
     staking_provider_addresses: Iterable[str],
     operator_addresses: Iterable[str],
-    max_quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
     know_each_other: bool = True,
     **ursula_overrides
 ) -> List[Ursula]:
 
-    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[:max_quantity]
+    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[:quantity]
     ursulas = list()
 
     for staking_provider_address, operator_address in providers_and_operators:
