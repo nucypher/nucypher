@@ -72,7 +72,7 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
-    TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_ID, NUMBER_OF_ETH_TEST_ACCOUNTS,
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
@@ -358,7 +358,7 @@ def test_registry():
     return registry
 
 
-def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
+def _make_testerchain(mock_backend: bool = False, population: int = NUMBER_OF_ETH_TEST_ACCOUNTS) -> TesterBlockchain:
     """
     https://github.com/ethereum/eth-tester     # available-backends
     """
@@ -377,9 +377,9 @@ def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
 
     # Create the blockchain
     if mock_backend:
-        testerchain = MockBlockchain()
+        testerchain = MockBlockchain(population=population)
     else:
-        testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
+        testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True, test_accounts=population)
 
     return testerchain
 
@@ -421,6 +421,14 @@ def testerchain(_testerchain) -> TesterBlockchain:
 def _mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
     testerchain = _make_testerchain(mock_backend=True)
+    BlockchainInterfaceFactory.register_interface(interface=testerchain)
+    yield testerchain
+
+
+@pytest.fixture(scope='module')
+def _mock_testerchain_with_5000_ursulas() -> MockBlockchain:
+    BlockchainInterfaceFactory._interfaces = dict()
+    testerchain = _make_testerchain(mock_backend=True, population=5000)
     BlockchainInterfaceFactory.register_interface(interface=testerchain)
     yield testerchain
 
@@ -674,7 +682,7 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope="module")
-def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
+def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, big_testerchain):
 
     mocks = (
         mock_cert_storage,
@@ -718,7 +726,7 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
 
 
 @pytest.fixture(scope="module")
-def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, testerchain):
+def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, big_testerchain):
     monkeymodule.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
 
     config = AliceConfiguration(dev_mode=True,
