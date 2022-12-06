@@ -99,7 +99,7 @@ class ReturnValueTest:
                 f'"{comparator}" is not a permitted comparator.'
             )
 
-        if not isinstance(key, int) and key is not None:
+        if key is not None and not isinstance(key, int):
             raise self.InvalidExpression(
                 f'"{key}" is not a permitted key. Must be a an integer.'
             )
@@ -122,7 +122,8 @@ class ReturnValueTest:
 
     def _process_data(self, data: Any) -> Any:
         """
-        Solidity will only return a list
+        If a key is specified, return the value at that key in the data if data is list-like.
+        Otherwise, return the data.
         """
         processed_data = data
         if self.key is not None:

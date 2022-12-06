@@ -442,7 +442,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
     assert condition_result
 
 
-def test_subscription_manager_get_policy_policy_struct_condition_key_context_var_evaluation(
+def test_subscription_manager_get_policy_policy_struct_condition_key_and_value_context_var_evaluation(
     testerchain,
     agency,
     test_registry,
@@ -455,7 +455,6 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_context_var
     context = {
         ":hrac": bytes(enacted_blockchain_policy.hrac),
         ":sponsor": sponsor,
-        ":sponsorIndex": 0,
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent, registry=test_registry
