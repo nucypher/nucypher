@@ -9,7 +9,7 @@ from nucypher.policy.conditions.lingo import ReturnValueTest
 
 def test_return_value_test_schema():
     schema = ReturnValueTest.ReturnValueTestSchema()
-    return_value_test = ReturnValueTest(comparator=">", value=0, key=1)
+    return_value_test = ReturnValueTest(comparator=">", value=0, index=1)
 
     test_dict = schema.dump(return_value_test)
 
@@ -29,25 +29,25 @@ def test_return_value_test_schema():
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
 
-    # missing key should NOT cause any error since optional
+    # missing index should NOT cause any error since optional
     test_dict = schema.dump(return_value_test)
-    del test_dict["key"]
+    del test_dict["index"]
     errors = schema.validate(data=test_dict)
     assert not errors, f"{errors}"
 
 
-def test_return_value_key():
+def test_return_value_index():
     with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator=">", value="0", key="james")
+        _ = ReturnValueTest(comparator=">", value="0", index="james")
 
 
 
 def test_return_value_index():
-    test = ReturnValueTest(comparator=">", value="0", key=0)
+    test = ReturnValueTest(comparator=">", value="0", index=0)
     assert test.eval([1])
     assert not test.eval([-1])
 
-    test = ReturnValueTest(comparator="==", value='"james"', key=3)
+    test = ReturnValueTest(comparator="==", value='"james"', index=3)
     assert test.eval([0, 1, 2, '"james"'])
 
     with pytest.raises(ReturnValueEvaluationError):
@@ -55,7 +55,7 @@ def test_return_value_index():
 
 
 def test_return_value_index_tuple():
-    test = ReturnValueTest(comparator=">", value="0", key=0)
+    test = ReturnValueTest(comparator=">", value="0", index=0)
     assert test.eval((1,))
     assert not test.eval((-1,))
 

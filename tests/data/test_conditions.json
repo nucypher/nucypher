@@ -108,7 +108,7 @@
       ":userAddress"
     ],
     "returnValueTest": {
-      "key": 0,
+      "index": 0,
       "comparator": ">",
       "value": 0
     }
