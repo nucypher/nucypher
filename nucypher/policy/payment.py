@@ -1,14 +1,17 @@
 
 
 from abc import ABC, abstractmethod
-from typing import Optional, NamedTuple, Dict
+from typing import Dict, NamedTuple, Optional
 
 import maya
 from nucypher_core import ReencryptionRequest
-from web3.types import Wei, Timestamp, TxReceipt, ChecksumAddress
+from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
-from nucypher.blockchain.eth.agents import SubscriptionManagerAgent, ContractAgency
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.policy.policies import BlockchainPolicy, Policy
 
 
@@ -169,7 +172,7 @@ class SubscriptionManagerPayment(ContractPayment):
 
 
 class FreeReencryptions(PaymentMethod):
-    """Useful for private federations and testing."""
+    """Useful for testing."""
 
     ONCHAIN = False
     NAME = 'Free'

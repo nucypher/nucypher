@@ -1,30 +1,11 @@
-
-
-
 from typing import Iterable, List, Optional
 
 from eth_typing import ChecksumAddress
 
-from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.agents import StakingProvidersReservoir, PREApplicationAgent
-
-
-def make_federated_staker_reservoir(known_nodes: FleetSensor,
-                                    exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
-                                    include_addresses: Optional[Iterable[ChecksumAddress]] = None):
-    """Get a sampler object containing the federated stakers."""
-    # needs to not include both exclude and include addresses
-    # so that they aren't included in reservoir, include_address will be re-added to reservoir afterwards
-    include_addresses = include_addresses or ()
-    exclusion_set = set(include_addresses) | set(exclude_addresses or ())
-    addresses = {}
-    for ursula in known_nodes:
-        if ursula.checksum_address in exclusion_set:
-            continue
-        addresses[ursula.checksum_address] = 1
-
-    # add include addresses
-    return MergedReservoir(include_addresses, StakingProvidersReservoir(addresses))
+from nucypher.blockchain.eth.agents import (
+    PREApplicationAgent,
+    StakingProvidersReservoir,
+)
 
 
 def make_decentralized_staking_provider_reservoir(application_agent: PREApplicationAgent,

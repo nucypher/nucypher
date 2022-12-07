@@ -1,21 +1,17 @@
-
-
-
 from abc import ABC, abstractmethod
-from typing import Sequence, Optional, Iterable, List, Dict
+from typing import Dict, Iterable, List, Optional, Sequence
 
 import maya
 from eth_typing.evm import ChecksumAddress
-from nucypher_core import Address, HRAC, TreasureMap
+from nucypher_core import HRAC, Address, TreasureMap
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.reservoir import (
-    make_federated_staker_reservoir,
     MergedReservoir,
     PrefetchStrategy,
-    make_decentralized_staking_provider_reservoir
+    make_decentralized_staking_provider_reservoir,
 )
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
@@ -180,14 +176,6 @@ class Policy(ABC):
                                        self.publisher.stamp.as_umbral_pubkey())
 
         return enacted_policy
-
-
-class FederatedPolicy(Policy):
-
-    def _make_reservoir(self, handpicked_addresses: List[ChecksumAddress]):
-        """Returns a federated node reservoir for creating a federated policy."""
-        return make_federated_staker_reservoir(known_nodes=self.publisher.known_nodes,
-                                               include_addresses=handpicked_addresses)
 
 
 class BlockchainPolicy(Policy):

@@ -119,7 +119,7 @@ def evaluate_condition_lingo(
     # TODO: Evaluate all conditions even if one fails and report the result
     """
 
-    # Setup (don't use mutable defaults and support federated mode)
+    # Setup (don't use mutable defaults)
     context = context or dict()
     providers = providers or dict()
     error = None
