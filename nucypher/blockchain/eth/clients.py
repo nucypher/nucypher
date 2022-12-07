@@ -11,14 +11,17 @@ from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from web3 import Web3
-from web3.contract import Contract
-from web3.types import Wei, TxReceipt
 from web3._utils.threads import Timeout
+from web3.contract import Contract
 from web3.exceptions import TimeExhausted, TransactionNotFound
+from web3.types import TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
-from nucypher.blockchain.middleware.retry import RetryRequestMiddleware, AlchemyRetryRequestMiddleware, \
-    InfuraRetryRequestMiddleware
+from nucypher.blockchain.middleware.retry import (
+    AlchemyRetryRequestMiddleware,
+    InfuraRetryRequestMiddleware,
+    RetryRequestMiddleware,
+)
 from nucypher.utilities.logging import Logger
 
 UNKNOWN_DEVELOPMENT_CHAIN_ID.bool_value(True)
@@ -542,7 +545,7 @@ class EthereumTesterClient(EthereumClient):
         try:
             signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[account]._raw_key
         except KeyError:
-             raise self.UnknownAccount(account)
+            raise self.UnknownAccount(account)
         return signing_key
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:

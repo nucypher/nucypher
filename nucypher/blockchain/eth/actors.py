@@ -2,12 +2,11 @@
 
 
 import json
+import time
 from decimal import Decimal
-from typing import Optional, Tuple
-from typing import Union
+from typing import Optional, Tuple, Union
 
 import maya
-import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -21,15 +20,16 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    PREApplicationAgent
+    PREApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
+    AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer, AdjudicatorDeployer
+    SubscriptionManagerDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -290,18 +290,25 @@ class Operator(BaseActor):
     class OperatorError(BaseActor.ActorError):
         pass
 
-    def __init__(self,
-                 is_me: bool,
-                 payment_method: ContractPayment,
-                 work_tracker: Optional[WorkTracker] = None,
-                 operator_address: Optional[ChecksumAddress] = None,
-                 eth_provider_uri: Optional[str] = None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        is_me: bool,
+        payment_method: ContractPayment,
+        work_tracker: Optional[WorkTracker] = None,
+        operator_address: Optional[ChecksumAddress] = None,
+        eth_provider_uri: Optional[str] = None,
+        *args,
+        **kwargs,
+    ):
 
         if not eth_provider_uri:
-            raise ValueError('ETH Provider URI is required to init a decentralized character.')
+            raise ValueError(
+                "ETH Provider URI is required to init a decentralized character."
+            )
         if not payment_method:
-            raise ValueError('Payment method is required to init a decentralized character.')
+            raise ValueError(
+                "Payment method is required to init a decentralized character."
+            )
 
         super().__init__(*args, **kwargs)
 
