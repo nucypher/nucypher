@@ -24,8 +24,6 @@ PRODUCTION_REGISTRY_ADVISORY = "Using latest published registry from {source}"
 
 LOCAL_REGISTRY_ADVISORY = "Configured to registry filepath {registry_filepath}"
 
-FEDERATED_WARNING = "WARNING: Running in Federated mode"
-
 PERIOD_ADVANCED_WARNING = "Current period advanced before the action could be completed. Please try again."
 
 #
@@ -92,6 +90,8 @@ nucypher {init_command}
 
 SELECT_NETWORK = "Select Network"
 
+SELECT_PAYMENT_NETWORK = "Select Payment Network"
+
 NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found. Run 'nucypher {command} init' then try again."
 
 SUCCESSFUL_UPDATE_CONFIGURATION_VALUES = "Updated configuration values: {fields}"
@@ -141,13 +141,18 @@ GENERIC_PASSWORD_PROMPT = "Enter password"
 
 DECRYPTING_CHARACTER_KEYSTORE = 'Authenticating {name}'
 
+REPEAT_FOR_CONFIRMATION = "Repeat for confirmation:"
+
 
 #
 # Networking
 #
 
+CONFIRM_IPV4_ADDRESS_QUESTION = "Is this the public-facing address of Ursula?"
 
-CONFIRM_URSULA_IPV4_ADDRESS = "Detected IPv4 address ({rest_host}) - Is this the public-facing address of Ursula?"
+CONFIRM_URSULA_IPV4_ADDRESS = (
+    "Detected IPv4 address ({rest_host}) - " + CONFIRM_IPV4_ADDRESS_QUESTION
+)
 
 COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address"
 
@@ -249,6 +254,8 @@ SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metada
 #
 
 STAKING_PROVIDER_UNAUTHORIZED = '{provider} is not authorized.'
+
+SELECT_OPERATOR_ACCOUNT = "Select operator account"
 
 CONFIRM_BONDING = 'Are you sure you want to bond staking provider {provider} to operator {operator}?'
 

@@ -32,16 +32,16 @@ def paint_node_status(emitter, ursula, start_time):
              'Fleet State.......... {}'.format(fleet_state),
              'Learning Status ..... {}'.format(learning_status),
              'Learning Round ...... Round #{}'.format(ursula._learning_round),
-             'Operating Mode ...... {}'.format('Federated' if ursula.federated_only else 'Decentralized'),
              'Rest Interface ...... {}'.format(ursula.rest_url()),
              'Node Storage Type ... {}'.format(ursula.node_storage._name.capitalize()),
              'Known Nodes ......... {}'.format(len(ursula.known_nodes)),
              teacher]
 
-    if not ursula.federated_only:
-        operator_address = 'Operator Address ...... {}'.format(ursula.operator_address)
-        current_period = f'Current Period ...... {ursula.application_agent.get_current_period()}'
-        stats.extend([current_period, operator_address])
+    operator_address = "Operator Address ...... {}".format(ursula.operator_address)
+    current_period = (
+        f"Current Period ...... {ursula.application_agent.get_current_period()}"
+    )
+    stats.extend([current_period, operator_address])
 
     if ursula._availability_tracker:
         if ursula._availability_tracker.running:
@@ -57,13 +57,8 @@ def paint_node_status(emitter, ursula, start_time):
 def paint_known_nodes(emitter, ursula) -> None:
     # Gather Data
     known_nodes = ursula.known_nodes
-    number_of_known_nodes = len(ursula.node_storage.all(federated_only=ursula.federated_only))
-    seen_nodes = len(ursula.node_storage.all(federated_only=ursula.federated_only, certificates_only=True))
-
-    # Operating Mode
-    federated_only = ursula.federated_only
-    if federated_only:
-        emitter.echo("Configured in Federated Only mode", color='green')
+    number_of_known_nodes = len(ursula.node_storage.all())
+    seen_nodes = len(ursula.node_storage.all(certificates_only=True))
 
     # Heading
     label = "Known Nodes (connected {} / seen {})".format(number_of_known_nodes, seen_nodes)

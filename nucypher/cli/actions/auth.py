@@ -12,12 +12,12 @@ from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
     DECRYPTING_CHARACTER_KEYSTORE,
     GENERIC_PASSWORD_PROMPT,
-    PASSWORD_COLLECTION_NOTICE
+    PASSWORD_COLLECTION_NOTICE,
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
+from nucypher.crypto.keystore import _WORD_COUNT, Keystore
 from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.crypto.keystore import Keystore, _WORD_COUNT
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
@@ -48,9 +48,9 @@ def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> Non
     else:
         account = config.checksum_address
 
-    eth_password_is_needed = all((not config.federated_only,
-                                  not config.signer.is_device(account=account),
-                                  not config.dev_mode))
+    eth_password_is_needed = all(
+        (not config.signer.is_device(account=account), not config.dev_mode)
+    )
 
     __password = None
     if eth_password_is_needed:

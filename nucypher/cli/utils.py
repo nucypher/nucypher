@@ -14,31 +14,30 @@ from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterface,
-    BlockchainInterfaceFactory
+    BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
-    LocalContractRegistry
+    LocalContractRegistry,
 )
 from nucypher.characters.base import Character
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_nucypher_password,
     unlock_nucypher_keystore,
-    unlock_signer_account
+    unlock_signer_account,
 )
 from nucypher.cli.literature import (
+    CONFIRM_OVERWRITE_EVENTS_CSV_FILE,
     CONNECTING_TO_BLOCKCHAIN,
     ETHERSCAN_FLAG_DISABLED_WARNING,
     ETHERSCAN_FLAG_ENABLED_WARNING,
-    FEDERATED_WARNING,
     LOCAL_REGISTRY_ADVISORY,
     NO_HARDWARE_WALLET_WARNING,
     PRODUCTION_REGISTRY_ADVISORY,
-    CONFIRM_OVERWRITE_EVENTS_CSV_FILE
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.events import write_events_to_csv_file
 
 
@@ -86,7 +85,6 @@ def make_cli_character(character_config,
         maybe_sage_node = character_config.known_node_class.from_teacher_uri(
             teacher_uri=teacher_uri,
             min_stake=min_stake,
-            federated_only=character_config.federated_only,
             network_middleware=character_config.network_middleware,
             registry=character_config.registry
         )
@@ -99,10 +97,6 @@ def make_cli_character(character_config,
     #
     # Post-Init
     #
-
-    # Federated
-    if character_config.federated_only:
-        emitter.message(FEDERATED_WARNING, color='yellow')
 
     emitter.message(f"Loaded {CHARACTER.__class__.__name__} ({CHARACTER.domain})", color='green')
     return CHARACTER

@@ -13,11 +13,12 @@ from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     GWEI,
+    MIN_AUTHORIZATION,
     NETWORK_PORT,
-    NuCypherNetworkName,
-    WEI,
+    PAYMENT_METHOD_CHOICES,
     STAKED_TOKENS_RANGE,
-    MIN_AUTHORIZATION, PAYMENT_METHOD_CHOICES
+    WEI,
+    NuCypherNetworkName,
 )
 from nucypher.utilities.logging import Logger
 
@@ -29,7 +30,6 @@ option_dev = click.option('--dev', '-d', help="Enable development mode", is_flag
 option_dry_run = click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
 option_etherscan = click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan")
 option_event_name = click.option('--event-name', help="Specify an event by name", type=click.STRING)
-option_federated_only = click.option('--federated-only/--decentralized', '-F', help="Connect only to federated nodes", is_flag=True, default=None)
 option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
 option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
 option_key_material = click.option('--key-material', help="A pre-secured hex-encoded secret to use for private key derivations", type=click.STRING)
