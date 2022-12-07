@@ -193,13 +193,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Enforce Reencryption Conditions
-        providers = this_node.condition_providers if not this_node.federated_only else dict()
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
             if condition_lingo:
                 error = evaluate_condition_lingo(
                     lingo=condition_lingo,
-                    providers=providers,
+                    providers=this_node.condition_providers,
                     context=context
                 )
                 if error:

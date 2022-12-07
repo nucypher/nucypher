@@ -255,10 +255,7 @@ class Learner:
 
         self.learning_deferred = Deferred()
         self.domain = domain
-        if not self.federated_only:
-            default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
-        else:
-            default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS()
+        default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
         self.network_middleware = network_middleware or default_middleware
         self.save_metadata = save_metadata
         self.start_learning_now = start_learning_now
@@ -275,7 +272,7 @@ class Learner:
         self._discovery_canceller = DiscoveryCanceller()
 
         if not node_storage:
-            node_storage = self.__DEFAULT_NODE_STORAGE(federated_only=self.federated_only)
+            node_storage = self.__DEFAULT_NODE_STORAGE()
         self.node_storage = node_storage
         if save_metadata and node_storage is NO_STORAGE_AVAILABLE:
             raise ValueError("Cannot save nodes without a configured node storage")
@@ -302,7 +299,7 @@ class Learner:
 
         if self._DEBUG_MODE:
             # Very slow, but provides useful info when trying to track down a stray Character.
-            # Seems mostly useful for Bob or federated Ursulas, but perhaps useful for other Characters as well.
+            # Seems mostly useful for Bob but perhaps useful for other Characters as well.
 
             import inspect
             import os
@@ -344,7 +341,6 @@ class Learner:
                 try:
                     maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
                                                                        min_stake=0,  # TODO: Where to get this?
-                                                                       federated_only=self.federated_only,
                                                                        network_middleware=self.network_middleware,
                                                                        registry=self.registry)
                 except Exception as e:
@@ -388,7 +384,7 @@ class Learner:
         return discovered
 
     def read_nodes_from_storage(self) -> List:
-        stored_nodes = self.node_storage.all(federated_only=self.federated_only)  # TODO: #466
+        stored_nodes = self.node_storage.all()  # TODO: #466
 
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
@@ -447,7 +443,7 @@ class Learner:
             # Use this to control whether or not this node performs
             # blockchain calls to determine if stranger nodes are bonded.
             # Note: self.registry is composed on blockchainy character subclasses.
-            registry = self.registry if self._verify_node_bonding else None  # TODO: Federated mode?
+            registry = self.registry if self._verify_node_bonding else None
 
             try:
                 node.verify_node(force=force_verification_recheck,
@@ -746,9 +742,7 @@ class Learner:
     def learn_from_teacher_node(self, eager=False, canceller=None):
         """
         Sends a request to node_url to find out about known nodes.
-
         TODO: Does this (and related methods) belong on FleetSensor for portability?
-
         TODO: A lot of other code can be simplified if this is converted to async def.  That's a project, though.
         """
         remembered = []
@@ -767,7 +761,7 @@ class Learner:
 
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
 
-        if isinstance(self, Teacher):
+        if isinstance(self, Teacher) and (current_teacher.domain == self.domain):
             announce_nodes = [self.metadata()]
         else:
             announce_nodes = []
@@ -976,9 +970,6 @@ class Teacher:
     class UnbondedOperator(InvalidNode):
         """Raised when a node fails verification because it is not bonded to a Staker"""
 
-    class WrongMode(TypeError):
-        """Raised when a Character tries to use another Character as decentralized when the latter is federated_only."""
-
     @classmethod
     def set_cert_storage_function(cls, node_storage_function: Callable):
         cls._cert_store_function = node_storage_function
@@ -986,10 +977,6 @@ class Teacher:
     def mature(self, *args, **kwargs):
         """This is the most mature form, so we do nothing."""
         return self
-
-    @classmethod
-    def set_federated_mode(cls, federated_only: bool):
-        cls._federated_only_instances = federated_only
 
     #
     # Known Nodes
@@ -1036,41 +1023,32 @@ class Teacher:
         return is_staking
 
     def validate_operator(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None) -> None:
+        # Try to derive the worker address if it hasn't been derived yet.
+        try:
+            # TODO: This is overtly implicit
+            _operator_address = self.operator_address
+        except Exception as e:
+            raise self.InvalidOperatorSignature(str(e)) from e
+        self.verified_stamp = True  # TODO: Does this belong here?
 
-        # Federated
-        if self.federated_only:
-            message = "This node cannot be verified in this manner, " \
-                      "but is OK to use in federated mode if you " \
-                      "have reason to believe it is trustworthy."
-            raise self.WrongMode(message)
+        # On-chain staking check, if registry is present
+        if registry:
 
-        # Decentralized
-        else:
+            if not self._operator_is_bonded(registry=registry):  # <-- Blockchain CALL
+                message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
+                self.log.debug(message)
+                raise self.UnbondedOperator(message)
 
-            # Try to derive the worker address if it hasn't been derived yet.
-            try:
-                # TODO: This is overtly implicit
-                _operator_address = self.operator_address
-            except Exception as e:
-                raise self.InvalidOperatorSignature(str(e)) from e
-            self.verified_stamp = True  # TODO: Does this belong here?
-
-            # On-chain staking check, if registry is present
-            if registry:
-
-                if not self._operator_is_bonded(registry=registry):  # <-- Blockchain CALL
-                    message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
-                    self.log.debug(message)
-                    raise self.UnbondedOperator(message)
-
-                if self._staking_provider_is_really_staking(registry=registry, eth_provider_uri=eth_provider_uri):  # <-- Blockchain CALL
-                    self.log.info(f'Verified operator {self}')
-                    self.verified_operator = True
-                else:
-                    raise self.NotStaking(f"{self.checksum_address} is not staking")
-
+            if self._staking_provider_is_really_staking(
+                registry=registry, eth_provider_uri=eth_provider_uri
+            ):  # <-- Blockchain CALL
+                self.log.info(f"Verified operator {self}")
+                self.verified_operator = True
             else:
-                self.log.info('No registry provided for staking verification.')
+                raise self.NotStaking(f"{self.checksum_address} is not staking")
+
+        else:
+            self.log.info("No registry provided for staking verification.")
 
     def validate_metadata_signature(self) -> bool:
         """Checks that the interface info is valid for this node's canonical address."""
@@ -1092,11 +1070,7 @@ class Teacher:
             return
 
         # Offline check of valid stamp signature by worker
-        try:
-            self.validate_operator(registry=registry, eth_provider_uri=eth_provider_uri)
-        except self.WrongMode:
-            if bool(registry):
-                raise
+        self.validate_operator(registry=registry, eth_provider_uri=eth_provider_uri)
 
     def verify_node(self,
                     network_middleware_client,
@@ -1108,8 +1082,7 @@ class Teacher:
         """
         Three things happening here:
 
-        * Verify that the stamp matches the address (raises InvalidNode is it's not valid,
-          or WrongMode if it's a federated mode and being verified as a decentralized node)
+        * Verify that the stamp matches the address
 
         * Verify the interface signature (raises InvalidNode if not valid)
 
@@ -1128,7 +1101,7 @@ class Teacher:
         if self.verified_node:
             return True
 
-        if not registry and not self.federated_only:  # TODO: # 466
+        if not registry:  # TODO: # 466
             self.log.debug("No registry provided for decentralized stranger node verification - "
                            "on-chain Staking verification will not be performed.")
 
