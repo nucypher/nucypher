@@ -10,6 +10,7 @@ import maya
 import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
+from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.types import TxReceipt
@@ -35,6 +36,7 @@ from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import TransactingPower
+from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -291,11 +293,18 @@ class Operator(BaseActor):
     def __init__(self,
                  is_me: bool,
                  payment_method: ContractPayment,
-                 work_tracker: WorkTracker = None,
-                 operator_address: ChecksumAddress = None,
+                 work_tracker: Optional[WorkTracker] = None,
+                 operator_address: Optional[ChecksumAddress] = None,
+                 eth_provider_uri: Optional[str] = None,
                  *args, **kwargs):
 
+        if not eth_provider_uri:
+            raise ValueError('ETH Provider URI is required to init a decentralized character.')
+        if not payment_method:
+            raise ValueError('Payment method is required to init a decentralized character.')
+
         super().__init__(*args, **kwargs)
+
         self.log = Logger("worker")
         self.is_me = is_me
         self.__operator_address = operator_address

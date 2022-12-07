@@ -542,7 +542,7 @@ class EthereumTesterClient(EthereumClient):
         try:
             signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[account]._raw_key
         except KeyError:
-            raise self.UnknownAccount(account)
+             raise self.UnknownAccount(account)
         return signing_key
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:

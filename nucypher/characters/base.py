@@ -1,19 +1,8 @@
-
-
-
-from contextlib import suppress
 from pathlib import Path
 from typing import ClassVar, Dict, List, Optional
 
-from constant_sorrow.constants import (
-    NO_BLOCKCHAIN_CONNECTION,
-    NO_NICKNAME,
-    NO_SIGNING_POWER,
-    STRANGER,
-)
-from eth_keys import KeyAPI as EthKeyAPI
+from constant_sorrow.constants import NO_NICKNAME, NO_SIGNING_POWER, STRANGER
 from eth_utils import to_canonical_address
-from nucypher_core import MessageKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
@@ -22,6 +11,7 @@ from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
 )
 from nucypher.blockchain.eth.signers.base import Signer
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -42,22 +32,23 @@ class Character(Learner):
     _default_crypto_powerups = None
     _stamp = None
 
-    def __init__(self,
-                 domain: str = None,
-                 known_node_class: object = None,
-                 is_me: bool = True,
-                 federated_only: bool = False,
-                 checksum_address: str = None,
-                 network_middleware: RestMiddleware = None,
-                 keystore: Keystore = None,
-                 crypto_power: CryptoPower = None,
-                 crypto_power_ups: List[CryptoPowerUp] = None,
-                 eth_provider_uri: str = None,
-                 signer: Signer = None,
-                 registry: BaseContractRegistry = None,
-                 include_self_in_the_state: bool = False,
-                 *args, **kwargs
-                 ) -> None:
+    def __init__(
+        self,
+        domain: str,
+        eth_provider_uri: str = None,
+        known_node_class: object = None,
+        is_me: bool = True,
+        checksum_address: str = None,
+        network_middleware: RestMiddleware = None,
+        keystore: Keystore = None,
+        crypto_power: CryptoPower = None,
+        crypto_power_ups: List[CryptoPowerUp] = None,
+        signer: Signer = None,
+        registry: BaseContractRegistry = None,
+        include_self_in_the_state: bool = False,
+        *args,
+        **kwargs,
+    ):
 
         """
 
@@ -88,26 +79,6 @@ class Character(Learner):
         """
 
         #
-        # Prologue of the federation
-        #
-
-        # FIXME: excuse me... can I speak to the manager?
-        if is_me:
-            # If this is a federated-is_me-character, assume everyone else is too.
-            self._set_known_node_class(known_node_class, federated_only)
-        else:
-            # What an awful hack.  The last convulsions of #466.  # TODO: Anything else.
-            with suppress(AttributeError):
-                federated_only = known_node_class._federated_only_instances
-
-        if federated_only:
-            if registry or eth_provider_uri:
-                raise ValueError(f"Cannot init federated-only character with {registry or eth_provider_uri}.")
-        self.federated_only: bool = federated_only
-
-        ##########################################
-
-        #
         # Keys & Powers
         #
 
@@ -130,7 +101,7 @@ class Character(Learner):
             self._crypto_power = CryptoPower(power_ups=self._default_crypto_powerups)
 
         #
-        # Self
+        # Local
         #
 
         if is_me:
@@ -138,17 +109,16 @@ class Character(Learner):
             # Signing Power
             self.signer = signer
             try:
-                signing_power = self._crypto_power.power_ups(SigningPower)  # type: SigningPower
-                self._stamp = signing_power.get_signature_stamp()  # type: SignatureStamp
+                signing_power: SigningPower = self._crypto_power.power_ups(SigningPower)
+                self._stamp: SignatureStamp = signing_power.get_signature_stamp()
             except NoSigningPower:
                 self._stamp = NO_SIGNING_POWER
 
-            # Blockchainy
-            if not self.federated_only:
-                self.eth_provider_uri = eth_provider_uri
-                self.registry = registry or InMemoryContractRegistry.from_latest_publication(network=domain)  # See #1580
-            else:
-                self.registry = NO_BLOCKCHAIN_CONNECTION.bool_value(False)
+            self.eth_provider_uri = eth_provider_uri
+            self.registry = (
+                registry
+                or InMemoryContractRegistry.from_latest_publication(network=domain)
+            )  # See #1580
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(registry=self.registry,
@@ -162,22 +132,10 @@ class Character(Learner):
                              include_self_in_the_state=include_self_in_the_state,
                              *args, **kwargs)
 
-            if self.federated_only:
-                try:
-                    derived_federated_address = self.derive_federated_address()
-                except NoSigningPower:
-                    # TODO: Why allow such a character (without signing power) to be created at all?
-                    derived_federated_address = NO_SIGNING_POWER.bool_value(False)
-
-                if checksum_address and (checksum_address != derived_federated_address):
-                    raise ValueError(f"Provided checksum address {checksum_address} "
-                                     f"does not match federated character's verifying key {derived_federated_address}")
-                checksum_address = derived_federated_address
-
             self.checksum_address = checksum_address
 
         #
-        # Stranger
+        # Peer
         #
 
         else:
@@ -214,23 +172,17 @@ class Character(Learner):
         return r
 
     def __setup_nickname(self, is_me: bool):
-        if not self.checksum_address and not self.federated_only and not is_me:
+        if not self.checksum_address and not is_me:
             # Sometimes we don't care about the nickname.  For example, if Alice is granting to Bob, she usually
             # doesn't know or care about his wallet.  Maybe this needs to change?
             # Currently, if this is a stranger and there's no blockchain connection, we assign NO_NICKNAME:
             self.nickname = NO_NICKNAME
         else:
-            try:
-                if not self.checksum_address:
-                    self.nickname = NO_NICKNAME
-                else:
-                    # This can call _set_checksum_address.
-                    self.nickname = Nickname.from_seed(self.checksum_address)
-            except SigningPower.not_found_error:
-                if self.federated_only:
-                    self.nickname = NO_NICKNAME
-                else:
-                    raise
+            if not self.checksum_address:
+                self.nickname = NO_NICKNAME
+            else:
+                # This can call _set_checksum_address.
+                self.nickname = Nickname.from_seed(self.checksum_address)
 
     @property
     def name(self):
@@ -291,16 +243,22 @@ class Character(Learner):
 
             crypto_power.consume_power_up(power_up(public_key=umbral_key))
 
-        return cls(is_me=False, crypto_power=crypto_power, *args, **kwargs)
+        return cls(
+            is_me=False,
+            domain=TEMPORARY_DOMAIN,
+            crypto_power=crypto_power,
+            *args,
+            **kwargs,
+        )
 
-    def _set_known_node_class(self, known_node_class, federated_only):
+    def _set_known_node_class(self, known_node_class):
+        """
+        Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
+        """
         if not known_node_class:
-            # Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
             from nucypher.characters.lawful import Ursula
             known_node_class = Ursula
         self.known_node_class = known_node_class
-        # If we're federated only, we assume that all other nodes in our domain are as well.
-        known_node_class.set_federated_mode(federated_only)
 
     # TODO: Unused
     def store_metadata(self, filepath: Path) -> Path:
@@ -312,28 +270,6 @@ class Character(Learner):
 
         return self.node_storage.store_node_metadata(node=self, filepath=filepath)
 
-    def encrypt_for(self,
-                    recipient: 'Character',
-                    plaintext: bytes,
-                    ) -> MessageKit:
-        """
-        Encrypts plaintext for recipient actor. Optionally signs the message as well.
-
-        :param recipient: The character whose public key will be used to encrypt
-            cleartext.
-        :param plaintext: The secret to be encrypted.
-        :param sign_plaintext: the cleartext is signed if this is
-            True,  Otherwise, the resulting ciphertext is signed.
-
-        :return: the message kit.
-        """
-
-        # TODO: who even uses this method except for tests?
-
-        message_kit = MessageKit(policy_encrypting_key=recipient.public_keys(DecryptingPower),
-                                 plaintext=plaintext)
-        return message_kit
-
     def public_keys(self, power_up_class: ClassVar):
         """
         Pass a power_up_class, get the public material for this Character which corresponds to that
@@ -344,15 +280,6 @@ class Character(Learner):
         """
         power_up = self._crypto_power.power_ups(power_up_class)
         return power_up.public_key()
-
-    def derive_federated_address(self):
-        if self.federated_only:
-            verifying_key = self.public_keys(SigningPower)
-            verifying_key_as_eth_key = EthKeyAPI.PublicKey.from_compressed_bytes(bytes(verifying_key))
-            federated_address = verifying_key_as_eth_key.to_checksum_address()
-        else:
-            raise RuntimeError('Federated address can only be derived for federated characters.')
-        return federated_address
 
     def disenchant(self):
         self.log.debug(f"Disenchanting {self}")
