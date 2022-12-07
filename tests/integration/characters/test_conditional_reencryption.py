@@ -15,12 +15,16 @@ def _policy_info_kwargs(enacted_policy):
     )
 
 
-def test_single_retrieve_with_truthy_conditions(enacted_federated_policy, federated_bob, federated_ursulas, mocker):
+def test_single_retrieve_with_truthy_conditions(
+    enacted_blockchain_policy, blockchain_bob, blockchain_ursulas, mocker
+):
     from nucypher_core import MessageKit
 
     reencrypt_spy = mocker.spy(Ursula, '_reencrypt')
 
-    federated_bob.start_learning_loop()
+    blockchain_bob.remember_node(blockchain_ursulas[0])
+    blockchain_bob.start_learning_loop()
+
     conditions = [
         {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
         {'operator': 'and'},
@@ -29,23 +33,21 @@ def test_single_retrieve_with_truthy_conditions(enacted_federated_policy, federa
     json_conditions = json.dumps(conditions)
     rust_conditions = Conditions(json_conditions)
     message_kits = [
-        MessageKit(
-            enacted_federated_policy.public_key,
-            b'lab',
-            rust_conditions
-        )
+        MessageKit(enacted_blockchain_policy.public_key, b"lab", rust_conditions)
     ]
 
-    cleartexts = federated_bob.retrieve_and_decrypt(
+    cleartexts = blockchain_bob.retrieve_and_decrypt(
         message_kits=message_kits,
-        **_policy_info_kwargs(enacted_federated_policy),
+        **_policy_info_kwargs(enacted_blockchain_policy),
     )
 
     assert b'lab' in cleartexts
-    assert reencrypt_spy.call_count == 3
+    assert reencrypt_spy.call_count == enacted_blockchain_policy.threshold
 
 
-def test_single_retrieve_with_falsy_conditions(enacted_federated_policy, federated_bob, federated_ursulas, mocker):
+def test_single_retrieve_with_falsy_conditions(
+    enacted_blockchain_policy, blockchain_bob, blockchain_ursulas, mocker
+):
     from nucypher_core import MessageKit
 
     reencrypt_spy = mocker.spy(Ursula, '_reencrypt')
@@ -57,22 +59,17 @@ def test_single_retrieve_with_falsy_conditions(enacted_federated_policy, federat
         [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
     ))
 
-    federated_bob.start_learning_loop()
+    blockchain_bob.start_learning_loop()
 
     message_kits = [
-        MessageKit(
-            enacted_federated_policy.public_key,
-            b'radio',
-            conditions
-        )
+        MessageKit(enacted_blockchain_policy.public_key, b"radio", conditions)
     ]
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
-        federated_bob.retrieve_and_decrypt(
+        blockchain_bob.retrieve_and_decrypt(
             message_kits=message_kits,
-            **_policy_info_kwargs(enacted_federated_policy),
+            **_policy_info_kwargs(enacted_blockchain_policy),
         )
 
     reencrypt_spy.assert_not_called()
     assert isinstance(reencrypt_http_spy.spy_exception, MockRestMiddleware.Unauthorized)
-

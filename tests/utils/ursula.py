@@ -1,7 +1,7 @@
 import contextlib
 import socket
 from threading import Lock
-from typing import Iterable, List, Optional, Set
+from typing import Iterable, List, Optional
 
 from cryptography.x509 import Certificate
 
@@ -60,37 +60,18 @@ def select_test_port() -> int:
         return port
 
 
-def make_federated_ursulas(ursula_config: UrsulaConfiguration,
-                           quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
-                           know_each_other: bool = True,
-                           **ursula_overrides) -> Set[Ursula]:
+def make_decentralized_ursulas(
+    ursula_config: UrsulaConfiguration,
+    staking_provider_addresses: Iterable[str],
+    operator_addresses: Iterable[str],
+    quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    know_each_other: bool = True,
+    **ursula_overrides
+) -> List[Ursula]:
 
-    federated_ursulas = set()
-    for i in range(quantity):
-        ursula = ursula_config.produce(rest_port=select_test_port(), **ursula_overrides)
-
-        federated_ursulas.add(ursula)
-
-        # Store this Ursula in our global testing cache.
-        port = ursula.rest_interface.port
-        MOCK_KNOWN_URSULAS_CACHE[port] = ursula
-
-    if know_each_other:
-        for ursula_to_teach in federated_ursulas:
-            # Add other Ursulas as known nodes.
-            for ursula_to_learn_about in federated_ursulas:
-                ursula_to_teach.remember_node(ursula_to_learn_about)
-
-    return federated_ursulas
-
-
-def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
-                               staking_provider_addresses: Iterable[str],
-                               operator_addresses: Iterable[str],
-                               commit_now=True,
-                               **ursula_overrides) -> List[Ursula]:
-
-    providers_and_operators = zip(staking_provider_addresses, operator_addresses)
+    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[
+        :quantity
+    ]
     ursulas = list()
 
     for staking_provider_address, operator_address in providers_and_operators:
@@ -108,8 +89,16 @@ def make_decentralized_ursulas(ursula_config: UrsulaConfiguration,
         ursulas.append(ursula)
 
         # Store this Ursula in our global testing cache.
-        port = ursula.rest_interface.port
-        MOCK_KNOWN_URSULAS_CACHE[port] = ursula
+        MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port] = ursula
+
+    if know_each_other:
+        # Bootstrap the network
+        for ursula_to_teach in ursulas:
+            for ursula_to_learn_about in ursulas:
+                # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
+                # It only needs to see whatever public info we can normally get via REST.
+                # Also sharing mutable Ursulas like that can lead to unpredictable results.
+                ursula_to_teach.remember_node(ursula_to_learn_about)
 
     return ursulas
 

@@ -1,4 +1,3 @@
-
 import time
 from unittest import mock
 
@@ -7,6 +6,7 @@ import pytest_twisted as pt
 from twisted.internet import threads
 
 from nucypher.blockchain.eth.actors import Operator
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
@@ -15,14 +15,12 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
 )
-from nucypher.utilities.networking import LOOPBACK_ADDRESS, UnknownIPAddress
+from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
-    FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
-    YES_ENTER,
 )
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
@@ -37,41 +35,21 @@ def test_missing_configuration_file(_default_filepath_mock, click_runner):
                                             command=configuration_type) in result.output
 
 
-def test_ursula_startup_ip_checkup(click_runner, mocker):
-    target = 'nucypher.cli.actions.configure.determine_external_ip_address'
-
-    # Patch the get_external_ip call
-    mocker.patch(target, return_value=MOCK_IP_ADDRESS)
-    mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', return_value=None)
-
-    args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN)
-    user_input = YES_ENTER + FAKE_PASSWORD_CONFIRMED
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=user_input)
-    assert result.exit_code == 0
-    assert MOCK_IP_ADDRESS in result.output
-
-    args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 0
-
-    # Patch get_external_ip call to error output
-    mocker.patch(target, side_effect=UnknownIPAddress)
-    args = ('ursula', 'init', '--federated-only', '--network', TEMPORARY_DOMAIN, '--force')
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 1, result.output
-    assert isinstance(result.exception, UnknownIPAddress)
-
-
 @pt.inlineCallbacks
 def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
-    args = ('ursula', 'run',  # Stat Ursula Command
-            '--debug',  # Display log output; Do not attach console
-            '--federated-only',  # Operating Mode
-            '--dev',  # Run in development mode (local ephemeral node)
-            '--dry-run',  # Disable twisted reactor in subprocess
-            '--lonely',  # Do not load seednodes
-            '--prometheus'  # Specify collection of prometheus metrics
-            )
+    args = (
+        "ursula",
+        "run",  # Stat Ursula Command
+        "--debug",  # Display log output; Do not attach console
+        "--dev",  # Run in development mode (local ephemeral node)
+        "--dry-run",  # Disable twisted reactor in subprocess
+        "--lonely",  # Do not load seednodes
+        "--prometheus",  # Specify collection of prometheus metrics
+        "--eth-provider",
+        TEST_ETH_PROVIDER_URI,
+        "--payment-provider",
+        TEST_POLYGON_PROVIDER_URI,
+    )
 
     result = yield threads.deferToThread(click_runner.invoke,
                                          nucypher_cli, args,
@@ -83,16 +61,33 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
 
 
 @pt.inlineCallbacks
-def test_run_lone_federated_default_development_ursula(click_runner):
+def test_run_lone_default_development_ursula(
+    click_runner,
+    test_registry_source_manager,
+    testerchain,
+    agency,
+    mock_funding_and_bonding,
+):
+
     deploy_port = select_test_port()
-    args = ('ursula', 'run',  # Stat Ursula Command
-            '--debug',  # Display log output; Do not attach console
-            '--federated-only',  # Operating Mode
-            '--rest-port', deploy_port,  # Network Port
-            '--dev',  # Run in development mode (ephemeral node)
-            '--dry-run',  # Disable twisted reactor in subprocess
-            '--lonely'  # Do not load seednodes
-            )
+    args = (
+        "ursula",
+        "run",  # Stat Ursula Command
+        "--debug",  # Display log output; Do not attach console
+        "--rest-port",
+        deploy_port,  # Network Port
+        "--dev",  # Run in development mode (ephemeral node)
+        "--dry-run",  # Disable twisted reactor in subprocess
+        "--lonely",  # Do not load seednodes,
+        "--operator-address",
+        testerchain.etherbase_account,
+        "--eth-provider",
+        TEST_ETH_PROVIDER_URI,
+        "--payment-provider",
+        TEST_ETH_PROVIDER_URI,
+        "--payment-network",
+        TEMPORARY_DOMAIN,
+    )
 
     result = yield threads.deferToThread(click_runner.invoke,
                                          nucypher_cli, args,
@@ -109,24 +104,37 @@ def test_run_lone_federated_default_development_ursula(click_runner):
 
 
 @pt.inlineCallbacks
-def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
+def test_ursula_learns_via_cli(
+    click_runner, blockchain_ursulas, testerchain, agency, mock_funding_and_bonding
+):
     # Establish a running Teacher Ursula
 
-    teacher = list(federated_ursulas)[0]
+    teacher = list(blockchain_ursulas)[0]
     teacher_uri = teacher.seed_node_metadata(as_teacher_uri=True)
 
     deploy_port = select_test_port()
 
     def run_ursula():
         i = start_pytest_ursula_services(ursula=teacher)
-        args = ('ursula', 'run',
-                '--debug',  # Display log output; Do not attach console
-                '--federated-only',  # Operating Mode
-                '--rest-port', deploy_port,  # Network Port
-                '--teacher', teacher_uri,
-                '--dev',  # Run in development mode (ephemeral node)
-                '--dry-run'  # Disable twisted reactor
-                )
+        args = (
+            "ursula",
+            "run",
+            "--debug",  # Display log output; Do not attach console
+            "--rest-port",
+            deploy_port,  # Network Port
+            "--teacher",
+            teacher_uri,
+            "--dev",  # Run in development mode (ephemeral node)
+            "--dry-run",  # Disable twisted reactor
+            "--operator-address",
+            testerchain.etherbase_account,
+            "--eth-provider",
+            TEST_ETH_PROVIDER_URI,
+            "--payment-provider",
+            TEST_ETH_PROVIDER_URI,
+            "--payment-network",
+            TEMPORARY_DOMAIN,
+        )
 
         return threads.deferToThread(click_runner.invoke,
                                      nucypher_cli, args,
@@ -148,8 +156,6 @@ def test_federated_ursula_learns_via_cli(click_runner, federated_ursulas):
 
     # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
     assert f"Saved TLS certificate for {LOOPBACK_ADDRESS}" in result.output
-
-    federated_ursulas.clear()
 
 
 @pt.inlineCallbacks
@@ -178,7 +184,7 @@ def test_persistent_node_storage_integration(click_runner,
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0
 
-    teacher = blockchain_ursulas.pop()
+    teacher = blockchain_ursulas[-1]
     teacher_uri = teacher.rest_information()[0].uri
 
     start_pytest_ursula_services(ursula=teacher)
@@ -215,47 +221,3 @@ def test_persistent_node_storage_integration(click_runner,
                                              input=user_input,
                                              env=envvars)
     assert result.exit_code == 0
-
-
-def test_ursula_run_ip_checkup(testerchain, custom_filepath, click_runner, mocker, blockchain_ursulas, monkeypatch):
-
-    # Mock IP determination
-    target = 'nucypher.cli.actions.configure.determine_external_ip_address'
-    mocker.patch(target, return_value=MOCK_IP_ADDRESS)
-
-    # Mock Teacher Resolution
-    from nucypher.characters.lawful import Ursula
-    teacher = blockchain_ursulas.pop()
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
-
-    # Mock worker qualification
-    staking_provider = blockchain_ursulas.pop()
-
-    def set_staking_provider_address(operator, *args, **kwargs):
-        operator.checksum_address = staking_provider.checksum_address
-        return True
-    monkeypatch.setattr(Operator, 'block_until_ready', set_staking_provider_address)
-
-    # Setup
-    teacher = blockchain_ursulas.pop()
-    filename = UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = custom_filepath / filename
-
-    # manual teacher
-    run_args = ('ursula', 'run',
-                '--dry-run',
-                '--debug',
-                '--config-file', str(another_ursula_configuration_file_location.absolute()),
-                '--teacher', teacher.rest_url())
-    result = click_runner.invoke(nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 0, result.output
-
-    # default teacher
-    run_args = ('ursula', 'run',
-                '--dry-run',
-                '--debug',
-                '--config-file', str(another_ursula_configuration_file_location.absolute()))
-    result = click_runner.invoke(nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED)
-    assert result.exit_code == 0, result.output
-
-    blockchain_ursulas.clear()

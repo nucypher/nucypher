@@ -7,23 +7,24 @@ from constant_sorrow.constants import NO_PASSWORD
 from mnemonic.mnemonic import Mnemonic
 
 from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,
     get_password_from_prompt,
-    unlock_nucypher_keystore
+    unlock_nucypher_keystore,
 )
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
     DECRYPTING_CHARACTER_KEYSTORE,
-    GENERIC_PASSWORD_PROMPT
+    GENERIC_PASSWORD_PROMPT,
+    REPEAT_FOR_CONFIRMATION,
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.crypto import passwords
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.passwords import SecretBoxAuthenticationError
+from nucypher.utilities.emitters import StdoutEmitter
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
@@ -42,7 +43,7 @@ def test_get_password_from_prompt_cli_action(mocker, mock_stdin, confirm, capsys
     captured = capsys.readouterr()
     assert GENERIC_PASSWORD_PROMPT in captured.out
     if confirm:
-        assert "Repeat for confirmation:" in captured.out
+        assert REPEAT_FOR_CONFIRMATION in captured.out
 
     # From env var
     mocker.patch.dict(os.environ, {test_envvar: another_password})
@@ -73,7 +74,7 @@ def test_get_client_password(mock_stdin, mock_account, confirm, capsys):
     captured = capsys.readouterr()
     assert message in captured.out
     if confirm:
-        assert "Repeat for confirmation:" in captured.out
+        assert REPEAT_FOR_CONFIRMATION in captured.out
 
 
 @pytest.mark.parametrize('confirm', (True, False))

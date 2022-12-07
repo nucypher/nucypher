@@ -5,15 +5,19 @@ import pytest
 from eth_typing import ChecksumAddress
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.cli.commands.bond import unbond, bond
-from nucypher.cli.literature import UNEXPECTED_HUMAN_OPERATOR, BONDING_TIME, ALREADY_BONDED
+from nucypher.cli.commands.bond import bond, unbond
+from nucypher.cli.literature import (
+    ALREADY_BONDED,
+    BONDING_TIME,
+    UNEXPECTED_HUMAN_OPERATOR,
+)
 from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD,
     TEMPORARY_DOMAIN,
-    NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import StakingProviderInfo
-from tests.constants import TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, TEST_ETH_PROVIDER_URI
 
 cli_env = {NUCYPHER_ENVVAR_STAKING_PROVIDER_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
@@ -24,17 +28,17 @@ def mock_transacting_power(module_mocker):
 
 
 @pytest.fixture(scope='module')
-def operator_address(mock_testerchain):
-    return mock_testerchain.unassigned_accounts[1]
+def operator_address(testerchain):
+    return testerchain.unassigned_accounts[1]
 
 
 @pytest.fixture(scope='module')
 @pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
-def staking_provider_address(mock_testerchain):
-    return mock_testerchain.unassigned_accounts[2]
+def staking_provider_address(testerchain):
+    return testerchain.unassigned_accounts[2]
 
 
-def test_nucypher_bond_help(click_runner, mock_testerchain):
+def test_nucypher_bond_help(click_runner, testerchain):
     command = '--help'
     result = click_runner.invoke(bond, command, catch_exceptions=False)
     assert result.exit_code == 0
@@ -63,8 +67,16 @@ def exec_unbond(click_runner, staking_provider_address: ChecksumAddress):
     return result
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency', 'patch_keystore')
-def test_nucypher_bond_unauthorized(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+@pytest.mark.usefixtures(
+    "test_registry_source_manager", "mock_contract_agency", "patch_keystore"
+)
+def test_nucypher_bond_unauthorized(
+    click_runner,
+    testerchain,
+    operator_address,
+    staking_provider_address,
+    mock_application_agent,
+):
 
     mock_application_agent.is_authorized.return_value = False
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
@@ -83,16 +95,28 @@ def test_nucypher_bond_unauthorized(click_runner, mock_testerchain, operator_add
     assert error_message in result.output
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency', 'test_registry')
-def test_nucypher_unexpected_beneficiary(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+@pytest.mark.usefixtures(
+    "test_registry_source_manager", "mock_contract_agency", "test_registry"
+)
+def test_nucypher_unexpected_beneficiary(
+    click_runner,
+    testerchain,
+    operator_address,
+    staking_provider_address,
+    mock_application_agent,
+):
 
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
         operator=NULL_ADDRESS,
         operator_confirmed=False,
         operator_start_timestamp=1
     )
-    mock_application_agent.get_beneficiary.return_value = mock_testerchain.unassigned_accounts[-1]
-    mock_application_agent.get_staking_provider_from_operator.return_value = NULL_ADDRESS
+    mock_application_agent.get_beneficiary.return_value = (
+        testerchain.unassigned_accounts[-1]
+    )
+    mock_application_agent.get_staking_provider_from_operator.return_value = (
+        NULL_ADDRESS
+    )
 
     result = exec_bond(
         click_runner=click_runner,
@@ -104,8 +128,16 @@ def test_nucypher_unexpected_beneficiary(click_runner, mock_testerchain, operato
     assert UNEXPECTED_HUMAN_OPERATOR in result.output
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency', 'test_registry')
-def test_nucypher_bond(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+@pytest.mark.usefixtures(
+    "test_registry_source_manager", "mock_contract_agency", "test_registry"
+)
+def test_nucypher_bond(
+    click_runner,
+    testerchain,
+    operator_address,
+    staking_provider_address,
+    mock_application_agent,
+):
 
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
         operator=NULL_ADDRESS,
@@ -124,8 +156,14 @@ def test_nucypher_bond(click_runner, mock_testerchain, operator_address, staking
     assert result.exit_code == 0
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
-def test_nucypher_unbond_operator(click_runner, mock_testerchain, staking_provider_address, mock_application_agent, operator_address):
+@pytest.mark.usefixtures("test_registry_source_manager", "mock_contract_agency")
+def test_nucypher_unbond_operator(
+    click_runner,
+    testerchain,
+    staking_provider_address,
+    mock_application_agent,
+    operator_address,
+):
 
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
         operator=operator_address,
@@ -139,11 +177,17 @@ def test_nucypher_unbond_operator(click_runner, mock_testerchain, staking_provid
     assert result.exit_code == 0
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
-def test_nucypher_rebond_too_soon(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+@pytest.mark.usefixtures("test_registry_source_manager", "mock_contract_agency")
+def test_nucypher_rebond_too_soon(
+    click_runner,
+    testerchain,
+    operator_address,
+    staking_provider_address,
+    mock_application_agent,
+):
 
     min_authorized_seconds = 5
-    now = mock_testerchain.get_blocktime()
+    now = testerchain.get_blocktime()
     operator_start_timestamp = now
     termination = operator_start_timestamp + min_authorized_seconds
 
@@ -164,16 +208,26 @@ def test_nucypher_rebond_too_soon(click_runner, mock_testerchain, operator_addre
     assert error_message in result.output
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
-def test_nucypher_bond_already_claimed_operator(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+@pytest.mark.usefixtures("test_registry_source_manager", "mock_contract_agency")
+def test_nucypher_bond_already_claimed_operator(
+    click_runner,
+    testerchain,
+    operator_address,
+    staking_provider_address,
+    mock_application_agent,
+):
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
         operator=NULL_ADDRESS,
         operator_confirmed=False,
         operator_start_timestamp=1
     )
     mock_application_agent.get_beneficiary.return_value = NULL_ADDRESS
-    mock_application_agent.get_operator_from_staking_provider.return_value = NULL_ADDRESS
-    mock_application_agent.get_staking_provider_from_operator.return_value = mock_testerchain.unassigned_accounts[4]
+    mock_application_agent.get_operator_from_staking_provider.return_value = (
+        NULL_ADDRESS
+    )
+    mock_application_agent.get_staking_provider_from_operator.return_value = (
+        testerchain.unassigned_accounts[4]
+    )
 
     result = exec_bond(
         click_runner=click_runner,
@@ -183,10 +237,16 @@ def test_nucypher_bond_already_claimed_operator(click_runner, mock_testerchain, 
     assert result.exit_code == 1
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'mock_contract_agency')
-def test_nucypher_rebond_operator(click_runner, mock_testerchain, operator_address, staking_provider_address, mock_application_agent):
+@pytest.mark.usefixtures("test_registry_source_manager", "mock_contract_agency")
+def test_nucypher_rebond_operator(
+    click_runner,
+    testerchain,
+    operator_address,
+    staking_provider_address,
+    mock_application_agent,
+):
     mock_application_agent.get_staking_provider_info.return_value = StakingProviderInfo(
-        operator=mock_testerchain.unassigned_accounts[-1],
+        operator=testerchain.unassigned_accounts[-1],
         operator_confirmed=False,
         operator_start_timestamp=1
     )

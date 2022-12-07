@@ -1,25 +1,29 @@
-
-
-
 import pytest
-from constant_sorrow import constants
 
-from nucypher.characters.lawful import Alice, Bob, Character
-from nucypher.crypto.powers import (CryptoPower, NoSigningPower, SigningPower)
+from nucypher.characters.lawful import Alice, Character
+from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.powers import CryptoPower, NoSigningPower, SigningPower
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.policy.payment import FreeReencryptions
+from tests.constants import MOCK_ETH_PROVIDER_URI
 
 """
 Chapter 1: SIGNING
 """
-def test_actor_without_signing_power_cannot_sign():
+
+
+def test_actor_without_signing_power_cannot_sign(test_registry_source_manager):
     """
     We can create a Character with no real CryptoPower to speak of.
     This Character can't even sign a message.
     """
     cannot_sign = CryptoPower(power_ups=[])
-    non_signer = Character(crypto_power=cannot_sign,
-                           start_learning_now=False,
-                           federated_only=True)
+    non_signer = Character(
+        crypto_power=cannot_sign,
+        start_learning_now=False,
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
 
     # The non-signer's stamp doesn't work for signing...
     with pytest.raises(NoSigningPower):
@@ -38,8 +42,13 @@ def test_actor_with_signing_power_can_sign():
     """
     message = b"Llamas."
 
-    signer = Character(crypto_power_ups=[SigningPower], is_me=True,
-                       start_learning_now=False, federated_only=True)
+    signer = Character(
+        crypto_power_ups=[SigningPower],
+        is_me=True,
+        start_learning_now=False,
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
     stamp_of_the_signer = signer.stamp
 
     # We can use the signer's stamp to sign a message (since the signer is_me)...
@@ -52,20 +61,29 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify():
+def test_anybody_can_verify(random_address):
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
     Here, we show that anybody can do it without needing to directly access Crypto.
     """
     # Alice can sign by default, by dint of her _default_crypto_powerups.
-    alice = Alice(federated_only=True, start_learning_now=False)
+    alice = Alice(
+        start_learning_now=False,
+        domain=TEMPORARY_DOMAIN,
+        checksum_address=random_address,
+        payment_method=FreeReencryptions(),
+    )
 
     # So, our story is fairly simple: an everyman meets Alice.
-    somebody = Character(start_learning_now=False, federated_only=True)
+    somebody = Character(
+        start_learning_now=False,
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
 
     # Alice signs a message.
-    message = b"A message for all my friends who can only verify and not sign."
+    message = b"A message for all my friends who can only verify and not sign. You know who you are."
     signature = alice.stamp(message)
 
     # Our everyman can verify it.
@@ -87,22 +105,3 @@ def test_anybody_can_verify():
 
     somebody.verify_from(hearsay_alice, message, signature)
     alice.disenchant()
-
-
-"""
-Chapter 2: ENCRYPTION
-"""
-
-
-def test_anybody_can_encrypt():
-    """
-    Similar to anybody_can_verify() above; we show that anybody can encrypt.
-    """
-    someone = Character(start_learning_now=False, federated_only=True, crypto_power_ups=[SigningPower])
-    bob = Bob(is_me=False, federated_only=True,)
-
-    cleartext = b"This is Officer Rod Farva. Come in, Ursula!  Come in Ursula!"
-
-    ciphertext = someone.encrypt_for(bob, cleartext)
-
-    assert ciphertext is not None

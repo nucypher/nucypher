@@ -9,7 +9,7 @@ import pytest
 
 @pytest.fixture(scope='module')
 def ursula(blockchain_ursulas):
-    ursula = blockchain_ursulas.pop()
+    ursula = blockchain_ursulas[3]
     return ursula
 
 

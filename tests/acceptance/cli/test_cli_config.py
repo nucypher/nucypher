@@ -8,15 +8,19 @@ import pytest
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import UrsulaConfiguration, CharacterConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, TEMPORARY_DOMAIN
+from nucypher.config.characters import CharacterConfiguration, UrsulaConfiguration
+from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    TEMPORARY_DOMAIN,
+)
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     TEST_ETH_PROVIDER_URI,
-    YES
+    YES,
 )
 
 CONFIG_CLASSES = (UrsulaConfiguration, )
@@ -25,15 +29,29 @@ CONFIG_CLASSES = (UrsulaConfiguration, )
 ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
 
-@pytest.mark.parametrize('config_class', CONFIG_CLASSES)
-def test_initialize_via_cli(config_class, custom_filepath: Path, click_runner, monkeypatch):
+@pytest.mark.parametrize("config_class", CONFIG_CLASSES)
+def test_initialize_via_cli(
+    config_class,
+    custom_filepath: Path,
+    click_runner,
+    monkeypatch,
+    test_registry_source_manager,
+):
     command = config_class.CHARACTER_CLASS.__name__.lower()
 
     # Use a custom local filepath for configuration
-    init_args = (command, 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--federated-only',
-                 '--config-root', str(custom_filepath.absolute()))
+    init_args = (
+        command,
+        "init",
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--eth-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-provider",
+        TEST_ETH_PROVIDER_URI,
+        "--config-root",
+        str(custom_filepath.absolute()),
+    )
 
     if config_class == UrsulaConfiguration:
         init_args += ('--rest-host', MOCK_IP_ADDRESS)
@@ -82,14 +100,12 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
 
     # Read pre-edit state
     config = config_class.from_configuration_file(custom_config_filepath)
-    assert config.federated_only
     assert config.eth_provider_uri != TEST_ETH_PROVIDER_URI
     del config
 
     # Write
     view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
                  '--config-file', str(custom_config_filepath.absolute()),
-                 '--decentralized',
                  '--eth-provider', TEST_ETH_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, view_args, env=ENV)
     assert result.exit_code == 0
@@ -102,5 +118,4 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
     assert str(custom_filepath) in result.output
 
     # After editing the fields have been updated
-    assert not config.federated_only
     assert config.eth_provider_uri == TEST_ETH_PROVIDER_URI

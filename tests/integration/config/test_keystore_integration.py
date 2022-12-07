@@ -1,23 +1,19 @@
-
-
-
-import tempfile
 from unittest.mock import ANY
 
 import pytest
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
-
 from nucypher_core.umbral import SecretKey, Signer
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import DecryptingPower, DelegatingPower, TLSHostingPower
 from nucypher.network.server import ProxyRESTServer
-from nucypher.policy.payment import FreeReencryptions
+from nucypher.policy.payment import FreeReencryptions, SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.utils.matchers import IsType
 
 
@@ -53,21 +49,38 @@ def test_generate_alice_keystore(temp_dir_path):
     assert delegating_pubkey == another_delegating_pubkey
 
 
-def test_characters_use_keystore(temp_dir_path, test_registry_source_manager):
+def test_characters_use_keystore(
+    temp_dir_path, test_registry_source_manager, testerchain
+):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    alice = Alice(federated_only=True, start_learning_now=False, keystore=keystore)
-    Bob(federated_only=True, start_learning_now=False, keystore=keystore)
-    Ursula(federated_only=True,
-           start_learning_now=False,
-           keystore=keystore,
-           rest_host=LOOPBACK_ADDRESS,
-           rest_port=12345,
-           domain=TEMPORARY_DOMAIN,
-           payment_method=FreeReencryptions())
+
+    payment_method = SubscriptionManagerPayment(
+        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+    )
+
+    alice = Alice(
+        start_learning_now=False,
+        keystore=keystore,
+        domain=TEMPORARY_DOMAIN,
+        checksum_address=testerchain.alice_account,
+        payment_method=payment_method,
+    )
+    Bob(start_learning_now=False, keystore=keystore, domain=TEMPORARY_DOMAIN)
+    Ursula(
+        start_learning_now=False,
+        keystore=keystore,
+        rest_host=LOOPBACK_ADDRESS,
+        rest_port=12345,
+        domain=TEMPORARY_DOMAIN,
+        payment_method=payment_method,
+        operator_address=testerchain.ursulas_accounts[0],
+        signer=Web3Signer(testerchain.client),
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 
 
@@ -81,12 +94,13 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
 
     rest_port = 12345
 
-    ursula = Ursula(federated_only=True,
-                    start_learning_now=False,
-                    keystore=keystore,
-                    rest_host=LOOPBACK_ADDRESS,
-                    rest_port=rest_port,
-                    domain=TEMPORARY_DOMAIN)
+    ursula = Ursula(
+        start_learning_now=False,
+        keystore=keystore,
+        rest_host=LOOPBACK_ADDRESS,
+        rest_port=rest_port,
+        domain=TEMPORARY_DOMAIN,
+    )
 
     assert ursula.keystore is keystore
     assert ursula.certificate == ursula._crypto_power.power_ups(TLSHostingPower).keypair.certificate
@@ -95,13 +109,14 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
     ursula.disenchant()
     del ursula
 
-    spy_rest_server_init = mocker.spy(ProxyRESTServer, '__init__')
-    recreated_ursula = Ursula(federated_only=True,
-                              start_learning_now=False,
-                              keystore=keystore,
-                              rest_host=LOOPBACK_ADDRESS,
-                              rest_port=rest_port,
-                              domain=TEMPORARY_DOMAIN)
+    spy_rest_server_init = mocker.spy(ProxyRESTServer, "__init__")
+    recreated_ursula = Ursula(
+        start_learning_now=False,
+        keystore=keystore,
+        rest_host=LOOPBACK_ADDRESS,
+        rest_port=rest_port,
+        domain=TEMPORARY_DOMAIN,
+    )
 
     assert recreated_ursula.keystore is keystore
     assert recreated_ursula.certificate.public_bytes(encoding=Encoding.DER) == original_certificate_bytes

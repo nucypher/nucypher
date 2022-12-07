@@ -1,10 +1,8 @@
-
-
+import time
 
 import maya
 import pytest
 import pytest_twisted as pt
-import time
 from flask import Response
 from twisted.internet import threads
 
@@ -18,7 +16,7 @@ from tests.utils.ursula import start_pytest_ursula_services
 def test_availability_tracker_success(blockchain_ursulas):
 
     # Start up self-services
-    ursula = blockchain_ursulas.pop()
+    ursula = blockchain_ursulas[6]
     start_pytest_ursula_services(ursula=ursula)
 
     ursula._availability_tracker = AvailabilityTracker(ursula=ursula)
@@ -85,7 +83,7 @@ def test_availability_tracker_success(blockchain_ursulas):
 def test_availability_tracker_integration(blockchain_ursulas, monkeypatch):
 
     # Start up self-services
-    ursula = blockchain_ursulas.pop()
+    ursula = blockchain_ursulas[8]
     start_pytest_ursula_services(ursula=ursula)
 
     ursula._availability_tracker = AvailabilityTracker(ursula=ursula)

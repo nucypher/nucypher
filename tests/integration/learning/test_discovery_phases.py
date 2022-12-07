@@ -5,6 +5,7 @@ import contextlib
 import time
 
 import maya
+import pytest
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.characters.lawful import Ursula
@@ -16,7 +17,7 @@ from tests.mock.performance_mocks import (
     mock_message_verification,
     mock_metadata_validation,
     mock_secret_source,
-    mock_verify_node
+    mock_verify_node,
 )
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
@@ -39,8 +40,10 @@ performance bottlenecks.
 """
 
 
-#@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
+@pytest.mark.skip("TODO: This test is not yet unfederated.")
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(
+    highperf_mocked_alice, test_registry_source_manager
+):
     # During the fixture execution, Alice verified one node.
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1
@@ -76,7 +79,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
 _POLICY_PRESERVER = []
 
 
-#@skip_on_circleci  # TODO: #2552 Taking 6-10 seconds on CircleCI, passing locally.
+@pytest.mark.skip("TODO: This test is not yet unfederated.")
 def test_alice_verifies_ursula_just_in_time(fleet_of_highperf_mocked_ursulas,
                                             highperf_mocked_alice,
                                             highperf_mocked_bob):

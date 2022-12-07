@@ -1,20 +1,15 @@
-
-
-from constant_sorrow.constants import FLEET_STATES_MATCH, NO_KNOWN_NODES
 from functools import partial
-from hendrix.experience import crosstown_traffic
-from hendrix.utils.test_utils import crosstownTaskListDecoratorFactory
 
-from tests.utils.ursula import make_federated_ursulas
+from constant_sorrow.constants import FLEET_STATES_MATCH
 
 
-def test_all_nodes_have_same_fleet_state(federated_ursulas):
-    checksums = [u.known_nodes.checksum for u in federated_ursulas]
+def test_all_nodes_have_same_fleet_state(blockchain_ursulas):
+    checksums = [u.known_nodes.checksum for u in blockchain_ursulas]
     assert len(set(checksums)) == 1  # There is only 1 unique value.
 
 
-def test_teacher_nodes_cycle(federated_ursulas):
-    ursula = list(federated_ursulas)[0]
+def test_teacher_nodes_cycle(blockchain_ursulas):
+    ursula = list(blockchain_ursulas)[0]
 
     # Before we start learning, Ursula has no teacher.
     assert ursula._current_teacher_node is None
@@ -30,9 +25,9 @@ def test_teacher_nodes_cycle(federated_ursulas):
     assert first_teacher != second_teacher
 
 
-def test_nodes_with_equal_fleet_state_do_not_send_anew(federated_ursulas):
-    some_ursula = list(federated_ursulas)[2]
-    another_ursula = list(federated_ursulas)[3]
+def test_nodes_with_equal_fleet_state_do_not_send_anew(blockchain_ursulas):
+    some_ursula = list(blockchain_ursulas)[2]
+    another_ursula = list(blockchain_ursulas)[3]
 
     # These two have the same fleet state.
     assert some_ursula.known_nodes.checksum == another_ursula.known_nodes.checksum
@@ -41,13 +36,13 @@ def test_nodes_with_equal_fleet_state_do_not_send_anew(federated_ursulas):
     assert result is FLEET_STATES_MATCH
 
 
-def test_old_state_is_preserved(federated_ursulas, lonely_ursula_maker):
+def test_old_state_is_preserved(blockchain_ursulas, lonely_ursula_maker):
     lonely_learner = lonely_ursula_maker().pop()
 
     # This Ursula doesn't know about any nodes.
     assert len(lonely_learner.known_nodes) == 0
 
-    some_ursula_in_the_fleet = list(federated_ursulas)[0]
+    some_ursula_in_the_fleet = list(blockchain_ursulas)[0]
     lonely_learner.remember_node(some_ursula_in_the_fleet)
     checksum_after_learning_one = lonely_learner.known_nodes.checksum
     assert some_ursula_in_the_fleet in lonely_learner.known_nodes
@@ -55,7 +50,7 @@ def test_old_state_is_preserved(federated_ursulas, lonely_ursula_maker):
     assert len(lonely_learner.known_nodes) == 1
     assert lonely_learner.known_nodes.population == 2
 
-    another_ursula_in_the_fleet = list(federated_ursulas)[1]
+    another_ursula_in_the_fleet = list(blockchain_ursulas)[1]
     lonely_learner.remember_node(another_ursula_in_the_fleet)
     checksum_after_learning_two = lonely_learner.known_nodes.checksum
     assert some_ursula_in_the_fleet in lonely_learner.known_nodes
@@ -76,7 +71,7 @@ def test_old_state_is_preserved(federated_ursulas, lonely_ursula_maker):
     assert second_state.checksum == checksum_after_learning_two
 
 
-def test_state_is_recorded_after_learning(federated_ursulas, lonely_ursula_maker):
+def test_state_is_recorded_after_learning(blockchain_ursulas, lonely_ursula_maker):
     """
     Similar to above, but this time we show that the Learner records a new state only once after learning
     about a bunch of nodes.
@@ -88,7 +83,7 @@ def test_state_is_recorded_after_learning(federated_ursulas, lonely_ursula_maker
     # This Ursula doesn't know about any nodes.
     assert len(lonely_learner.known_nodes) == 0
 
-    some_ursula_in_the_fleet = list(federated_ursulas)[0]
+    some_ursula_in_the_fleet = list(blockchain_ursulas)[0]
     lonely_learner.remember_node(some_ursula_in_the_fleet)
     # Archived states at this point:
     # - inital one (empty, Ursula's metadata is not ready yet, no known nodes)
@@ -108,14 +103,16 @@ def test_state_is_recorded_after_learning(federated_ursulas, lonely_ursula_maker
     assert len(states) == 4
 
     # When we ran learn_from_teacher_node, we also loaded the rest of the fleet.
-    assert states[-1].population == len(federated_ursulas) + 1
+    assert states[-1].population == len(blockchain_ursulas) + 1
 
 
-def test_teacher_records_new_fleet_state_upon_hearing_about_new_node(federated_ursulas, lonely_ursula_maker):
+def test_teacher_records_new_fleet_state_upon_hearing_about_new_node(
+    blockchain_ursulas, lonely_ursula_maker
+):
     _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
     lonely_learner = _lonely_ursula_maker().pop()
 
-    some_ursula_in_the_fleet = list(federated_ursulas)[0]
+    some_ursula_in_the_fleet = list(blockchain_ursulas)[0]
 
     lonely_learner.remember_node(some_ursula_in_the_fleet)
 

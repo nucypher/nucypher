@@ -6,16 +6,22 @@ import pytest_twisted
 import requests
 from cryptography.hazmat.primitives import serialization
 from twisted.internet import threads
-from tests.utils.ursula import make_federated_ursulas
+
+from tests.utils.ursula import make_decentralized_ursulas
 
 
 @pytest_twisted.inlineCallbacks
-def test_ursula_serves_statics(ursula_federated_test_config):
+def test_ursula_serves_statics(ursula_decentralized_test_config, testerchain, agency):
 
     with tempfile.TemporaryDirectory() as STATICS_DIR:
         os.environ['NUCYPHER_STATIC_FILES_ROOT'] = str(STATICS_DIR)
 
-        node = make_federated_ursulas(ursula_config=ursula_federated_test_config, quantity=1).pop()
+        node = make_decentralized_ursulas(
+            ursula_config=ursula_decentralized_test_config,
+            quantity=1,
+            staking_provider_addresses=testerchain.stake_providers_accounts,
+            operator_addresses=testerchain.ursulas_accounts,
+        ).pop()
         node_deployer = node.get_deployer()
 
         node_deployer.addServices()

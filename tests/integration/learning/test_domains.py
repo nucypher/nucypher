@@ -5,6 +5,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.nodes import TEACHER_NODES
+from tests.utils.ursula import make_decentralized_ursulas
 
 
 def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
@@ -51,10 +52,11 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     root = tmpdir.mkdir("known_nodes")
     metadata = root.mkdir("metadata")
     certs = root.mkdir("certs")
-    old_storage = LocalFileBasedNodeStorage(federated_only=True,
-                                            metadata_dir=Path(metadata),
-                                            certificates_dir=Path(certs),
-                                            storage_root=Path(root))
+    old_storage = LocalFileBasedNodeStorage(
+        metadata_dir=Path(metadata),
+        certificates_dir=Path(certs),
+        storage_root=Path(root),
+    )
 
     # Use the ursula maker with this storage so it's populated with nodes from one domain
     _some_ursulas = lonely_ursula_maker(domain="fistro",
@@ -82,18 +84,32 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     assert set(learner.known_nodes) == {buddy}
 
 
-def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tmpdir):
-    learner, other_staker = lonely_ursula_maker(domain="call-it-mainnet",
-                                                know_each_other=True,
-                                                quantity=2)
+def test_learner_ignores_stored_nodes_from_other_domains(
+    lonely_ursula_maker, tmpdir, testerchain, ursula_decentralized_test_config
+):
+    learner, other_staker = make_decentralized_ursulas(
+        ursula_decentralized_test_config,
+        domain="call-it-mainnet",
+        quantity=2,
+        know_each_other=True,
+        staking_provider_addresses=testerchain.stake_providers_accounts[:2],
+        operator_addresses=testerchain.ursulas_accounts[:2],
+    )
 
-    pest, *other_ursulas_from_the_wrong_side_of_the_tracks = lonely_ursula_maker(domain="i-dunno-testt-maybe",
-                                                                                 quantity=5,
-                                                                                 know_each_other=True)
+    pest, *other_ursulas_from_the_wrong_side_of_the_tracks = make_decentralized_ursulas(
+        ursula_decentralized_test_config,
+        domain="i-dunno-testt-maybe",
+        quantity=5,
+        know_each_other=True,
+        staking_provider_addresses=testerchain.stake_providers_accounts[2:],
+        operator_addresses=testerchain.ursulas_accounts[2:],
+    )
 
+    assert pest not in other_staker.known_nodes
     assert pest not in learner.known_nodes
     pest._current_teacher_node = learner
     pest.learn_from_teacher_node()
+    assert pest not in other_staker.known_nodes
 
     ##################################
     # Prior to #2423, learner remembered pest because POSTed node metadata was not domain-checked.
@@ -101,8 +117,10 @@ def test_learner_ignores_stored_nodes_from_other_domains(lonely_ursula_maker, tm
     assert pest not in learner.known_nodes  # But not anymore.
 
     # Once pest made its way into learner, learner taught passed it to other mainnet nodes.
+    assert pest not in learner.known_nodes  # But not anymore.
 
     learner.known_nodes.record_node(pest)  # This used to happen anyway.
+
     other_staker._current_teacher_node = learner
     other_staker.learn_from_teacher_node()  # And once it did, the node from the wrong domain spread.
     assert pest not in other_staker.known_nodes  # But not anymore.
@@ -121,7 +139,14 @@ def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, moc
     assert set(learner.known_nodes) == {teacher}
 
 
-def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_maker, tmpdir, mocker):
+def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
+    lonely_ursula_maker,
+    tmpdir,
+    mocker,
+    test_registry,
+    ursula_decentralized_test_config,
+    testerchain,
+):
     domain = "learner-domain"
     mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
 
@@ -129,20 +154,33 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(lonely_ursula_m
     root = tmpdir.mkdir("known_nodes")
     metadata = root.mkdir("metadata")
     certs = root.mkdir("certs")
-    node_storage = LocalFileBasedNodeStorage(federated_only=True,
-                                             metadata_dir=Path(metadata),
-                                             certificates_dir=Path(certs),
-                                             storage_root=Path(root))
+    node_storage = LocalFileBasedNodeStorage(
+        metadata_dir=Path(metadata),
+        certificates_dir=Path(certs),
+        storage_root=Path(root),
+    )
 
     # Create some nodes and persist them to local storage
-    other_nodes = lonely_ursula_maker(domain=domain,
-                                      node_storage=node_storage,
-                                      know_each_other=True,
-                                      quantity=3,
-                                      save_metadata=True)
+    other_nodes = make_decentralized_ursulas(
+        ursula_decentralized_test_config,
+        domain=domain,
+        node_storage=node_storage,
+        know_each_other=True,
+        quantity=3,
+        save_metadata=True,
+        staking_provider_addresses=testerchain.stake_providers_accounts[:3],
+        operator_addresses=testerchain.ursulas_accounts[:3],
+    )
 
     # Create a teacher and a learner using existing node storage
-    learner, teacher = lonely_ursula_maker(domain=domain, node_storage=node_storage, quantity=2)
+    learner, teacher = lonely_ursula_maker(
+        domain=domain,
+        node_storage=node_storage,
+        quantity=2,
+        know_each_other=True,
+        staking_provider_addresses=testerchain.stake_providers_accounts[3:],
+        operator_addresses=testerchain.ursulas_accounts[3:],
+    )
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
 
     # The learner should learn about all nodes

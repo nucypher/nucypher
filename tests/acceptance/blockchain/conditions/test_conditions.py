@@ -531,6 +531,7 @@ def test_onchain_conditions_lingo_evaluation(
 
 
 def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
+    blockchain_bob.remember_node(blockchain_ursulas[0])
     blockchain_bob.start_learning_loop()
     conditions = [
         {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},

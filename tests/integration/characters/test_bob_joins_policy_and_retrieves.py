@@ -1,59 +1,65 @@
-
-
-
 import datetime
-import maya
 import os
-import pytest
 import time
-from constant_sorrow.constants import NO_DECRYPTION_PERFORMED
+
+import maya
+import pytest
 from twisted.internet.task import Clock
 
-from nucypher.characters.lawful import Bob, Enrico, Ursula
+from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_federated_bob_full_retrieve_flow(federated_ursulas,
-                                          federated_bob,
-                                          federated_alice,
-                                          capsule_side_channel,
-                                          federated_treasure_map,
-                                          enacted_federated_policy):
+def test_blockchain_bob_full_retrieve_flow(
+    blockchain_ursulas,
+    blockchain_bob,
+    blockchain_alice,
+    capsule_side_channel,
+    blockchain_treasure_map,
+    enacted_blockchain_policy,
+):
 
-    for ursula in federated_ursulas:
-        federated_bob.remember_node(ursula)
+    for ursula in blockchain_ursulas:
+        blockchain_bob.remember_node(ursula)
 
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
     # - A representation of the data source
     the_message_kit = capsule_side_channel()
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+    alices_verifying_key = blockchain_alice.stamp.as_umbral_pubkey()
 
-    delivered_cleartexts = federated_bob.retrieve_and_decrypt([the_message_kit],
-                                                              alice_verifying_key=alices_verifying_key,
-                                                              encrypted_treasure_map=enacted_federated_policy.treasure_map)
+    delivered_cleartexts = blockchain_bob.retrieve_and_decrypt(
+        [the_message_kit],
+        alice_verifying_key=alices_verifying_key,
+        encrypted_treasure_map=enacted_blockchain_policy.treasure_map,
+    )
 
     # We show that indeed this is the passage originally encrypted by the Enrico.
-    assert b"Welcome to flippering number 1." == delivered_cleartexts[0]
+    assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
 
 
-def test_bob_retrieves(federated_alice,
-                       federated_ursulas,
-                       certificates_tempdir):
+def test_bob_retrieves(
+    blockchain_alice,
+    blockchain_ursulas,
+    certificates_tempdir,
+    test_registry_source_manager,
+):
+    """A test to show that Bob can retrieve data from Ursula"""
+
     # Let's partition Ursulas in two parts
-    a_couple_of_ursulas = list(federated_ursulas)[:2]
-    rest_of_ursulas = list(federated_ursulas)[2:]
+    a_couple_of_ursulas = list(blockchain_ursulas)[:2]
+    rest_of_ursulas = list(blockchain_ursulas)[2:]
 
     # Bob becomes
-    bob = Bob(federated_only=True,
-              domain=TEMPORARY_DOMAIN,
-              start_learning_now=True,
-              network_middleware=MockRestMiddleware(),
-              abort_on_learning_error=True,
-              known_nodes=a_couple_of_ursulas,
-              )
+    bob = Bob(
+        domain=TEMPORARY_DOMAIN,
+        start_learning_now=True,
+        network_middleware=MockRestMiddleware(),
+        abort_on_learning_error=True,
+        known_nodes=a_couple_of_ursulas,
+    )
 
     # Bob has only connected to - at most - 2 nodes.
     assert sum(node.verified_node for node in bob.known_nodes) <= 2
@@ -63,13 +69,14 @@ def test_bob_retrieves(federated_alice,
     shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
-    policy = federated_alice.grant(bob=bob,
-                                   label=label,
-                                   threshold=3,
-                                   shares=shares,
-                                   expiration=contract_end_datetime,
-                                   ursulas=set(rest_of_ursulas),
-                                   )
+    policy = blockchain_alice.grant(
+        bob=bob,
+        label=label,
+        threshold=3,
+        shares=shares,
+        expiration=contract_end_datetime,
+        ursulas=set(rest_of_ursulas),
+    )
 
     assert label == policy.label
 
@@ -79,7 +86,7 @@ def test_bob_retrieves(federated_alice,
     plaintext = b"What's your approach?  Mississippis or what?"
     message_kit = enrico.encrypt_message(plaintext)
 
-    alices_verifying_key = federated_alice.stamp.as_umbral_pubkey()
+    alices_verifying_key = blockchain_alice.stamp.as_umbral_pubkey()
 
     # Bob takes the message_kit and retrieves the message within
     delivered_cleartexts = bob.retrieve_and_decrypt([message_kit],
@@ -96,7 +103,7 @@ def test_bob_retrieves(federated_alice,
     assert delivered_cleartexts == cleartexts_delivered_a_second_time
 
     # Let's try retrieve again, but Alice revoked the policy.
-    receipt, failed_revocations = federated_alice.revoke(policy)
+    receipt, failed_revocations = blockchain_alice.revoke(policy)
     assert len(failed_revocations) == 0
 
     # One thing to note here is that Bob *can* still retrieve with the cached CFrags,
@@ -110,44 +117,41 @@ def test_bob_retrieves(federated_alice,
 
 
 def test_bob_retrieves_with_treasure_map(
-        federated_bob, federated_ursulas,
-        enacted_federated_policy, capsule_side_channel):
+    blockchain_bob, blockchain_ursulas, enacted_blockchain_policy, capsule_side_channel
+):
     enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
-    treasure_map = enacted_federated_policy.treasure_map
-    alice_verifying_key = enacted_federated_policy.publisher_verifying_key
+    treasure_map = enacted_blockchain_policy.treasure_map
+    alice_verifying_key = enacted_blockchain_policy.publisher_verifying_key
 
     # Teach Bob about the network
-    federated_bob.remember_node(list(federated_ursulas)[0])
-    federated_bob.learn_from_teacher_node(eager=True)
+    blockchain_bob.remember_node(list(blockchain_ursulas)[0])
+    blockchain_bob.learn_from_teacher_node(eager=True)
 
     # Deserialized treasure map
-    text1 = federated_bob.retrieve_and_decrypt(
+    text1 = blockchain_bob.retrieve_and_decrypt(
         [message_kit],
         alice_verifying_key=alice_verifying_key,
         encrypted_treasure_map=treasure_map)
 
-    assert text1 == [b'Welcome to flippering number 2.']
+    assert text1 == [b"Welcome to flippering number 1."]
 
 
 # TODO: #2813 Without kfrag and arrangement storage by nodes,
-#  Federated policies are no longer time-based, and expiration cannot be enforced on them
 @pytest.mark.skip()
-def test_bob_retrieves_too_late(federated_bob,
-                                federated_ursulas,
-                                enacted_federated_policy,
-                                capsule_side_channel):
-
+def test_bob_retrieves_too_late(
+    blockchain_bob, blockchain_ursulas, enacted_blockchain_policy, capsule_side_channel
+):
     clock = Clock()
     clock.advance(time.time())
     clock.advance(86400 * 8)  # 1 week  # TODO: this is supposed to be seven days, not eight
 
     message_kit = capsule_side_channel()
-    treasure_map = enacted_federated_policy.treasure_map
-    alice_verifying_key = enacted_federated_policy.publisher_verifying_key
+    treasure_map = enacted_blockchain_policy.treasure_map
+    alice_verifying_key = enacted_blockchain_policy.publisher_verifying_key
 
     # with pytest.raises(Ursula.NotEnoughUrsulas):
-    federated_bob.retrieve_and_decrypt(
+    blockchain_bob.retrieve_and_decrypt(
         [message_kit],
         alice_verifying_key=alice_verifying_key,
         encrypted_treasure_map=treasure_map

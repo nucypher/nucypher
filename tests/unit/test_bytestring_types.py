@@ -5,12 +5,12 @@ from nucypher_core import MessageKit
 from nucypher.characters.lawful import Enrico
 
 
-def test_message_kit_serialization_via_enrico(federated_alice):
+def test_message_kit_serialization_via_enrico(blockchain_alice):
 
     mock_label = b'this is a label'
 
     # Enrico
-    enrico = Enrico.from_alice(federated_alice, label=mock_label)
+    enrico = Enrico.from_alice(blockchain_alice, label=mock_label)
 
     # Plaintext
     message = 'this is a message'

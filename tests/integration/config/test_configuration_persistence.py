@@ -1,6 +1,7 @@
 
 
 import datetime
+
 import maya
 
 from nucypher.characters.lawful import Bob
@@ -11,17 +12,21 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
+def test_alices_powers_are_persistent(
+    blockchain_ursulas, temp_dir_path, test_registry_source_manager, testerchain
+):
     # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
         config_root=config_root,
         network_middleware=MockRestMiddleware(),
         domain=TEMPORARY_DOMAIN,
+        payment_network=TEMPORARY_DOMAIN,
+        checksum_address=testerchain.alice_account,
         start_learning_now=False,
-        federated_only=True,
         save_metadata=False,
-        reload_metadata=False
+        reload_metadata=False,
+        known_nodes=blockchain_ursulas,
     )
 
     # Generate keys and write them the disk
@@ -52,9 +57,11 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     threshold, shares = 3, 4
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 
-    bob = Bob(federated_only=True,
-              start_learning_now=False,
-              network_middleware=MockRestMiddleware())
+    bob = Bob(
+        start_learning_now=False,
+        domain=TEMPORARY_DOMAIN,
+        network_middleware=MockRestMiddleware(),
+    )
 
     bob_policy = alice.grant(bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
@@ -77,9 +84,9 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     new_alice_config = AliceConfiguration.from_configuration_file(
         filepath=alice_config_file,
         network_middleware=MockRestMiddleware(),
-        known_nodes=federated_ursulas,
         start_learning_now=False,
-        config_root=config_root
+        config_root=config_root,
+        known_nodes=blockchain_ursulas,
     )
 
     # Alice unlocks her restored keystore from disk
@@ -91,9 +98,11 @@ def test_alices_powers_are_persistent(federated_ursulas, temp_dir_path):
     assert alices_receiving_key == new_alice.public_keys(DecryptingPower)
 
     # Bob's eldest brother, Roberto, appears too
-    roberto = Bob(federated_only=True,
-                  start_learning_now=False,
-                  network_middleware=MockRestMiddleware())
+    roberto = Bob(
+        domain=TEMPORARY_DOMAIN,
+        start_learning_now=False,
+        network_middleware=MockRestMiddleware(),
+    )
 
     # Alice creates a new policy for Roberto. Note how all the parameters
     # except for the label (i.e., recipient, m, n, policy_end) are different
