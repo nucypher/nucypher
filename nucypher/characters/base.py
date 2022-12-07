@@ -200,7 +200,7 @@ class Character(Learner):
     @property
     def canonical_address(self):
         # TODO: This is wasteful.  #1995
-        return to_canonical_address(self.checksum_address)
+        return to_canonical_address(str(self.checksum_address))
 
     @classmethod
     def from_config(cls, config, **overrides) -> 'Character':
