@@ -15,7 +15,7 @@ from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     NO_KEYSTORE_ATTACHED,
     UNINITIALIZED_CONFIGURATION,
-    UNKNOWN_VERSION
+    UNKNOWN_VERSION,
 )
 from eth_utils.address import is_checksum_address
 
@@ -24,7 +24,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
-    LocalContractRegistry
+    LocalContractRegistry,
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
@@ -32,7 +32,7 @@ from nucypher.config import constants
 from nucypher.config.storages import (
     ForgetfulNodeStorage,
     LocalFileBasedNodeStorage,
-    NodeStorage
+    NodeStorage,
 )
 from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
@@ -326,80 +326,67 @@ class CharacterConfiguration(BaseConfiguration):
     # Payments
     DEFAULT_PAYMENT_METHOD = 'SubscriptionManager'
     DEFAULT_PAYMENT_NETWORK = 'polygon'
-    DEFAULT_FEDERATED_PAYMENT_METHOD = 'Free'
 
     # Fields specified here are *not* passed into the Character's constructor
     # and can be understood as configuration fields only.
-    _CONFIG_FIELDS = ('config_root',
-                      'poa',
-                      'light',
-                      'registry_filepath',
-                      'gas_strategy',
-                      'max_gas_price',  # gwei
-                      'signer_uri',
-                      'keystore_path',
-                      'payment_provider',
-                      'payment_network'
-                      )
+    _CONFIG_FIELDS = (
+        "config_root",
+        "poa",
+        "light",
+        "registry_filepath",
+        "gas_strategy",
+        "max_gas_price",  # gwei
+        "signer_uri",
+        "keystore_path",
+        "payment_provider",
+        "payment_network",
+    )
 
-    def __init__(self,
-
-                 # Base
-                 emitter=None,
-                 config_root: Optional[Path] = None,
-                 filepath: Optional[Path] = None,
-
-                 # Mode
-                 dev_mode: bool = False,
-                 federated_only: bool = False,
-
-                 # Identity
-                 checksum_address: str = None,
-                 crypto_power: CryptoPower = None,
-
-                 # Keystore
-                 keystore: Keystore = None,
-                 keystore_path: Optional[Path] = None,
-
-                 # Learner
-                 learn_on_same_thread: bool = False,
-                 abort_on_learning_error: bool = False,
-                 start_learning_now: bool = True,
-
-                 # Network
-                 domain: str = DEFAULT_DOMAIN,
-                 network_middleware: RestMiddleware = None,
-                 lonely: bool = False,
-
-                 # Node Storage
-                 known_nodes: set = None,
-                 node_storage: NodeStorage = None,
-                 reload_metadata: bool = True,
-                 save_metadata: bool = True,
-
-                 # Blockchain
-                 poa: bool = None,
-                 light: bool = False,
-                 eth_provider_uri: str = None,
-                 gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
-                 max_gas_price: Optional[int] = None,
-                 signer_uri: str = None,
-
-                 # Payments
-                 # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
-                 payment_method: str = None,
-                 payment_provider: str = None,
-                 payment_network: str = None,
-
-                 # Registries
-                 registry: BaseContractRegistry = None,
-                 registry_filepath: Optional[Path] = None,
-                 policy_registry: BaseContractRegistry = None,
-                 policy_registry_filepath: Optional[Path] = None,
-
-                 # Deployed Operators
-                 worker_data: dict = None
-                 ):
+    def __init__(
+        self,
+        # Base
+        emitter=None,
+        config_root: Optional[Path] = None,
+        filepath: Optional[Path] = None,
+        # Mode
+        dev_mode: bool = False,
+        # Identity
+        checksum_address: Optional[str] = None,
+        crypto_power: Optional[CryptoPower] = None,
+        # Keystore
+        keystore: Optional[Keystore] = None,
+        keystore_path: Optional[Path] = None,
+        # Learner
+        learn_on_same_thread: bool = False,
+        abort_on_learning_error: bool = False,
+        start_learning_now: bool = True,
+        # Network
+        domain: str = DEFAULT_DOMAIN,
+        network_middleware: Optional[RestMiddleware] = None,
+        lonely: bool = False,
+        # Node Storage
+        known_nodes: Optional[set] = None,
+        node_storage: Optional[NodeStorage] = None,
+        reload_metadata: bool = True,
+        save_metadata: bool = True,
+        # Blockchain
+        poa: Optional[bool] = None,
+        light: bool = False,
+        eth_provider_uri: Optional[str] = None,
+        gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
+        max_gas_price: Optional[int] = None,
+        signer_uri: Optional[str] = None,
+        # Payments
+        # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
+        payment_method: Optional[str] = None,
+        payment_provider: Optional[str] = None,
+        payment_network: Optional[str] = None,
+        # Registries
+        registry: Optional[BaseContractRegistry] = None,
+        registry_filepath: Optional[Path] = None,
+        policy_registry: Optional[BaseContractRegistry] = None,
+        policy_registry_filepath: Optional[Path] = None,
+    ):
 
         self.log = Logger(self.__class__.__name__)
 
@@ -439,7 +426,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.signer_uri = signer_uri or None
 
         # Learner
-        self.federated_only = federated_only
         self.domain = domain
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
@@ -454,96 +440,77 @@ class CharacterConfiguration(BaseConfiguration):
         self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
         self.config_root = UNINITIALIZED_CONFIGURATION
 
-        # Deployed Operators
-        self.worker_data = worker_data
-
-        #
-        # Federated vs. Blockchain arguments consistency
-        #
-
-        #
-        # Federated
-        #
-
-        if self.federated_only:
-            # Check for incompatible values
-            blockchain_args = {'filepath': registry_filepath,
-                               'poa': poa,
-                               'eth_provider_uri': eth_provider_uri,
-                               'payment_provider': payment_provider,
-                               'gas_strategy': gas_strategy,
-                               'max_gas_price': max_gas_price}
-            if any(blockchain_args.values()):
-                bad_args = ", ".join(f"{arg}={val}" for arg, val in blockchain_args.items() if val)
-                self.log.warn(f"Arguments {bad_args} are incompatible with federated_only. "
-                              f"Overridden with a sane default.")
-
-                # Clear decentralized attributes to ensure consistency with a
-                # federated configuration.
-                self.poa = False
-                self.is_light = False
-                self.eth_provider_uri = None
-                self.registry_filepath = None
-                self.policy_registry_filepath = None
-                self.gas_strategy = None
-                self.max_gas_price = None
-
-            # Federated Payments
-            self.payment_method = payment_method or self.DEFAULT_FEDERATED_PAYMENT_METHOD
-            self.payment_network = payment_network
-            self.payment_provider = payment_provider
-
         #
         # Decentralized
         #
 
+        self.gas_strategy = gas_strategy
+        self.max_gas_price = max_gas_price  # gwei
+        is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
+            eth_provider_uri=self.eth_provider_uri
+        )
+        if not is_initialized and eth_provider_uri:
+            BlockchainInterfaceFactory.initialize_interface(
+                eth_provider_uri=self.eth_provider_uri,
+                poa=self.poa,
+                light=self.is_light,
+                emitter=emitter,
+                gas_strategy=self.gas_strategy,
+                max_gas_price=self.max_gas_price,
+            )
         else:
-            self.gas_strategy = gas_strategy
-            self.max_gas_price = max_gas_price  # gwei
-            is_initialized = BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri)
-            if not is_initialized and eth_provider_uri:
-                BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri,
-                                                                poa=self.poa,
-                                                                light=self.is_light,
-                                                                emitter=emitter,
-                                                                gas_strategy=self.gas_strategy,
-                                                                max_gas_price=self.max_gas_price)
+            self.log.warn(
+                f"Using existing blockchain interface connection ({self.eth_provider_uri})."
+            )
+
+        if not self.registry:
+            # TODO: These two code blocks are untested.
+            if (
+                not self.registry_filepath
+            ):  # TODO: Registry URI  (goerli://speedynet.json) :-)
+                self.log.info(f"Fetching latest registry from source.")
+                self.registry = InMemoryContractRegistry.from_latest_publication(
+                    network=self.domain
+                )
             else:
-                self.log.warn(f"Using existing blockchain interface connection ({self.eth_provider_uri}).")
+                self.registry = LocalContractRegistry(filepath=self.registry_filepath)
+                self.log.info(f"Using local registry ({self.registry}).")
 
-            if not self.registry:
-                # TODO: These two code blocks are untested.
-                if not self.registry_filepath:  # TODO: Registry URI  (goerli://speedynet.json) :-)
-                    self.log.info(f"Fetching latest registry from source.")
-                    self.registry = InMemoryContractRegistry.from_latest_publication(network=self.domain)
+        self.testnet = self.domain != NetworksInventory.MAINNET
+        self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
+
+        #
+        # Onchain Payments & Policies
+        #
+
+        # FIXME: Enforce this for Ursula/Alice but not Bob?
+        from nucypher.config.characters import BobConfiguration
+
+        if not isinstance(self, BobConfiguration):
+            # if not payment_provider:
+            #     raise self.ConfigurationError("payment provider is required.")
+            self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
+            self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
+            self.payment_provider = payment_provider or (
+                self.eth_provider_uri or None
+            )  # default to L1 payments
+
+            # TODO: Dedupe
+            if not self.policy_registry:
+                if not self.policy_registry_filepath:
+                    self.log.info(f"Fetching latest policy registry from source.")
+                    self.policy_registry = (
+                        InMemoryContractRegistry.from_latest_publication(
+                            network=self.payment_network
+                        )
+                    )
                 else:
-                    self.registry = LocalContractRegistry(filepath=self.registry_filepath)
-                    self.log.info(f"Using local registry ({self.registry}).")
-
-            self.testnet = self.domain != NetworksInventory.MAINNET
-            self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
-
-            #
-            # Onchain Payments & Policies
-            #
-
-            # FIXME: Enforce this for Ursula/Alice but not Bob?
-            from nucypher.config.characters import BobConfiguration
-            if not isinstance(self, BobConfiguration):
-                # if not payment_provider:
-                #     raise self.ConfigurationError("payment provider is required.")
-                self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
-                self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
-                self.payment_provider = payment_provider or (self.eth_provider_uri or None)  # default to L1 payments
-
-                # TODO: Dedupe
-                if not self.policy_registry:
-                    if not self.policy_registry_filepath:
-                        self.log.info(f"Fetching latest policy registry from source.")
-                        self.policy_registry = InMemoryContractRegistry.from_latest_publication(network=self.payment_network)
-                    else:
-                        self.policy_registry = LocalContractRegistry(filepath=self.policy_registry_filepath)
-                        self.log.info(f"Using local policy registry ({self.policy_registry}).")
+                    self.policy_registry = LocalContractRegistry(
+                        filepath=self.policy_registry_filepath
+                    )
+                    self.log.info(
+                        f"Using local policy registry ({self.policy_registry})."
+                    )
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -621,21 +588,19 @@ class CharacterConfiguration(BaseConfiguration):
         return self.__dev_mode
 
     def _setup_node_storage(self, node_storage=None) -> None:
-        # TODO: Disables node metadata persistence..
+        # TODO: Disables node metadata persistence
         # if self.dev_mode:
-        #     node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
+        #     node_storage = ForgetfulNodeStorage(registry=self.registry)
 
         # TODO: Forcibly clears the filesystem of any stored node metadata and certificates...
         local_node_storage = LocalFileBasedNodeStorage(
-            registry=self.registry,
-            config_root=self.config_root,
-            federated_only=self.federated_only
+            registry=self.registry, config_root=self.config_root
         )
         local_node_storage.clear()
         self.log.info(f'Cleared peer metadata from {local_node_storage.root_dir}')
 
         # TODO: Always sets up nodes for in-memory node metadata storage
-        node_storage = ForgetfulNodeStorage(registry=self.registry, federated_only=self.federated_only)
+        node_storage = ForgetfulNodeStorage(registry=self.registry)
         self.node_storage = node_storage
 
     def forget_nodes(self) -> None:
@@ -667,9 +632,8 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         payload = cls._read_configuration_file(filepath=filepath)
-        node_storage = cls.load_node_storage(storage_payload=payload['node_storage'],
-                                             federated_only=payload['federated_only'])
-        max_gas_price = payload.get('max_gas_price')  # gwei
+        node_storage = cls.load_node_storage(storage_payload=payload["node_storage"])
+        max_gas_price = payload.get("max_gas_price")  # gwei
         if max_gas_price:
             max_gas_price = Decimal(max_gas_price)
 
@@ -705,8 +669,6 @@ class CharacterConfiguration(BaseConfiguration):
         for field, path in filepaths.items():
             if path and not path.exists():
                 message = 'Missing configuration file or directory: {}.'
-                if 'registry' in path:
-                    message += ' Did you mean to pass --federated-only?'
                 raise CharacterConfiguration.InvalidConfiguration(message.format(path))
         return True
 
@@ -716,7 +678,6 @@ class CharacterConfiguration(BaseConfiguration):
         payload = dict(
 
             # Identity
-            federated_only=self.federated_only,
             checksum_address=self.checksum_address,
             keystore_path=keystore_path,
 
@@ -731,20 +692,23 @@ class CharacterConfiguration(BaseConfiguration):
         )
 
         # Optional values (mode)
-        if not self.federated_only:
-            if self.eth_provider_uri:
-                if not self.signer_uri:
-                    self.signer_uri = self.eth_provider_uri
-                payload.update(dict(eth_provider_uri=self.eth_provider_uri,
-                                    poa=self.poa,
-                                    light=self.is_light,
-                                    signer_uri=self.signer_uri))
-            if self.registry_filepath:
-                payload.update(dict(registry_filepath=self.registry_filepath))
+        if self.eth_provider_uri:
+            if not self.signer_uri:
+                self.signer_uri = self.eth_provider_uri
+            payload.update(
+                dict(
+                    eth_provider_uri=self.eth_provider_uri,
+                    poa=self.poa,
+                    light=self.is_light,
+                    signer_uri=self.signer_uri,
+                )
+            )
+        if self.registry_filepath:
+            payload.update(dict(registry_filepath=self.registry_filepath))
 
-            # Gas Price
-            __max_price = str(self.max_gas_price) if self.max_gas_price else None
-            payload.update(dict(gas_strategy=self.gas_strategy, max_gas_price=__max_price))
+        # Gas Price
+        __max_price = str(self.max_gas_price) if self.max_gas_price else None
+        payload.update(dict(gas_strategy=self.gas_strategy, max_gas_price=__max_price))
 
         # Merge with base payload
         base_payload = super().static_payload()
@@ -759,15 +723,16 @@ class CharacterConfiguration(BaseConfiguration):
         These values are used to init a character instance but are *not*
         saved to the JSON configuration.
         """
-        payload = dict()
-        if not self.federated_only:
-            payload.update(dict(registry=self.registry, signer=self.signer))
-
-        payload.update(dict(network_middleware=self.network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(),
-                            known_nodes=self.known_nodes,
-                            node_storage=self.node_storage,
-                            keystore=self.keystore,
-                            crypto_power_ups=self.derive_node_power_ups()))
+        payload = dict(
+            registry=self.registry,
+            signer=self.signer,
+            network_middleware=self.network_middleware
+            or self.DEFAULT_NETWORK_MIDDLEWARE(),
+            known_nodes=self.known_nodes,
+            node_storage=self.node_storage,
+            keystore=self.keystore,
+            crypto_power_ups=self.derive_node_power_ups(),
+        )
 
         return payload
 
@@ -851,20 +816,22 @@ class CharacterConfiguration(BaseConfiguration):
         return self.keystore
 
     @classmethod
-    def load_node_storage(cls, storage_payload: dict, federated_only: bool):
+    def load_node_storage(cls, storage_payload: dict):
         from nucypher.config.storages import NodeStorage
         node_storage_subclasses = {storage._name: storage for storage in NodeStorage.__subclasses__()}
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = node_storage_subclasses[storage_type]
-        node_storage = storage_class.from_payload(payload=storage_payload, federated_only=federated_only)
+        node_storage = storage_class.from_payload(payload=storage_payload)
         return node_storage
 
     def configure_payment_method(self):
         # TODO: finalize config fields
+        #
         # Strategy-Based (current implementation, inflexible & hardcoded)
         # 'payment_strategy': 'SubscriptionManager'
         # 'payment_network': 'matic'
         # 'payment_provider': 'https:///matic.infura.io....'
+        #
         # Contract-Targeted (alternative implementation, flexible & generic)
         # 'payment': {
         #     'contract': '0xdeadbeef'
@@ -872,11 +839,12 @@ class CharacterConfiguration(BaseConfiguration):
         #     'function': 'isPolicyActive'
         #     'provider': 'https:///matic.infura.io....'
         # }
+        #
 
         try:
             payment_class = PAYMENT_METHODS[self.payment_method]
         except KeyError:
-            raise KeyError(f'Unknown payment verifier "{self.payment_method}"')
+            raise KeyError(f'Unknown payment method "{self.payment_method}"')
 
         if payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
