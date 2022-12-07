@@ -113,12 +113,11 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
 
-        if not self.ursula.federated_only:
-            decentralized_payload = {
-                "staking_provider_address": self.ursula.checksum_address,
-                "operator_address": self.ursula.operator_address,
-            }
-            base_payload.update(decentralized_payload)
+        decentralized_payload = {
+            "staking_provider_address": self.ursula.checksum_address,
+            "operator_address": self.ursula.operator_address,
+        }
+        base_payload.update(decentralized_payload)
 
         self.metrics["host_info"].info(base_payload)
 

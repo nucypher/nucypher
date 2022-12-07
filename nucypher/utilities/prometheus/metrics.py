@@ -157,26 +157,27 @@ def create_metrics_collectors(ursula: "Ursula") -> List[MetricsCollector]:
     """Create collectors used to obtain metrics."""
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 
-    if not ursula.federated_only:
-        # Blockchain prometheus
-        # TODO possible include information about payment
-        collectors.append(BlockchainMetricsCollector(eth_provider_uri=ursula.eth_provider_uri))
+    # Blockchain prometheus
+    # TODO possible include information about payment
+    collectors.append(
+        BlockchainMetricsCollector(eth_provider_uri=ursula.eth_provider_uri)
+    )
 
-        # Staking Provider prometheus
-        collectors.append(
-            StakingProviderMetricsCollector(
-                staking_provider_address=ursula.checksum_address,
-                contract_registry=ursula.registry,
-            )
+    # Staking Provider prometheus
+    collectors.append(
+        StakingProviderMetricsCollector(
+            staking_provider_address=ursula.checksum_address,
+            contract_registry=ursula.registry,
         )
+    )
 
-        # Operator prometheus
-        collectors.append(
-            OperatorMetricsCollector(
-                domain=ursula.domain,
-                operator_address=ursula.operator_address,
-                contract_registry=ursula.registry,
-            )
+    # Operator prometheus
+    collectors.append(
+        OperatorMetricsCollector(
+            domain=ursula.domain,
+            operator_address=ursula.operator_address,
+            contract_registry=ursula.registry,
         )
+    )
 
     return collectors
