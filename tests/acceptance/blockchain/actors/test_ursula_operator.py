@@ -1,16 +1,24 @@
+import os
+
 import pytest_twisted
+from hexbytes import HexBytes
 from twisted.internet import threads
+from twisted.internet.task import Clock
+from web3.middleware.simulate_unmined_transaction import (
+    INVOCATIONS_BEFORE_RESULT,
+    unmined_receipt_simulator_middleware,
+)
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.token import WorkTracker, WorkTrackerBase
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
-from tests.utils.ursula import make_ursulas, start_pytest_ursula_services
+from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 logger = Logger("test-operator")
-
 
 def log(message):
     logger.debug(message)
@@ -45,15 +53,15 @@ def test_ursula_operator_confirmation(
     testerchain.wait_for_receipt(tx)
 
     # make an ursula.
-    blockchain_ursula = ursula_test_config.produce(
+    ursula = ursula_test_config.produce(
         operator_address=operator_address, rest_port=9151
     )
 
     # it's not confirmed
-    assert blockchain_ursula.is_confirmed is False
+    assert ursula.is_confirmed is False
 
     # it has no staking provider
-    assert blockchain_ursula.get_staking_provider_address() == NULL_ADDRESS
+    assert ursula.get_staking_provider_address() == NULL_ADDRESS
 
     # now lets visit stake.nucypher.network and bond this operator
     tpower = TransactingPower(
@@ -66,15 +74,15 @@ def test_ursula_operator_confirmation(
     )
 
     # now the worker has a staking provider
-    assert blockchain_ursula.get_staking_provider_address() == staking_provider
+    assert ursula.get_staking_provider_address() == staking_provider
     # but it still isn't confirmed
-    assert blockchain_ursula.is_confirmed is False
+    assert ursula.is_confirmed is False
 
     # lets confirm it.  It will probably do this automatically in real life...
-    tx = blockchain_ursula.confirm_address()
+    tx = ursula.confirm_address()
     testerchain.wait_for_receipt(tx)
 
-    assert blockchain_ursula.is_confirmed is True
+    assert ursula.is_confirmed is True
 
 
 @pytest_twisted.inlineCallbacks
@@ -91,17 +99,19 @@ def test_ursula_operator_confirmation_autopilot(
         PREApplicationAgent, registry=test_registry
     )
     (
-        creator,
-        staking_provider,
-        operator,
+        _,  # creator
+        _,  # staking_provider
+        _,  # operator
         staking_provider2,
         operator2,
         *everyone_else,
     ) = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
-    commit_spy = mocker.spy(Operator, "confirm_address")
-    # replacement_spy = mocker.spy(WorkTracker, '_WorkTracker__fire_replacement_commitment')
+    confirmation_spy = mocker.spy(Operator, "confirm_address")
+    replacement_confirmation_spy = mocker.spy(
+        WorkTrackerBase, "_WorkTrackerBase__fire_replacement_commitment"
+    )
 
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider2).transact()
@@ -120,7 +130,9 @@ def test_ursula_operator_confirmation_autopilot(
     )
 
     # Make the Operator
-    ursula = ursula_test_config.produce(operator_address=operator2, rest_port=9151)
+    ursula = ursula_test_config.produce(
+        operator_address=operator2, rest_port=select_test_port()
+    )
 
     ursula.run(
         preflight=False,
@@ -136,12 +148,11 @@ def test_ursula_operator_confirmation_autopilot(
         start_pytest_ursula_services(ursula=ursula)
 
     def verify_confirmed(_):
-        # Verify that commitment made on-chain automatically
-        expected_commitments = 1
-        log(f"Verifying worker made {expected_commitments} commitments so far")
-        assert commit_spy.call_count == expected_commitments
-        # assert replacement_spy.call_count == 0
-
+        # Verify that confirmation made on-chain automatically
+        expected_confirmations = 1
+        log(f"Verifying worker made {expected_confirmations} commitment so far")
+        assert confirmation_spy.call_count == expected_confirmations
+        assert replacement_confirmation_spy.call_count == 0  # no replacement txs needed
         assert application_agent.is_operator_confirmed(operator2)
 
     # Behavioural Test, like a screenplay made of legos
@@ -151,3 +162,190 @@ def test_ursula_operator_confirmation_autopilot(
     d.addCallback(verify_confirmed)
 
     yield d
+
+
+@pytest_twisted.inlineCallbacks
+def test_work_tracker(
+    mocker,
+    ursula_test_config,
+    testerchain,
+    threshold_staking,
+    agency,
+    application_economics,
+    test_registry,
+):
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry
+    )
+    (
+        _,  # creator
+        _,  # staking_provider
+        _,  # operator
+        _,  # staking_provider2
+        _,  # operator2
+        staking_provider3,
+        operator3,
+        *everyone_else,
+    ) = testerchain.client.accounts
+    min_authorization = application_economics.min_authorization
+
+    # Mock return that operator is not confirmed
+    def false_side_effect(*args, **kwargs):
+        return False
+
+    application_agent.is_operator_confirmed = mocker.MagicMock(
+        side_effect=false_side_effect
+    )
+
+    # Mock confirm_operator transaction
+    def mock_confirm_operator_tx_hash(*args, **kwargs):
+        # rando txHash
+        return HexBytes(os.urandom(32))
+
+    application_agent.confirm_operator_address = mocker.MagicMock(
+        side_effect=mock_confirm_operator_tx_hash
+    )
+
+    # deterministic wait for replacement transaction to be mined
+    mocker.patch.object(
+        WorkTrackerBase,
+        "max_confirmation_time",
+        return_value=WorkTracker.INTERVAL_FLOOR,
+    )
+
+    # Spies
+    confirmation_spy = mocker.spy(Operator, "confirm_address")
+    replacement_confirmation_spy = mocker.spy(
+        WorkTrackerBase, "_WorkTrackerBase__fire_replacement_commitment"
+    )
+
+    # Control time
+    clock = Clock()
+    WorkTrackerBase.CLOCK = clock
+
+    # make an staking_providers and some stakes
+    tx = threshold_staking.functions.setRoles(staking_provider3).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakes(
+        staking_provider3, min_authorization, 0, 0
+    ).transact()
+    testerchain.wait_for_receipt(tx)
+
+    # now lets bond this worker
+    tpower = TransactingPower(
+        account=staking_provider3, signer=Web3Signer(testerchain.client)
+    )
+    application_agent.bond_operator(
+        staking_provider=staking_provider3, operator=operator3, transacting_power=tpower
+    )
+
+    # Make the Operator
+    ursula = ursula_test_config.produce(
+        operator_address=operator3, rest_port=select_test_port()
+    )
+
+    def start(_):
+        log("Starting Worker services")
+        start_pytest_ursula_services(ursula=ursula)
+
+    def advance_clock_interval(_):
+        # note: for the test replacement tx confirmation time is <= next run
+        log("Advance clock interval to next run")
+        next_tracker_run = ursula.work_tracker._tracking_task.interval + 1
+        # replacement tx time uses block number so advance chain as well
+        testerchain.time_travel(next_tracker_run)
+        clock.advance(next_tracker_run)
+
+    def simulate_unmined_transactions():
+        log("Starting unmined transaction simulation")
+        testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
+
+    def reset_operator_confirmed(_):
+        def true_side_effect(*args, **kwargs):
+            return True
+
+        application_agent.is_operator_confirmed = mocker.MagicMock(
+            side_effect=true_side_effect
+        )
+
+    def check_pending_confirmation(_):
+        log("Worker is currently tracking an unmined transaction")
+        assert len(ursula.work_tracker.pending) == 1  # only ever tracks one tx
+
+    def verify_confirm_operator_calls(_):
+        log("Verifying worker calls to confirm_operator")
+        # one less replacement tx than total count (initial + replacements)
+        assert (
+            confirmation_spy.call_count == replacement_confirmation_spy.call_count + 1
+        )
+
+    def verify_replacement_confirm_operator_call(_):
+        log("Verifying worker has issued replaced confirmation transaction")
+        # one less replacement tx than total count
+        assert replacement_confirmation_spy.call_count == (
+            confirmation_spy.call_count - 1
+        )
+
+    def verify_confirmed(_):
+        # Verify that commitment made on-chain automatically
+        log("Verifying operator is confirmed")
+        assert application_agent.is_operator_confirmed(operator3)
+
+    def verify_not_yet_confirmed(_):
+        # Verify that commitment made on-chain automatically
+        log("Verifying operator is not confirmed")
+        assert not application_agent.is_operator_confirmed(operator3)
+
+    # Behavioural Test, like a screenplay made of legos
+    # Simulate unmined transactions
+    d = threads.deferToThread(simulate_unmined_transactions)
+
+    # Run ursula and start services
+    ursula.run(
+        preflight=False,
+        discovery=False,
+        start_reactor=False,
+        worker=True,
+        eager=True,
+        block_until_ready=True,
+    )
+    d.addCallback(start)
+
+    # there is an attempt to confirm operator on Ursula start
+    d.addCallback(verify_confirm_operator_calls)
+
+    # Ensure not yet confirmed; technically it is, but we mock that it isn't
+    d.addCallback(verify_not_yet_confirmed)
+
+    # Ursula's confirm_operator transaction remains unmined and gets stuck
+    for i in range(INVOCATIONS_BEFORE_RESULT - 1):
+        d.addCallback(advance_clock_interval)
+        d.addCallback(verify_confirm_operator_calls)
+
+        d.addCallback(verify_replacement_confirm_operator_call)
+
+        d.addCallback(verify_not_yet_confirmed)
+        d.addCallback(check_pending_confirmation)
+
+    # Ursula recovers from this situation
+    d.addCallback(advance_clock_interval)
+
+    d.addCallback(verify_confirm_operator_calls)
+    d.addCallback(verify_replacement_confirm_operator_call)
+
+    # allow operator to be considered confirmed
+    d.addCallback(reset_operator_confirmed)
+    d.addCallback(verify_confirmed)
+
+    yield d
+
+    # initial call + 5 replacements until is_operator_confirmed is mocked to True
+    # (no more afterwards)
+    assert confirmation_spy.call_count == 6
+
+    # now that operator is confirmed there should be no more confirm_operator calls
+    for i in range(3):
+        d.addCallback(advance_clock_interval)
+
+    yield d
+    assert confirmation_spy.call_count == 6  # no change in number
