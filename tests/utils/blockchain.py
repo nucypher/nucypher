@@ -183,7 +183,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
 
         more_than_one_arg = sum(map(bool, (hours, seconds))) > 1
         if more_than_one_arg:
-            raise ValueError("Specify hours or seconds not a combination")
+            raise ValueError("Specify either hours or seconds, not a combination")
 
         if hours:
             duration = hours * (60*60)

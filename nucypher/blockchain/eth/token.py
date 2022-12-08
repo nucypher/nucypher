@@ -212,7 +212,7 @@ class WorkTrackerBase:
         # Add optional confirmation requirement callable
         self.__requirement = requirement_func
 
-        # Record the start time and period
+        # Record the start time
         self.__start_time = maya.now()
 
         self.log.info(f"START WORK TRACKING (immediate action: {commit_now})")
@@ -399,7 +399,7 @@ class WorkTrackerBase:
         raise NotImplementedError
 
     def _all_work_completed(self) -> bool:
-        """ allows the work tracker to indicate that its work is completed and it can be shut down """
+        """allows the work tracker to indicate that its work is completed, and it can be shut down"""
         raise NotImplementedError
 
 
