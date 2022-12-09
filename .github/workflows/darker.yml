@@ -14,7 +14,9 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v4
-      - uses: akaihola/darker@1.4.2
+        with:
+          python-version: '3.7'
+      - uses: akaihola/darker@1.5.1
         with:
           options: "--check --diff --isort"
-          version: "1.4.2"
+          version: "@3c675b009d747cadd6e8048d2c57a5b1cd54fb3e"

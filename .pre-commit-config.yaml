@@ -39,7 +39,7 @@ repos:
       - id: check-vcs-permalinks
 
   - repo: https://github.com/akaihola/darker
-    rev: 1.4.2
+    rev: 3c675b009d747cadd6e8048d2c57a5b1cd54fb3e
     hooks:
     -   id: darker
         args: [--isort]
