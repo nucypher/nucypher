@@ -1,6 +1,6 @@
 -i https://pypi.python.org/simple
 attrs==22.1.0; python_version >= '3.5'
-certifi==2022.9.24; python_version >= '3.6'
+certifi==2022.12.7; python_version >= '3.6'
 cfgv==3.3.1; python_full_version >= '3.6.1'
 charset-normalizer==2.1.1; python_version >= '3.6'
 coverage[toml]==6.5.0
