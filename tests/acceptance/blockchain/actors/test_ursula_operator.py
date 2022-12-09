@@ -342,6 +342,7 @@ def test_work_tracker(
     # initial call + 5 replacements until is_operator_confirmed is mocked to True
     # (no more afterwards)
     assert confirmation_spy.call_count == 6
+    assert replacement_confirmation_spy.call_count == 5
 
     # now that operator is confirmed there should be no more confirm_operator calls
     for i in range(3):
@@ -349,3 +350,4 @@ def test_work_tracker(
 
     yield d
     assert confirmation_spy.call_count == 6  # no change in number
+    assert replacement_confirmation_spy.call_count == 5
