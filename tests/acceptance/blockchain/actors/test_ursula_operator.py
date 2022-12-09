@@ -78,7 +78,7 @@ def test_ursula_operator_confirmation(
     # but it still isn't confirmed
     assert ursula.is_confirmed is False
 
-    # lets confirm it.  It will probably do this automatically in real life...
+    # let's confirm it.  It will probably do this automatically in real life...
     tx = ursula.confirm_address()
     testerchain.wait_for_receipt(tx)
 
@@ -189,21 +189,17 @@ def test_work_tracker(
     ) = testerchain.client.accounts
     min_authorization = application_economics.min_authorization
 
-    # Mock return that operator is not confirmed
-    def false_side_effect(*args, **kwargs):
-        return False
-
-    application_agent.is_operator_confirmed = mocker.MagicMock(
-        side_effect=false_side_effect
-    )
-
     # Mock confirm_operator transaction
     def mock_confirm_operator_tx_hash(*args, **kwargs):
         # rando txHash
         return HexBytes(os.urandom(32))
 
-    application_agent.confirm_operator_address = mocker.MagicMock(
-        side_effect=mock_confirm_operator_tx_hash
+    # Mock return that operator is not confirmed
+    mocker.patch.object(application_agent, "is_operator_confirmed", return_value=False)
+    mocker.patch.object(
+        application_agent,
+        "confirm_operator_address",
+        side_effect=mock_confirm_operator_tx_hash,
     )
 
     # deterministic wait for replacement transaction to be mined
@@ -259,14 +255,6 @@ def test_work_tracker(
     def simulate_unmined_transactions():
         log("Starting unmined transaction simulation")
         testerchain.client.add_middleware(unmined_receipt_simulator_middleware)
-
-    def reset_operator_confirmed(_):
-        def true_side_effect(*args, **kwargs):
-            return True
-
-        application_agent.is_operator_confirmed = mocker.MagicMock(
-            side_effect=true_side_effect
-        )
 
     def check_pending_confirmation(_):
         log("Worker is currently tracking an unmined transaction")
@@ -333,8 +321,10 @@ def test_work_tracker(
     d.addCallback(verify_confirm_operator_calls)
     d.addCallback(verify_replacement_confirm_operator_call)
 
+    yield d
+
     # allow operator to be considered confirmed
-    d.addCallback(reset_operator_confirmed)
+    mocker.patch.object(application_agent, "is_operator_confirmed", return_value=True)
     d.addCallback(verify_confirmed)
 
     yield d
