@@ -108,7 +108,7 @@
       ":userAddress"
     ],
     "returnValueTest": {
-      "key": "tStake",
+      "index": 0,
       "comparator": ">",
       "value": 0
     }

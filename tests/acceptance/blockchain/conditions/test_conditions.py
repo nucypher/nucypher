@@ -351,7 +351,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="==", value=sponsor, key=0),
+        return_value_test=ReturnValueTest(comparator="==", value=sponsor, index=0),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
@@ -365,7 +365,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="!=", value=sponsor, key=0),
+        return_value_test=ReturnValueTest(comparator="!=", value=sponsor, index=0),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
@@ -379,7 +379,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="==", value=start, key=1),
+        return_value_test=ReturnValueTest(comparator="==", value=start, index=1),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
@@ -393,13 +393,13 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="!=", value=start, key=1),
+        return_value_test=ReturnValueTest(comparator="!=", value=start, index=1),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
     assert not condition_result
 
-    # test "end" key
+    # test "end" index
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
         function_abi=subscription_manager.contract.get_function_by_name(
@@ -407,13 +407,13 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="==", value=end, key=2),
+        return_value_test=ReturnValueTest(comparator="==", value=end, index=2),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
     assert condition_result
 
-    # test "size" key
+    # test "size" index
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
         function_abi=subscription_manager.contract.get_function_by_name(
@@ -421,13 +421,13 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="==", value=size, key=3),
+        return_value_test=ReturnValueTest(comparator="==", value=size, index=3),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
     assert condition_result
 
-    # test "owner" key (owner is sponsor, so owner is set to null address)
+    # test "owner" index (owner is sponsor, so owner is set to null address)
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
         function_abi=subscription_manager.contract.get_function_by_name(
@@ -435,14 +435,14 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
         ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(comparator="==", value=NULL_ADDRESS, key=4),
+        return_value_test=ReturnValueTest(comparator="==", value=NULL_ADDRESS, index=4),
         parameters=[":hrac"],
     )
     condition_result, _ = condition.verify(providers=condition_providers, **context)
     assert condition_result
 
 
-def test_subscription_manager_get_policy_policy_struct_condition_key_context_var_evaluation(
+def test_subscription_manager_get_policy_policy_struct_condition_index_and_value_context_var_evaluation(
     testerchain,
     agency,
     test_registry,
@@ -455,31 +455,12 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_context_var
     context = {
         ":hrac": bytes(enacted_blockchain_policy.hrac),
         ":sponsor": sponsor,
-        ":sponsorIndex": 0,
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent, registry=test_registry
     )
 
-    # test "sponsor" key (owner is the same as sponsor for this policy)
-    condition = ContractCondition(
-        contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.get_function_by_name(
-            "getPolicy"
-        ).abi,
-        method="getPolicy",
-        chain=TESTERCHAIN_CHAIN_ID,
-        return_value_test=ReturnValueTest(
-            comparator="==",
-            value=sponsor,  # don't use sponsor context var
-            key=":sponsorIndex",
-        ),
-        parameters=[":hrac"],
-    )
-    condition_result, _ = condition.verify(providers=condition_providers, **context)
-    assert condition_result
-
-    # test "sponsor" key not equal to correct value
+    # test "sponsor" index not equal to correct value
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
         function_abi=subscription_manager.contract.get_function_by_name(
@@ -490,7 +471,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_context_var
         return_value_test=ReturnValueTest(
             comparator="!=",
             value=":sponsor",  # use sponsor sponsor context var
-            key=":sponsorIndex",
+            index=0,
         ),
         parameters=[":hrac"],
     )
