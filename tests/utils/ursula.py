@@ -1,11 +1,10 @@
 import contextlib
 import socket
 from threading import Lock
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 from cryptography.x509 import Certificate
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
@@ -99,31 +98,6 @@ def make_ursulas(
                 ursula_to_teach.remember_node(ursula_to_learn_about)
 
     return ursulas
-
-
-def make_ursula_for_staking_provider(staking_provider,
-                                     operator_address: str,
-                                     blockchain: BlockchainInterface,
-                                     ursula_config: UrsulaConfiguration,
-                                     ursulas_to_learn_about: Optional[List[Ursula]] = None,
-                                     **ursula_overrides) -> Ursula:
-
-    # Assign worker to this staking provider
-    staking_provider.bond_worker(operator_address=operator_address)
-
-    worker = make_ursulas(
-        ursula_config=ursula_config,
-        blockchain=blockchain,
-        staking_provider_addresses=[staking_provider.checksum_address],
-        operator_addresses=[operator_address],
-        **ursula_overrides
-    ).pop()
-
-    for ursula_to_learn_about in (ursulas_to_learn_about or []):
-        worker.remember_node(ursula_to_learn_about)
-        ursula_to_learn_about.remember_node(worker)
-
-    return worker
 
 
 def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
