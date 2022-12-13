@@ -45,8 +45,8 @@ def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> Non
     else:
         account = config.checksum_address
 
-    eth_password_is_needed = all(
-        (not config.signer.is_device(account=account), not config.dev_mode)
+    eth_password_is_needed = (
+        not config.signer.is_device(account=account) and not config.dev_mode
     )
 
     __password = None

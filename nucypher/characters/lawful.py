@@ -1098,7 +1098,7 @@ class LocalUrsulaStatus(NamedTuple):
 
 
 class Enrico:
-    """A Character representing a data source that encrypts data for some policy's public key"""
+    """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
 
@@ -1136,6 +1136,3 @@ class Enrico:
         if not self._policy_pubkey:
             raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
         return self._policy_pubkey
-
-    def _set_known_node_class(self, *args, **kwargs):
-        """Enrico doesn't init nodes, so it doesn't care what class they are."""
