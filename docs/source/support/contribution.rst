@@ -80,39 +80,6 @@ Alternately, you can install the development dependencies with pip:
     $ ./scripts/installation/install_solc.py
 
 
-Development Docker Installation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The intention of the Docker configurations in this directory is to enable anyone to develop and test
-NuCypher on all major operating systems with minimal prerequisites and installation hassle (tested on Ubuntu 16, MacOS 10.14, Windows 10).
-
-Standard Docker Installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-#. Install `Docker <https://docs.docker.com/install/>`_
-#. Install `Docker Compose <https://docs.docker.com/compose/install/>`_
-#. ``cd`` to ``dev/docker``
-#. Run ``docker-compose up --build`` **this must be done once to complete install**
-
-Running NuCypher
-~~~~~~~~~~~~~~~~
-
-Then you can do things like:
-
-* Run the tests: ``docker-compose run nucypher-dev pytest tests/unit``
-* Start up an Ursula: ``docker-compose run nucypher-dev nucypher ursula run --dev --federated-only``
-* Open a shell: ``docker-compose run nucypher-dev bash``
-* Try some of the scripts in ``dev/docker/scripts/``
-
-From there you can develop, modify code, test as normal.
-
-Other cases:
-
-* Run a network of 8 independent Ursulas: ``docker-compose -f 8-federated-ursulas.yml up``
-* Get the local ports these ursulas will be exposed on: ``docker ps``
-* To stop them... ``docker-compose -f 8-federated-ursulas.yml stop``
-
-
 Running the Tests
 -----------------
 
@@ -127,13 +94,12 @@ There are several test implementations in ``nucypher``, however, the vast majori
 of test are written for execution with ``pytest``.
 For more details see the `Pytest Documentation`_.
 
-
-To run the tests:
+To run the tests, use the following commands:
 
 .. code:: bash
 
-  (nucypher)$ pytest -s
-
+  (nucypher)$ pytest -s tests/unit
+  (nucypher)$ pytest -s tests/integration
 
 Optionally, to run the full, slow, verbose test suite run:
 
