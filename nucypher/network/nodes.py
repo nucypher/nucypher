@@ -830,7 +830,7 @@ class Learner:
             metadata = MetadataResponse.from_bytes(response.content)
         except Exception as e:
             self.log.warn(
-                f"Failed to deserialize MetadataResponse from Teacher {current_teacher} ({e}): {response.text}"
+                f"Failed to deserialize MetadataResponse from Teacher {current_teacher} ({e}): {response.content}"
             )
             return
 
@@ -839,7 +839,7 @@ class Learner:
         except Exception as e:
             # TODO (#567): bucket the node as suspicious
             self.log.warn(
-                f"Failed to verify MetadataResponse from Teacher {current_teacher} ({e}): {response.text}"
+                f"Failed to verify MetadataResponse from Teacher {current_teacher} ({e}): {response.content}"
             )
             return
 
