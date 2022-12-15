@@ -809,7 +809,11 @@ class Learner:
             self.cycle_teacher_node()
 
         if response.status_code != 200:
-            self.log.info("Bad response from teacher {}: {} - {}".format(current_teacher, response, response.content))
+            self.log.info(
+                "Bad response from teacher {}: {} - {}".format(
+                    current_teacher, response, response.text
+                )
+            )
             return
 
         # TODO: we really should be checking this *before* we ask it for a node list,
@@ -825,7 +829,9 @@ class Learner:
         try:
             metadata = MetadataResponse.from_bytes(response.content)
         except Exception as e:
-            self.log.warn(f"Failed to deserialize MetadataResponse from Teacher {current_teacher} ({e}): {response.content}")
+            self.log.warn(
+                f"Failed to deserialize MetadataResponse from Teacher {current_teacher} ({e}): {response.text}"
+            )
             return
 
         try:
@@ -833,7 +839,8 @@ class Learner:
         except Exception as e:
             # TODO (#567): bucket the node as suspicious
             self.log.warn(
-                f"Failed to verify MetadataResponse from Teacher {current_teacher} ({e}): {response.content}")
+                f"Failed to verify MetadataResponse from Teacher {current_teacher} ({e}): {response.text}"
+            )
             return
 
         # End edge case handling.

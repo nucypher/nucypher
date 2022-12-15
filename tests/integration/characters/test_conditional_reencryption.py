@@ -64,4 +64,7 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
         )
 
     reencrypt_spy.assert_not_called()
-    assert isinstance(reencrypt_http_spy.spy_exception, MockRestMiddleware.Unauthorized)
+    actual_exception = reencrypt_http_spy.spy_exception
+    assert isinstance(actual_exception, MockRestMiddleware.Unauthorized)
+    # verify message is not in bytes form
+    assert "Decryption conditions not satisfied" == str(actual_exception)
