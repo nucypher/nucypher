@@ -4,6 +4,7 @@ import pytest
 from nucypher_core import Conditions
 
 from nucypher.characters.lawful import Ursula
+from nucypher.policy.conditions.exceptions import *
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.utils.middleware import MockRestMiddleware
 
@@ -64,7 +65,83 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
         )
 
     reencrypt_spy.assert_not_called()
+    assert isinstance(reencrypt_http_spy.spy_exception, MockRestMiddleware.Unauthorized)
+
+
+FAILURE_MESSAGE = "I’ve failed over and over and over again in my life. And that is why I succeed."  # -- Michael Jordan
+
+FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
+    # (condition exception class, exception parameters, middleware exception class)
+    (ReturnValueEvaluationError, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
+    (InvalidConditionLingo, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
+    (InvalidCondition, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
+    (RequiredContextVariable, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
+    (InvalidContextVariableData, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
+    (
+        ContextVariableVerificationFailed,
+        FAILURE_MESSAGE,
+        MockRestMiddleware.Unauthorized,
+    ),
+    (NoConnectionToChain, 1, MockRestMiddleware.UnexpectedResponse),
+    (ConditionEvaluationFailed, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
+    (ValueError, FAILURE_MESSAGE, MockRestMiddleware.UnexpectedResponse),
+]
+
+
+@pytest.mark.parametrize("failure_case", FAILURE_CASE_EXCEPTION_CODE_MATCHING)
+def test_middleware_handling_of_failed_condition_responses(
+    failure_case,
+    mocker,
+    enacted_federated_policy,
+    federated_bob,
+    federated_ursulas,
+    mock_rest_middleware,
+):
+    # we use a failed condition for reencryption to test conversion of response codes to middleware exceptions
+    from nucypher_core import MessageKit
+
+    reencrypt_http_spy = mocker.spy(MockRestMiddleware, "reencrypt")
+
+    # not actually used for eval, but satisfies serializers
+    conditions = Conditions(
+        json.dumps(
+            [
+                {
+                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "method": "timelock",
+                }
+            ]
+        )
+    )
+
+    federated_bob.start_learning_loop()
+
+    message_kits = [
+        MessageKit(enacted_federated_policy.public_key, b"radio", conditions)
+    ]
+
+    (
+        eval_failure_exception_class,
+        exception_parameter,
+        middleware_exception_class,
+    ) = failure_case
+    failure_message = "test failed"
+    mocker.patch.object(
+        ConditionLingo,
+        "eval",
+        side_effect=eval_failure_exception_class(exception_parameter),
+    )
+
+    with pytest.raises(Ursula.NotEnoughUrsulas):
+        # failed retrieval because of failed exception
+        federated_bob.retrieve_and_decrypt(
+            message_kits=message_kits,
+            encrypted_treasure_map=enacted_federated_policy.treasure_map,
+            alice_verifying_key=enacted_federated_policy.publisher_verifying_key,
+        )
+
     actual_exception = reencrypt_http_spy.spy_exception
-    assert isinstance(actual_exception, MockRestMiddleware.Unauthorized)
+    assert type(actual_exception) == middleware_exception_class  # be specific
     # verify message is not in bytes form
-    assert "Decryption conditions not satisfied" == str(actual_exception)
+    assert "b'" not in str(actual_exception)  # no byte string included in message
+    assert str(exception_parameter) in str(actual_exception)
