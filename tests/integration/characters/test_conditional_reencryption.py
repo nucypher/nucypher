@@ -25,9 +25,12 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     bob.start_learning_loop()
 
     conditions = [
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {'returnValueTest': {'value': '99999999999999999', 'comparator': '<'}, 'method': 'timelock'},
+        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+        {"operator": "and"},
+        {
+            "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+            "method": "timelock",
+        },
     ]
     json_conditions = json.dumps(conditions)
     rust_conditions = Conditions(json_conditions)
@@ -50,9 +53,11 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
     reencrypt_http_spy = mocker.spy(MockRestMiddleware, 'reencrypt')
 
     # not actually used for eval, but satisfies serializers
-    conditions = Conditions(json.dumps(
-        [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
-    ))
+    conditions = Conditions(
+        json.dumps(
+            [{"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"}]
+        )
+    )
 
     bob.start_learning_loop()
 
@@ -72,25 +77,25 @@ FAILURE_MESSAGE = "I’ve failed over and over and over again in my life. And th
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (condition exception class, exception parameters, middleware exception class)
-    (ReturnValueEvaluationError, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
-    (InvalidConditionLingo, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
-    (InvalidCondition, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
-    (RequiredContextVariable, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
-    (InvalidContextVariableData, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
-    (
-        ContextVariableVerificationFailed,
-        FAILURE_MESSAGE,
-        MockRestMiddleware.Unauthorized,
-    ),
-    (NoConnectionToChain, 1, MockRestMiddleware.UnexpectedResponse),
-    (ConditionEvaluationFailed, FAILURE_MESSAGE, MockRestMiddleware.BadRequest),
-    (ValueError, FAILURE_MESSAGE, MockRestMiddleware.UnexpectedResponse),
+    (ReturnValueEvaluationError, MockRestMiddleware.BadRequest),
+    (InvalidConditionLingo, MockRestMiddleware.BadRequest),
+    (InvalidCondition, MockRestMiddleware.BadRequest),
+    (RequiredContextVariable, MockRestMiddleware.BadRequest),
+    (InvalidContextVariableData, MockRestMiddleware.BadRequest),
+    (ContextVariableVerificationFailed, MockRestMiddleware.Unauthorized),
+    (NoConnectionToChain, MockRestMiddleware.UnexpectedResponse),
+    (ConditionEvaluationFailed, MockRestMiddleware.BadRequest),
+    (ValueError, MockRestMiddleware.UnexpectedResponse),
 ]
 
 
-@pytest.mark.parametrize("failure_case", FAILURE_CASE_EXCEPTION_CODE_MATCHING)
+@pytest.mark.parametrize(
+    "eval_failure_exception_class, middleware_exception_class",
+    FAILURE_CASE_EXCEPTION_CODE_MATCHING,
+)
 def test_middleware_handling_of_failed_condition_responses(
-    failure_case,
+    eval_failure_exception_class,
+    middleware_exception_class,
     mocker,
     enacted_federated_policy,
     federated_bob,
@@ -107,7 +112,7 @@ def test_middleware_handling_of_failed_condition_responses(
         json.dumps(
             [
                 {
-                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "timelock",
                 }
             ]
@@ -120,12 +125,13 @@ def test_middleware_handling_of_failed_condition_responses(
         MessageKit(enacted_federated_policy.public_key, b"radio", conditions)
     ]
 
-    (
-        eval_failure_exception_class,
-        exception_parameter,
-        middleware_exception_class,
-    ) = failure_case
-    failure_message = "test failed"
+    # use string message or chain id as exception parameter
+    chain_id = 1
+    exception_parameter = (
+        FAILURE_MESSAGE
+        if eval_failure_exception_class != NoConnectionToChain
+        else chain_id
+    )
     mocker.patch.object(
         ConditionLingo,
         "eval",
