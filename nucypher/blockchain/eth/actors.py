@@ -319,6 +319,11 @@ class Operator(BaseActor):
                 signer=signer,
                 cache=True,
             )
+
+        # We pass the newly instantiated TransactingPower into consume_power_up here, even though it's accessible
+        # on the instance itself (being composed in the __init__ of the base class, which we will call shortly)
+        # because, given the need for initialization context, it's far less melodramatic
+        # to do it here, and it's still available via the public crypto powers API.
         crypto_power.consume_power_up(transacting_power)
 
         self.payment_method = payment_method
