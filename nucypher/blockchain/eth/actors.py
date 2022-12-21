@@ -319,7 +319,6 @@ class Operator(BaseActor):
                 signer=signer,
                 cache=True,
             )
-        self.transacting_power = transacting_power
         crypto_power.consume_power_up(transacting_power)
 
         self.payment_method = payment_method
