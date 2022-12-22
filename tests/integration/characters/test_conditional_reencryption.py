@@ -97,9 +97,8 @@ def test_middleware_handling_of_failed_condition_responses(
     eval_failure_exception_class,
     middleware_exception_class,
     mocker,
-    enacted_federated_policy,
-    federated_bob,
-    federated_ursulas,
+    enacted_policy,
+    bob,
     mock_rest_middleware,
 ):
     # we use a failed condition for reencryption to test conversion of response codes to middleware exceptions
@@ -119,11 +118,9 @@ def test_middleware_handling_of_failed_condition_responses(
         )
     )
 
-    federated_bob.start_learning_loop()
+    bob.start_learning_loop()
 
-    message_kits = [
-        MessageKit(enacted_federated_policy.public_key, b"radio", conditions)
-    ]
+    message_kits = [MessageKit(enacted_policy.public_key, b"radio", conditions)]
 
     # use string message or chain id as exception parameter
     chain_id = 1
@@ -140,10 +137,10 @@ def test_middleware_handling_of_failed_condition_responses(
 
     with pytest.raises(Ursula.NotEnoughUrsulas):
         # failed retrieval because of failed exception
-        federated_bob.retrieve_and_decrypt(
+        bob.retrieve_and_decrypt(
             message_kits=message_kits,
-            encrypted_treasure_map=enacted_federated_policy.treasure_map,
-            alice_verifying_key=enacted_federated_policy.publisher_verifying_key,
+            encrypted_treasure_map=enacted_policy.treasure_map,
+            alice_verifying_key=enacted_policy.publisher_verifying_key,
         )
 
     actual_exception = reencrypt_http_spy.spy_exception

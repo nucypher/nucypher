@@ -25,9 +25,9 @@ def test_middleware_response_status_code_processing(
     expected_exception_class,
     mocker,
     mock_rest_middleware,
-    federated_ursulas,
+    ursulas,
 ):
-    ursula = list(federated_ursulas)[0]
+    ursula = list(ursulas)[0]
     _original_execute_method = mock_rest_middleware.client._execute_method
 
     def execute_method_side_effect(
