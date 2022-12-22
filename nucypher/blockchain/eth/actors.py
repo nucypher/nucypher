@@ -1,15 +1,11 @@
-
-
-
 import json
-import time
 from decimal import Decimal
 from typing import Optional, Tuple, Union
 
 import maya
+import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
-from eth_utils import to_checksum_address
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.types import TxReceipt

@@ -102,24 +102,19 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
     def _collect_internal(self) -> None:
         # info
-        base_payload = {
+        payload = {
             "app_version": nucypher.__version__,
             "host": str(self.ursula.rest_interface),
             "domain": self.ursula.domain,
             "nickname": str(self.ursula.nickname),
             "nickname_icon": self.ursula.nickname.icon,
+            "staking_provider_address": self.ursula.checksum_address,
+            "operator_address": self.ursula.operator_address,
         }
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
-
-        decentralized_payload = {
-            "staking_provider_address": self.ursula.checksum_address,
-            "operator_address": self.ursula.operator_address,
-        }
-        base_payload.update(decentralized_payload)
-
-        self.metrics["host_info"].info(base_payload)
+        self.metrics["host_info"].info(payload)
 
 
 class BlockchainMetricsCollector(BaseMetricsCollector):

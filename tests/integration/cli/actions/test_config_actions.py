@@ -21,6 +21,7 @@ from nucypher.cli.literature import (
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
 )
 from nucypher.config.base import CharacterConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import YES
 
 BAD_CONFIG_FILE_CONTENTS = (
@@ -79,13 +80,13 @@ def test_forget_cli_action(alice_test_config, test_emitter, mock_stdin, mocker, 
 
 def test_update_configuration_cli_action(config, test_emitter, test_registry_source_manager, capsys):
     config_class, config_file = config.__class__, config.filepath
-    updates = dict(federated_only=True)
+    updates = dict(domain=TEMPORARY_DOMAIN)
     get_or_update_configuration(emitter=test_emitter, config_class=config_class, filepath=config_file, updates=updates)
     config.update.assert_called_once_with(**updates)
     configure.handle_invalid_configuration_file.assert_not_called()
     configure.handle_missing_configuration_file.assert_not_called()
     captured = capsys.readouterr()
-    assert SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields='federated_only') in captured.out
+    assert SUCCESSFUL_UPDATE_CONFIGURATION_VALUES.format(fields='domain') in captured.out
 
 
 def test_handle_update_missing_configuration_file_cli_action(config,
@@ -94,7 +95,7 @@ def test_handle_update_missing_configuration_file_cli_action(config,
                                                              mocker):
     config_class, config_file = config.__class__, config.filepath
     mocker.patch.object(config_class, '_read_configuration_file', side_effect=FileNotFoundError)
-    updates = dict(federated_only=True)
+    updates = dict(domain=TEMPORARY_DOMAIN)
     with pytest.raises(click.FileError):
         get_or_update_configuration(emitter=test_emitter,
                                     config_class=config_class,
@@ -113,7 +114,7 @@ def test_handle_update_invalid_configuration_file_cli_action(config,
     config_class = config.__class__
     config_file = config.filepath
     mocker.patch.object(config_class, '_read_configuration_file', side_effect=config_class.ConfigurationError)
-    updates = dict(federated_only=True)
+    updates = dict(domain=TEMPORARY_DOMAIN)
     with pytest.raises(config_class.ConfigurationError):
         get_or_update_configuration(emitter=test_emitter,
                                     config_class=config_class,
