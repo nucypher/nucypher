@@ -126,9 +126,7 @@ def test_invalid_operators_tolerance(
     )
 
     # Make the Operator
-    ursulas = make_ursulas(
-        ursula_test_config, [_staking_provider], [operator_address]
-    )
+    ursulas = make_ursulas(ursula_test_config, [_staking_provider], [operator_address])
     ursula = ursulas[0]
     ursula.run(
         preflight=False,
