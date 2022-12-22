@@ -5,29 +5,33 @@ import glob
 import json
 from json.decoder import JSONDecodeError
 from pathlib import Path
-from typing import Optional, Type, List
+from typing import List, Optional, Type
 
 import click
 
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.actions.confirm import confirm_destroy_configuration
 from nucypher.cli.literature import (
+    COLLECT_URSULA_IPV4_ADDRESS,
     CONFIRM_FORGET_NODES,
+    CONFIRM_URSULA_IPV4_ADDRESS,
     INVALID_CONFIGURATION_FILE_WARNING,
     INVALID_JSON_IN_CONFIGURATION_WARNING,
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION,
     SUCCESSFUL_FORGET_NODES,
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
-    COLLECT_URSULA_IPV4_ADDRESS,
-    CONFIRM_URSULA_IPV4_ADDRESS
 )
 from nucypher.cli.types import OPERATOR_IP
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
-from nucypher.utilities.networking import determine_external_ip_address, UnknownIPAddress
+from nucypher.utilities.networking import (
+    InvalidOperatorIP,
+    UnknownIPAddress,
+    determine_external_ip_address,
+    validate_operator_ip,
+)
 
 
 def forget(emitter: StdoutEmitter, configuration: CharacterConfiguration) -> None:
@@ -138,6 +142,8 @@ def collect_operator_ip_address(emitter: StdoutEmitter, network: str, force: boo
     if not force:
         if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
             ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=OPERATOR_IP)
+    else:
+        emitter.message(f"Using auto-detected IP address {ip}")
 
     validate_operator_ip(ip=ip)
     return ip

@@ -1,6 +1,3 @@
-
-
-
 import contextlib
 import json
 import time
@@ -52,7 +49,7 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import BlockchainPolicyAuthor, Operator
+from nucypher.blockchain.eth.actors import Operator, PolicyAuthor
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -84,45 +81,40 @@ from nucypher.network.trackers import AvailabilityTracker, OperatorBondedTracker
 from nucypher.policy.conditions.types import LingoList
 from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
-from nucypher.policy.payment import FreeReencryptions, PaymentMethod
-from nucypher.policy.policies import BlockchainPolicy, FederatedPolicy, Policy
+from nucypher.policy.payment import ContractPayment, PaymentMethod
+from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
 
 
-class Alice(Character, BlockchainPolicyAuthor):
+class Alice(Character, PolicyAuthor):
     banner = ALICE_BANNER
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
-    def __init__(self,
-
-                 # Mode
-                 is_me: bool = True,
-                 federated_only: bool = False,
-                 eth_provider_uri: str = None,
-                 signer=None,
-
-                 # Ownership
-                 checksum_address: str = None,
-
-                 # M of N
-                 threshold: Optional[int] = None,
-                 shares: Optional[int] = None,
-
-                 # Policy Value
-                 rate: int = None,
-                 duration: int = None,
-                 payment_method: PaymentMethod = None,
-
-                 # Policy Storage
-                 store_policy_credentials: bool = None,
-
-                 # Middleware
-                 timeout: int = 10,  # seconds  # TODO: configure  NRN
-                 network_middleware: RestMiddleware = None,
-
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        # Mode
+        is_me: bool = True,
+        eth_provider_uri: str = None,
+        signer=None,
+        # Ownership
+        checksum_address: Optional[ChecksumAddress] = None,
+        # M of N
+        threshold: Optional[int] = None,
+        shares: Optional[int] = None,
+        # Policy Value
+        rate: int = None,
+        duration: int = None,
+        payment_method: PaymentMethod = None,
+        # Policy Storage
+        store_policy_credentials: bool = None,
+        # Middleware
+        timeout: int = 10,  # seconds  # TODO: configure  NRN
+        network_middleware: RestMiddleware = None,
+        *args,
+        **kwargs,
+    ):
 
         #
         # Fallback Policy Values
@@ -143,33 +135,28 @@ class Alice(Character, BlockchainPolicyAuthor):
         Character.__init__(self,
                            known_node_class=Ursula,
                            is_me=is_me,
-                           federated_only=federated_only,
                            eth_provider_uri=eth_provider_uri,
                            checksum_address=checksum_address,
                            network_middleware=network_middleware,
                            *args, **kwargs)
 
-        if is_me and not federated_only:  # TODO: #289
-            if not eth_provider_uri:
-                raise ValueError('ETH Provider URI is required to init a decentralized character.')
-
+        if is_me:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=self.eth_provider_uri)
             signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
-            self.transacting_power = TransactingPower(account=self.checksum_address, signer=signer)
+            self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
             self._crypto_power.consume_power_up(self.transacting_power)
-            BlockchainPolicyAuthor.__init__(self,
-                                            domain=self.domain,
-                                            transacting_power=self.transacting_power,
-                                            registry=self.registry,
-                                            eth_provider_uri=eth_provider_uri)
+            PolicyAuthor.__init__(
+                self,
+                domain=self.domain,
+                transacting_power=self.transacting_power,
+                registry=self.registry,
+                eth_provider_uri=eth_provider_uri,
+            )
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
 
             # Policy Payment
-            if federated_only and not payment_method:
-                # Federated payments are free by default.
-                payment_method = FreeReencryptions()
             if not payment_method:
                 raise ValueError('payment_method is a required argument for a local Alice.')
             self.payment_method = payment_method
@@ -238,14 +225,9 @@ class Alice(Character, BlockchainPolicyAuthor):
                        public_key=public_key,
                        **policy_params)
 
-        if self.federated_only:
-            # Use known nodes
-            policy = FederatedPolicy(publisher=self, **payload)
-        else:
-            # Sample from blockchain
-            payload.update(**policy_params)
-            policy = BlockchainPolicy(publisher=self, **payload)
-
+        # Sample from blockchain
+        payload.update(**policy_params)
+        policy = Policy(publisher=self, **payload)
         return policy
 
     def generate_policy_parameters(self,
@@ -331,18 +313,6 @@ class Alice(Character, BlockchainPolicyAuthor):
         # Users may decide to inject some market strategies here.
         #
 
-        # If we're federated only, we need to block to make sure we have enough nodes.
-        if self.federated_only and len(self.known_nodes) < policy.shares:
-            good_to_go = self.block_until_number_of_known_nodes_is(number_of_nodes_to_know=policy.shares,
-                                                                   learn_on_this_thread=True,
-                                                                   timeout=timeout)
-            if not good_to_go:
-                raise ValueError(
-                    "To make a Policy in federated mode, you need to know about "
-                    "all the Ursulas you need (in this case, {}); there's no other way to "
-                    "know which nodes to use.  Either pass them here or when you make the Policy, "
-                    "or run the learning loop on a network with enough Ursulas.".format(policy.shares))
-
         self.log.debug(f"Enacting {policy} ... ")
         enacted_policy = policy.enact(network_middleware=self.network_middleware, ursulas=ursulas)
 
@@ -356,7 +326,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
     def revoke(self,
                policy: Policy,
-               onchain: bool = True,  # forced to False for federated mode
+               onchain: bool = True,
                offchain: bool = True
                ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple['Revocation', Exception]]]:
 
@@ -365,7 +335,7 @@ class Alice(Character, BlockchainPolicyAuthor):
 
         receipt, failed = dict(), dict()
 
-        if onchain and (not self.federated_only):
+        if onchain:
             pass
             # TODO: Decouple onchain revocation from SubscriptionManager or deprecate.
             # receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
@@ -566,50 +536,44 @@ class Ursula(Teacher, Character, Operator):
     class NotFound(Exception):
         pass
 
-    def __init__(self,
+    def __init__(
+        self,
+        # Ursula
+        rest_host: str,
+        rest_port: int,
+        domain: str,
+        is_me: bool = True,
+        certificate: Optional[Certificate] = None,
+        certificate_filepath: Optional[Path] = None,
+        availability_check: bool = False,  # TODO: Remove from init
+        metadata: Optional[NodeMetadata] = None,
+        # Blockchain
+        checksum_address: Optional[ChecksumAddress] = None,
+        operator_address: Optional[ChecksumAddress] = None,
+        client_password: Optional[str] = None,
+        operator_signature_from_metadata=NOT_SIGNED,
+        eth_provider_uri: Optional[str] = None,
+        payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
+        # Character
+        abort_on_learning_error: bool = False,
+        crypto_power=None,
+        known_nodes: Iterable[Teacher] = None,
+        **character_kwargs,
+    ):
 
-                 # Ursula
-                 rest_host: str,
-                 rest_port: int,
-                 domain: str,
-                 is_me: bool = True,
-
-                 certificate: Certificate = None,
-                 certificate_filepath: Optional[Path] = None,
-
-                 availability_check: bool = False,  # TODO: Remove from init
-                 metadata: Optional[NodeMetadata] = None,
-
-                 # Blockchain
-                 checksum_address: ChecksumAddress = None,
-                 operator_address: ChecksumAddress = None,  # TODO: deprecate, and rename to "checksum_address"
-                 client_password: str = None,
-                 operator_signature_from_metadata=NOT_SIGNED,
-
-                 eth_provider_uri: str = None,
-                 payment_method: PaymentMethod = None,
-
-                 # Character
-                 abort_on_learning_error: bool = False,
-                 federated_only: bool = False,
-                 crypto_power=None,
-                 known_nodes: Iterable[Teacher] = None,
-
-                 **character_kwargs
-                 ):
-
-        Character.__init__(self,
-                           is_me=is_me,
-                           checksum_address=checksum_address,
-                           federated_only=federated_only,
-                           crypto_power=crypto_power,
-                           abort_on_learning_error=abort_on_learning_error,
-                           known_nodes=known_nodes,
-                           domain=domain,
-                           known_node_class=Ursula,
-                           include_self_in_the_state=True,
-                           eth_provider_uri=eth_provider_uri,
-                           **character_kwargs)
+        Character.__init__(
+            self,
+            is_me=is_me,
+            checksum_address=checksum_address,
+            crypto_power=crypto_power,
+            abort_on_learning_error=abort_on_learning_error,
+            known_nodes=known_nodes,
+            domain=domain,
+            known_node_class=Ursula,
+            include_self_in_the_state=True,
+            eth_provider_uri=eth_provider_uri,
+            **character_kwargs,
+        )
 
         if is_me:
 
@@ -617,64 +581,43 @@ class Ursula(Teacher, Character, Operator):
                 raise ValueError("A local node must generate its own metadata.")
             self._metadata = None
 
-            # Operating Mode
-            self.known_node_class.set_federated_mode(federated_only)
-
             # Health Checks
             self._availability_check = availability_check
             self._availability_tracker = AvailabilityTracker(ursula=self)
-            if not federated_only:
-                self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
-            # Policy Payment
-            if federated_only and not payment_method:
-                # Federated payments are free by default.
-                payment_method = FreeReencryptions()
+            try:
+                payment_method: ContractPayment
+                Operator.__init__(
+                    self,
+                    is_me=is_me,
+                    domain=self.domain,
+                    registry=self.registry,
+                    signer=self.signer,
+                    crypto_power=self._crypto_power,
+                    operator_address=operator_address,
+                    eth_provider_uri=eth_provider_uri,
+                    payment_method=payment_method,
+                    client_password=client_password,
+                )
+            except Exception:
+                # TODO: Do not announce self to "other nodes" until this init is finished.
+                # It's not possible to finish constructing this node.
+                self.stop(halt_reactor=False)
+                raise
 
-            # Decentralized Operator
-            if not federated_only:
-                if not eth_provider_uri:
-                    raise ValueError('ETH Provider URI is required to init a decentralized character.')
-                if not payment_method:
-                    raise ValueError('Payment method is required to init a decentralized character.')
-
-                # TODO: Move to method
-                # Prepare a TransactingPower from worker node's transacting keys
-                transacting_power = TransactingPower(account=operator_address,
-                                                     password=client_password,
-                                                     signer=self.signer,
-                                                     cache=True)
-                self.transacting_power = transacting_power
-                self._crypto_power.consume_power_up(transacting_power)
-
-                # Use this power to substantiate the stamp
-                self.__substantiate_stamp()
-
-                try:
-                    Operator.__init__(self,
-                                      is_me=is_me,
-                                      domain=self.domain,
-                                      transacting_power=self.transacting_power,
-                                      registry=self.registry,
-                                      operator_address=operator_address,
-                                      payment_method=payment_method)
-                except (Exception, self.OperatorError):
-                    # TODO: Do not announce self to "other nodes" until this init is finished.
-                    # It's not possible to finish constructing this node.
-                    self.stop(halt_reactor=False)
-                    raise
-
-            # Payment Method
-            # TODO: What value is acceptable here for a remote node?
-            # TODO: Include accepted payment method announcements in metadata?
-            self.payment_method = payment_method
+            # Use this power to substantiate the stamp
+            self._substantiate_stamp()
 
             # Server
             self.rest_server = self._make_local_server(host=rest_host, port=rest_port)
 
             # Self-signed TLS certificate of self for Teacher.__init__
-            certificate_filepath = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate_filepath
-            certificate = self._crypto_power.power_ups(TLSHostingPower).keypair.certificate
+            certificate_filepath = self._crypto_power.power_ups(
+                TLSHostingPower
+            ).keypair.certificate_filepath
+            certificate = self._crypto_power.power_ups(
+                TLSHostingPower
+            ).keypair.certificate
 
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
@@ -685,43 +628,22 @@ class Ursula(Teacher, Character, Operator):
             self.log.info(self.banner.format(self.nickname))
 
         else:
-            # Stranger HTTP Server
+            # Peer HTTP Server
             # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
             self._metadata = metadata
             self.__operator_address = None
 
         # Teacher (All Modes)
-        Teacher.__init__(self,
-                         domain=domain,
-                         certificate=certificate,
-                         certificate_filepath=certificate_filepath)
+        Teacher.__init__(
+            self,
+            domain=domain,
+            certificate=certificate,
+            certificate_filepath=certificate_filepath,
+        )
 
-    def __get_hosting_power(self, host: str) -> TLSHostingPower:
-        try:
-            # Pre-existing or injected power
-            tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
-        except TLSHostingPower.not_found_error:
-            if self.keystore:
-                # Derive TLS private key from seed
-                tls_hosting_power = self.keystore.derive_crypto_power(TLSHostingPower, host=host)
-            else:
-                # Generate ephemeral private key ("Dev Mode")
-                tls_hosting_keypair = HostingKeypair(host=host, generate_certificate=True)
-                tls_hosting_power = TLSHostingPower(keypair=tls_hosting_keypair, host=host)
-            self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
-        return tls_hosting_power
-
-    def _make_local_server(self, host, port) -> ProxyRESTServer:
-        rest_app = make_rest_app(this_node=self)
-        rest_server = ProxyRESTServer(rest_host=host,
-                                      rest_port=port,
-                                      rest_app=rest_app,
-                                      hosting_power=self.__get_hosting_power(host=host))
-        return rest_server
-
-    def __substantiate_stamp(self):
-        transacting_power = self._crypto_power.power_ups(TransactingPower)
+    def _substantiate_stamp(self):
+        transacting_power = self.transacting_power
         signature = transacting_power.sign_message(message=bytes(self.stamp))
         self.__operator_signature = signature
         self.__operator_address = transacting_power.account
@@ -734,49 +656,76 @@ class Ursula(Teacher, Character, Operator):
 
     @property
     def operator_address(self):
-        if not self.federated_only:
-            # TODO (#2875): The reason for the fork here is the difference in available information
-            # for local and remote nodes.
-            # The local node knows its operator address, but doesn't yet know the staker address.
-            # For the remote node, we know its staker address (from the metadata),
-            # but don't know the worker address.
-            # Can this be resolved more elegantly?
-            if getattr(self, 'is_me', False):
-                return self._local_operator_address()
-            else:
-                if not self.__operator_address:
-                    operator_address = to_checksum_address(self.metadata().payload.derive_operator_address())
-                    self.__operator_address = operator_address
-                return self.__operator_address
+        # TODO (#2875): The reason for the fork here is the difference in available information
+        # for local and remote nodes.
+        # The local node knows its operator address, but doesn't yet know the staker address.
+        # For the remote node, we know its staker address (from the metadata),
+        # but don't know the worker address.
+        # Can this be resolved more elegantly?
+        if getattr(self, "is_me", False):
+            return self._local_operator_address()
         else:
-            raise RuntimeError("Federated nodes do not have an operator address")
+            if not self.__operator_address:
+                address = self.metadata().payload.derive_operator_address()
+                operator_address = to_checksum_address(bytes(address))
+                self.__operator_address = operator_address
+            return self.__operator_address
+
+    def __get_hosting_power(self, host: str) -> TLSHostingPower:
+        try:
+            # Pre-existing or injected power
+            tls_hosting_power = self._crypto_power.power_ups(TLSHostingPower)
+        except TLSHostingPower.not_found_error:
+            if self.keystore:
+                # Derive TLS private key from seed
+                tls_hosting_power = self.keystore.derive_crypto_power(
+                    TLSHostingPower, host=host
+                )
+            else:
+                # Generate ephemeral private key ("Dev Mode")
+                tls_hosting_keypair = HostingKeypair(
+                    host=host, generate_certificate=True
+                )
+                tls_hosting_power = TLSHostingPower(
+                    keypair=tls_hosting_keypair, host=host
+                )
+            self._crypto_power.consume_power_up(tls_hosting_power)  # Consume!
+        return tls_hosting_power
+
+    def _make_local_server(self, host, port) -> ProxyRESTServer:
+        rest_app = make_rest_app(this_node=self)
+        rest_server = ProxyRESTServer(
+            rest_host=host,
+            rest_port=port,
+            rest_app=rest_app,
+            hosting_power=self.__get_hosting_power(host=host),
+        )
+        return rest_server
 
     def __preflight(self) -> None:
-        """Called immediately before running services
-        If an exception is raised, Ursula startup will be interrupted.
-
-        """
+        """Called immediately before running services.
+        If an exception is raised, Ursula startup will be interrupted."""
         validate_operator_ip(ip=self.rest_interface.host)
 
-    def run(self,
-            emitter: StdoutEmitter = None,
-            discovery: bool = True,  # TODO: see below
-            availability: bool = False,
-            worker: bool = True,
-            hendrix: bool = True,
-            start_reactor: bool = True,
-            prometheus_config: 'PrometheusMetricsConfig' = None,
-            preflight: bool = True,
-            block_until_ready: bool = True,
-            eager: bool = False
-            ) -> None:
+    def run(
+        self,
+        emitter: StdoutEmitter = None,
+        discovery: bool = True,  # TODO: see below
+        availability: bool = False,
+        worker: bool = True,
+        hendrix: bool = True,
+        start_reactor: bool = True,
+        prometheus_config: "PrometheusMetricsConfig" = None,
+        preflight: bool = True,
+        block_until_ready: bool = True,
+        eager: bool = False,
+    ) -> None:
 
         """Schedule and start select ursula services, then optionally start the reactor."""
 
         # Connect to Provider
-        if not self.federated_only:
-            if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri):
-                BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri)
+        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri):
+            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri)
 
         if preflight:
             self.__preflight()
@@ -798,7 +747,7 @@ class Ursula(Teacher, Character, Operator):
             if emitter:
                 emitter.message(f"✓ Availability Checks", color='green')
 
-        if worker and not self.federated_only:
+        if worker:
             if block_until_ready:
                 # Sets (staker's) checksum address; Prevent worker startup before bonding
                 self.block_until_ready()
@@ -810,17 +759,16 @@ class Ursula(Teacher, Character, Operator):
             else:
                 message = "✓ Operator already confirmed.  Not starting worktracker."
             if emitter:
-                emitter.message(message, color='green')
+                emitter.message(message, color="green")
 
         #
         # Non-order dependant services
         #
 
         # Continuous bonded check now that Ursula is all ready to run
-        if not self.federated_only:
-            self._operator_bonded_tracker.start(now=eager)
-            if emitter:
-                emitter.message(f"✓ Start Operator Bonded Tracker", color='green')
+        self._operator_bonded_tracker.start(now=eager)
+        if emitter:
+            emitter.message(f"✓ Start Operator Bonded Tracker", color="green")
 
         if prometheus_config:
             # Locally scoped to prevent import without prometheus explicitly installed
@@ -828,11 +776,13 @@ class Ursula(Teacher, Character, Operator):
 
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
-                emitter.message(f"✓ Prometheus Exporter", color='green')
+                emitter.message(f"✓ Prometheus Exporter", color="green")
 
         if hendrix:
             if emitter:
-                emitter.message(f"✓ Rest Server https://{self.rest_interface}", color='green')
+                emitter.message(
+                    f"✓ Rest Server https://{self.rest_interface}", color="green"
+                )
 
             deployer = self.get_deployer()
             deployer.addServices()
@@ -865,9 +815,8 @@ class Ursula(Teacher, Character, Operator):
         with contextlib.suppress(AttributeError):  # TODO: Is this acceptable here, what are alternatives?
             self._availability_tracker.stop()
             self.stop_learning_loop()
-            if not self.federated_only:
-                self.work_tracker.stop()
-                self._operator_bonded_tracker.stop()
+            self.work_tracker.stop()
+            self._operator_bonded_tracker.stop()
         if halt_reactor:
             reactor.stop()
 
@@ -909,10 +858,7 @@ class Ursula(Teacher, Character, Operator):
         # so we can cache the result of this method.
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
-        if self.federated_only:
-            operator_signature = None
-        else:
-            operator_signature = self.operator_signature
+        operator_signature = self.operator_signature
         payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
@@ -921,8 +867,7 @@ class Ursula(Teacher, Character, Operator):
                                       encrypting_key=self.public_keys(DecryptingPower),
                                       certificate_der=self.certificate.public_bytes(Encoding.DER),
                                       host=self.rest_interface.host,
-                                      port=self.rest_interface.port,
-                                      )
+                                      port=self.rest_interface.port)
         return NodeMetadata(signer=self.stamp.as_umbral_signer(),
                             payload=payload)
 
@@ -959,8 +904,6 @@ class Ursula(Teacher, Character, Operator):
         """
         Essentially another deserialization method, but this one doesn't reconstruct a complete
         node from bytes; instead it's just enough to connect to and verify a node.
-
-        NOTE: This is a federated only method.
         """
         seed_uri = f'{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}'
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
@@ -979,7 +922,6 @@ class Ursula(Teacher, Character, Operator):
 
     @classmethod
     def from_teacher_uri(cls,
-                         federated_only: bool,
                          teacher_uri: str,
                          min_stake: int,
                          network_middleware: RestMiddleware = None,
@@ -994,7 +936,6 @@ class Ursula(Teacher, Character, Operator):
 
             try:
                 teacher = cls.from_seed_and_stake_info(seed_uri=teacher_uri,
-                                                       federated_only=federated_only,
                                                        minimum_stake=min_stake,
                                                        network_middleware=network_middleware,
                                                        registry=registry)
@@ -1013,7 +954,6 @@ class Ursula(Teacher, Character, Operator):
     @classmethod
     def from_seed_and_stake_info(cls,
                                  seed_uri: str,
-                                 federated_only: bool = False,
                                  minimum_stake: int = 0,
                                  registry: BaseContractRegistry = None,
                                  network_middleware: RestMiddleware = None,
@@ -1042,7 +982,7 @@ class Ursula(Teacher, Character, Operator):
         )
 
         # Check the node's stake (optional)
-        if minimum_stake > 0 and staking_provider_address and not federated_only:
+        if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
             seednode_stake = application_agent.get_authorized_stake(staking_provider=staking_provider_address)
             if seednode_stake < minimum_stake:
@@ -1051,12 +991,8 @@ class Ursula(Teacher, Character, Operator):
         return potential_seed_node
 
     @classmethod
-    def from_storage(cls,
-                     node_storage: NodeStorage,
-                     checksum_adress: str,
-                     federated_only: bool = False) -> 'Ursula':
-        return node_storage.get(checksum_address=checksum_adress,
-                                federated_only=federated_only)
+    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> 'Ursula':
+        return node_storage.get(checksum_address=checksum_adress)
 
     #
     # Properties
@@ -1113,10 +1049,7 @@ class Ursula(Teacher, Character, Operator):
         else:
             known_nodes_info = None
 
-        if not self.federated_only:
-            balance_eth = float(self.eth_balance)
-        else:
-            balance_eth = None
+        balance_eth = float(self.eth_balance)
 
         return LocalUrsulaStatus(nickname=self.nickname,
                                  staker_address=self.checksum_address,
@@ -1164,27 +1097,16 @@ class LocalUrsulaStatus(NamedTuple):
                     )
 
 
-class Enrico(Character):
-    """A Character that represents a Data Source that encrypts data for some policy's public key"""
+class Enrico:
+    """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
-    _default_crypto_powerups = [SigningPower]
 
-    def __init__(self,
-                 is_me: bool = True,
-                 policy_encrypting_key: Optional[PublicKey] = None,
-                 *args, **kwargs):
-
+    def __init__(self, policy_encrypting_key: PublicKey):
+        self.signing_power = SigningPower()
         self._policy_pubkey = policy_encrypting_key
-
-        # Enrico never uses the blockchain (hence federated_only)
-        kwargs['federated_only'] = True
-        kwargs['known_node_class'] = None
-        super().__init__(is_me=is_me, *args, **kwargs)
-
-        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.public_keys(SigningPower)).hex()[:6]}')
-        if is_me:
-            self.log.info(self.banner.format(policy_encrypting_key))
+        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.signing_power.public_key()).hex()[:6]}')
+        self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(
         self, plaintext: bytes, conditions: Optional[LingoList] = None
@@ -1214,6 +1136,3 @@ class Enrico(Character):
         if not self._policy_pubkey:
             raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
         return self._policy_pubkey
-
-    def _set_known_node_class(self, *args, **kwargs):
-        """Enrico doesn't init nodes, so it doesn't care what class they are."""

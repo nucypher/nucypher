@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Iterable, Optional
 
 import pytest
 from eth_account.account import Account
@@ -8,26 +9,28 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     PREApplicationAgent,
+    StakingProvidersReservoir,
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterface
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainDeployerInterface,
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
+from nucypher.characters.lawful import Ursula
+from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.powers import TransactingPower
+from nucypher.network.nodes import Teacher
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
-    MOCK_ETH_PROVIDER_URI,
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
 )
-from tests.mock.agents import MockContractAgency, MockContractAgent
+from tests.mock.agents import MockContractAgency
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
-from tests.utils.config import (
-    make_alice_test_configuration,
-    make_bob_test_configuration,
-    make_ursula_test_configuration,
-)
-from tests.utils.ursula import select_test_port
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -39,18 +42,36 @@ def mock_contract_agency(monkeypatch, module_mocker, application_economics):
     mock_agency.reset()
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_application_agent(mock_testerchain, application_economics, mock_contract_agency, mocker):
+@pytest.fixture(scope="module", autouse=True)
+def mock_sample_reservoir(testerchain, mock_contract_agency):
+    def mock_reservoir(
+        without: Optional[Iterable[ChecksumAddress]] = None, *args, **kwargs
+    ):
+        addresses = {
+            address: 1
+            for address in testerchain.stake_providers_accounts
+            if address not in without
+        }
+        return StakingProvidersReservoir(addresses)
+
     mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
+    mock_agent.get_staking_provider_reservoir = mock_reservoir
 
+
+@pytest.fixture(scope="function", autouse=True)
+def mock_application_agent(
+    testerchain, application_economics, mock_contract_agency, mocker
+):
+    mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
     # Handle the special case of commit_to_next_period, which returns a txhash due to the fire_and_forget option
-    mock_agent.confirm_operator_address = mocker.Mock(return_value=MockContractAgent.FAKE_TX_HASH)
-
+    mock_agent.confirm_operator_address = mocker.Mock(
+        return_value=testerchain.FAKE_TX_HASH
+    )
     yield mock_agent
     mock_agent.reset()
 
 
-def mock_adjudicator_agent(mock_testerchain, application_economics, mock_contract_agency):
+def mock_adjudicator_agent(testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
     yield mock_agent
     mock_agent.reset()
@@ -58,7 +79,6 @@ def mock_adjudicator_agent(mock_testerchain, application_economics, mock_contrac
 
 @pytest.fixture(scope='function')
 def mock_stdin(mocker):
-
     mock = MockStdinWrapper()
 
     mocker.patch('sys.stdin', new=mock.mock_stdin)
@@ -72,15 +92,26 @@ def mock_stdin(mocker):
     assert mock.empty(), "Stdin mock was not empty on teardown - some unclaimed input remained"
 
 
-@pytest.fixture(scope='module', autouse=True)
-def mock_testerchain(_mock_testerchain) -> MockBlockchain:
-    yield _mock_testerchain
+@pytest.fixture(scope="module")
+def testerchain(_mock_testerchain, module_mocker) -> MockBlockchain:
+    def always_use_mock(*a, **k):
+        return _mock_testerchain
+
+    module_mocker.patch.object(
+        BlockchainInterfaceFactory, "get_interface", always_use_mock
+    )
+    return _mock_testerchain
 
 
 @pytest.fixture(scope='module', autouse=True)
 def mock_interface(module_mocker):
+    # Generic Interface
     mock_transaction_sender = module_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
-    mock_transaction_sender.return_value = MockContractAgent.FAKE_RECEIPT
+    mock_transaction_sender.return_value = MockBlockchain.FAKE_RECEIPT
+
+    # Deployer Interface
+    mock = module_mocker.patch.object(BlockchainDeployerInterface, "deploy_contract")
+    mock.return_value = module_mocker.Mock(), MockBlockchain.FAKE_RECEIPT
     return mock_transaction_sender
 
 
@@ -91,14 +122,13 @@ def test_registry():
 
 
 @pytest.fixture(scope='module')
-def test_registry_source_manager(mock_testerchain, test_registry):
+def test_registry_source_manager(testerchain, test_registry):
     with mock_registry_source_manager(test_registry=test_registry) as real_inventory:
         yield real_inventory
 
 
 @pytest.fixture(scope='module', autouse=True)
 def mock_contract_agency(module_mocker, application_economics):
-
     # Patch
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
 
@@ -117,11 +147,16 @@ def mock_contract_agency(module_mocker, application_economics):
 
 
 @pytest.fixture(scope='module')
+def agency(mock_contract_agency):
+    yield mock_contract_agency
+
+
+@pytest.fixture(scope="module")
 def mock_accounts():
     accounts = dict()
     for i in range(NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS):
         account = Account.create()
-        filename = KEYFILE_NAME_TEMPLATE.format(month=i+1, address=account.address)
+        filename = KEYFILE_NAME_TEMPLATE.format(month=i + 1, address=account.address)
         accounts[filename] = account
     return accounts
 
@@ -132,7 +167,7 @@ def mock_account(mock_accounts):
 
 
 @pytest.fixture(scope='module')
-def operator_account(mock_accounts, mock_testerchain):
+def operator_account(mock_accounts, testerchain):
     account = list(mock_accounts.values())[0]
     return account
 
@@ -176,35 +211,17 @@ def mock_keystore(mocker):
     mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keystore')
 
 
-@pytest.fixture(scope="module")
-def alice_blockchain_test_config(mock_testerchain, test_registry):
-    config = make_alice_test_configuration(federated=False,
-                                           eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-                                           test_registry=test_registry,
-                                           checksum_address=mock_testerchain.alice_account)
-    yield config
-    config.cleanup()
+@pytest.fixture(scope="module", autouse=True)
+def mock_substantiate_stamp(module_mocker, monkeymodule):
+    module_mocker.patch.object(Ursula, "_substantiate_stamp", autospec=True)
+    module_mocker.patch.object(Ursula, "operator_signature", None)
+    module_mocker.patch.object(Teacher, "validate_operator")
 
 
-@pytest.fixture(scope="module")
-def bob_blockchain_test_config(mock_testerchain, test_registry):
-    config = make_bob_test_configuration(federated=False,
-                                         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-                                         test_registry=test_registry,
-                                         checksum_address=mock_testerchain.bob_account)
-    yield config
-    config.cleanup()
+@pytest.fixture(scope="module", autouse=True)
+def mock_transacting_power(module_mocker, monkeymodule):
+    module_mocker.patch.object(TransactingPower, "unlock")
 
 
-@pytest.fixture(scope="module")
-def ursula_decentralized_test_config(mock_testerchain, test_registry):
-    config = make_ursula_test_configuration(
-        federated=False,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,  # L1
-        payment_provider=MOCK_ETH_PROVIDER_URI,  # L1/L2
-        test_registry=test_registry,
-        rest_port=select_test_port(),
-        checksum_address=mock_testerchain.ursula_account(index=0),
-    )
-    yield config
-    config.cleanup()
+def staking_providers(testerchain, agency, test_registry, threshold_staking):
+    return testerchain.stake_providers_accounts

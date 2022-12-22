@@ -1,5 +1,3 @@
-
-
 from pathlib import Path
 
 import pytest
@@ -13,13 +11,16 @@ from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
-    UrsulaConfiguration
+    UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
-from tests.constants import MOCK_IP_ADDRESS
+from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_ETH_PROVIDER_URI,
+    MOCK_IP_ADDRESS,
+)
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -32,17 +33,27 @@ all_configurations = tuple(configurations, )
 
 
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
-def test_federated_development_character_configurations(character, configuration):
+def test_development_character_configurations(
+    character, configuration, test_registry_source_manager, mocker, testerchain
+):
 
-    config = configuration(dev_mode=True,
-                           federated_only=True,
-                           lonely=True,
-                           domain=TEMPORARY_DOMAIN)
+    mocker.patch.object(
+        CharacterConfiguration, "DEFAULT_PAYMENT_NETWORK", TEMPORARY_DOMAIN
+    )
+    params = dict(
+        dev_mode=True,
+        lonely=True,
+        domain=TEMPORARY_DOMAIN,
+        checksum_address=testerchain.unassigned_accounts[0],
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
+    if character is Ursula:
+        params.update(dict(operator_address=testerchain.unassigned_accounts[0]))
+    config = configuration(**params)
 
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keystore == NO_KEYSTORE_ATTACHED
-    assert config.eth_provider_uri is None
 
     # Production
     thing_one = config()
@@ -56,9 +67,6 @@ def test_federated_development_character_configurations(character, configuration
 
     # Ethereum Address
     assert len(thing_one.checksum_address) == 42
-
-    # Operating Mode
-    assert thing_one.federated_only is True
 
     # Domain
     assert TEMPORARY_DOMAIN == thing_one.domain
@@ -79,12 +87,14 @@ def test_federated_development_character_configurations(character, configuration
             alice.disenchant()
 
 
-@pytest.mark.parametrize('configuration_class', all_configurations)
-def test_default_character_configuration_preservation(configuration_class,
-                                                      mock_testerchain,
-                                                      test_registry_source_manager,
-                                                      tmpdir,
-                                                      test_registry):
+@pytest.mark.parametrize("configuration_class", all_configurations)
+def test_default_character_configuration_preservation(
+    configuration_class,
+    testerchain,
+    test_registry_source_manager,
+    tmpdir,
+    test_registry,
+):
 
     configuration_class.DEFAULT_CONFIG_ROOT = Path('/tmp')
     fake_address = '0xdeadbeef'
@@ -142,8 +152,15 @@ def test_default_character_configuration_preservation(configuration_class,
             expected_filepath.unlink()
 
 
-def test_ursula_development_configuration(federated_only=True):
-    config = UrsulaConfiguration(dev_mode=True, federated_only=federated_only)
+def test_ursula_development_configuration(test_registry_source_manager, testerchain):
+    config = UrsulaConfiguration(
+        dev_mode=True,
+        checksum_address=testerchain.unassigned_accounts[0],
+        operator_address=testerchain.unassigned_accounts[1],
+        domain=TEMPORARY_DOMAIN,
+        payment_network=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
     assert config.is_me is True
     assert config.dev_mode is True
     assert config.keystore == NO_KEYSTORE_ATTACHED
@@ -154,7 +171,6 @@ def test_ursula_development_configuration(federated_only=True):
     # Ensure we do in fact have an Ursula here
     assert isinstance(ursula_one, Ursula)
     assert len(ursula_one.checksum_address) == 42
-    assert ursula_one.federated_only is federated_only
 
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port

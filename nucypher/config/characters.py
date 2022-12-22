@@ -3,17 +3,16 @@
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
-from constant_sorrow.constants import UNINITIALIZED_CONFIGURATION
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
 
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
-    NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
+    NUCYPHER_ENVVAR_BOB_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
 )
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
@@ -32,15 +31,18 @@ class UrsulaConfiguration(CharacterConfiguration):
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
     MNEMONIC_KEYSTORE = True
 
-    def __init__(self,
-                 rest_host: str = None,
-                 operator_address: str = None,
-                 dev_mode: bool = False,
-                 keystore_path: Optional[Path] = None,
-                 rest_port: int = None,
-                 certificate: Certificate = None,
-                 availability_check: bool = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        rest_host: Optional[str] = None,
+        operator_address: Optional[str] = None,
+        dev_mode: bool = False,
+        keystore_path: Optional[Path] = None,
+        rest_port: Optional[int] = None,
+        certificate: Optional[Certificate] = None,
+        availability_check: Optional[bool] = None,
+        *args,
+        **kwargs,
+    ) -> None:
 
         if dev_mode:
             rest_host = rest_host or self.DEFAULT_DEVELOPMENT_REST_HOST
@@ -48,7 +50,7 @@ class UrsulaConfiguration(CharacterConfiguration):
                 rest_port = self.DEFAULT_DEVELOPMENT_REST_PORT
         else:
             if not rest_host:
-                raise ValueError('rest_host is required for live workers.')
+                raise ValueError("rest_host is required for live nodes.")
             if not rest_port:
                 rest_port = self.DEFAULT_REST_PORT
 
@@ -61,14 +63,8 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     @classmethod
     def checksum_address_from_filepath(cls, filepath: Path) -> str:
-        """
-        Extracts worker address by "peeking" inside the ursula configuration file.
-        """
+        """Extracts worker address by "peeking" inside the ursula configuration file."""
         checksum_address = cls.peek(filepath=filepath, field='checksum_address')
-        federated = bool(cls.peek(filepath=filepath, field='federated_only'))
-        if not federated:
-            checksum_address = cls.peek(filepath=filepath, field='operator_address')
-
         if not is_checksum_address(checksum_address):
             raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
         return checksum_address
@@ -90,6 +86,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             rest_port=self.rest_port,
             availability_check=self.availability_check,
 
+            # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
             payment_method=self.payment_method,
             payment_provider=self.payment_provider,
@@ -108,7 +105,6 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def produce(self, **overrides):
         """Produce a new Ursula from configuration"""
-
         merged_parameters = self.generate_parameters(**overrides)
         ursula = self.CHARACTER_CLASS(**merged_parameters)
         return ursula
@@ -133,32 +129,17 @@ class AliceConfiguration(CharacterConfiguration):
     # TODO: Best (Sane) Defaults
     DEFAULT_THRESHOLD = 2
     DEFAULT_SHARES = 3
-
-    DEFAULT_STORE_POLICIES = True
-    DEFAULT_STORE_CARDS = True
-
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD
-
-    _CONFIG_FIELDS = (
-        *CharacterConfiguration._CONFIG_FIELDS,
-        'store_policies',
-        'store_cards',
-    )
+    _CONFIG_FIELDS = (*CharacterConfiguration._CONFIG_FIELDS,)
 
     def __init__(self,
                  threshold: int = None,
                  shares: int = None,
                  rate: int = None,
                  duration: int = None,
-                 store_policies: bool = DEFAULT_STORE_POLICIES,
-                 store_cards: bool = DEFAULT_STORE_CARDS,
                  *args, **kwargs):
 
         super().__init__(*args, **kwargs)
-
-        # Storage
-        self.store_policies = store_policies
-        self.store_cards = store_cards
 
         # Policy Value Defaults
         self.rate = rate
@@ -170,17 +151,12 @@ class AliceConfiguration(CharacterConfiguration):
         payload = dict(
             threshold=self.threshold,
             shares=self.shares,
-            store_policies=self.store_policies,
-            store_cards=self.store_cards,
             payment_network=self.payment_network,
             payment_provider=self.payment_provider,
-            payment_method=self.payment_method
+            payment_method=self.payment_method,
+            rate=self.rate,
+            duration=self.duration,
         )
-        if not self.federated_only:
-            if self.rate:
-                payload['rate'] = self.rate
-            if self.duration:
-                payload['duration'] = self.duration
         return {**super().static_payload(), **payload}
 
     @property
@@ -194,27 +170,5 @@ class BobConfiguration(CharacterConfiguration):
 
     CHARACTER_CLASS = Bob
     NAME = CHARACTER_CLASS.__name__.lower()
-    DEFAULT_STORE_POLICIES = True
-    DEFAULT_STORE_CARDS = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_BOB_ETH_PASSWORD
-
-    _CONFIG_FIELDS = (
-        *CharacterConfiguration._CONFIG_FIELDS,
-        'store_policies',
-        'store_cards'
-    )
-
-    def __init__(self,
-                 store_policies: bool = DEFAULT_STORE_POLICIES,
-                 store_cards: bool = DEFAULT_STORE_CARDS,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.store_policies = store_policies
-        self.store_cards = store_cards
-
-    def static_payload(self) -> dict:
-        payload = dict(
-            store_policies=self.store_policies,
-            store_cards=self.store_cards
-        )
-        return {**super().static_payload(), **payload}
+    _CONFIG_FIELDS = (*CharacterConfiguration._CONFIG_FIELDS,)

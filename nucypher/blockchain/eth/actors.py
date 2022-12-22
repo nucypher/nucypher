@@ -1,10 +1,6 @@
-
-
-
 import json
 from decimal import Decimal
-from typing import Optional, Tuple
-from typing import Union
+from typing import Optional, Tuple, Union
 
 import maya
 import time
@@ -20,21 +16,24 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    PREApplicationAgent
+    PREApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.deployers import (
+    AdjudicatorDeployer,
     BaseContractDeployer,
     NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer, AdjudicatorDeployer
+    SubscriptionManagerDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU, WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -288,14 +287,46 @@ class Operator(BaseActor):
     class OperatorError(BaseActor.ActorError):
         pass
 
-    def __init__(self,
-                 is_me: bool,
-                 payment_method: ContractPayment,
-                 work_tracker: WorkTracker = None,
-                 operator_address: ChecksumAddress = None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        is_me: bool,
+        eth_provider_uri: str,
+        payment_method: ContractPayment,
+        work_tracker: Optional[WorkTracker] = None,
+        operator_address: Optional[ChecksumAddress] = None,
+        signer: Signer = None,
+        crypto_power: CryptoPower = None,
+        client_password: str = None,
+        transacting_power: TransactingPower = None,
+        *args,
+        **kwargs,
+    ):
 
-        super().__init__(*args, **kwargs)
+        # Falsy values may be passed down from the superclass
+        if not eth_provider_uri:
+            raise ValueError("ETH Provider URI is required to init a local character.")
+        if not payment_method:
+            raise ValueError("Payment method is required to init a local character.")
+
+        if not transacting_power:
+            transacting_power = TransactingPower(
+                account=operator_address,
+                password=client_password,
+                signer=signer,
+                cache=True,
+            )
+
+        # We pass the newly instantiated TransactingPower into consume_power_up here, even though it's accessible
+        # on the instance itself (being composed in the __init__ of the base class, which we will call shortly)
+        # because, given the need for initialization context, it's far less melodramatic
+        # to do it here, and it's still available via the public crypto powers API.
+        crypto_power.consume_power_up(transacting_power)
+
+        self.payment_method = payment_method
+        self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
+
+        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+
         self.log = Logger("worker")
         self.is_me = is_me
         self.__operator_address = operator_address
@@ -382,7 +413,7 @@ class Operator(BaseActor):
         return func
 
 
-class BlockchainPolicyAuthor(NucypherTokenActor):
+class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, eth_provider_uri: str, *args, **kwargs):
@@ -395,8 +426,9 @@ class BlockchainPolicyAuthor(NucypherTokenActor):
 
     def create_policy(self, *args, **kwargs):
         """Hence the name, a BlockchainPolicyAuthor can create a BlockchainPolicy with themself as the author."""
-        from nucypher.policy.policies import BlockchainPolicy
-        blockchain_policy = BlockchainPolicy(publisher=self, *args, **kwargs)
+        from nucypher.policy.policies import Policy
+
+        blockchain_policy = Policy(publisher=self, *args, **kwargs)
         return blockchain_policy
 
 

@@ -1,11 +1,8 @@
-
-
 from enum import Enum
-
-from constant_sorrow.constants import (CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION)
-from hexbytes import HexBytes
 from typing import Callable, Generator, Iterable, List, Type, Union
 from unittest.mock import Mock
+
+from constant_sorrow.constants import CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION
 
 from nucypher.blockchain.eth import agents
 from nucypher.blockchain.eth.agents import Agent, ContractAgency, EthereumContractAgent
@@ -18,17 +15,8 @@ MOCK_TESTERCHAIN = MockBlockchain()
 CACHED_MOCK_TESTERCHAIN = BlockchainInterfaceFactory.CachedInterface(interface=MOCK_TESTERCHAIN, emitter=None)
 BlockchainInterfaceFactory._interfaces[MOCK_ETH_PROVIDER_URI] = CACHED_MOCK_TESTERCHAIN
 
-CURRENT_BLOCK = MOCK_TESTERCHAIN.w3.eth.get_block('latest')
-
 
 class MockContractAgent:
-
-    FAKE_TX_HASH = HexBytes(b'FAKE29890FAKE8349804')
-
-    FAKE_RECEIPT = {'transactionHash': FAKE_TX_HASH,
-                    'gasUsed': 1,
-                    'blockNumber': CURRENT_BLOCK.number,
-                    'blockHash': HexBytes(b'FAKE43434343FAKE43443434')}
 
     FAKE_CALL_RESULT = 1
 
@@ -37,7 +25,7 @@ class MockContractAgent:
     __DEFAULTS = {
         CONTRACT_CALL: FAKE_CALL_RESULT,
         CONTRACT_ATTRIBUTE: FAKE_CALL_RESULT,
-        TRANSACTION:  FAKE_RECEIPT,
+        TRANSACTION: MOCK_TESTERCHAIN.FAKE_RECEIPT,
     }
 
     _MOCK_METHODS = list()

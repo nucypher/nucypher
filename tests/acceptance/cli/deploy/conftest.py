@@ -1,5 +1,3 @@
-
-
 import pytest
 
 from nucypher.blockchain.eth.clients import EthereumClient

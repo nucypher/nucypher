@@ -1,6 +1,8 @@
-
-from eth_utils import is_checksum_address
+from typing import Tuple
 from urllib.parse import urlparse
+
+from eth_typing import Address
+from eth_utils import is_checksum_address
 
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
@@ -9,17 +11,16 @@ class SuspiciousActivity(RuntimeError):
     """raised when an action appears to amount to malicious conduct."""
 
 
-def parse_node_uri(uri: str):
+def parse_node_uri(uri: str, delimiter: str = "@") -> Tuple[str, int, Address]:
     from nucypher.config.characters import UrsulaConfiguration
 
-    if '@' in uri:
-        checksum_address, uri = uri.split("@")
+    checksum_address = None
+    if delimiter in uri:
+        checksum_address, uri = uri.split(delimiter)
         if checksum_address is None:
             raise ValueError(f"{uri} is not a valid Teacher URI - no checksum address.")
         if not is_checksum_address(checksum_address):
             raise ValueError("{} is not a valid checksum address.".format(checksum_address))
-    else:
-        checksum_address = None  # federated
 
     #############################################
     # Strange logic here to ensure https:// - possibly pursuant to https://bugs.python.org/msg179670

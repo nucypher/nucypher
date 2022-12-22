@@ -33,27 +33,22 @@ class NodeStorage(ABC):
     class UnknownNode(NodeStorageError):
         pass
 
-    def __init__(self,
-                 federated_only: bool = False,  # TODO# 466
-                 character_class=None,
-                 registry: BaseContractRegistry = None,
-                 ) -> None:
+    def __init__(self, character_class=None, registry: BaseContractRegistry = None):
 
         from nucypher.characters.lawful import Ursula
 
         self.log = Logger(self.__class__.__name__)
         self.registry = registry
-        self.federated_only = federated_only
         self.character_class = character_class or Ursula
 
     def __getitem__(self, item):
-        return self.get(checksum_address=item, federated_only=self.federated_only)
+        return self.get(checksum_address=item)
 
     def __setitem__(self, key, value):
         return self.store_node_metadata(node=value)
 
     def __iter__(self):
-        return self.all(federated_only=self.federated_only)
+        return self.all()
 
     @property
     @abstractmethod
@@ -129,12 +124,12 @@ class NodeStorage(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def all(self, federated_only: bool, certificates_only: bool = False) -> set:
+    def all(self, certificates_only: bool = False) -> set:
         """Return s set of all stored nodes"""
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, checksum_address: str, federated_only: bool):
+    def get(self, checksum_address: str):
         """Retrieve a single stored node"""
         raise NotImplementedError
 
@@ -162,12 +157,11 @@ class ForgetfulNodeStorage(NodeStorage):
         """Human readable source string"""
         return self._name
 
-    def all(self, federated_only: bool, certificates_only: bool = False) -> set:
+    def all(self, certificates_only: bool = False) -> set:
         return set(self.__certificates.values() if certificates_only else self.__metadata.values())
 
     @validate_checksum_address
     def get(self,
-            federated_only: bool,
             host: str = None,
             stamp: SignatureStamp = None,
             certificate_only: bool = False):
@@ -355,7 +349,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
     #
     # API
     #
-    def all(self, federated_only: bool, certificates_only: bool = False) -> Set[Union[Any, Certificate]]:
+    def all(self, certificates_only: bool = False) -> Set[Union[Any, Certificate]]:
         filenames = list((self.certificates_dir if certificates_only else self.metadata_dir).iterdir())
         self.log.info("Found {} known node metadata files at {}".format(len(filenames), self.metadata_dir))
 
@@ -383,7 +377,7 @@ class LocalFileBasedNodeStorage(NodeStorage):
             return known_nodes
 
     @validate_checksum_address
-    def get(self, stamp: Union[SignatureStamp, str], federated_only: bool, certificate_only: bool = False):
+    def get(self, stamp: Union[SignatureStamp, str], certificate_only: bool = False):
         if certificate_only is True:
             certificate = self.__read_node_tls_certificate(stamp=stamp)
             return certificate

@@ -1,11 +1,9 @@
-
+from functools import partial
 
 import pytest_twisted as pt
-from functools import partial
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware
-from tests.utils.ursula import make_federated_ursulas
 
 
 def test_proper_seed_node_instantiation(lonely_ursula_maker):

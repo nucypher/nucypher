@@ -53,6 +53,16 @@ def __very_pretty_and_insecure_scrypt_do_not_use(request):
 @pytest.fixture(scope='session')
 def monkeysession():
     from _pytest.monkeypatch import MonkeyPatch
+
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
+@pytest.fixture(scope="module")
+def monkeymodule():
+    from _pytest.monkeypatch import MonkeyPatch
+
     mpatch = MonkeyPatch()
     yield mpatch
     mpatch.undo()

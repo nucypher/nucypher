@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
-from tests.utils.ursula import make_decentralized_ursulas, start_pytest_ursula_services
+from tests.utils.ursula import make_ursulas, start_pytest_ursula_services
 
 logger = Logger("test-operator")
 
@@ -35,7 +35,7 @@ def test_work_tracker(
     staker,
     agency,
     application_economics,
-    ursula_decentralized_test_config,
+    ursula_test_config,
 ):
 
     staker.initialize_stake(
@@ -59,8 +59,8 @@ def test_work_tracker(
     )
 
     # Make the Worker
-    ursula = make_decentralized_ursulas(
-        ursula_config=ursula_decentralized_test_config,
+    ursula = make_ursulas(
+        ursula_config=ursula_test_config,
         staking_provider_addresses=[staker.checksum_address],
         operator_addresses=[worker_address],
         registry=test_registry,
@@ -190,7 +190,7 @@ def test_work_tracker(
 
 
 def test_ursula_operator_confirmation(
-    ursula_decentralized_test_config,
+    ursula_test_config,
     testerchain,
     threshold_staking,
     agency,
@@ -217,7 +217,7 @@ def test_ursula_operator_confirmation(
     testerchain.wait_for_receipt(tx)
 
     # make an ursula.
-    blockchain_ursula = ursula_decentralized_test_config.produce(
+    blockchain_ursula = ursula_test_config.produce(
         operator_address=operator_address, rest_port=9151
     )
 
@@ -252,7 +252,7 @@ def test_ursula_operator_confirmation(
 @pytest_twisted.inlineCallbacks
 def test_ursula_operator_confirmation_autopilot(
     mocker,
-    ursula_decentralized_test_config,
+    ursula_test_config,
     testerchain,
     threshold_staking,
     agency,
@@ -292,9 +292,7 @@ def test_ursula_operator_confirmation_autopilot(
     )
 
     # Make the Operator
-    ursula = ursula_decentralized_test_config.produce(
-        operator_address=operator2, rest_port=9151
-    )
+    ursula = ursula_test_config.produce(operator_address=operator2, rest_port=9151)
 
     ursula.run(
         preflight=False,

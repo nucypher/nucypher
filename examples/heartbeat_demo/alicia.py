@@ -25,7 +25,7 @@ from pathlib import Path
 import maya
 
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.characters.lawful import Bob, Alice
+from nucypher.characters.lawful import Alice, Bob
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.ethereum import connect_web3_provider
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -116,6 +116,7 @@ print("The policy public key for "
 # In this example, we create a local file with encrypted data, containing
 # heart rate measurements from a heart monitor
 import heart_monitor
+
 heart_monitor.generate_heart_rate_samples(policy_pubkey,
                                           samples=50,
                                           save_as_file=True)
@@ -125,12 +126,13 @@ heart_monitor.generate_heart_rate_samples(policy_pubkey,
 # To do so, she needs the public key of the recipient.
 # In this example, we generate it on the fly (for demonstration purposes)
 from doctor_keys import get_doctor_pubkeys
+
 doctor_pubkeys = get_doctor_pubkeys()
 
 # We create a view of the Bob who's going to be granted access.
-doctor_strange = Bob.from_public_keys(verifying_key=doctor_pubkeys['sig'],
-                                      encrypting_key=doctor_pubkeys['enc'],
-                                      federated_only=True)
+doctor_strange = Bob.from_public_keys(
+    verifying_key=doctor_pubkeys["sig"], encrypting_key=doctor_pubkeys["enc"]
+)
 
 # Here are our remaining Policy details, such as:
 # - Policy expiration date

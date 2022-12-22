@@ -5,7 +5,14 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from nucypher.cli.literature import COLLECT_NUCYPHER_PASSWORD, SUCCESSFUL_DESTRUCTION
+from nucypher.cli.literature import (
+    COLLECT_NUCYPHER_PASSWORD,
+    CONFIRM_IPV4_ADDRESS_QUESTION,
+    REPEAT_FOR_CONFIRMATION,
+    SELECT_OPERATOR_ACCOUNT,
+    SELECT_PAYMENT_NETWORK,
+    SUCCESSFUL_DESTRUCTION,
+)
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import UrsulaConfiguration
@@ -21,12 +28,13 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_IP_ADDRESS,
+    TEST_ETH_PROVIDER_URI,
     YES_ENTER,
 )
 from tests.utils.ursula import select_test_port
 
 
-def test_initialize_ursula_defaults(click_runner, mocker, tmpdir):
+def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_registry_source_manager):
 
     # Mock out filesystem writes
     mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
@@ -37,32 +45,44 @@ def test_initialize_ursula_defaults(click_runner, mocker, tmpdir):
     mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
 
     # Use default ursula init args
-    init_args = ('ursula', 'init', '--network', TEMPORARY_DOMAIN, '--federated-only')
+    init_args = ('ursula', 'init',
+                 '--network', TEMPORARY_DOMAIN,
+                 '--eth-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-provider', TEST_ETH_PROVIDER_URI)
 
-    user_input = YES_ENTER + FAKE_PASSWORD_CONFIRMED
+    user_input = '0\n' + '0\n' + YES_ENTER + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
+
+    # Select network
+    assert SELECT_PAYMENT_NETWORK in result.output
+
+    # Select account
+    assert SELECT_OPERATOR_ACCOUNT in result.output
 
     # REST Host
-    assert "Is this the public-facing address of Ursula? " in result.output
+    assert CONFIRM_IPV4_ADDRESS_QUESTION in result.output
 
     # Auth
     assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
-    assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
+    assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_initialize_custom_configuration_root(click_runner, custom_filepath: Path):
+def test_initialize_custom_configuration_root(click_runner, custom_filepath: Path, test_registry_source_manager, testerchain):
 
     deploy_port = select_test_port()
     # Use a custom local filepath for configuration
     init_args = ('ursula', 'init',
                  '--network', TEMPORARY_DOMAIN,
-                 '--federated-only',
                  '--config-root', str(custom_filepath.absolute()),
                  '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', deploy_port)
+                 '--rest-port', deploy_port,
+                 '--eth-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-provider', TEST_ETH_PROVIDER_URI,
+                 '--payment-network', TEMPORARY_DOMAIN,
+                 '--operator-address', testerchain.ursulas_accounts[0])
     result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     # CLI Output
     assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output, "Configuration not in system temporary directory"
@@ -82,10 +102,11 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
 
     # Auth
     assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
-    assert 'Repeat for confirmation:' in result.output, 'User was not prompted to confirm password'
+    assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_configuration_file_contents(custom_filepath: Path, nominal_federated_configuration_fields):
+def test_configuration_file_contents(custom_filepath: Path, nominal_configuration_fields, test_registry_source_manager):
+
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
@@ -98,7 +119,7 @@ def test_configuration_file_contents(custom_filepath: Path, nominal_federated_co
         except JSONDecodeError:
             raise pytest.fail(msg="Invalid JSON configuration file {}".format(custom_config_filepath))
 
-        for field in nominal_federated_configuration_fields:
+        for field in nominal_configuration_fields:
             assert field in data, "Missing field '{}' from configuration file."
             if any(keyword in field for keyword in ('path', 'dir')):
                 path = data[field]
@@ -109,7 +130,7 @@ def test_configuration_file_contents(custom_filepath: Path, nominal_federated_co
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
 
-def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_federated_configuration_fields):
+def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_configuration_fields):
 
     # Ensure the configuration file still exists
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
@@ -124,14 +145,14 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
 
     # CLI Output
     assert str(MOCK_CUSTOM_INSTALLATION_PATH) in result.output
-    for field in nominal_federated_configuration_fields:
+    for field in nominal_configuration_fields:
         assert field in result.output, "Missing field '{}' from configuration file."
 
     # Make sure nothing crazy is happening...
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
 
-def test_run_federated_ursula_from_config_file(custom_filepath: Path, click_runner):
+def test_run_ursula_from_config_file(custom_filepath: Path, click_runner, agency, mock_funding_and_bonding):
 
     # Ensure the configuration file still exists
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
@@ -144,23 +165,20 @@ def test_run_federated_ursula_from_config_file(custom_filepath: Path, click_runn
                 '--config-file', str(custom_config_filepath.absolute()))
 
     result = click_runner.invoke(nucypher_cli, run_args,
-                                 input='{}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
+                                 input='{0}\n{0}\nY\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
                                  catch_exceptions=False)
 
     # CLI Output
     assert result.exit_code == 0, result.output
-    assert 'Federated' in result.output, 'WARNING: Federated ursula is not running in federated mode'
-    assert 'Running' in result.output
+    assert f"Rest Server https://{MOCK_IP_ADDRESS}" in result.output
 
 
-def test_ursula_save_metadata(click_runner, custom_filepath):
-    # Run Ursula
-    save_metadata_args = ('ursula', 'save-metadata',
-                          '--dev',
-                          '--federated-only')
-
+def test_ursula_save_metadata(click_runner, custom_filepath, mocker, testerchain):
+    mocker.patch.object(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
+    save_metadata_args = ('ursula', 'save-metadata', '--dev',
+                          '--operator-address', testerchain.ursulas_accounts[0],
+                          '--eth-provider', TEST_ETH_PROVIDER_URI)
     result = click_runner.invoke(nucypher_cli, save_metadata_args, catch_exceptions=False)
-
     assert result.exit_code == 0
     assert "Successfully saved node metadata" in result.output, "Node metadata successfully saved"
 

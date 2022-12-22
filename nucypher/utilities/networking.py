@@ -3,16 +3,16 @@
 
 import random
 from ipaddress import ip_address
-from typing import Union, Optional
+from typing import Optional, Union
 
 import requests
-from requests.exceptions import RequestException, HTTPError
+from requests.exceptions import HTTPError, RequestException
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import RestMiddleware, NucypherMiddlewareClient
+from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from nucypher.utilities.logging import Logger
 
 
@@ -96,7 +96,6 @@ def _request_from_node(teacher,
 
 
 def get_external_ip_from_default_teacher(network: str,
-                                         federated_only: bool = False,
                                          registry: Optional[BaseContractRegistry] = None,
                                          log: Logger = IP_DETECTION_LOGGER
                                          ) -> Union[str, None]:
@@ -105,28 +104,21 @@ def get_external_ip_from_default_teacher(network: str,
     from nucypher.characters.lawful import Ursula
     from nucypher.network.nodes import TEACHER_NODES
 
-    if federated_only and registry:
-        raise ValueError('Federated mode must not be true if registry is provided.')
-
     base_error = 'Cannot determine IP using default teacher'
 
     if network not in TEACHER_NODES:
         log.debug(f'{base_error}: Unknown network "{network}".')
         return
 
-    ####
-    # TODO: Clean this mess #1481 (Federated Mode)
-    node_storage = LocalFileBasedNodeStorage(federated_only=federated_only)
+    node_storage = LocalFileBasedNodeStorage()
     Ursula.set_cert_storage_function(node_storage.store_node_certificate)
-    Ursula.set_federated_mode(federated_only)
-    #####
 
     external_ip = None
     for teacher_uri in TEACHER_NODES[network]:
         try:
-            teacher = Ursula.from_teacher_uri(teacher_uri=teacher_uri,
-                                              federated_only=federated_only,
-                                              min_stake=0)  # TODO: Handle customized min stake here.
+            teacher = Ursula.from_teacher_uri(
+                teacher_uri=teacher_uri, min_stake=0
+            )  # TODO: Handle customized min stake here.
             # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
             external_ip = _request_from_node(teacher=teacher)
             # Found a reachable teacher, return from loop

@@ -13,7 +13,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
-    TEMPORARY_DOMAIN
+    TEMPORARY_DOMAIN,
 )
 from tests.constants import MOCK_IP_ADDRESS
 from tests.utils.ursula import select_test_port
@@ -30,12 +30,10 @@ def mock_account_password_keystore(tmp_path_factory):
     return account, password, keystore
 
 
-@pytest.mark.usefixtures('test_registry_source_manager')
-def test_ursula_init_with_local_keystore_signer(click_runner,
-                                                temp_dir_path,
-                                                mocker,
-                                                mock_testerchain,
-                                                mock_account_password_keystore):
+@pytest.mark.usefixtures("test_registry_source_manager")
+def test_ursula_init_with_local_keystore_signer(
+    click_runner, temp_dir_path, mocker, testerchain, mock_account_password_keystore
+):
     custom_filepath = temp_dir_path
     custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_account_password_keystore
@@ -46,24 +44,31 @@ def test_ursula_init_with_local_keystore_signer(click_runner,
 
     deploy_port = select_test_port()
 
-    init_args = ('ursula', 'init',
-
-                 # Layer 1
-                 '--network', TEMPORARY_DOMAIN,
-                 '--eth-provider', mock_testerchain.eth_provider_uri,
-
-                 # Layer 2
-                 '--payment-network', TEMPORARY_DOMAIN,
-                 '--payment-provider', mock_testerchain.eth_provider_uri,
-
-                 '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', deploy_port,
-
-                 '--operator-address', worker_account.address,
-                 '--config-root', str(custom_filepath.absolute()),
-
-                 # The bit we are testing here
-                 '--signer', mock_signer_uri)
+    init_args = (
+        "ursula",
+        "init",
+        # Layer 1
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--eth-provider",
+        testerchain.eth_provider_uri,
+        # Layer 2
+        "--payment-network",
+        TEMPORARY_DOMAIN,
+        "--payment-provider",
+        testerchain.eth_provider_uri,
+        "--rest-host",
+        MOCK_IP_ADDRESS,
+        "--rest-port",
+        deploy_port,
+        "--operator-address",
+        worker_account.address,
+        "--config-root",
+        str(custom_filepath.absolute()),
+        # The bit we are testing here
+        "--signer",
+        mock_signer_uri,
+    )
 
     cli_env = {
         NUCYPHER_ENVVAR_KEYSTORE_PASSWORD:    password,

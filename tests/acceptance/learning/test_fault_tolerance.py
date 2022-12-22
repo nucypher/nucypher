@@ -10,13 +10,12 @@ from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import make_ursula_for_staking_provider
 
 
-# @pytest.mark.skip()
-def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mocker):
+def test_ursula_stamp_verification_tolerance(ursulas, mocker):
     #
     # Setup
     #
 
-    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others = list(blockchain_ursulas)
+    lonely_learner, teacher, unsigned, *the_others = list(ursulas)
 
     warnings = []
 
@@ -30,12 +29,12 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     unsigned._metadata = None
 
     # Wipe known nodes!
-    lonely_blockchain_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
-    lonely_blockchain_learner._current_teacher_node = blockchain_teacher
-    lonely_blockchain_learner.remember_node(blockchain_teacher)
+    lonely_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
+    lonely_learner._current_teacher_node = teacher
+    lonely_learner.remember_node(teacher)
 
     globalLogPublisher.addObserver(warning_trapper)
-    lonely_blockchain_learner.learn_from_teacher_node(eager=True)
+    lonely_learner.learn_from_teacher_node(eager=True)
     globalLogPublisher.removeObserver(warning_trapper)
 
     # We received one warning during learning, and it was about this very matter.
@@ -45,47 +44,52 @@ def test_blockchain_ursula_stamp_verification_tolerance(blockchain_ursulas, mock
     assert "Verification Failed" in warning  # TODO: Cleanup logging templates
 
     # TODO: Buckets!  #567
-    # assert unsigned not in lonely_blockchain_learner.known_nodes
+    # assert unsigned not in lonely_learner.known_nodes
 
     # minus 2: self and the unsigned ursula.
-    # assert len(lonely_blockchain_learner.known_nodes) == len(blockchain_ursulas) - 2
-    assert blockchain_teacher in lonely_blockchain_learner.known_nodes
+    # assert len(lonely_learner.known_nodes) == len(ursulas) - 2
+    assert teacher in lonely_learner.known_nodes
 
     # Learn about a node with a badly signed payload
 
     def bad_bytestring_of_known_nodes():
         # Signing with the learner's signer instead of the teacher's signer
-        response_payload = MetadataResponsePayload(timestamp_epoch=blockchain_teacher.known_nodes.timestamp.epoch,
-                                                   announce_nodes=[])
-        response = MetadataResponse(signer=lonely_blockchain_learner.stamp.as_umbral_signer(),
-                                    payload=response_payload)
+        response_payload = MetadataResponsePayload(
+            timestamp_epoch=teacher.known_nodes.timestamp.epoch, announce_nodes=[]
+        )
+        response = MetadataResponse(
+            signer=lonely_learner.stamp.as_umbral_signer(), payload=response_payload
+        )
         return bytes(response)
 
-    mocker.patch.object(blockchain_teacher, 'bytestring_of_known_nodes', bad_bytestring_of_known_nodes)
+    mocker.patch.object(
+        teacher, "bytestring_of_known_nodes", bad_bytestring_of_known_nodes
+    )
 
     globalLogPublisher.addObserver(warning_trapper)
-    lonely_blockchain_learner.learn_from_teacher_node(eager=True)
+    lonely_learner.learn_from_teacher_node(eager=True)
     globalLogPublisher.removeObserver(warning_trapper)
 
     assert len(warnings) == 2
     warning = warnings[1]['log_format']
-    assert str(blockchain_teacher) in warning
+    assert str(teacher) in warning
     assert "Failed to verify MetadataResponse from Teacher" in warning  # TODO: Cleanup logging templates
 
 
 @pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
-def test_invalid_operators_tolerance(testerchain,
-                                     test_registry,
-                                     blockchain_ursulas,
-                                     agency,
-                                     idle_staker,
-                                     application_economics,
-                                     ursula_decentralized_test_config
-                                     ):
+def test_invalid_operators_tolerance(
+    testerchain,
+    test_registry,
+    ursulas,
+    agency,
+    idle_staker,
+    application_economics,
+    ursula_test_config,
+):
     #
     # Setup
     #
-    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others = list(blockchain_ursulas)
+    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others = list(ursulas)
     _, staking_agent, _ = agency
 
     warnings = []
@@ -109,11 +113,13 @@ def test_invalid_operators_tolerance(testerchain,
     idle_staker.stake_tracker.refresh()
 
     # We create an active worker node for this staker
-    worker = make_ursula_for_staking_provider(staking_provider=idle_staker,
-                                              operator_address=testerchain.unassigned_accounts[-1],
-                                              ursula_config=ursula_decentralized_test_config,
-                                              blockchain=testerchain,
-                                              ursulas_to_learn_about=None)
+    worker = make_ursula_for_staking_provider(
+        staking_provider=idle_staker,
+        operator_address=testerchain.unassigned_accounts[-1],
+        ursula_config=ursula_test_config,
+        blockchain=testerchain,
+        ursulas_to_learn_about=None,
+    )
 
     # Since we made a commitment, we need to advance one period
     testerchain.time_travel(periods=1)

@@ -14,7 +14,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Set, Optional, List, Tuple
+from typing import List, Optional, Set, Tuple
 
 import maya
 from eth_typing.evm import ChecksumAddress
@@ -23,13 +23,12 @@ from web3 import Web3
 from web3.types import Wei
 
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.characters.lawful import Bob, Ursula, Alice
+from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings
-
 
 # Signer Configuration
 # In order to use this script, you must configure a wallet for alice
@@ -85,10 +84,10 @@ def make_random_bob():
     bob_verifying_key = bob_verifying_secret.public_key()
     decrypting_secret = SecretKey.random()
     decrypting_key = decrypting_secret.public_key()
-    bob = Bob.from_public_keys(verifying_key=bob_verifying_key,
-                               encrypting_key=decrypting_key,
-                               federated_only=False)
-    print(f'Created BOB - {bytes(bob.stamp).hex()}')
+    bob = Bob.from_public_keys(
+        verifying_key=bob_verifying_key, encrypting_key=decrypting_key
+    )
+    print(f"Created BOB - {bytes(bob.stamp).hex()}")
     return bob
 
 
@@ -167,7 +166,6 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
         domain=DOMAIN,
         known_nodes=known_nodes,
         start_learning_now=False,
-        federated_only=False,
         learn_on_same_thread=True,
         gas_strategy=GAS_STRATEGY,
         max_gas_price=MAX_GAS_PRICE,
@@ -194,13 +192,13 @@ def aggregate_nodes() -> Tuple[Set[Ursula], Set[Ursula]]:
     seednodes = set()
     if DEFAULT_SEEDNODE_URIS:
         for uri in DEFAULT_SEEDNODE_URIS:
-            ursula = Ursula.from_seed_and_stake_info(seed_uri=uri, federated_only=False)
+            ursula = Ursula.from_seed_and_stake_info(seed_uri=uri)
             seednodes.add(ursula)
 
     ursulas = set()
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
-            ursula = Ursula.from_seed_and_stake_info(seed_uri=uri, federated_only=False)
+            ursula = Ursula.from_seed_and_stake_info(seed_uri=uri)
             ursulas.add(ursula)
 
     return seednodes, ursulas

@@ -270,14 +270,15 @@ def test_erc721_evm_condition_balanceof_evaluation(
 
 def test_subscription_manager_is_active_policy_condition_evaluation(
     testerchain,
-    enacted_blockchain_policy,
+    enacted_policy,
     subscription_manager_is_active_policy_condition,
     condition_providers
 ):
-    context = {
-        ":hrac": bytes(enacted_blockchain_policy.hrac)
-    }  # user-defined context var
-    condition_result, call_result = subscription_manager_is_active_policy_condition.verify(
+    context = {":hrac": bytes(enacted_policy.hrac)}  # user-defined context var
+    (
+        condition_result,
+        call_result,
+    ) = subscription_manager_is_active_policy_condition.verify(
         providers=condition_providers, **context
     )
     assert call_result
@@ -294,7 +295,7 @@ def test_subscription_manager_is_active_policy_condition_evaluation(
 
 def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
     testerchain,
-    enacted_blockchain_policy,
+    enacted_policy,
     subscription_manager_get_policy_zeroized_policy_struct_condition,
     condition_providers
 ):
@@ -304,7 +305,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
         NULL_ADDRESS, 0, 0, 0, NULL_ADDRESS,
     )
     context = {
-        ":hrac": bytes(enacted_blockchain_policy.hrac),
+        ":hrac": bytes(enacted_policy.hrac),
         ":expectedPolicyStruct": zeroized_policy_struct,
     }  # user-defined context vars
     condition_result, call_result = subscription_manager_get_policy_zeroized_policy_struct_condition.verify(
@@ -326,18 +327,18 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
     testerchain,
     agency,
     test_registry,
-    idle_blockchain_policy,
-    enacted_blockchain_policy,
+    idle_policy,
+    enacted_policy,
     condition_providers,
 ):
     # enacted policy created from idle policy
-    size = len(idle_blockchain_policy.kfrags)
-    start = idle_blockchain_policy.commencement
-    end = idle_blockchain_policy.expiration
-    sponsor = idle_blockchain_policy.publisher.checksum_address
+    size = len(idle_policy.kfrags)
+    start = idle_policy.commencement
+    end = idle_policy.expiration
+    sponsor = idle_policy.publisher.checksum_address
 
     context = {
-        ":hrac": bytes(enacted_blockchain_policy.hrac),
+        ":hrac": bytes(enacted_policy.hrac),
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent, registry=test_registry
@@ -446,14 +447,14 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
     testerchain,
     agency,
     test_registry,
-    idle_blockchain_policy,
-    enacted_blockchain_policy,
+    idle_policy,
+    enacted_policy,
     condition_providers,
 ):
     # enacted policy created from idle policy
-    sponsor = idle_blockchain_policy.publisher.checksum_address
+    sponsor = idle_policy.publisher.checksum_address
     context = {
-        ":hrac": bytes(enacted_blockchain_policy.hrac),
+        ":hrac": bytes(enacted_policy.hrac),
         ":sponsor": sponsor,
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
@@ -511,32 +512,26 @@ def test_onchain_conditions_lingo_evaluation(
     assert result is True
 
 
-def test_single_retrieve_with_onchain_conditions(enacted_blockchain_policy, blockchain_bob, blockchain_ursulas):
-    blockchain_bob.start_learning_loop()
+def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
+    bob.remember_node(ursulas[0])
+    bob.start_learning_loop()
     conditions = [
-        {'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'},
-        {'operator': 'and'},
-        {"chain": TESTERCHAIN_CHAIN_ID,
-         "method": "eth_getBalance",
-         "parameters": [
-             blockchain_bob.checksum_address,
-             "latest"
-         ],
-         "returnValueTest": {
-             "comparator": ">=",
-             "value": "10000000000000"
-         }
-        }
+        {"returnValueTest": {"value": "0", "comparator": ">"}, "method": "timelock"},
+        {"operator": "and"},
+        {
+            "chain": TESTERCHAIN_CHAIN_ID,
+            "method": "eth_getBalance",
+            "parameters": [bob.checksum_address, "latest"],
+            "returnValueTest": {"comparator": ">=", "value": "10000000000000"},
+        },
     ]
-    messages, message_kits = make_message_kits(
-        enacted_blockchain_policy.public_key, conditions
-    )
+    messages, message_kits = make_message_kits(enacted_policy.public_key, conditions)
     policy_info_kwargs = dict(
-        encrypted_treasure_map=enacted_blockchain_policy.treasure_map,
-        alice_verifying_key=enacted_blockchain_policy.publisher_verifying_key,
+        encrypted_treasure_map=enacted_policy.treasure_map,
+        alice_verifying_key=enacted_policy.publisher_verifying_key,
     )
 
-    cleartexts = blockchain_bob.retrieve_and_decrypt(
+    cleartexts = bob.retrieve_and_decrypt(
         message_kits=message_kits,
         **policy_info_kwargs,
     )

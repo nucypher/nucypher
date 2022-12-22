@@ -2,16 +2,17 @@
 
 
 import json
-
 from contextlib import contextmanager
 from typing import Union
+
+from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     CanonicalRegistrySource,
-    RegistrySourceManager
+    RegistrySourceManager,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import MOCK_ETH_PROVIDER_URI
@@ -60,8 +61,23 @@ class MockBlockchain(TesterBlockchain):
 
     ETH_PROVIDER_URI = MOCK_ETH_PROVIDER_URI
 
+    FAKE_TX_HASH = HexBytes(b"FAKE29890FAKE8349804")
+
+    FAKE_RECEIPT = {
+        "transactionHash": FAKE_TX_HASH,
+        "gasUsed": 1,
+        "blockNumber": 1,
+        "blockHash": HexBytes(b"FAKE43434343FAKE43443434"),
+        "contractAddress": HexBytes(b"0xdeadbeef"),
+    }
+
     def __init__(self):
         super().__init__(compile_now=False)
+
+    def wait_for_receipt(
+        self, txhash: Union[bytes, str, HexBytes], timeout: int = None
+    ) -> dict:
+        return self.FAKE_RECEIPT
 
 
 class MockEthereumClient(EthereumClient):
