@@ -260,7 +260,7 @@ be automatically opened in the web browser.
 Building Docker
 ---------------
 
-Docker builds are automated as part of the publication workflow on circleCI and pushed to docker cloud.
+Docker builds are automated as part of the publication workflow and pushed to docker cloud.
 However you may want to build a local version of docker for development.
 
 We provide both a ``docker-compose.yml`` and a ``Dockerfile`` which can be used as follows:
@@ -352,5 +352,5 @@ For example, for a new ``patch`` release, we would do:
 
   (nucypher)$ make release bump=patch
 
-3. The previous step triggers the publication webhooks on CircleCI.
+3. The previous step triggers the publication webhooks.
 Monitor the triggered deployment build for manual approval.
