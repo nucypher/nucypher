@@ -24,57 +24,12 @@ PRODUCTION_REGISTRY_ADVISORY = "Using latest published registry from {source}"
 
 LOCAL_REGISTRY_ADVISORY = "Configured to registry filepath {registry_filepath}"
 
-PERIOD_ADVANCED_WARNING = "Current period advanced before the action could be completed. Please try again."
-
 #
 # Events
 #
 
 CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_file}?"
 
-
-#
-# Bonding
-#
-
-PROMPT_OPERATOR_ADDRESS = "Enter operator address"
-
-CONFIRM_PROVIDER_AND_OPERATOR_ADDRESSES_ARE_EQUAL = """
-
-{address}
-The operator address provided is the same as the staking provider.
-Continue using the same account for operator and staking provider?"""
-
-SUCCESSFUL_OPERATOR_BONDING = "\nOperator {operator_address} successfully bonded to staking provider {staking_provider_address}"
-
-BONDING_DETAILS = "Bonded at {bonded_date}"
-
-BONDING_RELEASE_INFO = "This operator can be replaced or detached after {release_date}"
-
-SUCCESSFUL_UNBOND_OPERATOR = "Successfully unbonded operator {operator_address} from staking provider {staking_provider_address}"
-
-DETACH_DETAILS = "Unbonded at {bonded_date}"
-
-
-#
-# Rewards
-#
-
-COLLECTING_TOKEN_REWARD = 'Collecting {reward_amount} from staking rewards...'
-
-COLLECTING_ETH_FEE = 'Collecting {fee_amount} ETH from policy fees...'
-
-NO_TOKENS_TO_WITHDRAW = "No tokens can be withdrawn."
-
-NO_FEE_TO_WITHDRAW = "No policy fee can be withdrawn."
-
-TOKEN_REWARD_CURRENT = 'Available staking rewards: {reward_amount}.'
-
-TOKEN_REWARD_PAST_HEADER = 'Staking rewards in the last {periods} periods ({days} days):'
-
-TOKEN_REWARD_PAST = 'Total staking rewards: {reward_amount}.'
-
-TOKEN_REWARD_NOT_FOUND = "No staking rewards found."
 
 #
 # Configuration

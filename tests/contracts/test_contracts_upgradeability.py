@@ -1,27 +1,30 @@
-
-
 import contextlib
 from pathlib import Path
 
 import pytest
 import requests
-
 from constant_sorrow import constants
 from web3.exceptions import ValidationError
 
 from nucypher.blockchain.eth.deployers import (
     BaseContractDeployer,
     NucypherTokenDeployer,
-    StakingEscrowDeployer
+    StakingEscrowDeployer,
 )
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface, BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainDeployerInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT, TEST_SOLIDITY_SOURCE_ROOT
+from nucypher.blockchain.eth.sol.compile.constants import (
+    SOLIDITY_SOURCE_ROOT,
+    TEST_SOLIDITY_SOURCE_ROOT,
+)
 from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.utils.blockchain import free_gas_price_strategy, TesterBlockchain
+from tests.utils.blockchain import TesterBlockchain, free_gas_price_strategy
 
 USER = "nucypher"
 REPO = "nucypher"
@@ -29,14 +32,18 @@ BRANCH = "main"
 GITHUB_SOURCE_LINK = f"https://api.github.com/repos/{USER}/{REPO}/contents/nucypher/blockchain/eth/sol/source?ref={BRANCH}"
 
 
-BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
-                                              'free': free_gas_price_strategy}
+BlockchainDeployerInterface.GAS_STRATEGIES = {
+    **BlockchainDeployerInterface.GAS_STRATEGIES,
+    "free": free_gas_price_strategy,
+}
 
 
 def download_github_dir(source_link: str, target_folder: Path):
     response = requests.get(source_link)
     if response.status_code != 200:
-        error = f"Failed to call api {source_link} with status code {response.status_code}"
+        error = (
+            f"Failed to call api {source_link} with status code {response.status_code}"
+        )
         raise RuntimeError(error)
 
     for content in response.json():
@@ -51,11 +58,13 @@ def download_github_dir(source_link: str, target_folder: Path):
 def download_github_file(source_link: str, target_folder: Path):
     response = requests.get(source_link)
     if response.status_code != 200:
-        error = f"Failed to call api {source_link} with status code {response.status_code}"
+        error = (
+            f"Failed to call api {source_link} with status code {response.status_code}"
+        )
         raise RuntimeError(error)
 
     raw_data = response.content
-    with open(target_folder, 'wb') as registry_file:
+    with open(target_folder, "wb") as registry_file:
         registry_file.seek(0)
         registry_file.write(raw_data)
         registry_file.truncate()
@@ -108,34 +117,43 @@ FORCE_SKIP = {
 }
 
 
-def deploy_base_contract(blockchain_interface: BlockchainDeployerInterface,
-                         deployer: BaseContractDeployer,
-                         transacting_power: TransactingPower,
-                         skipt_test: bool):
+def deploy_base_contract(
+    blockchain_interface: BlockchainDeployerInterface,
+    deployer: BaseContractDeployer,
+    transacting_power: TransactingPower,
+    skipt_test: bool,
+):
     contract_name = deployer.contract_name
-    latest_version, _data = blockchain_interface.find_raw_contract_data(contract_name, "latest")
+    latest_version, _data = blockchain_interface.find_raw_contract_data(
+        contract_name, "latest"
+    )
     raw_contracts = blockchain_interface._raw_contract_cache
     overrides = dict()
     if len(raw_contracts[contract_name]) != 1:
         try:
             overrides_func = CONSTRUCTOR_OVERRIDES[contract_name][latest_version]
-            overrides = overrides_func(blockchain_interface,
-                                       transacting_power,
-                                       deployer)
+            overrides = overrides_func(
+                blockchain_interface, transacting_power, deployer
+            )
         except KeyError:
             pass
 
     version = "latest" if skipt_test else "earliest"
     try:
-        deployer.deploy(transacting_power=transacting_power,
-                        contract_version=version,
-                        deployment_mode=constants.FULL, **overrides)
+        deployer.deploy(
+            transacting_power=transacting_power,
+            contract_version=version,
+            deployment_mode=constants.FULL,
+            **overrides,
+        )
     except ValidationError:
         pass  # Skip errors related to initialization
 
 
 def skip_test(blockchain_interface: BlockchainDeployerInterface, contract_name: str):
-    latest_version, _data = blockchain_interface.find_raw_contract_data(contract_name, "latest")
+    latest_version, _data = blockchain_interface.find_raw_contract_data(
+        contract_name, "latest"
+    )
     raw_contracts = blockchain_interface._raw_contract_cache
     try:
         force_skip = latest_version in FORCE_SKIP[contract_name]
@@ -145,14 +163,18 @@ def skip_test(blockchain_interface: BlockchainDeployerInterface, contract_name: 
     return force_skip or len(raw_contracts[contract_name]) == 1
 
 
-def prepare_staker(blockchain_interface: TesterBlockchain,
-                   deployer: StakingEscrowDeployer,
-                   transacting_power: TransactingPower):
+def prepare_staker(
+    blockchain_interface: TesterBlockchain,
+    deployer: StakingEscrowDeployer,
+    transacting_power: TransactingPower,
+):
     worklock_agent = WorkLockAgent(registry=deployer.registry)
     value = worklock_agent.minimum_allowed_bid
     worklock_agent.bid(value=value, transacting_power=transacting_power)
     blockchain_interface.time_travel(hours=100)
-    worklock_agent.verify_bidding_correctness(transacting_power=transacting_power, gas_limit=1000000)
+    worklock_agent.verify_bidding_correctness(
+        transacting_power=transacting_power, gas_limit=1000000
+    )
     worklock_agent.claim(transacting_power=transacting_power)
 
 
@@ -163,21 +185,24 @@ def test_upgradeability(temp_dir_path):
 
     # Prepare the blockchain
     TesterBlockchain.SOURCES = [
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT,
-                     other_paths=(TEST_SOLIDITY_SOURCE_ROOT,)),
-        SourceBundle(base_path=Path(temp_dir_path))
+        SourceBundle(
+            base_path=SOLIDITY_SOURCE_ROOT, other_paths=(TEST_SOLIDITY_SOURCE_ROOT,)
+        ),
+        SourceBundle(base_path=Path(temp_dir_path)),
     ]
 
-    eth_provider_uri = 'tester://pyevm/2'  # TODO: Testerchain caching Issues
+    eth_provider_uri = "tester://pyevm/2"  # TODO: Testerchain caching Issues
     try:
-        blockchain_interface = TesterBlockchain(gas_strategy='free')
+        blockchain_interface = TesterBlockchain(gas_strategy="free")
         blockchain_interface.eth_provider_uri = eth_provider_uri
         blockchain_interface.connect()
         origin = blockchain_interface.client.accounts[0]
         BlockchainInterfaceFactory.register_interface(interface=blockchain_interface)
-        transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                             signer=Web3Signer(blockchain_interface.client),
-                                             account=origin)
+        transacting_power = TransactingPower(
+            password=INSECURE_DEVELOPMENT_PASSWORD,
+            signer=Web3Signer(blockchain_interface.client),
+            account=origin,
+        )
 
         economics = make_token_economics(blockchain_interface)
 
@@ -194,26 +219,39 @@ def test_upgradeability(temp_dir_path):
         token_deployer = NucypherTokenDeployer(registry=registry, economics=economics)
         token_deployer.deploy(transacting_power=transacting_power)
 
-        staking_escrow_deployer = StakingEscrowDeployer(registry=registry, economics=economics)
-        staking_escrow_deployer.deploy(deployment_mode=constants.INIT, transacting_power=transacting_power)
+        staking_escrow_deployer = StakingEscrowDeployer(
+            registry=registry, economics=economics
+        )
+        staking_escrow_deployer.deploy(
+            deployment_mode=constants.INIT, transacting_power=transacting_power
+        )
 
         if not skip_staking_escrow_test:
             economics.worklock_supply = economics.maximum_allowed_locked
             worklock_deployer = WorklockDeployer(registry=registry, economics=economics)
             worklock_deployer.deploy(transacting_power=transacting_power)
 
-        staking_escrow_deployer = StakingEscrowDeployer(registry=registry, economics=economics)
-        deploy_base_contract(blockchain_interface, staking_escrow_deployer,
-                             transacting_power=transacting_power,
-                             skipt_test=skip_staking_escrow_test)
+        staking_escrow_deployer = StakingEscrowDeployer(
+            registry=registry, economics=economics
+        )
+        deploy_base_contract(
+            blockchain_interface,
+            staking_escrow_deployer,
+            transacting_power=transacting_power,
+            skipt_test=skip_staking_escrow_test,
+        )
 
         if not skip_staking_escrow_test:
-            prepare_staker(blockchain_interface=blockchain_interface,
-                           deployer=staking_escrow_deployer,
-                           transacting_power=transacting_power)
-            staking_escrow_deployer.upgrade(transacting_power=transacting_power,
-                                            contract_version="latest",
-                                            confirmations=0)
+            prepare_staker(
+                blockchain_interface=blockchain_interface,
+                deployer=staking_escrow_deployer,
+                transacting_power=transacting_power,
+            )
+            staking_escrow_deployer.upgrade(
+                transacting_power=transacting_power,
+                contract_version="latest",
+                confirmations=0,
+            )
 
     finally:
         # Unregister interface  # TODO: Move to method?

@@ -8,9 +8,9 @@ import click
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
+    EthereumContractAgent,
     NucypherTokenAgent,
     PREApplicationAgent,
-    EthereumContractAgent
 )
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -18,21 +18,21 @@ from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
     option_contract_name,
+    option_eth_provider_uri,
     option_event_name,
     option_light,
     option_network,
     option_poa,
-    option_eth_provider_uri,
     option_registry_filepath,
-    option_staking_provider
+    option_staking_provider,
 )
 from nucypher.cli.painting.status import paint_contract_status
 from nucypher.cli.utils import (
     connect_to_blockchain,
     get_registry,
-    setup_emitter,
+    parse_event_filters_into_argument_filters,
     retrieve_events,
-    parse_event_filters_into_argument_filters
+    setup_emitter,
 )
 from nucypher.config.constants import NUCYPHER_ENVVAR_ETH_PROVIDER_URI
 from nucypher.utilities.events import generate_events_csv_filepath
@@ -94,12 +94,16 @@ option_event_filters = click.option('--event-filter', '-f', 'event_filters',
                                     type=click.STRING,
                                     default=[])
 
-option_from_block = click.option('--from-block',
-                                 help="Collect events from this block number; defaults to the block number of current period",
-                                 type=click.INT)
-option_to_block = click.option('--to-block',
-                               help="Collect events until this block number; defaults to 'latest' block number",
-                               type=click.INT)
+option_from_block = click.option(
+    "--from-block",
+    help="Collect events from this block number; defaults to the block number from ~24 hours ago",
+    type=click.INT,
+)
+option_to_block = click.option(
+    "--to-block",
+    help="Collect events until this block number; defaults to 'latest' block number",
+    type=click.INT,
+)
 
 
 @click.group()
@@ -168,7 +172,7 @@ def events(general_config, registry_options, contract_name, from_block, to_block
     emitter, registry, blockchain = registry_options.setup(general_config=general_config)
 
     if from_block is None:
-        # by default, this command only shows events of the current period
+        # by default, this command only shows events of the last 24 hours
         blocks_since_yesterday_kinda = ((60*60*24)//AVERAGE_BLOCK_TIME_IN_SECONDS)
         from_block = blockchain.client.block_number - blocks_since_yesterday_kinda
     if to_block is None:

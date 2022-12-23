@@ -1,13 +1,15 @@
-
-
 import pytest
+from eth_typing import ChecksumAddress
 from nucypher_core import MetadataResponse, MetadataResponsePayload
 from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.utils.middleware import MockRestMiddleware
-from tests.utils.ursula import make_ursula_for_staking_provider
+from nucypher.crypto.powers import TransactingPower
+from tests.utils.ursula import make_ursulas, start_pytest_ursula_services
 
 
 def test_ursula_stamp_verification_tolerance(ursulas, mocker):
@@ -18,7 +20,6 @@ def test_ursula_stamp_verification_tolerance(ursulas, mocker):
     lonely_learner, teacher, unsigned, *the_others = list(ursulas)
 
     warnings = []
-
     def warning_trapper(event):
         if event['log_level'] == LogLevel.warn:
             warnings.append(event)
@@ -76,98 +77,130 @@ def test_ursula_stamp_verification_tolerance(ursulas, mocker):
     assert "Failed to verify MetadataResponse from Teacher" in warning  # TODO: Cleanup logging templates
 
 
-@pytest.mark.skip("See Issue #1075")  # TODO: Issue #1075
 def test_invalid_operators_tolerance(
     testerchain,
     test_registry,
     ursulas,
+    threshold_staking,
     agency,
-    idle_staker,
     application_economics,
     ursula_test_config,
+    mocker,
 ):
     #
     # Setup
     #
-    lonely_blockchain_learner, blockchain_teacher, unsigned, *the_others = list(ursulas)
-    _, staking_agent, _ = agency
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry
+    )
+    (
+        creator,
+        _staking_provider,
+        operator_address,
+        *everyone_else,
+    ) = testerchain.client.accounts
 
-    warnings = []
+    existing_ursula, other_ursula, *the_others = list(ursulas)
 
-    def warning_trapper(event):
-        if event['log_level'] == LogLevel.warn:
-            warnings.append(event)
+    # We start with an ursula with no tokens staked
+    owner, _, _ = threshold_staking.functions.rolesOf(_staking_provider).call()
+    assert owner == NULL_ADDRESS
 
-    # We start with an "idle_staker" (i.e., no tokens in StakingEscrow)
-    assert 0 == staking_agent.owned_tokens(idle_staker.checksum_address)
+    # make an staking_providers and some stakes
+    min_authorization = application_economics.min_authorization
+    tx = threshold_staking.functions.setRoles(_staking_provider).transact()
+    testerchain.wait_for_receipt(tx)
+    tx = threshold_staking.functions.setStakes(
+        _staking_provider, min_authorization, 0, 0
+    ).transact()
+    testerchain.wait_for_receipt(tx)
 
-    # Now let's create an active worker for this staker.
-    # First, stake something (e.g. the bare minimum)
-    amount = application_economics.min_authorization
-    periods = application_economics.min_operator_seconds
-
-    idle_staker.initialize_stake(amount=amount, lock_periods=periods)
-
-    # Stake starts next period (or else signature validation will fail)
-    testerchain.time_travel(periods=1)
-    idle_staker.stake_tracker.refresh()
-
-    # We create an active worker node for this staker
-    worker = make_ursula_for_staking_provider(
-        staking_provider=idle_staker,
-        operator_address=testerchain.unassigned_accounts[-1],
-        ursula_config=ursula_test_config,
-        blockchain=testerchain,
-        ursulas_to_learn_about=None,
+    # now lets bond this worker
+    tpower = TransactingPower(
+        account=_staking_provider, signer=Web3Signer(testerchain.client)
+    )
+    application_agent.bond_operator(
+        staking_provider=_staking_provider,
+        operator=operator_address,
+        transacting_power=tpower,
     )
 
-    # Since we made a commitment, we need to advance one period
-    testerchain.time_travel(periods=1)
+    # Make the Operator
+    ursulas = make_ursulas(ursula_test_config, [_staking_provider], [operator_address])
+    ursula = ursulas[0]
+    ursula.run(
+        preflight=False,
+        discovery=False,
+        start_reactor=False,
+        worker=True,
+        eager=True,
+        block_until_ready=True,
+    )  # "start" services
+    start_pytest_ursula_services(ursula=ursula)
 
     # The worker is valid and can be verified (even with the force option)
-    worker.verify_node(force=True, network_middleware=MockRestMiddleware())
+    ursula.verify_node(
+        force=True,
+        registry=test_registry,
+        network_middleware_client=ursula.network_middleware.client,
+    )
     # In particular, we know that it's bonded to a staker who is really staking.
-    assert worker._operator_is_bonded(registry=test_registry)
-    assert worker._staking_provider_is_really_staking(registry=test_registry)
+    assert ursula.is_confirmed
+    assert ursula._staking_provider_is_really_staking(registry=test_registry)
 
-    # OK. Now we learn about this worker.
-    lonely_blockchain_learner.remember_node(worker)
+    # OK. Now we learn about this new worker.
+    assert existing_ursula.remember_node(ursula)
 
-    # The worker already committed one period before. Let's commit to the remaining 29.
-    for i in range(29):
-        worker.commit_to_next_period()
-        testerchain.time_travel(periods=1)
+    # Mock that ursula stops staking
+    def mock_is_authorized(staking_provider: ChecksumAddress):
+        if staking_provider == ursula.checksum_address:
+            return False
 
-    # The stake period has ended, and the staker wants her tokens back ("when lambo?").
-    # She withdraws up to the last penny (well, last nunit, actually).
+        return True
 
-    idle_staker.mint()
-    testerchain.time_travel(periods=1)
-    i_want_it_all = staking_agent.owned_tokens(idle_staker.checksum_address)
-    idle_staker.withdraw(i_want_it_all)
+    mocker.patch.object(
+        application_agent, "is_authorized", side_effect=mock_is_authorized
+    )
 
     # OK...so...the staker is not staking anymore ...
-    assert 0 == staking_agent.owned_tokens(idle_staker.checksum_address)
+    assert not ursula._staking_provider_is_really_staking(registry=test_registry)
 
     # ... but the worker node still is "verified" (since we're not forcing on-chain verification)
-    worker.verify_node(network_middleware=MockRestMiddleware())
+    ursula.verify_node(
+        registry=test_registry,
+        network_middleware_client=ursula.network_middleware.client,
+    )
 
     # If we force, on-chain verification, the worker is of course not verified
-    with pytest.raises(worker.NotStaking):
-        worker.verify_node(force=True, network_middleware=MockRestMiddleware())
+    with pytest.raises(ursula.NotStaking):
+        ursula.verify_node(
+            force=True,
+            registry=test_registry,
+            network_middleware_client=ursula.network_middleware.client,
+        )
+
+    #
+    # TODO node verification is cached for a certain amount of time before rechecking; so unclear
+    #  how to adjust the following code.
+    #
+    # warnings = []
+    # def warning_trapper(event):
+    #     if event['log_level'] == LogLevel.warn:
+    #         warnings.append(event)
 
     # Let's learn from this invalid node
-    lonely_blockchain_learner._current_teacher_node = worker
-    globalLogPublisher.addObserver(warning_trapper)
-    lonely_blockchain_learner.learn_from_teacher_node()
-    # lonely_blockchain_learner.remember_node(worker)  # The same problem occurs if we directly try to remember this node
-    globalLogPublisher.removeObserver(warning_trapper)
+    # existing_ursula._current_teacher_node = ursula
+    # globalLogPublisher.addObserver(warning_trapper)
+    # existing_ursula.learn_from_teacher_node(eager=True)
+    # # lonely_blockchain_learner.remember_node(worker)  # The same problem occurs if we directly try to remember this node
+    # globalLogPublisher.removeObserver(warning_trapper)
 
     # TODO: What should we really check here? (#1075)
-    assert len(warnings) == 1
-    warning = warnings[-1]['log_format']
-    assert str(worker) in warning
-    assert "no active stakes" in warning  # TODO: Cleanup logging templates
-    assert worker not in lonely_blockchain_learner.known_nodes
+    # assert len(warnings) == 1
+    # warning = warnings[-1]['log_format']
+    # assert str(ursula) in warning
+    # assert "no active stakes" in warning  # TODO: Cleanup logging templates
+    # assert ursula not in existing_ursula.known_nodes
 
     # TODO: Write a similar test but for detached worker (#1075)
+    #   Unclear that this case is still valid - detached workers get automatically shut-down

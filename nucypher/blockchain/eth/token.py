@@ -1,20 +1,18 @@
-
-
 import random
-from _pydecimal import Decimal
 from typing import Callable, Dict, Union
 
 import maya
-from constant_sorrow.constants import (
-    NOT_STAKING,
-    UNTRACKED_PENDING_TRANSACTION
-)
+from _pydecimal import Decimal
+from constant_sorrow.constants import NOT_STAKING, UNTRACKED_PENDING_TRANSACTION
 from eth_utils import currency
 from hexbytes.main import HexBytes
 from twisted.internet import reactor, task
 from web3.exceptions import TransactionNotFound
 
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS, NULL_ADDRESS
+from nucypher.blockchain.eth.constants import (
+    AVERAGE_BLOCK_TIME_IN_SECONDS,
+    NULL_ADDRESS,
+)
 from nucypher.types import ERC20UNits, NuNits, TuNits
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
@@ -178,7 +176,6 @@ class WorkTrackerBase:
         self.__pending = dict()  # TODO: Prime with pending worker transactions
         self.__requirement = None
         self.__start_time = NOT_STAKING
-        self.__uptime_period = NOT_STAKING
         self._abort_on_error = False
 
         self._consecutive_fails = 0
@@ -215,7 +212,7 @@ class WorkTrackerBase:
         # Add optional confirmation requirement callable
         self.__requirement = requirement_func
 
-        # Record the start time and period
+        # Record the start time
         self.__start_time = maya.now()
 
         self.log.info(f"START WORK TRACKING (immediate action: {commit_now})")
@@ -402,7 +399,7 @@ class WorkTrackerBase:
         raise NotImplementedError
 
     def _all_work_completed(self) -> bool:
-        """ allows the work tracker to indicate that its work is completed and it can be shut down """
+        """allows the work tracker to indicate that its work is completed, and it can be shut down"""
         raise NotImplementedError
 
 

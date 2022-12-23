@@ -51,10 +51,6 @@ option_staking_provider = click.option('--staking-provider', help="Staking provi
 option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
 _option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
 
-# Avoid circular input
-option_rate = click.option('--rate', help="Policy rate per period (in wei)", type=WEI)  # TODO: Is wei a sane unit here? Perhaps gwei?
-
-
 #
 # Alphabetical
 #
