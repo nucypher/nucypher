@@ -163,7 +163,7 @@ def evaluate_condition_lingo(
         )
     except NoConnectionToChain as e:
         error = EvalError(
-            f"Node does not have a connection to chain ID {e.chain}: {e}",
+            f"Node does not have a connection to chain ID {e.chain}",
             HTTPStatus.NOT_IMPLEMENTED,
         )
     except ConditionEvaluationFailed as e:

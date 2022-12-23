@@ -1,20 +1,15 @@
-
-
-
 import socket
 import ssl
 import time
 from http import HTTPStatus
 from pathlib import Path
-from typing import Optional, Tuple
-from typing import Sequence
+from typing import Optional, Sequence
 
 import requests
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.x509 import Certificate
-from nucypher_core import MetadataRequest, FleetStateChecksum, NodeMetadata
+from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
 from requests.exceptions import SSLError
 
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -146,22 +141,24 @@ class NucypherMiddlewareClient:
             if cleaned_response.status_code >= 300:
 
                 if cleaned_response.status_code == HTTPStatus.BAD_REQUEST:
-                    raise RestMiddleware.BadRequest(reason=cleaned_response.content)
+                    raise RestMiddleware.BadRequest(reason=cleaned_response.text)
 
                 elif cleaned_response.status_code == HTTPStatus.NOT_FOUND:
-                    m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.content}"
+                    m = f"While trying to {method_name} {args} ({kwargs}), server 404'd.  Response: {cleaned_response.text}"
                     raise RestMiddleware.NotFound(m)
 
                 elif cleaned_response.status_code == HTTPStatus.PAYMENT_REQUIRED:
                     # TODO: Use this as a hook to prompt Bob's payment for policy sponsorship
                     # https://getyarn.io/yarn-clip/ce0d37ba-4984-4210-9a40-c9c9859a3164
-                    raise RestMiddleware.PaymentRequired(cleaned_response.content)
+                    raise RestMiddleware.PaymentRequired(cleaned_response.text)
 
                 elif cleaned_response.status_code == HTTPStatus.FORBIDDEN:
-                    raise RestMiddleware.Unauthorized(cleaned_response.content)
+                    raise RestMiddleware.Unauthorized(cleaned_response.text)
 
                 else:
-                    raise RestMiddleware.UnexpectedResponse(cleaned_response.content, status=cleaned_response.status_code)
+                    raise RestMiddleware.UnexpectedResponse(
+                        cleaned_response.text, status=cleaned_response.status_code
+                    )
 
             return cleaned_response
 
@@ -218,15 +215,18 @@ class RestMiddleware:
             super().__init__(message, *args, **kwargs)
 
     class UnexpectedResponse(Exception):
+        """Based for all HTTP status codes"""
         def __init__(self, message, status, *args, **kwargs):
             super().__init__(message, *args, **kwargs)
             self.status = status
 
     class NotFound(UnexpectedResponse):
+        """Raised for HTTP 404"""
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.NOT_FOUND, *args, **kwargs)
 
     class BadRequest(UnexpectedResponse):
+        """Raised for HTTP 400"""
         def __init__(self, reason, *args, **kwargs):
             self.reason = reason
             super().__init__(message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs)

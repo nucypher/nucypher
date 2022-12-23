@@ -1,0 +1,1 @@
+Use decoded text from failed HTTP Responses for exception messages.
