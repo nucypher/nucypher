@@ -176,7 +176,7 @@ def select_config_file(emitter: StdoutEmitter,
     # parse configuration files for checksum address values
     for fp in config_files:
         try:
-            config_checksum_address = config_class.checksum_address_from_filepath(fp)
+            config_checksum_address = config_class.address_from_filepath(fp)
             if checksum_address and config_checksum_address == checksum_address:
                 # matching configuration file found, no need to continue - return filepath
                 return fp

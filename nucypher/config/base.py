@@ -535,7 +535,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.__keystore = keystore
 
     @classmethod
-    def checksum_address_from_filepath(cls, filepath: Path) -> str:
+    def address_from_filepath(cls, filepath: Path) -> str:
         pattern = re.compile(r'''
                              (^\w+)-
                              (0x{1}           # Then, 0x the start of the string, exactly once

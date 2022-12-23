@@ -62,12 +62,12 @@ class UrsulaConfiguration(CharacterConfiguration):
         super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
 
     @classmethod
-    def checksum_address_from_filepath(cls, filepath: Path) -> str:
+    def address_from_filepath(cls, filepath: Path) -> str:
         """Extracts worker address by "peeking" inside the ursula configuration file."""
-        checksum_address = cls.peek(filepath=filepath, field='checksum_address')
-        if not is_checksum_address(checksum_address):
+        operator_address = cls.peek(filepath=filepath, field='operator_address')
+        if not is_checksum_address(operator_address):
             raise RuntimeError(f"Invalid checksum address detected in configuration file at '{filepath}'.")
-        return checksum_address
+        return operator_address
 
     def generate_runtime_filepaths(self, config_root: Path) -> dict:
         base_filepaths = super().generate_runtime_filepaths(config_root=config_root)
