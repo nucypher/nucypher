@@ -15,3 +15,7 @@ recursive-include nucypher/network/templates *.html *.mako
 recursive-include nucypher/utilities/templates *.html *.mako
 recursive-include deploy/ansible/worker *.yml
 recursive-include nucypher/acumen/ *json
+
+# Include solidity contracts since needed for library's exported pytest fixtures
+recursive-include nucypher/blockchain/eth/sol/source *.sol
+recursive-include tests/contracts/contracts *.sol
