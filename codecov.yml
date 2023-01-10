@@ -9,3 +9,5 @@ coverage:
           - unit
           - integration
           - acceptance
+        paths:
+          - "nucypher"
