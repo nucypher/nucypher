@@ -47,8 +47,12 @@ print("Doctor = ", doctor)
 with open("policy-metadata.json", 'r') as f:
     policy_data = json.load(f)
 
-policy_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["policy_pubkey"]))
-alices_sig_pubkey = PublicKey.from_bytes(bytes.fromhex(policy_data["alice_sig_pubkey"]))
+policy_pubkey = PublicKey.from_compressed_bytes(
+    bytes.fromhex(policy_data["policy_pubkey"])
+)
+alices_sig_pubkey = PublicKey.from_compressed_bytes(
+    bytes.fromhex(policy_data["alice_sig_pubkey"])
+)
 label = policy_data["label"].encode()
 treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["treasure_map"].encode()))
 

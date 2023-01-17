@@ -41,7 +41,12 @@ from nucypher_core import (
     ReencryptionResponse,
     TreasureMap,
 )
-from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt
+from nucypher_core.umbral import (
+    PublicKey,
+    RecoverableSignature,
+    VerifiedKeyFrag,
+    reencrypt,
+)
 from twisted.internet import reactor
 from twisted.logger import Logger
 from web3.types import TxReceipt
@@ -453,7 +458,6 @@ class Bob(Character):
 
         if not publisher_verifying_key:
             publisher_verifying_key = alice_verifying_key
-        publisher_verifying_key = PublicKey.from_bytes(bytes(publisher_verifying_key))
 
         # A small optimization to avoid multiple treasure map decryptions.
         map_hash = hash(bytes(encrypted_treasure_map))
@@ -858,7 +862,12 @@ class Ursula(Teacher, Character, Operator):
         # so we can cache the result of this method.
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
-        operator_signature = self.operator_signature
+
+        # TODO: federated mode is gone, but for some reason a node may still not have
+        # an operator signature created. Fill in a dummy value for now.
+        operator_signature = self.operator_signature or (b"0" * 64 + b"\x00")
+
+        operator_signature = RecoverableSignature.from_be_bytes(operator_signature)
         payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
                                       domain=self.domain,
                                       timestamp_epoch=timestamp.epoch,
@@ -1105,7 +1114,9 @@ class Enrico:
     def __init__(self, policy_encrypting_key: PublicKey):
         self.signing_power = SigningPower()
         self._policy_pubkey = policy_encrypting_key
-        self.log = Logger(f'{self.__class__.__name__}-{bytes(self.signing_power.public_key()).hex()[:6]}')
+        self.log = Logger(
+            f"{self.__class__.__name__}-{self.signing_power.public_key().to_compressed_bytes().hex()[:6]}"
+        )
         self.log.info(self.banner.format(policy_encrypting_key))
 
     def encrypt_message(

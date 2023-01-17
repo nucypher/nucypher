@@ -11,7 +11,7 @@ class SignatureStamp(object):
 
     def __init__(self, verifying_key, signer: Signer = None) -> None:
         self.__signer = signer
-        self._as_bytes = bytes(verifying_key)
+        self._as_bytes = verifying_key.to_compressed_bytes()
         self._as_umbral_pubkey = verifying_key
 
     def __bytes__(self):

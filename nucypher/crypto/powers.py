@@ -193,7 +193,7 @@ class KeyPairBasedPower(CryptoPowerUp):
                     public_key = public_key.as_umbral_pubkey()
                 except AttributeError:
                     try:
-                        public_key = PublicKey.from_bytes(public_key)
+                        public_key = PublicKey.from_compressed_bytes(public_key)
                     except TypeError:
                         public_key = public_key
                 self.keypair = self._keypair_class(

@@ -85,8 +85,10 @@ class Vladimir(Ursula):
 
         # Use our own verifying key
         if substitute_verifying_key:
-            metadata_bytes = metadata_bytes.replace(bytes(metadata.payload.verifying_key),
-                                                    bytes(vladimir.stamp.as_umbral_pubkey()))
+            metadata_bytes = metadata_bytes.replace(
+                metadata.payload.verifying_key.to_compressed_bytes(),
+                vladimir.stamp.as_umbral_pubkey().to_compressed_bytes(),
+            )
 
         fake_metadata = NodeMetadata.from_bytes(metadata_bytes)
 

@@ -26,10 +26,16 @@ def test_keypair_with_umbral_keys():
 
     new_keypair_from_priv = keypairs.Keypair(umbral_privkey)
     assert new_keypair_from_priv._privkey == umbral_privkey
-    assert bytes(new_keypair_from_priv.pubkey) == bytes(umbral_pubkey)
+    assert (
+        new_keypair_from_priv.pubkey.to_compressed_bytes()
+        == umbral_pubkey.to_compressed_bytes()
+    )
 
     new_keypair_from_pub = keypairs.Keypair(public_key=umbral_pubkey)
-    assert bytes(new_keypair_from_pub.pubkey) == bytes(umbral_pubkey)
+    assert (
+        new_keypair_from_pub.pubkey.to_compressed_bytes()
+        == umbral_pubkey.to_compressed_bytes()
+    )
     assert new_keypair_from_pub._privkey == PUBLIC_ONLY
 
 
@@ -37,8 +43,8 @@ def test_keypair_serialization():
     umbral_pubkey = SecretKey.random().public_key()
     new_keypair = keypairs.Keypair(public_key=umbral_pubkey)
 
-    pubkey_bytes = bytes(new_keypair.pubkey)
-    assert pubkey_bytes == bytes(umbral_pubkey)
+    pubkey_bytes = new_keypair.pubkey.to_compressed_bytes()
+    assert pubkey_bytes == umbral_pubkey.to_compressed_bytes()
 
 
 def test_keypair_fingerprint():
@@ -48,7 +54,9 @@ def test_keypair_fingerprint():
     fingerprint = new_keypair.fingerprint()
     assert fingerprint is not None
 
-    umbral_fingerprint = sha3.keccak_256(bytes(umbral_pubkey)).hexdigest().encode()
+    umbral_fingerprint = (
+        sha3.keccak_256(umbral_pubkey.to_compressed_bytes()).hexdigest().encode()
+    )
     assert fingerprint == umbral_fingerprint
 
 

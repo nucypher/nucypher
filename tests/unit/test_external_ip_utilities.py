@@ -1,12 +1,13 @@
 
 
 
+import os
 from pathlib import Path
 
 import pytest
 from eth_utils import to_checksum_address
 from nucypher_core import Address, NodeMetadata, NodeMetadataPayload
-from nucypher_core.umbral import SecretKey, Signer
+from nucypher_core.umbral import RecoverableSignature, SecretKey, Signer
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
@@ -16,12 +17,12 @@ from nucypher.network.middleware import NucypherMiddlewareClient
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.utilities.networking import (
+    CENTRALIZED_IP_ORACLE_URL,
+    UnknownIPAddress,
     determine_external_ip_address,
     get_external_ip_from_centralized_source,
     get_external_ip_from_default_teacher,
     get_external_ip_from_known_nodes,
-    CENTRALIZED_IP_ORACLE_URL,
-    UnknownIPAddress
 )
 from tests.constants import MOCK_IP_ADDRESS
 
@@ -63,7 +64,9 @@ class Dummy:  # Teacher
         signer = Signer(SecretKey.random())
 
         # A dummy signature with the recovery byte
-        dummy_signature = bytes(signer.sign(b'whatever')) + b'\x00'
+        dummy_signature = RecoverableSignature.from_be_bytes(
+            signer.sign(b"whatever").to_be_bytes() + b"\x00"
+        )
 
         payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
                                       domain=':dummy:',
