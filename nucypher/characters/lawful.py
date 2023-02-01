@@ -54,7 +54,7 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import Operator, PolicyAuthor
+from nucypher.blockchain.eth.actors import Operator, PolicyAuthor, Ritualist
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -520,7 +520,7 @@ class Bob(Character):
         return cleartexts
 
 
-class Ursula(Teacher, Character, Operator):
+class Ursula(Teacher, Character, Operator, Ritualist):
 
     banner = URSULA_BANNER
     _alice_class = Alice
@@ -608,6 +608,14 @@ class Ursula(Teacher, Character, Operator):
                 # It's not possible to finish constructing this node.
                 self.stop(halt_reactor=False)
                 raise
+
+            # DKG Ritualist
+            Ritualist.__init__(self,
+                               domain=domain,
+                               eth_provider_uri=eth_provider_uri,
+                               transacting_power=self.transacting_power,
+                               registry=self.registry,
+                               crypto_power=self._crypto_power)
 
             # Use this power to substantiate the stamp
             self._substantiate_stamp()
@@ -717,6 +725,7 @@ class Ursula(Teacher, Character, Operator):
         discovery: bool = True,  # TODO: see below
         availability: bool = False,
         worker: bool = True,
+        ritualist: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
         prometheus_config: "PrometheusMetricsConfig" = None,
@@ -750,6 +759,11 @@ class Ursula(Teacher, Character, Operator):
             self._availability_tracker.start(now=eager)
             if emitter:
                 emitter.message(f"✓ Availability Checks", color='green')
+
+        if ritualist:
+            self.ritual_tracker.start(now=eager)
+            if emitter:
+                emitter.message(f"✓ DKG Ritual Tracking", color='green')
 
         if worker:
             if block_until_ready:

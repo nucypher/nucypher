@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import WorkTracker, WorkTrackerBase
+from nucypher.blockchain.eth.trackers.pre import WorkTrackerBase, WorkTracker
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services

@@ -1,6 +1,6 @@
 import json
 from decimal import Decimal
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, Dict, List
 
 import maya
 import time
@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     NucypherTokenAgent,
-    PREApplicationAgent,
+    PREApplicationAgent, CoordinatorAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
@@ -30,13 +30,16 @@ from nucypher.blockchain.eth.deployers import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.token import NU, WorkTracker
+from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.trackers.dkg import RitualTracker
+from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.powers import CryptoPower, TransactingPower
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
+from tests.mock.ferveo import generate_dkg_transcript, confirm_dkg_transcript
 
 
 class BaseActor:
@@ -325,7 +328,7 @@ class Operator(BaseActor):
         self.payment_method = payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
-        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+        BaseActor.__init__(self, transacting_power=transacting_power, *args, **kwargs)
 
         self.log = Logger("worker")
         self.is_me = is_me
@@ -334,7 +337,7 @@ class Operator(BaseActor):
         if is_me:
             self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
             self.work_tracker = work_tracker or WorkTracker(worker=self)
-            
+
             # Multi-provider support
             # TODO: Abstract away payment provider
             eth_chain = self.application_agent.blockchain
@@ -411,6 +414,84 @@ class Operator(BaseActor):
             # we have not confirmed yet
             return not self.is_confirmed
         return func
+
+
+class Ritualist(BaseActor):
+    READY_TIMEOUT = None  # (None or 0) == indefinite
+    READY_POLL_RATE = 10
+
+    class RitualError(BaseActor.ActorError):
+        """ritualist-specific errors"""
+
+    def __init__(
+            self,
+            eth_provider_uri: str,
+            crypto_power: CryptoPower,
+            transacting_power: TransactingPower,
+            *args,
+            **kwargs,
+    ):
+        crypto_power.consume_power_up(transacting_power)
+        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+        self.log = Logger("ritualist")
+        self.coordinator_agent = ContractAgency.get_agent(
+            CoordinatorAgent,
+            registry=self.registry,
+            eth_provider_uri=eth_provider_uri
+        )
+        self.ritual_tracker = RitualTracker(
+            ritualist=self,
+            eth_provider=self.coordinator_agent.blockchain.provider,
+            contract=self.coordinator_agent.contract
+        )
+
+    def handle_start_ritual(self, ritual_id: int, timestamp: int, nodes: List[ChecksumAddress], *args, **kwargs):
+        """Check in with the coordinator."""
+        # from the tracker's internal cache
+        ritual = self.ritual_tracker.rituals[ritual_id]
+        node_index = nodes.index(self.transacting_power.account)
+        if ritual.performances[node_index].checkin_timestamp != 0:
+            raise self.RitualError(f"Node {self.transacting_power.account} has already checked in for ritual {ritual_id}")
+        receipt = self.coordinator_agent.checkin(
+            ritual_id=ritual_id,
+            node_index=node_index,
+            transacting_power=self.transacting_power
+        )
+        return receipt
+
+    def handle_start_transcript_round(self, ritual_id: int, timestamp: int, *args, **kwargs):
+        """Post a DKG transcript to the blockchain."""
+        # from the tracker's internal cache
+        ritual = self.ritual_tracker.rituals[ritual_id]
+        node_index = self.ritual_tracker.get_node_index(ritual_id=ritual_id, node=self.transacting_power.account)
+        if ritual.performances[node_index].transcript:
+            raise self.RitualError(f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}")
+        transcript = generate_dkg_transcript()
+        receipt = self.coordinator_agent.post_transcript(
+            node_index=self.ritual_tracker.get_node_index(ritual_id=ritual_id, node=self.transacting_power.account),
+            ritual_id=ritual_id,
+            transcript=transcript,
+            transacting_power=self.transacting_power
+        )
+        return receipt
+
+    def handle_start_confirmation_round(self, ritual_id: int, timestamp: int, *args, **kwargs):
+        """Confirm the DKG transcripts on the blockchain."""
+        # from the tracker's internal cache
+        ritual = self.ritual_tracker.rituals[ritual_id]
+        transcripts = [(p.node, p.transcript) for p in ritual.performances]
+        confirmed_indexes = list()
+        for index, (node, transcript) in enumerate(transcripts):
+            valid = confirm_dkg_transcript(transcript)
+            if valid:
+                confirmed_indexes.append(index)
+        receipt = self.coordinator_agent.post_confirmations(
+            ritual_id=ritual_id,
+            node_index=self.ritual_tracker.get_node_index(ritual_id=ritual_id, node=self.transacting_power.account),
+            confirmed_indexes=confirmed_indexes,
+            transacting_power=self.transacting_power
+        )
+        return receipt
 
 
 class PolicyAuthor(NucypherTokenActor):
