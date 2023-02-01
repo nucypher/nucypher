@@ -1,8 +1,4 @@
-
-
-
 from collections import OrderedDict
-from typing import Dict, List, Tuple
 
 from constant_sorrow.constants import (
     BARE,
@@ -12,6 +8,7 @@ from constant_sorrow.constants import (
     INIT
 )
 from eth_typing.evm import ChecksumAddress
+from typing import Dict, List, Tuple
 from web3.contract import Contract
 
 from nucypher.blockchain.economics import Economics
@@ -20,9 +17,13 @@ from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     NucypherTokenAgent,
     PREApplicationAgent,
-    SubscriptionManagerAgent
+    SubscriptionManagerAgent, CoordinatorAgent
 )
-from nucypher.blockchain.eth.constants import DISPATCHER_CONTRACT_NAME, STAKING_ESCROW_CONTRACT_NAME, NULL_ADDRESS
+from nucypher.blockchain.eth.constants import (
+    DISPATCHER_CONTRACT_NAME,
+    STAKING_ESCROW_CONTRACT_NAME,
+    NULL_ADDRESS
+)
 from nucypher.blockchain.eth.interfaces import (
     BlockchainDeployerInterface,
     BlockchainInterfaceFactory,
@@ -741,6 +742,37 @@ class SubscriptionManagerDeployer(BaseContractDeployer, OwnableContractMixin):
                                                               confirmations=confirmations)
         return {self.deployment_steps[0]: deployment_receipt,
                 self.deployment_steps[1]: initialize_receipt}
+
+
+class CoordinatorDeployer(BaseContractDeployer):
+
+    agency = CoordinatorAgent
+    contract_name = agency.contract_name
+    deployment_steps = ('contract_deployment', )
+    _upgradeable = False
+    _ownable = False
+    _proxy_deployer = None
+
+    def deploy(self,
+               transacting_power: TransactingPower,
+               gas_limit: int = None,
+               progress=None,
+               confirmations: int = 0,
+               emitter=None,
+               ignore_deployed: bool = False,
+               deployment_mode=FULL,
+               **overrides) -> dict:
+        constructor_kwargs = {'_transcriptsWindow': 600, '_confirmationsWindow': 600}
+        constructor_kwargs.update(overrides)
+        constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
+        contract, deployment_receipt = self.blockchain.deploy_contract(transacting_power,
+                                                                       self.registry,
+                                                                       self.contract_name,
+                                                                       gas_limit=gas_limit,
+                                                                       confirmations=confirmations,
+                                                                       **constructor_kwargs)
+        self._contract = contract
+        return {self.deployment_steps[0]: deployment_receipt}
 
 
 class AdjudicatorDeployer(BaseContractDeployer, UpgradeableContractMixin, OwnableContractMixin):

@@ -1,19 +1,19 @@
 import contextlib
 import json
+import maya
 import os
+import pytest
 import random
 import shutil
 import tempfile
-from datetime import datetime, timedelta
-from functools import partial
-from pathlib import Path
-from typing import Callable, Tuple
-
-import maya
-import pytest
 from click.testing import CliRunner
+from datetime import datetime, timedelta
 from eth_account import Account
 from eth_utils import to_checksum_address
+from functools import partial
+from pathlib import Path
+from twisted.internet.task import Clock
+from typing import Callable, Tuple
 from web3 import Web3
 from web3.contract import Contract
 from web3.types import TxReceipt
@@ -30,7 +30,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer,
+    SubscriptionManagerDeployer, CoordinatorDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry,
 )
 from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
+from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
@@ -68,7 +69,6 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
@@ -447,6 +447,9 @@ def _make_agency(test_registry, token_economics, deployer_transacting_power, thr
 
     subscription_manager_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
     subscription_manager_deployer.deploy(transacting_power=transacting_power)
+
+    coordinator_deployer = CoordinatorDeployer(economics=token_economics, registry=test_registry)
+    coordinator_deployer.deploy(transacting_power=transacting_power)
 
 
 @pytest.fixture(scope='module')
@@ -943,3 +946,11 @@ def valid_user_address_context():
             },
         }
     }
+
+@pytest.fixture(scope='module', autouse=True)
+def control_time():
+    clock = Clock()
+    EventScannerTask.CLOCK = clock
+    EventScannerTask.INTERVAL = .1
+    clock.llamas = 0
+    return clock

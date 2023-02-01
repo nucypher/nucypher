@@ -2,10 +2,11 @@ import pytest
 from eth_account.account import Account
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.mock.agents import MockContractAgency
+from tests.mock.coordinator import MockCoordinatorV1
 from tests.mock.interfaces import MockEthereumClient
 
 
@@ -44,3 +45,11 @@ def mock_contract_agency(module_mocker, application_economics):
 @pytest.fixture(scope='session', autouse=True)
 def mock_operator_bonding(session_mocker):
     session_mocker.patch.object(Teacher, '_operator_is_bonded', autospec=True)
+
+
+# TODO: move to acceptance tests for prototyping
+# @pytest.fixture(scope='session', autouse=True)
+# def mock_coordinator(session_mocker):
+#     class Contract:
+#         functions = MockCoordinatorV1(60, 60)
+#     session_mocker.patch.object(CoordinatorAgent, 'contract', return_value=Contract())

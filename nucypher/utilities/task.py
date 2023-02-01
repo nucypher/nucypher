@@ -1,7 +1,5 @@
-
-
 from abc import ABC, abstractmethod
-
+from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
@@ -11,10 +9,12 @@ from nucypher.utilities.logging import Logger
 class SimpleTask(ABC):
     """Simple Twisted Looping Call abstract base class."""
     INTERVAL = 60  # 60s default
+    CLOCK = reactor
 
     def __init__(self):
         self.log = Logger(self.__class__.__name__)
         self.__task = LoopingCall(self.run)
+        # self.__task.clock = self.CLOCK
 
     @property
     def running(self) -> bool:
@@ -26,6 +26,7 @@ class SimpleTask(ABC):
         if not self.running:
             d = self.__task.start(interval=self.INTERVAL, now=now)
             d.addErrback(self.handle_errors)
+            return d
 
     def stop(self):
         """Stop task."""
