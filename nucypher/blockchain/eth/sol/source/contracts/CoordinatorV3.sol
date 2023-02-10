@@ -25,11 +25,11 @@ contract CoordinatorV3 is Upgradeable {
     event MaxDkgSizeChanged(uint32 oldSize, uint32 newSize);
 
     enum RitualStatus {
-        WAITING_FOR_TRANSCRIPTS,
-        WAITING_FOR_AGGREGATIONS,
-        WAITING_FOR_FINALIZATION,
-        FAILED_TIMEOUT,
-        FAILED_INVALID_TRANSCRIPTS,
+        AWAITING_TRANSCRIPTS,
+        AWAITING_AGGREGATIONS,
+        AWAITING_FINALIZATION,
+        TIMED_OUT,
+        INVALID,
         FINALIZED
     }
 
@@ -43,11 +43,11 @@ contract CoordinatorV3 is Upgradeable {
         uint32 id;
         address initiator;
         uint32 dkgSize;
+        uint32 threshold;
+        bytes32 publicMaterial;
         uint32 initTimestamp;
         uint32 totalTranscripts;
         uint32 totalAggregations;
-        uint32 threshold;
-        bytes32 publicMaterial;
         RitualStatus status;
         Rite[] rite;
     }
@@ -57,18 +57,23 @@ contract CoordinatorV3 is Upgradeable {
     uint32 public timeout;
     uint32 public maxDkgSize;
 
-    constructor(uint32 _timeout) {
+    constructor(uint32 _timeout, uint32 _maxDkgSize) {
         timeout = _timeout;
-        maxDkgSize = 64;  // TODO Who knows? https://www.youtube.com/watch?v=hzqFmXZ8tOE&ab_channel=Protoje
+        maxDkgSize = _maxDkgSize;
     }
 
     function _checkActiveRitual(Ritual storage _ritual) internal {
         uint32 delta = uint32(block.timestamp) - _ritual.initTimestamp;
         if (delta > timeout) {
-            _ritual.status = RitualStatus.FAILED_TIMEOUT;
+            _ritual.status = RitualStatus.TIMED_OUT;
             emit EndRitual(_ritual.id, _ritual.status); // penalty hook, missing nodes can be known at this stage
             revert("Ritual timed out");
         }
+    }
+
+    function checkActiveRitual(uint32 ritualId) external {
+        Ritual storage ritual = rituals[ritualId];
+        _checkActiveRitual(ritual);
     }
 
     function setTimeout(uint32 newTimeout) external onlyOwner {
@@ -105,7 +110,7 @@ contract CoordinatorV3 is Upgradeable {
         ritual.threshold = threshold;
         ritual.dkgSize = uint32(nodes.length);
         ritual.initTimestamp = uint32(block.timestamp);
-        ritual.status = RitualStatus.WAITING_FOR_TRANSCRIPTS;
+        ritual.status = RitualStatus.AWAITING_TRANSCRIPTS;
 
         address previousNode = nodes[0];
         ritual.rite[0].node = previousNode;
@@ -124,7 +129,7 @@ contract CoordinatorV3 is Upgradeable {
     function postTranscript(uint32 ritualId, uint256 nodeIndex, bytes calldata transcript) external {
         Ritual storage ritual = rituals[ritualId];
         require(ritual.rite[nodeIndex].node == msg.sender, "Node not part of ritual");
-        require(ritual.status == RitualStatus.WAITING_FOR_TRANSCRIPTS, "Not waiting for transcripts");
+        require(ritual.status == RitualStatus.AWAITING_TRANSCRIPTS, "Not waiting for transcripts");
         require(ritual.rite[nodeIndex].transcript.length == 0, "Node already posted transcript");
         require(ritual.rite[nodeIndex].aggregated == false, "Node already posted aggregation");
         _checkActiveRitual(ritual);
@@ -137,14 +142,14 @@ contract CoordinatorV3 is Upgradeable {
 
         // end round
         if (ritual.totalTranscripts == ritual.dkgSize){
-            ritual.status = RitualStatus.WAITING_FOR_AGGREGATIONS;
+            ritual.status = RitualStatus.AWAITING_AGGREGATIONS;
             emit StartAggregationRound(ritualId);
         }
     }
 
     function postAggregation(uint32 ritualId, uint256 nodeIndex, bytes calldata aggregatedTranscripts) external {
         Ritual storage ritual = rituals[ritualId];
-        require(ritual.status == RitualStatus.WAITING_FOR_AGGREGATIONS, "Not waiting for confirmations");
+        require(ritual.status == RitualStatus.AWAITING_AGGREGATIONS, "Not waiting for confirmations");
         require(ritual.rite[nodeIndex].node == msg.sender, "Node not part of ritual");
         _checkActiveRitual(ritual);
 
@@ -157,20 +162,20 @@ contract CoordinatorV3 is Upgradeable {
 
         // end round
         if (ritual.totalAggregations == ritual.dkgSize){
-            ritual.status = RitualStatus.WAITING_FOR_FINALIZATION;
+            ritual.status = RitualStatus.AWAITING_FINALIZATION;
             emit EndRitual(ritualId, ritual.status, ritual.initiator);
         }
     }
 
     function finalizeRitual(uint32 ritualId) public {
         Ritual storage ritual = rituals[ritualId];
-        require(ritual.status == RitualStatus.WAITING_FOR_FINALIZATION, 'ritual cannot be finalized');
+        require(ritual.status == RitualStatus.AWAITING_FINALIZATION, 'ritual cannot be finalized');
 
         bytes32 firstRiteDigest = keccak256(ritual.rite[0].transcript);
         for(uint32 i=1; i < ritual.rite.length; i++){
             bytes32 currentRiteDigest = keccak256(ritual.rite[i].transcript);
             if (firstRiteDigest != currentRiteDigest) {
-                ritual.status = RitualStatus.FAILED_INVALID_TRANSCRIPTS;
+                ritual.status = RitualStatus.INVALID;
                 emit EndRitual(ritualId, ritual.status, ritual.initiator);
                 revert('aggregated transcripts do not match');
             }
