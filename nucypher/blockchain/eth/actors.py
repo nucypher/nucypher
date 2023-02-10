@@ -1,9 +1,9 @@
 import json
+import time
 from decimal import Decimal
-from typing import Optional, Tuple, Union, Dict, List
+from typing import Optional, Tuple, Union
 
 import maya
-import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
@@ -15,8 +15,9 @@ from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
+    CoordinatorAgent,
     NucypherTokenAgent,
-    PREApplicationAgent, CoordinatorAgent,
+    PREApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
@@ -34,12 +35,13 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import RitualTracker
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto import dkg
 from nucypher.crypto.powers import CryptoPower, TransactingPower
 from nucypher.network.trackers import OperatorBondedTracker
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
-from tests.mock.ferveo import generate_dkg_transcript, confirm_dkg_transcript
 
 
 class BaseActor:
@@ -445,53 +447,144 @@ class Ritualist(BaseActor):
             contract=self.coordinator_agent.contract
         )
 
-    def handle_start_ritual(self, ritual_id: int, timestamp: int, nodes: List[ChecksumAddress], *args, **kwargs):
-        """Check in with the coordinator."""
-        # from the tracker's internal cache
-        ritual = self.ritual_tracker.rituals[ritual_id]
-        node_index = nodes.index(self.transacting_power.account)
-        if ritual.performances[node_index].checkin_timestamp != 0:
-            raise self.RitualError(f"Node {self.transacting_power.account} has already checked in for ritual {ritual_id}")
-        receipt = self.coordinator_agent.checkin(
-            ritual_id=ritual_id,
-            node_index=node_index,
-            transacting_power=self.transacting_power
-        )
-        return receipt
+        self.dkg_storage = {"transcripts": {}, "aggregated_transcripts": {}}
 
-    def handle_start_transcript_round(self, ritual_id: int, timestamp: int, *args, **kwargs):
-        """Post a DKG transcript to the blockchain."""
-        # from the tracker's internal cache
-        ritual = self.ritual_tracker.rituals[ritual_id]
-        node_index = self.ritual_tracker.get_node_index(ritual_id=ritual_id, node=self.transacting_power.account)
+    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
+        try:
+            ritual = self.ritual_tracker.rituals[ritual_id]
+        except KeyError:
+            raise self.ActorError(f"{ritual_id} is not in the local cache")
+        return ritual
+
+    def store_transcript(self, ritual_id: int, transcript: Transcript) -> None:
+        self.dkg_storage["transcripts"][ritual_id] = bytes(transcript)
+
+    def store_aggregated_transcript(
+        self, ritual_id: int, aggregated_transcript: AggregatedTranscript
+    ) -> None:
+        self.dkg_storage["aggregated_transcripts"][ritual_id] = bytes(
+            aggregated_transcript
+        )
+
+    def get_aggregated_transcript(self, ritual_id: int) -> AggregatedTranscript:
+        data = self.dkg_storage["aggregated_transcripts"][ritual_id]
+        aggregated_transcript = AggregatedTranscript.from_bytes(data)
+        return aggregated_transcript
+
+    def get_transcript(self, ritual_id: int) -> AggregatedTranscript:
+        data = self.dkg_storage["transcripts"][ritual_id]
+        transcript = Transcript.from_bytes(data)
+        return transcript
+
+    def perform_round_1(self, ritual_id: int, timestamp: int, *args, **kwargs):
+        ritual = self.get_ritual(ritual_id)
+        if ritual.status != CoordinatorAgent.Ritual.Status.WAITING_FOR_CONFIRMATIONS:
+            raise self.ActorError(
+                f"ritual #{ritual.id} is not waiting for transcripts."
+            )
+        node_index = self.ritual_tracker.get_node_index(
+            ritual_id=ritual_id, node=self.transacting_power.account
+        )
         if ritual.performances[node_index].transcript:
-            raise self.RitualError(f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}")
-        transcript = generate_dkg_transcript()
+            raise self.RitualError(
+                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"
+            )
+        self.log.debug(
+            f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}"
+        )
+
+        try:
+            transcript = dkg.generate_transcript(
+                ritual_id=ritual_id,
+                checksum_address=self.checksum_address,
+                shares=len(ritual.nodes),
+                threshold=ritual.threshold,
+                nodes=ritual.nodes,
+            )  # TODO: Error handling
+        except FerveroError:
+            raise self.ActorError(
+                f"error generating DKG transcript for ritual #{ritual_id}"
+            )
+
+        self.store_transcript(ritual_id=ritual_id, transcript=transcript)
+
         receipt = self.coordinator_agent.post_transcript(
-            node_index=self.ritual_tracker.get_node_index(ritual_id=ritual_id, node=self.transacting_power.account),
+            node_index=self.ritual_tracker.get_node_index(
+                ritual_id=ritual_id, node=self.transacting_power.account
+            ),
             ritual_id=ritual_id,
             transcript=transcript,
-            transacting_power=self.transacting_power
+            transacting_power=self.transacting_power,
         )
+
+        self.log.debug(f"completed round 1 of DKG ritual #{ritual_id}")
         return receipt
 
-    def handle_start_confirmation_round(self, ritual_id: int, timestamp: int, *args, **kwargs):
-        """Confirm the DKG transcripts on the blockchain."""
-        # from the tracker's internal cache
-        ritual = self.ritual_tracker.rituals[ritual_id]
-        transcripts = [(p.node, p.transcript) for p in ritual.performances]
-        confirmed_indexes = list()
-        for index, (node, transcript) in enumerate(transcripts):
-            valid = confirm_dkg_transcript(transcript)
-            if valid:
-                confirmed_indexes.append(index)
-        receipt = self.coordinator_agent.post_confirmations(
+    def perform_round_2(self, ritual_id: int, timestamp: int, *args, **kwargs):
+        ritual = self.get_ritual(ritual_id)
+        if ritual.status != CoordinatorAgent.Ritual.Status.WAITING_FOR_CONFIRMATIONS:
+            raise self.ActorError(
+                f"ritual #{ritual.id} is not waiting for transcripts."
+            )
+        self.log.debug(
+            f"performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
+        )
+
+        try:
+            aggregated_transcript = dkg.aggregate_transcripts(
+                ritual_id=ritual_id,
+                checksum_address=self.checksum_address,
+                shares=len(ritual.nodes),
+                threshold=ritual.threshold,
+                nodes=ritual.nodes,
+                transcripts=ritual.transcripts,
+            )  # TODO: Error handling
+        except FerveoError:
+            raise self.ActorError(
+                f"error aggregating DKG transcript fr ritual #{ritual_id}"
+            )
+
+        self.store_aggregated_transcript(
+            ritual_id=ritual_id, aggregated_transcript=aggregated_transcript
+        )
+
+        receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
-            node_index=self.ritual_tracker.get_node_index(ritual_id=ritual_id, node=self.transacting_power.account),
-            confirmed_indexes=confirmed_indexes,
+            node_index=self.ritual_tracker.get_node_index(
+                ritual_id=ritual_id, node=self.transacting_power.account
+            ),
+            aggregated_transcript=aggregated_transcript,
             transacting_power=self.transacting_power
         )
+        self.log.debug(f"completed round 2 of DKG ritual #{ritual_id}")
         return receipt
+
+    def derive_decryption_share(
+        self, ritual_id: int, ciphertext: bytes, conditions: ConditionLingo
+    ) -> DecryptionShare:
+        ritual = self.get_ritual(ritual_id)
+        if ritual.status != CoordinatorAgent.Ritual.Status.FINAL:
+            raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
+        aggregated_transcript = self.get_aggregated_transcript(ritual_id)
+
+        try:
+            decryption_share = dkg.derive_decryption_share(
+                ritual_id=ritual_id,
+                checksum_address=self.checksum_address,
+                shares=len(ritual.nodes),
+                threshold=ritual.threshold,
+                nodes=ritual.nodes,
+                aggregated_transcript=aggregated_transcript,
+                keypair=self.crypto_power(RitualPower),
+                ciphertext=bytes(ciphertext),
+                aad=bytes(conditions),
+            )
+        except FerveoError:
+            raise self.ActorError(
+                f"error deriving decryption share for ritual #{ritual_id}"
+            )
+
+        return decryption_share
 
 
 class PolicyAuthor(NucypherTokenActor):

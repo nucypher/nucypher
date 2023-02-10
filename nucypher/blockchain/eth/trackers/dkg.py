@@ -1,14 +1,18 @@
 import os
-
 import time
+from typing import Callable, List, Tuple, Type, Union
+
 from eth_typing import ChecksumAddress
-from twisted.internet import reactor, threads
-from twisted.internet.defer import Deferred
-from twisted.internet.threads import deferToThread
-from typing import Callable, List, Optional, Tuple, Union, Type
+from ferveo import (
+    AggregatedTranscript,
+    DecryptionShare,
+    Dkg,
+    Keypair,
+    PublicKey,
+    Transcript,
+)
+from twisted.internet import threads
 from web3 import Web3
-# Currently this method is not exposed over official web3 API,
-# but we need it to construct eth_getLogs parameters
 from web3.contract import Contract, ContractEvent
 from web3.datastructures import AttributeDict
 from web3.providers import BaseProvider
@@ -64,7 +68,7 @@ class RitualTracker:
         self.log = Logger("RitualTracker")
 
         self.ritualist = ritualist
-        self.rituals = dict()  # TODO: use persistent storage
+        self.rituals = dict()  # TODO: use persistent storage?
 
         self.eth_provider = eth_provider
         self.contract = contract
@@ -77,16 +81,17 @@ class RitualTracker:
 
         # Map events to handlers
         self.actions = {
-            contract.events.StartRitual: self.ritualist.handle_start_ritual,
-            contract.events.StartTranscriptRound: self.ritualist.handle_start_transcript_round,
-            contract.events.StartConfirmationRound: self.ritualist.handle_start_confirmation_round,
+            contract.events.StartTranscriptRound: self.ritualist.perform_round_1,
+            contract.events.StartConfirmationRound: self.ritualist.perform_round_2,
         }
         self.events = list(self.actions)
 
         self.provider = eth_provider
         # Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
-        self.provider._middlewares = tuple()
+        self.provider._middlewares = (
+            tuple()
+        )  # TODO: Do this more precisely to not unintentionally remove other middlewares
         self.web3 = Web3(self.provider)
 
         self.scanner = EventActuator(
