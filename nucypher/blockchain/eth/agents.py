@@ -545,58 +545,81 @@ class PREApplicationAgent(EthereumContractAgent):
 
 
 class CoordinatorAgent(EthereumContractAgent):
-    DKG_SIZE = 8  # TODO: get this from the contract
-
-    contract_name: str = 'CoordinatorV1'
+    contract_name: str = "CoordinatorV3"
     _proxy_name = None
 
     @dataclass
-    class RitualStatus:
-        WAITING_FOR_CHECKINS = 0
-        WAITING_FOR_TRANSCRIPTS = 1
-        WAITING_FOR_CONFIRMATIONS = 2
-        COMPLETED = 3
-        FAILED = 4
-
-    @dataclass
-    class Performance:
-        node: ChecksumAddress
-        confirmed_by: List = field(default_factory=list)
-        transcript: bytes = bytes()
-        checkin_timestamp: int = 0
-
-    @dataclass
     class Ritual:
+
+        @dataclass
+        class Status:
+            WAITING_FOR_CHECKINS = 0
+            WAITING_FOR_TRANSCRIPTS = 1
+            WAITING_FOR_CONFIRMATIONS = 2
+            COMPLETED = 3
+            FAILED = 4
+            FINAL = 5
+
+        @dataclass
+        class Performance:
+            node: ChecksumAddress
+            aggregated: bool
+            transcript: bytes
+
         id: int
-        status: int
-        init_timestamp: int = 0
-        total_checkins: int = 0
-        total_transcripts: int = 0
-        total_confirmations: int = 0
+        status: Status
+        init_timestamp: int
+        total_transcripts: int
+        total_aggregations: int
         performances: List = field(default_factory=list)
+
+        @property
+        def nodes(self):
+            return [p.node for p in self.performances]
+
+        @property
+        def transcripts(self) -> List[bytes]:
+            transcripts = list()
+            for p in self.performances:
+                if p.aggregated:
+                    raise RuntimeError(f"{p.node[:8]} transcript is already aggregated")
+                transcripts.append(p.transcript)
+            return transcripts
+
+        @property
+        def aggregated_transcripts(self) -> List[bytes]:
+            transcripts = list()
+            for p in self.performances:
+                if not p.aggregated:
+                    raise RuntimeError(f"{p.node[:8]} transcript not aggregated")
+                transcripts.append(p.transcript)
+            return transcripts
+
+        @property
+        def shares(self) -> int:
+            return len(self.nodes)
 
     @contract_api(CONTRACT_CALL)
     def get_ritual(self, ritual_id: int) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
-        ritual = self.Ritual(id=ritual_id,
-                             status=result[0],
-                             init_timestamp=result[1],
-                             total_checkins=result[2],
-                             total_transcripts=result[3],
-                             total_confirmations=result[4],
-                             performances=[])
+        ritual = self.Ritual(
+            id=ritual_id,
+            status=result[0],
+            init_timestamp=result[1],
+            total_transcripts=result[2],
+            total_aggregations=result[3],
+            performances=[],
+        )
         return ritual
 
     @contract_api(CONTRACT_CALL)
-    def get_performances(self, ritual_id: int) -> List[Performance]:
+    def get_performances(self, ritual_id: int) -> List[Ritual.Performance]:
         result = self.contract.functions.getPerformances(ritual_id).call()
         performances = list()
         for r in result:
-            performance = self.Performance(
-                node=ChecksumAddress(r[0]),
-                confirmed_by=r[1],
-                transcript=bytes(r[2]),
-                checkin_timestamp=int.from_bytes(r[3], 'big'))
+            performance = self.Ritual.Performance(
+                node=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
+            )
             performances.append(performance)
         return performances
 
@@ -607,23 +630,13 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def initiate_ritual(self, nodes: List[ChecksumAddress], transacting_power: TransactingPower) -> TxReceipt:
-        """For use by threshold operator accounts only."""
         contract_function: ContractFunction = self.contract.functions.initiateRitual(nodes=nodes)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
 
     @contract_api(TRANSACTION)
-    def checkin(self, ritual_id: int, node_index: int, transacting_power: TransactingPower) -> TxReceipt:
-        """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.checkIn(ritual_id, node_index)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
-        return receipt
-
-    @contract_api(TRANSACTION)
     def post_transcript(self, ritual_id: int, transcript: bytes, node_index: int, transacting_power: TransactingPower) -> TxReceipt:
-        """For use by threshold operator accounts only."""
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id,
             nodeIndex=node_index,
@@ -634,15 +647,33 @@ class CoordinatorAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def post_confirmations(self, ritual_id: int, node_index: int, confirmed_indexes: List[int], transacting_power: TransactingPower) -> TxReceipt:
-        """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.postConfirmation(
+    def post_aggregation(
+        self,
+        ritual_id: int,
+        node_index: int,
+        confirmed_indexes: List[int],
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             nodeIndex=node_index,
             confirmedNodesIndexes=confirmed_indexes,
         )
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def finalize_ritual(
+        self, ritual_id: int, transacting_power: TransactingPower
+    ) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.finalize(
+            ritual_id
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
 
