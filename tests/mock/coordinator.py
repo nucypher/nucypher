@@ -12,14 +12,15 @@ class MockCoordinatorV1:
     SIGNALS = {}
     DKG_SIZE = 8
 
-    Performance = CoordinatorAgent.Performance
+    Performance = CoordinatorAgent.Ritual.Performance
     Ritual = CoordinatorAgent.Ritual
-    RitualStatus = CoordinatorAgent.RitualStatus
+    RitualStatus = CoordinatorAgent.Ritual.Status
 
     class Signal(Enum):
         START_RITUAL = 0
         START_TRANSCRIPT_ROUND = 1
         START_CONFIRMATION_ROUND = 2
+        END_RITUAL = 3
 
     def __init__(self, transcripts_window: int, confirmations_window: int):
         self.transcripts_window = transcripts_window
@@ -39,26 +40,14 @@ class MockCoordinatorV1:
             id=len(self.rituals),
             init_timestamp=int(time.time_ns()),
             performances=[self.Performance(node=node) for node in nodes],
-            status=self.RitualStatus.WAITING_FOR_CHECKINS
+            status=self.RitualStatus.AWAITING_TRANSCRIPTS
         )
         self.rituals[ritual.id] = ritual
         self.emit_signal(signal=self.Signal.START_RITUAL, ritual_id=ritual.id, nodes=nodes)
 
-    def checkin(self, ritual_id: int, node_index: int) -> None:
-        ritual = self.rituals[ritual_id]
-        if ritual.status != self.RitualStatus.WAITING_FOR_CHECKINS:
-            raise Exception(f'ritual {ritual_id} is not waiting for checkins')
-        ritual.performances[node_index].checkin_timestamp = int(time.time_ns())
-        ritual.total_checkins += 1
-        if ritual.total_checkins == self.DKG_SIZE:
-            ritual.status = self.RitualStatus.WAITING_FOR_TRANSCRIPTS
-            self.emit_signal(signal=self.Signal.START_TRANSCRIPT_ROUND,
-                             ritual_id=ritual_id,
-                             nodes=[p.node for p in ritual.performances])
-
     def post_transcript(self, ritual_id: int, node_address: ChecksumAddress, node_index: int, transcript: bytes) -> None:
         ritual = self.rituals[ritual_id]
-        if ritual.status != self.RitualStatus.WAITING_FOR_TRANSCRIPTS:
+        if ritual.status != self.RitualStatus.AWAITING_TRANSCRIPTS:
             raise Exception(f'ritual {ritual_id} is not waiting for transcripts')
         if ritual.performances[node_index].node != node_address:
             raise Exception(f'{node_address} is not part of ritual #{ritual_id}')
@@ -67,27 +56,23 @@ class MockCoordinatorV1:
         ritual.performances[node_index].transcript = keccak(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == self.DKG_SIZE:
-            ritual.status = self.RitualStatus.WAITING_FOR_CONFIRMATIONS
+            ritual.status = self.RitualStatus.AWAITING_AGGREGATIONS
             self.emit_signal(signal=self.Signal.START_CONFIRMATION_ROUND,
                              ritual_id=ritual_id,
                              nodes=[p.node for p in ritual.performances])
 
-    def post_confirmation(self,
-                          ritual_id: int,
-                          node_address: ChecksumAddress,
-                          node_index: int,
-                          confirmed_node_indexes: List[int]) -> None:
+    def post_aggregation(self, ritual_id: int, node_address: ChecksumAddress, node_index: int, aggregated_transcript: bytes) -> None:
         ritual = self.rituals[ritual_id]
-        if ritual.status != self.RitualStatus.WAITING_FOR_CONFIRMATIONS:
-            raise Exception(f'ritual {ritual_id} is not waiting for confirmations')
+        if ritual.status != self.RitualStatus.AWAITING_AGGREGATIONS:
+            raise Exception(f'ritual {ritual_id} is not waiting for transcripts')
         if ritual.performances[node_index].node != node_address:
             raise Exception(f'{node_address} is not part of ritual #{ritual_id}')
-        if len(confirmed_node_indexes) > self.DKG_SIZE:
-            raise Exception('Invalid number of confirmations')
-        for index in confirmed_node_indexes:
-            if index > self.DKG_SIZE:
-                raise Exception('invalid node index')
-            ritual.performances[index].confirmed_by.append(node_address)
-        ritual.total_confirmations += 1
-        if ritual.total_confirmations == self.DKG_SIZE:
-            ritual.status = self.RitualStatus.COMPLETED
+        if ritual.performances[node_index].transcript:
+            raise Exception(f'{node_address} is not part of ritual #{ritual_id}')  # TODO: Wrong exception
+        ritual.performances[node_index].transcript = keccak(aggregated_transcript)
+        ritual.total_transcripts += 1
+        if ritual.total_transcripts == self.DKG_SIZE:
+            ritual.status = self.RitualStatus.FINALIZED
+            self.emit_signal(signal=self.Signal.END_RITUAL,
+                             ritual_id=ritual_id,
+                             nodes=[p.node for p in ritual.performances])
