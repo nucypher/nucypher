@@ -1,20 +1,12 @@
 # Based on original work here:
 # https://github.com/nucypher/ferveo/blob/client-server-api/ferveo-python/examples/server_api.py
 
-from typing import List, Tuple
+from typing import Tuple
 
-from eth_typing import ChecksumAddress
-from ferveo import (
-    AggregatedTranscript,
-    DecryptionShare,
-    Dkg,
-    Keypair,
-    PublicKey,
-    Transcript,
-)
+from nucypher.crypto.ferveo.mock import *
 
 
-def __make_dkg(
+def _make_dkg(
     ritual_id: int,
     checksum_address: ChecksumAddress,
     shares: int,
@@ -36,7 +28,7 @@ def generate_dkg_keypair() -> Keypair:
 
 
 def generate_transcript(*args, **kwargs) -> Transcript:
-    _dkg = __make_dkg(*args, **kwargs)
+    _dkg = _make_dkg(*args, **kwargs)
     transcript = _dkg.generate_transcript()
     return transcript
 
@@ -44,7 +36,7 @@ def generate_transcript(*args, **kwargs) -> Transcript:
 def aggregate_transcripts(
     transcripts: List[bytes], *args, **kwargs
 ) -> Tuple[AggregatedTranscript, PublicKey]:
-    _dkg = __make_dkg(*args, **kwargs)
+    _dkg = _make_dkg(*args, **kwargs)
     pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
     if not pvss_aggregated.validate(_dkg):
         raise Exception("validation failed")  # TODO: better exception
@@ -60,7 +52,7 @@ def derive_decryption_share(
     *args,
     **kwargs
 ) -> DecryptionShare:
-    dkg = __make_dkg(*args, **kwargs)
+    dkg = _make_dkg(*args, **kwargs)
     assert aggregated_transcript.validate(dkg)
     decryption_share = aggregated_transcript.create_decryption_share(
         dkg, ciphertext, aad, keypair
