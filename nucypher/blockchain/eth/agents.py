@@ -47,6 +47,9 @@ from nucypher.types import (
 from nucypher.utilities.logging import Logger  # type: ignore
 
 
+from ferveo import (AggregatedTranscript, DecryptionShare, Dkg, Keypair, PublicKey, Transcript)
+
+
 class EthereumContractAgent:
     """
     Base class for ethereum contract wrapper types that interact with blockchain contract instances
@@ -545,7 +548,7 @@ class PREApplicationAgent(EthereumContractAgent):
 
 
 class CoordinatorAgent(EthereumContractAgent):
-    contract_name: str = "CoordinatorV3"
+    contract_name: str = "Coordinator"
     _proxy_name = None
 
     @dataclass
@@ -553,12 +556,12 @@ class CoordinatorAgent(EthereumContractAgent):
 
         @dataclass
         class Status:
-            WAITING_FOR_CHECKINS = 0
-            WAITING_FOR_TRANSCRIPTS = 1
-            WAITING_FOR_CONFIRMATIONS = 2
-            COMPLETED = 3
-            FAILED = 4
-            FINAL = 5
+            NON_INITIATED = 0
+            AWAITING_TRANSCRIPTS = 1
+            AWAITING_AGGREGATIONS = 2
+            TIMEOUT = 3
+            INVALID = 4
+            FINALIZED = 5
 
         @dataclass
         class Performance:
@@ -567,20 +570,25 @@ class CoordinatorAgent(EthereumContractAgent):
             transcript: bytes
 
         id: int
-        status: Status
+        initiator: ChecksumAddress
+        dkg_size: int
         init_timestamp: int
         total_transcripts: int
         total_aggregations: int
-        performances: List = field(default_factory=list)
+        public_key: bytes
+        aggregated_transcript_hash: bytes
+        aggregation_mismatch: bool
+        aggregated_transcript: bytes
+        participants: List = field(default_factory=list)
 
         @property
         def nodes(self):
-            return [p.node for p in self.performances]
+            return [p.node for p in self.participants]
 
         @property
         def transcripts(self) -> List[bytes]:
             transcripts = list()
-            for p in self.performances:
+            for p in self.participants:
                 if p.aggregated:
                     raise RuntimeError(f"{p.node[:8]} transcript is already aggregated")
                 transcripts.append(p.transcript)
@@ -589,7 +597,7 @@ class CoordinatorAgent(EthereumContractAgent):
         @property
         def aggregated_transcripts(self) -> List[bytes]:
             transcripts = list()
-            for p in self.performances:
+            for p in self.participants:
                 if not p.aggregated:
                     raise RuntimeError(f"{p.node[:8]} transcript not aggregated")
                 transcripts.append(p.transcript)
@@ -602,26 +610,38 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_ritual(self, ritual_id: int) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
+        if result[0] != 0:
+            raise RuntimeError(f"Ritual {ritual_id} not found")
         ritual = self.Ritual(
-            id=ritual_id,
-            status=result[0],
-            init_timestamp=result[1],
-            total_transcripts=result[2],
-            total_aggregations=result[3],
-            performances=[],
+            id=result[0],
+            initiator=ChecksumAddress(result[1]),
+            dkg_size=result[2],
+            init_timestamp=result[3],
+            total_transcripts=result[4],
+            total_aggregations=result[5],
+            aggregated_transcript_hash=bytes(result[6]),
+            aggregation_mismatch=result[7],
+            aggregated_transcript=bytes(result[8]),
+            public_key=bytes(),
+            participants=[]
         )
         return ritual
 
     @contract_api(CONTRACT_CALL)
-    def get_performances(self, ritual_id: int) -> List[Ritual.Performance]:
-        result = self.contract.functions.getPerformances(ritual_id).call()
-        performances = list()
+    def get_ritual_status(self, ritual_id: int) -> int:
+        result = self.contract.functions.getRitualState(ritual_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_participants(self, ritual_id: int) -> List[Ritual.Performance]:
+        result = self.contract.functions.getParticipants(ritual_id).call()
+        participants = list()
         for r in result:
             performance = self.Ritual.Performance(
                 node=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
             )
-            performances.append(performance)
-        return performances
+            participants.append(performance)
+        return participants
 
     @contract_api(CONTRACT_CALL)
     def number_of_rituals(self) -> int:
@@ -651,25 +671,13 @@ class CoordinatorAgent(EthereumContractAgent):
         self,
         ritual_id: int,
         node_index: int,
-        confirmed_indexes: List[int],
+        aggregated_transcript: AggregatedTranscript,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             nodeIndex=node_index,
-            confirmedNodesIndexes=confirmed_indexes,
-        )
-        receipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
-        )
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def finalize_ritual(
-        self, ritual_id: int, transacting_power: TransactingPower
-    ) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.finalize(
-            ritual_id
+            aggregatedTranscript=bytes(aggregated_transcript),
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power

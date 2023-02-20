@@ -762,7 +762,7 @@ class CoordinatorDeployer(BaseContractDeployer):
                ignore_deployed: bool = False,
                deployment_mode=FULL,
                **overrides) -> dict:
-        constructor_kwargs = {'_transcriptsWindow': 600, '_confirmationsWindow': 600}
+        constructor_kwargs = {'_timeout': 600, '_maxDkgSize': 32}
         constructor_kwargs.update(overrides)
         constructor_kwargs = {k: v for k, v in constructor_kwargs.items() if v is not None}
         contract, deployment_receipt = self.blockchain.deploy_contract(transacting_power,
