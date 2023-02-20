@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Callable, List, Tuple, Type, Union
+from typing import Callable, List, Tuple, Type, Union, Optional
 
 from eth_typing import ChecksumAddress
 from ferveo import (
@@ -41,7 +41,7 @@ class EventActuator(EventScanner):
 class EventScannerTask(SimpleTask):
     """Task that runs the event scanner in a looping call."""
 
-    INTERVAL = 0.1  # seconds
+    INTERVAL = 10 # seconds
 
     def __init__(self, scanner: Callable, *args, **kwargs):
         self.scanner = scanner
@@ -82,7 +82,7 @@ class RitualTracker:
         # Map events to handlers
         self.actions = {
             contract.events.StartTranscriptRound: self.ritualist.perform_round_1,
-            contract.events.StartConfirmationRound: self.ritualist.perform_round_2,
+            contract.events.StartAggregationRound: self.ritualist.perform_round_2,
         }
         self.events = list(self.actions)
 
@@ -113,24 +113,29 @@ class RitualTracker:
     def get_ritual(self, ritual_id: int):
         """Get a ritual from the blockchain."""
         ritual = self.ritualist.coordinator_agent.get_ritual(ritual_id=ritual_id)
-        performances = self.ritualist.coordinator_agent.get_performances(ritual_id=ritual_id)
-        ritual.performances = performances
+        participants = self.ritualist.coordinator_agent.get_participants(ritual_id=ritual_id)
+        ritual.participants = participants
         return ritual
 
-    def refresh(self):
+    def refresh(self, fetch_rituals: Optional[List[int]] = None, all: bool = False):
         """Refresh the list of rituals with the latest data from the blockchain"""
-        for rid in self.rituals:
+        ritual_ids = self.rituals.keys()
+        if all:
+            ritual_ids = range(self.ritualist.coordinator_agent.number_of_rituals() - 1)
+        elif fetch_rituals:
+            ritual_ids = [*fetch_rituals, *ritual_ids]
+        for rid in ritual_ids:
             ritual = self.get_ritual(ritual_id=rid)
-            self.update_ritual(ritual_id=rid, ritual=ritual)
+            self.track_ritual(ritual_id=rid, ritual=ritual)
         
     def start(self):
         """Start the event scanner task."""
         return self.task.start()
 
-    def __action_required(self, event_type, timestamp: int, ritual_id):
+    def __action_required(self, event_type: Type[ContractEvent], block_number: int, ritual_id: int):
         """Check if an action is required for a given event."""
         if (event_type, ritual_id) in self.active_tasks:
-            self.log.debug(f"Already tracking {event_type} for ritual {ritual_id}")
+            self.log.debug(f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}")
             return False
         return True
 
@@ -143,7 +148,7 @@ class RitualTracker:
             if self.ritualist.transacting_power.account not in args.nodes:
                 self.log.debug(f"Event {name} is not for me, skipping")
                 return None, event_type
-        if not self.__action_required(event_type, event.timestamp, args.ritualId):
+        if not self.__action_required(event_type, event.blockNumber, args.ritualId):
             return None, event_type
         return event, event_type
 
@@ -202,13 +207,19 @@ class RitualTracker:
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
 
     def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
-        return [p.node for p in self.rituals[ritual_id].performances].index(node)
+        return [p.node for p in self.rituals[ritual_id].participants].index(node)
 
     def add_ritual(self, ritual):
         self.rituals[ritual.id] = ritual
+        return ritual
 
-    def update_ritual(self, ritual_id: int, ritual=None, transcript=None, confirmations=None, checkin_timestamp=None):
-        _ritual = self.rituals[ritual_id]
+    def track_ritual(self, ritual_id: int, ritual=None, transcript=None, confirmations=None, checkin_timestamp=None):
+        try:
+            _ritual = self.rituals[ritual_id]
+        except KeyError:
+            if not ritual:
+                raise ValueError("Ritual not found and no new ritual provided")
+            _ritual = self.add_ritual(ritual=ritual)
         if ritual_id and ritual:
             # replace the whole ritual
             self.rituals[ritual_id] = ritual
