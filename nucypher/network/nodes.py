@@ -68,6 +68,7 @@ TEACHER_NODES = {
     ),
     NetworksInventory.LYNX: ("https://lynx.nucypher.network:9151",),
     NetworksInventory.TAPIR: ("https://tapir.nucypher.network:9151",),
+    NetworksInventory.ORYX: ("https://oryx.nucypher.network:9151",),
 }
 
 

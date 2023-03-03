@@ -1,20 +1,19 @@
 """
-This file is part of nucypher.
+ This file is part of nucypher.
 
-nucypher is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+ nucypher is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
 
-nucypher is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
+ nucypher is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU Affero General Public License
-along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
+ You should have received a copy of the GNU Affero General Public License
+ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
-
 
 class NetworksInventory:  # TODO: See #1564
 
@@ -22,6 +21,7 @@ class NetworksInventory:  # TODO: See #1564
     LYNX = "lynx"
     ETH = "ethereum"
     TAPIR = "tapir"
+    ORYX = "oryx"
 
     # TODO: Use naming scheme to preserve multiple compatibility with multiple deployments to a single network?
     POLYGON = 'polygon'
@@ -33,7 +33,8 @@ class NetworksInventory:  # TODO: See #1564
     __to_chain_id_eth = {
         MAINNET: 1,  # Ethereum Mainnet
         LYNX: 5,  # Goerli
-        TAPIR: 5,  # Goerli
+        TAPIR: 5,
+        ORYX: 5,
     }
     __to_chain_id_polygon = {
         # TODO: Use naming scheme?
