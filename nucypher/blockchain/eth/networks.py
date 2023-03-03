@@ -1,12 +1,10 @@
-
-
-
 class NetworksInventory:  # TODO: See #1564
 
     MAINNET = "mainnet"
     LYNX = "lynx"
     ETH = "ethereum"
     TAPIR = "tapir"
+    ORYX = "oryx"
 
     # TODO: Use naming scheme to preserve multiple compatibility with multiple deployments to a single network?
     POLYGON = 'polygon'
@@ -18,7 +16,8 @@ class NetworksInventory:  # TODO: See #1564
     __to_chain_id_eth = {
         MAINNET: 1,  # Ethereum Mainnet
         LYNX: 5,  # Goerli
-        TAPIR: 5,  # Goerli
+        TAPIR: 5,
+        ORYX: 5
     }
     __to_chain_id_polygon = {
         # TODO: Use naming scheme?
