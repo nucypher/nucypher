@@ -41,7 +41,6 @@ def test_return_value_index():
         _ = ReturnValueTest(comparator=">", value="0", index="james")
 
 
-
 def test_return_value_index():
     test = ReturnValueTest(comparator=">", value="0", index=0)
     assert test.eval([1])
@@ -58,8 +57,6 @@ def test_return_value_index_tuple():
     test = ReturnValueTest(comparator=">", value="0", index=0)
     assert test.eval((1,))
     assert not test.eval((-1,))
-
-
 
 
 def test_return_value_test_invalid_comparators():
@@ -216,7 +213,7 @@ def test_return_value_test_bool():
         "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",  # string that is evaluated as int
         125,  # int
         1.223,  # float
-        os.urandom(16),  # bytes
+        b"\xe4\xe4u\x18\x03\x81i\xb74\x0e\xf5\xeb\x18\xf0\x0f\x82",  # bytes
         True,  # bool
         "True",  # bool as string
         (1, True, "love"),  # tuple
