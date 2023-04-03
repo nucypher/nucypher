@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Iterable, Optional
 
 import pytest
 from eth_account.account import Account
+from typing import Iterable, Optional
 
 from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
@@ -213,8 +214,9 @@ def mock_keystore(mocker):
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_substantiate_stamp(module_mocker, monkeymodule):
+    fake_signature = b'\xb1W5?\x9b\xbaix>\'\xfe`\x1b\x9f\xeb*9l\xc0\xa7\xb9V\x9a\x83\x84\x04\x97\x0c\xad\x99\x86\x81W\x93l\xc3\xbde\x03\xcd"Y\xce\xcb\xf7\x02z\xf6\x9c\xac\x84\x05R\x9a\x9f\x97\xf7\xa02\xb2\xda\xa1Gv\x01'
     module_mocker.patch.object(Ursula, "_substantiate_stamp", autospec=True)
-    module_mocker.patch.object(Ursula, "operator_signature", None)
+    module_mocker.patch.object(Ursula, "operator_signature", fake_signature)
     module_mocker.patch.object(Teacher, "validate_operator")
 
 
@@ -222,6 +224,11 @@ def mock_substantiate_stamp(module_mocker, monkeymodule):
 def mock_transacting_power(module_mocker, monkeymodule):
     module_mocker.patch.object(TransactingPower, "unlock")
 
+@pytest.fixture(scope="module", autouse=True)
+def staking_providers(testerchain, agency, test_registry, threshold_staking, monkeymodule):
 
-def staking_providers(testerchain, agency, test_registry, threshold_staking):
+    def faked(self, *args, **kwargs):
+        return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
+
+    Operator.get_staking_provider_address = faked
     return testerchain.stake_providers_accounts

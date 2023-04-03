@@ -1,9 +1,7 @@
-
-
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from nucypher_core.umbral import PublicKey, Signature
+from nucypher_core.umbral import PublicKey
 
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials

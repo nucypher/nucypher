@@ -33,6 +33,7 @@ class MockContractAgent:
 
     # Mock Nucypher Contract API
     contract = Mock()
+    contract.events = Mock()
     contract_address = NULL_ADDRESS
 
     # Mock Blockchain Interfaces

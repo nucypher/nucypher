@@ -1,13 +1,9 @@
-
-
-
-import os
-from pathlib import Path
-
 import pytest
 from eth_utils import to_checksum_address
+from ferveo_py import Keypair
 from nucypher_core import Address, NodeMetadata, NodeMetadataPayload
-from nucypher_core.umbral import RecoverableSignature, SecretKey, Signer
+from nucypher_core.umbral import SecretKey, Signer, RecoverableSignature
+from pathlib import Path
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
@@ -71,9 +67,10 @@ class Dummy:  # Teacher
         payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
                                       domain=':dummy:',
                                       timestamp_epoch=0,
-                                      operator_signature=dummy_signature,
+                                      operator_signature=RecoverableSignature.from_be_bytes(dummy_signature),
                                       verifying_key=signer.verifying_key(),
                                       encrypting_key=SecretKey.random().public_key(),
+                                      ferveo_public_key=bytes(Keypair.random().public_key),
                                       certificate_der=b'not a certificate',
                                       host=MOCK_IP_ADDRESS,
                                       port=MOCK_PORT,
