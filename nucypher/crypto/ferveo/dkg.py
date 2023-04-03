@@ -1,56 +1,60 @@
 # Based on original work here:
 # https://github.com/nucypher/ferveo/blob/client-server-api/ferveo-python/examples/server_api.py
-
-from typing import Tuple
-
-from nucypher.crypto.ferveo.mock import *
+from ferveo_py import *
+from typing import List, Tuple, Any
 
 
 def _make_dkg(
+    me: ExternalValidator,
     ritual_id: int,
-    checksum_address: ChecksumAddress,
     shares: int,
     threshold: int,
-    nodes: List[ChecksumAddress],
+    nodes: List[ExternalValidator],
 ) -> Dkg:
-    _dkg = Dkg(
+    dkg = Dkg(
         tau=ritual_id,
         shares_num=shares,
         security_threshold=threshold,
         validators=nodes,
-        me=checksum_address,
+        me=me
     )
-    return _dkg
+    return dkg
 
 
-def generate_dkg_keypair() -> Keypair:
-    return Keypair.random()
-
-
-def generate_transcript(*args, **kwargs) -> Transcript:
-    _dkg = _make_dkg(*args, **kwargs)
-    transcript = _dkg.generate_transcript()
+def generate_transcript(*args, **kwargs):
+    dkg = _make_dkg(*args, **kwargs)
+    transcript = dkg.generate_transcript()
     return transcript
 
 
+def _validate_pvss_aggregated(pvss_aggregated: AggregatedTranscript, dkg) -> bool:
+    valid = pvss_aggregated.validate(dkg)
+    if not valid:
+        raise Exception("validation failed")  # TODO: better exception handling
+    return valid
+
+
 def aggregate_transcripts(
-    transcripts: List[bytes], *args, **kwargs
-) -> Tuple[AggregatedTranscript, PublicKey]:
-    _dkg = _make_dkg(*args, **kwargs)
-    pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
-    if not pvss_aggregated.validate(_dkg):
-        raise Exception("validation failed")  # TODO: better exception
-    public_key = _dkg.final_key
-    return pvss_aggregated, public_key
+        nodes: List[ExternalValidator],
+        transcripts: List[Transcript],
+        *args, **kwargs
+) -> Tuple[AggregatedTranscript, PublicKey, Any]:
+    _dkg = _make_dkg(nodes=nodes, *args, **kwargs)
+    if len(transcripts) != len(nodes):
+        raise Exception("transcripts and nodes must be the same length")
+    if not all(transcripts):
+        raise Exception("transcripts must not be empty")
+    pvss_aggregated = _dkg.aggregate_transcripts(list(zip(nodes, transcripts)))
+    _validate_pvss_aggregated(pvss_aggregated, _dkg)
+    return pvss_aggregated, _dkg.final_key, _dkg.g1_inv
 
 
 def derive_decryption_share(
     aggregated_transcript: AggregatedTranscript,
     keypair: Keypair,
-    ciphertext: bytes,
+    ciphertext: Ciphertext,
     aad: bytes,
-    *args,
-    **kwargs
+    *args, **kwargs
 ) -> DecryptionShare:
     dkg = _make_dkg(*args, **kwargs)
     assert aggregated_transcript.validate(dkg)
