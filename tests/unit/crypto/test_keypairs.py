@@ -1,8 +1,5 @@
-
-
 import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
-
 from nucypher_core.umbral import SecretKey
 
 from nucypher.crypto import keypairs

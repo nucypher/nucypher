@@ -1,25 +1,20 @@
+from json import JSONDecodeError
+from os.path import abspath
 
-
-
+import click
 import json
 import os
 import stat
 import string
 import time
-from json import JSONDecodeError
-from os.path import abspath
+from constant_sorrow.constants import KEYSTORE_LOCKED
+from mnemonic.mnemonic import Mnemonic
+from nucypher_core.umbral import SecretKeyFactory
 from pathlib import Path
 from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
-import click
-from constant_sorrow.constants import KEYSTORE_LOCKED
-from mnemonic.mnemonic import Mnemonic
-
-from nucypher_core.umbral import SecretKey, SecretKeyFactory
-
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.passwords import (
     secret_box_decrypt,
@@ -37,6 +32,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
+from nucypher.utilities.emitters import StdoutEmitter
 
 # HKDF
 __INFO_BASE = b'NuCypher/'

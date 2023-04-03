@@ -458,6 +458,7 @@ class Bob(Character):
 
         if not publisher_verifying_key:
             publisher_verifying_key = alice_verifying_key
+        publisher_verifying_key = PublicKey.from_compressed_bytes(publisher_verifying_key.to_compressed_bytes())
 
         # A small optimization to avoid multiple treasure map decryptions.
         map_hash = hash(bytes(encrypted_treasure_map))
