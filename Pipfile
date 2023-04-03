@@ -40,6 +40,7 @@ colorama = "*"
 tabulate = "*"
 # Template
 jinja2 = "<3.1.0"  # because of docs
+ferveo = "==0.1.5"
 
 [dev-packages]
 # Pytest
