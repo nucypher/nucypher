@@ -1,23 +1,21 @@
-from dataclasses import dataclass, field
-
-from enum import Enum
-
 import os
 import random
-import sys
 from bisect import bisect_right
-from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
+from dataclasses import dataclass, field
 
-from constant_sorrow.constants import (  # type: ignore
+import sys
+from constant_sorrow.constants import (
+    CONTRACT_ATTRIBUTE,  # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
-    CONTRACT_ATTRIBUTE
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
+from ferveo_py import AggregatedTranscript
+from itertools import accumulate
+from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
 from web3.contract import Contract, ContractFunction
-from web3.types import Wei, Timestamp, TxReceipt, TxParams
+from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
@@ -25,29 +23,21 @@ from nucypher.blockchain.eth.constants import (
     ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
+    PRE_APPLICATION_CONTRACT_NAME,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
-    PRE_APPLICATION_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
-    NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import sha256_digest
-from nucypher.types import (
-    Agent,
-    NuNits,
-    StakingProviderInfo,
-    TuNits
-)
+from nucypher.types import Agent, NuNits, StakingProviderInfo, TuNits
 from nucypher.utilities.logging import Logger  # type: ignore
-
-
-from ferveo import (AggregatedTranscript, DecryptionShare, Dkg, Keypair, PublicKey, Transcript)
 
 
 class EthereumContractAgent:
@@ -564,21 +554,21 @@ class CoordinatorAgent(EthereumContractAgent):
             FINALIZED = 5
 
         @dataclass
-        class Performance:
+        class Participant:
             node: ChecksumAddress
-            aggregated: bool
-            transcript: bytes
+            aggregated: bool = False
+            transcript: bytes = bytes()
 
         id: int
         initiator: ChecksumAddress
         dkg_size: int
         init_timestamp: int
-        total_transcripts: int
-        total_aggregations: int
-        public_key: bytes
-        aggregated_transcript_hash: bytes
-        aggregation_mismatch: bool
-        aggregated_transcript: bytes
+        total_transcripts: int = 0
+        total_aggregations: int = 0
+        public_key: bytes = bytes()
+        aggregated_transcript_hash: bytes = bytes()
+        aggregation_mismatch: bool = False
+        aggregated_transcript: bytes = bytes()
         participants: List = field(default_factory=list)
 
         @property
@@ -586,21 +576,10 @@ class CoordinatorAgent(EthereumContractAgent):
             return [p.node for p in self.participants]
 
         @property
-        def transcripts(self) -> List[bytes]:
+        def transcripts(self) -> List[Tuple[ChecksumAddress, bytes]]:
             transcripts = list()
             for p in self.participants:
-                if p.aggregated:
-                    raise RuntimeError(f"{p.node[:8]} transcript is already aggregated")
-                transcripts.append(p.transcript)
-            return transcripts
-
-        @property
-        def aggregated_transcripts(self) -> List[bytes]:
-            transcripts = list()
-            for p in self.participants:
-                if not p.aggregated:
-                    raise RuntimeError(f"{p.node[:8]} transcript not aggregated")
-                transcripts.append(p.transcript)
+                transcripts.append((p.node, p.transcript))
             return transcripts
 
         @property
@@ -633,11 +612,11 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_participants(self, ritual_id: int) -> List[Ritual.Performance]:
+    def get_participants(self, ritual_id: int) -> List[Ritual.Participant]:
         result = self.contract.functions.getParticipants(ritual_id).call()
         participants = list()
         for r in result:
-            performance = self.Ritual.Performance(
+            performance = self.Ritual.Participant(
                 node=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
             )
             participants.append(performance)
