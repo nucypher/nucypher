@@ -3,6 +3,7 @@ from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
+from ferveo_py import Keypair as FerveoKeypair
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nucypher_core import (
@@ -95,6 +96,24 @@ class DecryptingKeypair(Keypair):
 
     def decrypt_treasure_map(self, etmap: EncryptedTreasureMap, publisher_verifying_key: PublicKey) -> TreasureMap:
         return etmap.decrypt(self._privkey, publisher_verifying_key)
+
+
+class RitualisticKeypair(Keypair):
+    """A keypair for Ferveo"""
+
+    class FerveoKey:
+        """A Keypair wrapper/shim for Ferveo to expose the public key as a callable"""
+        def __init__(self):
+            self.keypair = FerveoKeypair.random()
+
+        def public_key(self):
+            return self.keypair.public_key
+
+    _private_key_source = FerveoKey
+    _public_key_method = "public_key"
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
 
 class SigningKeypair(Keypair):
