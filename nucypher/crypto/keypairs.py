@@ -1,7 +1,3 @@
-
-from pathlib import Path
-from typing import Optional, Union
-
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -9,14 +5,13 @@ from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-
 from nucypher_core import (
     MessageKit,
     EncryptedTreasureMap,
     EncryptedKeyFrag,
     HRAC,
     TreasureMap,
-    )
+)
 from nucypher_core.umbral import (
     SecretKey,
     PublicKey,
@@ -24,6 +19,8 @@ from nucypher_core.umbral import (
     Signer,
     VerifiedKeyFrag,
 )
+from pathlib import Path
+from typing import Optional, Union
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp

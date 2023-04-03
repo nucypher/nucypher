@@ -1,5 +1,3 @@
-
-
 from nucypher_core.umbral import Signer
 
 

@@ -1,7 +1,6 @@
-
-
-
 from cryptography.hazmat.primitives import hashes
+
+UMBRAL_SECRET_KEY_SIZE = 32
 
 # Policy component sizes
 SIGNATURE_SIZE = 64
