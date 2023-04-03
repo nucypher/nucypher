@@ -149,10 +149,11 @@ contract Coordinator is Ownable {
             "Not waiting for transcripts"
         );
         Participant storage participant = ritual.participant[nodeIndex];
-        require(
-            participant.node == msg.sender,
-            "Node not part of ritual"
-        );
+        // Check operator is authorized for staker here instead
+        //        require(
+        //    participant.node == msg.sender,
+        //    "Node not part of ritual"
+        //);
         require(
             participant.transcript.length == 0,
             "Node already posted transcript"
@@ -179,10 +180,11 @@ contract Coordinator is Ownable {
             "Not waiting for aggregations"
         );
         Participant storage participant = ritual.participant[nodeIndex];
-        require(
-            participant.node == msg.sender,
-            "Node not part of ritual"
-        );
+        // Check operator is authorized for staker here instead
+        //        require(
+        //            participant.node == msg.sender,
+        //            "Node not part of ritual"
+        //        );
         require(
             !participant.aggregated,
             "Node already posted aggregation"
