@@ -1,19 +1,18 @@
-
-
-
 import inspect
-from typing import List, Optional, Tuple
 
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
+from ferveo_py import Keypair as FerveoKeypair, Transcript, AggregatedTranscript, DecryptionShare, ExternalValidator, \
+    Ciphertext
 from hexbytes import HexBytes
-
 from nucypher_core.umbral import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
+from typing import List, Optional, Tuple
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
-from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair
+from nucypher.crypto.ferveo import dkg
+from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair, RitualisticKeypair
 
 
 class PowerUpError(TypeError):
@@ -32,9 +31,13 @@ class NoTransactingPower(PowerUpError):
     pass
 
 
+class NoRitualisticPower(PowerUpError):
+    pass
+
+
 class CryptoPower(object):
     def __init__(self, power_ups: list = None) -> None:
-        self.__power_ups = {}   # type: dict
+        self.__power_ups = {}  # type: dict
         # TODO: The keys here will actually be IDs for looking up in a Datastore.
         self.public_keys = {}  # type: dict
 
@@ -226,6 +229,73 @@ class DecryptingPower(KeyPairBasedPower):
     _keypair_class = DecryptingKeypair
     not_found_error = NoDecryptingPower
     provides = ("decrypt_message_kit", "decrypt_kfrag", "decrypt_treasure_map")
+
+
+class RitualisticPower(KeyPairBasedPower):
+    _keypair_class = RitualisticKeypair
+    _default_private_key_class = FerveoKeypair
+    not_found_error = NoRitualisticPower
+    provides = ("derive_decryption_share", "generate_transcript")
+
+    def derive_decryption_share(
+            self,
+            checksum_address: ChecksumAddress,
+            ritual_id: int,
+            shares: int,
+            threshold: int,
+            nodes: list,
+            aggregated_transcript: AggregatedTranscript,
+            ciphertext: Ciphertext,
+            conditions: bytes
+    ) -> DecryptionShare:
+        decryption_share = dkg.derive_decryption_share(
+            ritual_id=ritual_id,
+            me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
+            shares=shares,
+            threshold=threshold,
+            nodes=nodes,
+            aggregated_transcript=aggregated_transcript,
+            keypair=self.keypair._privkey.keypair,
+            ciphertext=ciphertext,
+            aad=bytes(conditions),
+        )
+        return decryption_share
+
+    def generate_transcript(
+            self,
+            checksum_address: ChecksumAddress,
+            ritual_id: int,
+            shares: int,
+            threshold: int,
+            nodes: list
+    ) -> Transcript:
+        transcript = dkg.generate_transcript(
+            ritual_id=ritual_id,
+            me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
+            shares=shares,
+            threshold=threshold,
+            nodes=nodes
+        )
+        return transcript
+
+    def aggregate_transcripts(
+            self,
+            ritual_id: int,
+            checksum_address: ChecksumAddress,
+            shares: int,
+            threshold: int,
+            nodes: list,
+            transcripts: list
+    ) -> Tuple[AggregatedTranscript, PublicKey, int]:
+        aggregated_transcript, public_key, generator_inverse = dkg.aggregate_transcripts(
+            ritual_id=ritual_id,
+            me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
+            shares=shares,
+            threshold=threshold,
+            nodes=nodes,
+            transcripts=transcripts
+        )
+        return aggregated_transcript, public_key, generator_inverse
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):
