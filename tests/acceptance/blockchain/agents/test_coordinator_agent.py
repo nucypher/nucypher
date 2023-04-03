@@ -31,8 +31,8 @@ def aggregated_transcript(agent):
 
 
 @pytest.fixture(scope='module')
-def cohort(testerchain):
-    deployer, someone, *everybody_else = testerchain.client.accounts
+def cohort(ursulas):
+    deployer, someone, *everybody_else = testerchain.stake_providers_accounts
     return [someone]
 
 
