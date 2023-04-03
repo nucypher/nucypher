@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
@@ -13,25 +14,25 @@ class SimpleTask(ABC):
 
     def __init__(self):
         self.log = Logger(self.__class__.__name__)
-        self.__task = LoopingCall(self.run)
+        self._task = LoopingCall(self.run)
         # self.__task.clock = self.CLOCK
 
     @property
     def running(self) -> bool:
         """Determine whether the task is already running."""
-        return self.__task.running
+        return self._task.running
 
     def start(self, now: bool = False):
         """Start task."""
         if not self.running:
-            d = self.__task.start(interval=self.INTERVAL, now=now)
+            d = self._task.start(interval=self.INTERVAL, now=now)
             d.addErrback(self.handle_errors)
-            return d
+            # return d
 
     def stop(self):
         """Stop task."""
         if self.running:
-            self.__task.stop()
+            self._task.stop()
 
     @abstractmethod
     def run(self):

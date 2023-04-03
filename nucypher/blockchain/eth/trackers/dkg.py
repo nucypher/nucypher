@@ -1,9 +1,9 @@
 import os
 import time
-from typing import Callable, List, Tuple, Type, Union, Optional
+from typing import Callable, List, Optional, Tuple, Type, Union
 
 from eth_typing import ChecksumAddress
-from ferveo import (
+from ferveo_py import (
     AggregatedTranscript,
     DecryptionShare,
     Dkg,
@@ -27,6 +27,7 @@ class EventActuator(EventScanner):
     """Act on events that are found by the scanner."""
 
     def __init__(self, hooks: List[Callable], clear: bool = True, *args, **kwargs):
+        self.log = Logger("EventActuator")
         if clear and os.path.exists(JSONifiedState.STATE_FILENAME):
             os.remove(JSONifiedState.STATE_FILENAME)
         self.hooks = hooks
@@ -34,7 +35,11 @@ class EventActuator(EventScanner):
 
     def process_event(self, event, get_block_when):
         for hook in self.hooks:
-            hook(event, get_block_when)
+            try:
+                hook(event, get_block_when)
+            except Exception as e:
+                self.log.warn("Error during event hook: {}".format(e))
+                raise
         super().process_event(event, get_block_when)
 
 
@@ -132,10 +137,14 @@ class RitualTracker:
         """Start the event scanner task."""
         return self.task.start()
 
+    def stop(self):
+        """Stop the event scanner task."""
+        return self.task.stop()
+
     def __action_required(self, event_type: Type[ContractEvent], block_number: int, ritual_id: int):
         """Check if an action is required for a given event."""
         if (event_type, ritual_id) in self.active_tasks:
-            self.log.debug(f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}")
+            # self.log.debug(f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}")
             return False
         return True
 
@@ -145,7 +154,7 @@ class RitualTracker:
         event_type = getattr(self.contract.events, event.event)
         if hasattr(args, "nodes"):
             # Filter out events that are not for me
-            if self.ritualist.transacting_power.account not in args.nodes:
+            if self.ritualist.checksum_address not in args.nodes:
                 self.log.debug(f"Event {name} is not for me, skipping")
                 return None, event_type
         if not self.__action_required(event_type, event.blockNumber, args.ritualId):
@@ -181,7 +190,7 @@ class RitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
+        # self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:
@@ -207,7 +216,7 @@ class RitualTracker:
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
 
     def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
-        return [p.node for p in self.rituals[ritual_id].participants].index(node)
+        return self.rituals[ritual_id].nodes.index(node)
 
     def add_ritual(self, ritual):
         self.rituals[ritual.id] = ritual

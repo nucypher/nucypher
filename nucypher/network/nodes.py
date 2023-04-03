@@ -129,6 +129,10 @@ class NodeSprout:
         return self._metadata_payload.encrypting_key
 
     @property
+    def ferveo_public_key(self):
+        return self._metadata_payload.ferveo_public_key
+
+    @property
     def operator_signature_from_metadata(self):
         return self._metadata_payload.operator_signature or NOT_SIGNED
 
@@ -150,6 +154,7 @@ class NodeSprout:
         crypto_power = CryptoPower()
         crypto_power.consume_power_up(SigningPower(public_key=self._metadata_payload.verifying_key))
         crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata_payload.encrypting_key))
+        crypto_power.consume_power_up(RitualPower(public_key=self._metadata_payload.ferveo_public_key))
 
         return Ursula(is_me=False,
                       crypto_power=crypto_power,

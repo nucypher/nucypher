@@ -1,22 +1,7 @@
 import contextlib
 import json
-import time
-from pathlib import Path
-from queue import Queue
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
-
 import maya
+import time
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     INVALIDATED,
@@ -41,14 +26,23 @@ from nucypher_core import (
     ReencryptionResponse,
     TreasureMap,
 )
-from nucypher_core.umbral import (
-    PublicKey,
-    RecoverableSignature,
-    VerifiedKeyFrag,
-    reencrypt,
-)
+from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt, RecoverableSignature
+from pathlib import Path
+from queue import Queue
 from twisted.internet import reactor
 from twisted.logger import Logger
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 from web3.types import TxReceipt
 
 import nucypher
@@ -74,7 +68,7 @@ from nucypher.crypto.powers import (
     PowerUpError,
     SigningPower,
     TLSHostingPower,
-    TransactingPower,
+    TransactingPower, RitualisticPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -82,7 +76,7 @@ from nucypher.network.nodes import TEACHER_NODES, NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import RetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
-from nucypher.network.trackers import AvailabilityTracker, OperatorBondedTracker
+from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.conditions.types import LingoList
 from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
@@ -529,6 +523,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
     _default_crypto_powerups = [
         SigningPower,
         DecryptingPower,
+        RitualisticPower,
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
@@ -889,6 +884,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                                       operator_signature=operator_signature,
                                       verifying_key=self.public_keys(SigningPower),
                                       encrypting_key=self.public_keys(DecryptingPower),
+                                      ferveo_public_key=bytes(self.public_keys(RitualisticPower)),  # TODO: use type
                                       certificate_der=self.certificate.public_bytes(Encoding.DER),
                                       host=self.rest_interface.host,
                                       port=self.rest_interface.port)

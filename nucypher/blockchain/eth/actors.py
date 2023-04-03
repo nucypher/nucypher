@@ -5,8 +5,9 @@ import maya
 import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
+from ferveo_py import ExternalValidator
 from hexbytes import HexBytes
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, List
 from web3 import Web3
 from web3.types import TxReceipt
 
@@ -35,14 +36,12 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import RitualTracker
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.ferveo.dkg import (
     AggregatedTranscript,
     DecryptionShare,
     Transcript,
 )
-from nucypher.crypto.ferveo.mock import FerveoError, Keypair
-from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.crypto.powers import CryptoPower, TransactingPower, RitualisticPower
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.payment import ContractPayment
@@ -453,7 +452,13 @@ class Ritualist(BaseActor):
             contract=self.coordinator_agent.contract
         )
 
-        self.dkg_storage = {"transcripts": {}, "aggregated_transcripts": {}}
+        self.dkg_storage = {
+            "transcripts": {},
+            "aggregated_transcripts": {},
+            "public_keys": {},
+            "generator_inverses": {},
+        }
+        self.ritual_power = crypto_power.power_ups(RitualisticPower)
 
     def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
         try:
@@ -466,11 +471,11 @@ class Ritualist(BaseActor):
         self.dkg_storage["transcripts"][ritual_id] = bytes(transcript)
 
     def store_aggregated_transcript(
-        self, ritual_id: int, aggregated_transcript: AggregatedTranscript
+        self, ritual_id: int, aggregated_transcript: AggregatedTranscript, public_key: bytes, generator_inverse
     ) -> None:
-        self.dkg_storage["aggregated_transcripts"][ritual_id] = bytes(
-            aggregated_transcript
-        )
+        self.dkg_storage["aggregated_transcripts"][ritual_id] = bytes(aggregated_transcript)
+        self.dkg_storage["public_keys"][ritual_id] = public_key
+        self.dkg_storage["generator_inverses"][ritual_id] = generator_inverse
 
     def get_aggregated_transcript(self, ritual_id: int) -> AggregatedTranscript:
         data = self.dkg_storage["aggregated_transcripts"][ritual_id]
@@ -482,7 +487,48 @@ class Ritualist(BaseActor):
         transcript = Transcript.from_bytes(data)
         return transcript
 
-    def perform_round_1(self, ritual_id: int, timestamp: int, *args, **kwargs):
+    def get_public_key(self, ritual_id: int) -> bytes:
+        return self.dkg_storage["public_keys"][ritual_id]
+
+    def recruit_validators(
+            self,
+            ritual: CoordinatorAgent.Ritual,
+            timeout: int = 60
+    ) -> List[Tuple[ExternalValidator, Transcript]]:
+
+        sorted_cohort = list(sorted(ritual.transcripts, key=lambda x: int(x[0], 16)))
+        validator_checksum_addresses = [n[0] for n in sorted_cohort]
+        if timeout > 0:
+            nodes_to_discover = list(set(validator_checksum_addresses) - {self.checksum_address})
+            self.block_until_specific_nodes_are_known(
+                addresses=nodes_to_discover,
+                timeout=timeout,
+                allow_missing=0
+            )
+
+        validators = list()
+        for node_checksum_address, transcript_bytes in sorted_cohort:
+            if self.checksum_address == node_checksum_address:
+                # Local
+                external_validator = ExternalValidator(
+                    address=self.checksum_address,
+                    public_key=self.ritual_power.public_key()
+                )
+            else:
+                # Remote
+                try:
+                    remote_ritualist = self.known_nodes[node_checksum_address]
+                except KeyError:
+                    raise self.ActorError(f"Unknown node {node_checksum_address}")
+                public_key = remote_ritualist.public_keys(RitualisticPower)
+                self.log.debug(f"Ferveo public key for {node_checksum_address} is {bytes(public_key).hex()[:-8:-1]}")
+                external_validator = ExternalValidator(address=node_checksum_address, public_key=public_key)
+
+            transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else bytes()
+            validators.append((external_validator, transcript))
+        return validators
+
+    def perform_round_1(self, ritual_id: int, timestamp: int):
         ritual = self.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
@@ -490,7 +536,7 @@ class Ritualist(BaseActor):
                 f"ritual #{ritual.id} is not waiting for transcripts."
             )
         node_index = self.ritual_tracker.get_node_index(
-            ritual_id=ritual_id, node=self.transacting_power.account
+            ritual_id=ritual_id, node=self.checksum_address
         )
         if ritual.participants[node_index].transcript:
             raise self.RitualError(
@@ -500,34 +546,38 @@ class Ritualist(BaseActor):
             f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
-        try:
-            transcript = dkg.generate_transcript(
-                ritual_id=ritual_id,
-                checksum_address=self.transacting_power.account,
-                shares=len(ritual.nodes),
-                threshold=len(ritual.nodes) // 2 + 1,  # TODO: Make this configurable and reachable via contract
-                nodes=ritual.nodes,
-            )  # TODO: Error handling
-        except FerveoError:
-            raise self.ActorError(
-                f"error generating DKG transcript for ritual #{ritual_id}"
-            )
+        nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
+        if any(transcripts):
+            self.log.debug(f"ritual #{ritual_id} already has published transcripts")
 
-        self.store_transcript(ritual_id=ritual_id, transcript=transcript)
+        transcript = self.ritual_power.generate_transcript(
+            nodes=nodes,
+            threshold=(ritual.shares // 2) + 1,
+            shares=ritual.shares,
+            checksum_address=self.checksum_address,
+            ritual_id=ritual_id
+        )
+
+        self.store_transcript(
+            ritual_id=ritual_id,
+            transcript=transcript,
+        )
 
         receipt = self.coordinator_agent.post_transcript(
             node_index=self.ritual_tracker.get_node_index(
-                ritual_id=ritual_id, node=self.transacting_power.account
+                ritual_id=ritual_id, node=self.checksum_address
             ),
             ritual_id=ritual_id,
             transcript=bytes(transcript),
             transacting_power=self.transacting_power,
         )
 
-        self.log.debug(f"{self.transacting_power.account[:8]} completed round 1 of DKG ritual #{ritual_id}")
+        total = ritual.total_transcripts + 1
+        self.log.debug(f"{self.transacting_power.account[:8]} submitted a transcript for "
+                       f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
         return receipt
 
-    def perform_round_2(self, ritual_id: int, timestamp: int, *args, **kwargs):
+    def perform_round_2(self, ritual_id: int, timestamp: int):
         ritual = self.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
@@ -538,63 +588,77 @@ class Ritualist(BaseActor):
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
-        try:
-            aggregated_transcript, public_key = dkg.aggregate_transcripts(
-                ritual_id=ritual_id,
-                checksum_address=self.transacting_power.account,
-                shares=len(ritual.nodes),
-                threshold=len(ritual.nodes) // 2 + 1,  # TODO: Make this configurable and reachable via contract
-                nodes=ritual.nodes,
-                transcripts=ritual.transcripts,
-            )  # TODO: better error handling
-        except FerveoError:
+        nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
+
+        if not all(transcripts):
             raise self.ActorError(
-                f"{self.transacting_power.account[:8]} encountered error aggregating DKG transcript fr ritual #{ritual_id}"
+                f"ritual #{ritual_id} is missing transcripts from {len([t for t in transcripts if not t])} nodes."
             )
+
+        aggregated_transcript, dkg_public_key, generator_inverse = self.ritual_power.aggregate_transcripts(
+            nodes=nodes,
+            threshold=(ritual.shares // 2) + 1,
+            shares=ritual.shares,
+            checksum_address=self.checksum_address,
+            ritual_id=ritual_id,
+            transcripts=transcripts
+        )
 
         self.store_aggregated_transcript(
             ritual_id=ritual_id,
-            aggregated_transcript=aggregated_transcript
+            aggregated_transcript=aggregated_transcript,
+            public_key=dkg_public_key,
+            generator_inverse=generator_inverse,
         )
 
         receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             node_index=self.ritual_tracker.get_node_index(
                 ritual_id=ritual_id,
-                node=self.transacting_power.account
+                node=self.checksum_address
             ),
             aggregated_transcript=aggregated_transcript,
             transacting_power=self.transacting_power
         )
-        self.log.debug(f"{self.transacting_power.account[:8]} completed round 2 of DKG ritual #{ritual_id}")
+
+        total = ritual.total_aggregations + 1
+        self.log.debug(f"{self.transacting_power.account[:8]} aggregated a transcript for "
+                       f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
+
+        if total == len(ritual.nodes):
+            self.log.debug(f"DKG ritual #{ritual_id} is ready to be finalized")
         return receipt
 
     def derive_decryption_share(
-        self, ritual_id: int, ciphertext: bytes, conditions: ConditionLingo
+        self,
+        ritual_id: int,
+        ciphertext: bytes,
+        conditions: ConditionLingo
     ) -> DecryptionShare:
         ritual = self.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:
             raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
-        aggregated_transcript = self.get_aggregated_transcript(ritual_id)
 
-        try:
-            decryption_share = dkg.derive_decryption_share(
-                ritual_id=ritual_id,
-                checksum_address=self.checksum_address,
-                shares=len(ritual.nodes),
-                threshold=len(ritual.nodes) // 2 + 1,  # TODO: Make this configurable and reachable via contract
-                nodes=ritual.nodes,
-                aggregated_transcript=aggregated_transcript,
-                keypair=Keypair.random(), # self.crypto_power(RitualPower),  # TODO: Use the right keypair
-                ciphertext=bytes(ciphertext),
-                aad=bytes(conditions),
-            )
-        except FerveoError:
-            # TODO: better error handling
+        aggregated_transcript = self.get_aggregated_transcript(ritual_id)
+        ritual.aggregated_transcript
+
+        nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
+        if not all(transcripts):
             raise self.ActorError(
-                f"{self.transacting_power.account[:8]} encountered an error deriving decryption share for ritual #{ritual_id}"
+                f"ritual #{ritual_id} is missing transcripts"
             )
+
+        decryption_share = self.ritual_power.derive_decryption_share(
+            nodes=nodes,
+            threshold=(ritual.shares // 2) + 1,
+            shares=ritual.shares,
+            checksum_address=self.checksum_address,
+            ritual_id=ritual_id,
+            aggregated_transcript=aggregated_transcript,
+            ciphertext=ciphertext,
+            conditions=conditions
+        )
 
         return decryption_share
 
