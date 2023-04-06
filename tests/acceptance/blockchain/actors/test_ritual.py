@@ -74,6 +74,8 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
             for ursula in cohort:
                 ursula.ritual_tracker.scan()
                 ursula.ritual_tracker.refresh()
+                testerchain.time_travel(seconds=60)
+                # ursula.ritual_tracker.refresh(fetch_rituals=[0])
 
     def start_ursulas():
         for ursula in cohort:
@@ -95,6 +97,8 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
 
     # wait for the dkg to finalize
     d.addCallback(block_until_dkg_finalized)
+    d.addErrback(lambda e: print(e.getTraceback()))
+
     d.addCallback(check_finality)
 
     # test encryption/decryption

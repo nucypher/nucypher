@@ -57,6 +57,7 @@ class EventScannerTask(SimpleTask):
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
+        raise args[0]
 
 
 class RitualTracker:
@@ -164,7 +165,7 @@ class RitualTracker:
     def __execute_round(self, event_type, timestamp: int, ritual_id, **kwargs):
         """Execute a round of a ritual asynchronously."""
         def task():
-            return self.actions[event_type](timestamp=timestamp, ritual_id=ritual_id, **kwargs)
+            self.actions[event_type](timestamp=timestamp, ritual_id=ritual_id, **kwargs)
         d = threads.deferToThread(task)
         d.addErrback(self.task.handle_errors)
         d.addCallback(self.refresh)
@@ -215,8 +216,8 @@ class RitualTracker:
         end_block = self.scanner.get_suggested_scan_end_block()
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
 
-    def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
-        return self.rituals[ritual_id].nodes.index(node)
+    # def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
+    #     return self.rituals[ritual_id].nodes.index(node)
 
     def add_ritual(self, ritual):
         self.rituals[ritual.id] = ritual
