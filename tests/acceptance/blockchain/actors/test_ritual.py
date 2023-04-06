@@ -66,16 +66,13 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
         shared_secret = combine_decryption_shares(decryption_shares)
         cleartext = decrypt_with_shared_secret(ciphertext, conditions, shared_secret, generator)
         assert bytes(cleartext) == plaintext
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
 
     def block_until_dkg_finalized(d):
         while node.coordinator_agent.get_ritual_status(0) != coordinator_agent.Ritual.Status.FINALIZED:
             # simulates the passage of time and the execution of the event scanner
             for ursula in cohort:
-                ursula.ritual_tracker.scan()
-                ursula.ritual_tracker.refresh()
-                testerchain.time_travel(seconds=60)
-                # ursula.ritual_tracker.refresh(fetch_rituals=[0])
+                ursula.ritual_tracker.task.run()
+            testerchain.time_travel(seconds=60)
 
     def start_ursulas():
         for ursula in cohort:
@@ -98,7 +95,6 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
     # wait for the dkg to finalize
     d.addCallback(block_until_dkg_finalized)
     d.addErrback(lambda e: print(e.getTraceback()))
-
     d.addCallback(check_finality)
 
     # test encryption/decryption
