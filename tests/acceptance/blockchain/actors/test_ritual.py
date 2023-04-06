@@ -6,7 +6,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from tests.utils.ursula import start_pytest_ursula_services
 
-DKG_SIZE = 3
+DKG_SIZE = 4
 
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, control_time):
@@ -47,6 +47,7 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
         last_node = cohort[-1]
         encrypting_key = last_node.dkg_storage["public_keys"][0]
         generator = last_node.dkg_storage["generator_inverses"][0]
+        # alternatively, we could derive the key from the transcripts
 
         # In the meantime, the client creates a ciphertext and decryption request
         plaintext = "abc".encode()
@@ -85,11 +86,21 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
             ursula.ritual_tracker.stop()
             ursula.start_learning_loop()
 
+    # setup
     d = deferToThread(start_ursulas)
+
+    # initiate the ritual
     d.addCallback(initialize)
     d.addCallback(check_initialize)
+
+    # wait for the dkg to finalize
     d.addCallback(block_until_dkg_finalized)
     d.addCallback(check_finality)
+
+    # test encryption/decryption
     d.addCallback(test_encrypt_decrypt)
+
+    # tear down
     d.addCallback(stop)
+
     yield d

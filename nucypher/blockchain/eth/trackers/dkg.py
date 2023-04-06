@@ -164,7 +164,7 @@ class RitualTracker:
     def __execute_round(self, event_type, timestamp: int, ritual_id, **kwargs):
         """Execute a round of a ritual asynchronously."""
         def task():
-            self.actions[event_type](timestamp=timestamp, ritual_id=ritual_id, **kwargs)
+            return self.actions[event_type](timestamp=timestamp, ritual_id=ritual_id, **kwargs)
         d = threads.deferToThread(task)
         d.addErrback(self.task.handle_errors)
         d.addCallback(self.refresh)

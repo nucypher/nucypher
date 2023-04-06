@@ -496,19 +496,18 @@ class Ritualist(BaseActor):
             timeout: int = 60
     ) -> List[Tuple[ExternalValidator, Transcript]]:
 
-        sorted_cohort = list(sorted(ritual.transcripts, key=lambda x: int(x[0], 16)))
-        validator_checksum_addresses = [n[0] for n in sorted_cohort]
+        validators = [n[0] for n in ritual.transcripts]
         if timeout > 0:
-            nodes_to_discover = list(set(validator_checksum_addresses) - {self.checksum_address})
+            nodes_to_discover = list(set(validators) - {self.checksum_address})
             self.block_until_specific_nodes_are_known(
                 addresses=nodes_to_discover,
                 timeout=timeout,
                 allow_missing=0
             )
 
-        validators = list()
-        for node_checksum_address, transcript_bytes in sorted_cohort:
-            if self.checksum_address == node_checksum_address:
+        result = list()
+        for staking_provider_address, transcript_bytes in ritual.transcripts:
+            if self.checksum_address == staking_provider_address:
                 # Local
                 external_validator = ExternalValidator(
                     address=self.checksum_address,
@@ -517,16 +516,17 @@ class Ritualist(BaseActor):
             else:
                 # Remote
                 try:
-                    remote_ritualist = self.known_nodes[node_checksum_address]
+                    remote_ritualist = self.known_nodes[staking_provider_address]
                 except KeyError:
-                    raise self.ActorError(f"Unknown node {node_checksum_address}")
+                    raise self.ActorError(f"Unknown node {staking_provider_address}")
                 public_key = remote_ritualist.public_keys(RitualisticPower)
-                self.log.debug(f"Ferveo public key for {node_checksum_address} is {bytes(public_key).hex()[:-8:-1]}")
-                external_validator = ExternalValidator(address=node_checksum_address, public_key=public_key)
+                self.log.debug(f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}")
+                external_validator = ExternalValidator(address=staking_provider_address, public_key=public_key)
 
-            transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else bytes()
-            validators.append((external_validator, transcript))
-        return validators
+            transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else None
+            result.append((external_validator, transcript))
+
+        return result
 
     def perform_round_1(self, ritual_id: int, timestamp: int):
         ritual = self.get_ritual(ritual_id)
@@ -535,7 +535,7 @@ class Ritualist(BaseActor):
             raise self.ActorError(
                 f"ritual #{ritual.id} is not waiting for transcripts."
             )
-        node_index = self.ritual_tracker.get_node_index(
+        node_index = self.coordinator_agent.get_node_index(
             ritual_id=ritual_id, node=self.checksum_address
         )
         if ritual.participants[node_index].transcript:
@@ -548,7 +548,8 @@ class Ritualist(BaseActor):
 
         nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
         if any(transcripts):
-            self.log.debug(f"ritual #{ritual_id} already has published transcripts")
+            self.log.debug(f"ritual #{ritual_id} is in progress.  Using transcripts from other nodes.")
+            self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
 
         transcript = self.ritual_power.generate_transcript(
             nodes=nodes,
@@ -564,7 +565,7 @@ class Ritualist(BaseActor):
         )
 
         receipt = self.coordinator_agent.post_transcript(
-            node_index=self.ritual_tracker.get_node_index(
+            node_index=self.coordinator_agent.get_node_index(
                 ritual_id=ritual_id, node=self.checksum_address
             ),
             ritual_id=ritual_id,
@@ -588,15 +589,13 @@ class Ritualist(BaseActor):
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
-        nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
-
-        if not all(transcripts):
+        transcripts = self.recruit_validators(ritual)
+        if not all([t for _, t in transcripts]):
             raise self.ActorError(
                 f"ritual #{ritual_id} is missing transcripts from {len([t for t in transcripts if not t])} nodes."
             )
 
         aggregated_transcript, dkg_public_key, generator_inverse = self.ritual_power.aggregate_transcripts(
-            nodes=nodes,
             threshold=(ritual.shares // 2) + 1,
             shares=ritual.shares,
             checksum_address=self.checksum_address,
@@ -613,7 +612,7 @@ class Ritualist(BaseActor):
 
         receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
-            node_index=self.ritual_tracker.get_node_index(
+            node_index=self.coordinator_agent.get_node_index(
                 ritual_id=ritual_id,
                 node=self.checksum_address
             ),
@@ -640,9 +639,6 @@ class Ritualist(BaseActor):
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:
             raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
 
-        aggregated_transcript = self.get_aggregated_transcript(ritual_id)
-        ritual.aggregated_transcript
-
         nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
         if not all(transcripts):
             raise self.ActorError(
@@ -655,7 +651,7 @@ class Ritualist(BaseActor):
             shares=ritual.shares,
             checksum_address=self.checksum_address,
             ritual_id=ritual_id,
-            aggregated_transcript=aggregated_transcript,
+            aggregated_transcript=self.get_aggregated_transcript(ritual_id),
             ciphertext=ciphertext,
             conditions=conditions
         )

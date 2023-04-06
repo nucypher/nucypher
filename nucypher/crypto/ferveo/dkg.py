@@ -35,29 +35,27 @@ def _validate_pvss_aggregated(pvss_aggregated: AggregatedTranscript, dkg) -> boo
 
 
 def aggregate_transcripts(
-        nodes: List[ExternalValidator],
-        transcripts: List[Transcript],
+        transcripts: List[Tuple[ExternalValidator, Transcript]],
         *args, **kwargs
 ) -> Tuple[AggregatedTranscript, PublicKey, Any]:
-    _dkg = _make_dkg(nodes=nodes, *args, **kwargs)
-    if len(transcripts) != len(nodes):
-        raise Exception("transcripts and nodes must be the same length")
-    if not all(transcripts):
-        raise Exception("transcripts must not be empty")
-    pvss_aggregated = _dkg.aggregate_transcripts(list(zip(nodes, transcripts)))
-    _validate_pvss_aggregated(pvss_aggregated, _dkg)
+    validators = [t[0] for t in transcripts]
+    _dkg = _make_dkg(nodes=validators, *args, **kwargs)
+    pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
+    pvss_aggregated.validate(_dkg)
     return pvss_aggregated, _dkg.final_key, _dkg.g1_inv
 
 
 def derive_decryption_share(
+    nodes: List[ExternalValidator],
     aggregated_transcript: AggregatedTranscript,
     keypair: Keypair,
     ciphertext: Ciphertext,
     aad: bytes,
     *args, **kwargs
 ) -> DecryptionShare:
-    dkg = _make_dkg(*args, **kwargs)
-    assert aggregated_transcript.validate(dkg)
+    dkg = _make_dkg(nodes=nodes, *args, **kwargs)
+    if not all((nodes, aggregated_transcript, keypair, ciphertext, aad)):
+        raise Exception("missing arguments")
     decryption_share = aggregated_transcript.create_decryption_share(
         dkg, ciphertext, aad, keypair
     )

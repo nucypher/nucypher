@@ -627,6 +627,11 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.numberOfRituals().call()
         return result
 
+    @contract_api(CONTRACT_CALL)
+    def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
+        result = self.contract.functions.getNodeIndex(ritual_id, node).call()
+        return result
+
     @contract_api(TRANSACTION)
     def initiate_ritual(self, nodes: List[ChecksumAddress], transacting_power: TransactingPower) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.initiateRitual(nodes=nodes)
