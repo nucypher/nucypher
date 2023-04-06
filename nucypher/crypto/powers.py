@@ -1,5 +1,6 @@
 import inspect
 
+import ferveo_py
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
 from ferveo_py import Keypair as FerveoKeypair, Transcript, AggregatedTranscript, DecryptionShare, ExternalValidator, \
@@ -284,7 +285,6 @@ class RitualisticPower(KeyPairBasedPower):
             checksum_address: ChecksumAddress,
             shares: int,
             threshold: int,
-            nodes: list,
             transcripts: list
     ) -> Tuple[AggregatedTranscript, PublicKey, int]:
         aggregated_transcript, public_key, generator_inverse = dkg.aggregate_transcripts(
@@ -292,7 +292,6 @@ class RitualisticPower(KeyPairBasedPower):
             me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
-            nodes=nodes,
             transcripts=transcripts
         )
         return aggregated_transcript, public_key, generator_inverse

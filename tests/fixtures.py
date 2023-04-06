@@ -299,7 +299,7 @@ def random_policy_label():
 #
 
 @pytest.fixture(scope="module")
-def alice(alice_test_config, testerchain):
+def alice(alice_test_config, ursulas, testerchain):
     alice = alice_test_config.produce()
     yield alice
     alice.disenchant()

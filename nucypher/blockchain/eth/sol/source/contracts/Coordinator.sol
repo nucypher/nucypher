@@ -142,6 +142,16 @@ contract Coordinator is Ownable {
         return ritual.id;
     }
 
+    function getNodeIndex(uint32 ritualId, address node) external view returns (uint256) {
+        Ritual storage ritual = rituals[ritualId];
+        for (uint256 i = 0; i < ritual.participant.length; i++) {
+            if (ritual.participant[i].node == node) {
+                return i;
+            }
+        }
+        revert("Node not part of ritual");
+    }
+
     function postTranscript(uint32 ritualId, uint256 nodeIndex, bytes calldata transcript) external {
         Ritual storage ritual = rituals[ritualId];
         require(
