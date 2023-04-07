@@ -1,3 +1,4 @@
+import ferveo_py
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
@@ -35,7 +36,7 @@ from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
     NoSigningPower,
-    SigningPower,
+    SigningPower, RitualisticPower,
 )
 from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -151,10 +152,12 @@ class NodeSprout:
     def finish(self):
         from nucypher.characters.lawful import Ursula
 
+        # Remote node cryptographic material
         crypto_power = CryptoPower()
         crypto_power.consume_power_up(SigningPower(public_key=self._metadata_payload.verifying_key))
         crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata_payload.encrypting_key))
-        crypto_power.consume_power_up(RitualPower(public_key=self._metadata_payload.ferveo_public_key))
+        crypto_power.consume_power_up(RitualisticPower(public_key=ferveo_py.PublicKey.from_bytes((self._metadata_payload.ferveo_public_key))))
+        tls_certificate = load_der_x509_certificate(self._metadata_payload.certificate_der, backend=default_backend())
 
         return Ursula(is_me=False,
                       crypto_power=crypto_power,
@@ -164,9 +167,8 @@ class NodeSprout:
                       domain=self._metadata_payload.domain,
                       timestamp=self.timestamp,
                       operator_signature_from_metadata=self.operator_signature_from_metadata,
-                      certificate=load_der_x509_certificate(self._metadata_payload.certificate_der, backend=default_backend()),
-                      metadata=self._metadata
-                      )
+                      certificate=tls_certificate,
+                      metadata=self._metadata)
 
     def mature(self):
         if self._is_finishing:
@@ -883,7 +885,7 @@ class Learner:
                 self.log.info(f"Verification Failed - "
                               f"Cannot establish connection to {sprout}.")
 
-            # TODO: This whole section is weird; sprouts down have any of these things.
+            # # TODO: This whole section is weird; sprouts down have any of these things.
             except sprout.StampNotSigned:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} {NOT_SIGNED}.')
