@@ -262,6 +262,15 @@ class RestMiddleware:
         )
         return response
 
+    def get_decryption_share(self, ursula: 'Ursula', decryption_request_bytes: bytes):
+        response = self.client.post(
+            node_or_sprout=ursula,
+            path=f"decrypt",
+            data=decryption_request_bytes,
+            timeout=2
+        )
+        return response
+
     def check_availability(self, initiator, responder):
         response = self.client.post(node_or_sprout=responder,
                                     data=bytes(initiator.metatada()),
