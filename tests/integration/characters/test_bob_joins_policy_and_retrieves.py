@@ -71,10 +71,10 @@ def test_bob_retrieves(
     assert label == policy.label
 
     # Enrico becomes
-    enrico = Enrico(policy_encrypting_key=policy.public_key)
+    enrico = Enrico(encrypting_key=policy.public_key)
 
     plaintext = b"What's your approach?  Mississippis or what?"
-    message_kit = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_for_pre(plaintext)
 
     alices_verifying_key = alice.stamp.as_umbral_pubkey()
 

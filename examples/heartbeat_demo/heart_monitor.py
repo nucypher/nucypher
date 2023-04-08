@@ -11,7 +11,7 @@ HEART_DATA_FILENAME = 'heart_data.msgpack'
 def generate_heart_rate_samples(policy_pubkey,
                                 samples: int = 500,
                                 save_as_file: bool = False):
-    data_source = Enrico(policy_encrypting_key=policy_pubkey)
+    data_source = Enrico(encrypting_key=policy_pubkey)
 
     data_source_public_key = bytes(data_source.stamp)
 
@@ -32,7 +32,7 @@ def generate_heart_rate_samples(policy_pubkey,
         }
 
         plaintext = msgpack.dumps(heart_rate_data, use_bin_type=True)
-        message_kit = data_source.encrypt_message(plaintext)
+        message_kit = data_source.encrypt_for_pre(plaintext)
 
         kit_bytes = bytes(message_kit)
         kits.append(kit_bytes)

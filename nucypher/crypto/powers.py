@@ -258,7 +258,7 @@ class RitualisticPower(KeyPairBasedPower):
             aggregated_transcript=aggregated_transcript,
             keypair=self.keypair._privkey.keypair,
             ciphertext=ciphertext,
-            aad=bytes(conditions),
+            aad=conditions,
         )
         return decryption_share
 

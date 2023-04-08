@@ -266,21 +266,21 @@ def random_policy(testerchain, alice, bob, application_economics):
 def capsule_side_channel(enacted_policy):
     class _CapsuleSideChannel:
         def __init__(self):
-            self.enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
+            self.enrico = Enrico(encrypting_key=enacted_policy.public_key)
             self.messages = []
             self.plaintexts = []
             self.plaintext_passthrough = False
 
         def __call__(self):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit = self.enrico.encrypt_message(message)
+            message_kit = self.enrico.encrypt_for_pre(message)
             self.messages.append((message_kit, self.enrico))
             if self.plaintext_passthrough:
                 self.plaintexts.append(message)
             return message_kit
 
         def reset(self, plaintext_passthrough=False):
-            self.enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
+            self.enrico = Enrico(encrypting_key=enacted_policy.public_key)
             self.messages.clear()
             self.plaintexts.clear()
             self.plaintext_passthrough = plaintext_passthrough

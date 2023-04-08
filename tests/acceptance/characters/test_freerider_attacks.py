@@ -28,9 +28,9 @@ def test_try_to_post_free_service_by_hacking_enact(
     )
 
     # Enrico becomes
-    enrico = Enrico(policy_encrypting_key=bupkiss_policy.public_key)
+    enrico = Enrico(encrypting_key=bupkiss_policy.public_key)
     plaintext = b"A crafty campaign"
-    message_kit = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_for_pre(plaintext)
 
     with pytest.raises(
         Ursula.NotEnoughUrsulas

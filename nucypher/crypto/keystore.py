@@ -29,7 +29,7 @@ from nucypher.crypto.powers import (
     SigningPower,
     CryptoPowerUp,
     DelegatingPower,
-    TLSHostingPower,
+    TLSHostingPower, RitualisticPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
 from nucypher.utilities.emitters import StdoutEmitter
@@ -39,6 +39,7 @@ __INFO_BASE = b'NuCypher/'
 _SIGNING_INFO = __INFO_BASE + b'signing'
 _DECRYPTING_INFO = __INFO_BASE + b'decrypting'
 _DELEGATING_INFO = __INFO_BASE + b'delegating'
+_RITUALISTIC_INFO = __INFO_BASE + b'ritualistic'
 _TLS_INFO = __INFO_BASE + b'tls'
 
 # Wrapping key
@@ -225,7 +226,8 @@ class Keystore:
     __HKDF_INFO = {SigningPower: _SIGNING_INFO,
                    DecryptingPower: _DECRYPTING_INFO,
                    DelegatingPower: _DELEGATING_INFO,
-                   TLSHostingPower: _TLS_INFO}
+                   TLSHostingPower: _TLS_INFO,
+                   RitualisticPower: _RITUALISTIC_INFO}
 
     class Exists(FileExistsError):
         pass
