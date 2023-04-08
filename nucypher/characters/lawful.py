@@ -15,20 +15,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
-from ferveo_py import Ciphertext
-from nucypher_core import (
-    HRAC,
-    Address,
-    Conditions,
-    EncryptedKeyFrag,
-    EncryptedTreasureMap,
-    MessageKit,
-    NodeMetadata,
-    NodeMetadataPayload,
-    ReencryptionResponse,
-    TreasureMap,
-)
-from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt, RecoverableSignature
+from ferveo_py import Ciphertext, DecryptionShare, combine_decryption_shares, decrypt_with_shared_secret
 from pathlib import Path
 from queue import Queue
 from twisted.internet import reactor
@@ -86,7 +73,20 @@ from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.mock import ThresholdDecryptionRequest
 from nucypher.utilities.networking import validate_operator_ip
+from nucypher_core import (
+    HRAC,
+    Address,
+    Conditions,
+    EncryptedKeyFrag,
+    EncryptedTreasureMap,
+    MessageKit,
+    NodeMetadata,
+    NodeMetadataPayload,
+    ReencryptionResponse,
+    TreasureMap, )
+from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt, RecoverableSignature
 
 
 class Alice(Character, PolicyAuthor):
