@@ -45,9 +45,14 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
 
         # side channel fakeout
         last_node = cohort[-1]
-        encrypting_key = last_node.dkg_storage["public_keys"][0]
-        generator = last_node.dkg_storage["generator_inverses"][0]
+
+        # This can be in a side channel artifact or something
         # alternatively, we could derive the key from the transcripts
+        encrypting_key = last_node.dkg_storage["public_keys"][0]
+
+        # ritual verifying artifact
+        # alternatively, we could derive the key from the transcripts
+        generator = last_node.dkg_storage["generator_inverses"][0]
 
         # In the meantime, the client creates a ciphertext and decryption request
         plaintext = "abc".encode()
@@ -59,7 +64,11 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
         decryption_shares = list()
         for ursula in cohort:
             # TODO: This is a hack to get the decryption share.  We should have a method on Ursula's API
-            share = ursula.derive_decryption_share(ritual_id=0, ciphertext=ciphertext, conditions=conditions)
+            share = ursula.derive_decryption_share(
+                ritual_id=0,
+                ciphertext=ciphertext,
+                conditions=conditions
+            )
             decryption_shares.append(share)
 
         # Now, the decryption share can be used to decrypt the ciphertext

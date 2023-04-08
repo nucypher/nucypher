@@ -68,7 +68,7 @@ def test_alice_can_decrypt(alice, bob):
     plaintext = b"this is the first thing i'm encrypting ever."
 
     # use the enrico to encrypt the message
-    message_kit = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_for_pre(plaintext)
 
     # decrypt the data
     decrypted_data = alice.decrypt_message_kit(

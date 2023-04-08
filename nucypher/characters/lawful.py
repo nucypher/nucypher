@@ -1,4 +1,5 @@
 import contextlib
+import ferveo_py
 import json
 import maya
 import time
@@ -14,6 +15,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
+from ferveo_py import Ciphertext
 from nucypher_core import (
     HRAC,
     Address,
@@ -1122,26 +1124,29 @@ class Enrico:
 
     banner = ENRICO_BANNER
 
-    def __init__(self, policy_encrypting_key: PublicKey):
+    def __init__(self, encrypting_key: Union[PublicKey, ferveo_py.PublicKey]):
         self.signing_power = SigningPower()
-        self._policy_pubkey = policy_encrypting_key
-        self.log = Logger(
-            f"{self.__class__.__name__}-{self.signing_power.public_key().to_compressed_bytes().hex()[:6]}"
-        )
-        self.log.info(self.banner.format(policy_encrypting_key))
+        self._policy_pubkey = encrypting_key
+        self.log = Logger(f'{self.__class__.__name__}-{encrypting_key}')
+        self.log.info(self.banner.format(encrypting_key))
 
-    def encrypt_message(
+    def encrypt_for_pre(
         self, plaintext: bytes, conditions: Optional[LingoList] = None
     ) -> MessageKit:
-        # TODO: #2107 Rename to "encrypt"
         if conditions:
-            # validate
             validate_condition_lingo(conditions)
             conditions = Conditions(json.dumps(conditions))
         message_kit = MessageKit(policy_encrypting_key=self.policy_pubkey,
                                  plaintext=plaintext,
                                  conditions=conditions)
         return message_kit
+
+    def encrypt_for_dkg(self, plaintext: bytes, conditions: LingoList) -> Ciphertext:
+        validate_condition_lingo(conditions)
+        conditions = Conditions(json.dumps(conditions))
+        conditions_bytes = str(conditions).encode()
+        ciphertext = ferveo_py.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
+        return ciphertext
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
@@ -1151,7 +1156,7 @@ class Enrico:
         :return:
         """
         policy_pubkey_enc = alice.get_policy_encrypting_key_from_label(label)
-        return cls(policy_encrypting_key=policy_pubkey_enc)
+        return cls(encrypting_key=policy_pubkey_enc)
 
     @property
     def policy_pubkey(self):
