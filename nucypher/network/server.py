@@ -1,6 +1,8 @@
 import json
 import weakref
 from http import HTTPStatus
+
+from ferveo_py import Ciphertext
 from pathlib import Path
 
 from constant_sorrow import constants
@@ -8,6 +10,9 @@ from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
+
+from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.utilities.mock import ThresholdDecryptionRequest, ThresholdDecryptionResponse
 from nucypher_core import (
     MetadataRequest,
     MetadataResponse,
@@ -130,6 +135,36 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
+
+    @rest_app.route('/decrypt', methods=["POST"])
+    def threshold_decrypt():
+
+        # Deserialize and instantiate ThresholdDecryptionRequest from the request data
+        decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
+
+        # Deserialize and instantiate ConditionLingo from the request data
+        lingo = ConditionLingo.from_list(json.loads(str((decryption_request.conditions))))
+
+        # requester-supplied condition eval context
+        context = None
+        if decryption_request.context:
+            context = json.loads(str(decryption_request.context)) or dict()
+
+        # evaluate the conditions for this ciphertext
+        error = evaluate_condition_lingo(lingo, context)
+        if error:
+            return Response(error.message, status=error.status_code)
+
+        # derive the decryption share
+        decryption_share = this_node.derive_decryption_share(
+            ritual_id=decryption_request.ritual_id,
+            ciphertext=decryption_request.ciphertext,
+            conditions=decryption_request.conditions,
+        )
+
+        # return the decryption share
+        response = ThresholdDecryptionResponse(decryption_share=decryption_share)
+        return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():

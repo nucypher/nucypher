@@ -5,7 +5,7 @@ import maya
 import time
 from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
-from ferveo_py import ExternalValidator
+from ferveo_py import ExternalValidator, Ciphertext
 from hexbytes import HexBytes
 from typing import Optional, Tuple, Union, List
 from web3 import Web3
@@ -631,7 +631,7 @@ class Ritualist(BaseActor):
     def derive_decryption_share(
         self,
         ritual_id: int,
-        ciphertext: bytes,
+        ciphertext: Ciphertext,
         conditions: ConditionLingo
     ) -> DecryptionShare:
         ritual = self.get_ritual(ritual_id)
@@ -653,7 +653,7 @@ class Ritualist(BaseActor):
             ritual_id=ritual_id,
             aggregated_transcript=self.get_aggregated_transcript(ritual_id),
             ciphertext=ciphertext,
-            conditions=conditions
+            conditions=str(conditions).encode()
         )
 
         return decryption_share
