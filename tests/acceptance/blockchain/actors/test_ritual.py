@@ -1,22 +1,32 @@
+import json
+
 import pytest_twisted
-from ferveo_py import combine_decryption_shares, decrypt_with_shared_secret, encrypt
+from ferveo_py import combine_decryption_shares, decrypt_with_shared_secret, encrypt, DecryptionShare
 from twisted.internet.threads import deferToThread
 
 from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
+from nucypher.characters.lawful import Enrico
+from nucypher.utilities.mock import ThresholdDecryptionRequest
+from nucypher_core import Conditions
 from tests.utils.ursula import start_pytest_ursula_services
 
 DKG_SIZE = 4
 
 @pytest_twisted.inlineCallbacks()
-def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, control_time):
+def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, bob, control_time):
 
-    EventScannerTask.INTERVAL = 10
-
+    EventScannerTask.INTERVAL = 1
     cohort = list(sorted(ursulas[:DKG_SIZE], key=lambda x: int(x.checksum_address, 16)))
     assert len(cohort) == DKG_SIZE
     coordinator_agent = ContractAgency.get_agent(CoordinatorAgent, registry=test_registry)
     node = cohort[0]
+
+    def start_ursulas():
+        for ursula in cohort:
+            ursula.ritual_tracker.start()
+            ursula.start_learning_loop(now=True)
+            start_pytest_ursula_services(ursula=ursula)
 
     # Round 0 - Initiate the ritual
     def initialize(r):
@@ -26,7 +36,7 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
         return receipt
 
     # Round 0 - Initiate the ritual
-    def check_initialize(receipt):
+    def test_initialize(receipt):
         print("==================== CHECKING INITIALIZATION ====================")
         testerchain.wait_for_receipt(receipt['transactionHash'])
         assert coordinator_agent.number_of_rituals() == 1
@@ -34,82 +44,74 @@ def test_ursula_ritualist(ursulas, agency, testerchain, test_registry, alice, co
         assert len(node.ritual_tracker.rituals) == 1
         assert coordinator_agent.get_ritual_status(0) == coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
 
-    def check_finality(_):
-        print("==================== CHECKING FINALITY ====================")
-        assert node.coordinator_agent.get_ritual_status(0) == coordinator_agent.Ritual.Status.FINALIZED
-        for ursula in cohort:
-            assert ursula.get_transcript(0) is not None
-
-    def test_encrypt_decrypt(_):
-        print("==================== ENCRYPTING/DECRYPTING ====================")
-
-        # side channel fakeout
-        last_node = cohort[-1]
-
-        # This can be in a side channel artifact or something
-        # alternatively, we could derive the key from the transcripts
-        encrypting_key = last_node.dkg_storage["public_keys"][0]
-
-        # ritual verifying artifact
-        # alternatively, we could derive the key from the transcripts
-        generator = last_node.dkg_storage["generator_inverses"][0]
-
-        # In the meantime, the client creates a ciphertext and decryption request
-        plaintext = "abc".encode()
-        conditions = "my-aad".encode()
-        ciphertext = encrypt(plaintext, conditions, encrypting_key)
-
-        # Having aggregated the transcripts, the validators can now create decryption shares
-        # this is normally done by the network client, but we'll do it here for simplicity
-        decryption_shares = list()
-        for ursula in cohort:
-            # TODO: This is a hack to get the decryption share.  We should have a method on Ursula's API
-            share = ursula.derive_decryption_share(
-                ritual_id=0,
-                ciphertext=ciphertext,
-                conditions=conditions
-            )
-            decryption_shares.append(share)
-
-        # Now, the decryption share can be used to decrypt the ciphertext
-        shared_secret = combine_decryption_shares(decryption_shares)
-        cleartext = decrypt_with_shared_secret(ciphertext, conditions, shared_secret, generator)
-        assert bytes(cleartext) == plaintext
-
     def block_until_dkg_finalized(d):
+        # simulates the passage of time and the execution of the event scanner
+        print("==================== BLOCKING UNTIL DKG FINALIZED ====================")
         while node.coordinator_agent.get_ritual_status(0) != coordinator_agent.Ritual.Status.FINALIZED:
-            # simulates the passage of time and the execution of the event scanner
             for ursula in cohort:
                 ursula.ritual_tracker.task.run()
             testerchain.time_travel(seconds=60)
 
-    def start_ursulas():
+    def test_finality(_):
+        print("==================== CHECKING DKG FINALITY ====================")
+        assert node.coordinator_agent.get_ritual_status(0) == coordinator_agent.Ritual.Status.FINALIZED
         for ursula in cohort:
-            ursula.ritual_tracker.start()
-            ursula.start_learning_loop(now=True)
-            start_pytest_ursula_services(ursula=ursula)
+            assert ursula.get_transcript(0) is not None
 
-    def stop(r):
+    def test_encrypt(_):
+        print("==================== DKG ENCRYPTION ====================")
+
+        # side channel fakeout
+        last_node = cohort[-1]
+        encrypting_key = last_node.dkg_storage["public_keys"][0]
+
+        # prepare message and conditions
+        plaintext = "peace at dawn".encode()
+        conditions = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
+
+        # encrypt
+        enrico = Enrico(encrypting_key=encrypting_key)
+        ciphertext, signature = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=conditions)
+        return ciphertext, conditions
+
+    def test_decrypt(r):
+        print("==================== DKG DECRYPTION ====================")
+        ciphertext, conditions = r  # unpack the result of test_encrypt_decrypt
+
+        # side channel fakeout
+        last_node = cohort[-1]
+        generator = last_node.dkg_storage["generator_inverses"][0]
+
+        # decrypt
+        cleartext = bob.threshold_decrypt(
+            ritual_id=0,
+            ciphertext=ciphertext,
+            conditions=conditions,
+            generator=generator,
+            cohort=cohort
+        )
+        assert bytes(cleartext) == "peace at dawn".encode()
+
+    def stop(*args):
+        print("==================== STOPPING ====================")
+        print(args)
         for ursula in cohort:
             ursula.ritual_tracker.stop()
             ursula.start_learning_loop()
 
-    # setup
+    callbacks = [
+        initialize,
+        test_initialize,
+        block_until_dkg_finalized,
+        test_finality,
+        test_encrypt,
+        test_decrypt,
+        stop
+    ]
+
+    error_handler = lambda e: print(e.getTraceback() )
     d = deferToThread(start_ursulas)
-
-    # initiate the ritual
-    d.addCallback(initialize)
-    d.addCallback(check_initialize)
-
-    # wait for the dkg to finalize
-    d.addCallback(block_until_dkg_finalized)
-    d.addErrback(lambda e: print(e.getTraceback()))
-    d.addCallback(check_finality)
-
-    # test encryption/decryption
-    d.addCallback(test_encrypt_decrypt)
-
-    # tear down
-    d.addCallback(stop)
-
+    for callback in callbacks:
+        d.addCallback(callback)
+        d.addErrback(error_handler)
     yield d
