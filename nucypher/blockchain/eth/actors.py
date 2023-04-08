@@ -548,7 +548,7 @@ class Ritualist(BaseActor):
 
         nodes, transcripts = list(zip(*self.recruit_validators(ritual)))
         if any(transcripts):
-            self.log.debug(f"ritual #{ritual_id} is in progress.  Using transcripts from other nodes.")
+            self.log.debug(f"ritual #{ritual_id} is in progress.")
             self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
 
         transcript = self.ritual_power.generate_transcript(
