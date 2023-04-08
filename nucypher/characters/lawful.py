@@ -515,6 +515,31 @@ class Bob(Character):
             cleartexts.append(cleartext)
 
         return cleartexts
+    def threshold_decrypt(self,
+                          ritual_id: int,
+                          ciphertext: Ciphertext,
+                          conditions,
+                          generator,
+                          cohort
+                          ) -> bytes:
+
+        shares = list()
+        for ursula in cohort:
+            decryption_request = ThresholdDecryptionRequest(
+                ritual_id=ritual_id,
+                ciphertext=ciphertext,
+                conditions=conditions,
+            )
+
+            response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
+            payload = json.loads(response.content.decode())
+            decryption_share = DecryptionShare.from_bytes(bytes.fromhex(payload['decryption_share']))
+            shares.append(decryption_share)
+
+        # Now, the decryption share can be used to decrypt the ciphertext
+        shared_secret = combine_decryption_shares(shares)
+        cleartext = decrypt_with_shared_secret(ciphertext, conditions, shared_secret, generator)
+        return cleartext
 
 
 class Ursula(Teacher, Character, Operator, Ritualist):
