@@ -515,20 +515,25 @@ class Bob(Character):
             cleartexts.append(cleartext)
 
         return cleartexts
+
     def threshold_decrypt(self,
                           ritual_id: int,
                           ciphertext: Ciphertext,
-                          conditions,
+                          conditions: LingoList,
                           generator,
-                          cohort
+                          cohort: List['Ursula'] = None
                           ) -> bytes:
+
+        if not cohort:
+            # TODO: This is a temporary solution. We need to have a better way to lookup Ursulas
+            raise ValueError("No Ursulas to perform the decryption")
 
         shares = list()
         for ursula in cohort:
             decryption_request = ThresholdDecryptionRequest(
                 ritual_id=ritual_id,
                 ciphertext=ciphertext,
-                conditions=conditions,
+                conditions=Conditions(json.dumps(conditions)),
             )
 
             response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
@@ -538,7 +543,12 @@ class Bob(Character):
 
         # Now, the decryption share can be used to decrypt the ciphertext
         shared_secret = combine_decryption_shares(shares)
-        cleartext = decrypt_with_shared_secret(ciphertext, conditions, shared_secret, generator)
+        cleartext = decrypt_with_shared_secret(
+            ciphertext,
+            json.dumps(conditions).encode(),  # TODO: ferveo core needs to support Conditions
+            shared_secret,
+            generator
+        )
         return cleartext
 
 
@@ -1168,8 +1178,7 @@ class Enrico:
 
     def encrypt_for_dkg(self, plaintext: bytes, conditions: LingoList) -> Ciphertext:
         validate_condition_lingo(conditions)
-        conditions = Conditions(json.dumps(conditions))
-        conditions_bytes = str(conditions).encode()
+        conditions_bytes = json.dumps(conditions).encode()
         ciphertext = ferveo_py.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
 
