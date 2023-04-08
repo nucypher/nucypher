@@ -42,7 +42,7 @@ def test_ursula_stamp_verification_tolerance(ursulas, mocker):
     assert len(warnings) == 1
     warning = warnings[0]['log_format']
     assert str(unsigned) in warning
-    assert "Verification Failed" in warning  # TODO: Cleanup logging templates
+    assert "Suspicious Activity" in warning  # TODO: Cleanup logging templates
 
     # TODO: Buckets!  #567
     # assert unsigned not in lonely_learner.known_nodes

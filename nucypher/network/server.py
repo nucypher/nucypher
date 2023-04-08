@@ -143,7 +143,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
 
         # Deserialize and instantiate ConditionLingo from the request data
-        lingo = ConditionLingo.from_list(json.loads(str((decryption_request.conditions))))
+        lingo = ConditionLingo.from_list(json.loads(str(decryption_request.conditions)))
 
         # requester-supplied condition eval context
         context = None
