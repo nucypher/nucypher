@@ -757,7 +757,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                 emitter.message(f"✓ Availability Checks", color='green')
 
         if ritualist:
-            self.ritual_tracker.start(now=eager)
+            self.ritual_tracker.start()
             if emitter:
                 emitter.message(f"✓ DKG Ritual Tracking", color='green')
 

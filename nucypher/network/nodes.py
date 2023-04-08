@@ -1,3 +1,4 @@
+import ferveo_py
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
@@ -35,7 +36,7 @@ from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
     NoSigningPower,
-    SigningPower,
+    SigningPower, RitualisticPower,
 )
 from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -884,7 +885,7 @@ class Learner:
                 self.log.info(f"Verification Failed - "
                               f"Cannot establish connection to {sprout}.")
 
-            # TODO: This whole section is weird; sprouts down have any of these things.
+            # # TODO: This whole section is weird; sprouts down have any of these things.
             except sprout.StampNotSigned:
                 self.log.warn(f'Verification Failed - '
                               f'{sprout} {NOT_SIGNED}.')
