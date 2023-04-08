@@ -149,12 +149,12 @@ for counter, plaintext in enumerate(finnegans_wake):
     # In this demo a new enrico is being constructed for each line of text.
     # This demonstrates how many individual encryptors may encrypt for a single policy.
     # In other words -- Many data sources (Enricos) can encrypt for the policy's public key.
-    enrico = Enrico(policy_encrypting_key=policy_public_key)
+    enrico = Enrico(encrypting_key=policy_public_key)
 
     # In this case, the plaintext is a single passage from James Joyce's Finnegan's Wake.
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
-    message_kit = enrico.encrypt_message(plaintext)
+    message_kit = enrico.encrypt_for_pre(plaintext)
     enrico_public_key = bytes(enrico.stamp)
     del enrico
 

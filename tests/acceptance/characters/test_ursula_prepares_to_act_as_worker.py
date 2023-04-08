@@ -150,7 +150,7 @@ def test_ursulas_reencrypt(ursulas, alice, bob, policy_value):
 
     message = b"Oh, this isn't even BO. This is beyond BO. It's BBO."
 
-    message_kit = enrico.encrypt_message(message)
+    message_kit = enrico.encrypt_for_pre(message)
 
     bob.start_learning_loop(now=True)
 
