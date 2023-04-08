@@ -4,6 +4,8 @@ from collections import defaultdict, deque
 from contextlib import suppress
 from pathlib import Path
 from queue import Queue
+
+from ferveo_py import PublicKey
 from typing import Callable, List, Optional, Set, Tuple, Union
 
 import maya
