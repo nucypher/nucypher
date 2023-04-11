@@ -11,13 +11,12 @@ from eth_account.messages import HexBytes, SignableMessage, encode_defunct
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address, to_checksum_address, to_normalized_address
-
-from nucypher_core.umbral import SecretKey, PublicKey, Signer, Signature
+from nucypher_core.umbral import PublicKey, SecretKey, Signature, Signer
 
 from nucypher.crypto.utils import (
     canonical_address_from_umbral_key,
     keccak_digest,
-    verify_eip_191
+    verify_eip_191,
 )
 
 ALGORITHM_KECCAK256 = 0
@@ -39,7 +38,7 @@ def get_signature_recovery_value(message: bytes,
     :return: The compressed byte-serialized representation of the recovered public key
     """
 
-    signature = bytes(signature)
+    signature = signature.to_be_bytes()
     ecdsa_signature_size = 64 # two curve scalars
     if len(signature) != ecdsa_signature_size:
         raise ValueError(f"The signature size should be {ecdsa_signature_size} B.")
@@ -70,7 +69,9 @@ def pubkey_as_uncompressed_bytes(umbral_pubkey):
     """
     Returns the public key as uncompressed bytes (without the prefix, so 64 bytes long)
     """
-    return EthKeyAPI.PublicKey.from_compressed_bytes(bytes(umbral_pubkey)).to_bytes()
+    return EthKeyAPI.PublicKey.from_compressed_bytes(
+        umbral_pubkey.to_compressed_bytes()
+    ).to_bytes()
 
 
 @pytest.fixture()
@@ -100,7 +101,7 @@ def test_recover(testerchain, signature_verifier):
     # If we don't have recovery id while signing then we should try to recover public key with different v
     # Only the correct v will match the correct public key
     v = get_signature_recovery_value(message, signature, umbral_pubkey)
-    recoverable_signature = bytes(signature) + v
+    recoverable_signature = signature.to_be_bytes() + v
 
     # Check recovery method in the contract
     assert signer_address == to_normalized_address(
@@ -112,12 +113,12 @@ def test_recover(testerchain, signature_verifier):
         signature_verifier.functions.recover(message_hash, recoverable_signature).call())
 
     # Only number 0,1,27,28 are supported for v
-    recoverable_signature = bytes(signature) + bytes([2])
+    recoverable_signature = signature.to_be_bytes() + bytes([2])
     with pytest.raises((TransactionFailed, ValueError)):
         signature_verifier.functions.recover(message_hash, recoverable_signature).call()
 
     # Signature must include r, s and v
-    recoverable_signature = bytes(signature)
+    recoverable_signature = signature.to_be_bytes()
     with pytest.raises((TransactionFailed, ValueError)):
         signature_verifier.functions.recover(message_hash, recoverable_signature).call()
 
@@ -160,7 +161,7 @@ def test_verify(testerchain, signature_verifier):
 
     # Get recovery id (v) before using contract
     v = get_signature_recovery_value(message, signature, umbral_pubkey)
-    recoverable_signature = bytes(signature) + v
+    recoverable_signature = signature.to_be_bytes() + v
 
     # Verify signature
     assert signature_verifier.functions.verify(message,
@@ -191,8 +192,9 @@ def test_verify_eip191(testerchain, signature_verifier):
 
     # Produce EIP191 signature (version E)
     signable_message = encode_defunct(primitive=message)
-    signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=umbral_privkey.to_secret_bytes())
+    signature = Account.sign_message(
+        signable_message=signable_message, private_key=umbral_privkey.to_be_bytes()
+    )
     signature = bytes(signature.signature)
 
     # Off-chain verify, just in case
@@ -229,11 +231,12 @@ def test_verify_eip191(testerchain, signature_verifier):
 
     # Produce EIP191 signature (version 0)
     validator = to_canonical_address(signature_verifier.address)
-    signable_message = SignableMessage(version=HexBytes(version_0),
-                                       header=HexBytes(validator),
-                                       body=HexBytes(message))
-    signature = Account.sign_message(signable_message=signable_message,
-                                     private_key=umbral_privkey.to_secret_bytes())
+    signable_message = SignableMessage(
+        version=HexBytes(version_0), header=HexBytes(validator), body=HexBytes(message)
+    )
+    signature = Account.sign_message(
+        signable_message=signable_message, private_key=umbral_privkey.to_be_bytes()
+    )
     signature = bytes(signature.signature)
 
     # Off-chain verify, just in case

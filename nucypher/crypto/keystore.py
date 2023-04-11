@@ -200,9 +200,16 @@ def _parse_path(path: Path) -> Tuple[int, str]:
     return created, keystore_id
 
 
-def _derive_hosting_power(host: str, private_key: SecretKey) -> TLSHostingPower:
-    certificate, private_key = generate_self_signed_certificate(host=host, private_key=private_key)
-    keypair = HostingKeypair(host=host, private_key=private_key, certificate=certificate, generate_certificate=False)
+def _derive_hosting_power(host: str, secret_seed: bytes) -> TLSHostingPower:
+    certificate, private_key = generate_self_signed_certificate(
+        host=host, secret_seed=secret_seed
+    )
+    keypair = HostingKeypair(
+        host=host,
+        private_key=private_key,
+        certificate=certificate,
+        generate_certificate=False,
+    )
     power = TLSHostingPower(keypair=keypair, host=host)
     return power
 
@@ -266,8 +273,12 @@ class Keystore:
             raise InvalidPassword(''.join(failures))
 
         # Derive verifying key (for use as ID)
-        signing_key = SecretKeyFactory.from_secure_randomness(secret).make_key(_SIGNING_INFO)
-        keystore_id = bytes(signing_key.public_key()).hex()[:Keystore._ID_SIZE]
+        signing_key = SecretKeyFactory.from_secure_randomness(secret).make_key(
+            _SIGNING_INFO
+        )
+        keystore_id = (
+            signing_key.public_key().to_compressed_bytes().hex()[: Keystore._ID_SIZE]
+        )
 
         # Generate paths
         keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
@@ -312,9 +323,13 @@ class Keystore:
         emitter = StdoutEmitter()
         emitter.message(f'WARNING: Key importing assumes that you have already secured your secret '
                         f'and can recover it. No mnemonic will be generated.\n', color='yellow')
-        if len(key_material) != SecretKey.serialized_size():
-            raise ValueError(f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.')
-        path = Keystore.__save(secret=key_material, password=password, keystore_dir=keystore_dir)
+        if len(key_material) != SecretKeyFactory.seed_size():
+            raise ValueError(
+                f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
+            )
+        path = Keystore.__save(
+            secret=key_material, password=password, keystore_dir=keystore_dir
+        )
         keystore = cls(keystore_path=path)
         return keystore
 
@@ -396,13 +411,15 @@ class Keystore:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower"
             raise TypeError(failure_message)
         else:
-            __private_key = SecretKeyFactory.from_secure_randomness(self.__secret).make_key(info)
+            __skf = SecretKeyFactory.from_secure_randomness(self.__secret)
 
         if power_class is TLSHostingPower:  # TODO: something more elegant?
-            power = _derive_hosting_power(private_key=__private_key, *power_args, **power_kwargs)
+            power = _derive_hosting_power(
+                secret_seed=__skf.make_secret(info), *power_args, **power_kwargs
+            )
 
         elif issubclass(power_class, KeyPairBasedPower):
-            keypair = power_class._keypair_class(__private_key)
+            keypair = power_class._keypair_class(__skf.make_key(info))
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, DerivedKeyBasedPower):

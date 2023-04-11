@@ -232,26 +232,37 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
 
 
 def test_import_custom_keystore(tmpdir):
+    # Too short - 32 bytes is required
+    custom_secret = b"tooshort"
+    with pytest.raises(
+        ValueError,
+        match=f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}.",
+    ):
+        _keystore = Keystore.import_secure(
+            key_material=custom_secret,
+            password=INSECURE_DEVELOPMENT_PASSWORD,
+            keystore_dir=tmpdir,
+        )
 
     # Too short - 32 bytes is required
-    custom_secret = b'tooshort'
-    with pytest.raises(ValueError, match=f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.'):
-        _keystore = Keystore.import_secure(key_material=custom_secret,
-                                           password=INSECURE_DEVELOPMENT_PASSWORD,
-                                           keystore_dir=tmpdir)
-
-    # Too short - 32 bytes is required
-    custom_secret = b'thisisabunchofbytesthatisabittoolong'
-    with pytest.raises(ValueError, match=f'Entropy bytes bust be exactly {SecretKey.serialized_size()}.'):
-        _keystore = Keystore.import_secure(key_material=custom_secret,
-                                           password=INSECURE_DEVELOPMENT_PASSWORD,
-                                           keystore_dir=tmpdir)
+    custom_secret = b"thisisabunchofbytesthatisabittoolong"
+    with pytest.raises(
+        ValueError,
+        match=f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}.",
+    ):
+        _keystore = Keystore.import_secure(
+            key_material=custom_secret,
+            password=INSECURE_DEVELOPMENT_PASSWORD,
+            keystore_dir=tmpdir,
+        )
 
     # Import private key
-    custom_secret = os.urandom(SecretKey.serialized_size())  # insecure but works
-    keystore = Keystore.import_secure(key_material=custom_secret,
-                                      password=INSECURE_DEVELOPMENT_PASSWORD,
-                                      keystore_dir=tmpdir)
+    custom_secret = os.urandom(SecretKeyFactory.seed_size())  # insecure but works
+    keystore = Keystore.import_secure(
+        key_material=custom_secret,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        keystore_dir=tmpdir,
+    )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert keystore._Keystore__secret == custom_secret
     keystore.lock()
@@ -269,7 +280,7 @@ def test_derive_signing_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     signing_power = keystore.derive_crypto_power(power_class=SigningPower)
-    assert bytes(signing_power.public_key()).hex()
+    assert signing_power.public_key().to_compressed_bytes().hex()
     assert signing_power.keypair.fingerprint()
 
 
@@ -277,7 +288,7 @@ def test_derive_decrypting_power(tmpdir):
     keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     decrypting_power = keystore.derive_crypto_power(power_class=DecryptingPower)
-    assert bytes(decrypting_power.public_key()).hex()
+    assert decrypting_power.public_key().to_compressed_bytes().hex()
     assert decrypting_power.keypair.fingerprint()
 
 
@@ -287,8 +298,11 @@ def test_derive_delegating_power(tmpdir):
     delegating_power = keystore.derive_crypto_power(power_class=DelegatingPower)
     parent_skf = SecretKeyFactory.from_secure_randomness(keystore._Keystore__secret)
     child_skf = parent_skf.make_factory(_DELEGATING_INFO)
-    assert delegating_power._DelegatingPower__secret_key_factory.to_secret_bytes() == child_skf.to_secret_bytes()
-    assert delegating_power._get_privkey_from_label(label=b'some-label')
+    ref_pk = child_skf.make_key(b"some-label").public_key()
+    assert (
+        delegating_power._get_privkey_from_label(label=b"some-label").public_key()
+        == ref_pk
+    )
 
 
 def test_derive_hosting_power(tmpdir):

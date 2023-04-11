@@ -51,7 +51,7 @@ def test_capsule(testerchain, deserializer, fragments):
 
     # Check real capsule
     capsule, _cfrag = fragments
-    capsule_bytes = bytes(capsule)
+    capsule_bytes = capsule.to_bytes_simple()
     result = deserializer.functions.toCapsule(capsule_bytes).call()
     assert b''.join(result) == capsule_bytes
 
@@ -72,7 +72,7 @@ def test_cfrag(testerchain, deserializer, fragments):
 
     # Check real cfrag
     _capsule, cfrag = fragments
-    cfrag_bytes = bytes(cfrag)
+    cfrag_bytes = cfrag.unverify().to_bytes_simple()
     result_frag = deserializer.functions.toCapsuleFrag(cfrag_bytes).call()
     result_proof = deserializer.functions.toCorrectnessProofFromCapsuleFrag(cfrag_bytes).call()
     assert cfrag_bytes == b''.join(result_frag) + b''.join(result_proof)

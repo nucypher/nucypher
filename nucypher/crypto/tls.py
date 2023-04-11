@@ -3,7 +3,7 @@
 import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
-from typing import ClassVar, Tuple
+from typing import ClassVar, Optional, Tuple
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -30,14 +30,14 @@ def _read_tls_certificate(filepath: Path) -> Certificate:
         raise FileNotFoundError("No SSL certificate found at {}".format(filepath))
 
 
-def generate_self_signed_certificate(host: str,
-                                     private_key: SecretKey = None,
-                                     days_valid: int = 365,
-                                     curve: ClassVar[EllipticCurve] = _TLS_CURVE,
-                                     ) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
-
-    if private_key:
-        private_bn = int.from_bytes(private_key.to_secret_bytes(), 'big')
+def generate_self_signed_certificate(
+    host: str,
+    secret_seed: Optional[bytes] = None,
+    days_valid: int = 365,
+    curve: ClassVar[EllipticCurve] = _TLS_CURVE,
+) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
+    if secret_seed:
+        private_bn = int.from_bytes(secret_seed[: _TLS_CURVE.key_size // 8], "big")
         private_key = ec.derive_private_key(private_value=private_bn, curve=curve())
     else:
         private_key = ec.generate_private_key(curve(), default_backend())

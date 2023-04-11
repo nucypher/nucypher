@@ -21,7 +21,7 @@ SYSTEM_RAND = SystemRandom()
 def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStamp]) -> bytes:
     if isinstance(public_key, SignatureStamp):
         public_key = public_key.as_umbral_pubkey()
-    pubkey_compressed_bytes = bytes(public_key)
+    pubkey_compressed_bytes = public_key.to_compressed_bytes()
     eth_pubkey = EthKeyAPI.PublicKey.from_compressed_bytes(pubkey_compressed_bytes)
     canonical_address = eth_pubkey.to_canonical_address()
     return canonical_address

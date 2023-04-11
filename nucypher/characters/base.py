@@ -237,7 +237,7 @@ class Character(Learner):
 
         for power_up, public_key in powers_and_material.items():
             try:
-                umbral_key = PublicKey.from_bytes(public_key)
+                umbral_key = PublicKey.from_compressed_bytes(public_key)
             except TypeError:
                 umbral_key = public_key
 

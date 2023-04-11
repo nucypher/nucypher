@@ -117,7 +117,7 @@ class UmbralPublicKeyHex(click.ParamType):
     def convert(self, value, param, ctx):
         if self.validate:
             try:
-                _key = PublicKey.from_bytes(bytes.fromhex(value))
+                _key = PublicKey.from_compressed_bytes(bytes.fromhex(value))
             except (InternalError, ValueError):
                 self.fail(f"'{value}' is not a valid nucypher public key.")
         return value

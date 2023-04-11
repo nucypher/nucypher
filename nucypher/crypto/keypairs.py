@@ -68,7 +68,7 @@ class Keypair(object):
 
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
-        return sha3.keccak_256(bytes(self.pubkey)).hexdigest().encode()
+        return sha3.keccak_256(self.pubkey.to_compressed_bytes()).hexdigest().encode()
 
 
 class DecryptingKeypair(Keypair):
@@ -159,7 +159,7 @@ class HostingKeypair(Keypair):
                 message = "If you don't supply a TLS certificate, one will be generated for you." \
                           "But for that, you need to pass a host and checksum address."
                 raise TypeError(message)
-            certificate, private_key = generate_self_signed_certificate(host=host, private_key=private_key)
+            certificate, private_key = generate_self_signed_certificate(host=host)
             super().__init__(private_key=private_key)
 
         else:

@@ -123,8 +123,10 @@ def collect(alice: Alice,
             print(f'GRANT FAIL\n{e}')
         else:
             success += 1
-            policies[bytes(policy.public_key).hex()] = policy  # track
-            print(f"PEK:{bytes(policy.public_key).hex()} | {policy.hrac}")
+            policies[policy.public_key.to_compressed_bytes().hex()] = policy  # track
+            print(
+                f"PEK:{policy.public_key.to_compressed_bytes().hex()} | {policy.hrac}"
+            )
 
         # timeit
         end = maya.now()

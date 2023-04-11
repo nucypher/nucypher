@@ -37,7 +37,7 @@ class NotAPublicKey:
     _serial_bytes_length = 5
     _serial = 10000
 
-    _umbral_pubkey_from_bytes = PublicKey.from_bytes
+    _umbral_pubkey_from_bytes = PublicKey.from_compressed_bytes
 
     def _tick():
         for serial in good_serials:

@@ -12,8 +12,8 @@ def generate_doctor_keys():
     sig_privkey = SecretKey.random()
 
     doctor_privkeys = {
-        'enc': enc_privkey.to_secret_bytes().hex(),
-        'sig': sig_privkey.to_secret_bytes().hex(),
+        "enc": enc_privkey.to_be_bytes().hex(),
+        "sig": sig_privkey.to_be_bytes().hex(),
     }
 
     with open(DOCTOR_PRIVATE_JSON, 'w') as f:
@@ -22,14 +22,14 @@ def generate_doctor_keys():
     enc_pubkey = enc_privkey.public_key()
     sig_pubkey = sig_privkey.public_key()
     doctor_pubkeys = {
-        'enc': bytes(enc_pubkey).hex(),
-        'sig': bytes(sig_pubkey).hex()
+        "enc": enc_pubkey.to_compressed_bytes().hex(),
+        "sig": sig_pubkey.to_compressed_bytes().hex(),
     }
     with open(DOCTOR_PUBLIC_JSON, 'w') as f:
         json.dump(doctor_pubkeys, f)
 
 
-def _get_keys(file, key_class):
+def _get_keys(file, public=False):
     if not file.exists():
         generate_doctor_keys()
 
@@ -37,13 +37,18 @@ def _get_keys(file, key_class):
         stored_keys = json.load(f)
     keys = dict()
     for key_type, key_str in stored_keys.items():
-        keys[key_type] = key_class.from_bytes(bytes.fromhex(key_str))
+        data = bytes.fromhex(key_str)
+        if public:
+            key = PublicKey.from_compressed_bytes(data)
+        else:
+            key = SecretKey.from_be_bytes(data)
+        keys[key_type] = key
     return keys
 
 
 def get_doctor_pubkeys():
-    return _get_keys(DOCTOR_PUBLIC_JSON, PublicKey)
+    return _get_keys(DOCTOR_PUBLIC_JSON, public=True)
 
 
 def get_doctor_privkeys():
-    return _get_keys(DOCTOR_PRIVATE_JSON, SecretKey)
+    return _get_keys(DOCTOR_PRIVATE_JSON, public=False)
