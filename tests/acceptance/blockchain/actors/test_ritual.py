@@ -21,32 +21,25 @@ CONDITIONS = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': '
 
 
 @pytest.fixture(scope='module')
-def coordinator_agent(testerchain, test_registry):
+def cohort(ursulas):
+    """Creates a cohort of Ursulas"""
+    nodes = list(sorted(ursulas[:DKG_SIZE], key=lambda x: int(x.checksum_address, 16)))
+    assert len(nodes) == DKG_SIZE  # sanity check
+    return nodes
+
+
+@pytest.fixture(scope='module')
+def coordinator_agent(testerchain, test_registry, agency):
     """Creates a coordinator agent"""
     return ContractAgency.get_agent(CoordinatorAgent, registry=test_registry)
 
 
-def sample_nodes_for_dkg(ursulas):
-    """Selects a sample of nodes for the DKG"""
-    return list(sorted(ursulas[:DKG_SIZE], key=lambda x: int(x.checksum_address, 16)))
-
-
 @pytest_twisted.inlineCallbacks()
-def test_ursula_ritualist(ursulas, coordinator_agent, testerchain, alice, bob):
+def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
     """Tests the DKG and the encryption/decryption of a message"""
 
-    cohort = sample_nodes_for_dkg(ursulas)
-    assert len(cohort) == DKG_SIZE  # sanity check
-
-    def start_ursulas():
-        """Starts the learning loop and the event scanner"""
-        for ursula in cohort:
-            ursula.ritual_tracker.start()
-            ursula.start_learning_loop(now=True)
-            start_pytest_ursula_services(ursula=ursula)
-
     # Round 0 - Initiate the ritual
-    def initialize(_):
+    def initialize():
         """Initiates the ritual"""
         print("==================== INITIALIZING ====================")
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
@@ -66,9 +59,12 @@ def test_ursula_ritualist(ursulas, coordinator_agent, testerchain, alice, bob):
         assert coordinator_agent.number_of_rituals() == RITUAL_ID + 1
         assert coordinator_agent.get_ritual_status(RITUAL_ID) == coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
 
-        # check that the ritual was created locally for each node
+        # check that the ritual is being tracked locally upon initialization for each node
         for ursula in cohort:
-            ursula.ritual_tracker.refresh(fetch_rituals=[RITUAL_ID])
+            # this is a testing hack to make the event scanner work
+            # normally it's called by the reactor clock in a loop
+            ursula.ritual_tracker.task.run()
+            # check that the ritual was created locally for this node
             assert len(ursula.ritual_tracker.rituals) == RITUAL_ID + 1
 
     def block_until_dkg_finalized(_):
@@ -84,22 +80,25 @@ def test_ursula_ritualist(ursulas, coordinator_agent, testerchain, alice, bob):
     def test_finality(_):
         """Checks the finality of the DKG"""
         print("==================== CHECKING DKG FINALITY ====================")
-        assert coordinator_agent.get_ritual_status(RITUAL_ID) == coordinator_agent.Ritual.Status.FINALIZED
+        status = coordinator_agent.get_ritual_status(RITUAL_ID)
+        assert status == coordinator_agent.Ritual.Status.FINALIZED
         for ursula in cohort:
-            assert ursula.get_transcript(RITUAL_ID) is not None
+            assert ursula.dkg_storage.get_transcript(RITUAL_ID) is not None
 
     def test_encrypt(_):
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
 
-        # side channel fake-out
+        # side channel fake-out by using the datastore from the last node in the cohort
+        # alternatively, we could use the coordinator datastore
         last_node = cohort[-1]
-        encrypting_key = last_node.dkg_storage["public_keys"][RITUAL_ID]
+        encrypting_key = last_node.dkg_storage.get_public_key(RITUAL_ID)
 
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()
 
         # encrypt
+        # print(f'encrypting for DKG with key {bytes(encrypting_key.to_bytes()).hex()}')
         enrico = Enrico(encrypting_key=encrypting_key)
         ciphertext = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
         return ciphertext
@@ -107,47 +106,33 @@ def test_ursula_ritualist(ursulas, coordinator_agent, testerchain, alice, bob):
     def test_decrypt(ciphertext):
         """Decrypts a message and checks that it matches the original plaintext"""
         print("==================== DKG DECRYPTION ====================")
-
-        # side channel fake-out
-        last_node = cohort[-1]
-        generator = last_node.dkg_storage["generator_inverses"][RITUAL_ID]
-
-        # decrypt
+        # ritual_id, ciphertext, conditions are obtained from the side channel
+        bob.start_learning_loop(now=True)
         cleartext = bob.threshold_decrypt(
             ritual_id=RITUAL_ID,
             ciphertext=ciphertext,
             conditions=CONDITIONS,
-            generator=generator,
-            cohort=cohort
+            # params=cohort[0].dkg_storage.get_dkg_params(RITUAL_ID),
         )
         assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")
 
-    def stop(*args):
-        """Stops the learning loop and the event scanner"""
-        print("==================== STOPPING ====================")
-        for ursula in cohort:
-            ursula.ritual_tracker.stop()
-            ursula.start_learning_loop()
-
     def error_handler(e):
         """Prints the error and raises it"""
         print("==================== ERROR ====================")
-        # print(e.getTraceback())
+        print(e.getTraceback())
         raise e
 
     # order matters
     callbacks = [
-        initialize,
         test_initialize,
         block_until_dkg_finalized,
         test_finality,
         test_encrypt,
         test_decrypt,
-        stop
     ]
 
-    d = deferToThread(start_ursulas)
+    d = deferToThread(initialize)
     for callback in callbacks:
         d.addCallback(callback)
         d.addErrback(error_handler)

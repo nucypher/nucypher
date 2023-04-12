@@ -7,7 +7,7 @@ from ferveo_py import Keypair as FerveoKeypair, Transcript, AggregatedTranscript
     Ciphertext
 from hexbytes import HexBytes
 from nucypher_core.umbral import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
@@ -286,15 +286,15 @@ class RitualisticPower(KeyPairBasedPower):
             shares: int,
             threshold: int,
             transcripts: list
-    ) -> Tuple[AggregatedTranscript, PublicKey, int]:
-        aggregated_transcript, public_key, generator_inverse = dkg.aggregate_transcripts(
+    ) -> Tuple[AggregatedTranscript, PublicKey, Any]:
+        aggregated_transcript, public_key, params = dkg.aggregate_transcripts(
             ritual_id=ritual_id,
             me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             transcripts=transcripts
         )
-        return aggregated_transcript, public_key, generator_inverse
+        return aggregated_transcript, public_key, params
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):
