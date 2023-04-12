@@ -644,7 +644,13 @@ class CoordinatorAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def post_transcript(self, ritual_id: int, transcript: bytes, node_index: int, transacting_power: TransactingPower) -> TxReceipt:
+    def post_transcript(
+            self,
+            ritual_id: int,
+            transcript: bytes,
+            node_index: int,
+            transacting_power: TransactingPower
+    ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id,
             nodeIndex=node_index,
@@ -659,16 +665,17 @@ class CoordinatorAgent(EthereumContractAgent):
         self,
         ritual_id: int,
         node_index: int,
-        aggregated_transcript: AggregatedTranscript,
+        aggregated_transcript: bytes,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             nodeIndex=node_index,
-            aggregatedTranscript=bytes(aggregated_transcript),
+            aggregatedTranscript=aggregated_transcript,
         )
         receipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
+            contract_function=contract_function,
+            transacting_power=transacting_power
         )
         return receipt
 
