@@ -15,7 +15,8 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
-from ferveo_py import Ciphertext, DecryptionShare, combine_decryption_shares, decrypt_with_shared_secret
+from ferveo_py import Ciphertext, DecryptionShare, combine_decryption_shares, decrypt_with_shared_secret, \
+    ExternalValidator, Transcript
 from pathlib import Path
 from queue import Queue
 from twisted.internet import reactor
@@ -38,7 +39,7 @@ import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import Operator, PolicyAuthor, Ritualist
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent, CoordinatorAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -50,6 +51,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
+from nucypher.crypto.ferveo.dkg import aggregate_transcripts
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -1120,6 +1122,14 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                                  known_nodes=known_nodes_info,
                                  balance_eth=balance_eth,
                                  )
+
+    def as_external_validator(self) -> ExternalValidator:
+        """Returns an ExternalValidator instance for this Ursula for use in DKG operations."""
+        validator = ExternalValidator(
+            address=self.checksum_address,
+            public_key=self.public_keys(RitualisticPower)
+        )
+        return validator
 
 
 class LocalUrsulaStatus(NamedTuple):

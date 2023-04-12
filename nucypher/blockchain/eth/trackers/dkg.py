@@ -1,17 +1,7 @@
 import os
 import time
-from typing import Callable, List, Optional, Tuple, Type, Union
-
-from eth_typing import ChecksumAddress
-from ferveo_py import (
-    AggregatedTranscript,
-    DecryptionShare,
-    Dkg,
-    Keypair,
-    PublicKey,
-    Transcript,
-)
 from twisted.internet import threads
+from typing import Callable, List, Optional, Tuple, Type, Union
 from web3 import Web3
 from web3.contract import Contract, ContractEvent
 from web3.datastructures import AttributeDict
@@ -60,7 +50,7 @@ class EventScannerTask(SimpleTask):
         raise args[0]
 
 
-class RitualTracker:
+class ActiveRitualTracker:
 
     MAX_CHUNK_SIZE = 10000
 
@@ -68,8 +58,9 @@ class RitualTracker:
                  ritualist,
                  eth_provider: BaseProvider,
                  contract: Contract,
-                 start_block: int = 0,
-                 persistent: bool = False):
+                 start_block: int = 0,  # TODO: use a start block that correlates to the ritual timeout
+                 persistent: bool = False  # TODO: use persistent storage?
+                 ):
 
         self.log = Logger("RitualTracker")
 

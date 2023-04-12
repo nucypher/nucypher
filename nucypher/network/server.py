@@ -143,17 +143,22 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
 
         # Deserialize and instantiate ConditionLingo from the request data
-        lingo = ConditionLingo.from_list(json.loads(str(decryption_request.conditions)))
-
         # requester-supplied condition eval context
+        # evaluate the conditions for this ciphertext
+        lingo = ConditionLingo.from_list(json.loads(str(decryption_request.conditions)))
         context = None
         if decryption_request.context:
             context = json.loads(str(decryption_request.context)) or dict()
-
-        # evaluate the conditions for this ciphertext
         error = evaluate_condition_lingo(lingo, context)
         if error:
             return Response(error.message, status=error.status_code)
+
+        # TODO: confirm this node is tracking the ritual and is an authorized recipient
+        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
+        ritual = this_node.coordinator_agent.get_ritual(decryption_request.ritual_id, with_participants=True)
+        participants = [p.node for p in ritual.participants]
+        if this_node.checksum_address not in participants:
+            return Response(f'Node not part of ritual {decryption_request.ritual_id}', status=HTTPStatus.FORBIDDEN)
 
         # derive the decryption share
         decryption_share = this_node.derive_decryption_share(
@@ -163,6 +168,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         )
 
         # return the decryption share
+        # TODO: encrypt the response with the requester's public key # 3079
         response = ThresholdDecryptionResponse(decryption_share=decryption_share)
         return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
 
