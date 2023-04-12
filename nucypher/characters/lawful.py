@@ -518,38 +518,110 @@ class Bob(Character):
 
         return cleartexts
 
+    def resolve_cohort(self, ritual: CoordinatorAgent.Ritual, timeout: int = 0) -> List['Ursula']:
+
+        if timeout > 0:
+            validators = set([n[0] for n in ritual.transcripts])
+            self.block_until_specific_nodes_are_known(
+                addresses=validators,
+                timeout=timeout,
+                allow_missing=ritual.shares // 2  # TODO: This is a hack.
+            )
+
+        cohort = list()
+        for staking_provider_address, transcript_bytes in ritual.transcripts:
+            remote_ritualist = self.known_nodes[staking_provider_address]
+            remote_ritualist.mature()
+            cohort.append(remote_ritualist)
+
+        return cohort
+
+    def gather_decryption_shares(
+            self,
+            ritual_id: int,
+            cohort: List['Ursula'],
+            ciphertext: Ciphertext,
+            lingo: LingoList,
+            threshold: int
+        ) -> List[DecryptionShare]:
+        gathered_shares = list()
+        for ursula in cohort:
+            conditions = Conditions(json.dumps(lingo))
+            decryption_request = ThresholdDecryptionRequest(
+                ritual_id=ritual_id,
+                ciphertext=ciphertext,
+                conditions=conditions
+            )
+
+            try:
+                response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
+            except NodeSeemsToBeDown:
+                self.log.warn(f"Node {ursula} is unreachable. Skipping...")
+                continue
+            if response.status_code != 200:
+                self.log.warn(f"Node {ursula} returned {response.status_code}.")
+                continue
+
+            payload = json.loads(response.content.decode())
+            decryption_share = DecryptionShare.from_bytes(bytes.fromhex(payload['decryption_share']))
+            gathered_shares.append(decryption_share)
+            self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
+
+            # If we have enough shares, we can stop.
+            if len(gathered_shares) >= threshold:
+                self.log.debug(f"Got enough shares to decrypt.")
+                # break
+
+        if len(gathered_shares) < threshold:
+            raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
+
+        return gathered_shares
+
     def threshold_decrypt(self,
                           ritual_id: int,
                           ciphertext: Ciphertext,
                           conditions: LingoList,
-                          generator,
-                          cohort: List['Ursula'] = None
+                          params: Any = None,
+                          timeout: int = 0,  # TODO: This is a hack.
                           ) -> bytes:
 
-        if not cohort:
-            # TODO: This is a temporary solution. We need to have a better way to lookup Ursulas
-            raise ValueError("No Ursulas to perform the decryption")
+        coordinator_agent = ContractAgency.get_agent(CoordinatorAgent, registry=self.registry)
+        ritual = coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        ursulas = self.resolve_cohort(ritual=ritual, timeout=timeout)
 
-        shares = list()
-        for ursula in cohort:
-            decryption_request = ThresholdDecryptionRequest(
+        threshold = (ritual.shares // 2) + 1
+        shares = self.gather_decryption_shares(
+            ritual_id=ritual_id,
+            cohort=ursulas,
+            ciphertext=ciphertext,
+            lingo=conditions,
+            threshold=threshold
+        )
+
+        # now, the decryption share can be used to decrypt the ciphertext
+        shared_secret = combine_decryption_shares(shares)
+
+        if not params:
+            # derive the generator inverse for ciphertext verification
+            validators = [u.as_external_validator() for u in ursulas]
+            transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
+            data = list(zip(validators, transcripts))
+
+            pvss_aggregated, final_key, params = aggregate_transcripts(
                 ritual_id=ritual_id,
-                ciphertext=ciphertext,
-                conditions=Conditions(json.dumps(conditions)),
+                me=validators[0],  # TODO: this is awkward, but we need to pass "me" here to derive_generator_inverse
+                threshold=threshold,
+                shares=ritual.shares,
+                transcripts=data
             )
 
-            response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
-            payload = json.loads(response.content.decode())
-            decryption_share = DecryptionShare.from_bytes(bytes.fromhex(payload['decryption_share']))
-            shares.append(decryption_share)
-
-        # Now, the decryption share can be used to decrypt the ciphertext
-        shared_secret = combine_decryption_shares(shares)
+        # decrypt the ciphertext
+        conditions = json.dumps(conditions).encode()
         cleartext = decrypt_with_shared_secret(
             ciphertext,
-            json.dumps(conditions).encode(),  # TODO: ferveo core needs to support Conditions
+            conditions,
             shared_secret,
-            generator
+            params
         )
         return cleartext
 
