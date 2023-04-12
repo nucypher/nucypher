@@ -206,7 +206,8 @@ contract Coordinator is Ownable {
         emit AggregationPosted(ritualId, msg.sender, aggregatedTranscriptDigest);
 
         if (ritual.aggregatedTranscriptHash == bytes32(0)){
-            ritual.aggregatedTranscriptHash = aggregatedTranscriptDigest;
+            ritual.aggregatedTranscriptHash = aggregatedTranscriptDigest;  // TODO: probably redundant
+            ritual.aggregatedTranscript = aggregatedTranscript;
         } else if (ritual.aggregatedTranscriptHash != aggregatedTranscriptDigest){
             ritual.aggregationMismatch = true;
             emit EndRitual(ritualId, ritual.initiator, RitualState.INVALID);
