@@ -1,7 +1,10 @@
-# Based on original work here:
-# https://github.com/nucypher/ferveo/blob/client-server-api/ferveo-python/examples/server_api.py
+from eth_utils import keccak
 from ferveo_py import *
 from typing import List, Tuple, Any
+
+from nucypher.utilities.logging import Logger
+
+LOGGER = Logger('ferveo-dkg')
 
 
 def _make_dkg(
@@ -18,6 +21,7 @@ def _make_dkg(
         validators=nodes,
         me=me
     )
+    LOGGER.debug(f"Initialized DKG backend for {threshold}/{shares} nodes: {', '.join(n.address[:6] for n in nodes)}")
     return dkg
 
 
@@ -25,6 +29,16 @@ def generate_transcript(*args, **kwargs):
     dkg = _make_dkg(*args, **kwargs)
     transcript = dkg.generate_transcript()
     return transcript
+
+
+def derive_generator_inverse(*args, **kwargs):
+    dkg = _make_dkg(*args, **kwargs)
+    return dkg.g1_inv
+
+
+def derive_public_key(*args, **kwargs):
+    dkg = _make_dkg(*args, **kwargs)
+    return dkg.final_key
 
 
 def _validate_pvss_aggregated(pvss_aggregated: AggregatedTranscript, dkg) -> bool:
@@ -42,7 +56,8 @@ def aggregate_transcripts(
     _dkg = _make_dkg(nodes=validators, *args, **kwargs)
     pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
     pvss_aggregated.validate(_dkg)
-    return pvss_aggregated, _dkg.final_key, _dkg.g1_inv
+    LOGGER.debug(f"derived final DKG key {bytes(_dkg.final_key).hex()[:10]} and {keccak(bytes(_dkg.public_params)).hex()[:10]}")
+    return pvss_aggregated, _dkg.final_key, _dkg.public_params
 
 
 def derive_decryption_share(
@@ -55,7 +70,7 @@ def derive_decryption_share(
 ) -> DecryptionShare:
     dkg = _make_dkg(nodes=nodes, *args, **kwargs)
     if not all((nodes, aggregated_transcript, keypair, ciphertext, aad)):
-        raise Exception("missing arguments")
+        raise Exception("missing arguments")  # sanity check
     decryption_share = aggregated_transcript.create_decryption_share(
         dkg, ciphertext, aad, keypair
     )
