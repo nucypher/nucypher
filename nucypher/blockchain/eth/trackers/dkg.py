@@ -154,14 +154,17 @@ class ActiveRitualTracker:
             return None, event_type
         return event, event_type
 
-    def __execute_round(self, event_type, timestamp: int, ritual_id, **kwargs):
+    def __execute_round(self, event_type, timestamp: int, ritual_id, defer: bool = False, **kwargs):
         """Execute a round of a ritual asynchronously."""
         def task():
             self.actions[event_type](timestamp=timestamp, ritual_id=ritual_id, **kwargs)
-        d = threads.deferToThread(task)
-        d.addErrback(self.task.handle_errors)
-        d.addCallback(self.refresh)
-        return d
+        if defer:
+            d = threads.deferToThread(task)
+            d.addErrback(self.task.handle_errors)
+            d.addCallback(self.refresh)
+            return d
+        else:
+            return task()
 
     def _handle_ritual_event(self, event: AttributeDict, get_block_when: Callable):
         # Refresh the list of rituals to make sure we have the latest data
