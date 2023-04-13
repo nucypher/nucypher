@@ -11,7 +11,7 @@ from constant_sorrow.constants import (
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from ferveo_py import AggregatedTranscript
+from ferveo_py import AggregatedTranscript, PublicKey
 from itertools import accumulate
 from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
 from web3.contract import Contract, ContractFunction
@@ -673,6 +673,14 @@ class CoordinatorAgent(EthereumContractAgent):
             nodeIndex=node_index,
             aggregatedTranscript=aggregated_transcript,
         )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power
+        )
+        return receipt
+
+    def post_public_key(self, ritual_id: int, public_key: PublicKey, transacting_power: TransactingPower) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.postPublicKey(ritual_id, bytes(public_key))
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power

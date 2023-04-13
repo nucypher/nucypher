@@ -107,11 +107,12 @@ class ActiveRitualTracker:
         self.active_tasks = set()
         self.refresh()
 
-    def get_ritual(self, ritual_id: int):
+    def get_ritual(self, ritual_id: int, with_participants: bool = False):
         """Get a ritual from the blockchain."""
         ritual = self.ritualist.coordinator_agent.get_ritual(ritual_id=ritual_id)
-        participants = self.ritualist.coordinator_agent.get_participants(ritual_id=ritual_id)
-        ritual.participants = participants
+        if with_participants:
+            participants = self.ritualist.coordinator_agent.get_participants(ritual_id=ritual_id)
+            ritual.participants = participants
         return ritual
 
     def refresh(self, fetch_rituals: Optional[List[int]] = None, all: bool = False):
