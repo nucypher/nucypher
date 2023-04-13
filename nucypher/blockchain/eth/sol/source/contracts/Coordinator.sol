@@ -77,7 +77,9 @@ contract Coordinator is Ownable {
         uint32 deadline = t0 + timeout;
         if(t0 == 0){
             return RitualState.NON_INITIATED;
-        } else if (ritual.publicKey[0] != 0x0){ // TODO: Improve check
+        } else if (ritual.publicKey.length == PUBLIC_KEY_SIZE) {
+            return RitualState.FINALIZED;
+        } else if (ritual.totalAggregations == ritual.dkgSize) {
             return RitualState.FINALIZED;
         } else if (ritual.aggregationMismatch){
             return RitualState.INVALID;
@@ -218,12 +220,8 @@ contract Coordinator is Ownable {
 
         ritual.totalAggregations++;
 
-        // end round - Last node posting aggregation will finalize
         if (ritual.totalAggregations == ritual.dkgSize){
             emit EndRitual(ritualId, ritual.initiator, RitualState.FINALIZED);
-            // TODO: Last node extracts public key bytes from aggregated transcript
-            // and store in ritual.publicKey
-            ritual.publicKey[0] = bytes1(0x42);
         }
     }
 
@@ -236,6 +234,14 @@ contract Coordinator is Ownable {
         require(
             ritual.publicKey.length == 0,
             "Public key already posted"
+        );
+        require(
+            !ritual.aggregationMismatch,
+            "Aggregation mismatch"
+        );
+        require(
+            publicKey.length == PUBLIC_KEY_SIZE,
+            "Invalid public key size"
         );
         ritual.publicKey = publicKey;
     }
