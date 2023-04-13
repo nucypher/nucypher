@@ -88,7 +88,9 @@ class MockCoordinatorV1:
         deadline = timestamp + self.timeout
         if timestamp == 0:
             return self.RitualStatus.NOT_INITIATED
-        elif ritual.public_key:
+        elif ritual.public_key is not None:
+            return self.RitualStatus.FINALIZED
+        elif ritual.total_aggregations == ritual.dkg_size:
             return self.RitualStatus.FINALIZED
         elif ritual.aggregation_mismatch:
             return self.RitualStatus.AGGREGATION_MISMATCH
