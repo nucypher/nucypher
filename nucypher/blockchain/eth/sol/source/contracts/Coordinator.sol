@@ -226,4 +226,17 @@ contract Coordinator is Ownable {
             ritual.publicKey[0] = bytes1(0x42);
         }
     }
+
+    function postPublicKey(uint32 ritualId, bytes calldata publicKey) external {
+        Ritual storage ritual = rituals[ritualId];
+        require(
+            getRitualState(ritual) == RitualState.FINALIZED,
+            "Ritual not finalized"
+        );
+        require(
+            ritual.publicKey.length == 0,
+            "Public key already posted"
+        );
+        ritual.publicKey = publicKey;
+    }
 }

@@ -434,6 +434,7 @@ class Ritualist(BaseActor):
             eth_provider_uri: str,
             crypto_power: CryptoPower,
             transacting_power: TransactingPower,
+            publish_finalization: bool = True,
             *args,
             **kwargs,
     ):
@@ -455,6 +456,8 @@ class Ritualist(BaseActor):
             # TODO: use a start block that corresponds to the ritual timeout or something
             # start_block=self.coordinator_agent.contract.functions.getRitualStartBlock().call()
         )
+
+        self.publish_finalization = publish_finalization  # publish the DKG final key if True
         self.dkg_storage = DKGStorage()  # stores locally generated public DKG artifacts
         self.ritual_power = crypto_power.power_ups(RitualisticPower)  # ferveo material contained within
 
@@ -587,7 +590,7 @@ class Ritualist(BaseActor):
 
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
             raise self.ActorError(
-                f"ritual #{ritual.id} is not waiting for transcripts."
+                f"ritual #{ritual.id} is not waiting for aggregations."
             )
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
@@ -627,8 +630,15 @@ class Ritualist(BaseActor):
         total = ritual.total_aggregations + 1
         self.log.debug(f"{self.transacting_power.account[:8]} aggregated a transcript for "
                        f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
-        if total == len(ritual.nodes):
+        if total >= len(ritual.nodes):
             self.log.debug(f"DKG ritual #{ritual_id} is ready to be finalized")
+            if self.publish_finalization:
+                self.log.debug(f"Publishing public key finalization for DKG ritual #{ritual_id}")
+                self.coordinator_agent.post_public_key(
+                    ritual_id=ritual_id,
+                    public_key=dkg_public_key,
+                    transacting_power=self.transacting_power
+                )
 
         return receipt
 
