@@ -17,13 +17,13 @@ from constant_sorrow.constants import (
 )
 from eth.typing import TransactionDict
 from eth_tester import EthereumTester
-from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_tester.exceptions import TransactionFailed as TestTransactionFailed, ValidationError
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
 from web3 import Web3, middleware, IPCProvider, WebsocketProvider, HTTPProvider
-from web3.contract import Contract, ContractConstructor, ContractFunction
-from web3.exceptions import ValidationError, TimeExhausted
+from web3.contract.contract import Contract, ContractConstructor, ContractFunction
+from web3.exceptions import TimeExhausted
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt

@@ -2,7 +2,7 @@
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from web3.contract import Contract
+from web3.contract.contract import Contract
 from web3.exceptions import BadFunctionCallOutput
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS

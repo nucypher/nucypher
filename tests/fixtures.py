@@ -15,7 +15,7 @@ from pathlib import Path
 from twisted.internet.task import Clock
 from typing import Callable, Tuple
 from web3 import Web3
-from web3.contract import Contract
+from web3.contract.contract import Contract
 from web3.types import TxReceipt
 
 import nucypher

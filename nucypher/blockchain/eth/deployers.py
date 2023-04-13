@@ -9,7 +9,7 @@ from constant_sorrow.constants import (
 )
 from eth_typing.evm import ChecksumAddress
 from typing import Dict, List, Tuple
-from web3.contract import Contract
+from web3.contract.contract import Contract
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (

@@ -29,7 +29,7 @@ import maya
 from web3 import Web3
 from web3._utils.events import get_event_data
 from web3._utils.filters import construct_event_filter_params
-from web3.contract import Contract
+from web3.contract.contract import Contract
 from web3.datastructures import AttributeDict
 from web3.exceptions import BlockNotFound
 from web3.types import BlockIdentifier

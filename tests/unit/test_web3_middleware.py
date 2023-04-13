@@ -40,7 +40,7 @@ def test_request_with_retry(retry_middleware_class):
     # Retry Case - RPCResponse fails due to limits, and retry required
     make_request.return_value = RPC_TOO_MANY_REQUESTS
 
-    retry_response = retry_middleware(method=RPCEndpoint('web3_clientVersion'), params=None)
+    retry_response = retry_middleware(method=RPCEndpoint('web3_client_version'), params=None)
     assert retry_response == RPC_TOO_MANY_REQUESTS
     assert make_request.call_count == (retries + 1)   # initial call, and then the number of retries
 
@@ -54,7 +54,7 @@ def test_request_with_non_retry_exception(retry_middleware_class):
     make_request.side_effect = forbidden_request
     retry_middleware = retry_middleware_class(make_request=make_request, w3=Mock(), exponential_backoff=False)
     with pytest.raises(HTTPError):
-        retry_middleware(method=RPCEndpoint('web3_clientVersion'), params=None)
+        retry_middleware(method=RPCEndpoint('web3_client_version'), params=None)
 
     assert make_request.call_count == 1  # only initial call, exception gets raised
 
@@ -69,7 +69,7 @@ def test_request_success_with_no_retry(retry_middleware_class):
                                               w3=Mock(),
                                               retries=10,
                                               exponential_backoff=False)
-    retry_response = retry_middleware(method=RPCEndpoint('web3_clientVersion'), params=None)
+    retry_response = retry_middleware(method=RPCEndpoint('web3_client_version'), params=None)
     assert retry_response == RPC_SUCCESSFUL_RESPONSE
     assert make_request.call_count == 1  # first call was successful, no need for retries
 

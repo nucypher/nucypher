@@ -4,7 +4,7 @@ from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import fields, post_load, validates_schema
 from web3 import Web3
-from web3.contract import ContractFunction
+from web3.contract.contract import ContractFunction
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
