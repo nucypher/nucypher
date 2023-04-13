@@ -31,7 +31,7 @@ requests = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
-web3 = "==6.0.0b6"
+web3 = "*"
 eth-utils = "*"
 eip712-structs = "*"
 # CLI / Configuration
@@ -54,7 +54,6 @@ pytest-timeout = "*"
 hypothesis = "*"
 pre-commit = "2.12.1"
 pyflakes = "*"
-mypy = "*"
 coverage = "<=6.5.0"
 py-solc-x = "==0.10.1"
 

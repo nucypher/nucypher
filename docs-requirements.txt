@@ -1,49 +1,48 @@
 -i https://pypi.python.org/simple
-alabaster==0.7.12
-attrs==22.1.0; python_version >= '3.5'
+alabaster==0.7.13 ; python_version >= '3.6'
 autosemver==0.5.5
-babel==2.11.0; python_version >= '3.6'
-certifi==2022.12.7; python_version >= '3.6'
-charset-normalizer==2.1.1; python_version >= '3.6'
+babel==2.12.1 ; python_version >= '3.7'
+certifi==2022.12.7 ; python_version >= '3.6'
+charset-normalizer==3.1.0 ; python_full_version >= '3.7.0'
+click==8.1.3 ; python_version >= '3.7'
 click-default-group==1.2.2
-click==8.1.3; python_version >= '3.7'
-coverage[toml]==6.5.0; python_version >= '3.7'
-docutils==0.17.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+coverage==7.2.3 ; python_version >= '3.7'
+docutils==0.18.1 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 dulwich==0.19.16
-exceptiongroup==1.0.4; python_version < '3.11'
-execnet==1.9.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-git+https://github.com/inspirehep/jsonschema2rst.git@d211d9709046431a6b6a4594c97c22d8713d854b#egg=jsonschema2rst
-idna==3.4; python_version >= '3.5'
-imagesize==1.4.1; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+exceptiongroup==1.1.1 ; python_version < '3.11'
+execnet==1.9.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+idna==3.4 ; python_version >= '3.5'
+imagesize==1.4.1 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 incremental==22.10.0
-iniconfig==1.1.1
-isort==5.10.1; python_full_version >= '3.6.1' and python_version < '4'
+iniconfig==2.0.0 ; python_version >= '3.7'
+isort==6.0.0b2 ; python_full_version >= '3.7.0'
 jinja2==3.0.3
-markupsafe==2.1.1; python_version >= '3.7'
-mock==4.0.3; python_version >= '3.6'
-packaging==21.3; python_version >= '3.6'
+git+https://github.com/inspirehep/jsonschema2rst.git@d211d9709046431a6b6a4594c97c22d8713d854b#egg=jsonschema2rst
+markupsafe==2.1.2 ; python_version >= '3.7'
+mock==5.0.1 ; python_version >= '3.6'
+packaging==23.1 ; python_version >= '3.7'
 pep8==1.7.1
-pluggy==1.0.0; python_version >= '3.6'
+pluggy==1.0.0 ; python_version >= '3.6'
 py-solc-x==0.10.1
-pygments==2.13.0; python_version >= '3.6'
-pyparsing==3.0.9; python_full_version >= '3.6.8'
+pygments==2.15.0 ; python_version >= '3.7'
+pytest==7.3.0 ; python_version >= '3.7'
 pytest-cache==1.0
-pytest-cov==4.0.0; python_version >= '3.6'
+pytest-cov==4.0.0 ; python_version >= '3.6'
 pytest-pep8==1.0.6
-pytest==7.2.0; python_version >= '3.7'
-pytz==2022.6
-pyyaml==6.0; python_version >= '3.6'
-requests==2.28.1; python_version >= '3.7' and python_version < '4'
-semantic-version==2.10.0; python_version >= '2.7'
+pyyaml==6.0 ; python_version >= '3.6'
+requests==2.28.2 ; python_version >= '3.7' and python_version < '4'
+semantic-version==2.10.0 ; python_version >= '2.7'
+setuptools==67.6.1 ; python_version >= '3.7'
 snowballstemmer==2.2.0
-sphinx-rtd-theme==1.1.1
 sphinx==3.0.1
-sphinxcontrib-applehelp==1.0.2; python_version >= '3.5'
-sphinxcontrib-devhelp==1.0.2; python_version >= '3.5'
-sphinxcontrib-htmlhelp==2.0.0; python_version >= '3.6'
-sphinxcontrib-jsmath==1.0.1; python_version >= '3.5'
-sphinxcontrib-qthelp==1.0.3; python_version >= '3.5'
-sphinxcontrib-serializinghtml==1.1.5; python_version >= '3.5'
-tomli==2.0.1
-towncrier==22.8.0
-urllib3==1.26.13; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5'
+sphinx-rtd-theme==1.2.0
+sphinxcontrib-applehelp==1.0.4 ; python_version >= '3.8'
+sphinxcontrib-devhelp==1.0.2 ; python_version >= '3.5'
+sphinxcontrib-htmlhelp==2.0.1 ; python_version >= '3.8'
+sphinxcontrib-jquery==4.1 ; python_version > '3'
+sphinxcontrib-jsmath==1.0.1 ; python_version >= '3.5'
+sphinxcontrib-qthelp==1.0.3 ; python_version >= '3.5'
+sphinxcontrib-serializinghtml==1.1.5 ; python_version >= '3.5'
+tomli==2.0.1 ; python_version < '3.11'
+towncrier==22.12.0
+urllib3==1.26.15 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5'
