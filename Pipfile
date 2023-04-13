@@ -14,6 +14,7 @@ hendrix = ">=4.0"
 nucypher-core = ">=0.6.1"
 # Cryptography
 cryptography = ">=3.2"
+ferveo = ">=0.1.6"
 mnemonic = "*"
 pynacl= ">=1.4.0"
 pyopenssl = "*"
@@ -40,7 +41,6 @@ colorama = "*"
 tabulate = "*"
 # Template
 jinja2 = "<3.1.0"  # because of docs
-ferveo = "==0.1.5"
 
 [dev-packages]
 # Pytest
