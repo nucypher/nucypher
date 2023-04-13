@@ -34,7 +34,7 @@ contract Coordinator is Ownable {
         FINALIZED
     }
 
-    uint256 public constant PUBLIC_KEY_SIZE = 48;
+    uint256 public constant PUBLIC_KEY_SIZE = 104;
 
     struct Participant {
         address node;
