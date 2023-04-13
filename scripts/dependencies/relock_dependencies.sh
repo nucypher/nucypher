@@ -35,15 +35,18 @@ set -e
 
 echo "Building Documentation Requirements"
 pushd ./scripts/dependencies/docs
-pipenv lock --clear --pre --requirements --no-header > ../../../docs-$PREFIX.txt
+pipenv lock --clear --pre
+pipenv requirements > ../../../docs-$PREFIX.txt
 rm -f Pipfile.lock
 pipenv --rm
 popd
 
 echo "Building Development Requirements"
-pipenv lock --clear --pre --requirements --dev-only --no-header > dev-$PREFIX.txt
+pipenv lock --clear --pre --dev-only
+pipenv requirements --dev-only > dev-$PREFIX.txt
 
 echo "Building Standard Requirements"
-pipenv lock --clear --pre --requirements --no-header > $PREFIX.txt
+pipenv lock --clear --pre
+pipenv requirements > $PREFIX.txt
 
 echo "OK!"
