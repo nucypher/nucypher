@@ -1,7 +1,7 @@
 
 
 import pytest
-from web3.contract import Contract
+from web3.contract.contract import Contract
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.constants import NULL_ADDRESS

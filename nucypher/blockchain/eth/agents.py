@@ -14,7 +14,7 @@ from eth_utils.address import to_checksum_address
 from ferveo_py import AggregatedTranscript, PublicKey
 from itertools import accumulate
 from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
-from web3.contract import Contract, ContractFunction
+from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (

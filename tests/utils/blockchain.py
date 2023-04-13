@@ -141,7 +141,7 @@ class TesterBlockchain(BlockchainDeployerInterface):
         #
 
         # Detect provider platform
-        client_version = self.w3.clientVersion
+        client_version = self.w3.client_version
 
         if 'Geth' in client_version:
             raise RuntimeError("WARNING: Geth providers are not implemented.")

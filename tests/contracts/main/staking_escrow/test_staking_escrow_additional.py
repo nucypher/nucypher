@@ -2,7 +2,7 @@
 
 import pytest
 from eth_tester.exceptions import TransactionFailed
-from web3.contract import Contract
+from web3.contract.contract import Contract
 
 from nucypher.blockchain.eth.token import NU
 from tests.contracts.main.staking_escrow.conftest import TOTAL_SUPPLY

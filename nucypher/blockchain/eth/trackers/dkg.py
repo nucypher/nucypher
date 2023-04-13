@@ -3,7 +3,7 @@ import time
 from twisted.internet import threads
 from typing import Callable, List, Optional, Tuple, Type, Union
 from web3 import Web3
-from web3.contract import Contract, ContractEvent
+from web3.contract.contract import Contract, ContractEvent
 from web3.datastructures import AttributeDict
 from web3.providers import BaseProvider
 
