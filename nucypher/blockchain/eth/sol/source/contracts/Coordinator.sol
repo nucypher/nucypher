@@ -4,6 +4,13 @@ pragma solidity ^0.8.0;
 
 import "zeppelin/ownership/Ownable.sol";
 
+interface ApplicationInterface {
+    function stakingProviderFromOperator(address _operator) external view returns (address);
+
+    function authorizedStake(address _stakingProvider) external view returns (uint96);
+}
+
+
 /**
 * @title Coordinator
 * @notice Coordination layer for DKG-TDec
@@ -61,10 +68,12 @@ contract Coordinator is Ownable {
 
     uint32 public timeout;
     uint32 public maxDkgSize;
+    ApplicationInterface public immutable applicationInterface;
 
-    constructor(uint32 _timeout, uint32 _maxDkgSize) {
+    constructor(uint32 _timeout, uint32 _maxDkgSize, ApplicationInterface _application) {
         timeout = _timeout;
         maxDkgSize = _maxDkgSize;
+        applicationInterface = _application;
     }
 
     function getRitualState(uint256 ritualId) external view returns (RitualState){
@@ -132,6 +141,11 @@ contract Coordinator is Ownable {
         for(uint256 i=0; i < nodes.length; i++){
             Participant storage newParticipant = ritual.participant.push();
             address currentNode = nodes[i];
+            require(
+                applicationInterface.authorizedStake(currentNode) > 0,
+                "Staking provider not authorized for application"
+            );
+
             newParticipant.node = currentNode;
             require(previousNode < currentNode, "Nodes must be sorted");
             previousNode = currentNode;
@@ -161,11 +175,15 @@ contract Coordinator is Ownable {
             "Not waiting for transcripts"
         );
         Participant storage participant = ritual.participant[nodeIndex];
-        // Check operator is authorized for staker here instead
-        //        require(
-        //    participant.node == msg.sender,
-        //    "Node not part of ritual"
-        //);
+        staking_provider = applicationInterface.stakingProviderFromOperator(msg.sender);
+        require(
+            staking_provider == participant.node,
+            "Node is not part of ritual"
+        );
+        require(
+            applicationInterface.authorizedStake(participant.node) > 0,
+            "Staking provider not authorized for application"
+        );
         require(
             participant.transcript.length == 0,
             "Node already posted transcript"
