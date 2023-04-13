@@ -53,7 +53,7 @@ contract Coordinator is Ownable {
         bytes32 aggregatedTranscriptHash;
         bool aggregationMismatch;
         bytes aggregatedTranscript;
-        bytes1[PUBLIC_KEY_SIZE] publicKey;
+        bytes publicKey;
         Participant[] participant;
     }
 
