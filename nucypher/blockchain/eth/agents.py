@@ -601,7 +601,7 @@ class CoordinatorAgent(EthereumContractAgent):
             aggregated_transcript_hash=bytes(result[6]),
             aggregation_mismatch=result[7],
             aggregated_transcript=bytes(result[8]),
-            public_key=bytes(),
+            public_key=bytes(result[9]),
             participants=[]
         )
 
