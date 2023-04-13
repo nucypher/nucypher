@@ -54,7 +54,6 @@ pytest-timeout = "*"
 hypothesis = "*"
 pre-commit = "2.12.1"
 pyflakes = "*"
-mypy = "*"
 coverage = "<=6.5.0"
 py-solc-x = "==0.10.1"
 

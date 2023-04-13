@@ -29,7 +29,7 @@ eth-keyfile==0.6.1
 eth-keys==0.4.0
 eth-rlp==0.3.0 ; python_version >= '3.7' and python_version < '4'
 eth-tester==0.8.0b3
-eth-typing==3.3.0 ; python_full_version >= '3.7.2' and python_version < '4'
+eth-typing==3.3.0 ; python_version < '4' and python_full_version >= '3.7.2'
 eth-utils==2.1.0
 ferveo==0.1.6
 flask==2.2.3
@@ -73,9 +73,9 @@ pyethash==0.1.27
 pynacl==1.5.0
 pyopenssl==23.1.1
 pysha3==1.0.2
-python-dateutil==2.8.2 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
+python-dateutil==2.8.2 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pytz==2023.3
-referencing==0.27.1 ; python_version >= '3.8'
+referencing==0.27.2 ; python_version >= '3.8'
 regex==2023.3.23 ; python_version >= '3.8'
 requests==2.28.2
 rlp==3.0.0
@@ -83,7 +83,7 @@ rpds-py==0.7.1 ; python_version >= '3.8'
 semantic-version==2.10.0 ; python_version >= '2.7'
 service-identity==21.1.0
 setuptools==67.6.1 ; python_version >= '3.7'
-six==1.16.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
+six==1.16.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 snaptime==0.2.4
 sortedcontainers==2.4.0
 tabulate==0.9.0
