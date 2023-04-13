@@ -534,7 +534,7 @@ class Ritualist(BaseActor):
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
 
         # get the ritual and check its status from the blockchain
-        ritual = self.get_ritual(ritual_id)
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
         # validate the status
