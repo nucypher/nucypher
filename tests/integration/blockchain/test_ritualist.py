@@ -45,12 +45,6 @@ def test_initiate_ritual(agent: CoordinatorAgent, deploy_contract, cohort, trans
         initiator=transacting_power.account,
         dkg_size=4,
         init_timestamp=123456,
-        total_transcripts=0,
-        total_aggregations=0,
-        aggregated_transcript_hash=b'FAKE',
-        aggregation_mismatch=False,
-        aggregated_transcript=b'FAKE',
-        public_key=bytes(),
         participants=participants,
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
@@ -74,7 +68,16 @@ def test_perform_round_2(ursula, cohort, transacting_power, agent, mocker):
         aggregated=False,
         transcript=FAKE_TRANSCRIPT
     ) for c in cohort]
+    ritual = CoordinatorAgent.Ritual(
+        id=0,
+        initiator=transacting_power.account,
+        dkg_size=4,
+        init_timestamp=123456,
+        total_transcripts=4,
+        participants=participants,
+    )
+    agent.get_ritual = lambda *args, **kwargs: ritual
     agent.get_participants = lambda *args, **kwargs: participants
-    ursula.coordinator_agent.get_ritual_status = lambda *args, **kwargs: 2
-    ursula.ritual_tracker.refresh(fetch_rituals=[0])
+    agent.get_ritual_status = lambda *args, **kwargs: 2
+
     ursula.perform_round_2(ritual_id=0, timestamp=0)

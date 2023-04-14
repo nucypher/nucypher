@@ -1,19 +1,20 @@
 import contextlib
 import json
-import maya
 import os
-import pytest
 import random
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import datetime, timedelta
-from eth_account import Account
-from eth_utils import to_checksum_address
 from functools import partial
 from pathlib import Path
-from twisted.internet.task import Clock
 from typing import Callable, Tuple
+
+import maya
+import pytest
+from click.testing import CliRunner
+from eth_account import Account
+from eth_utils import to_checksum_address
+from twisted.internet.task import Clock
 from web3 import Web3
 from web3.contract.contract import Contract
 from web3.types import TxReceipt
@@ -449,7 +450,8 @@ def _make_agency(test_registry, token_economics, deployer_transacting_power, thr
     subscription_manager_deployer.deploy(transacting_power=transacting_power)
 
     coordinator_deployer = CoordinatorDeployer(economics=token_economics, registry=test_registry)
-    coordinator_deployer.deploy(transacting_power=transacting_power)
+    coordinator_deployer.deploy(transacting_power=transacting_power,
+                                _application=pre_application_deployer.contract_address)
 
 
 @pytest.fixture(scope='module')

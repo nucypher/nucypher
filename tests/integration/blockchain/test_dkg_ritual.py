@@ -3,7 +3,6 @@ import pytest_twisted
 from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
-from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 
 # constants
