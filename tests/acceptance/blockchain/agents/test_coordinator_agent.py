@@ -3,19 +3,21 @@ import os
 import pytest
 from eth_utils import keccak
 
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.agents import CoordinatorAgent, ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.deployers import CoordinatorDeployer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain, test_registry) -> CoordinatorAgent:
+def agent(testerchain, test_registry, agency) -> CoordinatorAgent:
+    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+
     origin, *everybody_else = testerchain.client.accounts
     coodinator_deployer = CoordinatorDeployer(registry=test_registry)
     tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
-
-    coodinator_deployer.deploy(transacting_power=tpower)
+    coodinator_deployer.deploy(transacting_power=tpower,
+                               _application=application_agent.contract_address)
     coordinator_agent = coodinator_deployer.make_agent()
     return coordinator_agent
 
@@ -31,7 +33,7 @@ def aggregated_transcript(agent):
 
 
 @pytest.fixture(scope='module')
-def cohort(ursulas):
+def cohort(testerchain, ursulas):
     deployer, someone, *everybody_else = testerchain.stake_providers_accounts
     return [someone]
 
@@ -114,4 +116,4 @@ def test_post_aggregation(agent, deploy_contract, aggregated_transcript, transac
 
     participants = agent.get_participants(ritual_id)
     assert all([p.aggregated for p in participants])
-    # assert [p.transcript for p in participants] == [keccak(aggregated_transcript)]
+

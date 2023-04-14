@@ -175,7 +175,7 @@ contract Coordinator is Ownable {
             "Not waiting for transcripts"
         );
         Participant storage participant = ritual.participant[nodeIndex];
-        staking_provider = applicationInterface.stakingProviderFromOperator(msg.sender);
+        address staking_provider = applicationInterface.stakingProviderFromOperator(msg.sender);
         require(
             staking_provider == participant.node,
             "Node is not part of ritual"

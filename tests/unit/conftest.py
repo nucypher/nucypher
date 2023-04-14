@@ -1,12 +1,10 @@
 import pytest
-from eth_account.account import Account
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
+from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.mock.agents import MockContractAgency
-from tests.mock.coordinator import MockCoordinatorV1
 from tests.mock.interfaces import MockEthereumClient
 
 
