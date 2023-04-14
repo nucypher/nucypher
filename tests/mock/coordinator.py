@@ -18,12 +18,14 @@ class MockCoordinatorV1:
     Ritual = CoordinatorAgent.Ritual
     RitualStatus = CoordinatorAgent.Ritual.Status
 
+    PUBLIC_KEY_SIZE = 104
+
     class Signal(Enum):
         START_TRANSCRIPT_ROUND = 0
         START_AGGREGATION_ROUND = 1
 
     def __init__(self, testerchain: MockBlockchain):
-        self.testerchain = testerchain
+        self.blockchain = testerchain
         self.rituals = {}
         self.timeout = 600
 
@@ -59,14 +61,14 @@ class MockCoordinatorV1:
                 ritual_id=ritual_id,
                 nodes=[p.node for p in ritual.participants],
             )
-        return self.testerchain.FAKE_RECEIPT
+        return self.blockchain.FAKE_RECEIPT
 
     def post_aggregation(self, ritual_id: int, node_index: int, aggregated_transcript: bytes, transacting_power: TransactingPower) -> None:
         ritual = self.rituals[ritual_id]
         ritual.participants[node_index].aggregated_transcript = aggregated_transcript
         ritual.participants[node_index].aggregated_transcript_hash = keccak(aggregated_transcript)
         ritual.total_aggregations += 1
-        return self.testerchain.FAKE_RECEIPT
+        return self.blockchain.FAKE_RECEIPT
 
     def get_ritual(self, ritual_id: int, with_participants: bool = False) -> CoordinatorAgent.Ritual:
         return self.rituals[ritual_id]
@@ -79,8 +81,8 @@ class MockCoordinatorV1:
 
     def post_public_key(self, ritual_id: int, public_key: PublicKey, transacting_power: TransactingPower) -> None:
         ritual = self.rituals[ritual_id]
-        ritual.public_key = public_key
-        return self.testerchain.FAKE_RECEIPT
+        ritual.public_key = bytes(public_key)
+        return self.blockchain.FAKE_RECEIPT
 
     def get_ritual_status(self, ritual_id: int) -> int:
         ritual = self.rituals[ritual_id]
@@ -88,7 +90,7 @@ class MockCoordinatorV1:
         deadline = timestamp + self.timeout
         if timestamp == 0:
             return self.RitualStatus.NOT_INITIATED
-        elif ritual.public_key is not None:
+        elif ritual.public_key is not None and len(ritual.public_key) == self.PUBLIC_KEY_SIZE:
             return self.RitualStatus.FINALIZED
         elif ritual.total_aggregations == ritual.dkg_size:
             return self.RitualStatus.FINALIZED
