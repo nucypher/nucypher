@@ -113,6 +113,7 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
             ciphertext=ciphertext,
             conditions=CONDITIONS,
             # params=cohort[0].dkg_storage.get_dkg_params(RITUAL_ID),
+            timeout=0
         )
         assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")

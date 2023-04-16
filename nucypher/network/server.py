@@ -1,32 +1,32 @@
-import json
-import weakref
 from http import HTTPStatus
 
-from ferveo_py import Ciphertext
-from pathlib import Path
-
+import json
+import weakref
 from constant_sorrow import constants
 from constant_sorrow.constants import RELAX
+from ferveo_py import Ciphertext
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
-
-from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.utilities.mock import ThresholdDecryptionRequest, ThresholdDecryptionResponse
 from nucypher_core import (
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
     ReencryptionRequest,
     RevocationOrder,
+    ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse
 )
+from pathlib import Path
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.rust_shims import _deserialize_rust_lingos
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.utilities.logging import Logger
@@ -143,33 +143,38 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
 
         # Deserialize and instantiate ConditionLingo from the request data
+        conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
+        lingo = ConditionLingo.from_list(json.loads(conditions_data))  # str -> list -> ConditionLingo
+
         # requester-supplied condition eval context
-        # evaluate the conditions for this ciphertext
-        lingo = ConditionLingo.from_list(json.loads(str(decryption_request.conditions)))
         context = None
         if decryption_request.context:
-            context = json.loads(str(decryption_request.context)) or dict()
+            context = json.loads(str(decryption_request.context)) or dict()  # nucypher_core.Context -> str -> dict
+
+        # evaluate the conditions for this ciphertext
         error = evaluate_condition_lingo(lingo, context)
         if error:
             return Response(error.message, status=error.status_code)
 
         # TODO: confirm this node is tracking the ritual and is an authorized recipient
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
-        ritual = this_node.coordinator_agent.get_ritual(decryption_request.ritual_id, with_participants=True)
+        ritual = this_node.coordinator_agent.get_ritual(decryption_request.id, with_participants=True)
         participants = [p.node for p in ritual.participants]
         if this_node.checksum_address not in participants:
-            return Response(f'Node not part of ritual {decryption_request.ritual_id}', status=HTTPStatus.FORBIDDEN)
+            return Response(f'Node not part of ritual {decryption_request.id}', status=HTTPStatus.FORBIDDEN)
 
         # derive the decryption share
+        ciphertext = Ciphertext.from_bytes(decryption_request.ciphertext)
         decryption_share = this_node.derive_decryption_share(
-            ritual_id=decryption_request.ritual_id,
-            ciphertext=decryption_request.ciphertext,
+            ritual_id=decryption_request.id,
+            ciphertext=ciphertext,
             conditions=decryption_request.conditions,
+            variant=FerveoVariant(decryption_request.variant),
         )
 
         # return the decryption share
         # TODO: encrypt the response with the requester's public key # 3079
-        response = ThresholdDecryptionResponse(decryption_share=decryption_share)
+        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))  # TODO: Use native DecryptionShare type
         return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
 
     @rest_app.route('/reencrypt', methods=["POST"])

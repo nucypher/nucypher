@@ -43,11 +43,3 @@ def mock_contract_agency(module_mocker, application_economics):
 @pytest.fixture(scope='session', autouse=True)
 def mock_operator_bonding(session_mocker):
     session_mocker.patch.object(Teacher, '_operator_is_bonded', autospec=True)
-
-
-# TODO: move to acceptance tests for prototyping
-# @pytest.fixture(scope='session', autouse=True)
-# def mock_coordinator(session_mocker):
-#     class Contract:
-#         functions = MockCoordinatorV1(60, 60)
-#     session_mocker.patch.object(CoordinatorAgent, 'contract', return_value=Contract())

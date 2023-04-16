@@ -153,7 +153,7 @@ class ActiveRitualTracker:
             return None, event_type
         return event, event_type
 
-    def __execute_round(self, event_type, timestamp: int, ritual_id, defer: bool = False, **kwargs):
+    def __execute_round(self, event_type, timestamp: int, ritual_id: int, defer: bool = False, **kwargs):
         """Execute a round of a ritual asynchronously."""
         def task():
             self.actions[event_type](timestamp=timestamp, ritual_id=ritual_id, **kwargs)

@@ -15,8 +15,39 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
-from ferveo_py import Ciphertext, DecryptionShare, combine_decryption_shares, decrypt_with_shared_secret, \
-    ExternalValidator, Transcript
+from ferveo_py import (
+    Ciphertext,
+    DecryptionShareSimple,
+    combine_decryption_shares_simple,
+    decrypt_with_shared_secret,
+    ExternalValidator,
+    Transcript,
+    DkgPublicParameters,
+    DecryptionSharePrecomputed
+)
+from nucypher_core import (
+    Context,
+    ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse,
+)
+from nucypher_core import (
+    HRAC,
+    Address,
+    Conditions,
+    EncryptedKeyFrag,
+    EncryptedTreasureMap,
+    MessageKit,
+    NodeMetadata,
+    NodeMetadataPayload,
+    ReencryptionResponse,
+    TreasureMap,
+)
+from nucypher_core.umbral import (
+    PublicKey,
+    VerifiedKeyFrag,
+    reencrypt,
+    RecoverableSignature
+)
 from pathlib import Path
 from queue import Queue
 from twisted.internet import reactor
@@ -51,7 +82,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.crypto.ferveo.dkg import aggregate_transcripts
+from nucypher.crypto.ferveo.dkg import aggregate_transcripts, FerveoVariant
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -59,7 +90,8 @@ from nucypher.crypto.powers import (
     PowerUpError,
     SigningPower,
     TLSHostingPower,
-    TransactingPower, RitualisticPower,
+    TransactingPower,
+    RitualisticPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -75,20 +107,7 @@ from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
-from nucypher.utilities.mock import ThresholdDecryptionRequest
 from nucypher.utilities.networking import validate_operator_ip
-from nucypher_core import (
-    HRAC,
-    Address,
-    Conditions,
-    EncryptedKeyFrag,
-    EncryptedTreasureMap,
-    MessageKit,
-    NodeMetadata,
-    NodeMetadataPayload,
-    ReencryptionResponse,
-    TreasureMap, )
-from nucypher_core.umbral import PublicKey, VerifiedKeyFrag, reencrypt, RecoverableSignature
 
 
 class Alice(Character, PolicyAuthor):
@@ -518,9 +537,11 @@ class Bob(Character):
 
         return cleartexts
 
-    def resolve_cohort(self, ritual: CoordinatorAgent.Ritual, timeout: int = 0) -> List['Ursula']:
+    def resolve_cohort(self, ritual: CoordinatorAgent.Ritual, timeout: int) -> List['Ursula']:
 
         if timeout > 0:
+            if not self._learning_task.running:
+                self.start_learning_loop(now=True)
             validators = set([n[0] for n in ritual.transcripts])
             self.block_until_specific_nodes_are_known(
                 addresses=validators,
@@ -542,15 +563,21 @@ class Bob(Character):
             cohort: List['Ursula'],
             ciphertext: Ciphertext,
             lingo: LingoList,
-            threshold: int
-        ) -> List[DecryptionShare]:
+            threshold: int,
+            variant: FerveoVariant,
+            context: Optional[dict] = None,
+        ) -> List[DecryptionShareSimple]:
         gathered_shares = list()
         for ursula in cohort:
             conditions = Conditions(json.dumps(lingo))
+            if context:
+                context = Context(json.dumps(context))
             decryption_request = ThresholdDecryptionRequest(
-                ritual_id=ritual_id,
-                ciphertext=ciphertext,
-                conditions=conditions
+                id=ritual_id,
+                ciphertext=bytes(ciphertext),
+                conditions=conditions,
+                context=context,
+                variant=int(variant.value),
             )
 
             try:
@@ -562,15 +589,16 @@ class Bob(Character):
                 self.log.warn(f"Node {ursula} returned {response.status_code}.")
                 continue
 
-            payload = json.loads(response.content.decode())
-            decryption_share = DecryptionShare.from_bytes(bytes.fromhex(payload['decryption_share']))
+            decryption_response = ThresholdDecryptionResponse.from_bytes(response.content)
+            decryption_share = DecryptionShareSimple.from_bytes(decryption_response.decryption_share)
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
             # If we have enough shares, we can stop.
             if len(gathered_shares) >= threshold:
                 self.log.debug(f"Got enough shares to decrypt.")
-                # break
+                if variant == FerveoVariant.PRECOMPUTED:
+                    break
 
         if len(gathered_shares) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
@@ -581,49 +609,79 @@ class Bob(Character):
                           ritual_id: int,
                           ciphertext: Ciphertext,
                           conditions: LingoList,
-                          params: Any = None,
-                          timeout: int = 0,  # TODO: This is a hack.
+                          context: Optional[dict] = None,
+                          params: Optional[DkgPublicParameters] = None,
+                          ursulas: Optional[List['Ursula']] = None,
+                          variant: str = 'simple',
+                          timeout: int = 600,  # TODO: coordinate with the timeout in the policy/ritual
                           ) -> bytes:
 
+        # blockchain reads: get the DKG parameters and the cohort.
         coordinator_agent = ContractAgency.get_agent(CoordinatorAgent, registry=self.registry)
         ritual = coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        ursulas = self.resolve_cohort(ritual=ritual, timeout=timeout)
 
-        threshold = (ritual.shares // 2) + 1
+        if not ursulas:
+            # P2P: if the Ursulas are not provided, we need to resolve them from published records.
+            # This is a blocking operation and the ursulas must be part of the cohort.
+            # if the timeout is 0, peering will be skipped in favor if already cached peers.
+            ursulas = self.resolve_cohort(ritual=ritual, timeout=timeout)
+
+        try:
+            variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
+        except AttributeError:
+            raise ValueError(f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}")
+
+        threshold = (ritual.shares // 2) + 1  # TODO: get this from the policy
         shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
             ciphertext=ciphertext,
+            context=context,
             lingo=conditions,
-            threshold=threshold
+            threshold=threshold,
+            variant=variant,
         )
-
-        # now, the decryption share can be used to decrypt the ciphertext
-        shared_secret = combine_decryption_shares(shares)
 
         if not params:
-            # derive the generator inverse for ciphertext verification
-            validators = [u.as_external_validator() for u in ursulas]
-            transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
-            data = list(zip(validators, transcripts))
+            # if the DKG parameters are not provided, we need to
+            # aggregate the transcripts and derive them.
+            params = self.__derive_dkg_parameters(ritual_id, ursulas, ritual, threshold)
 
-            pvss_aggregated, final_key, params = aggregate_transcripts(
-                ritual_id=ritual_id,
-                me=validators[0],  # TODO: this is awkward, but we need to pass "me" here to derive_generator_inverse
-                threshold=threshold,
-                shares=ritual.shares,
-                transcripts=data
-            )
+        return self.__decrypt(shares, ciphertext, conditions, params)
 
-        # decrypt the ciphertext
-        conditions = json.dumps(conditions).encode()
+    @staticmethod
+    def __decrypt(
+            shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
+            ciphertext: Ciphertext,
+            conditions: LingoList,
+            params: DkgPublicParameters
+    ):
+        """decrypt the ciphertext"""
+        shared_secret = combine_decryption_shares_simple(shares, params)
+        conditions = json.dumps(conditions).encode()  # aad
         cleartext = decrypt_with_shared_secret(
             ciphertext,
-            conditions,
+            conditions,       # aad
             shared_secret,
-            params
+            params            # dkg params
         )
         return cleartext
+
+    @staticmethod
+    def __derive_dkg_parameters(ritual_id: int, ursulas, ritual, threshold) -> DkgPublicParameters:
+        validators = [u.as_external_validator() for u in ursulas]
+        transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
+        data = list(zip(validators, transcripts))
+
+        pvss_aggregated, final_key, params = aggregate_transcripts(
+            ritual_id=ritual_id,
+            me=validators[0],  # TODO: this is awkward, but we need to pass "me" here to derive_generator_inverse
+            threshold=threshold,
+            shares=ritual.shares,
+            transcripts=data
+        )
+
+        return params
 
 
 class Ursula(Teacher, Character, Operator, Ritualist):
