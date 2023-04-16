@@ -1,10 +1,16 @@
 import inspect
-
-import ferveo_py
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from ferveo_py import Keypair as FerveoKeypair, Transcript, AggregatedTranscript, DecryptionShare, ExternalValidator, \
-    Ciphertext
+from ferveo_py import (
+    Keypair as FerveoKeypair,
+    Transcript,
+    AggregatedTranscript,
+    ExternalValidator,
+    DecryptionShareSimple,
+    DecryptionSharePrecomputed,
+    Ciphertext,
+    DkgPublicParameters,
+)
 from hexbytes import HexBytes
 from nucypher_core.umbral import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
 from typing import List, Optional, Tuple, Any
@@ -13,6 +19,7 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.ferveo import dkg
+from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair, RitualisticKeypair
 
 
@@ -247,8 +254,9 @@ class RitualisticPower(KeyPairBasedPower):
             nodes: list,
             aggregated_transcript: AggregatedTranscript,
             ciphertext: Ciphertext,
-            conditions: bytes
-    ) -> DecryptionShare:
+            conditions: bytes,
+            variant: FerveoVariant
+    ) -> DecryptionShareSimple:
         decryption_share = dkg.derive_decryption_share(
             ritual_id=ritual_id,
             me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
@@ -259,6 +267,7 @@ class RitualisticPower(KeyPairBasedPower):
             keypair=self.keypair._privkey.keypair,
             ciphertext=ciphertext,
             aad=conditions,
+            variant=variant
         )
         return decryption_share
 

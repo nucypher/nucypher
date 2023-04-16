@@ -30,7 +30,7 @@ from tests.constants import (
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
 )
 from tests.mock.agents import MockContractAgency
-from tests.mock.coordinator import MockCoordinatorV1
+from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
 
@@ -82,7 +82,7 @@ def mock_adjudicator_agent(testerchain, application_economics, mock_contract_age
 
 @pytest.fixture(scope="function", autouse=True)
 def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
-    mock_agent = MockCoordinatorV1(testerchain=testerchain)
+    mock_agent = MockCoordinatorAgent(blockchain=testerchain)
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = mock_agent
     yield mock_agent
     mock_agent.reset()

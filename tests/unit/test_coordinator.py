@@ -7,8 +7,8 @@ from eth_account import Account
 from eth_utils import keccak
 
 from tests.integration.blockchain.test_ritualist import FAKE_TRANSCRIPT
-from tests.mock.coordinator import MockCoordinatorV1
 from tests.mock.interfaces import MockBlockchain
+from tests.mock.coordinator import MockCoordinatorAgent
 
 DKG_SIZE = 4
 
@@ -25,14 +25,8 @@ def nodes_transacting_powers():
 
 
 @pytest.fixture(scope='module')
-def mock_testerchain(_mock_testerchain) -> MockBlockchain:
-    testerchain = _mock_testerchain
-    yield testerchain
-
-
-@pytest.fixture(scope='module')
-def coordinator(mock_testerchain):
-    return MockCoordinatorV1(testerchain=mock_testerchain)
+def coordinator():
+    return MockCoordinatorAgent(blockchain=MockBlockchain())
 
 
 def test_mock_coordinator_creation(coordinator):
@@ -53,18 +47,18 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
     for p in ritual.participants:
         assert p.transcript == bytes()
 
-    assert len(coordinator.SIGNALS) == 1
+    assert len(coordinator.EVENTS) == 1
 
-    timestamp, signal = list(coordinator.SIGNALS.items())[0]
+    timestamp, signal = list(coordinator.EVENTS.items())[0]
     signal_type, signal_data = signal
-    assert signal_type == MockCoordinatorV1.Signal.START_TRANSCRIPT_ROUND
+    assert signal_type == MockCoordinatorAgent.Events.START_TRANSCRIPT_ROUND
     assert signal_data['ritual_id'] == 0
     assert set(signal_data['nodes']) == nodes_transacting_powers.keys()
 
 
 def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
     ritual = coordinator.rituals[0]
-    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorV1.RitualStatus.AWAITING_TRANSCRIPTS
+    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.AWAITING_TRANSCRIPTS
 
     for p in ritual.participants:
         assert p.transcript == bytes()
@@ -83,19 +77,18 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
         assert performance.transcript == transcript
 
         if index == len(nodes_transacting_powers) - 1:
-            assert len(coordinator.SIGNALS) == 2
+            assert len(coordinator.EVENTS) == 2
 
-    assert len(coordinator.SIGNALS) == 2
-    timestamp, signal = list(coordinator.SIGNALS.items())[1]
+    timestamp, signal = list(coordinator.EVENTS.items())[1]
     signal_type, signal_data = signal
-    assert signal_type == MockCoordinatorV1.Signal.START_AGGREGATION_ROUND
+    assert signal_type == MockCoordinatorAgent.Events.START_AGGREGATION_ROUND
     assert signal_data['ritual_id'] == ritual.id
     assert set(signal_data['nodes']) == nodes_transacting_powers.keys()
 
 
 def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
     ritual = coordinator.rituals[0]
-    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorV1.RitualStatus.AWAITING_AGGREGATIONS
+    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.AWAITING_AGGREGATIONS
 
     for p in ritual.participants:
         assert p.transcript == FAKE_TRANSCRIPT
@@ -111,13 +104,16 @@ def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
             transacting_power=nodes_transacting_powers[node_address]
         )
         if index == len(nodes_transacting_powers) - 1:
-            assert len(coordinator.SIGNALS) == 2
+            assert len(coordinator.EVENTS) == 2
 
-    assert len(coordinator.SIGNALS) == 2  # no additional event emitted here?
+    for p in ritual.participants:
+        assert p.aggregated_transcript != FAKE_TRANSCRIPT
+
+    assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
     for p in ritual.participants:
         assert p.transcript == FAKE_TRANSCRIPT
         assert p.aggregated_transcript != FAKE_TRANSCRIPT
         assert p.aggregated_transcript == aggregated_transcript
         assert p.aggregated_transcript_hash == aggregated_transcript_hash
 
-    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorV1.RitualStatus.FINALIZED
+    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.FINALIZED

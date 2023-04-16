@@ -36,8 +36,8 @@ from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.ferveo.dkg import (
-    DecryptionShare,
-    Transcript,
+    DecryptionShareSimple,
+    Transcript, FerveoVariant,
 )
 from nucypher.crypto.powers import CryptoPower, TransactingPower, RitualisticPower
 from nucypher.datastore.dkg import DKGStorage
@@ -623,11 +623,11 @@ class Ritualist(BaseActor):
         self.dkg_storage.store_public_key(ritual_id=ritual_id, public_key=dkg_public_key)
 
         # publish the transcript and store the receipt
+        total = ritual.total_aggregations + 1
         receipt = self.publish_aggregated_transcript(ritual_id=ritual_id, aggregated_transcript=aggregated_transcript)
         self.dkg_storage.store_aggregated_transcript_receipt(ritual_id=ritual_id, receipt=receipt)
 
         # logging
-        total = ritual.total_aggregations + 1
         self.log.debug(f"{self.transacting_power.account[:8]} aggregated a transcript for "
                        f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
         if total >= len(ritual.nodes):
@@ -646,8 +646,9 @@ class Ritualist(BaseActor):
         self,
         ritual_id: int,
         ciphertext: Ciphertext,
-        conditions: ConditionLingo
-    ) -> DecryptionShare:
+        conditions: ConditionLingo,
+        variant: FerveoVariant
+    ) -> DecryptionShareSimple:
         ritual = self.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:
@@ -671,7 +672,8 @@ class Ritualist(BaseActor):
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             ciphertext=ciphertext,
-            conditions=conditions
+            conditions=conditions,
+            variant=variant
         )
 
         return decryption_share
