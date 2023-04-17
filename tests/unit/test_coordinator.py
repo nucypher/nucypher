@@ -5,10 +5,11 @@ from unittest.mock import Mock
 import pytest
 from eth_account import Account
 from eth_utils import keccak
+from ferveo_py import Keypair as FerveoKeypair
 
 from tests.integration.blockchain.test_ritualist import FAKE_TRANSCRIPT
-from tests.mock.interfaces import MockBlockchain
 from tests.mock.coordinator import MockCoordinatorAgent
+from tests.mock.interfaces import MockBlockchain
 
 DKG_SIZE = 4
 
@@ -95,12 +96,14 @@ def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
 
     aggregated_transcript = os.urandom(len(FAKE_TRANSCRIPT))
     aggregated_transcript_hash = keccak(aggregated_transcript)
+    public_key = FerveoKeypair.random().public_key
 
     for index, node_address in enumerate(nodes_transacting_powers):
         coordinator.post_aggregation(
             ritual_id=0,
             node_index=index,
             aggregated_transcript=aggregated_transcript,
+            public_key=public_key,
             transacting_power=nodes_transacting_powers[node_address]
         )
         if index == len(nodes_transacting_powers) - 1:
