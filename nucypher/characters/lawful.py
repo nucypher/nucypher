@@ -594,11 +594,16 @@ class Bob(Character):
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
-            # If we have enough shares, we can stop.
             if len(gathered_shares) >= threshold:
                 self.log.debug(f"Got enough shares to decrypt.")
                 if variant == FerveoVariant.PRECOMPUTED:
+                    # If we have enough shares, we can stop.
                     break
+                elif variant == FerveoVariant.SIMPLE:
+                    # all shares are needed to decrypt.
+                    continue
+                else:
+                    raise ValueError(f"Unknown variant {variant}")
 
         if len(gathered_shares) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
@@ -672,7 +677,6 @@ class Bob(Character):
         validators = [u.as_external_validator() for u in ursulas]
         transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
         data = list(zip(validators, transcripts))
-
         pvss_aggregated, final_key, params = aggregate_transcripts(
             ritual_id=ritual_id,
             me=validators[0],  # TODO: this is awkward, but we need to pass "me" here to derive_generator_inverse
@@ -680,7 +684,6 @@ class Bob(Character):
             shares=ritual.shares,
             transcripts=data
         )
-
         return params
 
 
