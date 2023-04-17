@@ -4,7 +4,7 @@ from typing import Union
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_utils import is_address, is_hex, to_checksum_address
 from web3 import Web3
-from web3.contract import ContractConstructor, ContractFunction
+from web3.contract.contract import ContractConstructor, ContractFunction
 
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 

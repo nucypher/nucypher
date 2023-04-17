@@ -2,7 +2,7 @@ from eth_typing import HexStr
 from web3 import Web3
 from web3._utils.abi import get_constructor_abi, merge_args_and_kwargs
 from web3._utils.contracts import encode_abi
-from web3.contract import ContractConstructor
+from web3.contract.contract import ContractConstructor
 
 
 def encode_constructor_arguments(web3: Web3,

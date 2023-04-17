@@ -12,7 +12,7 @@ from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
 from web3 import Web3
 from web3._utils.threads import Timeout
-from web3.contract import Contract
+from web3.contract.contract import Contract
 from web3.exceptions import TimeExhausted, TransactionNotFound
 from web3.types import TxReceipt, Wei
 
@@ -115,8 +115,8 @@ class EthereumClient:
 
         def __init__(self, receipt):
             self.receipt = receipt
-            self.message = self.error_message.format(transaction_hash=Web3.toHex(receipt['transactionHash']),
-                                                     block_hash=Web3.toHex(receipt['blockHash']))
+            self.message = self.error_message.format(transaction_hash=Web3.to_hex(receipt['transactionHash']),
+                                                     block_hash=Web3.to_hex(receipt['blockHash']))
             super().__init__(self.message)
 
     def __init__(self,
@@ -172,15 +172,15 @@ class EthereumClient:
         }
 
         try:
-            client_data = w3.clientVersion.split('/')
+            client_data = w3.client_version.split('/')
             node_technology = client_data[0]
             ClientSubclass = clients[node_technology]
 
         except (ValueError, IndexError):
-            raise ValueError(f"Invalid client version string. Got '{w3.clientVersion}'")
+            raise ValueError(f"Invalid client version string. Got '{w3.client_version}'")
 
         except KeyError:
-            raise NotImplementedError(f'{w3.clientVersion} is not a supported ethereum client')
+            raise NotImplementedError(f'{w3.client_version} is not a supported ethereum client')
 
         client_kwargs = {
             'node_technology': node_technology,
@@ -315,9 +315,9 @@ class EthereumClient:
             poll_latency=self.TRANSACTION_POLLING_TIME
         )
 
-        preliminary_block_hash = Web3.toHex(receipt['blockHash'])
+        preliminary_block_hash = Web3.to_hex(receipt['blockHash'])
         tx_block_number = Web3.toInt(receipt['blockNumber'])
-        self.log.info(f"Transaction {Web3.toHex(transaction_hash)} is preliminarily included in "
+        self.log.info(f"Transaction {Web3.to_hex(transaction_hash)} is preliminarily included in "
                       f"block {preliminary_block_hash}")
 
         confirmations_timeout = self._calculate_confirmations_timeout(confirmations)
@@ -337,7 +337,7 @@ class EthereumClient:
         return confirmations_timeout
 
     def check_transaction_is_on_chain(self, receipt: TxReceipt) -> bool:
-        transaction_hash = Web3.toHex(receipt['transactionHash'])
+        transaction_hash = Web3.to_hex(receipt['transactionHash'])
         try:
             new_receipt = self.w3.eth.get_transaction_receipt(transaction_hash)
         except TransactionNotFound:

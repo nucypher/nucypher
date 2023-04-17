@@ -1,6 +1,3 @@
-
-
-
 import os
 import random
 import string
@@ -13,6 +10,7 @@ from mnemonic.mnemonic import Mnemonic
 
 from nucypher_core.umbral import SecretKey, SecretKeyFactory
 
+from nucypher.crypto.constants import UMBRAL_SECRET_KEY_SIZE
 from nucypher.crypto.keystore import (
     Keystore,
     InvalidPassword,

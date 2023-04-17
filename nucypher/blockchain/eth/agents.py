@@ -1,22 +1,21 @@
-
-
-
 import os
 import random
-import sys
 from bisect import bisect_right
-from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
+from dataclasses import dataclass, field
 
-from constant_sorrow.constants import (  # type: ignore
+import sys
+from constant_sorrow.constants import (
+    CONTRACT_ATTRIBUTE,  # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
-    CONTRACT_ATTRIBUTE
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from web3.contract import Contract, ContractFunction
-from web3.types import Wei, Timestamp, TxReceipt, TxParams
+from ferveo_py import AggregatedTranscript, PublicKey
+from itertools import accumulate
+from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
+from web3.contract.contract import Contract, ContractFunction
+from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
@@ -24,25 +23,20 @@ from nucypher.blockchain.eth.constants import (
     ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
+    PRE_APPLICATION_CONTRACT_NAME,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
-    PRE_APPLICATION_CONTRACT_NAME
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import (
+    NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
-    NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import sha256_digest
-from nucypher.types import (
-    Agent,
-    NuNits,
-    StakingProviderInfo,
-    TuNits
-)
+from nucypher.types import Agent, NuNits, StakingProviderInfo, TuNits
 from nucypher.utilities.logging import Logger  # type: ignore
 
 
@@ -540,6 +534,157 @@ class PREApplicationAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.bondOperator(staking_provider, operator)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
+        return receipt
+
+
+class CoordinatorAgent(EthereumContractAgent):
+    contract_name: str = "Coordinator"
+    _proxy_name = None
+
+    @dataclass
+    class Ritual:
+
+        @dataclass
+        class Status:
+            NON_INITIATED = 0
+            AWAITING_TRANSCRIPTS = 1
+            AWAITING_AGGREGATIONS = 2
+            TIMEOUT = 3
+            INVALID = 4
+            FINALIZED = 5
+
+        @dataclass
+        class Participant:
+            node: ChecksumAddress
+            aggregated: bool = False
+            transcript: bytes = bytes()
+
+        id: int
+        initiator: ChecksumAddress
+        dkg_size: int
+        init_timestamp: int
+        total_transcripts: int = 0
+        total_aggregations: int = 0
+        public_key: bytes = bytes()
+        aggregated_transcript_hash: bytes = bytes()
+        aggregation_mismatch: bool = False
+        aggregated_transcript: bytes = bytes()
+        participants: List = field(default_factory=list)
+
+        @property
+        def nodes(self):
+            return [p.node for p in self.participants]
+
+        @property
+        def transcripts(self) -> List[Tuple[ChecksumAddress, bytes]]:
+            transcripts = list()
+            for p in self.participants:
+                transcripts.append((p.node, p.transcript))
+            return transcripts
+
+        @property
+        def shares(self) -> int:
+            return len(self.nodes)
+
+    @contract_api(CONTRACT_CALL)
+    def get_ritual(self, ritual_id: int, with_participants: bool = True) -> Ritual:
+        result = self.contract.functions.rituals(int(ritual_id)).call()
+        if result[0] != 0:
+            raise RuntimeError(f"Ritual {ritual_id} not found")
+        ritual = self.Ritual(
+            id=result[0],
+            initiator=ChecksumAddress(result[1]),
+            dkg_size=result[2],
+            init_timestamp=result[3],
+            total_transcripts=result[4],
+            total_aggregations=result[5],
+            aggregated_transcript_hash=bytes(result[6]),
+            aggregation_mismatch=result[7],
+            aggregated_transcript=bytes(result[8]),
+            public_key=bytes(result[9]),
+            participants=[]
+        )
+
+        if with_participants:
+            participants = self.get_participants(ritual_id)
+            ritual.participants = participants
+        return ritual
+
+    @contract_api(CONTRACT_CALL)
+    def get_ritual_status(self, ritual_id: int) -> int:
+        result = self.contract.functions.getRitualState(ritual_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_participants(self, ritual_id: int) -> List[Ritual.Participant]:
+        result = self.contract.functions.getParticipants(ritual_id).call()
+        participants = list()
+        for r in result:
+            performance = self.Ritual.Participant(
+                node=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
+            )
+            participants.append(performance)
+        return participants
+
+    @contract_api(CONTRACT_CALL)
+    def number_of_rituals(self) -> int:
+        result = self.contract.functions.numberOfRituals().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
+        result = self.contract.functions.getNodeIndex(ritual_id, node).call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def initiate_ritual(self, nodes: List[ChecksumAddress], transacting_power: TransactingPower) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.initiateRitual(nodes=nodes)
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def post_transcript(
+            self,
+            ritual_id: int,
+            transcript: bytes,
+            node_index: int,
+            transacting_power: TransactingPower
+    ) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.postTranscript(
+            ritualId=ritual_id,
+            nodeIndex=node_index,
+            transcript=transcript
+        )
+        receipt = self.blockchain.send_transaction(contract_function=contract_function,
+                                                   transacting_power=transacting_power)
+        return receipt
+
+    @contract_api(TRANSACTION)
+    def post_aggregation(
+        self,
+        ritual_id: int,
+        node_index: int,
+        aggregated_transcript: bytes,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.postAggregation(
+            ritualId=ritual_id,
+            nodeIndex=node_index,
+            aggregatedTranscript=aggregated_transcript,
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power
+        )
+        return receipt
+
+    def post_public_key(self, ritual_id: int, public_key: PublicKey, transacting_power: TransactingPower) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.postPublicKey(ritual_id, bytes(public_key))
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power
+        )
         return receipt
 
 

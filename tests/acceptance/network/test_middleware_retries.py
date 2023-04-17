@@ -21,7 +21,7 @@ def test_request_with_retry_exponential_backoff():
                                               exponential_backoff=True)
 
     start = maya.now()
-    retry_response = retry_middleware(RPCEndpoint('web3_clientVersion'), None)
+    retry_response = retry_middleware(RPCEndpoint('web3_client_version'), None)
     end = maya.now()
 
     assert retry_response == RPC_TOO_MANY_REQUESTS

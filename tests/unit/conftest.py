@@ -1,5 +1,4 @@
 import pytest
-from eth_account.account import Account
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency

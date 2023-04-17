@@ -1,5 +1,3 @@
-
-
 import pytest
 import pytest_twisted
 from twisted.internet import threads

@@ -14,8 +14,9 @@ import pytest
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
+from twisted.internet.task import Clock
 from web3 import Web3
-from web3.contract import Contract
+from web3.contract.contract import Contract
 from web3.types import TxReceipt
 
 import nucypher
@@ -30,7 +31,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.deployers import (
     NucypherTokenDeployer,
     PREApplicationDeployer,
-    SubscriptionManagerDeployer,
+    SubscriptionManagerDeployer, CoordinatorDeployer,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
@@ -38,6 +39,7 @@ from nucypher.blockchain.eth.registry import (
     LocalContractRegistry,
 )
 from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
+from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
@@ -68,7 +70,6 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TEST_GAS_LIMIT,
@@ -266,21 +267,21 @@ def random_policy(testerchain, alice, bob, application_economics):
 def capsule_side_channel(enacted_policy):
     class _CapsuleSideChannel:
         def __init__(self):
-            self.enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
+            self.enrico = Enrico(encrypting_key=enacted_policy.public_key)
             self.messages = []
             self.plaintexts = []
             self.plaintext_passthrough = False
 
         def __call__(self):
             message = "Welcome to flippering number {}.".format(len(self.messages)).encode()
-            message_kit = self.enrico.encrypt_message(message)
+            message_kit = self.enrico.encrypt_for_pre(message)
             self.messages.append((message_kit, self.enrico))
             if self.plaintext_passthrough:
                 self.plaintexts.append(message)
             return message_kit
 
         def reset(self, plaintext_passthrough=False):
-            self.enrico = Enrico(policy_encrypting_key=enacted_policy.public_key)
+            self.enrico = Enrico(encrypting_key=enacted_policy.public_key)
             self.messages.clear()
             self.plaintexts.clear()
             self.plaintext_passthrough = plaintext_passthrough
@@ -299,7 +300,7 @@ def random_policy_label():
 #
 
 @pytest.fixture(scope="module")
-def alice(alice_test_config, testerchain):
+def alice(alice_test_config, ursulas, testerchain):
     alice = alice_test_config.produce()
     yield alice
     alice.disenchant()
@@ -447,6 +448,10 @@ def _make_agency(test_registry, token_economics, deployer_transacting_power, thr
 
     subscription_manager_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
     subscription_manager_deployer.deploy(transacting_power=transacting_power)
+
+    coordinator_deployer = CoordinatorDeployer(economics=token_economics, registry=test_registry)
+    coordinator_deployer.deploy(transacting_power=transacting_power,
+                                _application=pre_application_deployer.contract_address)
 
 
 @pytest.fixture(scope='module')
@@ -943,3 +948,11 @@ def valid_user_address_context():
             },
         }
     }
+
+@pytest.fixture(scope='module', autouse=True)
+def control_time():
+    clock = Clock()
+    EventScannerTask.CLOCK = clock
+    EventScannerTask.INTERVAL = .1
+    clock.llamas = 0
+    return clock
