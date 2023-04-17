@@ -1,6 +1,3 @@
-
-
-
 import json
 import re
 from abc import ABC, abstractmethod
@@ -307,7 +304,7 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 4  # bump when static payload scheme changes
+    VERSION = 5  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     MNEMONIC_KEYSTORE = False
@@ -538,7 +535,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.__keystore = keystore
 
     @classmethod
-    def checksum_address_from_filepath(cls, filepath: Path) -> str:
+    def address_from_filepath(cls, filepath: Path) -> str:
         pattern = re.compile(r'''
                              (^\w+)-
                              (0x{1}           # Then, 0x the start of the string, exactly once
