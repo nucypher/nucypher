@@ -210,11 +210,17 @@ contract Coordinator is Ownable {
             "Not waiting for aggregations"
         );
         Participant storage participant = ritual.participant[nodeIndex];
+
         // Check operator is authorized for staker here instead
-        //        require(
-        //            participant.node == msg.sender,
-        //            "Node not part of ritual"
-        //        );
+        address staking_provider = applicationInterface.stakingProviderFromOperator(msg.sender);
+        require(
+            staking_provider == participant.node,
+            "Node is not part of ritual"
+        );
+        require(
+            applicationInterface.authorizedStake(participant.node) > 0,
+            "Staking provider not authorized for application"
+        );
         require(
             !participant.aggregated,
             "Node already posted aggregation"
