@@ -1,12 +1,13 @@
 import json
-import maya
 import time
-from constant_sorrow.constants import FULL
 from decimal import Decimal
+from typing import List, Optional, Tuple, Union
+
+import maya
+from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
-from ferveo_py import ExternalValidator, Ciphertext, AggregatedTranscript
+from ferveo_py import AggregatedTranscript, Ciphertext, ExternalValidator, PublicKey
 from hexbytes import HexBytes
-from typing import Optional, Tuple, Union, List
 from web3 import Web3
 from web3.types import TxReceipt
 
@@ -35,11 +36,8 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.ferveo.dkg import (
-    DecryptionShareSimple,
-    Transcript, FerveoVariant,
-)
-from nucypher.crypto.powers import CryptoPower, TransactingPower, RitualisticPower
+from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
+from nucypher.crypto.powers import CryptoPower, RitualisticPower, TransactingPower
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.conditions.lingo import ConditionLingo
@@ -518,7 +516,12 @@ class Ritualist(BaseActor):
         )
         return receipt
 
-    def publish_aggregated_transcript(self, ritual_id: int, aggregated_transcript: AggregatedTranscript) -> TxReceipt:
+    def publish_aggregated_transcript(
+        self,
+        ritual_id: int,
+        aggregated_transcript: AggregatedTranscript,
+        public_key: PublicKey,
+    ) -> TxReceipt:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
         index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
@@ -526,6 +529,7 @@ class Ritualist(BaseActor):
             ritual_id=ritual_id,
             node_index=index,
             aggregated_transcript=bytes(aggregated_transcript),
+            public_key=public_key,
             transacting_power=self.transacting_power
         )
         return receipt
@@ -539,7 +543,9 @@ class Ritualist(BaseActor):
 
         # validate the status
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
-            raise self.ActorError(f"ritual #{ritual.id} is not waiting for transcripts.")
+            raise self.ActorError(
+                f"ritual #{ritual.id} is not waiting for transcripts; status={status}."
+            )
 
         # validate the active ritual tracker state
         node_index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
@@ -590,7 +596,7 @@ class Ritualist(BaseActor):
 
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
             raise self.ActorError(
-                f"ritual #{ritual.id} is not waiting for aggregations."
+                f"ritual #{ritual.id} is not waiting for aggregations; status={status}."
             )
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
@@ -624,21 +630,20 @@ class Ritualist(BaseActor):
 
         # publish the transcript and store the receipt
         total = ritual.total_aggregations + 1
-        receipt = self.publish_aggregated_transcript(ritual_id=ritual_id, aggregated_transcript=aggregated_transcript)
-        self.dkg_storage.store_aggregated_transcript_receipt(ritual_id=ritual_id, receipt=receipt)
+        receipt = self.publish_aggregated_transcript(
+            ritual_id=ritual_id,
+            aggregated_transcript=aggregated_transcript,
+            public_key=dkg_public_key,
+        )
+        self.dkg_storage.store_aggregated_transcript_receipt(
+            ritual_id=ritual_id, receipt=receipt
+        )
 
         # logging
         self.log.debug(f"{self.transacting_power.account[:8]} aggregated a transcript for "
                        f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
         if total >= len(ritual.nodes):
-            self.log.debug(f"DKG ritual #{ritual_id} is ready to be finalized")
-            if self.publish_finalization:
-                self.log.debug(f"Publishing public key finalization for DKG ritual #{ritual_id}")
-                self.coordinator_agent.post_public_key(
-                    ritual_id=ritual_id,
-                    public_key=dkg_public_key,
-                    transacting_power=self.transacting_power
-                )
+            self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
 
         return receipt
 

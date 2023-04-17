@@ -80,26 +80,18 @@ class MockCoordinatorAgent(MockContractAgent):
         return self.blockchain.FAKE_RECEIPT
 
     def post_aggregation(
-            self,
-            ritual_id: int,
-            node_index: int,
-            aggregated_transcript: bytes,
-            transacting_power: TransactingPower
+        self,
+        ritual_id: int,
+        node_index: int,
+        aggregated_transcript: bytes,
+        public_key: PublicKey,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
         ritual.participants[node_index].aggregated_transcript = aggregated_transcript
         ritual.participants[node_index].aggregated_transcript_hash = keccak(aggregated_transcript)
-        ritual.total_aggregations += 1
-        return self.blockchain.FAKE_RECEIPT
-
-    def post_public_key(
-            self,
-            ritual_id: int,
-            public_key: PublicKey,
-            transacting_power: TransactingPower
-    ) -> TxReceipt:
-        ritual = self.rituals[ritual_id]
         ritual.public_key = public_key
+        ritual.total_aggregations += 1
         return self.blockchain.FAKE_RECEIPT
 
     #
@@ -109,7 +101,9 @@ class MockCoordinatorAgent(MockContractAgent):
     def number_of_rituals(self) -> int:
         return len(self.rituals)
 
-    def get_ritual(self, ritual_id: int, with_participants: bool = False) -> CoordinatorAgent.Ritual:
+    def get_ritual(
+        self, ritual_id: int, with_participants: bool = True
+    ) -> CoordinatorAgent.Ritual:
         return self.rituals[ritual_id]
 
     def get_participants(self, ritual_id: int) -> List[ChecksumAddress]:
@@ -124,8 +118,6 @@ class MockCoordinatorAgent(MockContractAgent):
         deadline = timestamp + self.timeout
         if timestamp == 0:
             return self.RitualStatus.NON_INITIATED
-        elif ritual.public_key:
-            return self.RitualStatus.FINALIZED
         elif ritual.total_aggregations == ritual.dkg_size:
             return self.RitualStatus.FINALIZED
         elif ritual.aggregation_mismatch:
