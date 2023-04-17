@@ -1,19 +1,16 @@
 import os
 import random
+import sys
 from bisect import bisect_right
 from dataclasses import dataclass, field
+from itertools import accumulate
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type, cast
 
-import sys
-from constant_sorrow.constants import (
-    CONTRACT_ATTRIBUTE,  # type: ignore
-    CONTRACT_CALL,
-    TRANSACTION,
-)
+from constant_sorrow.constants import CONTRACT_ATTRIBUTE  # type: ignore
+from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from ferveo_py import AggregatedTranscript, PublicKey
-from itertools import accumulate
-from typing import Dict, Iterable, List, Tuple, Type, Any, Optional, cast, NamedTuple
+from ferveo_py import PublicKey
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -565,10 +562,11 @@ class CoordinatorAgent(EthereumContractAgent):
         init_timestamp: int
         total_transcripts: int = 0
         total_aggregations: int = 0
-        public_key: bytes = bytes()
         aggregated_transcript_hash: bytes = bytes()
         aggregation_mismatch: bool = False
         aggregated_transcript: bytes = bytes()
+        public_key: bytes = bytes()
+        public_key_hash: bytes = bytes()
         participants: List = field(default_factory=list)
 
         @property
@@ -602,6 +600,7 @@ class CoordinatorAgent(EthereumContractAgent):
             aggregation_mismatch=result[7],
             aggregated_transcript=bytes(result[8]),
             public_key=bytes(result[9]),
+            public_key_hash=bytes(result[10]),
             participants=[]
         )
 
@@ -645,11 +644,11 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def post_transcript(
-            self,
-            ritual_id: int,
-            transcript: bytes,
-            node_index: int,
-            transacting_power: TransactingPower
+        self,
+        ritual_id: int,
+        node_index: int,
+        transcript: bytes,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id,
@@ -666,21 +665,15 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         node_index: int,
         aggregated_transcript: bytes,
+        public_key: PublicKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             nodeIndex=node_index,
             aggregatedTranscript=aggregated_transcript,
+            publicKey=bytes(public_key),
         )
-        receipt = self.blockchain.send_transaction(
-            contract_function=contract_function,
-            transacting_power=transacting_power
-        )
-        return receipt
-
-    def post_public_key(self, ritual_id: int, public_key: PublicKey, transacting_power: TransactingPower) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.postPublicKey(ritual_id, bytes(public_key))
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power
