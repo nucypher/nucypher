@@ -31,7 +31,7 @@ requests = "*"
 # Third-Party Ethereum
 py-evm = "*"
 eth-tester = "*"
-web3 = "*"
+web3 = ">=6.0.0"
 eth-utils = "*"
 eip712-structs = "*"
 # CLI / Configuration
