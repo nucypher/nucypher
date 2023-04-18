@@ -61,6 +61,7 @@ contract Coordinator is Ownable {
         bool aggregationMismatch;
         bytes aggregatedTranscript;
         bytes publicKey;
+        bytes32 publicKeyHash;
         Participant[] participant;
     }
 
@@ -84,10 +85,8 @@ contract Coordinator is Ownable {
     function getRitualState(Ritual storage ritual) internal view returns (RitualState){
         uint32 t0 = ritual.initTimestamp;
         uint32 deadline = t0 + timeout;
-        if(t0 == 0){
+        if (t0 == 0){
             return RitualState.NON_INITIATED;
-        } else if (ritual.publicKey.length == PUBLIC_KEY_SIZE) {
-            return RitualState.FINALIZED;
         } else if (ritual.totalAggregations == ritual.dkgSize) {
             return RitualState.FINALIZED;
         } else if (ritual.aggregationMismatch){
@@ -203,21 +202,31 @@ contract Coordinator is Ownable {
         }
     }
 
-    function postAggregation(uint32 ritualId, uint256 nodeIndex, bytes calldata aggregatedTranscript) external {
+    function postAggregation(uint32 ritualId, uint256 nodeIndex, bytes calldata aggregatedTranscript, bytes calldata publicKey) external {
         Ritual storage ritual = rituals[ritualId];
         require(
             getRitualState(ritual) == RitualState.AWAITING_AGGREGATIONS,
             "Not waiting for aggregations"
         );
         Participant storage participant = ritual.participant[nodeIndex];
+
         // Check operator is authorized for staker here instead
-        //        require(
-        //            participant.node == msg.sender,
-        //            "Node not part of ritual"
-        //        );
+        address staking_provider = applicationInterface.stakingProviderFromOperator(msg.sender);
+        require(
+            staking_provider == participant.node,
+            "Node is not part of ritual"
+        );
+        require(
+            applicationInterface.authorizedStake(participant.node) > 0,
+            "Staking provider not authorized for application"
+        );
         require(
             !participant.aggregated,
             "Node already posted aggregation"
+        );
+        require(
+            publicKey.length == PUBLIC_KEY_SIZE,
+            "Invalid public key size"
         );
 
         // nodes commit to their aggregation result
@@ -225,10 +234,13 @@ contract Coordinator is Ownable {
         participant.aggregated = true;
         emit AggregationPosted(ritualId, msg.sender, aggregatedTranscriptDigest);
 
-        if (ritual.aggregatedTranscriptHash == bytes32(0)){
-            ritual.aggregatedTranscriptHash = aggregatedTranscriptDigest;  // TODO: probably redundant
+        bytes32 publicKeyDigest = keccak256(publicKey);
+        if (ritual.aggregatedTranscriptHash == bytes32(0) && ritual.publicKey.length == 0) {
+            ritual.aggregatedTranscriptHash = aggregatedTranscriptDigest;  // TODO: probably redundant - needed for bytes comparison with call data?
             ritual.aggregatedTranscript = aggregatedTranscript;
-        } else if (ritual.aggregatedTranscriptHash != aggregatedTranscriptDigest){
+            ritual.publicKey = publicKey;
+            ritual.publicKeyHash = publicKeyDigest; // TODO: may be needed for bytes comparison with call data? Better way?
+        } else if (ritual.aggregatedTranscriptHash != aggregatedTranscriptDigest || ritual.publicKeyHash != publicKeyDigest) {
             ritual.aggregationMismatch = true;
             emit EndRitual(ritualId, ritual.initiator, RitualState.INVALID);
             // TODO: Invalid ritual
@@ -237,30 +249,9 @@ contract Coordinator is Ownable {
         }
 
         ritual.totalAggregations++;
-
         if (ritual.totalAggregations == ritual.dkgSize){
             emit EndRitual(ritualId, ritual.initiator, RitualState.FINALIZED);
         }
     }
 
-    function postPublicKey(uint32 ritualId, bytes calldata publicKey) external {
-        Ritual storage ritual = rituals[ritualId];
-        require(
-            getRitualState(ritual) == RitualState.FINALIZED,
-            "Ritual not finalized"
-        );
-        require(
-            ritual.publicKey.length == 0,
-            "Public key already posted"
-        );
-        require(
-            !ritual.aggregationMismatch,
-            "Aggregation mismatch"
-        );
-        require(
-            publicKey.length == PUBLIC_KEY_SIZE,
-            "Invalid public key size"
-        );
-        ritual.publicKey = publicKey;
-    }
 }
