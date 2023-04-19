@@ -4,43 +4,46 @@ import pytest
 from eth_utils import keccak
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent, ContractAgency, PREApplicationAgent
-from nucypher.blockchain.eth.deployers import CoordinatorDeployer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry, agency) -> CoordinatorAgent:
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-
-    origin, *everybody_else = testerchain.client.accounts
-    coodinator_deployer = CoordinatorDeployer(registry=test_registry)
-    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
-    coodinator_deployer.deploy(transacting_power=tpower,
-                               _application=application_agent.contract_address)
-    coordinator_agent = coodinator_deployer.make_agent()
+    coordinator_agent = ContractAgency.get_agent(
+        CoordinatorAgent, registry=test_registry
+    )
     return coordinator_agent
 
 
 @pytest.fixture(scope='module')
-def transcript(agent):
+def transcript():
     return os.urandom(32)
 
 
 @pytest.fixture(scope='module')
-def aggregated_transcript(agent):
+def aggregated_transcript():
     return os.urandom(32)
 
 
 @pytest.fixture(scope='module')
-def cohort(testerchain, ursulas):
-    deployer, someone, *everybody_else = testerchain.stake_providers_accounts
+def public_key():
+    return os.urandom(104)
+
+
+@pytest.fixture(scope="module")
+def cohort(testerchain, staking_providers):
+    deployer, someone, *everybody_else = staking_providers
     return [someone]
 
 
 @pytest.fixture(scope='module')
-def ursula(cohort):
-    return cohort[0]
+def ursula(cohort, agency, test_registry):
+    staking_provider = cohort[0]
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry
+    )
+    return application_agent.get_operator_from_staking_provider(staking_provider)
 
 
 @pytest.fixture(scope='module')
@@ -55,7 +58,7 @@ def test_coordinator_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
-def test_initiate_ritual(agent, deploy_contract, cohort, transacting_power):
+def test_initiate_ritual(agent, cohort, transacting_power):
     number_of_rituals = agent.number_of_rituals()
     assert number_of_rituals == 0
 
@@ -64,7 +67,7 @@ def test_initiate_ritual(agent, deploy_contract, cohort, transacting_power):
         transacting_power=transacting_power
     )
     assert receipt['status'] == 1
-    start_ritual_event = agent.contract.events.StartRitual().processReceipt(receipt)
+    start_ritual_event = agent.contract.events.StartRitual().process_receipt(receipt)
     assert start_ritual_event[0]['args']['nodes'] == cohort
 
     number_of_rituals = agent.number_of_rituals()
@@ -78,7 +81,7 @@ def test_initiate_ritual(agent, deploy_contract, cohort, transacting_power):
     assert [p.node for p in participants] == cohort
 
 
-def test_post_transcript(agent, deploy_contract, transcript, transacting_power):
+def test_post_transcript(agent, transcript, transacting_power):
     ritual_id = agent.number_of_rituals() - 1
     receipt = agent.post_transcript(
         ritual_id=ritual_id,
@@ -86,8 +89,10 @@ def test_post_transcript(agent, deploy_contract, transcript, transacting_power):
         transcript=transcript,
         transacting_power=transacting_power
     )
-    assert receipt['status'] == 1
-    post_transcript_events = agent.contract.events.TranscriptPosted().processReceipt(receipt)
+    assert receipt["status"] == 1
+    post_transcript_events = agent.contract.events.TranscriptPosted().process_receipt(
+        receipt
+    )
     assert len(post_transcript_events) == 1
     event = post_transcript_events[0]
     assert event['args']['ritualId'] == ritual_id
@@ -98,17 +103,20 @@ def test_post_transcript(agent, deploy_contract, transcript, transacting_power):
 
 
 
-def test_post_aggregation(agent, deploy_contract, aggregated_transcript, transacting_power):
+def test_post_aggregation(agent, aggregated_transcript, public_key, transacting_power):
     ritual_id = agent.number_of_rituals() - 1
     receipt = agent.post_aggregation(
         ritual_id=ritual_id,
         node_index=0,
         aggregated_transcript=aggregated_transcript,
+        public_key=public_key,
         transacting_power=transacting_power
     )
     assert receipt['status'] == 1
 
-    post_aggregation_events = agent.contract.events.AggregationPosted().processReceipt(receipt)
+    post_aggregation_events = agent.contract.events.AggregationPosted().process_receipt(
+        receipt
+    )
     assert len(post_aggregation_events) == 1
     event = post_aggregation_events[0]
     assert event['args']['ritualId'] == ritual_id
@@ -116,4 +124,3 @@ def test_post_aggregation(agent, deploy_contract, aggregated_transcript, transac
 
     participants = agent.get_participants(ritual_id)
     assert all([p.aggregated for p in participants])
-

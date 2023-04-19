@@ -64,19 +64,19 @@ class Dummy:  # Teacher
             signer.sign(b"whatever").to_be_bytes() + b"\x00"
         )
 
-        payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
-                                      domain=':dummy:',
-                                      timestamp_epoch=0,
-                                      operator_signature=RecoverableSignature.from_be_bytes(dummy_signature),
-                                      verifying_key=signer.verifying_key(),
-                                      encrypting_key=SecretKey.random().public_key(),
-                                      ferveo_public_key=bytes(Keypair.random().public_key),
-                                      certificate_der=b'not a certificate',
-                                      host=MOCK_IP_ADDRESS,
-                                      port=MOCK_PORT,
-                                      )
-        return NodeMetadata(signer=signer,
-                            payload=payload)
+        payload = NodeMetadataPayload(
+            staking_provider_address=Address(self.canonical_address),
+            domain=":dummy:",
+            timestamp_epoch=0,
+            operator_signature=dummy_signature,
+            verifying_key=signer.verifying_key(),
+            encrypting_key=SecretKey.random().public_key(),
+            ferveo_public_key=bytes(Keypair.random().public_key),
+            certificate_der=b"not a certificate",
+            host=MOCK_IP_ADDRESS,
+            port=MOCK_PORT,
+        )
+        return NodeMetadata(signer=signer, payload=payload)
 
 
 @pytest.fixture(autouse=True)
