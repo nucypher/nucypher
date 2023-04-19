@@ -71,8 +71,6 @@ class ActiveRitualTracker:
         self.contract = contract
 
         # Determine the start block for the event scanner
-        if not start_block:
-            start_block = self._get_start_block_number()
         self.start_block = start_block
 
         # Restore/create persistent event scanner state
@@ -117,18 +115,25 @@ class ActiveRitualTracker:
         """
         w3 = self.ritualist.coordinator_agent.blockchain.w3
         target_timestamp = time.time() - self.ritualist.coordinator_agent.get_timeout()
-        highest_block = w3.eth.get_block('latest').number
-        while True:
-            if highest_block == 0:
-                start_block = 0
-                break
-            self.log.info(f"Checking event scan start block {highest_block} for timestamp {target_timestamp}")
-            prev_block = w3.eth.get_block(highest_block - 1)
-            if prev_block.timestamp < target_timestamp:
-                start_block = prev_block.number
-                break
-            highest_block -= 1
-        return start_block
+        latest_block = w3.eth.get_block('latest')
+        if latest_block.number == 0:
+            return 0
+
+        # get average block time
+        num_past_blocks = 100
+        base_block_number = latest_block.number - num_past_blocks
+        if base_block_number <= 0:
+            return 0
+        base_block = w3.eth.get_block(base_block_number)
+        average_block_time = (latest_block.timestamp - base_block.timestamp) / num_past_blocks
+
+        expected_start_block = w3.eth.get_block(
+            (latest_block.timestamp - target_timestamp) // average_block_time
+        )
+        while expected_start_block.number > 0 and expected_start_block.timestamp > target_timestamp:
+            expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
+
+        return expected_start_block.number
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
@@ -229,6 +234,8 @@ class ActiveRitualTracker:
 
         # Scan from [last block scanned] - [latest ethereum block]
         # Note that our chain reorg safety blocks cannot go negative
+        if self.start_block is None:
+            self.start_block = self._get_start_block_number()
         start_block = max(self.state.get_last_scanned_block() - chain_reorg_safety_blocks, self.start_block)
         end_block = self.scanner.get_suggested_scan_end_block()
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
