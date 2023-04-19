@@ -106,11 +106,15 @@ class MockCoordinatorAgent(MockContractAgent):
     ) -> CoordinatorAgent.Ritual:
         return self.rituals[ritual_id]
 
-    def get_participants(self, ritual_id: int) -> List[ChecksumAddress]:
-        return [p.node for p in self.rituals[ritual_id].participants]
+    def get_participants(self, ritual_id: int) -> List[Ritual.Participant]:
+        return self.rituals[ritual_id].participants
 
     def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
-        return self.get_participants(ritual_id).index(node)
+        for i, p in enumerate(self.get_participants(ritual_id)):
+            if p.node == node:
+                return i
+
+        raise ValueError(f"{node} not in list")
 
     def get_ritual_status(self, ritual_id: int) -> int:
         ritual = self.rituals[ritual_id]
