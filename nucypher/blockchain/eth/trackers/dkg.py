@@ -58,7 +58,7 @@ class ActiveRitualTracker:
                  ritualist,
                  eth_provider: BaseProvider,
                  contract: Contract,
-                 start_block: int = 0,  # TODO: use a start block that correlates to the ritual timeout
+                 start_block: Optional[int] = None,  # TODO: use a start block that correlates to the ritual timeout
                  persistent: bool = False  # TODO: use persistent storage?
                  ):
 
@@ -69,6 +69,10 @@ class ActiveRitualTracker:
 
         self.eth_provider = eth_provider
         self.contract = contract
+
+        # Determine the start block for the event scanner
+        if not start_block:
+            start_block = self._get_start_block_number()
         self.start_block = start_block
 
         # Restore/create persistent event scanner state
@@ -106,6 +110,25 @@ class ActiveRitualTracker:
         self.task = EventScannerTask(scanner=self.scan)
         self.active_tasks = set()
         self.refresh()
+
+    def _get_start_block_number(self) -> int:
+        """
+        Returns the block number to start scanning for events from.
+        """
+        w3 = self.ritualist.coordinator_agent.blockchain.w3
+        target_timestamp = time.time() - self.ritualist.coordinator_agent.get_timeout()
+        highest_block = w3.eth.get_block('latest').number
+        while True:
+            if highest_block == 0:
+                start_block = 0
+                break
+            self.log.info(f"Checking event scan start block {highest_block} for timestamp {target_timestamp}")
+            prev_block = w3.eth.get_block(highest_block - 1)
+            if prev_block.timestamp < target_timestamp:
+                start_block = prev_block.number
+                break
+            highest_block -= 1
+        return start_block
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
