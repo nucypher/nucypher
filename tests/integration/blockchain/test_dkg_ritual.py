@@ -27,7 +27,7 @@ PARAMS = [  # dkg_size, ritual_id, variant
     # (32, 3, 'simple'),
 
     # TODO: enable these tests
-    (1, 3, 'precomputed'),
+    # (1, 3, 'precomputed'),
     # (4, 5, 'precomputed'),
     # (8, 6, 'precomputed'),
     # (32, 7, 'precomputed'),

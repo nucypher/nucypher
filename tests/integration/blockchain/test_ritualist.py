@@ -36,8 +36,6 @@ def test_initiate_ritual(agent: CoordinatorAgent, deploy_contract, cohort, trans
 
     participants = [CoordinatorAgent.Ritual.Participant(
         node=c,
-        aggregated=False,
-        transcript=bytes()
     ) for c in cohort]
 
     ritual = CoordinatorAgent.Ritual(
