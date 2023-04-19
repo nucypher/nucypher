@@ -607,9 +607,9 @@ class Bob(Character):
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
-            # TODO: Uncomment these lines to reproduce the bug
-            # if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
-            #     break
+            # FIXME: BUG HAPPENS HERE
+            if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
+                break
 
         if len(gathered_shares) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")

@@ -1,10 +1,9 @@
-from time import time
-from typing import List
-
 import pytest
 import pytest_twisted
 from eth_typing import ChecksumAddress
+from time import time
 from twisted.internet.threads import deferToThread
+from typing import List
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
@@ -16,7 +15,7 @@ from tests.mock.interfaces import MockBlockchain
 PLAINTEXT = "peace at dawn"
 CONDITIONS = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
 
-# TODO: GEt these from the contract
+# TODO: Get these from the contract
 ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
