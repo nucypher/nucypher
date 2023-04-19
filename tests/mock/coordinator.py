@@ -98,6 +98,9 @@ class MockCoordinatorAgent(MockContractAgent):
     # Calls
     #
 
+    def get_timeout(self) -> int:
+        return self.timeout
+
     def number_of_rituals(self) -> int:
         return len(self.rituals)
 
