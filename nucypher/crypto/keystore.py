@@ -15,7 +15,7 @@ from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.keypairs import HostingKeypair
+from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
     secret_box_decrypt,
     secret_box_encrypt,
@@ -415,6 +415,13 @@ class Keystore:
             power = _derive_hosting_power(
                 secret_seed=__skf.make_secret(info), *power_args, **power_kwargs
             )
+
+        elif issubclass(power_class, RitualisticPower):
+            keypair_class: RitualisticKeypair = power_class._keypair_class
+            size = keypair_class.secure_randomness_size()
+            blob = __skf.make_secret(info)[:size]
+            keypair = keypair_class.from_secure_randomness(blob)
+            power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, KeyPairBasedPower):
             keypair = power_class._keypair_class(__skf.make_key(info))
