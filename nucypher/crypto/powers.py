@@ -1,15 +1,13 @@
+import ferveo_py
 import inspect
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
 from ferveo_py import (
-    Keypair as FerveoKeypair,
     Transcript,
     AggregatedTranscript,
     ExternalValidator,
     DecryptionShareSimple,
-    DecryptionSharePrecomputed,
     Ciphertext,
-    DkgPublicParameters,
 )
 from hexbytes import HexBytes
 from nucypher_core.umbral import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
@@ -241,7 +239,7 @@ class DecryptingPower(KeyPairBasedPower):
 
 class RitualisticPower(KeyPairBasedPower):
     _keypair_class = RitualisticKeypair
-    _default_private_key_class = FerveoKeypair
+    _default_private_key_class = ferveo_py.Keypair
 
     not_found_error = NoRitualisticPower
     provides = ("derive_decryption_share", "generate_transcript")
@@ -265,7 +263,7 @@ class RitualisticPower(KeyPairBasedPower):
             threshold=threshold,
             nodes=nodes,
             aggregated_transcript=aggregated_transcript,
-            keypair=self.keypair._privkey.keypair,
+            keypair=self.keypair._privkey,
             ciphertext=ciphertext,
             aad=conditions,
             variant=variant
