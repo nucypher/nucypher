@@ -242,6 +242,7 @@ class DecryptingPower(KeyPairBasedPower):
 class RitualisticPower(KeyPairBasedPower):
     _keypair_class = RitualisticKeypair
     _default_private_key_class = FerveoKeypair
+
     not_found_error = NoRitualisticPower
     provides = ("derive_decryption_share", "generate_transcript")
 

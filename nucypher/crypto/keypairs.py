@@ -112,9 +112,6 @@ class RitualisticKeypair(Keypair):
     _private_key_source = FerveoKey
     _public_key_method = "public_key"
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
 
 class SigningKeypair(Keypair):
     """
