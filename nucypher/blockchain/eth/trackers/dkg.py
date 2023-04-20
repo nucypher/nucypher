@@ -127,10 +127,17 @@ class ActiveRitualTracker:
         base_block = w3.eth.get_block(base_block_number)
         average_block_time = (latest_block.timestamp - base_block.timestamp) / num_past_blocks
 
-        expected_start_block = w3.eth.get_block(
-            (latest_block.timestamp - target_timestamp) // average_block_time
+        number_of_blocks_in_the_past = int(
+            (latest_block.timestamp - target_timestamp) / average_block_time
         )
-        while expected_start_block.number > 0 and expected_start_block.timestamp > target_timestamp:
+
+        expected_start_block = w3.eth.get_block(
+            latest_block.number - number_of_blocks_in_the_past
+        )
+        while (
+            expected_start_block.number > 0
+            and expected_start_block.timestamp > target_timestamp
+        ):
             expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
 
         return int(expected_start_block.number - 1)

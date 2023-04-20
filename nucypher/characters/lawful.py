@@ -1050,18 +1050,21 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         operator_signature = self.operator_signature or (b"0" * 64 + b"\x00")
 
         operator_signature = RecoverableSignature.from_be_bytes(operator_signature)
-        payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
-                                      domain=self.domain,
-                                      timestamp_epoch=timestamp.epoch,
-                                      operator_signature=operator_signature,
-                                      verifying_key=self.public_keys(SigningPower),
-                                      encrypting_key=self.public_keys(DecryptingPower),
-                                      ferveo_public_key=bytes(self.public_keys(RitualisticPower)),  # TODO: use type
-                                      certificate_der=self.certificate.public_bytes(Encoding.DER),
-                                      host=self.rest_interface.host,
-                                      port=self.rest_interface.port)
-        return NodeMetadata(signer=self.stamp.as_umbral_signer(),
-                            payload=payload)
+        payload = NodeMetadataPayload(
+            staking_provider_address=Address(self.canonical_address),
+            domain=self.domain,
+            timestamp_epoch=timestamp.epoch,
+            verifying_key=self.public_keys(SigningPower),
+            encrypting_key=self.public_keys(DecryptingPower),
+            ferveo_public_key=bytes(
+                self.public_keys(RitualisticPower)
+            ),  # TODO: use type
+            certificate_der=self.certificate.public_bytes(Encoding.DER),
+            host=self.rest_interface.host,
+            port=self.rest_interface.port,
+            operator_signature=operator_signature,
+        )
+        return NodeMetadata(signer=self.stamp.as_umbral_signer(), payload=payload)
 
     def metadata(self):
         if not self._metadata:
