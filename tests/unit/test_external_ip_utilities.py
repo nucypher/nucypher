@@ -71,7 +71,7 @@ class Dummy:  # Teacher
             operator_signature=dummy_signature,
             verifying_key=signer.verifying_key(),
             encrypting_key=SecretKey.random().public_key(),
-            ferveo_public_key=bytes(Keypair.random().public_key),
+            ferveo_public_key=bytes(Keypair.random().public_key()),
             certificate_der=b"not a certificate",
             host=MOCK_IP_ADDRESS,
             port=MOCK_PORT,
