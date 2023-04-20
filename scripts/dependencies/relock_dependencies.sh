@@ -27,8 +27,8 @@ rm -f $PREFIX.txt
 rm -f dev-$PREFIX.txt
 rm -f docs-$PREFIX.txt
 
-echo "Removing pip and pipenv system cache"
-rm -r ~/.cache/pip ~/.cache/pipenv
+echo "Removing pip cache"
+pip cache purge
 
 # start enforcing failures
 set -e
