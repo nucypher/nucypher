@@ -15,8 +15,18 @@
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-# Get an interactive Python session with all the NuCypher agents loaded by running:
+# Run nucypher dkg by running:
+#
 #    python scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> <RITUAL_ID> <NETWORK> <ACCOUNT_KEYSTORE_FILEPATH>
+#
+# For example:
+#
+# Use existing ritual id (eg. id '0'):
+#    python ./scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> 0 lynx
+#
+# Go through entire process of initiating a ritual, waiting for it to finish, then use for encryption/decryption:
+#    python ./scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> -1 lynx <ACCOUNT_KEYSTORE_PATH>
+#
 
 import sys
 import time
