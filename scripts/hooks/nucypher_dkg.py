@@ -24,6 +24,7 @@ import time
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 from ferveo_py import DkgPublicKey
+from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -159,13 +160,15 @@ if ritual_id is None:
     ), "ritual successfully initiated"
 
     emitter.echo(
-        f"DKG Ritual {ritual_id} initiated: {receipt['transactionHash']}", color="green"
+        f"DKG Ritual {ritual_id} initiated: {Web3.to_hex(receipt['transactionHash'])}",
+        color="green",
     )
 
     #
     # Wait for Ritual to complete
     # TODO perhaps reuse EventActuator here
     #
+    start_time = time.time()
     while True:
         ritual_status = coordinator_agent.get_ritual_status(ritual_id)
 
@@ -179,7 +182,14 @@ if ritual_id is None:
             emitter.error(f"Ritual {ritual_id} failed with status {ritual_status}")
             sys.exit(-1)
 
+        emitter.echo(
+            f"Waiting for Ritual to complete; {time.time() - start_time}s elapsed thus far"
+        )
         time.sleep(10)
+
+    emitter.echo(
+        f"DKG Ritual ended with status {ritual_status} after {time.time() - start_time}s"
+    )
 else:
     ritual = coordinator_agent.get_ritual(ritual_id)  # ensure ritual can be found
     emitter.echo(f"Reusing existing DKG Ritual {ritual_id}", color="green")
