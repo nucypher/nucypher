@@ -18,11 +18,11 @@ class MockCoordinatorAgent(MockContractAgent):
     Ritual = CoordinatorAgent.Ritual
     RitualStatus = CoordinatorAgent.Ritual.Status
 
-    PUBLIC_KEY_SIZE = 104
+    PUBLIC_KEY_SIZE = 104  # TODO get from contract / ferveo (ferveo #99)
     EVENTS = {}
 
     class Events(Enum):
-        START_TRANSCRIPT_ROUND = 0
+        START_RITUAL = 0
         START_AGGREGATION_ROUND = 1
 
     def __init__(self, blockchain: MockBlockchain, max_dkg_size: int = 64, timeout: int = 600):
@@ -56,7 +56,10 @@ class MockCoordinatorAgent(MockContractAgent):
         )
         self.rituals[ritual.id] = ritual
         self.emit_event(
-            signal=self.Events.START_TRANSCRIPT_ROUND, ritual_id=ritual.id, nodes=nodes
+            signal=self.Events.START_RITUAL,
+            ritual_id=ritual.id,
+            initiator=transacting_power.account,
+            nodes=nodes,
         )
         return self.blockchain.FAKE_RECEIPT
 
