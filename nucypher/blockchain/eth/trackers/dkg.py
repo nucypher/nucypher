@@ -142,7 +142,12 @@ class ActiveRitualTracker:
         ):
             expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
 
-        return int(expected_start_block.number - 1)
+        expected_start_block_number = 0
+        if expected_start_block.number > 0:
+            # if non-zero block found - return the block before
+            expected_start_block_number = int(expected_start_block.number - 1)
+
+        return expected_start_block_number
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
