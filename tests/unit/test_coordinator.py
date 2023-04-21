@@ -52,9 +52,10 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
 
     timestamp, signal = list(coordinator.EVENTS.items())[0]
     signal_type, signal_data = signal
-    assert signal_type == MockCoordinatorAgent.Events.START_TRANSCRIPT_ROUND
-    assert signal_data['ritual_id'] == 0
-    assert set(signal_data['nodes']) == nodes_transacting_powers.keys()
+    assert signal_type == MockCoordinatorAgent.Events.START_RITUAL
+    assert signal_data["ritual_id"] == 0
+    assert signal_data["initiator"] == mock_transacting_power.account
+    assert set(signal_data["nodes"]) == nodes_transacting_powers.keys()
 
 
 def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):

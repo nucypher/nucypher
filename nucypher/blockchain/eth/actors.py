@@ -539,8 +539,23 @@ class Ritualist(BaseActor):
         )
         return receipt
 
-    def perform_round_1(self, ritual_id: int, timestamp: int):
+    def perform_round_1(
+        self,
+        ritual_id: int,
+        initiator: ChecksumAddress,
+        nodes: List[ChecksumAddress],
+        timestamp: int,
+    ):
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
+
+        if self.checksum_address not in nodes:
+            # should never get here
+            self.log.error(
+                f"Not part of ritual {ritual_id}; no need to submit transcripts"
+            )
+            raise self.RitualError(
+                f"Not part of ritual {ritual_id}; don't post transcript"
+            )
 
         # get the ritual and check its status from the blockchain
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
@@ -548,7 +563,7 @@ class Ritualist(BaseActor):
 
         # validate the status
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
-            raise self.ActorError(
+            raise self.RitualError(
                 f"ritual #{ritual.id} is not waiting for transcripts; status={status}."
             )
 
@@ -578,7 +593,7 @@ class Ritualist(BaseActor):
         except Exception as e:
             # TODO: Handle this better
             self.log.debug(f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}")
-            raise self.ActorError(f"Failed to generate a transcript: {str(e)}")
+            raise self.RitualError(f"Failed to generate a transcript: {str(e)}")
 
         # store the transcript in the local cache
         self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)
@@ -596,7 +611,13 @@ class Ritualist(BaseActor):
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
         # Get the ritual and check the status from the blockchain
-        ritual = self.coordinator_agent.get_ritual(ritual_id)
+        # TODO Optimize local cache of ritual participants (#3052)
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        if self.checksum_address not in [p.node for p in ritual.participants]:
+            raise self.RitualError(
+                f"Node is not part of {ritual.id}; no need to submit aggregated transcript"
+            )
+
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:

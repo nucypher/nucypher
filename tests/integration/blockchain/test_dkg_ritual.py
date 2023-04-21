@@ -1,8 +1,10 @@
+from time import time
+from typing import List
+
 import pytest
 import pytest_twisted
-from time import time
+from eth_typing import ChecksumAddress
 from twisted.internet.threads import deferToThread
-from typing import List
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
@@ -15,8 +17,8 @@ PLAINTEXT = "peace at dawn"
 CONDITIONS = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
 
 # TODO: GEt these from the contract
-ROUND_1_EVENT_NAME = 'StartTranscriptRound'
-ROUND_2_EVENT_NAME = 'StartAggregationRound'
+ROUND_1_EVENT_NAME = "StartRitual"
+ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
 
@@ -53,18 +55,45 @@ def cohort(ursulas, mock_coordinator_agent):
     return ursulas
 
 
-def execute_round(cohort: List[Ursula], ritual_id: int, event_name: str):
+def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Ursula]):
 
     # check that the ritual is being tracked locally upon initialization for each node
     for ursula in cohort:
         # this is a testing hack to make the event scanner work
         # normally it's called by the reactor clock in a loop
-        event = AttributeDict(dict(
-            timestamp=lambda: int(time()),
-            event=event_name,
-            blockNumber=BLOCKS.pop(),
-            args=AttributeDict({'ritualId': ritual_id})
-        ))
+        event = AttributeDict(
+            dict(
+                timestamp=lambda: int(time()),
+                event=ROUND_1_EVENT_NAME,
+                blockNumber=BLOCKS.pop(),
+                args=AttributeDict(
+                    {
+                        "ritualId": ritual_id,
+                        "initiator": initiator,
+                        "nodes": [u.checksum_address for u in cohort],
+                    }
+                ),
+            )
+        )
+
+        ursula.ritual_tracker._handle_ritual_event(
+            event, get_block_when=lambda x: event
+        )
+
+
+def execute_round_2(ritual_id: int, cohort: List[Ursula]):
+    # check that the ritual is being tracked locally upon initialization for each node
+    for ursula in cohort:
+        # this is a testing hack to make the event scanner work
+        # normally it's called by the reactor clock in a loop
+        event = AttributeDict(
+            dict(
+                timestamp=lambda: int(time()),
+                event=ROUND_2_EVENT_NAME,
+                blockNumber=BLOCKS.pop(),
+                args=AttributeDict({"ritualId": ritual_id}),
+            )
+        )
 
         ursula.ritual_tracker._handle_ritual_event(event, get_block_when=lambda x: event)
 
@@ -92,12 +121,14 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
         # verify that the ritual is in the correct state
         assert mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id) == \
                mock_coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
-        execute_round(cohort, ritual_id, ROUND_1_EVENT_NAME)
+
+        ritual = mock_coordinator_agent.get_ritual(ritual_id)
+        execute_round_1(ritual_id, ritual.initiator, cohort)
 
     def round_2(_):
         """simulates the passage of time and the execution of the event scanner"""
         print("==================== BLOCKING UNTIL DKG FINALIZED ====================")
-        execute_round(cohort, ritual_id, ROUND_2_EVENT_NAME)
+        execute_round_2(ritual_id, cohort)
 
     def finality(_):
         """Checks the finality of the DKG"""

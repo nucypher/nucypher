@@ -82,7 +82,7 @@ class ActiveRitualTracker:
 
         # Map events to handlers
         self.actions = {
-            contract.events.StartTranscriptRound: self.ritualist.perform_round_1,
+            contract.events.StartRitual: self.ritualist.perform_round_1,
             contract.events.StartAggregationRound: self.ritualist.perform_round_2,
         }
         self.events = list(self.actions)
@@ -178,7 +178,9 @@ class ActiveRitualTracker:
     def __action_required(self, event_type: Type[ContractEvent], block_number: int, ritual_id: int):
         """Check if an action is required for a given event."""
         if (event_type, ritual_id) in self.active_tasks:
-            # self.log.debug(f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}")
+            self.log.debug(
+                f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}"
+            )
             return False
         return True
 
