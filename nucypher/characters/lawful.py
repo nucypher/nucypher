@@ -640,7 +640,7 @@ class Bob(Character):
         except AttributeError:
             raise ValueError(f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}")
 
-        threshold = (ritual.shares // 2) + 1  # TODO: get this from the ritual / put it on-chain?
+        threshold = (ritual.shares // 2) + 1  # TODO: #3095 get this from the ritual / put it on-chain?
         shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
@@ -683,7 +683,7 @@ class Bob(Character):
         data = list(zip(validators, transcripts))
         pvss_aggregated, final_key, params = aggregate_transcripts(
             ritual_id=ritual_id,
-            me=validators[0],  # TODO: this is awkward, but we need to pass "me" here to derive_generator_inverse
+            me=validators[0],  # TODO: #3097 this is awkward, but we need to pass "me" here to derive_generator_inverse
             threshold=threshold,
             shares=ritual.shares,
             transcripts=data

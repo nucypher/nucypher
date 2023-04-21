@@ -51,7 +51,7 @@ def derive_public_key(*args, **kwargs):
 def _validate_pvss_aggregated(pvss_aggregated: AggregatedTranscript, dkg) -> bool:
     valid = pvss_aggregated.validate(dkg)
     if not valid:
-        raise Exception("validation failed")  # TODO: better exception handling
+        raise Exception("validation failed")  # TODO: #3096 better exception handling
     return valid
 
 

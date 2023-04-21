@@ -343,17 +343,16 @@ class Operator(BaseActor):
             self.work_tracker = work_tracker or WorkTracker(worker=self)
 
             # Multi-provider support
-            # TODO: Abstract away payment provider
+            # TODO: Abstract away payment provider  #3004
             eth_chain = self.application_agent.blockchain
             polygon_chain = payment_method.agent.blockchain
 
-            # TODO: This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
+            # TODO: #3094 This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
             #       that has a different provider than the one passed to the constructor.  This is a temporary fix.
             polygon_chain.client.w3 = Web3(polygon_chain.provider)
 
             # TODO: Verify consistency between network names and provider connection?
-            # TODO: Allow bypassing of the enforcement above ^
-            # TODO: Is chain ID stable and completely reliable?
+            # TODO: #3094 Is chain ID stable and completely reliable?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
                 polygon_chain.client.chain_id: polygon_chain.provider
@@ -454,13 +453,11 @@ class Ritualist(BaseActor):
         self.ritual_tracker = ActiveRitualTracker(
             ritualist=self,
             eth_provider=self.coordinator_agent.blockchain.provider,
-            contract=self.coordinator_agent.contract,
-            # TODO: use a start block that corresponds to the ritual timeout or something
-            # start_block=self.coordinator_agent.contract.functions.getRitualStartBlock().call()
+            contract=self.coordinator_agent.contract
         )
 
         self.publish_finalization = publish_finalization  # publish the DKG final key if True
-        self.dkg_storage = DKGStorage()  # stores locally generated public DKG artifacts
+        self.dkg_storage = DKGStorage()  # TODO: #3052 stores locally generated public DKG artifacts
         self.ritual_power = crypto_power.power_ups(RitualisticPower)  # ferveo material contained within
 
     def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
@@ -585,13 +582,13 @@ class Ritualist(BaseActor):
         try:
             transcript = self.ritual_power.generate_transcript(
                 nodes=nodes,
-                threshold=(ritual.shares // 2) + 1,  # TODO: This is a constant or needs to be stored somewhere else
+                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id
             )
         except Exception as e:
-            # TODO: Handle this better
+            # TODO: Handle this better #3096
             self.log.debug(f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}")
             raise self.RitualError(f"Failed to generate a transcript: {str(e)}")
 
@@ -637,7 +634,7 @@ class Ritualist(BaseActor):
         # Aggregate the transcripts
         try:
             result = self.ritual_power.aggregate_transcripts(
-                threshold=(ritual.shares // 2) + 1,  # TODO: This is a constant or needs to be stored somewhere else
+                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id,
@@ -693,7 +690,7 @@ class Ritualist(BaseActor):
 
         threshold = (ritual.shares // 2) + 1
         conditions = str(conditions).encode()
-        # TODO: consider the usage of local DKG artifact storage here
+        # TODO: consider the usage of local DKG artifact storage here #3052
         # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
