@@ -659,7 +659,7 @@ class Ritualist(BaseActor):
         conditions: ConditionLingo,
         variant: FerveoVariant
     ) -> DecryptionShareSimple:
-        ritual = self.get_ritual(ritual_id)
+        ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:
             raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
@@ -672,8 +672,9 @@ class Ritualist(BaseActor):
 
         threshold = (ritual.shares // 2) + 1
         conditions = str(conditions).encode()
-        aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
-        aggregated_transcript = AggregatedTranscript.from_bytes(aggregated_transcript_bytes)
+        # TODO: consider the usage of local DKG artifact storage here
+        # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
+        aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=nodes,
             threshold=threshold,
