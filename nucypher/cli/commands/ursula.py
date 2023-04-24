@@ -23,7 +23,6 @@ from nucypher.cli.actions.select import (
     select_config_file,
     select_network,
 )
-from nucypher.cli.commands.deploy import option_gas_strategy
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
@@ -53,7 +52,7 @@ from nucypher.cli.options import (
     option_policy_registry_filepath,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri,
+    option_teacher_uri, option_gas_strategy,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP

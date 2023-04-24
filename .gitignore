@@ -3,8 +3,12 @@ __pycache__
 *.pyc
 /.venv
 .eggs
+.cache
 /*.egg-info
 /build
+*.build
+tests/acceptance/blockchain/.build/
+__local__.json
 /.cache
 *.so
 /MANIFEST

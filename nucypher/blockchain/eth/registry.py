@@ -1,12 +1,12 @@
+from json import JSONDecodeError
 
 import hashlib
 import json
+import requests
 from abc import ABC, abstractmethod
-from json import JSONDecodeError
+from eth_utils import to_checksum_address
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
-
-import requests
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -400,6 +400,19 @@ class LocalContractRegistry(BaseContractRegistry):
         payload = dict(filepath=self.__filepath)
         return payload
 
+    @classmethod
+    def from_ape_artifacts(cls, path: Path) -> 'LocalContractRegistry':
+        """
+        Creates a registry from ape artifacts.
+        """
+        registry = cls(filepath=path)
+        registry.clear()
+        for artifact in path.glob('*.json'):
+            registry.enroll(contract_name=artifact.stem,
+                            contract_address=artifact[0],
+                            contract_abi=artifact[1])
+        return registry
+
 
 class InMemoryContractRegistry(BaseContractRegistry):
 
@@ -445,3 +458,28 @@ class InMemoryContractRegistry(BaseContractRegistry):
 
     def _destroy(self) -> None:
         self.__registry_data = dict()
+
+    @classmethod
+    def from_ape_deployments(cls, build_path: Path, deployments: Dict) -> 'InMemoryContractRegistry':
+        """Creates a registry from ape deployments."""
+
+        def get_json_abi(path):
+            with open(path, 'r') as f:
+                _abi = json.load(f)['abi']
+            return _abi
+
+        data = list()
+        for contract, deployment in deployments.items():
+            path = build_path / f"{contract}.json"
+            abi = get_json_abi(path)
+            entry = [
+                str(contract),
+                'v0.0.0',  # TODO: get version from contract
+                to_checksum_address(deployment.address),
+                abi
+            ]
+            data.append(entry)
+        registry = cls()
+        registry.write(data)
+        return registry
+

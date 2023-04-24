@@ -1,10 +1,6 @@
-
-
-
 import click
 from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 
-from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
 from nucypher.characters.banners import NUCYPHER_BANNER
 from nucypher.config.constants import (
     DEFAULT_CONFIG_ROOT,
@@ -16,13 +12,6 @@ def echo_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
     click.secho(NUCYPHER_BANNER, bold=True)
-    ctx.exit()
-
-
-def echo_solidity_version(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    click.secho(f"Supported solidity version: {SOLIDITY_COMPILER_VERSION}", bold=True)
     ctx.exit()
 
 

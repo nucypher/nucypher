@@ -1,4 +1,5 @@
 import os
+from ape_test import LocalProvider
 from typing import List, Optional, Tuple, Union
 
 import maya
@@ -8,21 +9,12 @@ from hexbytes import HexBytes
 from web3 import Web3
 
 from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.actors import ContractAdministrator
-from nucypher.blockchain.eth.interfaces import (
-    BlockchainDeployerInterface,
-    BlockchainInterfaceFactory,
-)
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile.constants import (
-    SOLIDITY_SOURCE_ROOT,
-    TEST_SOLIDITY_SOURCE_ROOT,
-)
-from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
@@ -63,21 +55,15 @@ def free_gas_price_strategy(w3, transaction_params=None):
     return None
 
 
-class TesterBlockchain(BlockchainDeployerInterface):
+class TesterBlockchain(BlockchainInterface):
     """
     Blockchain subclass with additional test utility methods and options.
     """
 
     __test__ = False  # prohibit pytest from collecting this object as a test
 
-    # Solidity
-    SOURCES: List[SourceBundle] = [
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT,
-                     other_paths=(TEST_SOLIDITY_SOURCE_ROOT,))
-    ]
-
     # Web3
-    GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
+    GAS_STRATEGIES = {**BlockchainInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
     ETH_PROVIDER_URI = PYEVM_DEV_URI
     DEFAULT_GAS_STRATEGY = 'free'
 
@@ -97,34 +83,19 @@ class TesterBlockchain(BlockchainDeployerInterface):
     DEFAULT_ECONOMICS = Economics()
 
     def __init__(self,
-                 test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
                  poa: bool = True,
                  light: bool = False,
                  eth_airdrop: bool = False,
                  free_transactions: bool = False,
-                 compile_now: bool = True,
                  *args, **kwargs):
 
-        self.free_transactions = free_transactions
-
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
-
         super().__init__(eth_provider_uri=self.ETH_PROVIDER_URI,
                          poa=poa,
                          light=light,
                          *args, **kwargs)
-
         self.log = Logger("test-blockchain")
-        self.connect(compile_now=compile_now)
-
-        # Generate additional ethereum accounts for testing
-        population = test_accounts
-        enough_accounts = len(self.client.accounts) >= population
-        if not enough_accounts:
-            accounts_to_make = population - len(self.client.accounts)
-            self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
-            assert test_accounts == len(self.w3.eth.accounts)
-
+        self.connect()
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
@@ -134,33 +105,9 @@ class TesterBlockchain(BlockchainDeployerInterface):
         # TODO: Free transaction middleware is disabled for now.
         pass
 
-    def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
-
-        #
-        # Sanity Check - Only PyEVM can be used.
-        #
-
-        # Detect provider platform
-        client_version = self.w3.client_version
-
-        if 'Geth' in client_version:
-            raise RuntimeError("WARNING: Geth providers are not implemented.")
-        elif "Parity" in client_version:
-            raise RuntimeError("WARNING: Parity providers are not implemented.")
-
-        addresses = list()
-        for _ in range(quantity):
-            address = self.provider.ethereum_tester.add_account('0x' + os.urandom(32).hex())
-            addresses.append(address)
-            self.__ACCOUNT_CACHE.append(address)
-            self.log.info('Generated new insecure account {}'.format(address))
-        return addresses
-
     def ether_airdrop(self, amount: int) -> List[str]:
         """Airdrops ether from creator address to all other addresses!"""
-
-        coinbase, *addresses = self.w3.eth.accounts
-
+        coinbase, *addresses = self.accounts
         tx_hashes = list()
         for address in addresses:
             tx = {'to': address, 'from': coinbase, 'value': amount, 'gasPrice': self.w3.eth.generate_gas_price()}
@@ -203,33 +150,6 @@ class TesterBlockchain(BlockchainDeployerInterface):
         delta = maya.timedelta(seconds=end_timestamp-now)
         self.log.info(f"Time traveled {delta} "
                       f"| epoch {end_timestamp}")
-
-    @classmethod
-    def bootstrap_network(cls,
-                          registry: Optional[BaseContractRegistry] = None,
-                          economics: Economics = None
-                          ) -> Tuple['TesterBlockchain', 'InMemoryContractRegistry']:
-        """For use with metric testing scripts"""
-
-        # Provider connection
-        if registry is None:
-            registry = InMemoryContractRegistry()
-        testerchain = cls()
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=testerchain.eth_provider_uri):
-            BlockchainInterfaceFactory.register_interface(interface=testerchain)
-
-        # Produce actor
-        deployer_power = TransactingPower(signer=Web3Signer(testerchain.client),
-                                          account=testerchain.etherbase_account)
-        admin = ContractAdministrator(registry=registry,
-                                      domain=TEMPORARY_DOMAIN,
-                                      transacting_power=deployer_power,
-                                      economics=economics or cls.DEFAULT_ECONOMICS)
-
-        gas_limit = None  # TODO: Gas management - #842
-        for deployer_class in admin.primary_deployer_classes:
-            admin.deploy_contract(contract_name=deployer_class.contract_name, gas_limit=gas_limit)
-        return testerchain, registry
 
     @property
     def etherbase_account(self):

@@ -29,7 +29,6 @@ def test_ursula_operator_confirmation(
     ursula_test_config,
     testerchain,
     threshold_staking,
-    agency,
     application_economics,
     test_registry,
 ):
@@ -91,7 +90,6 @@ def test_ursula_operator_confirmation_autopilot(
     ursula_test_config,
     testerchain,
     threshold_staking,
-    agency,
     application_economics,
     test_registry,
 ):
@@ -170,7 +168,6 @@ def test_work_tracker(
     ursula_test_config,
     testerchain,
     threshold_staking,
-    agency,
     application_economics,
     test_registry,
 ):

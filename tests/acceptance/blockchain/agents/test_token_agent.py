@@ -4,20 +4,14 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer
+from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry) -> NucypherTokenAgent:
-    origin, *everybody_else = testerchain.client.accounts
-    token_deployer = NucypherTokenDeployer(registry=test_registry)
-    tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
-
-    token_deployer.deploy(transacting_power=tpower)
-    token_agent = token_deployer.make_agent()
+    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     return token_agent
 
 

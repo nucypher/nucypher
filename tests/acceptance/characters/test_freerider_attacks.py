@@ -12,7 +12,7 @@ from nucypher.characters.unlawful import Amonia
 
 @pytest.mark.skip("FIXME - DISABLED FOR TDEC ADAPTATION DEVELOPMENT")
 def test_try_to_post_free_service_by_hacking_enact(
-    ursulas, alice, bob, agency, testerchain
+    ursulas, alice, bob, testerchain
 ):
     """
     This time we won't rely on the tabulation in Alice's enact() to catch the problem.

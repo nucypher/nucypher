@@ -10,7 +10,6 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
 )
 from nucypher.blockchain.eth.constants import NUCYPHER_TOKEN_CONTRACT_NAME
-from nucypher.blockchain.eth.deployers import DispatcherDeployer
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import NU

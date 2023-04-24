@@ -1,29 +1,16 @@
-
-
 import pytest
 
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.interfaces import BlockchainDeployerInterface
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.constants import (
-    SOLIDITY_SOURCE_ROOT,
-    TEST_MULTIVERSION_CONTRACTS,
-)
-from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
-    INSECURE_DEVELOPMENT_PASSWORD,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
 )
-
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
-from tests.utils.blockchain import free_gas_price_strategy
 
 
 @pytest.fixture()
@@ -83,83 +70,8 @@ def test_testerchain_creation(testerchain, another_testerchain):
             _receipt = chain.wait_for_receipt(txhash)
 
 
-def test_multiversion_contract():
-
-    # Prepare compiler
-    base_dir = TEST_MULTIVERSION_CONTRACTS
-    v1_dir, v2_dir = base_dir / 'v1', base_dir / 'v2'
-    bundles = [
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT, other_paths=(v1_dir,)),
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT, other_paths=(v2_dir,))
-    ]
-    compiled_contracts = multiversion_compile(source_bundles=bundles)
-
-    # Prepare chain
-    BlockchainDeployerInterface.GAS_STRATEGIES = {**BlockchainDeployerInterface.GAS_STRATEGIES,
-                                                  'free': free_gas_price_strategy}
-
-    blockchain_interface = BlockchainDeployerInterface(eth_provider_uri='tester://pyevm/2', gas_strategy='free')
-    blockchain_interface.connect(compile_now=False)
-    blockchain_interface._raw_contract_cache = compiled_contracts
-
-    origin = blockchain_interface.client.accounts[0]
-    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                         signer=Web3Signer(blockchain_interface.client),
-                                         account=origin)
-
-    # Searching both contract through raw data
-    contract_name = "VersionTest"
-    requested_version = "v1.2.3"
-    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
-                                                                 requested_version=requested_version)
-    assert version == requested_version
-    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
-                                                                 requested_version="latest")
-    assert version == requested_version
-
-    requested_version = "v1.1.4"
-    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
-                                                                 requested_version=requested_version)
-    assert version == requested_version
-    version, _data = blockchain_interface.find_raw_contract_data(contract_name=contract_name,
-                                                                 requested_version="earliest")
-    assert version == requested_version
-
-    # Deploy different contracts and check their versions
-    registry = InMemoryContractRegistry()
-    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
-                                                             registry=registry,
-                                                             contract_name=contract_name,
-                                                             contract_version="v1.1.4")
-    assert contract.version == "v1.1.4"
-    assert contract.functions.VERSION().call() == 1
-    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
-                                                             registry=registry,
-                                                             contract_name=contract_name,
-                                                             contract_version="earliest")
-    assert contract.version == "v1.1.4"
-    assert contract.functions.VERSION().call() == 1
-
-    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
-                                                             registry=registry,
-                                                             contract_name=contract_name,
-                                                             contract_version="v1.2.3")
-    assert contract.version == "v1.2.3"
-    assert contract.functions.VERSION().call() == 2
-    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
-                                                             registry=registry,
-                                                             contract_name=contract_name,
-                                                             contract_version="latest")
-    assert contract.version == "v1.2.3"
-    assert contract.functions.VERSION().call() == 2
-    contract, receipt = blockchain_interface.deploy_contract(transacting_power=transacting_power,
-                                                             registry=registry,
-                                                             contract_name=contract_name)
-    assert contract.version == "v1.2.3"
-    assert contract.functions.VERSION().call() == 2
-
-
 # TODO: Move to integrations tests
+@pytest.mark.skip("This test need to be refactored to use some other transaction")
 def test_block_confirmations(testerchain, test_registry, mocker):
     origin = testerchain.etherbase_account
     transacting_power = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))

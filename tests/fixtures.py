@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import contextlib
 import json
 import os
@@ -7,7 +9,7 @@ import tempfile
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Dict, Any
 
 import maya
 import pytest
@@ -28,11 +30,7 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PREApplicationAgent,
 )
-from nucypher.blockchain.eth.deployers import (
-    NucypherTokenDeployer,
-    PREApplicationDeployer,
-    SubscriptionManagerDeployer, CoordinatorDeployer,
-)
+
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
@@ -353,76 +351,92 @@ def application_economics():
     return economics
 
 
-@pytest.fixture(scope='module')
-def test_registry():
-    registry = InMemoryContractRegistry()
-    return registry
+def process_deployment_params(contract_name, params, deployments) -> Dict[str, Any]:
+    processed_params = dict()
+    for k, v in params.items():
+        if isinstance(v, str) and (v.startswith("::") and v.endswith("::")):
+            try:
+                dependency_name = v.strip("::")
+                v = deployments[dependency_name].address
+            except KeyError:
+                raise ValueError(f"Contract {contract_name} not found in deployments")
+        processed_params[k] = v
+    return processed_params
 
 
-def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
-    """
-    https://github.com/ethereum/eth-tester     # available-backends
-    """
-    # Monkey patch to prevent gas adjustment
-    import eth
-    eth._utils.headers.GAS_LIMIT_MINIMUM = TEST_GAS_LIMIT
-    eth._utils.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
-    eth.vm.forks.london.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
-
-    # Monkey patch to prevent gas estimates
-    def _get_buffered_gas_estimate(web3, transaction, gas_buffer=100000):
-        return TEST_GAS_LIMIT
-
-    import web3
-    web3.eth.get_buffered_gas_estimate = _get_buffered_gas_estimate
-
-    # Create the blockchain
-    if mock_backend:
-        testerchain = MockBlockchain()
+def get_deployment_params(contract_name, config, deployments) -> dict:
+    config = deepcopy(config)
+    while config:
+        params = config.pop()
+        name = params.pop("contract_type")
+        if name == contract_name:
+            params = process_deployment_params(contract_name, params, deployments)
+            return params
     else:
-        testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
-
-    return testerchain
+        # there are no deployment params for this contract
+        return dict()
 
 
 @pytest.fixture(scope='session')
-def _testerchain() -> TesterBlockchain:
-    testerchain = _make_testerchain()
-    yield testerchain
+def nucypher_contracts(project):
+    nucypher_contracts = project.dependencies["nucypher-contracts"]['local']
+    return nucypher_contracts
+
+
+@pytest.fixture(scope='session', autouse=True)
+def deploy_contracts(nucypher_contracts, accounts):
+    from ape import config as ape_config
+
+    contracts = (
+        'NuCypherToken',
+        'ThresholdStakingForPREApplicationMock',
+        'SimplePREApplication',
+        'SubscriptionManager',
+        'Coordinator',
+    )
+    config = ape_config.get_config("deployments")["ethereum"]["local"]
+    deployer_account = accounts[0]
+    nucypher_contracts.compile()
+
+    deployments = dict()
+    for name in contracts:
+        params = get_deployment_params(name, deployments=deployments, config=config)
+
+        dependency_contract = getattr(nucypher_contracts, name)
+        deployed_contract = deployer_account.deploy(dependency_contract, *params.values())
+        deployments[name] = deployed_contract
+
+    return deployments
+
+
+@pytest.fixture(scope='session')
+def test_registry(project, deploy_contracts):
+    build_path = Path(project.path) / '.build'
+    registry = InMemoryContractRegistry.from_ape_deployments(
+        build_path=build_path,
+        deployments=deploy_contracts
+    )
+    return registry
 
 
 @pytest.fixture(scope='module')
-def testerchain(_testerchain) -> TesterBlockchain:
-    testerchain = _testerchain
-
-    # Reset chain state
-    pyevm_backend = testerchain.provider.ethereum_tester.backend
-    snapshot = pyevm_backend.chain.get_canonical_block_by_number(0).hash
-    pyevm_backend.revert_to_snapshot(snapshot)
-
-    coinbase, *addresses = testerchain.client.accounts
-
-    for address in addresses:
-        balance = testerchain.client.get_balance(address)
-        spent = DEVELOPMENT_ETH_AIRDROP_AMOUNT - balance
-
-        if spent > 0:
-            tx = {'to': address, 'from': coinbase, 'value': spent}
-            txhash = testerchain.w3.eth.send_transaction(tx)
-
-            _receipt = testerchain.wait_for_receipt(txhash)
-            eth_amount = Web3().from_wei(spent, 'ether')
-            testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
-
-    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
+def _testerchain(project) -> TesterBlockchain:
+    testerchain = TesterBlockchain(eth_provider=project.chain_manager.provider.web3.provider)
     yield testerchain
 
 
 @pytest.fixture(scope='module')
 def _mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
-    testerchain = _make_testerchain(mock_backend=True)
+    testerchain = MockBlockchain()
     BlockchainInterfaceFactory.register_interface(interface=testerchain)
+    yield testerchain
+
+
+@pytest.fixture(scope='module')
+def testerchain(_testerchain) -> TesterBlockchain:
+    testerchain = _testerchain
+    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
     yield testerchain
 
 
@@ -435,25 +449,6 @@ def deployer_transacting_power(testerchain):
     return transacting_power
 
 
-def _make_agency(test_registry, token_economics, deployer_transacting_power, threshold_staking):
-    transacting_power = deployer_transacting_power
-
-    token_deployer = NucypherTokenDeployer(economics=token_economics, registry=test_registry)
-    token_deployer.deploy(transacting_power=transacting_power)
-
-    pre_application_deployer = PREApplicationDeployer(economics=token_economics,
-                                                      registry=test_registry,
-                                                      staking_interface=threshold_staking.address)
-    pre_application_deployer.deploy(transacting_power=transacting_power)
-
-    subscription_manager_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
-    subscription_manager_deployer.deploy(transacting_power=transacting_power)
-
-    coordinator_deployer = CoordinatorDeployer(economics=token_economics, registry=test_registry)
-    coordinator_deployer.deploy(transacting_power=transacting_power,
-                                _application=pre_application_deployer.contract_address)
-
-
 @pytest.fixture(scope='module')
 def test_registry_source_manager(test_registry):
     with mock_registry_source_manager(test_registry=test_registry):
@@ -461,19 +456,7 @@ def test_registry_source_manager(test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(test_registry,
-           application_economics,
-           test_registry_source_manager,
-           deployer_transacting_power,
-           threshold_staking):
-    _make_agency(test_registry=test_registry,
-                 token_economics=application_economics,
-                 deployer_transacting_power=deployer_transacting_power,
-                 threshold_staking=threshold_staking)
-
-
-@pytest.fixture(scope='module')
-def agency_local_registry(testerchain, agency, test_registry):
+def agency_local_registry(testerchain, test_registry):
     registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
     registry.write(test_registry.read())
     yield registry
@@ -482,13 +465,18 @@ def agency_local_registry(testerchain, agency, test_registry):
 
 
 @pytest.fixture(scope='module')
-def threshold_staking(deploy_contract):
-    threshold_staking, _ = deploy_contract('ThresholdStakingForPREApplicationMock')
-    yield threshold_staking
+def threshold_staking(testerchain, test_registry):
+    result = test_registry.search(contract_name="ThresholdStakingForPREApplicationMock")[0]
+    threshold_staking = testerchain.w3.eth.contract(
+        address=result[2],
+        abi=result[3]
+    )
+    return threshold_staking
+
 
 
 @pytest.fixture(scope="module")
-def staking_providers(testerchain, agency, test_registry, threshold_staking):
+def staking_providers(testerchain, test_registry, threshold_staking):
     pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     blockchain = pre_application_agent.blockchain
 
@@ -602,7 +590,7 @@ def policy_value(application_economics, policy_rate):
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, agency, application_economics, test_registry):
+def funded_blockchain(testerchain, application_economics, test_registry):
     # Who are ya'?
     deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
 
@@ -653,19 +641,6 @@ def log_in_and_out_of_test(request):
     test_logger.info(f"Starting {module_name}.py::{test_name}")
     yield
     test_logger.info(f"Finalized {module_name}.py::{test_name}")
-
-
-@pytest.fixture(scope="module")
-def deploy_contract(testerchain, test_registry) -> Callable[..., Tuple[Contract, TxReceipt]]:
-    def wrapped(contract_name, *args, **kwargs):
-        tpower = TransactingPower(account=testerchain.etherbase_account,
-                                  signer=Web3Signer(testerchain.client))
-        return testerchain.deploy_contract(tpower,
-                                           test_registry,
-                                           contract_name,
-                                           *args,
-                                           **kwargs)
-    return wrapped
 
 
 @pytest.fixture(scope='module')
