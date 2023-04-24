@@ -194,7 +194,7 @@ class EventScanner:
 
         end_block = self.get_last_scanned_block()
         if end_block:
-            return max(1, end_block - self.NUM_BLOCKS_RESCAN_FOR_FORKS)
+            return max(1, end_block - 10)
         return 1
 
     def get_suggested_scan_end_block(self):
@@ -321,7 +321,8 @@ class EventScanner:
         :return: [All processed events, number of chunks used]
         """
 
-        assert start_block <= end_block
+        if start_block > end_block:
+            start_block = end_block - 1
 
         current_block = start_block
 

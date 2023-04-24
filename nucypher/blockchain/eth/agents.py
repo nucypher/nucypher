@@ -591,7 +591,7 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_ritual(self, ritual_id: int, with_participants: bool = True) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
-        if result[0] != 0:
+        if result[0] != ritual_id:
             raise RuntimeError(f"Ritual {ritual_id} not found")
         ritual = self.Ritual(
             id=result[0],

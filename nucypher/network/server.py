@@ -157,7 +157,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             context = json.loads(str(decryption_request.context)) or dict()  # nucypher_core.Context -> str -> dict
 
         # evaluate the conditions for this ciphertext
-        error = evaluate_condition_lingo(lingo, context)
+        error = evaluate_condition_lingo(
+            lingo=lingo,
+            context=context,
+            providers=this_node.condition_providers,
+        )
         if error:
             return Response(error.message, status=error.status_code)
 

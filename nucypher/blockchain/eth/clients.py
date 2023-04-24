@@ -316,7 +316,7 @@ class EthereumClient:
         )
 
         preliminary_block_hash = Web3.to_hex(receipt['blockHash'])
-        tx_block_number = Web3.toInt(receipt['blockNumber'])
+        tx_block_number = Web3.to_int(receipt['blockNumber'])
         self.log.info(f"Transaction {Web3.to_hex(transaction_hash)} is preliminarily included in "
                       f"block {preliminary_block_hash}")
 
