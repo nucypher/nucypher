@@ -88,9 +88,15 @@ class MockCoordinatorAgent(MockContractAgent):
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
-        ritual.participants[node_index].aggregated_transcript = aggregated_transcript
-        ritual.participants[node_index].aggregated_transcript_hash = keccak(aggregated_transcript)
+        # if not ritual.aggregated_transcript:
+        ritual.aggregated_transcript = aggregated_transcript
         ritual.public_key = public_key
+        # TODO: Sync with the real implementation
+        # else:
+        #     if ritual.aggregated_transcript != aggregated_transcript:
+        #         ritual.aggregation_mismatch = True
+        #     elif ritual.public_key != public_key:
+        #         ritual.aggregation_mismatch = True
         ritual.total_aggregations += 1
         return self.blockchain.FAKE_RECEIPT
 

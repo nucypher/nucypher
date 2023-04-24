@@ -546,7 +546,7 @@ class Bob(Character):
             self.block_until_specific_nodes_are_known(
                 addresses=validators,
                 timeout=timeout,
-                allow_missing=ritual.shares // 2  # TODO: This is a hack.
+                allow_missing=0,
             )
 
         cohort = list()

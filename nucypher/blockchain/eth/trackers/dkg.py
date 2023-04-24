@@ -36,7 +36,7 @@ class EventActuator(EventScanner):
 class EventScannerTask(SimpleTask):
     """Task that runs the event scanner in a looping call."""
 
-    INTERVAL = 10 # seconds
+    INTERVAL = 20  # seconds
 
     def __init__(self, scanner: Callable, *args, **kwargs):
         self.scanner = scanner
@@ -47,7 +47,9 @@ class EventScannerTask(SimpleTask):
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
-        raise args[0]
+        if not self._task.running:
+            self.log.warn("Restarting event scanner task!")
+            self.start(now=True)
 
 
 class ActiveRitualTracker:

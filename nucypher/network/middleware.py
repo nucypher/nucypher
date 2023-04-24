@@ -267,7 +267,7 @@ class RestMiddleware:
             node_or_sprout=ursula,
             path=f"decrypt",
             data=decryption_request_bytes,
-            timeout=2
+            timeout=8
         )
         return response
 

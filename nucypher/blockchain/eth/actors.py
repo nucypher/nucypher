@@ -347,6 +347,10 @@ class Operator(BaseActor):
             eth_chain = self.application_agent.blockchain
             polygon_chain = payment_method.agent.blockchain
 
+            # TODO: This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
+            #       that has a different provider than the one passed to the constructor.  This is a temporary fix.
+            polygon_chain.client.w3 = Web3(polygon_chain.provider)
+
             # TODO: Verify consistency between network names and provider connection?
             # TODO: Allow bypassing of the enforcement above ^
             # TODO: Is chain ID stable and completely reliable?
@@ -495,6 +499,7 @@ class Ritualist(BaseActor):
                     remote_ritualist = self.known_nodes[staking_provider_address]
                 except KeyError:
                     raise self.ActorError(f"Unknown node {staking_provider_address}")
+                remote_ritualist.mature()
                 public_key = remote_ritualist.public_keys(RitualisticPower)
                 self.log.debug(f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}")
                 external_validator = ExternalValidator(address=staking_provider_address, public_key=public_key)
