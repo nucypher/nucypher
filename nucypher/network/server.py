@@ -106,7 +106,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
 
-        metadata_request = MetadataRequest.from_bytes(request.data)
+        try:
+            metadata_request = MetadataRequest.from_bytes(request.data)
+        except ValueError as e:
+            # this line is hit when the MetadataRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
         # If these nodes already have the same fleet state, no exchange is necessary.
 

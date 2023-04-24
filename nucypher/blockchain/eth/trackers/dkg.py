@@ -133,7 +133,7 @@ class ActiveRitualTracker:
         while expected_start_block.number > 0 and expected_start_block.timestamp > target_timestamp:
             expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
 
-        return expected_start_block.number
+        return int(expected_start_block.number - 1)
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""

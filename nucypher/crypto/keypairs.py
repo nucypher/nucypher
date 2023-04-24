@@ -1,3 +1,4 @@
+import ferveo_py
 import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -101,19 +102,17 @@ class DecryptingKeypair(Keypair):
 class RitualisticKeypair(Keypair):
     """A keypair for Ferveo"""
 
-    class FerveoKey:
-        """A Keypair wrapper/shim for Ferveo to expose the public key as a callable"""
-        def __init__(self):
-            self.keypair = FerveoKeypair.random()
-
-        def public_key(self):
-            return self.keypair.public_key
-
-    _private_key_source = FerveoKey
+    _private_key_source = ferveo_py.Keypair.random
     _public_key_method = "public_key"
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    @classmethod
+    def from_secure_randomness(cls, randomness: bytes) -> 'RitualisticKeypair':
+        """Create a keypair from a precomputed secure source of randomness"""
+        size = FerveoKeypair.secure_randomness_size()
+        if len(randomness) != size:
+            raise ValueError(f"precomputed randomness must be {size} bytes long")
+        keypair = FerveoKeypair.from_secure_randomness(randomness)
+        return cls(private_key=keypair)
 
 
 class SigningKeypair(Keypair):
