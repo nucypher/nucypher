@@ -108,6 +108,9 @@ class RitualisticKeypair(Keypair):
     @classmethod
     def from_secure_randomness(cls, randomness: bytes) -> 'RitualisticKeypair':
         """Create a keypair from a precomputed secure source of randomness"""
+        size = FerveoKeypair.secure_randomness_size()
+        if len(randomness) != size:
+            raise ValueError(f"precomputed randomness must be {size} bytes long")
         keypair = FerveoKeypair.from_secure_randomness(randomness)
         return cls(private_key=keypair)
 
