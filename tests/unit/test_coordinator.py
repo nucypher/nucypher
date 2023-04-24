@@ -52,9 +52,10 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
 
     timestamp, signal = list(coordinator.EVENTS.items())[0]
     signal_type, signal_data = signal
-    assert signal_type == MockCoordinatorAgent.Events.START_TRANSCRIPT_ROUND
-    assert signal_data['ritual_id'] == 0
-    assert set(signal_data['nodes']) == nodes_transacting_powers.keys()
+    assert signal_type == MockCoordinatorAgent.Events.START_RITUAL
+    assert signal_data["ritual_id"] == 0
+    assert signal_data["initiator"] == mock_transacting_power.account
+    assert set(signal_data["nodes"]) == nodes_transacting_powers.keys()
 
 
 def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
@@ -96,7 +97,8 @@ def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
 
     aggregated_transcript = os.urandom(len(FAKE_TRANSCRIPT))
     aggregated_transcript_hash = keccak(aggregated_transcript)
-    public_key = FerveoKeypair.random().public_key
+    public_key = FerveoKeypair.random().public_key()
+    public_key_hash = keccak(bytes(public_key))
 
     for index, node_address in enumerate(nodes_transacting_powers):
         coordinator.post_aggregation(
@@ -109,14 +111,14 @@ def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
         if index == len(nodes_transacting_powers) - 1:
             assert len(coordinator.EVENTS) == 2
 
+    assert ritual.aggregated_transcript == aggregated_transcript
+    assert ritual.aggregated_transcript_hash == aggregated_transcript_hash
+    assert ritual.public_key == public_key
+    assert ritual.public_key_hash == public_key_hash
     for p in ritual.participants:
-        assert p.aggregated_transcript != FAKE_TRANSCRIPT
+        # unchanged
+        assert p.transcript == FAKE_TRANSCRIPT
+        assert p.transcript != aggregated_transcript
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
-    for p in ritual.participants:
-        assert p.transcript == FAKE_TRANSCRIPT
-        assert p.aggregated_transcript != FAKE_TRANSCRIPT
-        assert p.aggregated_transcript == aggregated_transcript
-        assert p.aggregated_transcript_hash == aggregated_transcript_hash
-
     assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.FINALIZED

@@ -54,9 +54,11 @@ def test_initiate_ritual(agent: CoordinatorAgent, deploy_contract, cohort, trans
     return ritual_id
 
 
-def test_perform_round_1(ursula):
+def test_perform_round_1(ursula, random_address, cohort):
     ursula.ritual_tracker.refresh(fetch_rituals=[0])
-    ursula.perform_round_1(ritual_id=0, timestamp=0)
+    ursula.perform_round_1(
+        ritual_id=0, initiator=random_address, nodes=cohort, timestamp=0
+    )
 
 
 def test_perform_round_2(ursula, cohort, transacting_power, agent, mocker):

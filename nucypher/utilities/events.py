@@ -194,7 +194,7 @@ class EventScanner:
 
         end_block = self.get_last_scanned_block()
         if end_block:
-            return max(1, end_block - self.NUM_BLOCKS_RESCAN_FOR_FORKS)
+            return max(1, end_block - 10)
         return 1
 
     def get_suggested_scan_end_block(self):
@@ -321,7 +321,8 @@ class EventScanner:
         :return: [All processed events, number of chunks used]
         """
 
-        assert start_block <= end_block
+        if start_block > end_block:
+            start_block = end_block - 1
 
         current_block = start_block
 
@@ -451,7 +452,6 @@ def _fetch_events_for_all_contracts(
 
     # Call JSON-RPC API on your Ethereum node.
     # get_logs() returns raw AttributedDict entries
-    # TODO: Use newer version of web3.py and change to get_logs()
     logs = web3.eth.get_logs(event_filter_params)
 
     # Convert raw binary data to Python proxy objects as described by ABI

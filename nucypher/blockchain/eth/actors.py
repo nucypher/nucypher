@@ -343,13 +343,16 @@ class Operator(BaseActor):
             self.work_tracker = work_tracker or WorkTracker(worker=self)
 
             # Multi-provider support
-            # TODO: Abstract away payment provider
+            # TODO: Abstract away payment provider  #3004
             eth_chain = self.application_agent.blockchain
             polygon_chain = payment_method.agent.blockchain
 
+            # TODO: #3094 This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
+            #       that has a different provider than the one passed to the constructor.  This is a temporary fix.
+            polygon_chain.client.w3 = Web3(polygon_chain.provider)
+
             # TODO: Verify consistency between network names and provider connection?
-            # TODO: Allow bypassing of the enforcement above ^
-            # TODO: Is chain ID stable and completely reliable?
+            # TODO: #3094 Is chain ID stable and completely reliable?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
                 polygon_chain.client.chain_id: polygon_chain.provider
@@ -450,13 +453,11 @@ class Ritualist(BaseActor):
         self.ritual_tracker = ActiveRitualTracker(
             ritualist=self,
             eth_provider=self.coordinator_agent.blockchain.provider,
-            contract=self.coordinator_agent.contract,
-            # TODO: use a start block that corresponds to the ritual timeout or something
-            # start_block=self.coordinator_agent.contract.functions.getRitualStartBlock().call()
+            contract=self.coordinator_agent.contract
         )
 
         self.publish_finalization = publish_finalization  # publish the DKG final key if True
-        self.dkg_storage = DKGStorage()  # stores locally generated public DKG artifacts
+        self.dkg_storage = DKGStorage()  # TODO: #3052 stores locally generated public DKG artifacts
         self.ritual_power = crypto_power.power_ups(RitualisticPower)  # ferveo material contained within
 
     def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
@@ -495,6 +496,7 @@ class Ritualist(BaseActor):
                     remote_ritualist = self.known_nodes[staking_provider_address]
                 except KeyError:
                     raise self.ActorError(f"Unknown node {staking_provider_address}")
+                remote_ritualist.mature()
                 public_key = remote_ritualist.public_keys(RitualisticPower)
                 self.log.debug(f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}")
                 external_validator = ExternalValidator(address=staking_provider_address, public_key=public_key)
@@ -534,8 +536,23 @@ class Ritualist(BaseActor):
         )
         return receipt
 
-    def perform_round_1(self, ritual_id: int, timestamp: int):
+    def perform_round_1(
+        self,
+        ritual_id: int,
+        initiator: ChecksumAddress,
+        nodes: List[ChecksumAddress],
+        timestamp: int,
+    ):
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
+
+        if self.checksum_address not in nodes:
+            # should never get here
+            self.log.error(
+                f"Not part of ritual {ritual_id}; no need to submit transcripts"
+            )
+            raise self.RitualError(
+                f"Not part of ritual {ritual_id}; don't post transcript"
+            )
 
         # get the ritual and check its status from the blockchain
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
@@ -543,7 +560,7 @@ class Ritualist(BaseActor):
 
         # validate the status
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
-            raise self.ActorError(
+            raise self.RitualError(
                 f"ritual #{ritual.id} is not waiting for transcripts; status={status}."
             )
 
@@ -565,15 +582,15 @@ class Ritualist(BaseActor):
         try:
             transcript = self.ritual_power.generate_transcript(
                 nodes=nodes,
-                threshold=(ritual.shares // 2) + 1,  # TODO: This is a constant or needs to be stored somewhere else
+                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id
             )
         except Exception as e:
-            # TODO: Handle this better
+            # TODO: Handle this better #3096
             self.log.debug(f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}")
-            raise self.ActorError(f"Failed to generate a transcript: {str(e)}")
+            raise self.RitualError(f"Failed to generate a transcript: {str(e)}")
 
         # store the transcript in the local cache
         self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)
@@ -591,7 +608,13 @@ class Ritualist(BaseActor):
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
         # Get the ritual and check the status from the blockchain
-        ritual = self.coordinator_agent.get_ritual(ritual_id)
+        # TODO Optimize local cache of ritual participants (#3052)
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        if self.checksum_address not in [p.node for p in ritual.participants]:
+            raise self.RitualError(
+                f"Node is not part of {ritual.id}; no need to submit aggregated transcript"
+            )
+
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
@@ -611,7 +634,7 @@ class Ritualist(BaseActor):
         # Aggregate the transcripts
         try:
             result = self.ritual_power.aggregate_transcripts(
-                threshold=(ritual.shares // 2) + 1,  # TODO: This is a constant or needs to be stored somewhere else
+                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id,
@@ -654,7 +677,7 @@ class Ritualist(BaseActor):
         conditions: ConditionLingo,
         variant: FerveoVariant
     ) -> DecryptionShareSimple:
-        ritual = self.get_ritual(ritual_id)
+        ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:
             raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
@@ -667,8 +690,9 @@ class Ritualist(BaseActor):
 
         threshold = (ritual.shares // 2) + 1
         conditions = str(conditions).encode()
-        aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
-        aggregated_transcript = AggregatedTranscript.from_bytes(aggregated_transcript_bytes)
+        # TODO: consider the usage of local DKG artifact storage here #3052
+        # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
+        aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=nodes,
             threshold=threshold,

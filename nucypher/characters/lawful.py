@@ -546,7 +546,7 @@ class Bob(Character):
             self.block_until_specific_nodes_are_known(
                 addresses=validators,
                 timeout=timeout,
-                allow_missing=ritual.shares // 2  # TODO: This is a hack.
+                allow_missing=0,
             )
 
         cohort = list()
@@ -582,8 +582,8 @@ class Bob(Character):
 
             try:
                 response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
-            except NodeSeemsToBeDown:
-                self.log.warn(f"Node {ursula} is unreachable. Skipping...")
+            except NodeSeemsToBeDown as e:
+                self.log.warn(f"Node {ursula} is unreachable. {e}")
                 continue
             if response.status_code != 200:
                 self.log.warn(f"Node {ursula} returned {response.status_code}.")
@@ -618,7 +618,7 @@ class Bob(Character):
                           params: Optional[DkgPublicParameters] = None,
                           ursulas: Optional[List['Ursula']] = None,
                           variant: str = 'simple',
-                          timeout: int = 600,  # TODO: coordinate with the timeout in the policy/ritual
+                          peering_timeout: int = 60,
                           ) -> bytes:
 
         # blockchain reads: get the DKG parameters and the cohort.
@@ -629,14 +629,18 @@ class Bob(Character):
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
             # This is a blocking operation and the ursulas must be part of the cohort.
             # if the timeout is 0, peering will be skipped in favor if already cached peers.
-            ursulas = self.resolve_cohort(ritual=ritual, timeout=timeout)
-
+            ursulas = self.resolve_cohort(ritual=ritual, timeout=peering_timeout)
+        else:
+            for ursula in ursulas:
+                if ursula.staking_provider_address not in ritual.participants:
+                    raise ValueError(f"{ursula} is not part of the cohort")
+                self.remember_node(ursula)
         try:
             variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
         except AttributeError:
             raise ValueError(f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}")
 
-        threshold = (ritual.shares // 2) + 1  # TODO: get this from the policy
+        threshold = (ritual.shares // 2) + 1  # TODO: #3095 get this from the ritual / put it on-chain?
         shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
@@ -679,7 +683,7 @@ class Bob(Character):
         data = list(zip(validators, transcripts))
         pvss_aggregated, final_key, params = aggregate_transcripts(
             ritual_id=ritual_id,
-            me=validators[0],  # TODO: this is awkward, but we need to pass "me" here to derive_generator_inverse
+            me=validators[0],  # TODO: #3097 this is awkward, but we need to pass "me" here to derive_generator_inverse
             threshold=threshold,
             shares=ritual.shares,
             transcripts=data
@@ -1050,18 +1054,21 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         operator_signature = self.operator_signature or (b"0" * 64 + b"\x00")
 
         operator_signature = RecoverableSignature.from_be_bytes(operator_signature)
-        payload = NodeMetadataPayload(staking_provider_address=Address(self.canonical_address),
-                                      domain=self.domain,
-                                      timestamp_epoch=timestamp.epoch,
-                                      operator_signature=operator_signature,
-                                      verifying_key=self.public_keys(SigningPower),
-                                      encrypting_key=self.public_keys(DecryptingPower),
-                                      ferveo_public_key=bytes(self.public_keys(RitualisticPower)),  # TODO: use type
-                                      certificate_der=self.certificate.public_bytes(Encoding.DER),
-                                      host=self.rest_interface.host,
-                                      port=self.rest_interface.port)
-        return NodeMetadata(signer=self.stamp.as_umbral_signer(),
-                            payload=payload)
+        payload = NodeMetadataPayload(
+            staking_provider_address=Address(self.canonical_address),
+            domain=self.domain,
+            timestamp_epoch=timestamp.epoch,
+            verifying_key=self.public_keys(SigningPower),
+            encrypting_key=self.public_keys(DecryptingPower),
+            ferveo_public_key=bytes(
+                self.public_keys(RitualisticPower)
+            ),  # TODO: use type
+            certificate_der=self.certificate.public_bytes(Encoding.DER),
+            host=self.rest_interface.host,
+            port=self.rest_interface.port,
+            operator_signature=operator_signature,
+        )
+        return NodeMetadata(signer=self.stamp.as_umbral_signer(), payload=payload)
 
     def metadata(self):
         if not self._metadata:

@@ -147,6 +147,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # Deserialize and instantiate ThresholdDecryptionRequest from the request data
         decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
 
+        log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
+
         # Deserialize and instantiate ConditionLingo from the request data
         conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
         lingo = ConditionLingo.from_list(json.loads(conditions_data))  # str -> list -> ConditionLingo
@@ -157,14 +159,20 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             context = json.loads(str(decryption_request.context)) or dict()  # nucypher_core.Context -> str -> dict
 
         # evaluate the conditions for this ciphertext
-        error = evaluate_condition_lingo(lingo, context)
+        error = evaluate_condition_lingo(
+            lingo=lingo,
+            context=context,
+            providers=this_node.condition_providers,
+        )
         if error:
             return Response(error.message, status=error.status_code)
 
-        # TODO: confirm this node is tracking the ritual and is an authorized recipient
+        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
         ritual = this_node.coordinator_agent.get_ritual(decryption_request.id, with_participants=True)
         participants = [p.node for p in ritual.participants]
+
+        # enforces that the node is part of the ritual
         if this_node.checksum_address not in participants:
             return Response(f'Node not part of ritual {decryption_request.id}', status=HTTPStatus.FORBIDDEN)
 
@@ -178,8 +186,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         )
 
         # return the decryption share
-        # TODO: encrypt the response with the requester's public key # 3079
-        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))  # TODO: Use native DecryptionShare type
+        # TODO: #3079 #3081 encrypt the response with the requester's public key
+        # TODO: #3098 nucypher-core#49 Use DecryptionShare type
+        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))
         return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
 
     @rest_app.route('/reencrypt', methods=["POST"])

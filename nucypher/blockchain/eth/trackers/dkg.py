@@ -36,7 +36,7 @@ class EventActuator(EventScanner):
 class EventScannerTask(SimpleTask):
     """Task that runs the event scanner in a looping call."""
 
-    INTERVAL = 10 # seconds
+    INTERVAL = 20  # seconds
 
     def __init__(self, scanner: Callable, *args, **kwargs):
         self.scanner = scanner
@@ -47,7 +47,9 @@ class EventScannerTask(SimpleTask):
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
-        raise args[0]
+        if not self._task.running:
+            self.log.warn("Restarting event scanner task!")
+            self.start(now=True)
 
 
 class ActiveRitualTracker:
@@ -80,7 +82,7 @@ class ActiveRitualTracker:
 
         # Map events to handlers
         self.actions = {
-            contract.events.StartTranscriptRound: self.ritualist.perform_round_1,
+            contract.events.StartRitual: self.ritualist.perform_round_1,
             contract.events.StartAggregationRound: self.ritualist.perform_round_2,
         }
         self.events = list(self.actions)
@@ -127,13 +129,25 @@ class ActiveRitualTracker:
         base_block = w3.eth.get_block(base_block_number)
         average_block_time = (latest_block.timestamp - base_block.timestamp) / num_past_blocks
 
-        expected_start_block = w3.eth.get_block(
-            (latest_block.timestamp - target_timestamp) // average_block_time
+        number_of_blocks_in_the_past = int(
+            (latest_block.timestamp - target_timestamp) / average_block_time
         )
-        while expected_start_block.number > 0 and expected_start_block.timestamp > target_timestamp:
+
+        expected_start_block = w3.eth.get_block(
+            latest_block.number - number_of_blocks_in_the_past
+        )
+        while (
+            expected_start_block.number > 0
+            and expected_start_block.timestamp > target_timestamp
+        ):
             expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
 
-        return int(expected_start_block.number - 1)
+        expected_start_block_number = 0
+        if expected_start_block.number > 0:
+            # if non-zero block found - return the block before
+            expected_start_block_number = int(expected_start_block.number - 1)
+
+        return expected_start_block_number
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
@@ -164,7 +178,9 @@ class ActiveRitualTracker:
     def __action_required(self, event_type: Type[ContractEvent], block_number: int, ritual_id: int):
         """Check if an action is required for a given event."""
         if (event_type, ritual_id) in self.active_tasks:
-            # self.log.debug(f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}")
+            self.log.debug(
+                f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}"
+            )
             return False
         return True
 
@@ -213,7 +229,7 @@ class ActiveRitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        # self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
+        self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:
