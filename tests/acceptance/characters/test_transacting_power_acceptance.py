@@ -12,7 +12,7 @@ from nucypher.crypto.utils import verify_eip_191
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 
 
-def test_character_transacting_power_signing(testerchain, agency, test_registry):
+def test_character_transacting_power_signing(testerchain, test_registry):
 
     # Pretend to be a character.
     eth_address = testerchain.etherbase_account

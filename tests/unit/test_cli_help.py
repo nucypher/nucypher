@@ -1,12 +1,7 @@
-
-
-
 import click
 import pytest
 
 import nucypher
-from nucypher.blockchain.eth.sol.__conf__ import SOLIDITY_COMPILER_VERSION
-from nucypher.cli.commands.deploy import deploy
 from nucypher.cli.main import ENTRY_POINTS, nucypher_cli
 from nucypher.config.constants import USER_LOG_DIR, DEFAULT_CONFIG_ROOT
 
@@ -51,20 +46,6 @@ def test_character_sub_command_help_messages(click_runner, entry_point_name, ent
             assert result.exit_code == 0
             assert f'{entry_point_name} {sub_command}' in result.output, \
                 f'Sub command {sub_command} has missing or invalid help text.'
-
-
-def test_nucypher_deploy_help_message(click_runner):
-    help_args = ('--help', )
-    result = click_runner.invoke(deploy, help_args, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert 'deploy [OPTIONS] COMMAND [ARGS]' in result.output, 'Missing or invalid help text was produced.'
-
-
-def test_echo_solidity_version(click_runner):
-    version_args = ('--solidity-version', )
-    result = click_runner.invoke(deploy, version_args, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert str(SOLIDITY_COMPILER_VERSION) in result.output, 'Solidity version text was not produced.'
 
 
 def test_echo_config_root(click_runner):

@@ -1,6 +1,3 @@
-
-
-
 import pytest
 from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
@@ -73,7 +70,7 @@ def test_transacting_power_sign_transaction(testerchain):
         power.sign_transaction(transaction_dict=transaction_dict)
 
 
-def test_transacting_power_sign_agent_transaction(testerchain, agency, test_registry):
+def test_transacting_power_sign_agent_transaction(testerchain, test_registry):
 
     agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     contract_function = agent.contract.functions.confirmOperatorAddress()

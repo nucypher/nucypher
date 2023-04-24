@@ -1,9 +1,6 @@
-
-
 import click
 
 from nucypher.cli.commands import (
-    status,
     ursula,
     bond
 )
@@ -26,7 +23,7 @@ def nucypher_cli():
 
 
 #
-# Character CLI Entry Points
+# CLI Entry Points
 #
 
 ENTRY_POINTS = (
@@ -39,7 +36,7 @@ ENTRY_POINTS = (
     bond.unbond,
 
     # Utility Commands
-    status.status,  # Network status explorer
+    # status.status,  # Network status explorer
 
 )
 

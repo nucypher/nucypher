@@ -1,7 +1,6 @@
-from pathlib import Path
-
 import pytest
 from eth_account.account import Account
+from pathlib import Path
 from typing import Iterable, Optional
 
 from nucypher.blockchain.economics import EconomicsFactory
@@ -13,7 +12,6 @@ from nucypher.blockchain.eth.agents import (
     StakingProvidersReservoir, CoordinatorAgent,
 )
 from nucypher.blockchain.eth.interfaces import (
-    BlockchainDeployerInterface,
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
@@ -119,10 +117,6 @@ def mock_interface(module_mocker):
     # Generic Interface
     mock_transaction_sender = module_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
     mock_transaction_sender.return_value = MockBlockchain.FAKE_RECEIPT
-
-    # Deployer Interface
-    mock = module_mocker.patch.object(BlockchainDeployerInterface, "deploy_contract")
-    mock.return_value = module_mocker.Mock(), MockBlockchain.FAKE_RECEIPT
     return mock_transaction_sender
 
 
@@ -235,7 +229,7 @@ def mock_transacting_power(module_mocker, monkeymodule):
     module_mocker.patch.object(TransactingPower, "unlock")
 
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(testerchain, agency, test_registry, threshold_staking, monkeymodule):
+def staking_providers(testerchain, test_registry, threshold_staking, monkeymodule):
 
     def faked(self, *args, **kwargs):
         return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]

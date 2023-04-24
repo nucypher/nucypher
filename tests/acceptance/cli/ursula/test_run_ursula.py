@@ -57,7 +57,7 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
 
 
 @pt.inlineCallbacks
-def test_run_lone_default_development_ursula(click_runner, test_registry_source_manager, testerchain, agency, mock_funding_and_bonding):
+def test_run_lone_default_development_ursula(click_runner, test_registry_source_manager, testerchain, mock_funding_and_bonding):
 
     deploy_port = select_test_port()
     args = ('ursula', 'run',  # Stat Ursula Command
@@ -89,7 +89,7 @@ def test_run_lone_default_development_ursula(click_runner, test_registry_source_
 @pt.inlineCallbacks
 @pytest.mark.skip(reason="This test is failing, possibly related to poor support for --dev?")
 def test_ursula_learns_via_cli(
-    click_runner, ursulas, testerchain, agency, mock_funding_and_bonding
+    click_runner, ursulas, testerchain, mock_funding_and_bonding
 ):
     # ERROR: requests.exceptions.ReadTimeout:
     # HTTPSConnectionPool(host='127.0.0.1', port=43043): Read timed out. (read timeout=2)

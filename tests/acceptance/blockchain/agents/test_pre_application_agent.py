@@ -1,14 +1,9 @@
-
-
 import os
-
 import pytest
-from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_checksum_address, is_address
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, PREApplicationAgent, ContractAgency
+from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.deployers import NucypherTokenDeployer, PREApplicationDeployer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import StakingProviderInfo
@@ -17,19 +12,19 @@ MIN_AUTHORIZATION = 1
 MIN_SECONDS = 1
 
 
-def test_get_min_authorization(agency, test_registry, application_economics):
+def test_get_min_authorization(test_registry, application_economics):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     result = application_agent.get_min_authorization()
     assert result == application_economics.min_authorization
 
 
-def test_get_min_seconds(agency, test_registry, application_economics):
+def test_get_min_seconds(test_registry, application_economics):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     result = application_agent.get_min_operator_seconds()
     assert result == application_economics.min_operator_seconds
 
 
-def test_authorized_tokens(testerchain, agency, application_economics, test_registry, staking_providers):
+def test_authorized_tokens(testerchain, application_economics, test_registry, staking_providers):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     provider_account = staking_providers[0]
     authorized_amount = application_agent.get_authorized_stake(staking_provider=provider_account)
@@ -37,7 +32,6 @@ def test_authorized_tokens(testerchain, agency, application_economics, test_regi
 
 
 def test_staking_providers_and_operators_relationships(testerchain,
-                                                       agency,
                                                        test_registry,
                                                        threshold_staking,
                                                        application_economics):
@@ -67,14 +61,14 @@ def test_staking_providers_and_operators_relationships(testerchain,
     assert NULL_ADDRESS == application_agent.get_staking_provider_from_operator(operator_address=random_address)
 
 
-def test_get_staker_population(agency, staking_providers, test_registry):
+def test_get_staker_population(staking_providers, test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 
     # Apart from all the providers in the fixture, we also added a new provider above
     assert application_agent.get_staking_providers_population() == len(staking_providers) + 1
 
 
-def test_get_swarm(agency, staking_providers, test_registry):
+def test_get_swarm(staking_providers, test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 
     swarm = application_agent.swarm()
@@ -88,7 +82,7 @@ def test_get_swarm(agency, staking_providers, test_registry):
 
 
 @pytest.mark.usefixtures("staking_providers")
-def test_sample_staking_providers(agency, test_registry):
+def test_sample_staking_providers(test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
 
     providers_population = application_agent.get_staking_providers_population()
@@ -112,7 +106,7 @@ def test_sample_staking_providers(agency, test_registry):
     application_agent.blockchain.is_light = light
 
 
-def test_get_staking_provider_info(agency, testerchain, test_registry):
+def test_get_staking_provider_info(testerchain, test_registry):
     application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
     info: StakingProviderInfo = application_agent.get_staking_provider_info(staking_provider=staking_provider_account)

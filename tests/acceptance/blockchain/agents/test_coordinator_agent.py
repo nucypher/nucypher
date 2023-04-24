@@ -9,7 +9,7 @@ from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain, test_registry, agency) -> CoordinatorAgent:
+def agent(testerchain, test_registry) -> CoordinatorAgent:
     coordinator_agent = ContractAgency.get_agent(
         CoordinatorAgent, registry=test_registry
     )
@@ -38,7 +38,7 @@ def cohort(testerchain, staking_providers):
 
 
 @pytest.fixture(scope='module')
-def ursula(cohort, agency, test_registry):
+def ursula(cohort, test_registry):
     staking_provider = cohort[0]
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent, registry=test_registry

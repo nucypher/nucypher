@@ -1,26 +1,19 @@
-
-
-
 import math
 import pprint
-from pathlib import Path
-from typing import Callable, NamedTuple, Tuple, Union, Optional
-from typing import List
-from urllib.parse import urlparse
-
 import requests
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
-    NO_COMPILATION_PERFORMED,
     UNKNOWN_TX_STATUS
 )
 from eth.typing import TransactionDict
 from eth_tester import EthereumTester
 from eth_tester.exceptions import TransactionFailed as TestTransactionFailed, ValidationError
-from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
+from pathlib import Path
+from typing import Callable, NamedTuple, Union, Optional
+from urllib.parse import urlparse
 from web3 import Web3, middleware, IPCProvider, WebsocketProvider, HTTPProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
@@ -39,13 +32,9 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.constants import SOLIDITY_SOURCE_ROOT
-from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.ethereum import encode_constructor_arguments
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
     construct_datafeed_median_strategy,
     max_price_gas_strategy_wrapper,
@@ -775,216 +764,7 @@ class BlockchainInterface:
         return version
 
 
-class BlockchainDeployerInterface(BlockchainInterface):
-
-    TIMEOUT = 600  # seconds
-    _CONTRACT_FACTORY = VersionedContract
-
-    # TODO: Make more func - use as a parameter
-    # Source directories to (recursively) compile
-    SOURCES: List[SourceBundle] = [
-        SourceBundle(base_path=SOLIDITY_SOURCE_ROOT),
-    ]
-
-    _raw_contract_cache = NO_COMPILATION_PERFORMED
-
-    class NoDeployerAddress(RuntimeError):
-        pass
-
-    class DeploymentFailed(RuntimeError):
-        pass
-
-    def connect(self, compile_now: bool = True, ignore_solidity_check: bool = False) -> bool:
-        super().connect()
-        if compile_now:
-            # Execute the compilation if we're recompiling
-            # Otherwise read compiled contract data from the registry.
-            check = not ignore_solidity_check
-            compiled_contracts = multiversion_compile(source_bundles=self.SOURCES, compiler_version_check=check)
-            self._raw_contract_cache = compiled_contracts
-        return self.is_connected
-
-    @validate_checksum_address
-    def deploy_contract(self,
-                        transacting_power: TransactingPower,
-                        registry: BaseContractRegistry,
-                        contract_name: str,
-                        *constructor_args,
-                        enroll: bool = True,
-                        gas_limit: int = None,
-                        confirmations: int = 0,
-                        contract_version: str = 'latest',
-                        **constructor_kwargs
-                        ) -> Tuple[VersionedContract, TxReceipt]:
-        """
-        Retrieve compiled interface data from the cache and
-        return an instantiated deployed contract
-        """
-
-        #
-        # Build the deployment transaction #
-        #
-
-        deploy_transaction = dict()
-        if gas_limit:
-            deploy_transaction.update({'gas': gas_limit})
-
-        pprint_args = ', '.join(list(map(str, constructor_args)) + list(f"{k}={v}" for k, v in constructor_kwargs.items()))
-
-        contract_factory = self.get_contract_factory(contract_name=contract_name, version=contract_version)
-        self.log.info(f"Deploying contract {contract_name}:{contract_factory.version} with "
-                      f"deployer address {transacting_power.account} "
-                      f"and parameters {pprint_args}")
-
-        constructor_function = contract_factory.constructor(*constructor_args, **constructor_kwargs)
-        constructor_calldata = encode_constructor_arguments(self.client.w3,
-                                                            constructor_function,
-                                                            *constructor_args,
-                                                            **constructor_kwargs)
-        if constructor_calldata:
-            self.log.info(f"Constructor calldata: {constructor_calldata}")
-
-        #
-        # Transmit the deployment tx #
-        #
-
-        receipt = self.send_transaction(contract_function=constructor_function,
-                                        transacting_power=transacting_power,
-                                        payload=deploy_transaction,
-                                        confirmations=confirmations)
-
-        # Success
-        address = receipt['contractAddress']
-        self.log.info(f"Confirmed {contract_name}:{contract_factory.version} deployment: new address {address}")
-
-        #
-        # Instantiate & Enroll contract
-        #
-
-        contract = self.client.w3.eth.contract(address=address,
-                                               abi=contract_factory.abi,
-                                               version=contract_factory.version,
-                                               ContractFactoryClass=self._CONTRACT_FACTORY)
-
-        if enroll is True:
-            registry.enroll(contract_name=contract_name,
-                            contract_address=contract.address,
-                            contract_abi=contract.abi,
-                            contract_version=contract.version)
-
-        return contract, receipt  # receipt
-
-    def find_raw_contract_data(self, contract_name: str, requested_version: str = 'latest') -> Tuple[str, dict]:
-        try:
-            contract_data = self._raw_contract_cache[contract_name]
-        except KeyError:
-            raise self.UnknownContract('{} is not a locally compiled contract.'.format(contract_name))
-        except TypeError:
-            if self._raw_contract_cache is NO_COMPILATION_PERFORMED:
-                message = "The local contract compiler cache is empty because no compilation was performed."
-                raise self.InterfaceError(message)
-            raise
-
-        try:
-            return requested_version, contract_data[requested_version]
-        except KeyError:
-            if requested_version != 'latest' and requested_version != 'earliest':
-                available = ', '.join(contract_data.keys())
-                raise self.UnknownContract(f'Version {contract_name} of contract {contract_name} is not a locally compiled. '
-                                           f'Available versions: {available}')
-
-        if len(contract_data.keys()) == 1:
-            return next(iter(contract_data.items()))
-
-        # Get the latest or the earliest versions
-        current_version_parsed = (-1, -1, -1)
-        current_version = None
-        current_data = None
-        for version, data in contract_data.items():
-            major, minor, patch = [int(v) for v in version[1:].split(".", 3)]
-            if current_version_parsed[0] == -1 or \
-               requested_version == 'latest' and (major, minor, patch) > current_version_parsed or \
-               requested_version == 'earliest' and (major, minor, patch) < current_version_parsed:
-                current_version_parsed = (major, minor, patch)
-                current_data = data
-                current_version = version
-        return current_version, current_data
-
-    def __get_contract_interface(self,
-                                 contract_name: str,
-                                 version: str = 'latest',
-                                 address: ChecksumAddress = None) -> VersionedContract:
-        """Retrieve compiled interface data from the cache and return web3 contract"""
-        version, interface = self.find_raw_contract_data(contract_name, version)
-        contract = self.client.w3.eth.contract(abi=interface['abi'],
-                                               bytecode=interface['evm']['bytecode']['object'],
-                                               version=version,
-                                               address=address,
-                                               ContractFactoryClass=self._CONTRACT_FACTORY)
-        return contract
-
-    def get_contract_instance(self,
-                              address: ChecksumAddress,
-                              contract_name: str,
-                              version: str = 'latest') -> VersionedContract:
-        """Retrieve compiled contract data from the cache and return web3 contract instantiated for some address"""
-        contract_instance = self.__get_contract_interface(address=address, contract_name=contract_name, version=version)
-        return contract_instance
-
-    def get_contract_factory(self, contract_name: str, version: str = 'latest') -> VersionedContract:
-        """Retrieve compiled contract data from the cache and return web3 contract factory"""
-        contract_factory = self.__get_contract_interface(contract_name=contract_name, version=version)
-        return contract_factory
-
-    def _wrap_contract(self,
-                       wrapper_contract: VersionedContract,
-                       target_contract: VersionedContract
-                       ) -> VersionedContract:
-        """
-        Used for upgradeable contracts; Returns a new contract object assembled
-        with its own address but the abi of the other.
-        """
-
-        # Wrap the contract
-        wrapped_contract = self.client.w3.eth.contract(abi=target_contract.abi,
-                                                       address=wrapper_contract.address,
-                                                       version=target_contract.version,
-                                                       ContractFactoryClass=self._CONTRACT_FACTORY)
-        return wrapped_contract
-
-    @validate_checksum_address
-    def get_proxy_contract(self,
-                           registry: BaseContractRegistry,
-                           target_address: str,
-                           proxy_name: str) -> VersionedContract:
-
-        # Lookup proxies; Search for a registered proxy that targets this contract record
-        records = registry.search(contract_name=proxy_name)
-
-        dispatchers = list()
-        for name, version, address, abi in records:
-            proxy_contract = self.client.w3.eth.contract(abi=abi,
-                                                         address=address,
-                                                         version=version,
-                                                         ContractFactoryClass=self._CONTRACT_FACTORY)
-
-            # Read this dispatchers target address from the blockchain
-            proxy_live_target_address = proxy_contract.functions.target().call()
-
-            if proxy_live_target_address == target_address:
-                dispatchers.append(proxy_contract)
-
-        if len(dispatchers) > 1:
-            message = f"Multiple Dispatcher deployments are targeting {target_address}"
-            raise self.InterfaceError(message)
-
-        try:
-            return dispatchers[0]
-        except IndexError:
-            raise self.UnknownContract(f"No registered Dispatcher deployments target {target_address}")
-
-
-Interfaces = Union[BlockchainInterface, BlockchainDeployerInterface]
+Interfaces = Union[BlockchainInterface]
 
 
 class BlockchainInterfaceFactory:

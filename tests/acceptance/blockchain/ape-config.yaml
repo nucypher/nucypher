@@ -1,0 +1,35 @@
+name: nucypher
+
+plugins:
+  - name: solidity
+
+dependencies:
+  - name: nucypher-contracts
+    local: /home/k/Git/nucypher-contracts/
+    contracts_folder: contracts
+  - name: openzeppelin
+    github: OpenZeppelin/openzeppelin-contracts
+    version: 4.8.1
+
+solidity:
+  version: 0.8.17
+  import_remapping:
+    - "@openzeppelin/contracts=openzeppelin/v4.8.1"
+
+deployments:
+  ethereum:
+    local:
+      - contract_type: NuCypherToken
+        nu_token_supply: 1_000_000_000
+      - contract_type: SimplePREApplication
+        threshold_staking: '::ThresholdStakingForPREApplicationMock::'
+        pre_min_authorization: 40000000000000000000000
+        pre_min_operator_seconds: 86400  # one day in seconds
+      - contract_type: Coordinator
+        ritual_timeout: 3600
+        max_dkg_size: 8
+        pre_application: '::SimplePREApplication::'
+
+test:
+  mnemonic: test test test test test test test test test test test junk
+  number_of_accounts: 30

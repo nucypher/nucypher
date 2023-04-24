@@ -13,7 +13,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_all_ursulas_know_about_all_other_ursulas(ursulas, agency, test_registry):
+def test_all_ursulas_know_about_all_other_ursulas(ursulas, test_registry):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """

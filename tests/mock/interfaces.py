@@ -71,8 +71,10 @@ class MockBlockchain(TesterBlockchain):
         "contractAddress": HexBytes(b"0xdeadbeef"),
     }
 
-    def __init__(self):
-        super().__init__(compile_now=False)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._mock_client = MockEthereumClient(w3=self.client.w3)
+        self.client = self._mock_client
 
     def wait_for_receipt(
         self, txhash: Union[bytes, str, HexBytes], timeout: int = None
@@ -84,8 +86,3 @@ class MockEthereumClient(EthereumClient):
 
     def __init__(self, w3):
         super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)
-
-    def connect(self, *args, **kwargs) -> bool:
-        if 'compile_now' in kwargs:
-            raise ValueError("Mock testerchain cannot handle solidity source compilation.")
-        return super().connect(compile_now=False, *args, **kwargs)

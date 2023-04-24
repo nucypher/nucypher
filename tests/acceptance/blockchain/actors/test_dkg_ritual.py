@@ -29,7 +29,7 @@ def cohort(ursulas):
 
 
 @pytest.fixture(scope='module')
-def coordinator_agent(testerchain, test_registry, agency):
+def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
     return ContractAgency.get_agent(CoordinatorAgent, registry=test_registry)
 

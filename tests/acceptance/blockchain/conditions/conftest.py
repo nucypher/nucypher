@@ -9,8 +9,6 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.sol.compile.compile import multiversion_compile
-from nucypher.blockchain.eth.sol.compile.types import SourceBundle
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
@@ -68,10 +66,6 @@ def erc20_evm_condition_balanceof(test_registry, agency):
 
 @pytest.fixture
 def erc721_contract(testerchain, test_registry):
-    solidity_root = Path(__file__).parent / "contracts"
-    source_bundle = SourceBundle(base_path=solidity_root)
-    compiled_contracts = multiversion_compile([source_bundle], True)
-    testerchain._raw_contract_cache = compiled_contracts
 
     origin, *everybody_else = testerchain.client.accounts
     transacting_power = TransactingPower(
@@ -157,7 +151,7 @@ def subscription_manager_is_active_policy_condition(test_registry, agency):
 
 @pytest.fixture
 def custom_context_variable_erc20_condition(
-    test_registry, agency, testerchain, mock_condition_blockchains
+    test_registry, testerchain, mock_condition_blockchains
 ):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(

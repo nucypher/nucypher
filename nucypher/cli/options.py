@@ -1,6 +1,3 @@
-
-
-
 import functools
 from collections import namedtuple
 from pathlib import Path
