@@ -147,6 +147,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # Deserialize and instantiate ThresholdDecryptionRequest from the request data
         decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
 
+        log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
+
         # Deserialize and instantiate ConditionLingo from the request data
         conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
         lingo = ConditionLingo.from_list(json.loads(conditions_data))  # str -> list -> ConditionLingo
@@ -183,7 +185,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # return the decryption share
         # TODO: encrypt the response with the requester's public key # 3079
-        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))  # TODO: Use native DecryptionShare type
+        # TODO: Use native DecryptionShare type
+        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))
         return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
 
     @rest_app.route('/reencrypt', methods=["POST"])
