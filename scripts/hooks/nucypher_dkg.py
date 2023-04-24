@@ -1,23 +1,6 @@
-"""
- This file is part of nucypher.
-
- nucypher is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
-
- nucypher is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU Affero General Public License for more details.
-
- You should have received a copy of the GNU Affero General Public License
- along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
-"""
-
 # Run nucypher dkg by running:
 #
-#    python scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> <RITUAL_ID> <NETWORK> <ACCOUNT_KEYSTORE_FILEPATH>
+#    python scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> <RITUAL_ID> <NETWORK> <SIGNER_URI>
 #
 # For example:
 #
@@ -25,9 +8,10 @@
 #    python ./scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> 0 lynx
 #
 # Go through entire process of initiating a ritual, waiting for it to finish, then use for encryption/decryption:
-#    python ./scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> -1 lynx <ACCOUNT_KEYSTORE_PATH>
+#    python ./scripts/hooks/nucypher_dkg.py <ETH_PROVIDER_URI> -1 lynx <SIGNER_URI>
 #
 
+import random
 import sys
 import time
 
@@ -81,15 +65,15 @@ except IndexError:
     ritual_id = None
 
 try:
-    account_keystore_filepath = sys.argv[4]
+    signer_uri = sys.argv[4]
 except IndexError:
     if ritual_id is None:
         emitter.message(
-            "You must provide an account keystore filepath if not reusing a ritual id",
+            "You must provide an account signer URI for new ritual transactions if not reusing a ritual id",
             color="red",
         )
         sys.exit(-1)
-    account_keystore_filepath = None
+    signer_uri = None
 
 try:
     network = sys.argv[3]
@@ -121,7 +105,6 @@ coordinator_agent = ContractAgency.get_agent(
     agent_class=CoordinatorAgent, registry=registry
 )  # type: CoordinatorAgent
 
-
 #
 # Initial Ritual
 #
@@ -129,9 +112,7 @@ coordinator_agent = ContractAgency.get_agent(
 if ritual_id is None:
     emitter.echo("--------- Initiating Ritual ---------")
     # create account from keystore file
-    signer = Signer.from_signer_uri(
-        uri=f"keystore://{account_keystore_filepath}"
-    )  # type: KeystoreSigner
+    signer = Signer.from_signer_uri(uri=signer_uri)
     account_address = signer.accounts[0]
     emitter.echo(f"Using account {account_address}", color="green")
 
@@ -152,10 +133,10 @@ if ritual_id is None:
     staking_providers.remove(
         "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
     )  # TODO why is this address active? It doesn't have a running node
-    # sort
-    staking_providers.sort()
 
-    dkg_staking_providers = staking_providers[:2]
+    # sample then sort
+    dkg_staking_providers = random.sample(staking_providers, 2)
+    dkg_staking_providers.sort()
     emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
     receipt = coordinator_agent.initiate_ritual(
         dkg_staking_providers, transacting_power
