@@ -222,7 +222,7 @@ class ActiveRitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        # self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
+        self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:

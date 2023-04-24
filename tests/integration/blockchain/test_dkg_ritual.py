@@ -139,7 +139,7 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
             ciphertext=ciphertext,
             conditions=CONDITIONS,
             params=params,
-            timeout=0,
+            peering_timeout=0,
             variant=variant
         )
         assert bytes(cleartext) == PLAINTEXT.encode()
@@ -149,7 +149,7 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
             ritual_id=ritual_id,
             ciphertext=ciphertext,
             conditions=CONDITIONS,
-            timeout=0,
+            peering_timeout=0,
             variant=variant
         )
         assert bytes(cleartext) == PLAINTEXT.encode()

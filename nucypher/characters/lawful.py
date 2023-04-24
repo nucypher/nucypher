@@ -582,8 +582,8 @@ class Bob(Character):
 
             try:
                 response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
-            except NodeSeemsToBeDown:
-                self.log.warn(f"Node {ursula} is unreachable. Skipping...")
+            except NodeSeemsToBeDown as e:
+                self.log.warn(f"Node {ursula} is unreachable. {e}")
                 continue
             if response.status_code != 200:
                 self.log.warn(f"Node {ursula} returned {response.status_code}.")
@@ -618,7 +618,7 @@ class Bob(Character):
                           params: Optional[DkgPublicParameters] = None,
                           ursulas: Optional[List['Ursula']] = None,
                           variant: str = 'simple',
-                          timeout: int = 600,  # TODO: coordinate with the timeout in the policy/ritual
+                          peering_timeout: int = 60,
                           ) -> bytes:
 
         # blockchain reads: get the DKG parameters and the cohort.
@@ -629,14 +629,18 @@ class Bob(Character):
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
             # This is a blocking operation and the ursulas must be part of the cohort.
             # if the timeout is 0, peering will be skipped in favor if already cached peers.
-            ursulas = self.resolve_cohort(ritual=ritual, timeout=timeout)
-
+            ursulas = self.resolve_cohort(ritual=ritual, timeout=peering_timeout)
+        else:
+            for ursula in ursulas:
+                if ursula.staking_provider_address not in ritual.participants:
+                    raise ValueError(f"{ursula} is not part of the cohort")
+                self.remember_node(ursula)
         try:
             variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
         except AttributeError:
             raise ValueError(f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}")
 
-        threshold = (ritual.shares // 2) + 1  # TODO: get this from the policy
+        threshold = (ritual.shares // 2) + 1  # TODO: get this from the ritual / put it on-chain?
         shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
