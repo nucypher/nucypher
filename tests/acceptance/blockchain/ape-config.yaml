@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    local: /home/k/Git/nucypher-contracts/
-    contracts_folder: contracts
+    github: nucypher/nucypher-contracts
+    ref: main
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.8.1

@@ -1,15 +1,14 @@
-from copy import deepcopy
-
 import contextlib
 import json
 import os
 import random
 import shutil
 import tempfile
+from copy import deepcopy
 from datetime import datetime, timedelta
 from functools import partial
 from pathlib import Path
-from typing import Callable, Tuple, Dict, Any
+from typing import Dict, Any
 
 import maya
 import pytest
@@ -18,8 +17,6 @@ from eth_account import Account
 from eth_utils import to_checksum_address
 from twisted.internet.task import Clock
 from web3 import Web3
-from web3.contract.contract import Contract
-from web3.types import TxReceipt
 
 import nucypher
 import tests
@@ -30,7 +27,6 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     PREApplicationAgent,
 )
-
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
@@ -70,7 +66,6 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
-    TEST_GAS_LIMIT,
     TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
@@ -379,7 +374,9 @@ def get_deployment_params(contract_name, config, deployments) -> dict:
 
 @pytest.fixture(scope='session')
 def nucypher_contracts(project):
-    nucypher_contracts = project.dependencies["nucypher-contracts"]['local']
+    nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
+    # simply use first entry - could be from github ('main') or local ('local')
+    _, nucypher_contracts = list(nucypher_contracts_dependency_api.items())[0]
     return nucypher_contracts
 
 
