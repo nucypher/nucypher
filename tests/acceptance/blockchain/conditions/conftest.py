@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 import nucypher
@@ -8,8 +6,6 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     SubscriptionManagerAgent,
 )
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
@@ -22,7 +18,6 @@ def condition_providers(testerchain):
     return providers
 
 
-@pytest.fixture(autouse=True)
 def mock_condition_blockchains(mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     mocker.patch.object(
@@ -51,7 +46,7 @@ def compound_lingo(erc721_evm_condition_balanceof,
 
 
 @pytest.fixture()
-def erc20_evm_condition_balanceof(test_registry, agency):
+def erc20_evm_condition_balanceof(testerchain, test_registry):
     token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
     condition = ContractCondition(
         contract_address=token.contract.address,
@@ -65,22 +60,15 @@ def erc20_evm_condition_balanceof(test_registry, agency):
 
 
 @pytest.fixture
-def erc721_contract(testerchain, test_registry):
+def erc721_contract(accounts, project, test_registry):
+    account = accounts[0]
 
-    origin, *everybody_else = testerchain.client.accounts
-    transacting_power = TransactingPower(
-        account=origin, signer=Web3Signer(testerchain.client)
-    )
-    contract, receipt = testerchain.deploy_contract(
-        transacting_power=transacting_power,
-        registry=test_registry,
-        contract_name="ConditionNFT",
-    )
-    # mint an NFT with tokenId = 1
-    tx = contract.functions.mint(origin, 1).transact({"from": origin})
-    testerchain.wait_for_receipt(tx)
+    # deploy contract
+    deployed_contract = account.deploy(project.ConditionNFT)
 
-    return contract
+    # mint nft with token id = 1
+    deployed_contract.mint(account.address, 1, sender=account)
+    return deployed_contract
 
 
 @pytest.fixture
@@ -116,7 +104,7 @@ def erc721_evm_condition_balanceof(erc721_contract):
 
 @pytest.fixture
 def subscription_manager_get_policy_zeroized_policy_struct_condition(
-    test_registry, agency
+    testerchain, test_registry
 ):
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent, registry=test_registry
@@ -133,7 +121,7 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
 
 
 @pytest.fixture
-def subscription_manager_is_active_policy_condition(test_registry, agency):
+def subscription_manager_is_active_policy_condition(testerchain, test_registry):
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent,
         registry=test_registry

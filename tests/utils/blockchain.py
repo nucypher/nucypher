@@ -107,7 +107,7 @@ class TesterBlockchain(BlockchainInterface):
 
     def ether_airdrop(self, amount: int) -> List[str]:
         """Airdrops ether from creator address to all other addresses!"""
-        coinbase, *addresses = self.accounts
+        coinbase, *addresses = self.client.accounts
         tx_hashes = list()
         for address in addresses:
             tx = {'to': address, 'from': coinbase, 'value': amount, 'gasPrice': self.w3.eth.generate_gas_price()}

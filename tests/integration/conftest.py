@@ -27,14 +27,14 @@ from tests.constants import (
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
 )
-from tests.mock.agents import MockContractAgency
-from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
 
 
 @pytest.fixture(scope='function', autouse=True)
 def mock_contract_agency(monkeypatch, module_mocker, application_economics):
+    from tests.mock.agents import MockContractAgency
+
     monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
     mock_agency = MockContractAgency()
@@ -80,6 +80,8 @@ def mock_adjudicator_agent(testerchain, application_economics, mock_contract_age
 
 @pytest.fixture(scope="function", autouse=True)
 def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
+    from tests.mock.coordinator import MockCoordinatorAgent
+
     mock_agent = MockCoordinatorAgent(blockchain=testerchain)
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = mock_agent
     yield mock_agent
@@ -136,6 +138,8 @@ def test_registry_source_manager(testerchain, test_registry):
 def mock_contract_agency(module_mocker, application_economics):
     # Patch
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
+
+    from tests.mock.agents import MockContractAgency
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?
     get_agent = ContractAgency.get_agent

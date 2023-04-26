@@ -325,7 +325,6 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
 
 def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evaluation(
     testerchain,
-    agency,
     test_registry,
     idle_policy,
     enacted_policy,
@@ -445,7 +444,6 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
 
 def test_subscription_manager_get_policy_policy_struct_condition_index_and_value_context_var_evaluation(
     testerchain,
-    agency,
     test_registry,
     idle_policy,
     enacted_policy,
@@ -499,7 +497,6 @@ def test_simple_compound_conditions_evaluation(testerchain, compound_timelock_li
     "nucypher.policy.conditions.evm.get_context_value",
     side_effect=_dont_validate_user_address,
 )
-@pytest.mark.usefixtures("agency")
 def test_onchain_conditions_lingo_evaluation(
     get_context_value_mock,
     testerchain,

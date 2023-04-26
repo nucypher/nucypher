@@ -4,7 +4,6 @@ from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
-from tests.mock.agents import MockContractAgency
 from tests.mock.interfaces import MockEthereumClient
 
 
@@ -25,6 +24,8 @@ def mock_contract_agency(module_mocker, application_economics):
 
     # Patch
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
+
+    from tests.mock.agents import MockContractAgency
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?
     get_agent = ContractAgency.get_agent
