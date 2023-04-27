@@ -35,12 +35,9 @@ def test_ursula_operator_confirmation(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent, registry=test_registry
     )
-    (
-        creator,
-        staking_provider,
-        operator_address,
-        *everyone_else,
-    ) = testerchain.client.accounts
+
+    staking_provider = testerchain.stake_provider_account(0)
+    operator_address = testerchain.ursula_account(0)
     min_authorization = application_economics.min_authorization
 
     # make an staking_providers and some stakes
@@ -53,7 +50,7 @@ def test_ursula_operator_confirmation(
 
     # make an ursula.
     ursula = ursula_test_config.produce(
-        operator_address=operator_address, rest_port=9151
+        operator_address=operator_address, rest_port=select_test_port()
     )
 
     # it's not confirmed
@@ -96,14 +93,8 @@ def test_ursula_operator_confirmation_autopilot(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent, registry=test_registry
     )
-    (
-        _,  # creator
-        _,  # staking_provider
-        _,  # operator
-        staking_provider2,
-        operator2,
-        *everyone_else,
-    ) = testerchain.client.accounts
+    staking_provider2 = testerchain.stake_provider_account(1)
+    operator2 = testerchain.ursula_account(1)
     min_authorization = application_economics.min_authorization
 
     confirmation_spy = mocker.spy(Operator, "confirm_address")
@@ -174,16 +165,9 @@ def test_work_tracker(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent, registry=test_registry
     )
-    (
-        _,  # creator
-        _,  # staking_provider
-        _,  # operator
-        _,  # staking_provider2
-        _,  # operator2
-        staking_provider3,
-        operator3,
-        *everyone_else,
-    ) = testerchain.client.accounts
+
+    staking_provider3 = testerchain.stake_provider_account(2)
+    operator3 = testerchain.ursula_account(2)
     min_authorization = application_economics.min_authorization
 
     # Mock confirm_operator transaction

@@ -91,6 +91,7 @@ from tests.utils.middleware import (
     MockRestMiddlewareForLargeFleetTests,
 )
 from tests.utils.policy import generate_random_label
+from tests.utils.registry import registry_from_ape_deployments
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, make_ursulas, select_test_port
 
 test_logger = Logger("test-logger")
@@ -377,10 +378,11 @@ def nucypher_contracts(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')
     _, nucypher_contracts = list(nucypher_contracts_dependency_api.items())[0]
+    nucypher_contracts.compile()
     return nucypher_contracts
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='module')
 def deploy_contracts(nucypher_contracts, accounts):
     from ape import config as ape_config
 
@@ -393,7 +395,6 @@ def deploy_contracts(nucypher_contracts, accounts):
     )
     config = ape_config.get_config("deployments")["ethereum"]["local"]
     deployer_account = accounts[0]
-    nucypher_contracts.compile()
 
     deployments = dict()
     for name in contracts:
@@ -406,10 +407,10 @@ def deploy_contracts(nucypher_contracts, accounts):
     return deployments
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def test_registry(project, deploy_contracts):
     build_path = Path(project.path) / '.build'
-    registry = InMemoryContractRegistry.from_ape_deployments(
+    registry = registry_from_ape_deployments(
         build_path=build_path,
         deployments=deploy_contracts
     )
