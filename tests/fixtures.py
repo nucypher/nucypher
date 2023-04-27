@@ -343,13 +343,13 @@ def deploy_contracts(nucypher_contracts, accounts):
 
 
 @pytest.fixture(scope='module')
-def test_registry(deploy_contracts):
-    registry = registry_from_ape_deployments(deployments=deploy_contracts)
+def test_registry(project, deploy_contracts):
+    registry = registry_from_ape_deployments(project, deployments=deploy_contracts)
     return registry
 
 
 @pytest.fixture(scope='module')
-def testerchain(project) -> TesterBlockchain:
+def testerchain(project, deploy_contracts) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
     testerchain = TesterBlockchain(eth_provider=provider)

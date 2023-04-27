@@ -6,7 +6,7 @@ from ape.api import DependencyAPI
 from copy import deepcopy
 
 from typing import Dict, Any
-from ape import config as ape_config, project
+from ape import config as ape_config
 
 from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
@@ -28,7 +28,7 @@ _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
 )
 
 
-def get_ape_project_build_path() -> Path:
+def get_ape_project_build_path(project) -> Path:
     build_path = Path(project.path) / '.build'
     return build_path
 
@@ -78,10 +78,10 @@ def deploy_contracts(nucypher_contracts: DependencyAPI, accounts, deployer_accou
     return deployments
 
 
-def registry_from_ape_deployments(deployments: Dict) -> InMemoryContractRegistry:
+def registry_from_ape_deployments(project, deployments: Dict) -> InMemoryContractRegistry:
     """Creates a registry from ape deployments."""
 
-    build_path = get_ape_project_build_path()
+    build_path = get_ape_project_build_path(project)
 
     def get_json_abi(path):
         with open(path, 'r') as f:
