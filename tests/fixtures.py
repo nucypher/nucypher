@@ -233,27 +233,6 @@ def treasure_map(enacted_policy, bob):
     )
 
 
-@pytest.fixture(scope="function")
-def random_policy(testerchain, alice, bob, application_economics):
-    random_label = generate_random_label()
-    seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
-    now = testerchain.w3.eth.get_block('latest').timestamp
-    expiration = maya.MayaDT(now).add(seconds=seconds)
-    shares = 3
-    threshold = 2
-    policy = alice.create_policy(
-        bob,
-        label=random_label,
-        threshold=threshold,
-        shares=shares,
-        value=shares
-        * seconds
-        * 100,  # calculation probably needs to incorporate actual cost per second
-        expiration=expiration,
-    )
-    return policy
-
-
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_policy):
     class _CapsuleSideChannel:
@@ -526,27 +505,6 @@ def policy_value(application_economics, policy_rate):
 
 
 @pytest.fixture(scope='module')
-def funded_blockchain(testerchain, application_economics, test_registry):
-    # Who are ya'?
-    deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
-
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         signer=Web3Signer(testerchain.client))
-
-    # Free ETH!!!
-    testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
-
-    # Free Tokens!!!
-    token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
-                  transacting_power=transacting_power,
-                  addresses=everyone_else,
-                  amount=application_economics.min_authorization * 5)
-
-    # HERE YOU GO
-    yield testerchain, deployer_address
-
-
-@pytest.fixture(scope='module')
 def manual_operator(testerchain):
     worker_private_key = os.urandom(32).hex()
     address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
@@ -564,9 +522,6 @@ def manual_operator(testerchain):
 #
 # Test logging
 #
-
-# TODO : Use a pytest Flag to enable/disable this functionality
-test_logger = Logger("test-logger")
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -697,17 +652,6 @@ def nominal_configuration_fields(test_registry_source_manager):
     config_fields = config.static_payload()
     yield tuple(config_fields.keys())
     del config
-
-
-@pytest.fixture(scope='function')
-def new_local_registry():
-    filename = f'{BASE_TEMP_PREFIX}mock-empty-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
-    registry_filepath = BASE_TEMP_DIR / filename
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    registry.write(InMemoryContractRegistry().read())
-    yield registry
-    if registry_filepath.exists():
-        registry_filepath.unlink()
 
 
 @pytest.fixture(scope='module')
