@@ -458,28 +458,3 @@ class InMemoryContractRegistry(BaseContractRegistry):
 
     def _destroy(self) -> None:
         self.__registry_data = dict()
-
-    @classmethod
-    def from_ape_deployments(cls, build_path: Path, deployments: Dict) -> 'InMemoryContractRegistry':
-        """Creates a registry from ape deployments."""
-
-        def get_json_abi(path):
-            with open(path, 'r') as f:
-                _abi = json.load(f)['abi']
-            return _abi
-
-        data = list()
-        for contract, deployment in deployments.items():
-            path = build_path / f"{contract}.json"
-            abi = get_json_abi(path)
-            entry = [
-                str(contract),
-                'v0.0.0',  # TODO: get version from contract
-                to_checksum_address(deployment.address),
-                abi
-            ]
-            data.append(entry)
-        registry = cls()
-        registry.write(data)
-        return registry
-
