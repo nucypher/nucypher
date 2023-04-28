@@ -41,7 +41,7 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
         testerchain.client.w3.eth.send_transaction({
             'to': account.address,
             'from': testerchain.etherbase_account,
-            'value': Web3.to_wei('1', 'ether')}))
+            'value': Web3.to_wei('100', 'ether')}))
 
     # initialize threshold stake
     provider_address = testerchain.unassigned_accounts[0]
@@ -67,7 +67,8 @@ def test_ursula_and_local_keystore_signer_integration(click_runner,
                                                       application_economics,
                                                       mocker,
                                                       mock_funded_account_password_keystore,
-                                                      testerchain):
+                                                      testerchain,
+                                                      test_registry_source_manager):
     config_root_path = tmp_path
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_funded_account_password_keystore
