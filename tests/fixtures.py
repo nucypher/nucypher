@@ -349,37 +349,6 @@ def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mo
     return ursula
 
 
-@pytest.fixture(scope="module")
-def ursulas(testerchain, staking_providers, ursula_test_config):
-    if MOCK_KNOWN_URSULAS_CACHE:
-        # TODO: Is this a safe assumption / test behaviour?
-        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
-        MOCK_KNOWN_URSULAS_CACHE.clear()
-
-    _ursulas = make_ursulas(
-        ursula_config=ursula_test_config,
-        staking_provider_addresses=testerchain.stake_providers_accounts,
-        operator_addresses=testerchain.ursulas_accounts,
-        know_each_other=True,
-    )
-    for u in _ursulas:
-        u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
-
-    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
-    yield _ursulas
-
-    for port in _ports_to_remove:
-        del MOCK_KNOWN_URSULAS_CACHE[port]
-
-    for u in _ursulas:
-        u.stop()
-        u._finalize()
-
-    # Pytest will hold on to this object, need to clear it manually.
-    # See https://github.com/pytest-dev/pytest/issues/5642
-    _ursulas.clear()
-
-
 @pytest.fixture(scope='module')
 def policy_rate():
     rate = Web3.to_wei(21, 'gwei')
@@ -390,21 +359,6 @@ def policy_rate():
 def policy_value(application_economics, policy_rate):
     value = policy_rate * application_economics.min_operator_seconds
     return value
-
-
-@pytest.fixture(scope='module')
-def manual_operator(testerchain):
-    worker_private_key = os.urandom(32).hex()
-    address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
-                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    tx = {'to': address,
-          'from': testerchain.etherbase_account,
-          'value': Web3.to_wei('1', 'ether')}
-
-    txhash = testerchain.client.w3.eth.send_transaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-    yield address
 
 
 #
@@ -700,3 +654,34 @@ def control_time():
     EventScannerTask.INTERVAL = .1
     clock.llamas = 0
     return clock
+
+
+@pytest.fixture(scope="module")
+def ursulas(testerchain, staking_providers, ursula_test_config):
+    if MOCK_KNOWN_URSULAS_CACHE:
+        # TODO: Is this a safe assumption / test behaviour?
+        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
+        MOCK_KNOWN_URSULAS_CACHE.clear()
+
+    _ursulas = make_ursulas(
+        ursula_config=ursula_test_config,
+        staking_provider_addresses=testerchain.stake_providers_accounts,
+        operator_addresses=testerchain.ursulas_accounts,
+        know_each_other=True,
+    )
+    for u in _ursulas:
+        u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
+
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
+    yield _ursulas
+
+    for port in _ports_to_remove:
+        del MOCK_KNOWN_URSULAS_CACHE[port]
+
+    for u in _ursulas:
+        u.stop()
+        u._finalize()
+
+    # Pytest will hold on to this object, need to clear it manually.
+    # See https://github.com/pytest-dev/pytest/issues/5642
+    _ursulas.clear()
