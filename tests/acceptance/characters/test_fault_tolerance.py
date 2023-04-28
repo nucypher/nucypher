@@ -82,7 +82,6 @@ def test_invalid_operators_tolerance(
     test_registry,
     ursulas,
     threshold_staking,
-    agency,
     application_economics,
     ursula_test_config,
     mocker,

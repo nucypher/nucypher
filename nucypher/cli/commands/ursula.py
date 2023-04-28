@@ -456,19 +456,6 @@ def run(general_config, character_options, config_file, dry_run, prometheus, met
             URSULA.stop()
 
 
-@ursula.command(name='save-metadata')
-@group_character_options
-@option_config_file
-@group_general_config
-def save_metadata(general_config, character_options, config_file):
-    """Manually write node metadata to disk without running."""
-    emitter = setup_emitter(general_config, character_options.config_options.operator_address)
-    _pre_launch_warnings(emitter, dev=character_options.config_options.dev, force=None)
-    _, URSULA = character_options.create_character(emitter, config_file, general_config.json_ipc, load_seednodes=False)
-    metadata_path = URSULA.write_node_metadata(node=URSULA)
-    emitter.message(SUCCESSFUL_MANUALLY_SAVE_METADATA.format(metadata_path=metadata_path), color='green')
-
-
 @ursula.command()
 @click.argument('action', required=False)
 @group_config_options

@@ -14,7 +14,7 @@ def operator_address(testerchain):
 
 
 @pytest.fixture(scope='module')
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
+@pytest.mark.usefixtures('test_registry_source_manager')
 def staking_provider_address(testerchain):
     return testerchain.unassigned_accounts.pop(1)
 
@@ -62,7 +62,7 @@ def exec_unbond(click_runner, staking_provider_address: ChecksumAddress):
     return result
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
+@pytest.mark.usefixtures('test_registry_source_manager')
 def test_nucypher_bond_unauthorized(click_runner, testerchain, operator_address, staking_provider_address):
     result = exec_bond(
         click_runner=click_runner,
@@ -74,7 +74,7 @@ def test_nucypher_bond_unauthorized(click_runner, testerchain, operator_address,
     assert error_message in result.output
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency', 'test_registry')
+@pytest.mark.usefixtures('test_registry_source_manager', 'test_registry')
 def test_nucypher_bond(click_runner, testerchain, operator_address, authorized_staking_provider):
     result = exec_bond(
         click_runner=click_runner,
@@ -84,7 +84,7 @@ def test_nucypher_bond(click_runner, testerchain, operator_address, authorized_s
     assert result.exit_code == 0
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
+@pytest.mark.usefixtures('test_registry_source_manager')
 def test_nucypher_rebond_too_soon(click_runner, testerchain, operator_address, staking_provider_address):
     result = exec_bond(
         click_runner=click_runner,
@@ -96,7 +96,7 @@ def test_nucypher_rebond_too_soon(click_runner, testerchain, operator_address, s
     assert error_message in result.output
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
+@pytest.mark.usefixtures('test_registry_source_manager')
 def test_nucypher_rebond_operator(click_runner,
                                   testerchain,
                                   operator_address,
@@ -111,7 +111,7 @@ def test_nucypher_rebond_operator(click_runner,
     assert result.exit_code == 0
 
 
-@pytest.mark.usefixtures('test_registry_source_manager', 'agency')
+@pytest.mark.usefixtures('test_registry_source_manager')
 def test_nucypher_unbond_operator(click_runner,
                                   testerchain,
                                   staking_provider_address,

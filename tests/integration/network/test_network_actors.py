@@ -1,6 +1,3 @@
-
-
-
 import pytest
 from eth_utils import to_checksum_address
 from twisted.logger import LogLevel, globalLogPublisher
@@ -10,6 +7,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.types import StakingProviderInfo
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -17,9 +15,12 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas, test_registry):
     """
     Once launched, all Ursulas know about - and can help locate - all other Ursulas in the network.
     """
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    onchain_records = [
+        (u.staking_provider_address, )
+        for u in ursulas
+    ]
 
-    for record in application_agent.get_active_staking_providers(0, 10)[1]:
+    for record in onchain_records:
         address = to_checksum_address(record[0])   #TODO: something better
         for propagating_ursula in ursulas[:1]:  # Last Ursula is not staking
             if address == propagating_ursula.checksum_address:
@@ -41,7 +42,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
         assert ursula in alice.known_nodes
 
 
-def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
+def test_vladimir_illegal_interface_key_does_not_propagate(ursulas, test_registry_source_manager):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
     they do not propagate interface information for Vladimir.

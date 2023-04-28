@@ -26,7 +26,7 @@ from tests.utils.blockchain import TesterBlockchain
 test_logger = Logger("acceptance-test-logger")
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='package', autouse=True)
 def nucypher_contracts(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')

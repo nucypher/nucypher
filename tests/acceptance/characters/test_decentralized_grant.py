@@ -1,10 +1,6 @@
-
-
-
 import datetime
-import os
-
 import maya
+import os
 from nucypher_core import EncryptedKeyFrag
 
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -31,7 +27,7 @@ def check(policy, bob, ursulas):
             # TODO: try to decrypt?
 
 
-def test_grant_subscription_manager(alice, bob, ursulas):
+def test_grant_subscription_manager(alice, bob, ursulas, test_registry_source_manager):
     payment_method = SubscriptionManagerPayment(eth_provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
     alice.payment_method = payment_method
     policy = alice.grant(

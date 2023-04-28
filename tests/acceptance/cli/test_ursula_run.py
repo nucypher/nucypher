@@ -1,12 +1,11 @@
-import time
 from unittest import mock
 
 import pytest
 import pytest_twisted as pt
+import time
 from twisted.internet import threads
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli

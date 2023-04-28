@@ -3,13 +3,15 @@ from collections import Counter
 import pytest
 import random
 from itertools import permutations
+from unittest.mock import Mock
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import WeightedSampler, ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import TransactingPower, CryptoPower
+from tests.constants import PYEVM_DEV_URI
 
 
 @pytest.mark.nightly
@@ -42,7 +44,10 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
                             operator_address=operator_address,
                             domain=TEMPORARY_DOMAIN,
                             registry=test_registry,
-                            transacting_power=power)
+                            crypto_power=CryptoPower(),
+                            transacting_power=power,
+                            eth_provider_uri=PYEVM_DEV_URI,
+                            payment_method=Mock())
         operator.confirm_address()
 
     #

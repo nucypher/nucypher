@@ -1,11 +1,10 @@
-
-
+import pytest
 import random
+import time
 from typing import List
 
-import pytest
-
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.types import StakingProviderInfo
 from tests.constants import TEST_ETH_PROVIDER_URI
 
 try:
@@ -27,12 +26,29 @@ try:
 except ImportError:
     PROMETHEUS_INSTALLED = False
 
+from web3.types import Timestamp
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_application_agent(mocker, random_address, mock_application_agent):
+    mocker.patch.object(mock_application_agent, 'is_operator_confirmed', return_value=True)
+    info = StakingProviderInfo(
+        operator=random_address,
+        operator_confirmed=True,
+        operator_start_timestamp=Timestamp(int(time.time()))
+    )
+    mocker.patch.object(
+        mock_application_agent,
+        'get_staking_provider_info',
+        return_value=info
+    )
+
 
 @pytest.mark.skipif(
     condition=(not PROMETHEUS_INSTALLED),
     reason="prometheus_client is required for test",
 )
-def test_ursula_info_metrics_collector(test_registry, ursulas, agency):
+def test_ursula_info_metrics_collector(test_registry, ursulas):
     ursula = random.choice(ursulas)
     collector = UrsulaInfoMetricsCollector(ursula=ursula)
 
@@ -77,7 +93,8 @@ def test_blockchain_metrics_collector(testerchain):
 
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
-def test_staking_provider_metrics_collector(test_registry, staking_providers):
+def test_staking_provider_metrics_collector(test_registry, staking_providers, mocker, mock_application_agent, random_address):
+
     staking_provider_address = random.choice(staking_providers)
     collector = StakingProviderMetricsCollector(
         staking_provider_address=staking_provider_address,
