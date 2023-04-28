@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 from nucypher.acumen.perception import FleetSensor
@@ -19,6 +18,7 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
 
     # Learn from a teacher in our domain.
     hero_learner.remember_node(other_first_domain_learner)
+    hero_learner.start_learning_loop(now=True)
     hero_learner.learn_from_teacher_node()
 
     # All domain 1 nodes

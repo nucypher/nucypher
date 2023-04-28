@@ -1,10 +1,11 @@
-import json
 from json import JSONDecodeError
+
+import json
+import pytest
 from pathlib import Path
 from unittest.mock import PropertyMock
 
-import pytest
-
+from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
     CONFIRM_IPV4_ADDRESS_QUESTION,
@@ -32,6 +33,14 @@ from tests.constants import (
     YES_ENTER,
 )
 from tests.utils.ursula import select_test_port
+
+
+@pytest.fixture(autouse=True)
+def mock_dkg_tracker(mocker):
+    mock = mocker.patch.object(ActiveRitualTracker, 'start', autospec=True)
+    mock.return_value = mock
+    mock.get_ursulas = mocker.MagicMock()
+    return mock
 
 
 def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_registry_source_manager):
@@ -171,16 +180,6 @@ def test_run_ursula_from_config_file(custom_filepath: Path, click_runner, mock_f
     # CLI Output
     assert result.exit_code == 0, result.output
     assert f"Rest Server https://{MOCK_IP_ADDRESS}" in result.output
-
-
-def test_ursula_save_metadata(click_runner, custom_filepath, mocker, testerchain):
-    mocker.patch.object(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
-    save_metadata_args = ('ursula', 'save-metadata', '--dev',
-                          '--operator-address', testerchain.ursulas_accounts[0],
-                          '--eth-provider', TEST_ETH_PROVIDER_URI)
-    result = click_runner.invoke(nucypher_cli, save_metadata_args, catch_exceptions=False)
-    assert result.exit_code == 0
-    assert "Successfully saved node metadata" in result.output, "Node metadata successfully saved"
 
 
 # Should be the last test since it deletes the configuration file

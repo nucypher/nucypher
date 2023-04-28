@@ -11,7 +11,7 @@ from tests.utils.ursula import make_ursulas
 
 
 @pytest_twisted.inlineCallbacks
-def test_ursula_serves_statics(ursula_test_config, testerchain, agency):
+def test_ursula_serves_statics(ursula_test_config, testerchain):
 
     with tempfile.TemporaryDirectory() as STATICS_DIR:
         os.environ['NUCYPHER_STATIC_FILES_ROOT'] = str(STATICS_DIR)

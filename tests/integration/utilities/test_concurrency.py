@@ -1,10 +1,7 @@
-
-
+import pytest
 import random
 import time
 from typing import Iterable, Tuple
-
-import pytest
 
 from nucypher.utilities.concurrency import WorkerPool
 

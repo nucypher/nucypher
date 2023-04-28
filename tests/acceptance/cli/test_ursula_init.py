@@ -1,12 +1,8 @@
-
-
-
 import json
-import secrets
-from pathlib import Path
-
 import pytest
+import secrets
 from eth_account import Account
+from pathlib import Path
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
@@ -22,7 +18,9 @@ from nucypher.config.constants import (
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI, INSECURE_DEVELOPMENT_PASSWORD, TEST_POLYGON_PROVIDER_URI
+    TEST_ETH_PROVIDER_URI,
+    INSECURE_DEVELOPMENT_PASSWORD,
+    TEST_POLYGON_PROVIDER_URI
 )
 from tests.utils.ursula import select_test_port
 

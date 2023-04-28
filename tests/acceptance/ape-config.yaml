@@ -30,6 +30,9 @@ deployments:
         max_dkg_size: 8
         pre_application: '::SimplePREApplication::'
 
+
 test:
   mnemonic: test test test test test test test test test test test junk
   number_of_accounts: 30
+
+

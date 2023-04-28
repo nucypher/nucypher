@@ -1,10 +1,6 @@
-
-
-
+import pytest
 import shutil
 from pathlib import Path
-
-import pytest
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -46,7 +42,8 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 def test_corrupted_configuration(click_runner,
                                  custom_filepath,
                                  testerchain,
-                                 agency_local_registry):
+                                 agency_local_registry,
+                                 test_registry_source_manager):
 
     #
     # Setup
