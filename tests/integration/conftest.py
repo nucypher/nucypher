@@ -31,6 +31,10 @@ from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
 
 
+def pytest_addhooks(pluginmanager):
+    pluginmanager.set_blocked('ape_test')
+
+
 @pytest.fixture(scope='function', autouse=True)
 def mock_contract_agency(monkeypatch, module_mocker, application_economics):
     from tests.mock.agents import MockContractAgency

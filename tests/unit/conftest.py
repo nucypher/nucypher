@@ -7,6 +7,10 @@ from nucypher.network.nodes import Teacher
 from tests.mock.interfaces import MockEthereumClient
 
 
+def pytest_addhooks(pluginmanager):
+    pluginmanager.set_blocked('ape_test')
+
+
 @pytest.fixture(scope='function')
 def mock_ethereum_client(mocker):
     web3_mock = mocker.Mock()
