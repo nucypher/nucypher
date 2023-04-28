@@ -328,7 +328,6 @@ def agency_local_registry(testerchain, test_registry):
         MOCK_REGISTRY_FILEPATH.unlink()
 
 
-
 @pytest.fixture()
 def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mocker):
     mocker.patch.object(
@@ -692,6 +691,7 @@ def valid_user_address_context():
             },
         }
     }
+
 
 @pytest.fixture(scope='module', autouse=True)
 def control_time():
