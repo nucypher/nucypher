@@ -86,3 +86,7 @@ class MockEthereumClient(EthereumClient):
 
     def __init__(self, w3):
         super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)
+
+    def add_middleware(self, middleware):
+        pass
+

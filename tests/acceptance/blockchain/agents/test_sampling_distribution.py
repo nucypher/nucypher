@@ -1,10 +1,8 @@
-
-
-import random
 from collections import Counter
-from itertools import permutations
 
 import pytest
+import random
+from itertools import permutations
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import WeightedSampler, ContractAgency, PREApplicationAgent
