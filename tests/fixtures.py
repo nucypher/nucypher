@@ -3,11 +3,10 @@ import json
 import maya
 import os
 import pytest
-import random
 import shutil
 import tempfile
 from click.testing import CliRunner
-from datetime import datetime, timedelta
+from datetime import timedelta
 from eth_account import Account
 from eth_utils import to_checksum_address
 from functools import partial
@@ -18,18 +17,11 @@ from web3 import Web3
 import nucypher
 import tests
 from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    NucypherTokenAgent,
-    PREApplicationAgent,
-)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    InMemoryContractRegistry,
     LocalContractRegistry,
 )
-from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
+from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.base import CharacterConfiguration
@@ -40,7 +32,6 @@ from nucypher.config.characters import (
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.powers import CryptoPower, TransactingPower
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -51,20 +42,13 @@ from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
-    BASE_TEMP_DIR,
-    BASE_TEMP_PREFIX,
-    BONUS_TOKENS_FOR_TESTS,
-    DATETIME_FORMAT,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID, MOCK_STAKING_CONTRACT_NAME,
-)
+    TESTERCHAIN_CHAIN_ID, )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
     mock_cert_generation,
@@ -77,8 +61,6 @@ from tests.mock.performance_mocks import (
     mock_rest_app_creation,
     mock_verify_node,
 )
-from tests.utils.ape import deploy_contracts as ape_deploy_contracts, registry_from_ape_deployments
-from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -323,40 +305,6 @@ def application_economics():
     return economics
 
 
-@pytest.fixture(scope='session')
-def nucypher_contracts(project):
-    nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
-    # simply use first entry - could be from github ('main') or local ('local')
-    _, nucypher_contracts = list(nucypher_contracts_dependency_api.items())[0]
-    nucypher_contracts.compile()
-    return nucypher_contracts
-
-
-@pytest.fixture(scope='module')
-def deploy_contracts(nucypher_contracts, accounts):
-    deployments = ape_deploy_contracts(
-        nucypher_contracts=nucypher_contracts,
-        accounts=accounts,
-        deployer_account_index=0
-    )
-    return deployments
-
-
-@pytest.fixture(scope='module')
-def test_registry(project, deploy_contracts):
-    registry = registry_from_ape_deployments(project, deployments=deploy_contracts)
-    return registry
-
-
-@pytest.fixture(scope='module')
-def testerchain(project, deploy_contracts) -> TesterBlockchain:
-    # Extract the web3 provider containing EthereumTester from the ape project's chain manager
-    provider = project.chain_manager.provider.web3.provider
-    testerchain = TesterBlockchain(eth_provider=provider)
-    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
-    yield testerchain
-
-
 @pytest.fixture(scope='module')
 def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
@@ -379,65 +327,6 @@ def agency_local_registry(testerchain, test_registry):
     if MOCK_REGISTRY_FILEPATH.exists():
         MOCK_REGISTRY_FILEPATH.unlink()
 
-
-@pytest.fixture(scope='module')
-def threshold_staking(testerchain, test_registry):
-    result = test_registry.search(contract_name=MOCK_STAKING_CONTRACT_NAME)[0]
-    threshold_staking = testerchain.w3.eth.contract(
-        address=result[2],
-        abi=result[3]
-    )
-    return threshold_staking
-
-
-@pytest.fixture(scope="module")
-def staking_providers(testerchain, test_registry, threshold_staking):
-    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    blockchain = pre_application_agent.blockchain
-
-    staking_providers = list()
-    for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
-        provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
-        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-
-        # for a random amount
-        amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
-
-        # initialize threshold stake
-        tx = threshold_staking.functions.setRoles(provider_address).transact()
-        testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
-        testerchain.wait_for_receipt(tx)
-
-        # We assume that the staking provider knows in advance the account of her operator
-        pre_application_agent.bond_operator(staking_provider=provider_address,
-                                            operator=operator_address,
-                                            transacting_power=provider_power)
-
-        operator_power = TransactingPower(
-            account=operator_address, signer=Web3Signer(testerchain.client)
-        )
-        operator = Operator(
-            is_me=True,
-            operator_address=operator_address,
-            domain=TEMPORARY_DOMAIN,
-            registry=test_registry,
-            transacting_power=operator_power,
-            eth_provider_uri=testerchain.eth_provider_uri,
-            signer=Web3Signer(testerchain.client),
-            crypto_power=CryptoPower(power_ups=[operator_power]),
-            payment_method=SubscriptionManagerPayment(
-                eth_provider=testerchain.eth_provider_uri,
-                network=TEMPORARY_DOMAIN,
-                registry=test_registry,
-            ),
-        )
-        operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
-
-        # track
-        staking_providers.append(provider_address)
-
-    yield staking_providers
 
 
 @pytest.fixture()
