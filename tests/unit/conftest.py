@@ -2,6 +2,7 @@ import pytest
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.agents import ContractAgency
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.mock.interfaces import MockEthereumClient
@@ -9,6 +10,11 @@ from tests.mock.interfaces import MockEthereumClient
 
 def pytest_addhooks(pluginmanager):
     pluginmanager.set_blocked('ape_test')
+
+
+@pytest.fixture(scope='module')
+def test_registry():
+    return InMemoryContractRegistry()
 
 
 @pytest.fixture(scope='function')
