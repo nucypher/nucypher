@@ -78,20 +78,16 @@ def deploy_contracts(nucypher_contracts: DependencyAPI, accounts, deployer_accou
     return deployments
 
 
-def registry_from_ape_deployments(project, deployments: Dict) -> InMemoryContractRegistry:
+def registry_from_ape_deployments(nucypher_contracts: DependencyAPI, deployments: Dict) -> InMemoryContractRegistry:
     """Creates a registry from ape deployments."""
 
-    build_path = get_ape_project_build_path(project)
-
-    def get_json_abi(path):
-        with open(path, 'r') as f:
-            _abi = json.load(f)['abi']
-        return _abi
+    # Get the raw abi from the cached manifest
+    manifest = json.loads(nucypher_contracts.cached_manifest.json())
+    contract_data = manifest['contractTypes']
 
     data = list()
     for contract_name, deployment in deployments.items():
-        path = build_path / f"{contract_name}.json"
-        abi = get_json_abi(path)
+        abi = contract_data[contract_name]['abi']
         entry = [
             contract_name,
             'v0.0.0',  # TODO: get version from contract
