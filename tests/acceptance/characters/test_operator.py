@@ -55,7 +55,7 @@ def remote_vladimir(**kwds):
     return remote_vladimir
 
 
-def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(ursulas):
+def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(ursulas, test_registry_source_manager):
     his_target = list(ursulas)[4]
 
     # Vladimir has his own ether address; he hopes to publish it along with Ursula's details
