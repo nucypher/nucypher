@@ -29,8 +29,6 @@ aiohttp = "==3.8.1"
 flask = "*"
 requests = "*"
 # Third-Party Ethereum
-py-evm = "*"
-eth-tester = "*"
 web3 = ">=6.0.0"
 eth-utils = "*"
 eip712-structs = "*"
@@ -42,6 +40,8 @@ tabulate = "*"
 # Template
 jinja2 = "<3.1.0"  # because of docs
 
+watchdog = "<3.0.0"  # needed for eth-ape to be happy
+
 [dev-packages]
 # Pytest
 # See https://github.com/pytest-dev/pytest/issues/9703
@@ -51,11 +51,13 @@ pytest-cov = "*"
 pytest-mock = "*"
 pytest-timeout = "*"
 # Tools
+eth-ape = ">=0.6.3,<0.7.0"
+ape-solidity = ">=0.6.0,<0.7.0"
 hypothesis = "*"
 pre-commit = "2.12.1"
 pyflakes = "*"
 coverage = "<=6.5.0"
-py-solc-x = "==0.10.1"
+py-solc-x = "==1.1.1"   # docs version matches this one
 
 [scripts]
 install-solc = "python3 scripts/installation/install_solc.py"
