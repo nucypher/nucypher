@@ -15,7 +15,6 @@ from nucypher.crypto.powers import TransactingPower
 
 
 @pytest.mark.nightly
-@pytest.mark.usefixtures("agency")
 def test_sampling_distribution(testerchain, test_registry, threshold_staking, application_economics):
 
     # setup

@@ -83,10 +83,10 @@ class TesterBlockchain(BlockchainInterface):
     DEFAULT_ECONOMICS = Economics()
 
     def __init__(self,
+                 test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
                  poa: bool = True,
                  light: bool = False,
                  eth_airdrop: bool = False,
-                 free_transactions: bool = False,
                  *args, **kwargs):
 
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
@@ -96,14 +96,30 @@ class TesterBlockchain(BlockchainInterface):
                          *args, **kwargs)
         self.log = Logger("test-blockchain")
         self.connect()
+
+        # Generate additional ethereum accounts for testing
+        population = test_accounts
+        enough_accounts = len(self.client.accounts) >= population
+        if not enough_accounts:
+            accounts_to_make = population - len(self.client.accounts)
+            self.__generate_insecure_unlocked_accounts(quantity=accounts_to_make)
+            assert test_accounts == len(self.w3.eth.accounts)
+
         if eth_airdrop is True:  # ETH for everyone!
             self.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
 
     def attach_middleware(self):
-        # if self.free_transactions:
-        #     self.w3.eth.setGasPriceStrategy(free_gas_price_strategy)
-        # TODO: Free transaction middleware is disabled for now.
         pass
+
+    def __generate_insecure_unlocked_accounts(self, quantity: int) -> List[str]:
+
+        addresses = list()
+        for _ in range(quantity):
+            address = self.provider.ethereum_tester.add_account('0x' + os.urandom(32).hex())
+            addresses.append(address)
+            self.__ACCOUNT_CACHE.append(address)
+            self.log.info('Generated new insecure account {}'.format(address))
+        return addresses
 
     def ether_airdrop(self, amount: int) -> List[str]:
         """Airdrops ether from creator address to all other addresses!"""
@@ -199,7 +215,3 @@ class TesterBlockchain(BlockchainInterface):
     def get_block_number(self) -> int:
         return self.client.block_number
 
-    def read_storage_slot(self, address, slot):
-        # https://github.com/ethereum/web3.py/issues/1490
-        address = to_canonical_address(address)
-        return self.client.w3.provider.ethereum_tester.backend.chain.get_vm().state.get_storage(address, slot)

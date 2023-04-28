@@ -108,14 +108,14 @@ def mock_stdin(mocker):
 
 
 @pytest.fixture(scope="module")
-def testerchain(_mock_testerchain, module_mocker) -> MockBlockchain:
+def testerchain(mock_testerchain, module_mocker) -> MockBlockchain:
     def always_use_mock(*a, **k):
-        return _mock_testerchain
+        return mock_testerchain
 
     module_mocker.patch.object(
         BlockchainInterfaceFactory, "get_interface", always_use_mock
     )
-    return _mock_testerchain
+    return mock_testerchain
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -236,8 +236,9 @@ def mock_substantiate_stamp(module_mocker, monkeymodule):
 def mock_transacting_power(module_mocker, monkeymodule):
     module_mocker.patch.object(TransactingPower, "unlock")
 
+
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(testerchain, test_registry, threshold_staking, monkeymodule):
+def staking_providers(testerchain, test_registry, monkeymodule):
 
     def faked(self, *args, **kwargs):
         return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
