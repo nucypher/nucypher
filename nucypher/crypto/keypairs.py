@@ -1,3 +1,6 @@
+from pathlib import Path
+from typing import Optional, Union
+
 import ferveo_py
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
@@ -20,8 +23,6 @@ from nucypher_core.umbral import (
     Signer,
     VerifiedKeyFrag,
 )
-from pathlib import Path
-from typing import Optional, Union
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
@@ -67,7 +68,7 @@ class Keypair(object):
 
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
-        return keccak_digest(self.pubkey.to_compressed_bytes())
+        return keccak_digest(self.pubkey.to_compressed_bytes()).hex().encode()
 
 
 class DecryptingKeypair(Keypair):

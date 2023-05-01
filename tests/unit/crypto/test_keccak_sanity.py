@@ -2,7 +2,7 @@
 
 import unittest
 
-import sha3
+from eth_utils import keccak
 
 from nucypher.crypto.utils import (
     secure_random_range,
@@ -37,7 +37,7 @@ class TestCrypto(unittest.TestCase):
     def test_keccak_digest(self):
         data = b'this is a test'
 
-        digest1 = sha3.keccak_256(data).digest()
+        digest1 = keccak(data)
         digest2 = keccak_digest(data)
 
         self.assertEqual(digest1, digest2)
@@ -45,7 +45,7 @@ class TestCrypto(unittest.TestCase):
         # Test iterables
         data = data.split()
 
-        digest1 = sha3.keccak_256(b''.join(data)).digest()
+        digest1 = keccak(b''.join(data))
         digest2 = keccak_digest(*data)
 
         self.assertEqual(digest1, digest2)
