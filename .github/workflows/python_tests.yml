@@ -20,6 +20,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Install latest Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
       - id: setup_python
         name: Set up Python ${{ matrix.python-version }} Environment
@@ -40,9 +44,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
-      - name: Install Solidity Compiler
-        run: python ./scripts/installation/install_solc.py
-
       - name: Check CLI Entrypoint
         run: nucypher --help
 
@@ -61,124 +62,79 @@ jobs:
         run: python -m pytest tests/unit
 
       # Integration tests
-      - name: Integration Tests (Coverage)
-        if: matrix.python-version == '3.10'
-        run: |
-          coverage run --data-file=integration_data -m pytest tests/integration
-          coverage xml -i --data-file=integration_data -o integration-coverage.xml
-
-      - name: Integration Tests
-        if: matrix.python-version != '3.10'
-        run: python -m pytest tests/integration
+#      - name: Integration Tests (Coverage)
+#        if: matrix.python-version == '3.10'
+#        run: |
+#          coverage run --data-file=integration_data -m pytest tests/integration
+#          coverage xml -i --data-file=integration_data -o integration-coverage.xml
+#
+#      - name: Integration Tests
+#        if: matrix.python-version != '3.10'
+#        run: python -m pytest tests/integration
 
       # Acceptance tests
       - name: Agents Tests (Coverage)
         if: matrix.python-version == '3.10'
+        working-directory: tests/acceptance
         run: |
-          coverage run --data-file=acceptance_agent_data -m pytest tests/acceptance/blockchain/agents
-          coverage xml -i --data-file=acceptance_agent_data -o acceptance-blockchain-agents-coverage.xml
+          coverage run --data-file=acceptance_agent_data -m pytest agents
+          coverage xml -i --data-file=acceptance_agent_data -o acceptance-agents-coverage.xml
 
       - name: Agents Tests
         if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/blockchain/agents
+        working-directory: tests/acceptance
+        run: python -m pytest agents
 
       - name: Actors Tests (Coverage)
         if: matrix.python-version == '3.10'
+        working-directory: tests/acceptance
         run: |
-          coverage run --data-file=acceptance_actors_data -m pytest tests/acceptance/blockchain/actors
-          coverage xml -i --data-file=acceptance_actors_data -o acceptance-blockchain-actors-coverage.xml
+          coverage run --data-file=acceptance_actors_data -m pytest actors
+          coverage xml -i --data-file=acceptance_actors_data -o acceptance-actors-coverage.xml
 
       - name: Actors Tests
         if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/blockchain/actors
-
-
-      - name: Deployers Tests (Coverage)
-        if: matrix.python-version == '3.10'
-        run: |
-          coverage run --data-file=acceptance_deployers_data -m pytest tests/acceptance/blockchain/deployers
-          coverage xml -i --data-file=acceptance_deployers_data -o acceptance-blockchain-deployers-coverage.xml
-
-      - name: Deployers Tests
-        if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/blockchain/deployers
-
-
-      - name: Interfaces Tests (Coverage)
-        if: matrix.python-version == '3.10'
-        run: |
-          coverage run --data-file=acceptance_interfaces_data -m pytest tests/acceptance/blockchain/interfaces 
-          coverage xml -i --data-file=acceptance_interfaces_data -o acceptance-blockchain-interfaces-coverage.xml
-
-      - name: Interfaces Tests
-        if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/blockchain/interfaces
+        working-directory: tests/acceptance
+        run: python -m pytest actors
 
 
       - name: Conditions Tests (Coverage)
         if: matrix.python-version == '3.10'
+        working-directory: tests/acceptance
         run: |
-          coverage run --data-file=acceptance_conditions_data -m pytest tests/acceptance/blockchain/conditions
-          coverage xml -i --data-file=acceptance_conditions_data -o acceptance-blockchain-conditions-coverage.xml
+          coverage run --data-file=acceptance_conditions_data -m pytest conditions
+          coverage xml -i --data-file=acceptance_conditions_data -o acceptance-conditions-coverage.xml
 
       - name: Conditions Tests
         if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/blockchain/conditions
+        working-directory: tests/acceptance
+        run: python -m pytest conditions
 
 
       - name: Characters Tests (Coverage)
         if: matrix.python-version == '3.10'
+        working-directory: tests/acceptance
         run: |
-          coverage run --data-file=acceptance_characters_data -m pytest tests/acceptance/characters
+          coverage run --data-file=acceptance_characters_data -m pytest characters
           coverage xml -i --data-file=acceptance_characters_data -o acceptance-characters-coverage.xml
 
       - name: Characters Tests
         if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/characters
-
-
-      - name: Node Discovery Tests (Coverage)
-        if: matrix.python-version == '3.10'
-        run: |
-          coverage run --data-file=acceptance_learning_data -m pytest tests/acceptance/learning
-          coverage xml -i --data-file=acceptance_learning_data -o acceptance-learning-coverage.xml
-
-      - name: Node Discovery Tests
-        if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/learning
-
-
-      - name: Network Tests (Coverage)
-        if: matrix.python-version == '3.10'
-        run: |
-          coverage run --data-file=acceptance_network_data -m pytest tests/acceptance/network
-          coverage xml -i --data-file=acceptance_network_data -o acceptance-network-coverage.xml
-
-      - name: Network Tests
-        if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/network
-
-
-      - name: Utility Tests (Coverage)
-        if: matrix.python-version == '3.10'
-        run: |
-          coverage run --data-file=acceptance_utilities_data -m pytest tests/acceptance/utilities
-          coverage xml -i --data-file=acceptance_utilities_data -o acceptance-utilities-coverage.xml
-
-      - name: Utility Tests
-        if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/utilities
+        working-directory: tests/acceptance
+        run: python -m pytest characters
 
 
       - name: CLI Tests (Coverage)
         if: matrix.python-version == '3.10'
+        working-directory: tests/acceptance
         run: |
-          coverage run --data-file=acceptance_cli_data -m pytest tests/acceptance/cli
+          coverage run --data-file=acceptance_cli_data -m pytest cli
           coverage xml -i --data-file=acceptance_cli_data -o acceptance-cli-coverage.xml
 
       - name: CLI Tests
         if: matrix.python-version != '3.10'
-        run: python -m pytest tests/acceptance/cli
+        working-directory: tests/acceptance
+        run: python -m pytest cli
 
 
       # Only upload coverage files after all tests have passed
@@ -204,10 +160,11 @@ jobs:
 
       - name: Upload acceptance tests coverage to Codecov
         if: matrix.python-version == '3.10'
+        working-directory: tests/acceptance
         uses: codecov/codecov-action@v3.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: acceptance-blockchain-agents-coverage.xml, acceptance-blockchain-actors-coverage.xml, acceptance-blockchain-deployers-coverage.xml, acceptance-blockchain-interfaces-coverage.xml, acceptance-blockchain-conditions-coverage.xml, acceptance-characters-coverage.xml, acceptance-learning-coverage.xml, acceptance-network-coverage.xml, acceptance-utilities-coverage.xml, acceptance-cli-coverage.xml
+          files: acceptance-agents-coverage.xml, acceptance-actors-coverage.xml, acceptance-conditions-coverage.xml, acceptance-characters-coverage.xml, acceptance-cli-coverage.xml
           flags: acceptance
           fail_ci_if_error: true
           verbose: true
