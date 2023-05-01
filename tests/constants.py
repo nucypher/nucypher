@@ -1,5 +1,3 @@
-
-
 import string
 import tempfile
 from datetime import datetime
@@ -13,6 +11,13 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
 )
+
+#
+#  Contracts
+#
+
+
+MOCK_STAKING_CONTRACT_NAME = 'ThresholdStakingForPREApplicationMock'
 
 #
 # Ursula

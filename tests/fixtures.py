@@ -1,44 +1,28 @@
 import contextlib
 import json
+import maya
 import os
-import random
+import pytest
 import shutil
 import tempfile
-from datetime import datetime, timedelta
-from functools import partial
-from pathlib import Path
-from typing import Callable, Tuple
-
-import maya
-import pytest
 from click.testing import CliRunner
+from datetime import timedelta
 from eth_account import Account
 from eth_utils import to_checksum_address
+from functools import partial
+from pathlib import Path
 from twisted.internet.task import Clock
 from web3 import Web3
-from web3.contract.contract import Contract
-from web3.types import TxReceipt
 
 import nucypher
 import tests
 from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    NucypherTokenAgent,
-    PREApplicationAgent,
-)
-from nucypher.blockchain.eth.deployers import (
-    NucypherTokenDeployer,
-    PREApplicationDeployer,
-    SubscriptionManagerDeployer, CoordinatorDeployer,
-)
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    InMemoryContractRegistry,
     LocalContractRegistry,
 )
-from nucypher.blockchain.eth.signers.software import KeystoreSigner, Web3Signer
+from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.base import CharacterConfiguration
@@ -49,7 +33,6 @@ from nucypher.config.characters import (
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.powers import CryptoPower, TransactingPower
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -60,21 +43,13 @@ from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
-    BASE_TEMP_DIR,
-    BASE_TEMP_PREFIX,
-    BONUS_TOKENS_FOR_TESTS,
-    DATETIME_FORMAT,
-    DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MIN_STAKE_FOR_TESTS,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
-    TEST_GAS_LIMIT,
-    TESTERCHAIN_CHAIN_ID,
-)
+    TESTERCHAIN_CHAIN_ID, )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
     mock_cert_generation,
@@ -87,7 +62,6 @@ from tests.mock.performance_mocks import (
     mock_rest_app_creation,
     mock_verify_node,
 )
-from tests.utils.blockchain import TesterBlockchain, token_airdrop
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -242,27 +216,6 @@ def treasure_map(enacted_policy, bob):
     )
 
 
-@pytest.fixture(scope="function")
-def random_policy(testerchain, alice, bob, application_economics):
-    random_label = generate_random_label()
-    seconds = 60 * 60 * 24  # TODO This needs to be better thought out...?
-    now = testerchain.w3.eth.get_block('latest').timestamp
-    expiration = maya.MayaDT(now).add(seconds=seconds)
-    shares = 3
-    threshold = 2
-    policy = alice.create_policy(
-        bob,
-        label=random_label,
-        threshold=threshold,
-        shares=shares,
-        value=shares
-        * seconds
-        * 100,  # calculation probably needs to incorporate actual cost per second
-        expiration=expiration,
-    )
-    return policy
-
-
 @pytest.fixture(scope="module")
 def capsule_side_channel(enacted_policy):
     class _CapsuleSideChannel:
@@ -354,104 +307,11 @@ def application_economics():
 
 
 @pytest.fixture(scope='module')
-def test_registry():
-    registry = InMemoryContractRegistry()
-    return registry
-
-
-def _make_testerchain(mock_backend: bool = False) -> TesterBlockchain:
-    """
-    https://github.com/ethereum/eth-tester     # available-backends
-    """
-    # Monkey patch to prevent gas adjustment
-    import eth
-    eth._utils.headers.GAS_LIMIT_MINIMUM = TEST_GAS_LIMIT
-    eth._utils.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
-    eth.vm.forks.london.headers.GENESIS_GAS_LIMIT = TEST_GAS_LIMIT
-
-    # Monkey patch to prevent gas estimates
-    def _get_buffered_gas_estimate(web3, transaction, gas_buffer=100000):
-        return TEST_GAS_LIMIT
-
-    import web3
-    web3.eth.get_buffered_gas_estimate = _get_buffered_gas_estimate
-
-    # Create the blockchain
-    if mock_backend:
-        testerchain = MockBlockchain()
-    else:
-        testerchain = TesterBlockchain(eth_airdrop=True, free_transactions=True)
-
-    return testerchain
-
-
-@pytest.fixture(scope='session')
-def _testerchain() -> TesterBlockchain:
-    testerchain = _make_testerchain()
-    yield testerchain
-
-
-@pytest.fixture(scope='module')
-def testerchain(_testerchain) -> TesterBlockchain:
-    testerchain = _testerchain
-
-    # Reset chain state
-    pyevm_backend = testerchain.provider.ethereum_tester.backend
-    snapshot = pyevm_backend.chain.get_canonical_block_by_number(0).hash
-    pyevm_backend.revert_to_snapshot(snapshot)
-
-    coinbase, *addresses = testerchain.client.accounts
-
-    for address in addresses:
-        balance = testerchain.client.get_balance(address)
-        spent = DEVELOPMENT_ETH_AIRDROP_AMOUNT - balance
-
-        if spent > 0:
-            tx = {'to': address, 'from': coinbase, 'value': spent}
-            txhash = testerchain.w3.eth.send_transaction(tx)
-
-            _receipt = testerchain.wait_for_receipt(txhash)
-            eth_amount = Web3().from_wei(spent, 'ether')
-            testerchain.log.info("Airdropped {} ETH {} -> {}".format(eth_amount, tx['from'], tx['to']))
-
-    BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
-    yield testerchain
-
-
-@pytest.fixture(scope='module')
-def _mock_testerchain() -> MockBlockchain:
+def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
-    testerchain = _make_testerchain(mock_backend=True)
+    testerchain = MockBlockchain()
     BlockchainInterfaceFactory.register_interface(interface=testerchain)
     yield testerchain
-
-
-@pytest.fixture(scope='module')
-def deployer_transacting_power(testerchain):
-    transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
-                                         signer=Web3Signer(client=testerchain.client),
-                                         account=testerchain.etherbase_account)
-    transacting_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    return transacting_power
-
-
-def _make_agency(test_registry, token_economics, deployer_transacting_power, threshold_staking):
-    transacting_power = deployer_transacting_power
-
-    token_deployer = NucypherTokenDeployer(economics=token_economics, registry=test_registry)
-    token_deployer.deploy(transacting_power=transacting_power)
-
-    pre_application_deployer = PREApplicationDeployer(economics=token_economics,
-                                                      registry=test_registry,
-                                                      staking_interface=threshold_staking.address)
-    pre_application_deployer.deploy(transacting_power=transacting_power)
-
-    subscription_manager_deployer = SubscriptionManagerDeployer(economics=token_economics, registry=test_registry)
-    subscription_manager_deployer.deploy(transacting_power=transacting_power)
-
-    coordinator_deployer = CoordinatorDeployer(economics=token_economics, registry=test_registry)
-    coordinator_deployer.deploy(transacting_power=transacting_power,
-                                _application=pre_application_deployer.contract_address)
 
 
 @pytest.fixture(scope='module')
@@ -461,80 +321,12 @@ def test_registry_source_manager(test_registry):
 
 
 @pytest.fixture(scope='module')
-def agency(test_registry,
-           application_economics,
-           test_registry_source_manager,
-           deployer_transacting_power,
-           threshold_staking):
-    _make_agency(test_registry=test_registry,
-                 token_economics=application_economics,
-                 deployer_transacting_power=deployer_transacting_power,
-                 threshold_staking=threshold_staking)
-
-
-@pytest.fixture(scope='module')
-def agency_local_registry(testerchain, agency, test_registry):
+def agency_local_registry(testerchain, test_registry):
     registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
     registry.write(test_registry.read())
     yield registry
     if MOCK_REGISTRY_FILEPATH.exists():
         MOCK_REGISTRY_FILEPATH.unlink()
-
-
-@pytest.fixture(scope='module')
-def threshold_staking(deploy_contract):
-    threshold_staking, _ = deploy_contract('ThresholdStakingForPREApplicationMock')
-    yield threshold_staking
-
-
-@pytest.fixture(scope="module")
-def staking_providers(testerchain, agency, test_registry, threshold_staking):
-    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    blockchain = pre_application_agent.blockchain
-
-    staking_providers = list()
-    for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
-        provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
-        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-
-        # for a random amount
-        amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
-
-        # initialize threshold stake
-        tx = threshold_staking.functions.setRoles(provider_address).transact()
-        testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
-        testerchain.wait_for_receipt(tx)
-
-        # We assume that the staking provider knows in advance the account of her operator
-        pre_application_agent.bond_operator(staking_provider=provider_address,
-                                            operator=operator_address,
-                                            transacting_power=provider_power)
-
-        operator_power = TransactingPower(
-            account=operator_address, signer=Web3Signer(testerchain.client)
-        )
-        operator = Operator(
-            is_me=True,
-            operator_address=operator_address,
-            domain=TEMPORARY_DOMAIN,
-            registry=test_registry,
-            transacting_power=operator_power,
-            eth_provider_uri=testerchain.eth_provider_uri,
-            signer=Web3Signer(testerchain.client),
-            crypto_power=CryptoPower(power_ups=[operator_power]),
-            payment_method=SubscriptionManagerPayment(
-                eth_provider=testerchain.eth_provider_uri,
-                network=TEMPORARY_DOMAIN,
-                registry=test_registry,
-            ),
-        )
-        operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
-
-        # track
-        staking_providers.append(provider_address)
-
-    yield staking_providers
 
 
 @pytest.fixture()
@@ -558,37 +350,6 @@ def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mo
     return ursula
 
 
-@pytest.fixture(scope="module")
-def ursulas(testerchain, staking_providers, ursula_test_config):
-    if MOCK_KNOWN_URSULAS_CACHE:
-        # TODO: Is this a safe assumption / test behaviour?
-        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
-        MOCK_KNOWN_URSULAS_CACHE.clear()
-
-    _ursulas = make_ursulas(
-        ursula_config=ursula_test_config,
-        staking_provider_addresses=testerchain.stake_providers_accounts,
-        operator_addresses=testerchain.ursulas_accounts,
-        know_each_other=True,
-    )
-    for u in _ursulas:
-        u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
-
-    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
-    yield _ursulas
-
-    for port in _ports_to_remove:
-        del MOCK_KNOWN_URSULAS_CACHE[port]
-
-    for u in _ursulas:
-        u.stop()
-        u._finalize()
-
-    # Pytest will hold on to this object, need to clear it manually.
-    # See https://github.com/pytest-dev/pytest/issues/5642
-    _ursulas.clear()
-
-
 @pytest.fixture(scope='module')
 def policy_rate():
     rate = Web3.to_wei(21, 'gwei')
@@ -601,48 +362,9 @@ def policy_value(application_economics, policy_rate):
     return value
 
 
-@pytest.fixture(scope='module')
-def funded_blockchain(testerchain, agency, application_economics, test_registry):
-    # Who are ya'?
-    deployer_address, *everyone_else, staking_participant = testerchain.client.accounts
-
-    transacting_power = TransactingPower(account=testerchain.etherbase_account,
-                                         signer=Web3Signer(testerchain.client))
-
-    # Free ETH!!!
-    testerchain.ether_airdrop(amount=DEVELOPMENT_ETH_AIRDROP_AMOUNT)
-
-    # Free Tokens!!!
-    token_airdrop(token_agent=NucypherTokenAgent(registry=test_registry),
-                  transacting_power=transacting_power,
-                  addresses=everyone_else,
-                  amount=application_economics.min_authorization * 5)
-
-    # HERE YOU GO
-    yield testerchain, deployer_address
-
-
-@pytest.fixture(scope='module')
-def manual_operator(testerchain):
-    worker_private_key = os.urandom(32).hex()
-    address = testerchain.provider.ethereum_tester.add_account(worker_private_key,
-                                                               password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    tx = {'to': address,
-          'from': testerchain.etherbase_account,
-          'value': Web3.to_wei('1', 'ether')}
-
-    txhash = testerchain.client.w3.eth.send_transaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-    yield address
-
-
 #
 # Test logging
 #
-
-# TODO : Use a pytest Flag to enable/disable this functionality
-test_logger = Logger("test-logger")
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -653,19 +375,6 @@ def log_in_and_out_of_test(request):
     test_logger.info(f"Starting {module_name}.py::{test_name}")
     yield
     test_logger.info(f"Finalized {module_name}.py::{test_name}")
-
-
-@pytest.fixture(scope="module")
-def deploy_contract(testerchain, test_registry) -> Callable[..., Tuple[Contract, TxReceipt]]:
-    def wrapped(contract_name, *args, **kwargs):
-        tpower = TransactingPower(account=testerchain.etherbase_account,
-                                  signer=Web3Signer(testerchain.client))
-        return testerchain.deploy_contract(tpower,
-                                           test_registry,
-                                           contract_name,
-                                           *args,
-                                           **kwargs)
-    return wrapped
 
 
 @pytest.fixture(scope='module')
@@ -765,6 +474,14 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
 # CLI
 #
 
+@pytest.fixture(scope="function")
+def mock_funding_and_bonding(testerchain, mocker):
+    mocker.patch(
+        "nucypher.blockchain.eth.actors.Operator.get_staking_provider_address",
+        return_value=testerchain.stake_providers_accounts[0],
+    )
+    mocker.patch.object(EthereumClient, "get_balance", return_value=1)
+
 
 @pytest.fixture(scope='function')
 def test_emitter(mocker):
@@ -786,17 +503,6 @@ def nominal_configuration_fields(test_registry_source_manager):
     config_fields = config.static_payload()
     yield tuple(config_fields.keys())
     del config
-
-
-@pytest.fixture(scope='function')
-def new_local_registry():
-    filename = f'{BASE_TEMP_PREFIX}mock-empty-registry-{datetime.now().strftime(DATETIME_FORMAT)}.json'
-    registry_filepath = BASE_TEMP_DIR / filename
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    registry.write(InMemoryContractRegistry().read())
-    yield registry
-    if registry_filepath.exists():
-        registry_filepath.unlink()
 
 
 @pytest.fixture(scope='module')
@@ -949,6 +655,7 @@ def valid_user_address_context():
         }
     }
 
+
 @pytest.fixture(scope='module', autouse=True)
 def control_time():
     clock = Clock()
@@ -956,3 +663,34 @@ def control_time():
     EventScannerTask.INTERVAL = .1
     clock.llamas = 0
     return clock
+
+
+@pytest.fixture(scope="module")
+def ursulas(testerchain, staking_providers, ursula_test_config):
+    if MOCK_KNOWN_URSULAS_CACHE:
+        # TODO: Is this a safe assumption / test behaviour?
+        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
+        MOCK_KNOWN_URSULAS_CACHE.clear()
+
+    _ursulas = make_ursulas(
+        ursula_config=ursula_test_config,
+        staking_provider_addresses=testerchain.stake_providers_accounts,
+        operator_addresses=testerchain.ursulas_accounts,
+        know_each_other=True,
+    )
+    for u in _ursulas:
+        u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
+
+    _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
+    yield _ursulas
+
+    for port in _ports_to_remove:
+        del MOCK_KNOWN_URSULAS_CACHE[port]
+
+    for u in _ursulas:
+        u.stop()
+        u._finalize()
+
+    # Pytest will hold on to this object, need to clear it manually.
+    # See https://github.com/pytest-dev/pytest/issues/5642
+    _ursulas.clear()

@@ -28,7 +28,7 @@ def transacting_power(testerchain, alice):
     return TransactingPower(account=alice.transacting_power.account, signer=Web3Signer(testerchain.client))
 
 
-def test_initiate_ritual(agent: CoordinatorAgent, deploy_contract, cohort, transacting_power):
+def test_initiate_ritual(agent: CoordinatorAgent, cohort, transacting_power):
     receipt = agent.initiate_ritual(
         nodes=cohort,
         transacting_power=transacting_power
