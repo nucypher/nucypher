@@ -2,7 +2,7 @@ PRE Application Events
 ======================
 
 When there is an interaction with PRE Application smart contracts, various on-chain events are emitted. These events are
-defined in the :doc:`Contracts API </contracts_api/index>`, and they are queryable via the ``nucypher status events``
+queryable via the ``nucypher status events``
 CLI command, and allows for any PRE Application event to be queried.
 
 

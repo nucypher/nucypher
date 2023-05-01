@@ -1,10 +1,8 @@
-import json
 import time
 from decimal import Decimal
 from typing import List, Optional, Tuple, Union
 
 import maya
-from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
 from ferveo_py import AggregatedTranscript, Ciphertext, ExternalValidator, PublicKey
 from hexbytes import HexBytes
@@ -22,14 +20,12 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
-
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
 from nucypher.crypto.powers import CryptoPower, RitualisticPower, TransactingPower
 from nucypher.datastore.dkg import DKGStorage

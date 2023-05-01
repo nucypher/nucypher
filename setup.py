@@ -91,7 +91,6 @@ class PostDevelopCommand(develop):
     def run(self):
         """development setup scripts (pre-requirements)"""
         develop.run(self)
-        subprocess.call(f"scripts/installation/install_solc.py")
 
 
 #
@@ -161,7 +160,6 @@ setup(
     entry_points={
         'console_scripts': [
             'nucypher = nucypher.cli.main:nucypher_cli',
-            'nucypher-deploy = nucypher.cli.commands.deploy:deploy'
         ],
         'pytest11': [
             "pytest-nucypher = tests.fixtures"
