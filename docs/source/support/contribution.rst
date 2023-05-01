@@ -77,7 +77,6 @@ Alternately, you can install the development dependencies with pip:
 .. code-block:: bash
 
     $ pip3 install -e .[dev]
-    $ ./scripts/installation/install_solc.py
 
 
 Running the Tests

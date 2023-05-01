@@ -131,7 +131,6 @@ Whitepapers
 
    application_development/getting_started
    application_development/web_development
-   application_development/local_fleet_demo
 
 .. toctree::
    :maxdepth: 1
@@ -157,7 +156,6 @@ Whitepapers
    :caption: APIS
 
    api/modules
-   contracts_api/index
 
 .. toctree::
    :maxdepth: 1
