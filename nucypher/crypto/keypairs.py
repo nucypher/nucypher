@@ -1,5 +1,4 @@
 import ferveo_py
-import sha3
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
 from constant_sorrow import constants
@@ -27,6 +26,7 @@ from typing import Optional, Union
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network.resources import get_static_resources
 
 
@@ -67,7 +67,7 @@ class Keypair(object):
 
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
-        return sha3.keccak_256(self.pubkey.to_compressed_bytes()).hexdigest().encode()
+        return keccak_digest(self.pubkey.to_compressed_bytes())
 
 
 class DecryptingKeypair(Keypair):

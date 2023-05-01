@@ -1,16 +1,13 @@
-
-
+import hashlib
 from secrets import SystemRandom
 from typing import Union
 
-import sha3
 from cryptography.hazmat.backends.openssl.backend import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils.address import to_checksum_address
-
 from nucypher_core.umbral import PublicKey
 
 from nucypher.crypto.signing import SignatureStamp
@@ -68,7 +65,7 @@ def keccak_digest(*messages: bytes) -> bytes:
     :rtype: bytes
     :return: bytestring of digested data
     """
-    _hash = sha3.keccak_256()
+    _hash = hashlib.sha3_256()
     for message in messages:
         _hash.update(bytes(message))
     digest = _hash.digest()
