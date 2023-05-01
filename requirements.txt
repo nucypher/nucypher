@@ -6,8 +6,10 @@ async-timeout==4.0.2 ; python_version >= '3.6'
 attrs==23.1.0 ; python_version >= '3.7'
 autobahn==23.1.2 ; python_version >= '3.7'
 automat==22.10.0
+backports.zoneinfo==0.2.1 ; python_version >= '3.7' and python_version < '3.9'
 bitarray==2.7.3
 bytestring-splitter==2.4.1
+cached-property==1.5.2
 certifi==2022.12.7 ; python_version >= '3.6'
 cffi==1.15.1
 charset-normalizer==2.1.1 ; python_full_version >= '3.6.0'
@@ -21,10 +23,12 @@ dateparser==1.1.8 ; python_version >= '3.7'
 eip712-structs==1.1.0
 eth-abi==4.0.0 ; python_version >= '3.7' and python_version < '4'
 eth-account==0.8.0 ; python_version >= '3.6' and python_version < '4'
+eth-bloom==2.0.0 ; python_version >= '3.7' and python_version < '4'
 eth-hash==0.5.1 ; python_version >= '3.7' and python_version < '4'
 eth-keyfile==0.6.1
 eth-keys==0.4.0
 eth-rlp==0.3.0 ; python_version >= '3.7' and python_version < '4'
+eth-tester==0.8.0b3
 eth-typing==3.3.0 ; python_version < '4' and python_full_version >= '3.7.2'
 eth-utils==2.1.0
 ferveo @ git+https://github.com/KPrasch/ferveo.git@7a5c5fc8be49894c0affd0da32b80e29e6e1ee8e#subdirectory=ferveo-python
@@ -35,6 +39,8 @@ hexbytes==0.3.0 ; python_version >= '3.7' and python_version < '4'
 humanize==4.6.0 ; python_version >= '3.7'
 hyperlink==21.0.0
 idna==3.4 ; python_version >= '3.5'
+importlib-metadata==6.6.0 ; python_version < '3.10'
+importlib-resources==5.12.0 ; python_version < '3.9'
 incremental==22.10.0
 itsdangerous==2.1.2 ; python_version >= '3.7'
 jinja2==3.0.3
@@ -49,16 +55,21 @@ mnemonic==0.20
 msgpack==1.0.5
 msgpack-python==0.5.6
 multidict==6.0.4 ; python_version >= '3.7'
+mypy-extensions==0.4.4 ; python_version >= '2.7'
 nucypher-core @ git+https://github.com/KPrasch/nucypher-core.git@b2a56784f41e89b702e74c14a56f461c9b8a233f#subdirectory=nucypher-core-python
 packaging==23.1 ; python_version >= '3.7'
 parsimonious==0.9.0
 pendulum==3.0.0a1 ; python_version >= '3.7' and python_version < '4.0'
+pkgutil-resolve-name==1.3.10 ; python_version < '3.9'
 protobuf==4.23.0rc2 ; python_version >= '3.7'
+py-ecc==6.0.0 ; python_version >= '3.6' and python_version < '4'
+py-evm==0.6.1a2
 pyasn1==0.5.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5'
 pyasn1-modules==0.3.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5'
 pychalk==2.0.1
 pycparser==2.21
 pycryptodome==3.17
+pyethash==0.1.27
 pynacl==1.5.0
 pyopenssl==23.1.1
 pysha3==1.0.2
@@ -69,13 +80,16 @@ regex==2023.3.23 ; python_version >= '3.8'
 requests==2.29.0
 rlp==3.0.0
 rpds-py==0.7.1 ; python_version >= '3.8'
+semantic-version==2.10.0 ; python_version >= '2.7'
 service-identity==21.1.0
 setuptools==67.7.2 ; python_version >= '3.7'
 six==1.16.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 snaptime==0.2.4
+sortedcontainers==2.4.0
 tabulate==0.9.0
 time-machine==2.9.0 ; implementation_name != 'pypy'
 toolz==0.12.0 ; python_version >= '3.5'
+trie==2.1.0 ; python_version >= '3.7' and python_version < '4'
 twisted==22.10.0 ; python_full_version >= '3.7.1'
 txaio==23.1.1 ; python_version >= '3.7'
 typing-extensions==4.5.0 ; python_version >= '3.7'
@@ -85,6 +99,7 @@ urllib3==1.26.15 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 
 watchdog==2.3.1
 web3==6.2.0
 websockets==11.0.2 ; python_version >= '3.7'
-werkzeug==2.3.2 ; python_version >= '3.8'
+werkzeug==2.3.3 ; python_version >= '3.8'
 yarl==1.9.2 ; python_version >= '3.7'
+zipp==3.15.0 ; python_version >= '3.7'
 zope.interface==6.1a2 ; python_version >= '3.7'

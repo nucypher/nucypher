@@ -1,37 +1,20 @@
 -i https://pypi.python.org/simple
 alabaster==0.7.13 ; python_version >= '3.6'
-autosemver==0.5.5
 babel==2.12.1 ; python_version >= '3.7'
 certifi==2022.12.7 ; python_version >= '3.6'
-charset-normalizer==3.1.0 ; python_full_version >= '3.7.0'
+charset-normalizer==2.1.1
 click==8.1.3 ; python_version >= '3.7'
 click-default-group==1.2.2
-coverage==7.2.4 ; python_version >= '3.7'
-docutils==0.18.1 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-dulwich==0.19.16
-exceptiongroup==1.1.1 ; python_version < '3.11'
-execnet==1.9.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
+docutils==0.17.1
 idna==3.4 ; python_version >= '3.5'
 imagesize==1.4.1 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 incremental==22.10.0
-iniconfig==2.0.0 ; python_version >= '3.7'
-isort==6.0.0b2 ; python_full_version >= '3.7.0'
 jinja2==3.0.3
-git+https://github.com/inspirehep/jsonschema2rst.git@d211d9709046431a6b6a4594c97c22d8713d854b#egg=jsonschema2rst
 markupsafe==2.1.2 ; python_version >= '3.7'
-mock==5.0.2 ; python_version >= '3.6'
 packaging==23.1 ; python_version >= '3.7'
-pep8==1.7.1
-pluggy==1.0.0 ; python_version >= '3.6'
-py-solc-x==1.1.1
 pygments==2.15.1 ; python_version >= '3.7'
-pytest==7.3.1 ; python_version >= '3.7'
-pytest-cache==1.0
-pytest-cov==4.0.0 ; python_version >= '3.6'
-pytest-pep8==1.0.6
-pyyaml==6.0 ; python_version >= '3.6'
+pytz==2023.3 ; python_version < '3.9'
 requests==2.29.0 ; python_version >= '3.7'
-semantic-version==2.10.0 ; python_version >= '2.7'
 setuptools==67.7.2 ; python_version >= '3.7'
 snowballstemmer==2.2.0
 sphinx==3.0.1
