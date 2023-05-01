@@ -1,8 +1,8 @@
-import sha3
 from constant_sorrow.constants import PUBLIC_ONLY
 from nucypher_core.umbral import SecretKey
 
 from nucypher.crypto import keypairs
+from nucypher.crypto.utils import keccak_digest
 
 
 def test_gen_keypair_if_needed():
@@ -52,7 +52,7 @@ def test_keypair_fingerprint():
     assert fingerprint is not None
 
     umbral_fingerprint = (
-        sha3.keccak_256(umbral_pubkey.to_compressed_bytes()).hexdigest().encode()
+        keccak_digest(umbral_pubkey.to_compressed_bytes()).hex().encode()
     )
     assert fingerprint == umbral_fingerprint
 

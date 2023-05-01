@@ -1,4 +1,3 @@
-import hashlib
 from secrets import SystemRandom
 from typing import Union
 
@@ -6,6 +5,7 @@ from cryptography.hazmat.backends.openssl.backend import backend
 from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
+from eth_hash.auto import keccak
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_utils.address import to_checksum_address
 from nucypher_core.umbral import PublicKey
@@ -57,6 +57,8 @@ def keccak_digest(*messages: bytes) -> bytes:
     Accepts an iterable containing bytes and digests it returning a
     Keccak digest of 32 bytes (keccak_256).
 
+    Uses `eth_hash`, which accepts bytearray/bytes only, to provide a consistent implementation.
+
     Although we use SHA256 in many cases, we keep keccak handy in order
     to provide compatibility with the Ethereum blockchain.
 
@@ -65,10 +67,10 @@ def keccak_digest(*messages: bytes) -> bytes:
     :rtype: bytes
     :return: bytestring of digested data
     """
-    _hash = hashlib.sha3_256()
-    for message in messages:
-        _hash.update(bytes(message))
-    digest = _hash.digest()
+    # TODO: There's a higher-level tool in eth-utils that will optionally also take a string.  Do we want to use that?
+    # https://eth-utils.readthedocs.io/en/stable/utilities.html#keccak-bytes-int-bool-text-str-hexstr-str-bytes
+    joined_bytes = bytes().join(messages)
+    digest = keccak(joined_bytes)
     return digest
 
 
