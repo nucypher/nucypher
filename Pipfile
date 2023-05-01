@@ -18,7 +18,6 @@ ferveo = ">=0.1.7"
 mnemonic = "*"
 pynacl= ">=1.4.0"
 pyopenssl = "*"
-pysha3="*"
 # Utilities
 mako = "*"
 marshmallow = "*"
@@ -29,6 +28,8 @@ aiohttp = "==3.8.1"
 flask = "*"
 requests = "*"
 # Third-Party Ethereum
+py-evm = "==0.6.1a2"  # TODO evm-trace needs this version
+eth-tester = "*"   # providers.py still uses this
 web3 = ">=6.0.0"
 eth-utils = "*"
 eip712-structs = "*"
@@ -55,14 +56,9 @@ eth-ape = ">=0.6.3,<0.7.0"
 ape-solidity = ">=0.6.0,<0.7.0"
 hypothesis = "*"
 pre-commit = "2.12.1"
-pyflakes = "*"
 coverage = "<=6.5.0"
-py-solc-x = "==1.1.1"   # docs version matches this one
 
 [scripts]
-install-solc = "python3 scripts/installation/install_solc.py"
-estimate-gas = "python3 tests/metrics/estimate_gas.py"
-nucypher-deploy = "python3 nucypher/cli/deploy.py"
 nucypher = "python3 nucypher/cli/main.py"
 
 [pipenv]
