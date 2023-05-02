@@ -208,8 +208,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # zip capsules with their respective conditions
         packets = zip(reenc_request.capsules, lingos)
 
-        # TODO: Detect if we are dealing with PRE or tDec here
-        # TODO: This is for PRE only, relocate HRAC to RE.context
+        # TODO: Relocate HRAC to RE.context
         hrac = reenc_request.hrac
 
         # This is either PRE Bob or a CBD requester
