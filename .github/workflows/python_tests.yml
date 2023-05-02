@@ -160,10 +160,10 @@ jobs:
 
       - name: Upload acceptance tests coverage to Codecov
         if: matrix.python-version == '3.10'
-        working-directory: tests/acceptance
         uses: codecov/codecov-action@v3.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          directory: tests/acceptance
           files: acceptance-agents-coverage.xml, acceptance-actors-coverage.xml, acceptance-conditions-coverage.xml, acceptance-characters-coverage.xml, acceptance-cli-coverage.xml
           flags: acceptance
           fail_ci_if_error: true
