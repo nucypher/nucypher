@@ -61,7 +61,7 @@ jobs:
         if: matrix.python-version != '3.10'
         run: python -m pytest tests/unit
 
-#       Integration tests
+      # Integration tests
       - name: Integration Tests (Coverage)
         if: matrix.python-version == '3.10'
         run: |
