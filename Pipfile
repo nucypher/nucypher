@@ -11,7 +11,7 @@ python_version = "3"
 constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=4.0"
-nucypher-core = ">=0.6.1"
+nucypher-core = ">=0.7.0"
 # Cryptography
 cryptography = ">=3.2"
 ferveo = ">=0.1.7"
@@ -24,15 +24,17 @@ marshmallow = "*"
 maya = "*"
 msgpack = "*"
 # Web
-aiohttp = "==3.8.1"
+aiohttp = "==3.8.2"
 flask = "*"
 requests = "*"
 # Third-Party Ethereum
-py-evm = "==0.6.1a2"  # TODO evm-trace needs this version
-eth-tester = "*"   # providers.py still uses this
-web3 = ">=6.0.0"
-eth-utils = "*"
 eip712-structs = "*"
+eth-tester = "*"   # providers.py still uses this
+py-evm = "==0.6.1a2"  # ape -> evm-trace needs this version
+web3 = ">=6.0.0"
+watchdog = "<3.0.0"  # needed for eth-ape to be happy
+
+eth-utils = "*"
 # CLI / Configuration
 appdirs = "*"
 click = ">=7.0"
@@ -41,7 +43,6 @@ tabulate = "*"
 # Template
 jinja2 = "<3.1.0"  # because of docs
 
-watchdog = "<3.0.0"  # needed for eth-ape to be happy
 
 [dev-packages]
 # Pytest
