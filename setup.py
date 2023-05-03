@@ -38,18 +38,17 @@ from setuptools.command.install import install
 PACKAGE_NAME = 'nucypher'
 BASE_DIR = Path(__file__).parent
 PYPI_CLASSIFIERS = [
-      "Development Status :: 3 - Alpha",
-      "Intended Audience :: Developers",
-      "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
-      "Natural Language :: English",
-      "Operating System :: OS Independent",
-      "Programming Language :: Python",
-      "Programming Language :: Python :: 3 :: Only",
-      "Programming Language :: Python :: 3.6",
-      "Programming Language :: Python :: 3.7",
-      "Programming Language :: Python :: 3.8",
-      "Programming Language :: Python :: 3.9",
-      "Topic :: Security"
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Security",
 ]
 
 ABOUT: Dict[str, str] = dict()
@@ -91,7 +90,6 @@ class PostDevelopCommand(develop):
     def run(self):
         """development setup scripts (pre-requirements)"""
         develop.run(self)
-        subprocess.call(f"scripts/installation/install_solc.py")
 
 
 #
@@ -161,7 +159,6 @@ setup(
     entry_points={
         'console_scripts': [
             'nucypher = nucypher.cli.main:nucypher_cli',
-            'nucypher-deploy = nucypher.cli.commands.deploy:deploy'
         ],
         'pytest11': [
             "pytest-nucypher = tests.fixtures"

@@ -1,11 +1,10 @@
-import json
+import time
 from decimal import Decimal
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import maya
-import time
-from constant_sorrow.constants import FULL
 from eth_typing import ChecksumAddress
+from ferveo_py import AggregatedTranscript, Ciphertext, ExternalValidator, PublicKey
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.types import TxReceipt
@@ -15,25 +14,23 @@ from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
+    CoordinatorAgent,
     NucypherTokenAgent,
     PREApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
-from nucypher.blockchain.eth.deployers import (
-    AdjudicatorDeployer,
-    BaseContractDeployer,
-    NucypherTokenDeployer,
-    PREApplicationDeployer,
-    SubscriptionManagerDeployer,
-)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.token import NU, WorkTracker
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.pre import WorkTracker
+from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
+from nucypher.crypto.powers import CryptoPower, RitualisticPower, TransactingPower
+from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.trackers import OperatorBondedTracker
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -126,159 +123,6 @@ class NucypherTokenActor(BaseActor):
         return nu_balance
 
 
-class ContractAdministrator(BaseActor):
-    """
-    The administrator of network contracts.
-    """
-
-    # Note: Deployer classes are sorted by deployment dependency order.
-
-    standard_deployer_classes = (
-        NucypherTokenDeployer,
-        PREApplicationDeployer,
-        SubscriptionManagerDeployer  # TODO: Move to dispatched/upgradeable section
-    )
-
-    dispatched_upgradeable_deployer_classes = (
-        AdjudicatorDeployer,
-    )
-
-    upgradeable_deployer_classes = (
-        *dispatched_upgradeable_deployer_classes,
-    )
-
-    aux_deployer_classes = (
-        # Add more deployer classes here
-    )
-
-    # For ownership transfers.
-    ownable_deployer_classes = (*dispatched_upgradeable_deployer_classes,)
-
-    # Used in the automated deployment series.
-    primary_deployer_classes = (*standard_deployer_classes,
-                                *upgradeable_deployer_classes)
-
-    # Comprehensive collection.
-    all_deployer_classes = (*primary_deployer_classes,
-                            *aux_deployer_classes,
-                            *ownable_deployer_classes)
-
-    class UnknownContract(ValueError):
-        pass
-
-    def __init__(self, *args, **kwargs):
-        self.log = Logger("Deployment-Actor")
-        self.deployers = {d.contract_name: d for d in self.all_deployer_classes}
-        super().__init__(*args, **kwargs)
-
-    def __repr__(self):
-        r = '{name} - {deployer_address})'.format(name=self.__class__.__name__, deployer_address=self.checksum_address)
-        return r
-
-    def __get_deployer(self, contract_name: str):
-        try:
-            Deployer = self.deployers[contract_name]
-        except KeyError:
-            raise self.UnknownContract(contract_name)
-        return Deployer
-
-    def deploy_contract(self,
-                        contract_name: str,
-                        gas_limit: int = None,
-                        deployment_mode=FULL,
-                        ignore_deployed: bool = False,
-                        progress=None,
-                        confirmations: int = 0,
-                        deployment_parameters: dict = None,
-                        emitter=None,
-                        *args, **kwargs,
-                        ) -> Tuple[dict, BaseContractDeployer]:
-
-        if not self.transacting_power:
-            raise self.ActorError('No transacting power available for deployment.')
-
-        deployment_parameters = deployment_parameters or {}
-
-        Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry, economics=self.economics, *args, **kwargs)
-
-        if Deployer._upgradeable:
-            receipts = deployer.deploy(transacting_power=self.transacting_power,
-                                       gas_limit=gas_limit,
-                                       progress=progress,
-                                       ignore_deployed=ignore_deployed,
-                                       confirmations=confirmations,
-                                       deployment_mode=deployment_mode,
-                                       emitter=emitter,
-                                       **deployment_parameters)
-        else:
-            receipts = deployer.deploy(transacting_power=self.transacting_power,
-                                       gas_limit=gas_limit,
-                                       progress=progress,
-                                       confirmations=confirmations,
-                                       deployment_mode=deployment_mode,
-                                       ignore_deployed=ignore_deployed,
-                                       emitter=emitter,
-                                       **deployment_parameters)
-        return receipts, deployer
-
-    def upgrade_contract(self,
-                         contract_name: str,
-                         confirmations: int,
-                         ignore_deployed: bool = False,
-                         ) -> dict:
-        if not self.transacting_power:
-            raise self.ActorError('No transacting power available for deployment.')
-        Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry)
-        receipts = deployer.upgrade(transacting_power=self.transacting_power,
-                                    ignore_deployed=ignore_deployed,
-                                    confirmations=confirmations)
-        return receipts
-
-    def retarget_proxy(self,
-                       confirmations: int,
-                       contract_name: str,
-                       target_address: str,
-                       just_build_transaction: bool = False
-                       ):
-        if not self.transacting_power:
-            raise self.ActorError('No transacting power available for deployment.')
-        Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry)
-        result = deployer.retarget(transacting_power=self.transacting_power,
-                                   target_address=target_address,
-                                   just_build_transaction=just_build_transaction,
-                                   confirmations=confirmations)
-        return result
-
-    def rollback_contract(self, contract_name: str):
-        if not self.transacting_power:
-            raise self.ActorError('No transacting power available for deployment.')
-        Deployer = self.__get_deployer(contract_name=contract_name)
-        deployer = Deployer(registry=self.registry)
-        receipts = deployer.rollback(transacting_power=self.transacting_power)
-        return receipts
-
-    def save_deployment_receipts(self, receipts: dict, filename_prefix: str = 'deployment') -> str:
-        config_root = DEFAULT_CONFIG_ROOT  # We force the use of the default here.
-        filename = f'{filename_prefix}-receipts-{self.deployer_address[:6]}-{maya.now().epoch}.json'
-        filepath = config_root / filename
-        config_root.mkdir(parents=True, exist_ok=True)
-        with open(filepath, 'w') as file:
-            data = dict()
-            for contract_name, contract_receipts in receipts.items():
-                contract_records = dict()
-                for tx_name, receipt in contract_receipts.items():
-                    # Formatting
-                    pretty_receipt = {item: str(result) for item, result in receipt.items()}
-                    contract_records[tx_name] = pretty_receipt
-                data[contract_name] = contract_records
-            data = json.dumps(data, indent=4)
-            file.write(data)
-        return filepath
-
-
 class Operator(BaseActor):
 
     READY_TIMEOUT = None  # (None or 0) == indefinite
@@ -325,7 +169,7 @@ class Operator(BaseActor):
         self.payment_method = payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
-        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+        BaseActor.__init__(self, transacting_power=transacting_power, *args, **kwargs)
 
         self.log = Logger("worker")
         self.is_me = is_me
@@ -334,15 +178,18 @@ class Operator(BaseActor):
         if is_me:
             self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
             self.work_tracker = work_tracker or WorkTracker(worker=self)
-            
+
             # Multi-provider support
-            # TODO: Abstract away payment provider
+            # TODO: Abstract away payment provider  #3004
             eth_chain = self.application_agent.blockchain
             polygon_chain = payment_method.agent.blockchain
 
+            # TODO: #3094 This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
+            #       that has a different provider than the one passed to the constructor.  This is a temporary fix.
+            polygon_chain.client.w3 = Web3(polygon_chain.provider)
+
             # TODO: Verify consistency between network names and provider connection?
-            # TODO: Allow bypassing of the enforcement above ^
-            # TODO: Is chain ID stable and completely reliable?
+            # TODO: #3094 Is chain ID stable and completely reliable?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
                 polygon_chain.client.chain_id: polygon_chain.provider
@@ -411,6 +258,291 @@ class Operator(BaseActor):
             # we have not confirmed yet
             return not self.is_confirmed
         return func
+
+
+class Ritualist(BaseActor):
+    READY_TIMEOUT = None  # (None or 0) == indefinite
+    READY_POLL_RATE = 10
+
+    class RitualError(BaseActor.ActorError):
+        """ritualist-specific errors"""
+
+    def __init__(
+            self,
+            eth_provider_uri: str,
+            crypto_power: CryptoPower,
+            transacting_power: TransactingPower,
+            publish_finalization: bool = True,
+            *args,
+            **kwargs,
+    ):
+        crypto_power.consume_power_up(transacting_power)
+        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+        self.log = Logger("ritualist")
+
+        self.coordinator_agent = ContractAgency.get_agent(
+            CoordinatorAgent,
+            registry=self.registry,
+            eth_provider_uri=eth_provider_uri
+        )
+
+        # track active onchain rituals
+        self.ritual_tracker = ActiveRitualTracker(
+            ritualist=self,
+            eth_provider=self.coordinator_agent.blockchain.provider,
+            contract=self.coordinator_agent.contract
+        )
+
+        self.publish_finalization = publish_finalization  # publish the DKG final key if True
+        self.dkg_storage = DKGStorage()  # TODO: #3052 stores locally generated public DKG artifacts
+        self.ritual_power = crypto_power.power_ups(RitualisticPower)  # ferveo material contained within
+
+    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
+        try:
+            ritual = self.ritual_tracker.rituals[ritual_id]
+        except KeyError:
+            raise self.ActorError(f"{ritual_id} is not in the local cache")
+        return ritual
+
+    def _resolve_validators(
+            self,
+            ritual: CoordinatorAgent.Ritual,
+            timeout: int = 60
+    ) -> List[Tuple[ExternalValidator, Transcript]]:
+
+        validators = [n[0] for n in ritual.transcripts]
+        if timeout > 0:
+            nodes_to_discover = list(set(validators) - {self.checksum_address})
+            self.block_until_specific_nodes_are_known(
+                addresses=nodes_to_discover,
+                timeout=timeout,
+                allow_missing=0
+            )
+
+        result = list()
+        for staking_provider_address, transcript_bytes in ritual.transcripts:
+            if self.checksum_address == staking_provider_address:
+                # Local
+                external_validator = ExternalValidator(
+                    address=self.checksum_address,
+                    public_key=self.ritual_power.public_key()
+                )
+            else:
+                # Remote
+                try:
+                    remote_ritualist = self.known_nodes[staking_provider_address]
+                except KeyError:
+                    raise self.ActorError(f"Unknown node {staking_provider_address}")
+                remote_ritualist.mature()
+                public_key = remote_ritualist.public_keys(RitualisticPower)
+                self.log.debug(f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}")
+                external_validator = ExternalValidator(address=staking_provider_address, public_key=public_key)
+
+            transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else None
+            result.append((external_validator, transcript))
+
+        return result
+
+    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> TxReceipt:
+        """Publish a transcript to publicly available storage."""
+        # look up the node index for this node on the blockchain
+        index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
+        receipt = self.coordinator_agent.post_transcript(
+            ritual_id=ritual_id,
+            node_index=index,
+            transcript=bytes(transcript),
+            transacting_power=self.transacting_power
+        )
+        return receipt
+
+    def publish_aggregated_transcript(
+        self,
+        ritual_id: int,
+        aggregated_transcript: AggregatedTranscript,
+        public_key: PublicKey,
+    ) -> TxReceipt:
+        """Publish an aggregated transcript to publicly available storage."""
+        # look up the node index for this node on the blockchain
+        index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
+        receipt = self.coordinator_agent.post_aggregation(
+            ritual_id=ritual_id,
+            node_index=index,
+            aggregated_transcript=bytes(aggregated_transcript),
+            public_key=public_key,
+            transacting_power=self.transacting_power
+        )
+        return receipt
+
+    def perform_round_1(
+        self,
+        ritual_id: int,
+        initiator: ChecksumAddress,
+        nodes: List[ChecksumAddress],
+        timestamp: int,
+    ):
+        """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
+
+        if self.checksum_address not in nodes:
+            # should never get here
+            self.log.error(
+                f"Not part of ritual {ritual_id}; no need to submit transcripts"
+            )
+            raise self.RitualError(
+                f"Not part of ritual {ritual_id}; don't post transcript"
+            )
+
+        # get the ritual and check its status from the blockchain
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+
+        # validate the status
+        if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
+            raise self.RitualError(
+                f"ritual #{ritual.id} is not waiting for transcripts; status={status}."
+            )
+
+        # validate the active ritual tracker state
+        node_index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
+        if ritual.participants[node_index].transcript:
+            raise self.RitualError(
+                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"
+            )
+        self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
+
+        # gather the cohort
+        nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
+        if any(transcripts):
+            self.log.debug(f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.nodes)}.")
+            self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
+
+        # generate a transcript
+        try:
+            transcript = self.ritual_power.generate_transcript(
+                nodes=nodes,
+                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
+                shares=ritual.shares,
+                checksum_address=self.checksum_address,
+                ritual_id=ritual_id
+            )
+        except Exception as e:
+            # TODO: Handle this better #3096
+            self.log.debug(f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}")
+            raise self.RitualError(f"Failed to generate a transcript: {str(e)}")
+
+        # store the transcript in the local cache
+        self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)
+
+        # publish the transcript and store the receipt
+        receipt = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
+        self.dkg_storage.store_transcript_receipt(ritual_id=ritual_id, receipt=receipt)
+
+        arrival = ritual.total_transcripts + 1
+        self.log.debug(f"{self.transacting_power.account[:8]} submitted a transcript for "
+                       f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.nodes)})")
+        return receipt
+
+    def perform_round_2(self, ritual_id: int, timestamp: int):
+        """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
+
+        # Get the ritual and check the status from the blockchain
+        # TODO Optimize local cache of ritual participants (#3052)
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        if self.checksum_address not in [p.node for p in ritual.participants]:
+            raise self.RitualError(
+                f"Node is not part of {ritual.id}; no need to submit aggregated transcript"
+            )
+
+        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+
+        if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
+            raise self.ActorError(
+                f"ritual #{ritual.id} is not waiting for aggregations; status={status}."
+            )
+        self.log.debug(
+            f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
+        )
+
+        transcripts = self._resolve_validators(ritual)
+        if not all([t for _, t in transcripts]):
+            raise self.ActorError(
+                f"ritual #{ritual_id} is missing transcripts from {len([t for t in transcripts if not t])} nodes."
+            )
+
+        # Aggregate the transcripts
+        try:
+            result = self.ritual_power.aggregate_transcripts(
+                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
+                shares=ritual.shares,
+                checksum_address=self.checksum_address,
+                ritual_id=ritual_id,
+                transcripts=transcripts
+            )
+        except Exception as e:
+            self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
+            raise self.ActorError(f"Failed to aggregate transcripts: {str(e)}")
+        else:
+            aggregated_transcript, dkg_public_key, params = result
+
+        # Store the DKG artifacts for later us
+        self.dkg_storage.store_aggregated_transcript(ritual_id=ritual_id, aggregated_transcript=aggregated_transcript)
+        self.dkg_storage.store_dkg_params(ritual_id=ritual_id, public_params=params)
+        self.dkg_storage.store_public_key(ritual_id=ritual_id, public_key=dkg_public_key)
+
+        # publish the transcript and store the receipt
+        total = ritual.total_aggregations + 1
+        receipt = self.publish_aggregated_transcript(
+            ritual_id=ritual_id,
+            aggregated_transcript=aggregated_transcript,
+            public_key=dkg_public_key,
+        )
+        self.dkg_storage.store_aggregated_transcript_receipt(
+            ritual_id=ritual_id, receipt=receipt
+        )
+
+        # logging
+        self.log.debug(f"{self.transacting_power.account[:8]} aggregated a transcript for "
+                       f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
+        if total >= len(ritual.nodes):
+            self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
+
+        return receipt
+
+    def derive_decryption_share(
+        self,
+        ritual_id: int,
+        ciphertext: Ciphertext,
+        conditions: ConditionLingo,
+        variant: FerveoVariant
+    ) -> DecryptionShareSimple:
+        ritual = self.coordinator_agent.get_ritual(ritual_id)
+        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+        if status != CoordinatorAgent.Ritual.Status.FINALIZED:
+            raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
+
+        nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
+        if not all(transcripts):
+            raise self.ActorError(
+                f"ritual #{ritual_id} is missing transcripts"
+            )
+
+        threshold = (ritual.shares // 2) + 1
+        conditions = str(conditions).encode()
+        # TODO: consider the usage of local DKG artifact storage here #3052
+        # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
+        aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
+        decryption_share = self.ritual_power.derive_decryption_share(
+            nodes=nodes,
+            threshold=threshold,
+            shares=ritual.shares,
+            checksum_address=self.checksum_address,
+            ritual_id=ritual_id,
+            aggregated_transcript=aggregated_transcript,
+            ciphertext=ciphertext,
+            conditions=conditions,
+            variant=variant
+        )
+
+        return decryption_share
 
 
 class PolicyAuthor(NucypherTokenActor):

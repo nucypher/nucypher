@@ -7,7 +7,7 @@ from twisted.internet.task import Clock
 from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.token import WorkTracker, WorkTrackerBase
+from nucypher.blockchain.eth.trackers.pre import WorkTrackerBase, WorkTracker
 from nucypher.utilities.gas_strategies import GasStrategyError
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 

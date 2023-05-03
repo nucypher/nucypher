@@ -1,26 +1,22 @@
+from json import JSONDecodeError
+from os.path import abspath
 
-
-
+import click
 import json
 import os
 import stat
 import string
 import time
-from json import JSONDecodeError
-from os.path import abspath
+from constant_sorrow.constants import KEYSTORE_LOCKED
+from ferveo_py import ferveo_py
+from mnemonic.mnemonic import Mnemonic
+from nucypher_core.umbral import SecretKeyFactory
 from pathlib import Path
 from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
-import click
-from constant_sorrow.constants import KEYSTORE_LOCKED
-from mnemonic.mnemonic import Mnemonic
-
-from nucypher_core.umbral import SecretKey, SecretKeyFactory
-
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.crypto.keypairs import HostingKeypair
+from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
     secret_box_decrypt,
     secret_box_encrypt,
@@ -34,15 +30,17 @@ from nucypher.crypto.powers import (
     SigningPower,
     CryptoPowerUp,
     DelegatingPower,
-    TLSHostingPower,
+    TLSHostingPower, RitualisticPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
+from nucypher.utilities.emitters import StdoutEmitter
 
 # HKDF
 __INFO_BASE = b'NuCypher/'
 _SIGNING_INFO = __INFO_BASE + b'signing'
 _DECRYPTING_INFO = __INFO_BASE + b'decrypting'
 _DELEGATING_INFO = __INFO_BASE + b'delegating'
+_RITUALISTIC_INFO = __INFO_BASE + b'ritualistic'
 _TLS_INFO = __INFO_BASE + b'tls'
 
 # Wrapping key
@@ -229,7 +227,8 @@ class Keystore:
     __HKDF_INFO = {SigningPower: _SIGNING_INFO,
                    DecryptingPower: _DECRYPTING_INFO,
                    DelegatingPower: _DELEGATING_INFO,
-                   TLSHostingPower: _TLS_INFO}
+                   TLSHostingPower: _TLS_INFO,
+                   RitualisticPower: _RITUALISTIC_INFO}
 
     class Exists(FileExistsError):
         pass
@@ -417,6 +416,13 @@ class Keystore:
             power = _derive_hosting_power(
                 secret_seed=__skf.make_secret(info), *power_args, **power_kwargs
             )
+
+        elif issubclass(power_class, RitualisticPower):
+            keypair_class: RitualisticKeypair = power_class._keypair_class
+            size = ferveo_py.Keypair.secure_randomness_size()
+            blob = __skf.make_secret(info)[:size]
+            keypair = keypair_class.from_secure_randomness(blob)
+            power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, KeyPairBasedPower):
             keypair = power_class._keypair_class(__skf.make_key(info))

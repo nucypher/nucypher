@@ -1,22 +1,21 @@
-
 from pathlib import Path
 from typing import Optional, Union
 
-import sha3
+import ferveo_py
 from OpenSSL.SSL import TLSv1_2_METHOD
 from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
+from ferveo_py import Keypair as FerveoKeypair
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
-
 from nucypher_core import (
     MessageKit,
     EncryptedTreasureMap,
     EncryptedKeyFrag,
     HRAC,
     TreasureMap,
-    )
+)
 from nucypher_core.umbral import (
     SecretKey,
     PublicKey,
@@ -28,6 +27,7 @@ from nucypher_core.umbral import (
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
 from nucypher.crypto.tls import _read_tls_certificate, _TLS_CURVE, generate_self_signed_certificate
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network.resources import get_static_resources
 
 
@@ -68,7 +68,7 @@ class Keypair(object):
 
         :return: Hexdigest fingerprint of key (keccak-256) in bytes
         """
-        return sha3.keccak_256(self.pubkey.to_compressed_bytes()).hexdigest().encode()
+        return keccak_digest(self.pubkey.to_compressed_bytes()).hex().encode()
 
 
 class DecryptingKeypair(Keypair):
@@ -98,6 +98,22 @@ class DecryptingKeypair(Keypair):
 
     def decrypt_treasure_map(self, etmap: EncryptedTreasureMap, publisher_verifying_key: PublicKey) -> TreasureMap:
         return etmap.decrypt(self._privkey, publisher_verifying_key)
+
+
+class RitualisticKeypair(Keypair):
+    """A keypair for Ferveo"""
+
+    _private_key_source = ferveo_py.Keypair.random
+    _public_key_method = "public_key"
+
+    @classmethod
+    def from_secure_randomness(cls, randomness: bytes) -> 'RitualisticKeypair':
+        """Create a keypair from a precomputed secure source of randomness"""
+        size = FerveoKeypair.secure_randomness_size()
+        if len(randomness) != size:
+            raise ValueError(f"precomputed randomness must be {size} bytes long")
+        keypair = FerveoKeypair.from_secure_randomness(randomness)
+        return cls(private_key=keypair)
 
 
 class SigningKeypair(Keypair):

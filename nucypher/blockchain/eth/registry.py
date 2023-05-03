@@ -1,12 +1,12 @@
+from json import JSONDecodeError
 
 import hashlib
 import json
+import requests
 from abc import ABC, abstractmethod
-from json import JSONDecodeError
+from eth_utils import to_checksum_address
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
-
-import requests
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -399,6 +399,19 @@ class LocalContractRegistry(BaseContractRegistry):
     def to_dict(self) -> dict:
         payload = dict(filepath=self.__filepath)
         return payload
+
+    @classmethod
+    def from_ape_artifacts(cls, path: Path) -> 'LocalContractRegistry':
+        """
+        Creates a registry from ape artifacts.
+        """
+        registry = cls(filepath=path)
+        registry.clear()
+        for artifact in path.glob('*.json'):
+            registry.enroll(contract_name=artifact.stem,
+                            contract_address=artifact[0],
+                            contract_abi=artifact[1])
+        return registry
 
 
 class InMemoryContractRegistry(BaseContractRegistry):

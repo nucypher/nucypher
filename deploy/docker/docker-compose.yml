@@ -4,6 +4,7 @@ services:
   nucypher:
     image: nucypher:latest
     container_name: nucypher
+    platform: linux/amd64
     ports:
       - "9151:9151"
     build:

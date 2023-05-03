@@ -21,32 +21,32 @@ GAS_PRICE_FROM_STRATEGY = 1234
 
 class MockGethProvider:
     endpoint_uri = 'file:///ipc.geth'
-    clientVersion = 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
+    client_version = 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
 
 
 class MockParityProvider:
     endpoint_uri = 'file:///ipc.parity'
-    clientVersion = 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
+    client_version = 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
 
 
 class MockGanacheProvider:
     endpoint_uri = 'http://ganache:8445'
-    clientVersion = 'EthereumJS TestRPC/v2.1.5/ethereum-js'
+    client_version = 'EthereumJS TestRPC/v2.1.5/ethereum-js'
 
 
 class MockInfuraProvider:
     endpoint_uri = 'wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef'
-    clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
+    client_version = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
 
 
 class MockAlchemyProvider:
     endpoint_uri = 'https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef'
-    clientVersion = 'Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'
+    client_version = 'Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'
 
 
 class MockWebSocketProvider:
     endpoint_uri = f'ws://{LOOPBACK_ADDRESS}:8546'
-    clientVersion = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
+    client_version = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
 
 
 class SyncedMockW3Eth:
@@ -103,8 +103,8 @@ class SyncedMockWeb3:
         self.middleware_onion = Mock()
 
     @property
-    def clientVersion(self):
-        return self.provider.clientVersion
+    def client_version(self):
+        return self.provider.client_version
 
     @property
     def is_connected(self):

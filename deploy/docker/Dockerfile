@@ -1,4 +1,7 @@
-FROM nucypher/rust-python:3.8.12
+FROM nucypher/rust-python:3.8.16
+
+# set default user
+USER $USER
 
 WORKDIR /code
 COPY . /code

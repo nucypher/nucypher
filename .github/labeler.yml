@@ -1,6 +1,3 @@
-ETH Contracts:
-  - nucypher/blockchain/eth/sol/source/**/*
-
 CLI:
   - nucypher/cli/**/*
 

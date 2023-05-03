@@ -7,13 +7,6 @@ from constant_sorrow.constants import ALL_OF_THEM
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.utilities.gas_strategies import WEB3_GAS_STRATEGIES
-from tests.mock.interfaces import MockBlockchain
-
-
-@pytest.fixture(scope='module')
-def mock_testerchain(_mock_testerchain) -> MockBlockchain:
-    testerchain = _mock_testerchain
-    yield testerchain
 
 
 def test_get_gas_strategy():
@@ -35,8 +28,8 @@ def test_get_gas_strategy():
     assert default == gas_strategy
 
 
-def test_use_pending_nonce_when_building_payload(mock_testerchain, mocker):
-    sender = mock_testerchain.unassigned_accounts[0]
+def test_use_pending_nonce_when_building_payload(mock_testerchain, mocker, random_address):
+    sender = random_address
 
     # Mock transaction count retrieval
     transaction_count = dict(latest=0, pending=0)

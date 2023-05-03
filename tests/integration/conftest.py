@@ -1,18 +1,17 @@
+import pytest
+from eth_account.account import Account
 from pathlib import Path
 from typing import Iterable, Optional
 
-import pytest
-from eth_account.account import Account
-
 from nucypher.blockchain.economics import EconomicsFactory
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     PREApplicationAgent,
-    StakingProvidersReservoir,
+    StakingProvidersReservoir, CoordinatorAgent,
 )
 from nucypher.blockchain.eth.interfaces import (
-    BlockchainDeployerInterface,
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
@@ -28,13 +27,18 @@ from tests.constants import (
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
 )
-from tests.mock.agents import MockContractAgency
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
 
 
+def pytest_addhooks(pluginmanager):
+    pluginmanager.set_blocked('ape_test')
+
+
 @pytest.fixture(scope='function', autouse=True)
 def mock_contract_agency(monkeypatch, module_mocker, application_economics):
+    from tests.mock.agents import MockContractAgency
+
     monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
     mock_agency = MockContractAgency()
@@ -71,8 +75,19 @@ def mock_application_agent(
     mock_agent.reset()
 
 
+@pytest.fixture(scope="function", autouse=True)
 def mock_adjudicator_agent(testerchain, application_economics, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
+    yield mock_agent
+    mock_agent.reset()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
+    from tests.mock.coordinator import MockCoordinatorAgent
+
+    mock_agent = MockCoordinatorAgent(blockchain=testerchain)
+    mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = mock_agent
     yield mock_agent
     mock_agent.reset()
 
@@ -93,14 +108,14 @@ def mock_stdin(mocker):
 
 
 @pytest.fixture(scope="module")
-def testerchain(_mock_testerchain, module_mocker) -> MockBlockchain:
+def testerchain(mock_testerchain, module_mocker) -> MockBlockchain:
     def always_use_mock(*a, **k):
-        return _mock_testerchain
+        return mock_testerchain
 
     module_mocker.patch.object(
         BlockchainInterfaceFactory, "get_interface", always_use_mock
     )
-    return _mock_testerchain
+    return mock_testerchain
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -108,10 +123,6 @@ def mock_interface(module_mocker):
     # Generic Interface
     mock_transaction_sender = module_mocker.patch.object(BlockchainInterface, 'sign_and_broadcast_transaction')
     mock_transaction_sender.return_value = MockBlockchain.FAKE_RECEIPT
-
-    # Deployer Interface
-    mock = module_mocker.patch.object(BlockchainDeployerInterface, "deploy_contract")
-    mock.return_value = module_mocker.Mock(), MockBlockchain.FAKE_RECEIPT
     return mock_transaction_sender
 
 
@@ -131,6 +142,8 @@ def test_registry_source_manager(testerchain, test_registry):
 def mock_contract_agency(module_mocker, application_economics):
     # Patch
     module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
+
+    from tests.mock.agents import MockContractAgency
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?
     get_agent = ContractAgency.get_agent
@@ -213,8 +226,9 @@ def mock_keystore(mocker):
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_substantiate_stamp(module_mocker, monkeymodule):
+    fake_signature = b'\xb1W5?\x9b\xbaix>\'\xfe`\x1b\x9f\xeb*9l\xc0\xa7\xb9V\x9a\x83\x84\x04\x97\x0c\xad\x99\x86\x81W\x93l\xc3\xbde\x03\xcd"Y\xce\xcb\xf7\x02z\xf6\x9c\xac\x84\x05R\x9a\x9f\x97\xf7\xa02\xb2\xda\xa1Gv\x01'
     module_mocker.patch.object(Ursula, "_substantiate_stamp", autospec=True)
-    module_mocker.patch.object(Ursula, "operator_signature", None)
+    module_mocker.patch.object(Ursula, "operator_signature", fake_signature)
     module_mocker.patch.object(Teacher, "validate_operator")
 
 
@@ -223,5 +237,11 @@ def mock_transacting_power(module_mocker, monkeymodule):
     module_mocker.patch.object(TransactingPower, "unlock")
 
 
-def staking_providers(testerchain, agency, test_registry, threshold_staking):
+@pytest.fixture(scope="module", autouse=True)
+def staking_providers(testerchain, test_registry, monkeymodule):
+
+    def faked(self, *args, **kwargs):
+        return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
+
+    Operator.get_staking_provider_address = faked
     return testerchain.stake_providers_accounts

@@ -1,7 +1,7 @@
 
 import os
 
-from web3.contract import Contract
+from web3.contract.contract import Contract
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.config.constants import NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS

@@ -25,8 +25,8 @@ def make_message_kits(policy_pubkey, conditions=None):
     message_kits = []
     for message in messages:
         # Using different Enricos, because why not.
-        enrico = Enrico(policy_encrypting_key=policy_pubkey)
-        message_kit = enrico.encrypt_message(message, conditions=conditions)
+        enrico = Enrico(encrypting_key=policy_pubkey)
+        message_kit = enrico.encrypt_for_pre(message, conditions=conditions)
         message_kits.append(message_kit)
 
     return messages, message_kits

@@ -1,18 +1,16 @@
 
 
+import click
 import os
 import shutil
 from distutils.util import strtobool
 from pathlib import Path
 from typing import Dict, Optional, Tuple
-
-import click
 from web3.types import BlockIdentifier
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import (
-    BlockchainDeployerInterface,
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
@@ -167,25 +165,6 @@ def connect_to_blockchain(emitter: StdoutEmitter,
             raise
         emitter.echo(str(e), bold=True, color='red')
         raise click.Abort
-
-
-def initialize_deployer_interface(emitter: StdoutEmitter,
-                                  poa: bool,
-                                  eth_provider_uri,
-                                  ignore_solidity_check: bool,
-                                  gas_strategy: str = None,
-                                  max_gas_price: int = None
-                                  ) -> BlockchainDeployerInterface:
-    if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-        deployer_interface = BlockchainDeployerInterface(eth_provider_uri=eth_provider_uri,
-                                                         poa=poa,
-                                                         gas_strategy=gas_strategy,
-                                                         max_gas_price=max_gas_price)
-        BlockchainInterfaceFactory.register_interface(interface=deployer_interface, emitter=emitter)
-    else:
-        deployer_interface = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
-    deployer_interface.connect(ignore_solidity_check=ignore_solidity_check)
-    return deployer_interface
 
 
 def get_env_bool(var_name: str, default: bool) -> bool:

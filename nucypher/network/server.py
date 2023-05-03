@@ -1,10 +1,10 @@
+from http import HTTPStatus
+
 import json
 import weakref
-from http import HTTPStatus
-from pathlib import Path
-
 from constant_sorrow import constants
 from constant_sorrow.constants import RELAX
+from ferveo_py import Ciphertext
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
@@ -14,14 +14,19 @@ from nucypher_core import (
     MetadataResponsePayload,
     ReencryptionRequest,
     RevocationOrder,
+    ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse
 )
+from pathlib import Path
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.rust_shims import _deserialize_rust_lingos
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.utilities.logging import Logger
@@ -101,7 +106,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
 
-        metadata_request = MetadataRequest.from_bytes(request.data)
+        try:
+            metadata_request = MetadataRequest.from_bytes(request.data)
+        except ValueError as e:
+            # this line is hit when the MetadataRequest is an old version
+            # ValueError: Failed to deserialize: differing major version: expected 3, got 1
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
         # If these nodes already have the same fleet state, no exchange is necessary.
 
@@ -131,6 +141,56 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
 
+    @rest_app.route('/decrypt', methods=["POST"])
+    def threshold_decrypt():
+
+        # Deserialize and instantiate ThresholdDecryptionRequest from the request data
+        decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
+
+        log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
+
+        # Deserialize and instantiate ConditionLingo from the request data
+        conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
+        lingo = ConditionLingo.from_list(json.loads(conditions_data))  # str -> list -> ConditionLingo
+
+        # requester-supplied condition eval context
+        context = None
+        if decryption_request.context:
+            context = json.loads(str(decryption_request.context)) or dict()  # nucypher_core.Context -> str -> dict
+
+        # evaluate the conditions for this ciphertext
+        error = evaluate_condition_lingo(
+            lingo=lingo,
+            context=context,
+            providers=this_node.condition_providers,
+        )
+        if error:
+            return Response(error.message, status=error.status_code)
+
+        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
+        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
+        ritual = this_node.coordinator_agent.get_ritual(decryption_request.id, with_participants=True)
+        participants = [p.node for p in ritual.participants]
+
+        # enforces that the node is part of the ritual
+        if this_node.checksum_address not in participants:
+            return Response(f'Node not part of ritual {decryption_request.id}', status=HTTPStatus.FORBIDDEN)
+
+        # derive the decryption share
+        ciphertext = Ciphertext.from_bytes(decryption_request.ciphertext)
+        decryption_share = this_node.derive_decryption_share(
+            ritual_id=decryption_request.id,
+            ciphertext=ciphertext,
+            conditions=decryption_request.conditions,
+            variant=FerveoVariant(decryption_request.variant),
+        )
+
+        # return the decryption share
+        # TODO: #3079 #3081 encrypt the response with the requester's public key
+        # TODO: #3098 nucypher-core#49 Use DecryptionShare type
+        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))
+        return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
+
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():
         # TODO: Cache & Optimize
@@ -148,8 +208,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # zip capsules with their respective conditions
         packets = zip(reenc_request.capsules, lingos)
 
-        # TODO: Detect if we are dealing with PRE or tDec here
-        # TODO: This is for PRE only, relocate HRAC to RE.context
+        # TODO: Relocate HRAC to RE.context
         hrac = reenc_request.hrac
 
         # This is either PRE Bob or a CBD requester
@@ -192,7 +251,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             # TODO (#567): bucket the node as suspicious.
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
-        # Enforce Reencryption Conditions
+        # Enforce Subscription Manager Payment
+        paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
+        if not paid:
+            message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
+            return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
+
+        # Enforce Conditions
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
             if condition_lingo:
@@ -206,14 +271,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                     #  even if other unrelated capsules (message kits) are present.
                     return Response(error.message, status=error.status_code)
             capsules_to_process.append(capsule)
-
-        # FIXME: DISABLED FOR PRE-adapted-TDEC
-        # TODO: Accept multiple payment methods?
-        # Subscription Manager
-        # paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
-        # if not paid:
-        #     message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
-        #     return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
 
         # Re-encrypt
         # TODO: return a sensible response if it fails (currently results in 500)
