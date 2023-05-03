@@ -4,6 +4,7 @@ from typing import List
 import pytest
 import pytest_twisted
 from eth_typing import ChecksumAddress
+from ferveo_py.ferveo_py import DkgPublicKey
 from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
@@ -44,14 +45,19 @@ COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = COORDINATOR
     yield COORDINATOR
-
+    COORDINATOR.reset()
 
 @pytest.fixture(scope='function')
 def cohort(ursulas, mock_coordinator_agent):
     """Creates a cohort of Ursulas"""
     for u in ursulas:
+        # set mapping in coordinator agent
+        mock_coordinator_agent._add_operator_to_staking_provider_mapping(
+            {u.operator_address: u.checksum_address}
+        )
         u.coordinator_agent = mock_coordinator_agent
         u.ritual_tracker.coordinator_agent = mock_coordinator_agent
+
     return ursulas
 
 
@@ -70,7 +76,7 @@ def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Urs
                     {
                         "ritualId": ritual_id,
                         "initiator": initiator,
-                        "nodes": [u.checksum_address for u in cohort],
+                        "participants": [u.checksum_address for u in cohort],
                     }
                 ),
             )
@@ -110,7 +116,7 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
         print("==================== INITIALIZING ====================")
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
         mock_coordinator_agent.initiate_ritual(
-            nodes=cohort_staking_provider_addresses,
+            providers=cohort_staking_provider_addresses,
             transacting_power=alice.transacting_power
         )
         assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1
@@ -143,10 +149,10 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
 
-        # side channel fake-out by using the datastore from the last node in the cohort
-        # alternatively, we could use the coordinator datastore
-        last_node = cohort[-1]
-        encrypting_key = last_node.dkg_storage.get_public_key(ritual_id)
+        # use coordinator
+        encrypting_key = DkgPublicKey.from_bytes(
+            mock_coordinator_agent.get_ritual(ritual_id).public_key
+        )
 
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()

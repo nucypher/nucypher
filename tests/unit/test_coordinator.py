@@ -38,7 +38,10 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
     assert len(coordinator.rituals) == 0
     mock_transacting_power = mocker.Mock()
     mock_transacting_power.account = random_address
-    coordinator.initiate_ritual(nodes=list(nodes_transacting_powers.keys()), transacting_power=mock_transacting_power)
+    coordinator.initiate_ritual(
+        providers=list(nodes_transacting_powers.keys()),
+        transacting_power=mock_transacting_power,
+    )
     assert len(coordinator.rituals) == 1
 
     assert coordinator.number_of_rituals() == 1
@@ -55,12 +58,15 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
     assert signal_type == MockCoordinatorAgent.Events.START_RITUAL
     assert signal_data["ritual_id"] == 0
     assert signal_data["initiator"] == mock_transacting_power.account
-    assert set(signal_data["nodes"]) == nodes_transacting_powers.keys()
+    assert set(signal_data["participants"]) == nodes_transacting_powers.keys()
 
 
 def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
     ritual = coordinator.rituals[0]
-    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.AWAITING_TRANSCRIPTS
+    assert (
+        coordinator.get_ritual_status(0)
+        == MockCoordinatorAgent.RitualStatus.AWAITING_TRANSCRIPTS
+    )
 
     for p in ritual.participants:
         assert p.transcript == bytes()
@@ -70,7 +76,6 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
 
         coordinator.post_transcript(
             ritual_id=0,
-            node_index=index,
             transcript=transcript,
             transacting_power=nodes_transacting_powers[node_address]
         )
@@ -84,26 +89,25 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
     timestamp, signal = list(coordinator.EVENTS.items())[1]
     signal_type, signal_data = signal
     assert signal_type == MockCoordinatorAgent.Events.START_AGGREGATION_ROUND
-    assert signal_data['ritual_id'] == ritual.id
-    assert set(signal_data['nodes']) == nodes_transacting_powers.keys()
+    assert signal_data["ritual_id"] == 0
 
 
 def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
     ritual = coordinator.rituals[0]
-    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.AWAITING_AGGREGATIONS
+    assert (
+        coordinator.get_ritual_status(0)
+        == MockCoordinatorAgent.RitualStatus.AWAITING_AGGREGATIONS
+    )
 
     for p in ritual.participants:
         assert p.transcript == FAKE_TRANSCRIPT
 
     aggregated_transcript = os.urandom(len(FAKE_TRANSCRIPT))
-    aggregated_transcript_hash = keccak(aggregated_transcript)
     public_key = FerveoKeypair.random().public_key()
-    public_key_hash = keccak(bytes(public_key))
 
     for index, node_address in enumerate(nodes_transacting_powers):
         coordinator.post_aggregation(
             ritual_id=0,
-            node_index=index,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             transacting_power=nodes_transacting_powers[node_address]
@@ -112,13 +116,13 @@ def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
             assert len(coordinator.EVENTS) == 2
 
     assert ritual.aggregated_transcript == aggregated_transcript
-    assert ritual.aggregated_transcript_hash == aggregated_transcript_hash
     assert ritual.public_key == public_key
-    assert ritual.public_key_hash == public_key_hash
     for p in ritual.participants:
         # unchanged
         assert p.transcript == FAKE_TRANSCRIPT
         assert p.transcript != aggregated_transcript
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
-    assert coordinator.get_ritual_status(ritual.id) == MockCoordinatorAgent.RitualStatus.FINALIZED
+    assert (
+        coordinator.get_ritual_status(0) == MockCoordinatorAgent.RitualStatus.FINALIZED
+    )

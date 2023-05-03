@@ -346,10 +346,8 @@ class Ritualist(BaseActor):
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> TxReceipt:
         """Publish a transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
-        index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
         receipt = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
-            node_index=index,
             transcript=bytes(transcript),
             transacting_power=self.transacting_power
         )
@@ -363,10 +361,8 @@ class Ritualist(BaseActor):
     ) -> TxReceipt:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
-        index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
         receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
-            node_index=index,
             aggregated_transcript=bytes(aggregated_transcript),
             public_key=public_key,
             transacting_power=self.transacting_power
@@ -377,12 +373,12 @@ class Ritualist(BaseActor):
         self,
         ritual_id: int,
         initiator: ChecksumAddress,
-        nodes: List[ChecksumAddress],
+        participants: List[ChecksumAddress],
         timestamp: int,
     ):
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
 
-        if self.checksum_address not in nodes:
+        if self.checksum_address not in participants:
             # should never get here
             self.log.error(
                 f"Not part of ritual {ritual_id}; no need to submit transcripts"
@@ -398,12 +394,14 @@ class Ritualist(BaseActor):
         # validate the status
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
             raise self.RitualError(
-                f"ritual #{ritual.id} is not waiting for transcripts; status={status}."
+                f"ritual #{ritual_id} is not waiting for transcripts; status={status}."
             )
 
         # validate the active ritual tracker state
-        node_index = self.coordinator_agent.get_node_index(ritual_id=ritual_id, node=self.checksum_address)
-        if ritual.participants[node_index].transcript:
+        participant = self.coordinator_agent.get_participant_from_provider(
+            ritual_id=ritual_id, provider=self.checksum_address
+        )
+        if participant.transcript:
             raise self.RitualError(
                 f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"
             )
@@ -412,7 +410,9 @@ class Ritualist(BaseActor):
         # gather the cohort
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
         if any(transcripts):
-            self.log.debug(f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.nodes)}.")
+            self.log.debug(
+                f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.providers)}."
+            )
             self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
 
         # generate a transcript
@@ -437,8 +437,10 @@ class Ritualist(BaseActor):
         self.dkg_storage.store_transcript_receipt(ritual_id=ritual_id, receipt=receipt)
 
         arrival = ritual.total_transcripts + 1
-        self.log.debug(f"{self.transacting_power.account[:8]} submitted a transcript for "
-                       f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.nodes)})")
+        self.log.debug(
+            f"{self.transacting_power.account[:8]} submitted a transcript for "
+            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)})"
+        )
         return receipt
 
     def perform_round_2(self, ritual_id: int, timestamp: int):
@@ -447,16 +449,15 @@ class Ritualist(BaseActor):
         # Get the ritual and check the status from the blockchain
         # TODO Optimize local cache of ritual participants (#3052)
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        if self.checksum_address not in [p.node for p in ritual.participants]:
+        if self.checksum_address not in [p.provider for p in ritual.participants]:
             raise self.RitualError(
-                f"Node is not part of {ritual.id}; no need to submit aggregated transcript"
+                f"Node is not part of {ritual_id}; no need to submit aggregated transcript"
             )
 
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
             raise self.ActorError(
-                f"ritual #{ritual.id} is not waiting for aggregations; status={status}."
+                f"ritual #{ritual_id} is not waiting for aggregations; status={status}."
             )
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
@@ -500,9 +501,11 @@ class Ritualist(BaseActor):
         )
 
         # logging
-        self.log.debug(f"{self.transacting_power.account[:8]} aggregated a transcript for "
-                       f"DKG ritual #{ritual_id} ({total}/{len(ritual.nodes)})")
-        if total >= len(ritual.nodes):
+        self.log.debug(
+            f"{self.transacting_power.account[:8]} aggregated a transcript for "
+            f"DKG ritual #{ritual_id} ({total}/{len(ritual.providers)})"
+        )
+        if total >= len(ritual.providers):
             self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
 
         return receipt
@@ -517,7 +520,7 @@ class Ritualist(BaseActor):
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:
-            raise self.ActorError(f"ritual #{ritual.id} is not finalized.")
+            raise self.ActorError(f"ritual #{ritual_id} is not finalized.")
 
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
         if not all(transcripts):

@@ -170,7 +170,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
         ritual = this_node.coordinator_agent.get_ritual(decryption_request.id, with_participants=True)
-        participants = [p.node for p in ritual.participants]
+        participants = [p.provider for p in ritual.participants]
 
         # enforces that the node is part of the ritual
         if this_node.checksum_address not in participants:

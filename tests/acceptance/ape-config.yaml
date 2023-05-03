@@ -29,9 +29,10 @@ deployments:
         pre_min_operator_seconds: 86400  # one day in seconds
       - contract_type: Coordinator
         address: 0  # account index
+        app: '::SimplePREApplication.address::'
         ritual_timeout: 3600
         max_dkg_size: 8
-        pre_application: '::SimplePREApplication.address::'
+
 
 
 test:

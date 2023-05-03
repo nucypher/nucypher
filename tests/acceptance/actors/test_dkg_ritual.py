@@ -44,7 +44,7 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         print("==================== INITIALIZING ====================")
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
         receipt = coordinator_agent.initiate_ritual(
-            nodes=cohort_staking_provider_addresses,
+            providers=cohort_staking_provider_addresses,
             transacting_power=alice.transacting_power
         )
         return receipt
@@ -91,6 +91,7 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
 
         # side channel fake-out by using the datastore from the last node in the cohort
         # alternatively, we could use the coordinator datastore
+        # TODO get from Coordinator contract (when Ferveo version updated)
         last_node = cohort[-1]
         encrypting_key = last_node.dkg_storage.get_public_key(RITUAL_ID)
 

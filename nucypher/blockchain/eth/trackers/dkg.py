@@ -188,9 +188,9 @@ class ActiveRitualTracker:
         """Secondary filtration of events."""
         name, args = event.event, event.args
         event_type = getattr(self.contract.events, event.event)
-        if hasattr(args, "nodes"):
+        if hasattr(args, "participants"):
             # Filter out events that are not for me
-            if self.ritualist.checksum_address not in args.nodes:
+            if self.ritualist.checksum_address not in args.participants:
                 self.log.debug(f"Event {name} is not for me, skipping")
                 return None, event_type
         if not self.__action_required(event_type, event.blockNumber, args.ritualId):
@@ -221,9 +221,10 @@ class ActiveRitualTracker:
         #  do not use abbreviations in event names (e.g. "DKG" -> "d_k_g")
         formatted_kwargs = {camel_case_to_snake(k): v for k, v in event.args.items()}
         timestamp = int(get_block_when(event.blockNumber).timestamp())
-        ritual = self.get_ritual(ritual_id=event.args.ritualId)
-        self.add_ritual(ritual=ritual)
-        self.active_tasks.add((event_type, ritual.id))
+        ritual_id = event.args.ritualId
+        ritual = self.get_ritual(ritual_id=ritual_id)
+        self.add_ritual(ritual_id=ritual_id, ritual=ritual)
+        self.active_tasks.add((event_type, ritual_id))
         d = self.__execute_round(event_type=event_type, timestamp=timestamp, **formatted_kwargs)
         return d
 
@@ -256,11 +257,8 @@ class ActiveRitualTracker:
         end_block = self.scanner.get_suggested_scan_end_block()
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
 
-    # def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
-    #     return self.rituals[ritual_id].nodes.index(node)
-
-    def add_ritual(self, ritual):
-        self.rituals[ritual.id] = ritual
+    def add_ritual(self, ritual_id, ritual):
+        self.rituals[ritual_id] = ritual
         return ritual
 
     def track_ritual(self, ritual_id: int, ritual=None, transcript=None, confirmations=None, checkin_timestamp=None):
@@ -269,7 +267,7 @@ class ActiveRitualTracker:
         except KeyError:
             if not ritual:
                 raise ValueError("Ritual not found and no new ritual provided")
-            _ritual = self.add_ritual(ritual=ritual)
+            _ritual = self.add_ritual(ritual_id=ritual_id, ritual=ritual)
         if ritual_id and ritual:
             # replace the whole ritual
             self.rituals[ritual_id] = ritual

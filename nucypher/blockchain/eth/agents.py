@@ -10,7 +10,7 @@ from constant_sorrow.constants import CONTRACT_ATTRIBUTE  # type: ignore
 from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from ferveo_py import PublicKey
+from ferveo_py.ferveo_py import DkgPublicKey
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -552,37 +552,53 @@ class CoordinatorAgent(EthereumContractAgent):
 
         @dataclass
         class Participant:
-            node: ChecksumAddress
+            provider: ChecksumAddress
             aggregated: bool = False
             transcript: bytes = bytes()
 
-        id: int
+        class G1Point(NamedTuple):
+            # TODO validation of these if used directly
+            word0: bytes  # 32 bytes
+            word1: bytes  # 16 bytes
+
+            @classmethod
+            def from_dkg_public_key(cls, public_key: DkgPublicKey):
+                return cls.from_bytes(bytes(public_key))
+
+            @classmethod
+            def from_bytes(cls, data: bytes):
+                # TODO uncomment once ferveo version used in updated
+                # if len(data) != 48:
+                #    raise ValueError(f"Invalid bytes ({len(data)}) for G1Point")
+                return cls(word0=data[:32], word1=data[32:48])
+
+            def __bytes__(self):
+                return self.word0 + self.word1
+
         initiator: ChecksumAddress
         dkg_size: int
         init_timestamp: int
         total_transcripts: int = 0
         total_aggregations: int = 0
-        aggregated_transcript_hash: bytes = bytes()
+        public_key: G1Point = None
         aggregation_mismatch: bool = False
         aggregated_transcript: bytes = bytes()
-        public_key: bytes = bytes()
-        public_key_hash: bytes = bytes()
         participants: List = field(default_factory=list)
 
         @property
-        def nodes(self):
-            return [p.node for p in self.participants]
+        def providers(self):
+            return [p.provider for p in self.participants]
 
         @property
         def transcripts(self) -> List[Tuple[ChecksumAddress, bytes]]:
             transcripts = list()
             for p in self.participants:
-                transcripts.append((p.node, p.transcript))
+                transcripts.append((p.provider, p.transcript))
             return transcripts
 
         @property
         def shares(self) -> int:
-            return len(self.nodes)
+            return len(self.providers)
 
     @contract_api(CONTRACT_CALL)
     def get_timeout(self) -> int:
@@ -591,23 +607,21 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_ritual(self, ritual_id: int, with_participants: bool = True) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
-        if result[0] != ritual_id:
-            raise RuntimeError(f"Ritual {ritual_id} not found")
         ritual = self.Ritual(
-            id=result[0],
-            initiator=ChecksumAddress(result[1]),
-            dkg_size=result[2],
-            init_timestamp=result[3],
-            total_transcripts=result[4],
-            total_aggregations=result[5],
-            aggregated_transcript_hash=bytes(result[6]),
-            aggregation_mismatch=result[7],
-            aggregated_transcript=bytes(result[8]),
-            public_key=bytes(result[9]),
-            public_key_hash=bytes(result[10]),
+            initiator=ChecksumAddress(result[0]),
+            dkg_size=result[1],
+            init_timestamp=result[2],
+            total_transcripts=result[3],
+            total_aggregations=result[4],
+            aggregation_mismatch=result[6],
+            aggregated_transcript=bytes(result[7]),
             participants=[]
         )
 
+        # public key
+        ritual.public_key = self.Ritual.G1Point(result[5][0], result[5][1])
+
+        # participants
         if with_participants:
             participants = self.get_participants(ritual_id)
             ritual.participants = participants
@@ -623,10 +637,10 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.getParticipants(ritual_id).call()
         participants = list()
         for r in result:
-            performance = self.Ritual.Participant(
-                node=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
+            participant = self.Ritual.Participant(
+                provider=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
             )
-            participants.append(performance)
+            participants.append(participant)
         return participants
 
     @contract_api(CONTRACT_CALL)
@@ -635,28 +649,40 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_node_index(self, ritual_id: int, node: ChecksumAddress) -> int:
-        result = self.contract.functions.getNodeIndex(ritual_id, node).call()
-        return result
+    def get_participant_from_provider(
+        self, ritual_id: int, provider: ChecksumAddress
+    ) -> Ritual.Participant:
+        result = self.contract.functions.getParticipantFromProvider(
+            ritual_id, provider
+        ).call()
+        participant = self.Ritual.Participant(
+            provider=ChecksumAddress(result[0]),
+            aggregated=result[1],
+            transcript=bytes(result[2]),
+        )
+        return participant
 
     @contract_api(TRANSACTION)
-    def initiate_ritual(self, nodes: List[ChecksumAddress], transacting_power: TransactingPower) -> TxReceipt:
-        contract_function: ContractFunction = self.contract.functions.initiateRitual(nodes=nodes)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+    def initiate_ritual(
+        self, providers: List[ChecksumAddress], transacting_power: TransactingPower
+    ) -> TxReceipt:
+        contract_function: ContractFunction = self.contract.functions.initiateRitual(
+            providers
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
     @contract_api(TRANSACTION)
     def post_transcript(
         self,
         ritual_id: int,
-        node_index: int,
         transcript: bytes,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id,
-            nodeIndex=node_index,
             transcript=transcript
         )
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -667,16 +693,14 @@ class CoordinatorAgent(EthereumContractAgent):
     def post_aggregation(
         self,
         ritual_id: int,
-        node_index: int,
         aggregated_transcript: bytes,
-        public_key: PublicKey,
+        public_key: DkgPublicKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
-            nodeIndex=node_index,
             aggregatedTranscript=aggregated_transcript,
-            publicKey=bytes(public_key),
+            publicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
