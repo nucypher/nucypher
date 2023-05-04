@@ -20,11 +20,11 @@ _VARIANTS = {
 
 
 def _make_dkg(
-    me: ExternalValidator,
+    me: Validator,
     ritual_id: int,
     shares: int,
     threshold: int,
-    nodes: List[ExternalValidator],
+    nodes: List[Validator],
 ) -> Dkg:
     dkg = Dkg(
         tau=ritual_id,
@@ -56,19 +56,18 @@ def _validate_pvss_aggregated(pvss_aggregated: AggregatedTranscript, dkg) -> boo
 
 
 def aggregate_transcripts(
-        transcripts: List[Tuple[ExternalValidator, Transcript]],
-        *args, **kwargs
+    transcripts: List[Tuple[Validator, Transcript]], shares: int, *args, **kwargs
 ) -> Tuple[AggregatedTranscript, PublicKey, DkgPublicParameters]:
     validators = [t[0] for t in transcripts]
-    _dkg = _make_dkg(nodes=validators, *args, **kwargs)
+    _dkg = _make_dkg(nodes=validators, shares=shares, *args, **kwargs)
     pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
-    pvss_aggregated.validate(_dkg)
+    pvss_aggregated.verify(shares, transcripts)
     LOGGER.debug(f"derived final DKG key {bytes(_dkg.final_key).hex()[:10]} and {keccak(bytes(_dkg.public_params)).hex()[:10]}")
     return pvss_aggregated, _dkg.final_key, _dkg.public_params
 
 
 def derive_decryption_share(
-    nodes: List[ExternalValidator],
+    nodes: List[Validator],
     aggregated_transcript: AggregatedTranscript,
     keypair: Keypair,
     ciphertext: Ciphertext,

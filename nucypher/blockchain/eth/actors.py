@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
-from ferveo_py import AggregatedTranscript, Ciphertext, ExternalValidator, PublicKey
+from ferveo_py import AggregatedTranscript, Ciphertext, PublicKey, Validator
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.types import TxReceipt
@@ -308,7 +308,7 @@ class Ritualist(BaseActor):
             self,
             ritual: CoordinatorAgent.Ritual,
             timeout: int = 60
-    ) -> List[Tuple[ExternalValidator, Transcript]]:
+    ) -> List[Tuple[Validator, Transcript]]:
 
         validators = [n[0] for n in ritual.transcripts]
         if timeout > 0:
@@ -323,7 +323,7 @@ class Ritualist(BaseActor):
         for staking_provider_address, transcript_bytes in ritual.transcripts:
             if self.checksum_address == staking_provider_address:
                 # Local
-                external_validator = ExternalValidator(
+                external_validator = Validator(
                     address=self.checksum_address,
                     public_key=self.ritual_power.public_key()
                 )
@@ -335,12 +335,17 @@ class Ritualist(BaseActor):
                     raise self.ActorError(f"Unknown node {staking_provider_address}")
                 remote_ritualist.mature()
                 public_key = remote_ritualist.public_keys(RitualisticPower)
-                self.log.debug(f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}")
-                external_validator = ExternalValidator(address=staking_provider_address, public_key=public_key)
+                self.log.debug(
+                    f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}"
+                )
+                external_validator = Validator(
+                    address=staking_provider_address, public_key=public_key
+                )
 
             transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else None
             result.append((external_validator, transcript))
 
+        result = sorted(result, key=lambda x: x[0].address)
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> TxReceipt:
@@ -411,6 +416,7 @@ class Ritualist(BaseActor):
 
         # gather the cohort
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
+        nodes = sorted(nodes, key=lambda n: n.address)
         if any(transcripts):
             self.log.debug(f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.nodes)}.")
             self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
@@ -479,7 +485,7 @@ class Ritualist(BaseActor):
             )
         except Exception as e:
             self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
-            raise self.ActorError(f"Failed to aggregate transcripts: {str(e)}")
+            raise e
         else:
             aggregated_transcript, dkg_public_key, params = result
 

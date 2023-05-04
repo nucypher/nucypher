@@ -1,8 +1,23 @@
 import contextlib
-import ferveo_py
 import json
-import maya
 import time
+from pathlib import Path
+from queue import Queue
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
+
+import ferveo_py
+import maya
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     INVALIDATED,
@@ -17,60 +32,49 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from ferveo_py import (
     Ciphertext,
+    DecryptionSharePrecomputed,
     DecryptionShareSimple,
+    DkgPublicParameters,
+    Transcript,
+    Validator,
+    combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
     decrypt_with_shared_secret,
-    ExternalValidator,
-    Transcript,
-    DkgPublicParameters,
-    DecryptionSharePrecomputed
-)
-from nucypher_core import (
-    Context,
-    ThresholdDecryptionRequest,
-    ThresholdDecryptionResponse,
 )
 from nucypher_core import (
     HRAC,
     Address,
     Conditions,
+    Context,
     EncryptedKeyFrag,
     EncryptedTreasureMap,
     MessageKit,
     NodeMetadata,
     NodeMetadataPayload,
     ReencryptionResponse,
+    ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse,
     TreasureMap,
 )
 from nucypher_core.umbral import (
     PublicKey,
+    RecoverableSignature,
     VerifiedKeyFrag,
     reencrypt,
-    RecoverableSignature
 )
-from pathlib import Path
-from queue import Queue
 from twisted.internet import reactor
 from twisted.logger import Logger
-from typing import (
-    Any,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
 from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import Operator, PolicyAuthor, Ritualist
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent, CoordinatorAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    CoordinatorAgent,
+    PREApplicationAgent,
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -82,16 +86,16 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.crypto.ferveo.dkg import aggregate_transcripts, FerveoVariant
+from nucypher.crypto.ferveo.dkg import FerveoVariant, aggregate_transcripts
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
     DelegatingPower,
     PowerUpError,
+    RitualisticPower,
     SigningPower,
     TLSHostingPower,
     TransactingPower,
-    RitualisticPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -558,15 +562,20 @@ class Bob(Character):
         return cohort
 
     def gather_decryption_shares(
-            self,
-            ritual_id: int,
-            cohort: List['Ursula'],
-            ciphertext: Ciphertext,
-            lingo: LingoList,
-            threshold: int,
-            variant: FerveoVariant,
-            context: Optional[dict] = None,
-        ) -> List[DecryptionShareSimple]:
+        self,
+        ritual_id: int,
+        cohort: List["Ursula"],
+        ciphertext: Ciphertext,
+        lingo: LingoList,
+        threshold: int,
+        variant: FerveoVariant,
+        context: Optional[dict] = None,
+    ) -> List[DecryptionShareSimple]:
+        if variant == FerveoVariant.PRECOMPUTED:
+            share_type = DecryptionSharePrecomputed
+        elif variant == FerveoVariant.SIMPLE:
+            share_type = DecryptionShareSimple
+
         gathered_shares = list()
         for ursula in cohort:
             conditions = Conditions(json.dumps(lingo))
@@ -589,24 +598,22 @@ class Bob(Character):
                 self.log.warn(f"Node {ursula} returned {response.status_code}.")
                 continue
 
-            decryption_response = ThresholdDecryptionResponse.from_bytes(response.content)
-            decryption_share = DecryptionShareSimple.from_bytes(decryption_response.decryption_share)
+            decryption_response = ThresholdDecryptionResponse.from_bytes(
+                response.content
+            )
+            decryption_share = share_type.from_bytes(
+                decryption_response.decryption_share
+            )
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
-            if len(gathered_shares) >= threshold:
-                self.log.debug(f"Got enough shares to decrypt.")
-                if variant == FerveoVariant.PRECOMPUTED:
-                    # If we have enough shares, we can stop.
-                    break
-                elif variant == FerveoVariant.SIMPLE:
-                    # all shares are needed to decrypt.
-                    continue
-                else:
-                    raise ValueError(f"Unknown variant {variant}")
+            # TODO: Uncomment these lines to reproduce the bug
+            # if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
+            #     break
 
         if len(gathered_shares) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
+        self.log.debug(f"Got enough shares to decrypt.")
 
         return gathered_shares
 
@@ -652,21 +659,29 @@ class Bob(Character):
         )
 
         if not params:
+            # TODO: Bob can call.verify here instead of aggregating the shares.
             # if the DKG parameters are not provided, we need to
             # aggregate the transcripts and derive them.
             params = self.__derive_dkg_parameters(ritual_id, ursulas, ritual, threshold)
+            # TODO: compare the results with the on-chain records (Coordinator).
 
-        return self.__decrypt(shares, ciphertext, conditions, params)
+        return self.__decrypt(shares, ciphertext, conditions, params, variant)
 
     @staticmethod
     def __decrypt(
-            shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
-            ciphertext: Ciphertext,
-            conditions: LingoList,
-            params: DkgPublicParameters
+        shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
+        ciphertext: Ciphertext,
+        conditions: LingoList,
+        params: DkgPublicParameters,
+        variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
-        shared_secret = combine_decryption_shares_simple(shares, params)
+        if variant == FerveoVariant.PRECOMPUTED:
+            shared_secret = combine_decryption_shares_precomputed(shares)
+        elif variant == FerveoVariant.SIMPLE:
+            shared_secret = combine_decryption_shares_simple(shares, params)
+        else:
+            raise ValueError(f"Invalid variant: {variant}.")
         conditions = json.dumps(conditions).encode()  # aad
         cleartext = decrypt_with_shared_secret(
             ciphertext,
@@ -679,6 +694,7 @@ class Bob(Character):
     @staticmethod
     def __derive_dkg_parameters(ritual_id: int, ursulas, ritual, threshold) -> DkgPublicParameters:
         validators = [u.as_external_validator() for u in ursulas]
+        validators = sorted(validators, key=lambda v: v.address)
         transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
         data = list(zip(validators, transcripts))
         pvss_aggregated, final_key, params = aggregate_transcripts(
@@ -1263,9 +1279,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                                  balance_eth=balance_eth,
                                  )
 
-    def as_external_validator(self) -> ExternalValidator:
-        """Returns an ExternalValidator instance for this Ursula for use in DKG operations."""
-        validator = ExternalValidator(
+    def as_external_validator(self) -> Validator:
+        """Returns an Validator instance for this Ursula for use in DKG operations."""
+        validator = Validator(
             address=self.checksum_address,
             public_key=self.public_keys(RitualisticPower)
         )
