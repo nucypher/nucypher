@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from ferveo_py import Transcript, AggregatedTranscript
+from ferveo_py.ferveo_py import AggregatedTranscript, Transcript
 from web3.types import TxReceipt
 
 

@@ -21,19 +21,12 @@ ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
-
-    (1, 0, 'simple'),
-    (4, 1, 'simple'),
-    (8, 2, 'simple'),
-    # TODO: enable these tests
-    # (32, 3, 'simple'),
-
-    # TODO: enable these tests
-    # (1, 3, 'precomputed'),
-    # (4, 5, 'precomputed'),
-    # (8, 6, 'precomputed'),
-    # (32, 7, 'precomputed'),
-
+    (2, 0, "precomputed"),
+    (4, 1, "precomputed"),
+    (8, 2, "precomputed"),
+    (2, 3, "simple"),
+    (4, 4, "simple"),
+    (8, 5, "simple"),
 ]
 
 BLOCKS = list(reversed(range(1, 100)))
@@ -43,15 +36,21 @@ COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 @pytest.fixture(scope="function", autouse=True)
 def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = COORDINATOR
-    yield COORDINATOR
 
+    yield COORDINATOR
+    COORDINATOR.reset()
 
 @pytest.fixture(scope='function')
 def cohort(ursulas, mock_coordinator_agent):
     """Creates a cohort of Ursulas"""
     for u in ursulas:
+        # set mapping in coordinator agent
+        mock_coordinator_agent._add_operator_to_staking_provider_mapping(
+            {u.operator_address: u.checksum_address}
+        )
         u.coordinator_agent = mock_coordinator_agent
         u.ritual_tracker.coordinator_agent = mock_coordinator_agent
+
     return ursulas
 
 
@@ -70,7 +69,7 @@ def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Urs
                     {
                         "ritualId": ritual_id,
                         "initiator": initiator,
-                        "nodes": [u.checksum_address for u in cohort],
+                        "participants": [u.checksum_address for u in cohort],
                     }
                 ),
             )
@@ -110,7 +109,7 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
         print("==================== INITIALIZING ====================")
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
         mock_coordinator_agent.initiate_ritual(
-            nodes=cohort_staking_provider_addresses,
+            providers=cohort_staking_provider_addresses,
             transacting_power=alice.transacting_power
         )
         assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1

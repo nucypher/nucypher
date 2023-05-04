@@ -1,9 +1,10 @@
+from pathlib import Path
+
 import pytest
 from eth_utils import to_checksum_address
-from ferveo_py import Keypair
+from ferveo_py.ferveo_py import Keypair
 from nucypher_core import Address, NodeMetadata, NodeMetadataPayload
-from nucypher_core.umbral import SecretKey, Signer, RecoverableSignature
-from pathlib import Path
+from nucypher_core.umbral import RecoverableSignature, SecretKey, Signer
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
