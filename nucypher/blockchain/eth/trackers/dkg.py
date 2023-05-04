@@ -134,7 +134,7 @@ class ActiveRitualTracker:
         )
 
         expected_start_block = w3.eth.get_block(
-            latest_block.number - number_of_blocks_in_the_past
+            max(0, latest_block.number - number_of_blocks_in_the_past)
         )
         while (
             expected_start_block.number > 0

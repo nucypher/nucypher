@@ -1023,6 +1023,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
             self.stop_learning_loop()
             self.work_tracker.stop()
             self._operator_bonded_tracker.stop()
+            self.ritual_tracker.stop()
         if halt_reactor:
             reactor.stop()
 

@@ -12,18 +12,9 @@ from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.ursula import make_ursulas
 
 
-@pytest.mark.usefixtures("ursulas")
-def test_stakers_bond_to_ursulas(
-    testerchain, test_registry, staking_providers, ursula_test_config
-):
-    nodes = make_ursulas(
-        ursula_config=ursula_test_config,
-        staking_provider_addresses=testerchain.stake_providers_accounts,
-        operator_addresses=testerchain.ursulas_accounts,
-    )
-
-    assert len(nodes) == len(staking_providers)
-    for ursula in nodes:
+def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
+    assert len(ursulas) == len(staking_providers)
+    for ursula in ursulas:
         ursula.validate_operator(registry=test_registry)
         assert ursula.verified_operator
 
