@@ -18,8 +18,8 @@ class MockCoordinatorAgent(MockContractAgent):
     Participant = CoordinatorAgent.Ritual.Participant
     Ritual = CoordinatorAgent.Ritual
     RitualStatus = CoordinatorAgent.Ritual.Status
+    G1Point = CoordinatorAgent.Ritual.G1Point
 
-    PUBLIC_KEY_SIZE = 104  # TODO get from contract / ferveo (ferveo #99)
     EVENTS = {}
 
     class Events(Enum):
@@ -123,10 +123,11 @@ class MockCoordinatorAgent(MockContractAgent):
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.aggregated = True
 
+        g1_point = self.Ritual.G1Point.from_bytes(bytes(public_key)[8:])
         if len(ritual.aggregated_transcript) == 0:
             ritual.aggregated_transcript = aggregated_transcript
-            ritual.public_key = bytes(public_key)  # TODO: use G1Point
-        elif bytes(ritual.public_key) != bytes(public_key) or keccak(
+            ritual.public_key = g1_point
+        elif bytes(ritual.public_key) != bytes(g1_point) or keccak(
             ritual.aggregated_transcript
         ) != keccak(aggregated_transcript):
             ritual.aggregation_mismatch = True

@@ -1,7 +1,8 @@
 from enum import Enum
-from eth_utils import keccak
-from ferveo_py import *
 from typing import List, Tuple, Union
+
+from eth_utils import keccak
+from ferveo_py.ferveo_py import *
 
 from nucypher.utilities.logging import Logger
 
@@ -20,11 +21,11 @@ _VARIANTS = {
 
 
 def _make_dkg(
-    me: ExternalValidator,
+    me: Validator,
     ritual_id: int,
     shares: int,
     threshold: int,
-    nodes: List[ExternalValidator],
+    nodes: List[Validator],
 ) -> Dkg:
     dkg = Dkg(
         tau=ritual_id,
@@ -48,27 +49,19 @@ def derive_public_key(*args, **kwargs):
     return dkg.final_key
 
 
-def _validate_pvss_aggregated(pvss_aggregated: AggregatedTranscript, dkg) -> bool:
-    valid = pvss_aggregated.validate(dkg)
-    if not valid:
-        raise Exception("validation failed")  # TODO: #3096 better exception handling
-    return valid
-
-
 def aggregate_transcripts(
-        transcripts: List[Tuple[ExternalValidator, Transcript]],
-        *args, **kwargs
+    shares: int, transcripts: List[Tuple[Validator, Transcript]], *args, **kwargs
 ) -> Tuple[AggregatedTranscript, PublicKey, DkgPublicParameters]:
     validators = [t[0] for t in transcripts]
-    _dkg = _make_dkg(nodes=validators, *args, **kwargs)
+    _dkg = _make_dkg(nodes=validators, shares=shares, *args, **kwargs)
     pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
-    pvss_aggregated.validate(_dkg)
+    pvss_aggregated.verify(shares, transcripts)
     LOGGER.debug(f"derived final DKG key {bytes(_dkg.final_key).hex()[:10]} and {keccak(bytes(_dkg.public_params)).hex()[:10]}")
     return pvss_aggregated, _dkg.final_key, _dkg.public_params
 
 
 def derive_decryption_share(
-    nodes: List[ExternalValidator],
+    nodes: List[Validator],
     aggregated_transcript: AggregatedTranscript,
     keypair: Keypair,
     ciphertext: Ciphertext,

@@ -2,7 +2,6 @@ import os
 
 import pytest
 from eth_utils import keccak
-from ferveo_py.ferveo_py import DkgPublicKey
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,

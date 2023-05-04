@@ -1,10 +1,11 @@
-from http import HTTPStatus
-
 import json
 import weakref
+from http import HTTPStatus
+from pathlib import Path
+
 from constant_sorrow import constants
 from constant_sorrow.constants import RELAX
-from ferveo_py import Ciphertext
+from ferveo_py.ferveo_py import Ciphertext
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
@@ -15,9 +16,8 @@ from nucypher_core import (
     ReencryptionRequest,
     RevocationOrder,
     ThresholdDecryptionRequest,
-    ThresholdDecryptionResponse
+    ThresholdDecryptionResponse,
 )
-from pathlib import Path
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.ferveo.dkg import FerveoVariant

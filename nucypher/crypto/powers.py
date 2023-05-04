@@ -1,24 +1,30 @@
-import ferveo_py
 import inspect
+from typing import Any, List, Optional, Tuple
+
+import ferveo_py
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from ferveo_py import (
-    Transcript,
+from ferveo_py.ferveo_py import (
     AggregatedTranscript,
-    ExternalValidator,
-    DecryptionShareSimple,
     Ciphertext,
+    DecryptionShareSimple,
+    Transcript,
+    Validator,
 )
 from hexbytes import HexBytes
-from nucypher_core.umbral import generate_kfrags, SecretKeyFactory, SecretKey, PublicKey
-from typing import List, Optional, Tuple, Any
+from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generate_kfrags
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.ferveo.dkg import FerveoVariant
-from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair, HostingKeypair, RitualisticKeypair
+from nucypher.crypto.keypairs import (
+    DecryptingKeypair,
+    HostingKeypair,
+    RitualisticKeypair,
+    SigningKeypair,
+)
 
 
 class PowerUpError(TypeError):
@@ -258,7 +264,7 @@ class RitualisticPower(KeyPairBasedPower):
     ) -> DecryptionShareSimple:
         decryption_share = dkg.derive_decryption_share(
             ritual_id=ritual_id,
-            me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
+            me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             nodes=nodes,
@@ -278,9 +284,10 @@ class RitualisticPower(KeyPairBasedPower):
             threshold: int,
             nodes: list
     ) -> Transcript:
+        print(f">>>>>>>>> Derek nodes {[n.address for n in nodes]}")
         transcript = dkg.generate_transcript(
             ritual_id=ritual_id,
-            me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
+            me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             nodes=nodes
@@ -297,7 +304,7 @@ class RitualisticPower(KeyPairBasedPower):
     ) -> Tuple[AggregatedTranscript, PublicKey, Any]:
         aggregated_transcript, public_key, params = dkg.aggregate_transcripts(
             ritual_id=ritual_id,
-            me=ExternalValidator(address=checksum_address, public_key=self.keypair.pubkey),
+            me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             transcripts=transcripts

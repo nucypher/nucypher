@@ -70,9 +70,6 @@ def test_perform_round_1(ursula, random_address, cohort):
 
 
 def test_perform_round_2(ursula, cohort, transacting_power, agent, mocker):
-    mocker.patch(
-        "nucypher.crypto.ferveo.dkg._validate_pvss_aggregated", return_value=True
-    )
     participants = [
         CoordinatorAgent.Ritual.Participant(
             provider=c, aggregated=False, transcript=FAKE_TRANSCRIPT

@@ -1,16 +1,19 @@
 import contextlib
 import json
-import maya
 import os
-import pytest
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import timedelta
-from eth_account import Account
-from eth_utils import to_checksum_address
 from functools import partial
 from pathlib import Path
+
+import maya
+import pytest
+from click.testing import CliRunner
+from eth_account import Account
+from eth_utils import to_checksum_address
+from ferveo_py.ferveo_py import Keypair as FerveoKeyPair
+from ferveo_py.ferveo_py import Validator
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -19,9 +22,7 @@ import tests
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import (
-    LocalContractRegistry,
-)
+from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
@@ -32,6 +33,7 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
@@ -43,13 +45,13 @@ from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID, )
+    TESTERCHAIN_CHAIN_ID,
+)
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.performance_mocks import (
     mock_cert_generation,
@@ -694,3 +696,42 @@ def ursulas(testerchain, staking_providers, ursula_test_config):
     # Pytest will hold on to this object, need to clear it manually.
     # See https://github.com/pytest-dev/pytest/issues/5642
     _ursulas.clear()
+
+
+@pytest.fixture(scope="module")
+def dkg_public_key(get_random_checksum_address):
+    ritual_id = 0
+    num_shares = 2
+    threshold = 2
+    validators = []
+    for i in range(0, num_shares):
+        validators.append(
+            Validator(
+                address=get_random_checksum_address(),
+                public_key=FerveoKeyPair.random().public_key(),
+            )
+        )
+        print(f"Validator address = {validators[i].address}")
+
+    validators.sort(key=lambda x: x.address)  # must be sorted
+
+    transcripts = []
+    for validator in validators:
+        transcript = dkg.generate_transcript(
+            ritual_id=ritual_id,
+            me=validator,
+            shares=num_shares,
+            threshold=threshold,
+            nodes=validators,
+        )
+        transcripts.append(transcript)
+
+    _, public_key, _ = dkg.aggregate_transcripts(
+        ritual_id=ritual_id,
+        me=validators[0],
+        shares=num_shares,
+        threshold=threshold,
+        transcripts=list(zip(validators, transcripts)),
+    )
+
+    return public_key

@@ -4,7 +4,6 @@ from typing import List
 import pytest
 import pytest_twisted
 from eth_typing import ChecksumAddress
-from ferveo_py.ferveo_py import DkgPublicKey
 from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
@@ -44,6 +43,7 @@ COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 @pytest.fixture(scope="function", autouse=True)
 def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = COORDINATOR
+
     yield COORDINATOR
     COORDINATOR.reset()
 
@@ -149,10 +149,10 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
 
-        # use coordinator
-        encrypting_key = DkgPublicKey.from_bytes(
-            mock_coordinator_agent.get_ritual(ritual_id).public_key
-        )
+        # side channel fake-out by using the datastore from the last node in the cohort
+        # alternatively, we could use the coordinator datastore
+        last_node = cohort[-1]
+        encrypting_key = last_node.dkg_storage.get_public_key(ritual_id)
 
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()

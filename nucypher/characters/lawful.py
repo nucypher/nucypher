@@ -1,57 +1,8 @@
 import contextlib
-import ferveo_py
 import json
-import maya
 import time
-from constant_sorrow import constants
-from constant_sorrow.constants import (
-    INVALIDATED,
-    NOT_SIGNED,
-    PUBLIC_ONLY,
-    READY,
-    STRANGER_ALICE,
-)
-from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate, NameOID
-from eth_typing.evm import ChecksumAddress
-from eth_utils import to_checksum_address
-from ferveo_py import (
-    Ciphertext,
-    DecryptionShareSimple,
-    combine_decryption_shares_simple,
-    decrypt_with_shared_secret,
-    ExternalValidator,
-    Transcript,
-    DkgPublicParameters,
-    DecryptionSharePrecomputed
-)
-from nucypher_core import (
-    Context,
-    ThresholdDecryptionRequest,
-    ThresholdDecryptionResponse,
-)
-from nucypher_core import (
-    HRAC,
-    Address,
-    Conditions,
-    EncryptedKeyFrag,
-    EncryptedTreasureMap,
-    MessageKit,
-    NodeMetadata,
-    NodeMetadataPayload,
-    ReencryptionResponse,
-    TreasureMap,
-)
-from nucypher_core.umbral import (
-    PublicKey,
-    VerifiedKeyFrag,
-    reencrypt,
-    RecoverableSignature
-)
 from pathlib import Path
 from queue import Queue
-from twisted.internet import reactor
-from twisted.logger import Logger
 from typing import (
     Any,
     Dict,
@@ -64,13 +15,65 @@ from typing import (
     Tuple,
     Union,
 )
+
+import ferveo_py
+import maya
+from constant_sorrow import constants
+from constant_sorrow.constants import (
+    INVALIDATED,
+    NOT_SIGNED,
+    PUBLIC_ONLY,
+    READY,
+    STRANGER_ALICE,
+)
+from cryptography.hazmat.primitives.serialization import Encoding
+from cryptography.x509 import Certificate, NameOID
+from eth_typing.evm import ChecksumAddress
+from eth_utils import to_checksum_address
+from ferveo_py.ferveo_py import (
+    Ciphertext,
+    DecryptionSharePrecomputed,
+    DecryptionShareSimple,
+    DkgPublicParameters,
+    Transcript,
+    Validator,
+    combine_decryption_shares_simple,
+    decrypt_with_shared_secret,
+)
+from nucypher_core import (
+    HRAC,
+    Address,
+    Conditions,
+    Context,
+    EncryptedKeyFrag,
+    EncryptedTreasureMap,
+    MessageKit,
+    NodeMetadata,
+    NodeMetadataPayload,
+    ReencryptionResponse,
+    ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse,
+    TreasureMap,
+)
+from nucypher_core.umbral import (
+    PublicKey,
+    RecoverableSignature,
+    VerifiedKeyFrag,
+    reencrypt,
+)
+from twisted.internet import reactor
+from twisted.logger import Logger
 from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth.actors import Operator, PolicyAuthor, Ritualist
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent, CoordinatorAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    CoordinatorAgent,
+    PREApplicationAgent,
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -82,16 +85,16 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.crypto.ferveo.dkg import aggregate_transcripts, FerveoVariant
+from nucypher.crypto.ferveo.dkg import FerveoVariant, aggregate_transcripts
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
     DelegatingPower,
     PowerUpError,
+    RitualisticPower,
     SigningPower,
     TLSHostingPower,
     TransactingPower,
-    RitualisticPower,
 )
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -1263,9 +1266,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                                  balance_eth=balance_eth,
                                  )
 
-    def as_external_validator(self) -> ExternalValidator:
-        """Returns an ExternalValidator instance for this Ursula for use in DKG operations."""
-        validator = ExternalValidator(
+    def as_external_validator(self) -> Validator:
+        """Returns an Validator instance for this Ursula for use in DKG operations."""
+        validator = Validator(
             address=self.checksum_address,
             public_key=self.public_keys(RitualisticPower)
         )

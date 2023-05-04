@@ -4,8 +4,6 @@ from unittest.mock import Mock
 
 import pytest
 from eth_account import Account
-from eth_utils import keccak
-from ferveo_py import Keypair as FerveoKeypair
 
 from tests.integration.blockchain.test_ritualist import FAKE_TRANSCRIPT
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -92,7 +90,9 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
     assert signal_data["ritual_id"] == 0
 
 
-def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
+def test_mock_coordinator_round_2(
+    nodes_transacting_powers, coordinator, dkg_public_key
+):
     ritual = coordinator.rituals[0]
     assert (
         coordinator.get_ritual_status(0)
@@ -103,20 +103,20 @@ def test_mock_coordinator_round_2(nodes_transacting_powers, coordinator):
         assert p.transcript == FAKE_TRANSCRIPT
 
     aggregated_transcript = os.urandom(len(FAKE_TRANSCRIPT))
-    public_key = FerveoKeypair.random().public_key()
-
     for index, node_address in enumerate(nodes_transacting_powers):
         coordinator.post_aggregation(
             ritual_id=0,
             aggregated_transcript=aggregated_transcript,
-            public_key=public_key,
+            public_key=dkg_public_key,
             transacting_power=nodes_transacting_powers[node_address]
         )
         if index == len(nodes_transacting_powers) - 1:
             assert len(coordinator.EVENTS) == 2
 
     assert ritual.aggregated_transcript == aggregated_transcript
-    assert ritual.public_key == public_key
+
+    # TODO this key is currently incorrect padded with 8 bytes (56 bytes instead of 48) - remove when fixed.
+    assert bytes(ritual.public_key) == bytes(dkg_public_key)[8:]
     for p in ritual.participants:
         # unchanged
         assert p.transcript == FAKE_TRANSCRIPT
