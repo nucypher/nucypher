@@ -38,9 +38,7 @@ def nucypher_contracts(project):
 @pytest.fixture(scope='module', autouse=True)
 def deploy_contracts(nucypher_contracts, accounts):
     deployments = ape_deploy_contracts(
-        nucypher_contracts=nucypher_contracts,
-        accounts=accounts,
-        deployer_account_index=0
+        nucypher_contracts=nucypher_contracts, accounts=accounts
     )
     return deployments
 
