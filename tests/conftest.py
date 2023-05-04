@@ -1,6 +1,3 @@
-
-
-
 from collections import defaultdict
 
 import pytest
@@ -12,7 +9,7 @@ from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import MOCK_IP_ADDRESS
 
-# Dont re-lock account in background while making commitments
+# Don't re-lock accounts in the background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
 
@@ -78,54 +75,8 @@ pytest_plugins = [
 ]
 
 
-def pytest_addoption(parser):
-    parser.addoption("--run-nightly",
-                     action="store_true",
-                     default=False,
-                     help="run tests even if they are marked as nightly")
-
-    # class SetLearnerDebugMode((argparse.Action)):
-    #     def __call__(self, *args, **kwargs):
-    #         from nucypher.network.nodes import Learner
-    #         Learner._DEBUG_MODE = True
-
-    # parser.addoption("--track-character-lifecycles",
-    #                  action=SetLearnerDebugMode,
-    #                  default=False,
-    #                  help="Track characters in a global... mutable... where everybody...")
-
-
-def pytest_configure(config):
-    message = "{0}: mark test as {0} to run (skipped by default, use '{1}' to include these tests)"
-    config.addinivalue_line("markers", message.format("nightly", "--run-nightly"))
-
-
 def pytest_collection_modifyitems(config, items):
-
-    #
-    # Handle slow tests marker
-    #
-
-    option_markers = {
-        "--run-nightly": "nightly"
-    }
-
-    for option, marker in option_markers.items():
-        option_is_set = config.getoption(option)
-        if option_is_set:
-            continue
-
-        skip_reason = pytest.mark.skip(reason=f"need {option} option to run tests marked with '@pytest.mark.{marker}'")
-        for item in items:
-            if marker in item.keywords:
-                item.add_marker(skip_reason)
-
-    #
-    # Handle Log Level
-    #
-
     log_level_name = config.getoption("--log-level", "info", skip=True)
-
     GlobalLoggerSettings.stop_sentry_logging()
     GlobalLoggerSettings.set_log_level(log_level_name)
     GlobalLoggerSettings.start_text_file_logging()

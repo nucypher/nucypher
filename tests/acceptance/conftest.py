@@ -135,5 +135,3 @@ def manual_operator(testerchain):
     txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
-
-
