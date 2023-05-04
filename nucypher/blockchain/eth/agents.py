@@ -615,7 +615,7 @@ class CoordinatorAgent(EthereumContractAgent):
             total_aggregations=result[4],
             aggregation_mismatch=result[6],
             aggregated_transcript=bytes(result[7]),
-            participants=[]
+            participants=[],  # solidity does not return sub-structs
         )
 
         # public key

@@ -701,8 +701,8 @@ def ursulas(testerchain, staking_providers, ursula_test_config):
 @pytest.fixture(scope="module")
 def dkg_public_key(get_random_checksum_address):
     ritual_id = 0
-    num_shares = 2
-    threshold = 2
+    num_shares = 4
+    threshold = 3
     validators = []
     for i in range(0, num_shares):
         validators.append(
@@ -711,7 +711,6 @@ def dkg_public_key(get_random_checksum_address):
                 public_key=FerveoKeyPair.random().public_key(),
             )
         )
-        print(f"Validator address = {validators[i].address}")
 
     validators.sort(key=lambda x: x.address)  # must be sorted
 
