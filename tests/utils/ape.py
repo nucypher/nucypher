@@ -33,45 +33,63 @@ def get_ape_project_build_path(project) -> Path:
     return build_path
 
 
-def process_deployment_params(contract_name, params, deployments) -> Dict[str, Any]:
-    """
-    Process deployment params for a contract.
-    """
+def process_deployment_params(
+    contract_name, params, deployments, symbol: str = "::"
+) -> Dict[str, Any]:
+    """Process deployment params for a contract."""
     processed_params = dict()
     for k, v in params.items():
-        if isinstance(v, str) and (v.startswith("::") and v.endswith("::")):
+        if isinstance(v, str) and (v.startswith(symbol) and v.endswith(symbol)):
+            dependency_expression = v.strip(symbol)
+            dependency_name, attribute_name = dependency_expression.split(".")
             try:
-                dependency_name = v.strip("::")
-                v = deployments[dependency_name].address
+                v = getattr(deployments[dependency_name], attribute_name)
             except KeyError:
                 raise ValueError(f"Contract {contract_name} not found in deployments")
+            except AttributeError:
+                raise ValueError(
+                    f"Attribute {attribute_name} not found in {dependency_name}"
+                )
         processed_params[k] = v
     return processed_params
 
 
-def get_deployment_params(contract_name, config, deployments) -> dict:
+def get_deployment_params(
+    contract_name, config, accounts, deployments
+) -> Tuple[Dict, ChecksumAddress]:
     """
     Get deployment params for a contract.
     """
     config = deepcopy(config)
     while config:
         params = config.pop()
+        deployer_address = params.pop("address")
         name = params.pop("contract_type")
+        if not is_checksum_address(deployer_address):
+            try:
+                deployer_address = ChecksumAddress(accounts[int(deployer_address)])
+            except IndexError:
+                raise ValueError(f"Invalid deployer account index {deployer_address}")
+            except ValueError:
+                raise ValueError(
+                    f"Invalid configuration value for {name}'s deployment account: {deployer_address}"
+                )
         if name == contract_name:
             params = process_deployment_params(contract_name, params, deployments)
-            return params
+            return params, deployer_address
     else:
         # there are no deployment params for this contract
-        return dict()
+        return dict(), ChecksumAddress(deployer_address)
 
 
-def deploy_contracts(nucypher_contracts: DependencyAPI, accounts, deployer_account_index: int = 0):
+def deploy_contracts(nucypher_contracts: DependencyAPI, accounts):
     """Deploy contracts o via ape's API for testing."""
     config = ape_config.get_config("deployments")["ethereum"]["local"]
-    deployer_account = accounts[deployer_account_index]
     deployments = dict()
     for name in _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN:
-        params = get_deployment_params(name, deployments=deployments, config=config)
+        params, deployer_account = get_deployment_params(
+            name, deployments=deployments, config=config, accounts=accounts
+        )
         dependency_contract = getattr(nucypher_contracts, name)
         deployed_contract = deployer_account.deploy(dependency_contract, *params.values())
         deployments[name] = deployed_contract

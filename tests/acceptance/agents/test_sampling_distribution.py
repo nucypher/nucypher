@@ -14,7 +14,6 @@ from nucypher.crypto.powers import TransactingPower, CryptoPower
 from tests.constants import PYEVM_DEV_URI
 
 
-@pytest.mark.nightly
 def test_sampling_distribution(testerchain, test_registry, threshold_staking, application_economics):
 
     # setup
