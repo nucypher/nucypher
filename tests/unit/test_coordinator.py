@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 from eth_account import Account
 
-from tests.integration.blockchain.test_ritualist import FAKE_TRANSCRIPT
+from tests.constants import FAKE_TRANSCRIPT
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
 
