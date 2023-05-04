@@ -1,22 +1,21 @@
 import json
-from eth_utils import to_checksum_address
-from pathlib import Path
-
-from ape.api import DependencyAPI
 from copy import deepcopy
+from pathlib import Path
+from typing import Any, Dict, Tuple
 
-from typing import Dict, Any
 from ape import config as ape_config
+from ape.api import DependencyAPI
+from eth_typing import ChecksumAddress
+from eth_utils import is_checksum_address, to_checksum_address
 
 from nucypher.blockchain.eth.agents import (
+    CoordinatorAgent,
     NucypherTokenAgent,
     PREApplicationAgent,
     SubscriptionManagerAgent,
-    CoordinatorAgent
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from tests.constants import MOCK_STAKING_CONTRACT_NAME
-
 
 # order sensitive
 _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
