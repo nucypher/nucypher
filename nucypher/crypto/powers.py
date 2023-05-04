@@ -4,7 +4,7 @@ from typing import Any, List, Optional, Tuple
 import ferveo_py
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from ferveo_py.ferveo_py import (
+from ferveo_py import (
     AggregatedTranscript,
     Ciphertext,
     DecryptionShareSimple,
@@ -284,7 +284,6 @@ class RitualisticPower(KeyPairBasedPower):
             threshold: int,
             nodes: list
     ) -> Transcript:
-        print(f">>>>>>>>> Derek nodes {[n.address for n in nodes]}")
         transcript = dkg.generate_transcript(
             ritual_id=ritual_id,
             me=Validator(address=checksum_address, public_key=self.keypair.pubkey),

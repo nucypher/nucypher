@@ -37,6 +37,7 @@ from ferveo_py.ferveo_py import (
     DkgPublicParameters,
     Transcript,
     Validator,
+    combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
     decrypt_with_shared_secret,
 )
@@ -561,15 +562,20 @@ class Bob(Character):
         return cohort
 
     def gather_decryption_shares(
-            self,
-            ritual_id: int,
-            cohort: List['Ursula'],
-            ciphertext: Ciphertext,
-            lingo: LingoList,
-            threshold: int,
-            variant: FerveoVariant,
-            context: Optional[dict] = None,
-        ) -> List[DecryptionShareSimple]:
+        self,
+        ritual_id: int,
+        cohort: List["Ursula"],
+        ciphertext: Ciphertext,
+        lingo: LingoList,
+        threshold: int,
+        variant: FerveoVariant,
+        context: Optional[dict] = None,
+    ) -> List[DecryptionShareSimple]:
+        if variant == FerveoVariant.PRECOMPUTED:
+            share_type = DecryptionSharePrecomputed
+        elif variant == FerveoVariant.SIMPLE:
+            share_type = DecryptionShareSimple
+
         gathered_shares = list()
         for ursula in cohort:
             conditions = Conditions(json.dumps(lingo))
@@ -592,24 +598,22 @@ class Bob(Character):
                 self.log.warn(f"Node {ursula} returned {response.status_code}.")
                 continue
 
-            decryption_response = ThresholdDecryptionResponse.from_bytes(response.content)
-            decryption_share = DecryptionShareSimple.from_bytes(decryption_response.decryption_share)
+            decryption_response = ThresholdDecryptionResponse.from_bytes(
+                response.content
+            )
+            decryption_share = share_type.from_bytes(
+                decryption_response.decryption_share
+            )
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
-            if len(gathered_shares) >= threshold:
-                self.log.debug(f"Got enough shares to decrypt.")
-                if variant == FerveoVariant.PRECOMPUTED:
-                    # If we have enough shares, we can stop.
-                    break
-                elif variant == FerveoVariant.SIMPLE:
-                    # all shares are needed to decrypt.
-                    continue
-                else:
-                    raise ValueError(f"Unknown variant {variant}")
+            # TODO: Uncomment these lines to reproduce the bug
+            # if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
+            #     break
 
         if len(gathered_shares) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
+        self.log.debug(f"Got enough shares to decrypt.")
 
         return gathered_shares
 
@@ -655,21 +659,29 @@ class Bob(Character):
         )
 
         if not params:
+            # TODO: Bob can call.verify here instead of aggregating the shares.
             # if the DKG parameters are not provided, we need to
             # aggregate the transcripts and derive them.
             params = self.__derive_dkg_parameters(ritual_id, ursulas, ritual, threshold)
+            # TODO: compare the results with the on-chain records (Coordinator).
 
-        return self.__decrypt(shares, ciphertext, conditions, params)
+        return self.__decrypt(shares, ciphertext, conditions, params, variant)
 
     @staticmethod
     def __decrypt(
-            shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
-            ciphertext: Ciphertext,
-            conditions: LingoList,
-            params: DkgPublicParameters
+        shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
+        ciphertext: Ciphertext,
+        conditions: LingoList,
+        params: DkgPublicParameters,
+        variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
-        shared_secret = combine_decryption_shares_simple(shares, params)
+        if variant == FerveoVariant.PRECOMPUTED:
+            shared_secret = combine_decryption_shares_precomputed(shares)
+        elif variant == FerveoVariant.SIMPLE:
+            shared_secret = combine_decryption_shares_simple(shares, params)
+        else:
+            raise ValueError(f"Invalid variant: {variant}.")
         conditions = json.dumps(conditions).encode()  # aad
         cleartext = decrypt_with_shared_secret(
             ciphertext,
@@ -682,6 +694,7 @@ class Bob(Character):
     @staticmethod
     def __derive_dkg_parameters(ritual_id: int, ursulas, ritual, threshold) -> DkgPublicParameters:
         validators = [u.as_external_validator() for u in ursulas]
+        validators = sorted(validators, key=lambda v: v.address)
         transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
         data = list(zip(validators, transcripts))
         pvss_aggregated, final_key, params = aggregate_transcripts(

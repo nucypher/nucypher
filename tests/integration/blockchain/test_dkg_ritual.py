@@ -21,19 +21,12 @@ ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
-
-    (1, 0, 'simple'),
-    (4, 1, 'simple'),
-    (8, 2, 'simple'),
-    # TODO: enable these tests
-    # (32, 3, 'simple'),
-
-    # TODO: enable these tests
-    # (1, 3, 'precomputed'),
-    # (4, 5, 'precomputed'),
-    # (8, 6, 'precomputed'),
-    # (32, 7, 'precomputed'),
-
+    (2, 0, "precomputed"),
+    (4, 1, "precomputed"),
+    (8, 2, "precomputed"),
+    (2, 3, "simple"),
+    (4, 4, "simple"),
+    (8, 5, "simple"),
 ]
 
 BLOCKS = list(reversed(range(1, 100)))

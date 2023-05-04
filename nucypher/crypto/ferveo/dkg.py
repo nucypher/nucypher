@@ -50,7 +50,7 @@ def derive_public_key(*args, **kwargs):
 
 
 def aggregate_transcripts(
-    shares: int, transcripts: List[Tuple[Validator, Transcript]], *args, **kwargs
+    transcripts: List[Tuple[Validator, Transcript]], shares: int, *args, **kwargs
 ) -> Tuple[AggregatedTranscript, PublicKey, DkgPublicParameters]:
     validators = [t[0] for t in transcripts]
     _dkg = _make_dkg(nodes=validators, shares=shares, *args, **kwargs)

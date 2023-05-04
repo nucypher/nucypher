@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
-from ferveo_py.ferveo_py import AggregatedTranscript, Ciphertext, PublicKey, Validator
+from ferveo_py import AggregatedTranscript, Ciphertext, PublicKey, Validator
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.types import TxReceipt
@@ -345,6 +345,7 @@ class Ritualist(BaseActor):
             transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else None
             result.append((external_validator, transcript))
 
+        result = sorted(result, key=lambda x: x[0].address)
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> TxReceipt:
@@ -413,6 +414,7 @@ class Ritualist(BaseActor):
 
         # gather the cohort
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
+        nodes = sorted(nodes, key=lambda n: n.address)
         if any(transcripts):
             self.log.debug(
                 f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.providers)}."
@@ -484,7 +486,7 @@ class Ritualist(BaseActor):
             )
         except Exception as e:
             self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
-            raise self.ActorError(f"Failed to aggregate transcripts: {str(e)}")
+            raise e
         else:
             aggregated_transcript, dkg_public_key, params = result
 
