@@ -123,7 +123,7 @@ class MockCoordinatorAgent(MockContractAgent):
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.aggregated = True
 
-        # TODO the dkg public key bytes are padded - remove using subarray when fixed
+        # TODO the dkg public key bytes are padded - remove using subarray when fixed; ferveo #101
         g1_point = self.Ritual.G1Point.from_bytes(bytes(public_key)[8:])
         if len(ritual.aggregated_transcript) == 0:
             ritual.aggregated_transcript = aggregated_transcript
