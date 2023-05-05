@@ -48,7 +48,8 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
     tx = threshold_staking.functions.setRoles(provider_address).transact()
     testerchain.wait_for_receipt(tx)
     tx = threshold_staking.functions.authorizationIncreased(
-        provider_address, 0, application_economics.min_authorization).transact()
+        provider_address, 0, application_economics.min_authorization
+    ).transact()
     testerchain.wait_for_receipt(tx)
 
     provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))

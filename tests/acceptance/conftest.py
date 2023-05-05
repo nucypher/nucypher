@@ -65,6 +65,9 @@ def threshold_staking(testerchain, test_registry):
         address=result[2],
         abi=result[3]
     )
+    result = test_registry.search(contract_name=PREApplicationAgent.contract_name)[0]
+    tx = threshold_staking.functions.setApplication(result[2]).transact()
+    testerchain.wait_for_receipt(tx)
     return threshold_staking
 
 
@@ -84,7 +87,9 @@ def staking_providers(testerchain, test_registry, threshold_staking):
         # initialize threshold stake
         tx = threshold_staking.functions.setRoles(provider_address).transact()
         testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
+        tx = threshold_staking.functions.authorizationIncreased(
+            provider_address, 0, amount
+        ).transact()
         testerchain.wait_for_receipt(tx)
 
         # We assume that the staking provider knows in advance the account of her operator

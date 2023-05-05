@@ -471,13 +471,21 @@ class PREApplicationAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
+    def evaluate_cfrag(
+        self, evidence, transacting_power: TransactingPower
+    ) -> TxReceipt:
         """Submits proof that a worker created wrong CFrag"""
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
-        contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   payload=payload)
+        payload: TxParams = {
+            "gas": Wei(500_000)
+        }  # TODO TransactionFails unless gas is provided.
+        contract_function: ContractFunction = self.contract.functions.evaluateCFrag(
+            *evidence.evaluation_arguments()
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power,
+            payload=payload,
+        )
         return receipt
 
     @contract_api(CONTRACT_CALL)

@@ -15,11 +15,12 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from tests.constants import MOCK_STAKING_CONTRACT_NAME
+from tests.constants import MOCK_STAKING_CONTRACT_NAME, MOCK_TTOKEN_CONTRACT_NAME
 
 # order sensitive
 _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
     NucypherTokenAgent.contract_name,
+    MOCK_TTOKEN_CONTRACT_NAME,
     MOCK_STAKING_CONTRACT_NAME,
     PREApplicationAgent.contract_name,
     SubscriptionManagerAgent.contract_name,

@@ -29,7 +29,9 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
         # initialize threshold stake
         tx = threshold_staking.functions.setRoles(provider_address).transact()
         testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.authorizationIncreased(provider_address, 0, amount).transact()
+        tx = threshold_staking.functions.authorizationIncreased(
+            provider_address, 0, amount
+        ).transact()
         testerchain.wait_for_receipt(tx)
 
         power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))

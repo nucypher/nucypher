@@ -19,7 +19,7 @@ class Economics:
     _default_min_operator_seconds = 60 * 60 * 24  # one day in seconds
     _default_fee_rate = Wei(Web3.to_wei(1, 'gwei'))
     # TODO choose proper default values
-    _default_reward_duration = 60 * 60 * 24 * 7   # one week in seconds
+    _default_reward_duration = 60 * 60 * 24 * 7  # one week in seconds
     _default_deauthorization_duration = 60 * 60 * 24 * 60  # 60 days in seconds
     # Slashing parameters
     HASH_ALGORITHM_KECCAK256 = 0
@@ -30,18 +30,19 @@ class Economics:
     _default_penalty_history_coefficient = 0
     _default_percentage_penalty_coefficient = 100000  # 0.001%
 
-    def __init__(self,
-                 min_operator_seconds: int = _default_min_operator_seconds,
-                 min_authorization: int = _default_min_authorization,
-                 fee_rate: Wei = _default_fee_rate,
-                 reward_duration: int = _default_reward_duration,
-                 deauthorization_duration: int = _default_deauthorization_duration,
-                 # Adjudicator
-                 hash_algorithm: int = _default_hash_algorithm,
-                 base_penalty: int = _default_base_penalty,
-                 penalty_history_coefficient: int = _default_penalty_history_coefficient,
-                 percentage_penalty_coefficient: int = _default_percentage_penalty_coefficient,
-                 ):
+    def __init__(
+        self,
+        min_operator_seconds: int = _default_min_operator_seconds,
+        min_authorization: int = _default_min_authorization,
+        fee_rate: Wei = _default_fee_rate,
+        reward_duration: int = _default_reward_duration,
+        deauthorization_duration: int = _default_deauthorization_duration,
+        # Adjudicator
+        hash_algorithm: int = _default_hash_algorithm,
+        base_penalty: int = _default_base_penalty,
+        penalty_history_coefficient: int = _default_penalty_history_coefficient,
+        percentage_penalty_coefficient: int = _default_percentage_penalty_coefficient,
+    ):
 
         """
         :param min_operator_seconds: Min amount of seconds while an operator can't be changed
@@ -106,7 +107,9 @@ class EconomicsFactory:
         hash_algorithm = application_agent.hash_algorithm
         base_penalty = application_agent.base_penalty
         penalty_history_coefficient = application_agent.penalty_history_coefficient
-        percentage_penalty_coefficient = application_agent.percentage_penalty_coefficient
+        percentage_penalty_coefficient = (
+            application_agent.percentage_penalty_coefficient
+        )
 
         min_authorization = application_agent.get_min_authorization()
         min_operator_seconds = application_agent.get_min_operator_seconds()
@@ -114,14 +117,16 @@ class EconomicsFactory:
         deauthorization_duration = application_agent.get_deauthorization_duration()
 
         # Aggregate
-        economics_parameters = dict(min_authorization=min_authorization,
-                                    min_operator_seconds=min_operator_seconds,
-                                    reward_duration=reward_duration,
-                                    deauthorization_duration=deauthorization_duration,
-                                    hash_algorithm=hash_algorithm,
-                                    base_penalty=base_penalty,
-                                    penalty_history_coefficient=penalty_history_coefficient,
-                                    percentage_penalty_coefficient=percentage_penalty_coefficient)
+        economics_parameters = dict(
+            min_authorization=min_authorization,
+            min_operator_seconds=min_operator_seconds,
+            reward_duration=reward_duration,
+            deauthorization_duration=deauthorization_duration,
+            hash_algorithm=hash_algorithm,
+            base_penalty=base_penalty,
+            penalty_history_coefficient=penalty_history_coefficient,
+            percentage_penalty_coefficient=percentage_penalty_coefficient,
+        )
 
         economics = Economics(**economics_parameters)
 

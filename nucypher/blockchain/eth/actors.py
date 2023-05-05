@@ -581,11 +581,15 @@ class Investigator(NucypherTokenActor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+        self.application_agent = ContractAgency.get_agent(
+            PREApplicationAgent, registry=self.registry
+        )
 
     @save_receipt
     def request_evaluation(self, evidence) -> dict:
-        receipt = self.application_agent.evaluate_cfrag(evidence=evidence, transacting_power=self.transacting_power)
+        receipt = self.application_agent.evaluate_cfrag(
+            evidence=evidence, transacting_power=self.transacting_power
+        )
         return receipt
 
     def was_this_evidence_evaluated(self, evidence) -> bool:
