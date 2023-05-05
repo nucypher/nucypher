@@ -25,13 +25,14 @@ PARAMS = [  # dkg_size, ritual_id, variant
     (2, 0, "precomputed"),
     (4, 1, "precomputed"),
     (8, 2, "precomputed"),
-    (16, 3, "precomputed"),
-    (32, 4, "precomputed"),
-    (2, 5, "simple"),
-    (4, 6, "simple"),
-    (8, 7, "simple"),
-    (16, 8, "simple"),
-    (32, 9, "simple"),
+    (2, 3, "simple"),
+    (4, 4, "simple"),
+    (8, 5, "simple"),
+    # TODO: slow and need additional accounts for testing
+    # (16, 6, "precomputed"),
+    # (16, 7, "simple"),
+    # (32, 8, "precomputed"),
+    # (32, 9, "simple"),
 ]
 
 BLOCKS = list(reversed(range(1, 1000)))
