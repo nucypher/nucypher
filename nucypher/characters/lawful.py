@@ -607,9 +607,9 @@ class Bob(Character):
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
-            # TODO: Uncomment these lines to reproduce the bug
-            # if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
-            #     break
+            if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
+                # security threshold reached
+                break
 
         if len(gathered_shares) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
@@ -679,7 +679,7 @@ class Bob(Character):
         if variant == FerveoVariant.PRECOMPUTED:
             shared_secret = combine_decryption_shares_precomputed(shares)
         elif variant == FerveoVariant.SIMPLE:
-            shared_secret = combine_decryption_shares_simple(shares, params)
+            shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
         conditions = json.dumps(conditions).encode()  # aad

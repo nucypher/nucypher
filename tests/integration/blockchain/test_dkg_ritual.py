@@ -11,12 +11,13 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
+from tests.utils.ursula import make_ursulas
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
 CONDITIONS = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
 
-# TODO: GEt these from the contract
+# TODO: Get these from the contract
 ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
@@ -27,9 +28,14 @@ PARAMS = [  # dkg_size, ritual_id, variant
     (2, 3, "simple"),
     (4, 4, "simple"),
     (8, 5, "simple"),
+    # TODO: slow and need additional accounts for testing
+    # (16, 6, "precomputed"),
+    # (16, 7, "simple"),
+    # (32, 8, "precomputed"),
+    # (32, 9, "simple"),
 ]
 
-BLOCKS = list(reversed(range(1, 100)))
+BLOCKS = list(reversed(range(1, 1000)))
 COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 
 
@@ -39,6 +45,7 @@ def mock_coordinator_agent(testerchain, application_economics, mock_contract_age
 
     yield COORDINATOR
     COORDINATOR.reset()
+
 
 @pytest.fixture(scope='function')
 def cohort(ursulas, mock_coordinator_agent):
