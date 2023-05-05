@@ -433,7 +433,7 @@ class Ritualist(BaseActor):
         except Exception as e:
             # TODO: Handle this better #3096
             self.log.debug(f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}")
-            raise self.RitualError(f"Failed to generate a transcript: {str(e)}")
+            raise e
 
         # store the transcript in the local cache
         self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)

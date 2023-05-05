@@ -1,15 +1,17 @@
+from time import time
+from typing import List
+
 import pytest
 import pytest_twisted
 from eth_typing import ChecksumAddress
-from time import time
 from twisted.internet.threads import deferToThread
-from typing import List
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
+from tests.utils.ursula import make_ursulas
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
@@ -23,12 +25,16 @@ PARAMS = [  # dkg_size, ritual_id, variant
     (2, 0, "precomputed"),
     (4, 1, "precomputed"),
     (8, 2, "precomputed"),
-    (2, 3, "simple"),
-    (4, 4, "simple"),
-    (8, 5, "simple"),
+    (16, 3, "precomputed"),
+    (32, 4, "precomputed"),
+    (2, 5, "simple"),
+    (4, 6, "simple"),
+    (8, 7, "simple"),
+    (16, 8, "simple"),
+    (32, 9, "simple"),
 ]
 
-BLOCKS = list(reversed(range(1, 100)))
+BLOCKS = list(reversed(range(1, 1000)))
 COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 
 
@@ -38,6 +44,7 @@ def mock_coordinator_agent(testerchain, application_economics, mock_contract_age
 
     yield COORDINATOR
     COORDINATOR.reset()
+
 
 @pytest.fixture(scope='function')
 def cohort(ursulas, mock_coordinator_agent):

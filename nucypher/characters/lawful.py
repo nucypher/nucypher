@@ -607,8 +607,8 @@ class Bob(Character):
             gathered_shares.append(decryption_share)
             self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
 
-            # FIXME: BUG HAPPENS HERE
             if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
+                # security threshold reached
                 break
 
         if len(gathered_shares) < threshold:
@@ -679,7 +679,7 @@ class Bob(Character):
         if variant == FerveoVariant.PRECOMPUTED:
             shared_secret = combine_decryption_shares_precomputed(shares)
         elif variant == FerveoVariant.SIMPLE:
-            shared_secret = combine_decryption_shares_simple(shares, params)
+            shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
         conditions = json.dumps(conditions).encode()  # aad
