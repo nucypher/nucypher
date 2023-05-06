@@ -26,13 +26,8 @@ def transcripts():
 
 
 @pytest.fixture(scope='module')
-def aggregated_transcripts():
-    return [os.urandom(32), os.urandom(32)]
-
-
-@pytest.fixture(scope='module')
-def public_keys():
-    return [os.urandom(48), os.urandom(48)]  # BLS G1Point
+def aggregated_transcript():
+    return os.urandom(32)
 
 
 @pytest.fixture(scope="module")
@@ -92,6 +87,14 @@ def test_initiate_ritual(agent, cohort, transacting_powers):
     participants = agent.get_participants(ritual_id)
     assert [p.provider for p in participants] == cohort
 
+    assert (
+        agent.get_ritual_status(ritual_id=ritual_id)
+        == agent.Ritual.Status.AWAITING_TRANSCRIPTS
+    )
+
+    ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
+    assert ritual_dkg_key is None  # no dkg key available until ritual is completed
+
 
 def test_post_transcript(agent, transcripts, transacting_powers):
     ritual_id = agent.number_of_rituals() - 1
@@ -113,16 +116,24 @@ def test_post_transcript(agent, transcripts, transacting_powers):
     participants = agent.get_participants(ritual_id)
     assert [p.transcript for p in participants] == transcripts
 
+    assert (
+        agent.get_ritual_status(ritual_id=ritual_id)
+        == agent.Ritual.Status.AWAITING_AGGREGATIONS
+    )
+
+    ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
+    assert ritual_dkg_key is None  # no dkg key available until ritual is completed
+
 
 def test_post_aggregation(
-    agent, aggregated_transcripts, public_keys, transacting_powers
+    agent, aggregated_transcript, dkg_public_key, transacting_powers
 ):
     ritual_id = agent.number_of_rituals() - 1
     for i, transacting_power in enumerate(transacting_powers):
         receipt = agent.post_aggregation(
             ritual_id=ritual_id,
-            aggregated_transcript=aggregated_transcripts[i],
-            public_key=public_keys[i],
+            aggregated_transcript=aggregated_transcript,
+            public_key=dkg_public_key,
             transacting_power=transacting_power,
         )
         assert receipt["status"] == 1
@@ -134,8 +145,13 @@ def test_post_aggregation(
         event = post_aggregation_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["aggregatedTranscriptDigest"] == keccak(
-            aggregated_transcripts[i]
+            aggregated_transcript
         )
 
     participants = agent.get_participants(ritual_id)
     assert all([p.aggregated for p in participants])
+
+    assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.FINALIZED
+
+    ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
+    assert bytes(ritual_dkg_key) == bytes(dkg_public_key)

@@ -697,7 +697,7 @@ class Bob(Character):
         validators = sorted(validators, key=lambda v: v.address)
         transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
         data = list(zip(validators, transcripts))
-        pvss_aggregated, final_key, params = aggregate_transcripts(
+        pvss_aggregated, public_key, params = aggregate_transcripts(
             ritual_id=ritual_id,
             me=validators[0],  # TODO: #3097 this is awkward, but we need to pass "me" here to derive_generator_inverse
             threshold=threshold,
@@ -1326,7 +1326,7 @@ class Enrico:
 
     banner = ENRICO_BANNER
 
-    def __init__(self, encrypting_key: Union[PublicKey, ferveo_py.PublicKey]):
+    def __init__(self, encrypting_key: Union[PublicKey, ferveo_py.DkgPublicKey]):
         self.signing_power = SigningPower()
         self._policy_pubkey = encrypting_key
         self.log = Logger(f'{self.__class__.__name__}-{encrypting_key}')

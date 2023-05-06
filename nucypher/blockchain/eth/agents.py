@@ -567,10 +567,16 @@ class CoordinatorAgent(EthereumContractAgent):
 
             @classmethod
             def from_bytes(cls, data: bytes):
-                # TODO uncomment once ferveo version used in updated
-                # if len(data) != 48:
-                #    raise ValueError(f"Invalid bytes ({len(data)}) for G1Point")
+                if len(data) != 48:
+                    raise ValueError(f"Invalid byte length ({len(data)}) for G1Point")
                 return cls(word0=data[:32], word1=data[32:48])
+
+            def to_dkg_public_key(self) -> DkgPublicKey:
+                data = bytes(self)
+                if not data:
+                    return None
+
+                return DkgPublicKey.from_bytes(data)
 
             def __bytes__(self):
                 return self.word0 + self.word1
@@ -707,6 +713,17 @@ class CoordinatorAgent(EthereumContractAgent):
             transacting_power=transacting_power
         )
         return receipt
+
+    def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
+        if self.get_ritual_status(ritual_id=ritual_id) != self.Ritual.Status.FINALIZED:
+            # TODO should we raise here instead?
+            return None
+
+        ritual = self.get_ritual(ritual_id=ritual_id)
+        if not ritual.public_key:
+            return None
+
+        return ritual.public_key.to_dkg_public_key()
 
 
 class ContractAgency:
