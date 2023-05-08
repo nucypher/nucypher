@@ -89,11 +89,7 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
 
-        # side channel fake-out by using the datastore from the last node in the cohort
-        # alternatively, we could use the coordinator datastore
-        # TODO get from Coordinator contract (when Ferveo version updated)
-        last_node = cohort[-1]
-        encrypting_key = last_node.dkg_storage.get_public_key(RITUAL_ID)
+        encrypting_key = coordinator_agent.get_ritual_public_key(ritual_id=RITUAL_ID)
 
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()

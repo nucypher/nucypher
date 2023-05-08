@@ -1,6 +1,6 @@
 import time
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
@@ -123,8 +123,7 @@ class MockCoordinatorAgent(MockContractAgent):
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.aggregated = True
 
-        # TODO the dkg public key bytes are padded - remove using subarray when fixed; ferveo #101
-        g1_point = self.Ritual.G1Point.from_bytes(bytes(public_key)[8:])
+        g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
         if len(ritual.aggregated_transcript) == 0:
             ritual.aggregated_transcript = aggregated_transcript
             ritual.public_key = g1_point
@@ -184,3 +183,14 @@ class MockCoordinatorAgent(MockContractAgent):
             return self.RitualStatus.AWAITING_AGGREGATIONS
         else:
             raise RuntimeError(f"Ritual {ritual_id} is in an unknown state")  # :-(
+
+    def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
+        if self.get_ritual_status(ritual_id=ritual_id) != self.RitualStatus.FINALIZED:
+            # TODO should we raise here instead?
+            return None
+
+        ritual = self.get_ritual(ritual_id=ritual_id)
+        if not ritual.public_key:
+            return None
+
+        return ritual.public_key.to_dkg_public_key()

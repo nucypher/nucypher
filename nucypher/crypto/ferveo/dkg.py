@@ -38,26 +38,28 @@ def _make_dkg(
     return dkg
 
 
-def generate_transcript(*args, **kwargs):
+def generate_transcript(*args, **kwargs) -> Transcript:
     dkg = _make_dkg(*args, **kwargs)
     transcript = dkg.generate_transcript()
     return transcript
 
 
-def derive_public_key(*args, **kwargs):
+def derive_public_key(*args, **kwargs) -> DkgPublicKey:
     dkg = _make_dkg(*args, **kwargs)
-    return dkg.final_key
+    return dkg.public_key
 
 
 def aggregate_transcripts(
     transcripts: List[Tuple[Validator, Transcript]], shares: int, *args, **kwargs
-) -> Tuple[AggregatedTranscript, PublicKey, DkgPublicParameters]:
+) -> Tuple[AggregatedTranscript, DkgPublicKey, DkgPublicParameters]:
     validators = [t[0] for t in transcripts]
     _dkg = _make_dkg(nodes=validators, shares=shares, *args, **kwargs)
     pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
     verify_aggregate(pvss_aggregated, shares, transcripts)
-    LOGGER.debug(f"derived final DKG key {bytes(_dkg.final_key).hex()[:10]} and {keccak(bytes(_dkg.public_params)).hex()[:10]}")
-    return pvss_aggregated, _dkg.final_key, _dkg.public_params
+    LOGGER.debug(
+        f"derived final DKG key {bytes(_dkg.public_key).hex()[:10]} and {keccak(bytes(_dkg.public_params)).hex()[:10]}"
+    )
+    return pvss_aggregated, _dkg.public_key, _dkg.public_params
 
 
 def verify_aggregate(

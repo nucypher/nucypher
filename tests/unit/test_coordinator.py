@@ -115,8 +115,7 @@ def test_mock_coordinator_round_2(
 
     assert ritual.aggregated_transcript == aggregated_transcript
 
-    # TODO this key is currently incorrectly padded with 8 bytes (56 bytes instead of 48) - remove when fixed; ferveo #101
-    assert bytes(ritual.public_key) == bytes(dkg_public_key)[8:]
+    assert bytes(ritual.public_key) == bytes(dkg_public_key)
     for p in ritual.participants:
         # unchanged
         assert p.transcript == FAKE_TRANSCRIPT

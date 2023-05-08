@@ -12,6 +12,7 @@ import pytest
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
+from ferveo_py.ferveo_py import DkgPublicKey
 from ferveo_py.ferveo_py import Keypair as FerveoKeyPair
 from ferveo_py.ferveo_py import Validator
 from twisted.internet.task import Clock
@@ -699,7 +700,7 @@ def ursulas(testerchain, staking_providers, ursula_test_config):
 
 
 @pytest.fixture(scope="module")
-def dkg_public_key(get_random_checksum_address):
+def dkg_public_key(get_random_checksum_address) -> DkgPublicKey:
     ritual_id = 0
     num_shares = 4
     threshold = 3

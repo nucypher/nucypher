@@ -148,11 +148,9 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
     def encrypt(_):
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
-
-        # side channel fake-out by using the datastore from the last node in the cohort
-        # alternatively, we could use the coordinator datastore
-        last_node = cohort[-1]
-        encrypting_key = last_node.dkg_storage.get_public_key(ritual_id)
+        encrypting_key = mock_coordinator_agent.get_ritual_public_key(
+            ritual_id=ritual_id
+        )
 
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()
