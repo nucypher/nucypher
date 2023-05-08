@@ -14,7 +14,7 @@ hendrix = ">=4.0"
 nucypher-core = ">=0.7.0"
 # Cryptography
 cryptography = ">=3.2"
-ferveo = ">=0.1.10"
+ferveo = ">=0.1.11"
 mnemonic = "*"
 pynacl= ">=1.4.0"
 pyopenssl = "*"

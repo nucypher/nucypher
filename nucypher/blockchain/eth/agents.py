@@ -557,6 +557,8 @@ class CoordinatorAgent(EthereumContractAgent):
             transcript: bytes = bytes()
 
         class G1Point(NamedTuple):
+            """Coordinator contract representation of DkgPublicKey."""
+
             # TODO validation of these if used directly
             word0: bytes  # 32 bytes
             word1: bytes  # 16 bytes
@@ -567,8 +569,10 @@ class CoordinatorAgent(EthereumContractAgent):
 
             @classmethod
             def from_bytes(cls, data: bytes):
-                if len(data) != 48:
-                    raise ValueError(f"Invalid byte length ({len(data)}) for G1Point")
+                if len(data) != DkgPublicKey.serialized_size():
+                    raise ValueError(
+                        f"Invalid byte length; expected {DkgPublicKey.serialized_size()} bytes but got {len(data)} bytes for G1Point"
+                    )
                 return cls(word0=data[:32], word1=data[32:48])
 
             def to_dkg_public_key(self) -> DkgPublicKey:
