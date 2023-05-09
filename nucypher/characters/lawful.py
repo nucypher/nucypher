@@ -97,11 +97,12 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
     TransactingPower,
 )
+from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import TEACHER_NODES, NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
-from nucypher.network.retrieval import RetrievalClient
+from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.conditions.types import LingoList
@@ -502,7 +503,7 @@ class Bob(Character):
         retrieval_kits = [message_kit.as_retrieval_kit() for message_kit in message_kits]
 
         # Retrieve capsule frags
-        client = RetrievalClient(learner=self)
+        client = PRERetrievalClient(learner=self)
         retrieval_results, _ = client.retrieve_cfrags(
             treasure_map=treasure_map,
             retrieval_kits=retrieval_kits,
@@ -570,51 +571,46 @@ class Bob(Character):
         threshold: int,
         variant: FerveoVariant,
         context: Optional[dict] = None,
-    ) -> List[DecryptionShareSimple]:
+    ) -> Dict[
+        ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
+    ]:
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
             share_type = DecryptionShareSimple
 
-        gathered_shares = list()
+        decryption_request_mapping = {}
         for ursula in cohort:
             conditions = Conditions(json.dumps(lingo))
             if context:
                 context = Context(json.dumps(context))
             decryption_request = ThresholdDecryptionRequest(
                 id=ritual_id,
+                variant=int(variant.value),
                 ciphertext=bytes(ciphertext),
                 conditions=conditions,
                 context=context,
-                variant=int(variant.value),
             )
+            decryption_request_mapping[
+                to_checksum_address(ursula.checksum_address)
+            ] = bytes(decryption_request)
 
-            try:
-                response = self.network_middleware.get_decryption_share(ursula, bytes(decryption_request))
-            except NodeSeemsToBeDown as e:
-                self.log.warn(f"Node {ursula} is unreachable. {e}")
-                continue
-            if response.status_code != 200:
-                self.log.warn(f"Node {ursula} returned {response.status_code}.")
-                continue
+        decryption_client = ThresholdDecryptionClient(learner=self)
+        successes, failures = decryption_client.gather_encrypted_decryption_shares(
+            encrypted_requests=decryption_request_mapping, threshold=threshold
+        )
 
-            decryption_response = ThresholdDecryptionResponse.from_bytes(
-                response.content
-            )
-            decryption_share = share_type.from_bytes(
-                decryption_response.decryption_share
-            )
-            gathered_shares.append(decryption_share)
-            self.log.debug(f"Got {len(gathered_shares)}/{threshold} shares so far...")
-
-            if variant == FerveoVariant.SIMPLE and (len(gathered_shares) == threshold):
-                # security threshold reached
-                break
-
-        if len(gathered_shares) < threshold:
+        if len(successes) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
         self.log.debug(f"Got enough shares to decrypt.")
 
+        gathered_shares = {}
+        for provider_address, response_bytes in successes.items():
+            decryption_response = ThresholdDecryptionResponse.from_bytes(response_bytes)
+            decryption_share = share_type.from_bytes(
+                decryption_response.decryption_share
+            )
+            gathered_shares[provider_address] = decryption_share
         return gathered_shares
 
     def threshold_decrypt(self,
@@ -647,8 +643,12 @@ class Bob(Character):
         except AttributeError:
             raise ValueError(f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}")
 
-        threshold = (ritual.shares // 2) + 1  # TODO: #3095 get this from the ritual / put it on-chain?
-        shares = self.gather_decryption_shares(
+        threshold = (
+            (ritual.shares // 2) + 1
+            if variant == FerveoVariant.SIMPLE
+            else ritual.shares
+        )  # TODO: #3095 get this from the ritual / put it on-chain?
+        decryption_shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
             ciphertext=ciphertext,
@@ -662,10 +662,15 @@ class Bob(Character):
             # TODO: Bob can call.verify here instead of aggregating the shares.
             # if the DKG parameters are not provided, we need to
             # aggregate the transcripts and derive them.
+
+            # TODO we don't need all ursulas, only threshold of them
+            # ursulas = [u for u in ursulas if u.checksum_address in decryption_shares]
             params = self.__derive_dkg_parameters(ritual_id, ursulas, ritual, threshold)
             # TODO: compare the results with the on-chain records (Coordinator).
 
-        return self.__decrypt(shares, ciphertext, conditions, params, variant)
+        return self.__decrypt(
+            list(decryption_shares.values()), ciphertext, conditions, params, variant
+        )
 
     @staticmethod
     def __decrypt(
