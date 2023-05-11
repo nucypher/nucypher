@@ -1,0 +1,3 @@
+[submodule "nucypher-contracts"]
+	path = nucypher-contracts
+	url = https://github.com/nucypher/nucypher-contracts
