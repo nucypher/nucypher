@@ -579,18 +579,19 @@ class Bob(Character):
         elif variant == FerveoVariant.SIMPLE:
             share_type = DecryptionShareSimple
 
+        conditions = Conditions(json.dumps(lingo))
+        if context:
+            context = Context(json.dumps(context))
+        decryption_request = ThresholdDecryptionRequest(
+            id=ritual_id,
+            variant=int(variant.value),
+            ciphertext=bytes(ciphertext),
+            conditions=conditions,
+            context=context,
+        )
+
         decryption_request_mapping = {}
         for ursula in cohort:
-            conditions = Conditions(json.dumps(lingo))
-            if context:
-                context = Context(json.dumps(context))
-            decryption_request = ThresholdDecryptionRequest(
-                id=ritual_id,
-                variant=int(variant.value),
-                ciphertext=bytes(ciphertext),
-                conditions=conditions,
-                context=context,
-            )
             decryption_request_mapping[
                 to_checksum_address(ursula.checksum_address)
             ] = bytes(decryption_request)
