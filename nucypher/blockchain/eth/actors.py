@@ -4,8 +4,15 @@ from typing import List, Optional, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
-from ferveo_py import AggregatedTranscript, Ciphertext, PublicKey, Validator
+from ferveo_py import AggregatedTranscript, Ciphertext
+from ferveo_py import PublicKey as FerveoPublicKey
+from ferveo_py import Validator
 from hexbytes import HexBytes
+from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
+    ThresholdDecryptionRequest,
+)
+from nucypher_core.umbral import PublicKey
 from web3 import Web3
 from web3.types import TxReceipt
 
@@ -27,7 +34,12 @@ from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
-from nucypher.crypto.powers import CryptoPower, RitualisticPower, TransactingPower
+from nucypher.crypto.powers import (
+    CryptoPower,
+    RitualisticPower,
+    ThresholdRequestDecryptingPower,
+    TransactingPower,
+)
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.conditions.lingo import ConditionLingo
@@ -293,9 +305,18 @@ class Ritualist(BaseActor):
             contract=self.coordinator_agent.contract
         )
 
-        self.publish_finalization = publish_finalization  # publish the DKG final key if True
-        self.dkg_storage = DKGStorage()  # TODO: #3052 stores locally generated public DKG artifacts
-        self.ritual_power = crypto_power.power_ups(RitualisticPower)  # ferveo material contained within
+        self.publish_finalization = (
+            publish_finalization  # publish the DKG final key if True
+        )
+        self.dkg_storage = (
+            DKGStorage()
+        )  # TODO: #3052 stores locally generated public DKG artifacts
+        self.ritual_power = crypto_power.power_ups(
+            RitualisticPower
+        )  # ferveo material contained within
+        self.threshold_request_power = crypto_power.power_ups(
+            ThresholdRequestDecryptingPower
+        )  # used for secure decryption request channel
 
     def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
         try:
@@ -362,14 +383,18 @@ class Ritualist(BaseActor):
         self,
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
-        public_key: PublicKey,
+        public_key: FerveoPublicKey,
     ) -> TxReceipt:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
+        request_encrypting_key = self.threshold_request_power.get_pubkey_from_ritual_id(
+            ritual_id
+        ).to_compressed_bytes()
         receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=bytes(aggregated_transcript),
             public_key=public_key,
+            request_encrypting_key=request_encrypting_key,
             transacting_power=self.transacting_power
         )
         return receipt
@@ -552,6 +577,13 @@ class Ritualist(BaseActor):
         )
 
         return decryption_share
+
+    def decrypt_threshold_decryption_request(
+        self, encrypted_request: EncryptedThresholdDecryptionRequest
+    ) -> Tuple[ThresholdDecryptionRequest, PublicKey]:
+        return self.threshold_request_power.decrypt_encrypted_request(
+            encrypted_request=encrypted_request
+        )
 
 
 class PolicyAuthor(NucypherTokenActor):

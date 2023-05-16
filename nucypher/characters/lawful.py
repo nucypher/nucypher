@@ -47,6 +47,7 @@ from nucypher_core import (
     Conditions,
     Context,
     EncryptedKeyFrag,
+    EncryptedThresholdDecryptionResponse,
     EncryptedTreasureMap,
     MessageKit,
     NodeMetadata,
@@ -59,6 +60,7 @@ from nucypher_core import (
 from nucypher_core.umbral import (
     PublicKey,
     RecoverableSignature,
+    SecretKey,
     VerifiedKeyFrag,
     reencrypt,
 )
@@ -94,6 +96,7 @@ from nucypher.crypto.powers import (
     PowerUpError,
     RitualisticPower,
     SigningPower,
+    ThresholdRequestDecryptingPower,
     TLSHostingPower,
     TransactingPower,
 )
@@ -582,22 +585,35 @@ class Bob(Character):
         )
         return decryption_request
 
-    def get_decryption_shares_using_existing_decryption_request(self,
-                                                                decryption_request: ThresholdDecryptionRequest,
-                                                                variant: FerveoVariant,
-                                                                cohort: List["Ursula"],
-                                                                threshold: int,
-                                                                ):
+    def get_decryption_shares_using_existing_decryption_request(
+        self,
+        decryption_request: ThresholdDecryptionRequest,
+        request_encrypting_keys: Dict[ChecksumAddress, PublicKey],
+        variant: FerveoVariant,
+        cohort: List["Ursula"],
+        threshold: int,
+    ):
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
             share_type = DecryptionShareSimple
 
+        # use ephemeral key for request
+        # TODO don't use Umbral in the long-run
+        response_sk = SecretKey.random()
+        response_encrypting_key = response_sk.public_key()
+
         decryption_request_mapping = {}
         for ursula in cohort:
-            decryption_request_mapping[
-                to_checksum_address(ursula.checksum_address)
-            ] = bytes(decryption_request)
+            ursula_checksum_address = to_checksum_address(ursula.checksum_address)
+            request_encrypting_key = request_encrypting_keys[ursula_checksum_address]
+            encrypted_decryption_request = decryption_request.encrypt(
+                request_encrypting_key=request_encrypting_key,
+                response_encrypting_key=response_encrypting_key,
+            )
+            decryption_request_mapping[ursula_checksum_address] = bytes(
+                encrypted_decryption_request
+            )
 
         decryption_client = ThresholdDecryptionClient(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
@@ -605,12 +621,15 @@ class Bob(Character):
         )
 
         if len(successes) < threshold:
-            raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt")
+            raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
         self.log.debug(f"Got enough shares to decrypt.")
 
         gathered_shares = {}
         for provider_address, response_bytes in successes.items():
-            decryption_response = ThresholdDecryptionResponse.from_bytes(response_bytes)
+            encrypted_decryption_response = (
+                EncryptedThresholdDecryptionResponse.from_bytes(response_bytes)
+            )
+            decryption_response = encrypted_decryption_response.decrypt(sk=response_sk)
             decryption_share = share_type.from_bytes(
                 decryption_response.decryption_share
             )
@@ -618,37 +637,40 @@ class Bob(Character):
         return gathered_shares
 
     def gather_decryption_shares(
-            self,
-            ritual_id: int,
-            cohort: List["Ursula"],
-            ciphertext: Ciphertext,
-            lingo: LingoList,
-            threshold: int,
-            variant: FerveoVariant,
-            context: Optional[dict] = None,
+        self,
+        ritual_id: int,
+        cohort: List["Ursula"],
+        ciphertext: Ciphertext,
+        lingo: LingoList,
+        threshold: int,
+        variant: FerveoVariant,
+        request_encrypting_keys: Dict[ChecksumAddress, PublicKey],
+        context: Optional[dict] = None,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
     ]:
+        decryption_request = self.make_decryption_request(
+            ritual_id=ritual_id,
+            ciphertext=ciphertext,
+            lingo=lingo,
+            variant=variant,
+            context=context,
+        )
+        return self.get_decryption_shares_using_existing_decryption_request(
+            decryption_request, request_encrypting_keys, variant, cohort, threshold
+        )
 
-        decryption_request = self.make_decryption_request(ritual_id=ritual_id,
-                                                          ciphertext=ciphertext,
-                                                          lingo=lingo,
-                                                          variant=variant,
-                                                          context=context)
-        return self.get_decryption_shares_using_existing_decryption_request(decryption_request, variant, cohort,
-                                                                            threshold)
-
-    def threshold_decrypt(self,
-                          ritual_id: int,
-                          ciphertext: Ciphertext,
-                          conditions: LingoList,
-                          context: Optional[dict] = None,
-                          params: Optional[DkgPublicParameters] = None,
-                          ursulas: Optional[List['Ursula']] = None,
-                          variant: str = 'simple',
-                          peering_timeout: int = 60,
-                          ) -> bytes:
-
+    def threshold_decrypt(
+        self,
+        ritual_id: int,
+        ciphertext: Ciphertext,
+        conditions: LingoList,
+        context: Optional[dict] = None,
+        params: Optional[DkgPublicParameters] = None,
+        ursulas: Optional[List["Ursula"]] = None,
+        variant: str = "simple",
+        peering_timeout: int = 60,
+    ) -> bytes:
         # blockchain reads: get the DKG parameters and the cohort.
         coordinator_agent = ContractAgency.get_agent(CoordinatorAgent, registry=self.registry)
         ritual = coordinator_agent.get_ritual(ritual_id, with_participants=True)
@@ -660,19 +682,32 @@ class Bob(Character):
             ursulas = self.resolve_cohort(ritual=ritual, timeout=peering_timeout)
         else:
             for ursula in ursulas:
-                if ursula.staking_provider_address not in ritual.participants:
-                    raise ValueError(f"{ursula} is not part of the cohort")
+                if ursula.staking_provider_address not in ritual.providers:
+                    raise ValueError(
+                        f"{ursula} ({ursula.staking_provider_address}) is not part of the cohort"
+                    )
                 self.remember_node(ursula)
         try:
             variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
         except AttributeError:
-            raise ValueError(f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}")
+            raise ValueError(
+                f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}"
+            )
 
         threshold = (
             (ritual.shares // 2) + 1
             if variant == FerveoVariant.SIMPLE
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
+
+        request_encrypting_keys = {}
+        participants = ritual.participants
+        for p in participants:
+            # TODO don't use Umbral in the long-run
+            request_encrypting_keys[p.provider] = PublicKey.from_compressed_bytes(
+                p.requestEncryptingKey
+            )
+
         decryption_shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
@@ -681,6 +716,7 @@ class Bob(Character):
             lingo=conditions,
             threshold=threshold,
             variant=variant,
+            request_encrypting_keys=request_encrypting_keys,
         )
 
         if not params:
@@ -746,6 +782,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         SigningPower,
         DecryptingPower,
         RitualisticPower,
+        ThresholdRequestDecryptingPower,
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 

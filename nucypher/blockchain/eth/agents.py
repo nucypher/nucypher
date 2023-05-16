@@ -555,6 +555,7 @@ class CoordinatorAgent(EthereumContractAgent):
             provider: ChecksumAddress
             aggregated: bool = False
             transcript: bytes = bytes()
+            requestEncryptingKey: bytes = bytes()
 
         class G1Point(NamedTuple):
             """Coordinator contract representation of DkgPublicKey."""
@@ -648,7 +649,10 @@ class CoordinatorAgent(EthereumContractAgent):
         participants = list()
         for r in result:
             participant = self.Ritual.Participant(
-                provider=ChecksumAddress(r[0]), aggregated=r[1], transcript=bytes(r[2])
+                provider=ChecksumAddress(r[0]),
+                aggregated=r[1],
+                transcript=bytes(r[2]),
+                requestEncryptingKey=bytes(r[3]),
             )
             participants.append(participant)
         return participants
@@ -669,6 +673,7 @@ class CoordinatorAgent(EthereumContractAgent):
             provider=ChecksumAddress(result[0]),
             aggregated=result[1],
             transcript=bytes(result[2]),
+            requestEncryptingKey=bytes(result[3]),
         )
         return participant
 
@@ -705,12 +710,14 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         aggregated_transcript: bytes,
         public_key: DkgPublicKey,
+        request_encrypting_key: bytes,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=aggregated_transcript,
             publicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
+            requestEncryptingKey=request_encrypting_key,
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,

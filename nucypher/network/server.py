@@ -10,6 +10,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
@@ -145,7 +146,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     def threshold_decrypt():
 
         # Deserialize and instantiate ThresholdDecryptionRequest from the request data
-        decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
+        encrypted_decryption_request = EncryptedThresholdDecryptionRequest.from_bytes(
+            request.data
+        )
+        (
+            decryption_request,
+            response_encrypting_key,
+        ) = this_node.decrypt_threshold_decryption_request(encrypted_decryption_request)
 
         log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
 
@@ -189,7 +196,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # TODO: #3079 #3081 encrypt the response with the requester's public key
         # TODO: #3098 nucypher-core#49 Use DecryptionShare type
         response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))
-        return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
+        encrypted_response = response.encrypt(encrypting_key=response_encrypting_key)
+        return Response(
+            bytes(encrypted_response),
+            headers={"Content-Type": "application/octet-stream"},
+        )
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():

@@ -129,11 +129,13 @@ def test_post_aggregation(
     agent, aggregated_transcript, dkg_public_key, transacting_powers
 ):
     ritual_id = agent.number_of_rituals() - 1
+    request_encrypting_keys = [os.urandom(32) for t in transacting_powers]
     for i, transacting_power in enumerate(transacting_powers):
         receipt = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
+            request_encrypting_key=request_encrypting_keys[i],
             transacting_power=transacting_power,
         )
         assert receipt["status"] == 1
@@ -149,7 +151,9 @@ def test_post_aggregation(
         )
 
     participants = agent.get_participants(ritual_id)
-    assert all([p.aggregated for p in participants])
+    for i, p in enumerate(participants):
+        assert p.aggregated
+        assert p.requestEncryptingKey == request_encrypting_keys[i]
 
     assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.FINALIZED
 

@@ -103,23 +103,28 @@ def test_mock_coordinator_round_2(
         assert p.transcript == FAKE_TRANSCRIPT
 
     aggregated_transcript = os.urandom(len(FAKE_TRANSCRIPT))
+    request_encrypting_keys = []
     for index, node_address in enumerate(nodes_transacting_powers):
+        request_encrypting_key = os.urandom(32)
         coordinator.post_aggregation(
             ritual_id=0,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
+            request_encrypting_key=request_encrypting_key,
             transacting_power=nodes_transacting_powers[node_address]
         )
+        request_encrypting_keys.append(request_encrypting_key)
         if index == len(nodes_transacting_powers) - 1:
             assert len(coordinator.EVENTS) == 2
 
     assert ritual.aggregated_transcript == aggregated_transcript
 
     assert bytes(ritual.public_key) == bytes(dkg_public_key)
-    for p in ritual.participants:
+    for index, p in enumerate(ritual.participants):
         # unchanged
         assert p.transcript == FAKE_TRANSCRIPT
         assert p.transcript != aggregated_transcript
+        assert p.requestEncryptingKey == request_encrypting_keys[index]
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
     assert (

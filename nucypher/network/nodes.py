@@ -1,12 +1,11 @@
-import ferveo_py
 import time
 from collections import defaultdict, deque
 from contextlib import suppress
 from pathlib import Path
 from queue import Queue
-
 from typing import Callable, List, Optional, Set, Tuple, Union
 
+import ferveo_py
 import maya
 import requests
 from constant_sorrow.constants import (
@@ -37,7 +36,8 @@ from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
     NoSigningPower,
-    SigningPower, RitualisticPower,
+    RitualisticPower,
+    SigningPower,
 )
 from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.network.exceptions import NodeSeemsToBeDown

@@ -111,6 +111,7 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual_id: int,
         aggregated_transcript: bytes,
         public_key: DkgPublicKey,
+        request_encrypting_key: bytes,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
@@ -122,6 +123,7 @@ class MockCoordinatorAgent(MockContractAgent):
         )
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.aggregated = True
+        participant.requestEncryptingKey = request_encrypting_key
 
         g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
         if len(ritual.aggregated_transcript) == 0:
