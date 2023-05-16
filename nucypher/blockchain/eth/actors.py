@@ -294,7 +294,9 @@ class Ritualist(BaseActor):
         self.log = Logger("ritualist")
 
         self.coordinator_agent = ContractAgency.get_agent(
-            CoordinatorAgent, registry=self.registry, eth_provider_uri=provider_uri
+            CoordinatorAgent,
+            registry=self.registry,
+            eth_provider_uri=provider_uri,  # TODO: rename, this might be a polygon provider
         )
 
         # track active onchain rituals

@@ -47,6 +47,7 @@ class Vladimir(Ursula):
 
         # Vladimir does not care about payment.
         bogus_payment_method = FreeReencryptions()
+        bogus_payment_method.provider = Mock()
         bogus_payment_method.agent = Mock()
 
         vladimir = cls(is_me=True,
