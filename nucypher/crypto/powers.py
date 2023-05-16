@@ -12,6 +12,10 @@ from ferveo_py import (
     Validator,
 )
 from hexbytes import HexBytes
+from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
+    ThresholdDecryptionRequest,
+)
 from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generate_kfrags
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -44,6 +48,10 @@ class NoTransactingPower(PowerUpError):
 
 
 class NoRitualisticPower(PowerUpError):
+    pass
+
+
+class NoThresholdRequestDecryptingPower(PowerUpError):
     pass
 
 
@@ -316,6 +324,35 @@ class DerivedKeyBasedPower(CryptoPowerUp):
     Rather than rely on an established KeyPair, this type of power
     derives a key at moments defined by the user.
     """
+
+
+class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
+    class ThresholdRequestDecryptionFailed(Exception):
+        """Raised when decryption of the request fails."""
+
+    def __init__(self, secret_key_factory: Optional[SecretKeyFactory] = None):
+        if not secret_key_factory:
+            secret_key_factory = SecretKeyFactory.random()
+        self.__secret_key_factory = secret_key_factory
+
+    def _get_privkey_from_ritual_id(self, ritual_id: int):
+        return self.__secret_key_factory.make_key(bytes(ritual_id))
+
+    def get_pubkey_from_ritual_id(self, ritual_id: int) -> PublicKey:
+        return self._get_privkey_from_ritual_id(ritual_id).public_key()
+
+    def decrypt_encrypted_request(
+        self, encrypted_request: EncryptedThresholdDecryptionRequest
+    ) -> Tuple[ThresholdDecryptionRequest, PublicKey]:
+        try:
+            priv_key = self._get_privkey_from_ritual_id(encrypted_request.id)
+            e2ee_request = encrypted_request.decrypt(sk=priv_key)
+            return (
+                e2ee_request.decryption_request,
+                e2ee_request.response_encrypting_key,
+            )
+        except Exception as e:
+            raise self.ThresholdRequestDecryptionFailed from e
 
 
 class DelegatingPower(DerivedKeyBasedPower):

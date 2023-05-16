@@ -105,7 +105,7 @@ class DecryptingKeypair(Keypair):
 
 
 class RitualisticKeypair(Keypair):
-    """A keypair for Ferveo"""
+    """A keypair for Ferveo DKG"""
 
     _private_key_source = ferveo_py.Keypair.random
     _public_key_method = "public_key"

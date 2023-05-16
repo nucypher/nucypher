@@ -1,47 +1,50 @@
-from json import JSONDecodeError
-from os.path import abspath
-
-import click
 import json
 import os
 import stat
 import string
 import time
+from json import JSONDecodeError
+from os.path import abspath
+from pathlib import Path
+from secrets import token_bytes
+from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
+
+import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from ferveo_py import ferveo_py
 from mnemonic.mnemonic import Mnemonic
 from nucypher_core.umbral import SecretKeyFactory
-from pathlib import Path
-from secrets import token_bytes
-from typing import Callable, ClassVar, Dict, List, Union, Optional, Tuple
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
+    SecretBoxAuthenticationError,
+    derive_key_material_from_password,
     secret_box_decrypt,
     secret_box_encrypt,
-    derive_key_material_from_password,
-    SecretBoxAuthenticationError
 )
 from nucypher.crypto.powers import (
+    CryptoPowerUp,
     DecryptingPower,
+    DelegatingPower,
     DerivedKeyBasedPower,
     KeyPairBasedPower,
+    RitualisticPower,
     SigningPower,
-    CryptoPowerUp,
-    DelegatingPower,
-    TLSHostingPower, RitualisticPower,
+    ThresholdRequestDecryptingPower,
+    TLSHostingPower,
 )
 from nucypher.crypto.tls import generate_self_signed_certificate
 from nucypher.utilities.emitters import StdoutEmitter
 
 # HKDF
-__INFO_BASE = b'NuCypher/'
-_SIGNING_INFO = __INFO_BASE + b'signing'
-_DECRYPTING_INFO = __INFO_BASE + b'decrypting'
-_DELEGATING_INFO = __INFO_BASE + b'delegating'
-_RITUALISTIC_INFO = __INFO_BASE + b'ritualistic'
-_TLS_INFO = __INFO_BASE + b'tls'
+__INFO_BASE = b"NuCypher/"
+_SIGNING_INFO = __INFO_BASE + b"signing"
+_DECRYPTING_INFO = __INFO_BASE + b"decrypting"
+_DELEGATING_INFO = __INFO_BASE + b"delegating"
+_RITUALISTIC_INFO = __INFO_BASE + b"ritualistic"
+_CBD_DECRYPTING_INFO = __INFO_BASE + b"cbd_decrypting"
+_TLS_INFO = __INFO_BASE + b"tls"
 
 # Wrapping key
 _SALT_SIZE = 32
@@ -224,11 +227,14 @@ class Keystore:
     _SUFFIX = 'priv'
 
     # Powers derivation
-    __HKDF_INFO = {SigningPower: _SIGNING_INFO,
-                   DecryptingPower: _DECRYPTING_INFO,
-                   DelegatingPower: _DELEGATING_INFO,
-                   TLSHostingPower: _TLS_INFO,
-                   RitualisticPower: _RITUALISTIC_INFO}
+    __HKDF_INFO = {
+        SigningPower: _SIGNING_INFO,
+        DecryptingPower: _DECRYPTING_INFO,
+        DelegatingPower: _DELEGATING_INFO,
+        TLSHostingPower: _TLS_INFO,
+        RitualisticPower: _RITUALISTIC_INFO,
+        ThresholdRequestDecryptingPower: _CBD_DECRYPTING_INFO,
+    }
 
     class Exists(FileExistsError):
         pass
