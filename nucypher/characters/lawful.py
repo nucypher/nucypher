@@ -849,18 +849,21 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                     client_password=client_password,
                 )
             except Exception:
+                # TODO: Move this lower to encapsulate the Ritualist init in a try/except block.
                 # TODO: Do not announce self to "other nodes" until this init is finished.
                 # It's not possible to finish constructing this node.
                 self.stop(halt_reactor=False)
                 raise
 
             # DKG Ritualist
-            Ritualist.__init__(self,
-                               domain=domain,
-                               eth_provider_uri=eth_provider_uri,
-                               transacting_power=self.transacting_power,
-                               registry=self.registry,
-                               crypto_power=self._crypto_power)
+            Ritualist.__init__(
+                self,
+                domain=domain,
+                provider_uri=payment_method.provider,
+                transacting_power=self.transacting_power,
+                registry=self.registry,
+                crypto_power=self._crypto_power,
+            )
 
             # Use this power to substantiate the stamp
             self._substantiate_stamp()

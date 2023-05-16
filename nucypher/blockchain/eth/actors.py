@@ -202,6 +202,7 @@ class Operator(BaseActor):
 
             # TODO: Verify consistency between network names and provider connection?
             # TODO: #3094 Is chain ID stable and completely reliable?
+            # TODO: Can this be relocated to a higher layer to better support TAC?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
                 polygon_chain.client.chain_id: polygon_chain.provider
@@ -280,22 +281,20 @@ class Ritualist(BaseActor):
         """ritualist-specific errors"""
 
     def __init__(
-            self,
-            eth_provider_uri: str,
-            crypto_power: CryptoPower,
-            transacting_power: TransactingPower,
-            publish_finalization: bool = True,
-            *args,
-            **kwargs,
+        self,
+        provider_uri: str,  # this is a blockchain connection to the chain with the coordinator contract
+        crypto_power: CryptoPower,
+        transacting_power: TransactingPower,
+        publish_finalization: bool = True,  # TODO: Remove this
+        *args,
+        **kwargs,
     ):
         crypto_power.consume_power_up(transacting_power)
         super().__init__(transacting_power=transacting_power, *args, **kwargs)
         self.log = Logger("ritualist")
 
         self.coordinator_agent = ContractAgency.get_agent(
-            CoordinatorAgent,
-            registry=self.registry,
-            eth_provider_uri=eth_provider_uri
+            CoordinatorAgent, registry=self.registry, eth_provider_uri=provider_uri
         )
 
         # track active onchain rituals
