@@ -840,7 +840,7 @@ class BlockchainInterfaceFactory:
         interface = interface_class(eth_provider_uri=eth_provider_uri,
                                     *interface_args,
                                     **interface_kwargs)
-
+        interface.connect()
         cls._interfaces[eth_provider_uri] = cls.CachedInterface(interface=interface, emitter=emitter)
 
     @classmethod

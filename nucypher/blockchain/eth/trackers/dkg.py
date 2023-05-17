@@ -1,11 +1,11 @@
 import os
 import time
-from twisted.internet import threads
 from typing import Callable, List, Optional, Tuple, Type, Union
-from web3 import Web3
-from web3.contract.contract import Contract, ContractEvent
+
+from twisted.internet import threads
+from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
-from web3.providers import BaseProvider
+from web3.middleware import http_retry_request_middleware
 
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -56,21 +56,21 @@ class ActiveRitualTracker:
 
     MAX_CHUNK_SIZE = 10000
 
-    def __init__(self,
-                 ritualist,
-                 eth_provider: BaseProvider,
-                 contract: Contract,
-                 start_block: Optional[int] = None,  # TODO: use a start block that correlates to the ritual timeout
-                 persistent: bool = False  # TODO: use persistent storage?
-                 ):
-
+    def __init__(
+        self,
+        ritualist: "Ritualist",
+        coordinator_agent: "CoordinatorAgent",
+        start_block: Optional[
+            int
+        ] = None,  # TODO: use a start block that correlates to the ritual timeout
+        persistent: bool = False,  # TODO: use persistent storage?
+    ):
         self.log = Logger("RitualTracker")
 
         self.ritualist = ritualist
-        self.rituals = dict()  # TODO: use persistent storage?
+        self.coordinator_agent = coordinator_agent
 
-        self.eth_provider = eth_provider
-        self.contract = contract
+        self.rituals = dict()  # TODO: use persistent storage?
 
         # Determine the start block for the event scanner
         self.start_block = start_block
@@ -82,18 +82,14 @@ class ActiveRitualTracker:
 
         # Map events to handlers
         self.actions = {
-            contract.events.StartRitual: self.ritualist.perform_round_1,
-            contract.events.StartAggregationRound: self.ritualist.perform_round_2,
+            self.contract.events.StartRitual: self.ritualist.perform_round_1,
+            self.contract.events.StartAggregationRound: self.ritualist.perform_round_2,
         }
         self.events = list(self.actions)
 
-        self.provider = eth_provider
-        # Remove the default JSON-RPC retry middleware
+        # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
-        self.provider._middlewares = (
-            tuple()
-        )  # TODO: Do this more precisely to not unintentionally remove other middlewares
-        self.web3 = Web3(self.provider)
+        # self.web3.middleware_onion.remove(http_retry_request_middleware)
 
         self.scanner = EventActuator(
             hooks=[self._handle_ritual_event],
@@ -101,7 +97,7 @@ class ActiveRitualTracker:
             state=self.state,
             contract=self.contract,
             events=self.events,
-            filters={"address": contract.address},
+            filters={"address": self.contract.address},
             # How many maximum blocks at the time we request from JSON-RPC,
             # and we are unlikely to exceed the response size limit of the JSON-RPC server
             max_chunk_scan_size=self.MAX_CHUNK_SIZE
@@ -110,6 +106,18 @@ class ActiveRitualTracker:
         self.task = EventScannerTask(scanner=self.scan)
         self.active_tasks = set()
         self.refresh()
+
+    @property
+    def provider(self):
+        return self.web3.provider
+
+    @property
+    def web3(self):
+        return self.coordinator_agent.blockchain.w3
+
+    @property
+    def contract(self):
+        return self.coordinator_agent.contract
 
     def _get_start_block_number(self) -> int:
         """

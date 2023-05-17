@@ -306,8 +306,7 @@ class Ritualist(BaseActor):
         # track active onchain rituals
         self.ritual_tracker = ActiveRitualTracker(
             ritualist=self,
-            eth_provider=self.coordinator_agent.blockchain.provider,
-            contract=self.coordinator_agent.contract
+            coordinator_agent=self.coordinator_agent,
         )
 
         self.publish_finalization = (
