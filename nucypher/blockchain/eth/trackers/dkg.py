@@ -261,7 +261,10 @@ class ActiveRitualTracker:
         # Note that our chain reorg safety blocks cannot go negative
         if self.start_block is None:
             self.start_block = self._get_start_block_number()
-        start_block = max(self.state.get_last_scanned_block() - chain_reorg_safety_blocks, self.start_block)
+        start_block = min(
+            self.state.get_last_scanned_block() - chain_reorg_safety_blocks,
+            self.start_block,
+        )
         end_block = self.scanner.get_suggested_scan_end_block()
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
 
