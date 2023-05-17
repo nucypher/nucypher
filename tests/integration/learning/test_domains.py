@@ -7,8 +7,12 @@ from nucypher.network.nodes import TEACHER_NODES
 from tests.utils.ursula import make_ursulas
 
 
-def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
-    hero_learner, other_first_domain_learner = lonely_ursula_maker(domain="nucypher1.test_suite", quantity=2)
+def test_learner_learns_about_domains_separately(
+    lonely_ursula_maker, caplog, test_registry_source_manager
+):
+    hero_learner, other_first_domain_learner = lonely_ursula_maker(
+        domain="nucypher1.test_suite", quantity=2
+    )
     _nobody = lonely_ursula_maker(domain="nucypher1.test_suite", quantity=1).pop()
     other_first_domain_learner.remember_node(_nobody)
 

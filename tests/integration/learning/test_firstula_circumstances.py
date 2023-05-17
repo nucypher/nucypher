@@ -6,7 +6,9 @@ from twisted.internet.threads import deferToThread
 from nucypher.network.middleware import RestMiddleware
 
 
-def test_proper_seed_node_instantiation(lonely_ursula_maker):
+def test_proper_seed_node_instantiation(
+    lonely_ursula_maker, test_registry_source_manager
+):
     _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
     firstula = _lonely_ursula_maker(domain="this-is-meaningful-now").pop()
     firstula_as_seed_node = firstula.seed_node_metadata()
