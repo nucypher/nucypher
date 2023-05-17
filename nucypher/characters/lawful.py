@@ -592,7 +592,9 @@ class Bob(Character):
         variant: FerveoVariant,
         cohort: List["Ursula"],
         threshold: int,
-    ):
+    ) -> Dict[
+        ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
+    ]:
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
@@ -611,9 +613,9 @@ class Bob(Character):
                 request_encrypting_key=request_encrypting_key,
                 response_encrypting_key=response_encrypting_key,
             )
-            decryption_request_mapping[ursula_checksum_address] = bytes(
-                encrypted_decryption_request
-            )
+            decryption_request_mapping[
+                ursula_checksum_address
+            ] = encrypted_decryption_request
 
         decryption_client = ThresholdDecryptionClient(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
@@ -625,10 +627,7 @@ class Bob(Character):
         self.log.debug(f"Got enough shares to decrypt.")
 
         gathered_shares = {}
-        for provider_address, response_bytes in successes.items():
-            encrypted_decryption_response = (
-                EncryptedThresholdDecryptionResponse.from_bytes(response_bytes)
-            )
+        for provider_address, encrypted_decryption_response in successes.items():
             decryption_response = encrypted_decryption_response.decrypt(sk=response_sk)
             decryption_share = share_type.from_bytes(
                 decryption_response.decryption_share
