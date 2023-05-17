@@ -392,8 +392,9 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope="module")
-def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
-
+def fleet_of_highperf_mocked_ursulas(
+    ursula_test_config, request, testerchain, test_registry_source_manager
+):
     mocks = (
         mock_cert_storage,
         mock_cert_loading,
@@ -670,7 +671,9 @@ def control_time():
 
 
 @pytest.fixture(scope="module")
-def ursulas(testerchain, staking_providers, ursula_test_config):
+def ursulas(
+    testerchain, staking_providers, ursula_test_config, test_registry_source_manager
+):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")

@@ -859,10 +859,11 @@ class Ursula(Teacher, Character, Operator, Ritualist):
             Ritualist.__init__(
                 self,
                 domain=domain,
-                provider_uri=payment_method.provider,
+                provider_uri=payment_method.provider,  # TODO: no
+                network=payment_method.network,
                 transacting_power=self.transacting_power,
-                registry=self.registry,
                 crypto_power=self._crypto_power,
+                registry=self.registry,  # TODO: no
             )
 
             # Use this power to substantiate the stamp

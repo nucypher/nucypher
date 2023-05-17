@@ -28,7 +28,10 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
@@ -283,6 +286,7 @@ class Ritualist(BaseActor):
     def __init__(
         self,
         provider_uri: str,  # this is a blockchain connection to the chain with the coordinator contract
+        network: str,
         crypto_power: CryptoPower,
         transacting_power: TransactingPower,
         publish_finalization: bool = True,  # TODO: Remove this
@@ -295,7 +299,7 @@ class Ritualist(BaseActor):
 
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
-            registry=self.registry,
+            registry=InMemoryContractRegistry.from_latest_publication(network=network),
             eth_provider_uri=provider_uri,  # TODO: rename, this might be a polygon provider
         )
 
