@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple, Union
 import maya
 from eth_typing import ChecksumAddress
 from ferveo_py import AggregatedTranscript, Ciphertext
-from ferveo_py import PublicKey as FerveoPublicKey
+from ferveo_py import DkgPublicKey as FerveoPublicKey
 from ferveo_py import Validator
 from hexbytes import HexBytes
 from nucypher_core import (

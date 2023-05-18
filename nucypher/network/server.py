@@ -152,7 +152,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         (
             decryption_request,
             response_encrypting_key,
-        ) = this_node.decrypt_threshold_decryption_request(encrypted_decryption_request)
+        ) = this_node.decrypt_threshold_decryption_request(
+            encrypted_request=encrypted_decryption_request
+        )
 
         log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
 

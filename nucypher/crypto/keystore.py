@@ -43,7 +43,7 @@ _SIGNING_INFO = __INFO_BASE + b"signing"
 _DECRYPTING_INFO = __INFO_BASE + b"decrypting"
 _DELEGATING_INFO = __INFO_BASE + b"delegating"
 _RITUALISTIC_INFO = __INFO_BASE + b"ritualistic"
-_CBD_DECRYPTING_INFO = __INFO_BASE + b"cbd_decrypting"
+_THRESHOLD_REQUEST_DECRYPTING_INFO = __INFO_BASE + b"threshoold_request_decrypting"
 _TLS_INFO = __INFO_BASE + b"tls"
 
 # Wrapping key
@@ -233,7 +233,7 @@ class Keystore:
         DelegatingPower: _DELEGATING_INFO,
         TLSHostingPower: _TLS_INFO,
         RitualisticPower: _RITUALISTIC_INFO,
-        ThresholdRequestDecryptingPower: _CBD_DECRYPTING_INFO,
+        ThresholdRequestDecryptingPower: _THRESHOLD_REQUEST_DECRYPTING_INFO,
     }
 
     class Exists(FileExistsError):
