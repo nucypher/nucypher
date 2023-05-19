@@ -124,38 +124,36 @@ class ActiveRitualTracker:
         Returns the block number to start scanning for events from.
         """
         w3 = self.ritualist.coordinator_agent.blockchain.w3
-        target_timestamp = time.time() - self.ritualist.coordinator_agent.get_timeout()
+        timeout = self.ritualist.coordinator_agent.get_timeout()
+
         latest_block = w3.eth.get_block('latest')
         if latest_block.number == 0:
             return 0
 
         # get average block time
-        num_past_blocks = 100
-        base_block_number = latest_block.number - num_past_blocks
-        if base_block_number <= 0:
+        block_window_size = 100  # TODO: Make this configurable and/or chain-dependent
+        sample_block_number = latest_block.number - block_window_size
+        if sample_block_number <= 0:
             return 0
-        base_block = w3.eth.get_block(base_block_number)
-        average_block_time = (latest_block.timestamp - base_block.timestamp) / num_past_blocks
+        base_block = w3.eth.get_block(sample_block_number)
+        average_block_time = (latest_block.timestamp - base_block.timestamp) / block_window_size
 
-        number_of_blocks_in_the_past = int(
-            (latest_block.timestamp - target_timestamp) / average_block_time
-        )
+        number_of_blocks_in_the_past = int(timeout / average_block_time)
 
         expected_start_block = w3.eth.get_block(
             max(0, latest_block.number - number_of_blocks_in_the_past)
         )
+        target_timestamp = latest_block.timestamp - timeout
+
+        # Keep looking back until we find the last block before the target timestamp
         while (
             expected_start_block.number > 0
             and expected_start_block.timestamp > target_timestamp
         ):
             expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
 
-        expected_start_block_number = 0
-        if expected_start_block.number > 0:
-            # if non-zero block found - return the block before
-            expected_start_block_number = int(expected_start_block.number - 1)
-
-        return expected_start_block_number
+        # if non-zero block found - return the block before
+        return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
@@ -238,7 +236,7 @@ class ActiveRitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
+        self.log.debug(f"({account[:8]}) Scanning events in block range {start_block} - {end_block}")
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:
@@ -254,18 +252,16 @@ class ActiveRitualTracker:
         Because there might have been a minor Ethereum chain reorganisations since the last scan ended,
         we need to discard the last few blocks from the previous scan results.
         """
-        chain_reorg_safety_blocks = 10
+        chain_reorg_safety_blocks = 10  # TODO: Make this chain dependent
         self.scanner.delete_potentially_forked_block_data(self.state.get_last_scanned_block() - chain_reorg_safety_blocks)
 
         # Scan from [last block scanned] - [latest ethereum block]
         # Note that our chain reorg safety blocks cannot go negative
         if self.start_block is None:
             self.start_block = self._get_start_block_number()
-        start_block = min(
-            self.state.get_last_scanned_block() - chain_reorg_safety_blocks,
-            self.start_block,
-        )
-        end_block = self.scanner.get_suggested_scan_end_block()
+        last_scanned_block = self.state.get_last_scanned_block()
+        start_block = max(last_scanned_block - chain_reorg_safety_blocks, self.start_block)
+        end_block = max(start_block, self.scanner.get_suggested_scan_end_block())
         self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
 
     def add_ritual(self, ritual_id, ritual):
