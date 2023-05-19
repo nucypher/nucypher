@@ -10,7 +10,8 @@ from constant_sorrow.constants import CONTRACT_ATTRIBUTE  # type: ignore
 from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from ferveo_py.ferveo_py import DkgPublicKey
+from ferveo_py.ferveo_py import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.umbral import PublicKey
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -611,6 +612,16 @@ class CoordinatorAgent(EthereumContractAgent):
         def shares(self) -> int:
             return len(self.providers)
 
+        @property
+        def request_encrypting_keys(self):
+            request_encrypting_keys = {}
+            for p in self.participants:
+                request_encrypting_keys[p.provider] = PublicKey.from_compressed_bytes(
+                    p.requestEncryptingKey
+                )
+
+            return request_encrypting_keys
+
     @contract_api(CONTRACT_CALL)
     def get_timeout(self) -> int:
         return self.contract.functions.timeout().call()
@@ -693,12 +704,11 @@ class CoordinatorAgent(EthereumContractAgent):
     def post_transcript(
         self,
         ritual_id: int,
-        transcript: bytes,
+        transcript: Transcript,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
-            ritualId=ritual_id,
-            transcript=transcript
+            ritualId=ritual_id, transcript=bytes(transcript)
         )
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
@@ -708,16 +718,16 @@ class CoordinatorAgent(EthereumContractAgent):
     def post_aggregation(
         self,
         ritual_id: int,
-        aggregated_transcript: bytes,
+        aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-        request_encrypting_key: bytes,
+        request_encrypting_key: PublicKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
-            aggregatedTranscript=aggregated_transcript,
+            aggregatedTranscript=bytes(aggregated_transcript),
             publicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
-            requestEncryptingKey=request_encrypting_key,
+            requestEncryptingKey=request_encrypting_key.to_compressed_bytes(),
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,

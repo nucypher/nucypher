@@ -47,14 +47,12 @@ from nucypher_core import (
     Conditions,
     Context,
     EncryptedKeyFrag,
-    EncryptedThresholdDecryptionResponse,
     EncryptedTreasureMap,
     MessageKit,
     NodeMetadata,
     NodeMetadataPayload,
     ReencryptionResponse,
     ThresholdDecryptionRequest,
-    ThresholdDecryptionResponse,
     TreasureMap,
 )
 from nucypher_core.umbral import (
@@ -699,14 +697,7 @@ class Bob(Character):
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
-        request_encrypting_keys = {}
-        participants = ritual.participants
-        for p in participants:
-            # TODO don't use Umbral in the long-run
-            request_encrypting_keys[p.provider] = PublicKey.from_compressed_bytes(
-                p.requestEncryptingKey
-            )
-
+        request_encrypting_keys = ritual.request_encrypting_keys
         decryption_shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,

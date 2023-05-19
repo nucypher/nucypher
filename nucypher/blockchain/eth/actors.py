@@ -374,7 +374,7 @@ class Ritualist(BaseActor):
         # look up the node index for this node on the blockchain
         receipt = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
-            transcript=bytes(transcript),
+            transcript=transcript,
             transacting_power=self.transacting_power
         )
         return receipt
@@ -389,10 +389,10 @@ class Ritualist(BaseActor):
         # look up the node index for this node on the blockchain
         request_encrypting_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
-        ).to_compressed_bytes()
+        )
         receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
-            aggregated_transcript=bytes(aggregated_transcript),
+            aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             request_encrypting_key=request_encrypting_key,
             transacting_power=self.transacting_power

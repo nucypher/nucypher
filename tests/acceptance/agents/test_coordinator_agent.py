@@ -2,6 +2,7 @@ import os
 
 import pytest
 from eth_utils import keccak
+from nucypher_core.umbral import SecretKey
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -23,11 +24,6 @@ def agent(testerchain, test_registry) -> CoordinatorAgent:
 @pytest.fixture(scope='module')
 def transcripts():
     return [os.urandom(32), os.urandom(32)]
-
-
-@pytest.fixture(scope='module')
-def aggregated_transcript():
-    return os.urandom(32)
 
 
 @pytest.fixture(scope="module")
@@ -126,18 +122,20 @@ def test_post_transcript(agent, transcripts, transacting_powers):
 
 
 def test_post_aggregation(
-    agent, aggregated_transcript, dkg_public_key, transacting_powers
+    agent, aggregated_transcript, dkg_public_key, transacting_powers, cohort
 ):
     ritual_id = agent.number_of_rituals() - 1
-    request_encrypting_keys = [os.urandom(32) for t in transacting_powers]
+    request_encrypting_keys = {}
     for i, transacting_power in enumerate(transacting_powers):
+        request_encrypting_key = SecretKey.random().public_key()
         receipt = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
-            request_encrypting_key=request_encrypting_keys[i],
+            request_encrypting_key=request_encrypting_key,
             transacting_power=transacting_power,
         )
+        request_encrypting_keys[cohort[i]] = request_encrypting_key
         assert receipt["status"] == 1
 
         post_aggregation_events = (
@@ -147,13 +145,19 @@ def test_post_aggregation(
         event = post_aggregation_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["aggregatedTranscriptDigest"] == keccak(
-            aggregated_transcript
+            bytes(aggregated_transcript)
         )
 
     participants = agent.get_participants(ritual_id)
-    for i, p in enumerate(participants):
+    for p in participants:
         assert p.aggregated
-        assert p.requestEncryptingKey == request_encrypting_keys[i]
+        assert (
+            p.requestEncryptingKey
+            == request_encrypting_keys[p.provider].to_compressed_bytes()
+        )
+
+    ritual = agent.get_ritual(ritual_id)
+    assert ritual.request_encrypting_keys == request_encrypting_keys
 
     assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.FINALIZED
 

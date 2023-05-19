@@ -6,15 +6,16 @@ import tempfile
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
+from typing import Tuple
 
 import maya
 import pytest
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
-from ferveo_py.ferveo_py import DkgPublicKey
+from ferveo_py.ferveo_py import AggregatedTranscript, DkgPublicKey, DkgPublicParameters
 from ferveo_py.ferveo_py import Keypair as FerveoKeyPair
-from ferveo_py.ferveo_py import Validator
+from ferveo_py.ferveo_py import Transcript, Validator
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -380,7 +381,7 @@ def log_in_and_out_of_test(request):
     test_logger.info(f"Finalized {module_name}.py::{test_name}")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="session")
 def get_random_checksum_address():
     def _get_random_checksum_address():
         canonical_address = os.urandom(20)
@@ -699,8 +700,10 @@ def ursulas(testerchain, staking_providers, ursula_test_config):
     _ursulas.clear()
 
 
-@pytest.fixture(scope="module")
-def dkg_public_key(get_random_checksum_address) -> DkgPublicKey:
+@pytest.fixture(scope="session")
+def dkg_public_key_data(
+    get_random_checksum_address,
+) -> Tuple[AggregatedTranscript, DkgPublicKey, DkgPublicParameters]:
     ritual_id = 0
     num_shares = 4
     threshold = 3
@@ -726,7 +729,7 @@ def dkg_public_key(get_random_checksum_address) -> DkgPublicKey:
         )
         transcripts.append(transcript)
 
-    _, public_key, _ = dkg.aggregate_transcripts(
+    aggregate_transcript, public_key, params = dkg.aggregate_transcripts(
         ritual_id=ritual_id,
         me=validators[0],
         shares=num_shares,
@@ -734,4 +737,16 @@ def dkg_public_key(get_random_checksum_address) -> DkgPublicKey:
         transcripts=list(zip(validators, transcripts)),
     )
 
-    return public_key
+    return aggregate_transcript, public_key, params
+
+
+@pytest.fixture(scope="session")
+def dkg_public_key(dkg_public_key_data) -> DkgPublicKey:
+    _, dkg_public_key, _ = dkg_public_key_data
+    return dkg_public_key
+
+
+@pytest.fixture(scope="session")
+def aggregated_transcript(dkg_public_key_data) -> AggregatedTranscript:
+    aggregated_transcript, _, _ = dkg_public_key_data
+    return aggregated_transcript

@@ -1,11 +1,10 @@
-import os
 from collections import OrderedDict
 from unittest.mock import Mock
 
 import pytest
 from eth_account import Account
+from nucypher_core.umbral import SecretKey
 
-from tests.constants import FAKE_TRANSCRIPT
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
 
@@ -59,7 +58,9 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
     assert set(signal_data["participants"]) == nodes_transacting_powers.keys()
 
 
-def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
+def test_mock_coordinator_round_1(
+    nodes_transacting_powers, coordinator, random_transcript
+):
     ritual = coordinator.rituals[0]
     assert (
         coordinator.get_ritual_status(0)
@@ -70,7 +71,7 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
         assert p.transcript == bytes()
 
     for index, node_address in enumerate(nodes_transacting_powers):
-        transcript = FAKE_TRANSCRIPT
+        transcript = random_transcript
 
         coordinator.post_transcript(
             ritual_id=0,
@@ -79,7 +80,7 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
         )
 
         performance = ritual.participants[index]
-        assert performance.transcript == transcript
+        assert performance.transcript == bytes(transcript)
 
         if index == len(nodes_transacting_powers) - 1:
             assert len(coordinator.EVENTS) == 2
@@ -91,7 +92,11 @@ def test_mock_coordinator_round_1(nodes_transacting_powers, coordinator):
 
 
 def test_mock_coordinator_round_2(
-    nodes_transacting_powers, coordinator, dkg_public_key
+    nodes_transacting_powers,
+    coordinator,
+    aggregated_transcript,
+    dkg_public_key,
+    random_transcript,
 ):
     ritual = coordinator.rituals[0]
     assert (
@@ -100,12 +105,11 @@ def test_mock_coordinator_round_2(
     )
 
     for p in ritual.participants:
-        assert p.transcript == FAKE_TRANSCRIPT
+        assert p.transcript == bytes(random_transcript)
 
-    aggregated_transcript = os.urandom(len(FAKE_TRANSCRIPT))
     request_encrypting_keys = []
     for index, node_address in enumerate(nodes_transacting_powers):
-        request_encrypting_key = os.urandom(32)
+        request_encrypting_key = SecretKey.random().public_key()
         coordinator.post_aggregation(
             ritual_id=0,
             aggregated_transcript=aggregated_transcript,
@@ -117,14 +121,17 @@ def test_mock_coordinator_round_2(
         if index == len(nodes_transacting_powers) - 1:
             assert len(coordinator.EVENTS) == 2
 
-    assert ritual.aggregated_transcript == aggregated_transcript
+    assert ritual.aggregated_transcript == bytes(aggregated_transcript)
 
     assert bytes(ritual.public_key) == bytes(dkg_public_key)
     for index, p in enumerate(ritual.participants):
         # unchanged
-        assert p.transcript == FAKE_TRANSCRIPT
-        assert p.transcript != aggregated_transcript
-        assert p.requestEncryptingKey == request_encrypting_keys[index]
+        assert p.transcript == bytes(random_transcript)
+        assert p.transcript != bytes(aggregated_transcript)
+        assert (
+            p.requestEncryptingKey
+            == request_encrypting_keys[index].to_compressed_bytes()
+        )
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
     assert (

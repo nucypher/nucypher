@@ -1,10 +1,13 @@
 import pytest
+from ferveo_py.ferveo_py import Keypair as FerveoKeyPair
+from ferveo_py.ferveo_py import Validator
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient
@@ -88,3 +91,30 @@ def mock_substantiate_stamp(module_mocker, monkeymodule):
     module_mocker.patch.object(Ursula, "_substantiate_stamp", autospec=True)
     module_mocker.patch.object(Ursula, "operator_signature", fake_signature)
     module_mocker.patch.object(Teacher, "validate_operator")
+
+
+@pytest.fixture(scope="session")
+def random_transcript(get_random_checksum_address):
+    ritual_id = 0
+    num_shares = 4
+    threshold = 3
+    validators = []
+    for i in range(0, num_shares):
+        validators.append(
+            Validator(
+                address=get_random_checksum_address(),
+                public_key=FerveoKeyPair.random().public_key(),
+            )
+        )
+
+    validators.sort(key=lambda x: x.address)  # must be sorte
+
+    transcript = dkg.generate_transcript(
+        ritual_id=ritual_id,
+        me=validators[0],
+        shares=num_shares,
+        threshold=threshold,
+        nodes=validators,
+    )
+
+    return transcript

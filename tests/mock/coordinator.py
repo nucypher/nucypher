@@ -1,10 +1,11 @@
 import time
 from enum import Enum
-from typing import Dict, List, Union
+from typing import Dict, List
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
-from ferveo_py.ferveo_py import DkgPublicKey
+from ferveo_py.ferveo_py import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.umbral import PublicKey
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
@@ -80,10 +81,10 @@ class MockCoordinatorAgent(MockContractAgent):
         return self.blockchain.FAKE_RECEIPT
 
     def post_transcript(
-            self,
-            ritual_id: int,
-            transcript: bytes,
-            transacting_power: TransactingPower
+        self,
+        ritual_id: int,
+        transcript: Transcript,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
         operator_address = transacting_power.account
@@ -93,7 +94,7 @@ class MockCoordinatorAgent(MockContractAgent):
             or transacting_power.account
         )
         participant = self.get_participant_from_provider(ritual_id, provider)
-        participant.transcript = transcript
+        participant.transcript = bytes(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == ritual.dkg_size:
             ritual.status = self.RitualStatus.AWAITING_AGGREGATIONS
@@ -109,9 +110,9 @@ class MockCoordinatorAgent(MockContractAgent):
     def post_aggregation(
         self,
         ritual_id: int,
-        aggregated_transcript: bytes,
+        aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-        request_encrypting_key: bytes,
+        request_encrypting_key: PublicKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
@@ -123,15 +124,15 @@ class MockCoordinatorAgent(MockContractAgent):
         )
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.aggregated = True
-        participant.requestEncryptingKey = request_encrypting_key
+        participant.requestEncryptingKey = request_encrypting_key.to_compressed_bytes()
 
         g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
         if len(ritual.aggregated_transcript) == 0:
-            ritual.aggregated_transcript = aggregated_transcript
+            ritual.aggregated_transcript = bytes(aggregated_transcript)
             ritual.public_key = g1_point
         elif bytes(ritual.public_key) != bytes(g1_point) or keccak(
             ritual.aggregated_transcript
-        ) != keccak(aggregated_transcript):
+        ) != keccak(bytes(aggregated_transcript)):
             ritual.aggregation_mismatch = True
             # don't increment aggregations
             # TODO Emit EndRitual here?
