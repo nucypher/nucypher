@@ -1,23 +1,26 @@
+import json
 from unittest.mock import ANY
 
 import pytest
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
+from nucypher_core import Conditions, ThresholdDecryptionRequest
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.characters.lawful import Alice, Bob, Ursula
+from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.powers import DecryptingPower, DelegatingPower, TLSHostingPower
+from nucypher.crypto.powers import (
+    DecryptingPower,
+    DelegatingPower,
+    ThresholdRequestDecryptingPower,
+    TLSHostingPower,
+)
 from nucypher.network.server import ProxyRESTServer
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import (
-    INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_ETH_PROVIDER_URI,
-    MOCK_IP_ADDRESS,
-)
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.utils.matchers import IsType
 
 
@@ -131,3 +134,76 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
                                                  rest_app=IsType(Flask),
                                                  hosting_power=tls_hosting_power)
     recreated_ursula.disenchant()
+
+
+def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
+    keystore = Keystore.generate(
+        password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
+    )
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+    payment_method = SubscriptionManagerPayment(
+        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+    )
+
+    ursula = Ursula(
+        start_learning_now=False,
+        keystore=keystore,
+        rest_host=LOOPBACK_ADDRESS,
+        rest_port=12345,
+        domain=TEMPORARY_DOMAIN,
+        payment_method=payment_method,
+        operator_address=testerchain.ursulas_accounts[0],
+        signer=Web3Signer(testerchain.client),
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+    )
+
+    ritual_id = 23
+    # Use actual decryption request
+    plaintext = b"Records break when you don't"  # Jordan branch ad tagline
+    CONDITIONS = [
+        {"returnValueTest": {"value": "0", "comparator": ">"}, "method": "timelock"}
+    ]
+
+    # encrypt
+    enrico = Enrico(encrypting_key=dkg_public_key)
+    ciphertext = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
+    decryption_request = ThresholdDecryptionRequest(
+        id=ritual_id,
+        variant=0,
+        ciphertext=bytes(ciphertext),
+        conditions=Conditions(json.dumps(CONDITIONS)),
+    )
+
+    request_encrypting_key = ursula.threshold_request_power.get_pubkey_from_ritual_id(
+        ritual_id=ritual_id
+    )
+    response_encrypting_key = SecretKey.random().public_key()
+    encrypted_decryption_request = decryption_request.encrypt(
+        request_encrypting_key=request_encrypting_key,
+        response_encrypting_key=response_encrypting_key,
+    )
+    # successful decryption
+    (
+        decrypted_decryption_request,
+        decrypted_response_encrypting_key,
+    ) = ursula.threshold_request_power.decrypt_encrypted_request(
+        encrypted_decryption_request
+    )
+    assert bytes(decrypted_decryption_request) == bytes(decryption_request)
+    assert (
+        decrypted_response_encrypting_key.to_compressed_bytes()
+        == response_encrypting_key.to_compressed_bytes()
+    )
+
+    # failed decryption - incorrect encrypting key used
+    invalid_encrypted_decryption_request = decryption_request.encrypt(
+        request_encrypting_key=SecretKey.random().public_key(),
+        response_encrypting_key=response_encrypting_key,
+    )
+    with pytest.raises(
+        ThresholdRequestDecryptingPower.ThresholdRequestDecryptionFailed
+    ):
+        ursula.threshold_request_power.decrypt_encrypted_request(
+            invalid_encrypted_decryption_request
+        )
