@@ -11,7 +11,7 @@ python_version = "3"
 constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=4.0"
-nucypher-core = ">=0.7.0"
+nucypher-core = {git="https://github.com/derekpierre/nucypher-core.git", ref="e2e-dkg", subdirectory="nucypher-core-python"}
 # Cryptography
 cryptography = ">=3.2"
 ferveo = ">=0.1.11"
@@ -30,7 +30,7 @@ requests = "*"
 # Third-Party Ethereum
 eip712-structs = "*"
 eth-tester = "*"   # providers.py still uses this
-py-evm = "==0.6.1a2"  # ape -> evm-trace needs this version
+py-evm = "*"
 web3 = ">=6.0.0"
 watchdog = "<3.0.0"  # needed for eth-ape to be happy
 
@@ -53,8 +53,9 @@ pytest-cov = "*"
 pytest-mock = "*"
 pytest-timeout = "*"
 # Tools
-eth-ape = ">=0.6.3,<0.7.0"
-ape-solidity = ">=0.6.0,<0.7.0"
+eth-ape = "*"
+# TODO eventually change to official release, issue #3131, once fix is available
+ape-solidity = {git="https://github.com/derekpierre/ape-solidity.git", ref="main"}
 hypothesis = "*"
 pre-commit = "2.12.1"
 coverage = "<=6.5.0"
