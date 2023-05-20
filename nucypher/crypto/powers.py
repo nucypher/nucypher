@@ -345,11 +345,11 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
         self, encrypted_request: EncryptedThresholdDecryptionRequest
     ) -> Tuple[ThresholdDecryptionRequest, PublicKey]:
         try:
-            priv_key = self._get_privkey_from_ritual_id(encrypted_request.id)
-            e2ee_request = encrypted_request.decrypt(sk=priv_key)
+            priv_key = self._get_privkey_from_ritual_id(encrypted_request.ritual_id)
+            e2e_request = encrypted_request.decrypt(sk=priv_key)
             return (
-                e2ee_request.decryption_request,
-                e2ee_request.response_encrypting_key,
+                e2e_request.decryption_request,
+                e2e_request.response_encrypting_key,
             )
         except Exception as e:
             raise self.ThresholdRequestDecryptionFailed from e

@@ -169,7 +169,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     enrico = Enrico(encrypting_key=dkg_public_key)
     ciphertext = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
     decryption_request = ThresholdDecryptionRequest(
-        id=ritual_id,
+        ritual_id=ritual_id,
         variant=0,
         ciphertext=bytes(ciphertext),
         conditions=Conditions(json.dumps(CONDITIONS)),

@@ -575,7 +575,7 @@ class Bob(Character):
         if context:
             context = Context(json.dumps(context))
         decryption_request = ThresholdDecryptionRequest(
-            id=ritual_id,
+            ritual_id=ritual_id,
             variant=int(variant.value),
             ciphertext=bytes(ciphertext),
             conditions=conditions,
@@ -1419,7 +1419,7 @@ class Enrico:
         ciphertext = self.encrypt_for_dkg(plaintext=plaintext,
                                           conditions=conditions)
         tdr = ThresholdDecryptionRequest(
-            id=ritual_id,
+            ritual_id=ritual_id,
             ciphertext=bytes(ciphertext),
             conditions=Conditions(json.dumps(conditions)),
             context=context,

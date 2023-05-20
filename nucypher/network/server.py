@@ -156,7 +156,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             encrypted_request=encrypted_decryption_request
         )
 
-        log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
+        log.info(
+            f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
+        )
 
         # Deserialize and instantiate ConditionLingo from the request data
         conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
@@ -178,17 +180,22 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
-        ritual = this_node.coordinator_agent.get_ritual(decryption_request.id, with_participants=True)
+        ritual = this_node.coordinator_agent.get_ritual(
+            decryption_request.ritual_id, with_participants=True
+        )
         participants = [p.provider for p in ritual.participants]
 
         # enforces that the node is part of the ritual
         if this_node.checksum_address not in participants:
-            return Response(f'Node not part of ritual {decryption_request.id}', status=HTTPStatus.FORBIDDEN)
+            return Response(
+                f"Node not part of ritual {decryption_request.ritual_id}",
+                status=HTTPStatus.FORBIDDEN,
+            )
 
         # derive the decryption share
         ciphertext = Ciphertext.from_bytes(decryption_request.ciphertext)
         decryption_share = this_node.derive_decryption_share(
-            ritual_id=decryption_request.id,
+            ritual_id=decryption_request.ritual_id,
             ciphertext=ciphertext,
             conditions=decryption_request.conditions,
             variant=FerveoVariant(decryption_request.variant),
