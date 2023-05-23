@@ -11,7 +11,7 @@ python_version = "3"
 constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=4.0"
-nucypher-core = {git="https://github.com/derekpierre/nucypher-core.git", ref="e2e-dkg", subdirectory="nucypher-core-python"}
+nucypher-core = ">=0.8.0"
 # Cryptography
 cryptography = ">=3.2"
 ferveo = ">=0.1.11"
@@ -55,7 +55,7 @@ pytest-timeout = "*"
 # Tools
 eth-ape = "*"
 # TODO eventually change to official release, issue #3131, once fix is available
-ape-solidity = {git="https://github.com/derekpierre/ape-solidity.git", ref="main"}
+ape-solidity = ">=0.6.5"
 hypothesis = "*"
 pre-commit = "2.12.1"
 coverage = "<=6.5.0"

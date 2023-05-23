@@ -31,7 +31,7 @@ eth-rlp==0.3.0 ; python_version >= '3.7' and python_version < '4'
 eth-tester==0.9.0b1
 eth-typing==3.3.0 ; python_version < '4' and python_full_version >= '3.7.2'
 eth-utils==2.1.0
-ferveo==0.1.12
+ferveo==0.1.13
 flask==2.2.5
 frozenlist==1.3.3 ; python_version >= '3.7'
 hendrix==4.0.0
@@ -56,7 +56,7 @@ msgpack==1.0.5
 msgpack-python==0.5.6
 multidict==5.2.0 ; python_version >= '3.6'
 mypy-extensions==0.4.4 ; python_version >= '2.7'
-nucypher-core @ git+https://github.com/derekpierre/nucypher-core.git@9cb792197dbb20d4997448fc37b116f9f1fb686c#subdirectory=nucypher-core-python
+nucypher-core==0.8.0
 packaging==23.1 ; python_version >= '3.7'
 parsimonious==0.9.0
 pendulum==3.0.0a1 ; python_version >= '3.7' and python_version < '4.0'
@@ -75,14 +75,14 @@ pyopenssl==23.1.1
 pysha3==1.0.2
 python-dateutil==2.8.2 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 pytz==2023.3
-referencing==0.28.2 ; python_version >= '3.8'
+referencing==0.28.3 ; python_version >= '3.8'
 regex==2023.5.5 ; python_version >= '3.6'
-requests==2.30.0
+requests==2.31.0
 rlp==3.0.0
 rpds-py==0.7.1 ; python_version >= '3.8'
 semantic-version==2.10.0 ; python_version >= '2.7'
 service-identity==21.1.0
-setuptools==67.7.2 ; python_version >= '3.7'
+setuptools==67.8.0 ; python_version >= '3.7'
 six==1.16.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 snaptime==0.2.4
 sortedcontainers==2.4.0
@@ -92,7 +92,7 @@ toolz==0.12.0 ; python_version >= '3.5'
 trie==2.1.0 ; python_version >= '3.7' and python_version < '4'
 twisted==22.10.0 ; python_full_version >= '3.7.1'
 txaio==23.1.1 ; python_version >= '3.7'
-typing-extensions==4.5.0 ; python_version >= '3.7'
+typing-extensions==4.6.0 ; python_version >= '3.7'
 tzdata==2023.3 ; python_version >= '2'
 tzlocal==5.0.1 ; python_version >= '3.7'
 urllib3==2.0.2 ; python_version >= '3.7'

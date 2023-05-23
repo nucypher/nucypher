@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    github: derekpierre/nucypher-contracts
-    ref: e2e-dkg
+    github: nucypher/nucypher-contracts
+    ref: main
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.8.1

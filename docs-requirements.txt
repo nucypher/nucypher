@@ -14,11 +14,11 @@ markupsafe==2.1.2 ; python_version >= '3.7'
 packaging==23.1 ; python_version >= '3.7'
 pygments==2.15.1 ; python_version >= '3.7'
 pytz==2023.3 ; python_version < '3.9'
-requests==2.30.0 ; python_version >= '3.7'
-setuptools==67.7.2 ; python_version >= '3.7'
+requests==2.31.0 ; python_version >= '3.7'
+setuptools==67.8.0 ; python_version >= '3.7'
 snowballstemmer==2.2.0
 sphinx==3.0.1
-sphinx-rtd-theme==1.2.0
+sphinx-rtd-theme==1.2.1
 sphinxcontrib-applehelp==1.0.4 ; python_version >= '3.8'
 sphinxcontrib-devhelp==1.0.2 ; python_version >= '3.5'
 sphinxcontrib-htmlhelp==2.0.1 ; python_version >= '3.8'
