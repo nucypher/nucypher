@@ -1379,7 +1379,7 @@ class Enrico:
         ciphertext = ferveo_py.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
 
-    def encryt_for_dkg_and_produce_decryption_request(self,
+    def encrypt_for_dkg_and_produce_decryption_request(self,
                                                       plaintext: bytes,
                                                       conditions: LingoList,
                                                       ritual_id: int,
