@@ -562,18 +562,32 @@ class Bob(Character):
 
         return cohort
 
-    def gather_decryption_shares(
-        self,
-        ritual_id: int,
-        cohort: List["Ursula"],
-        ciphertext: Ciphertext,
-        lingo: LingoList,
-        threshold: int,
-        variant: FerveoVariant,
-        context: Optional[dict] = None,
-    ) -> Dict[
-        ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
-    ]:
+    def make_decryption_request(
+            self,
+            ritual_id: int,
+            ciphertext: Ciphertext,
+            lingo: LingoList,
+            variant: FerveoVariant,
+            context: Optional[dict] = None,
+    ) -> ThresholdDecryptionRequest:
+        conditions = Conditions(json.dumps(lingo))
+        if context:
+            context = Context(json.dumps(context))
+        decryption_request = ThresholdDecryptionRequest(
+            id=ritual_id,
+            variant=int(variant.value),
+            ciphertext=bytes(ciphertext),
+            conditions=conditions,
+            context=context,
+        )
+        return decryption_request
+
+    def get_decryption_shares_using_existing_decryption_request(self,
+                                                                decryption_request: ThresholdDecryptionRequest,
+                                                                variant: FerveoVariant,
+                                                                cohort: List["Ursula"],
+                                                                threshold: int,
+                                                                ):
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
@@ -581,16 +595,6 @@ class Bob(Character):
 
         decryption_request_mapping = {}
         for ursula in cohort:
-            conditions = Conditions(json.dumps(lingo))
-            if context:
-                context = Context(json.dumps(context))
-            decryption_request = ThresholdDecryptionRequest(
-                id=ritual_id,
-                variant=int(variant.value),
-                ciphertext=bytes(ciphertext),
-                conditions=conditions,
-                context=context,
-            )
             decryption_request_mapping[
                 to_checksum_address(ursula.checksum_address)
             ] = bytes(decryption_request)
@@ -612,6 +616,27 @@ class Bob(Character):
             )
             gathered_shares[provider_address] = decryption_share
         return gathered_shares
+
+    def gather_decryption_shares(
+            self,
+            ritual_id: int,
+            cohort: List["Ursula"],
+            ciphertext: Ciphertext,
+            lingo: LingoList,
+            threshold: int,
+            variant: FerveoVariant,
+            context: Optional[dict] = None,
+    ) -> Dict[
+        ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
+    ]:
+
+        decryption_request = self.make_decryption_request(ritual_id=ritual_id,
+                                                          ciphertext=ciphertext,
+                                                          lingo=lingo,
+                                                          variant=variant,
+                                                          context=context)
+        return self.get_decryption_shares_using_existing_decryption_request(decryption_request, variant, cohort,
+                                                                            threshold)
 
     def threshold_decrypt(self,
                           ritual_id: int,
@@ -1353,6 +1378,28 @@ class Enrico:
         conditions_bytes = json.dumps(conditions).encode()
         ciphertext = ferveo_py.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
+
+    def encrypt_for_dkg_and_produce_decryption_request(self,
+                                                      plaintext: bytes,
+                                                      conditions: LingoList,
+                                                      ritual_id: int,
+                                                      variant_id: int,
+                                                      context: Optional[bytes] = None
+
+                                                      ) -> Tuple[
+        Ciphertext, ThresholdDecryptionRequest]:
+
+        ciphertext = self.encrypt_for_dkg(plaintext=plaintext,
+                                          conditions=conditions)
+        tdr = ThresholdDecryptionRequest(
+            id=ritual_id,
+            ciphertext=bytes(ciphertext),
+            conditions=Conditions(json.dumps(conditions)),
+            context=context,
+            variant=variant_id,
+        )
+
+        return ciphertext, tdr
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
