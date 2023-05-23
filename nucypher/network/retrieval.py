@@ -2,7 +2,6 @@
 import json
 import random
 from collections import defaultdict
-from json import JSONDecodeError
 from typing import Dict, List, Sequence, Tuple
 
 from eth_typing.evm import ChecksumAddress
@@ -22,11 +21,10 @@ from nucypher_core.umbral import (
     VerificationError,
     VerifiedCapsuleFrag,
 )
-from twisted.logger import Logger
 
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.network.client import ThresholdAccessControlClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.nodes import Learner
 from nucypher.policy.conditions.exceptions import InvalidConditionContext
 from nucypher.policy.conditions.rust_shims import _serialize_rust_lingos
 from nucypher.policy.kits import RetrievalResult
@@ -39,7 +37,7 @@ class RetrievalError:
 
 class RetrievalPlan:
     """
-    An emphemeral object providing a service of selecting Ursulas for reencryption requests
+    An ephemeral object providing a service of selecting Ursulas for re-encryption requests
     during retrieval.
     """
 
@@ -166,49 +164,13 @@ class RetrievalWorkOrder:
         return rust_lingos
 
 
-class RetrievalClient:
+class PRERetrievalClient(ThresholdAccessControlClient):
     """
     Capsule frag retrieval machinery shared between Bob and Porter.
     """
 
-    def __init__(self, learner: Learner):
-        self._learner = learner
-        self.log = Logger(self.__class__.__name__)
-
-    def _ensure_ursula_availability(self, treasure_map: TreasureMap, timeout=10):
-        """
-        Make sure we know enough nodes from the treasure map to decrypt;
-        otherwise block and wait for them to come online.
-        """
-
-        # OK, so we're going to need to do some network activity for this retrieval.
-        # Let's make sure we've seeded.
-        if not self._learner.done_seeding:
-            self._learner.learn_from_teacher_node()
-
-        ursulas_in_map = treasure_map.destinations.keys()
-
-        # TODO (#1995): when that issue is fixed, conversion is no longer needed
-        ursulas_in_map = [to_checksum_address(bytes(address)) for address in ursulas_in_map]
-
-        all_known_ursulas = self._learner.known_nodes.addresses()
-
-        # Push all unknown Ursulas from the map in the queue for learning
-        unknown_ursulas = ursulas_in_map - all_known_ursulas
-
-        # If we know enough to decrypt, we can proceed.
-        known_ursulas = ursulas_in_map & all_known_ursulas
-        if len(known_ursulas) >= treasure_map.threshold:
-            return
-
-        # | <--- shares                                            ---> |
-        # | <--- threshold               ---> | <--- allow_missing ---> |
-        # | <--- known_ursulas ---> | <--- unknown_ursulas         ---> |
-        allow_missing = len(treasure_map.destinations) - treasure_map.threshold
-        self._learner.block_until_specific_nodes_are_known(unknown_ursulas,
-                                                           timeout=timeout,
-                                                           allow_missing=allow_missing,
-                                                           learn_on_this_thread=True)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def _request_reencryption(self,
                               ursula: 'Ursula',
@@ -284,7 +246,16 @@ class RetrievalClient:
                         bob_verifying_key: PublicKey,
                         **context) -> Tuple[List[RetrievalResult], List[RetrievalError]]:
 
-        self._ensure_ursula_availability(treasure_map)
+        ursulas_in_map = treasure_map.destinations.keys()
+
+        # TODO (#1995): when that issue is fixed, conversion is no longer needed
+        ursulas_in_map = [
+            to_checksum_address(bytes(address)) for address in ursulas_in_map
+        ]
+
+        self._ensure_ursula_availability(
+            ursulas=ursulas_in_map, threshold=treasure_map.threshold
+        )
 
         retrieval_plan = RetrievalPlan(treasure_map=treasure_map, retrieval_kits=retrieval_kits)
 

@@ -1,9 +1,10 @@
-import pytest
 import random
 import time
 from typing import Iterable, Tuple
 
-from nucypher.utilities.concurrency import WorkerPool
+import pytest
+
+from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
 class AllAtOnceFactory:
@@ -213,27 +214,18 @@ def test_join(join_worker_pool):
     assert t_end - t_start < 3
 
 
-class BatchFactory:
+class TestBatchValueFactory(BatchValueFactory):
 
-    def __init__(self, values):
-        self.values = values
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.batch_sizes = []
 
     def __call__(self, successes):
-        if successes == 10:
-            return None
-        batch_size = 10 - successes
-        if len(self.values) >= batch_size:
-            batch = self.values[:batch_size]
-            self.batch_sizes.append(len(batch))
-            self.values = self.values[batch_size:]
-            return batch
-        elif len(self.values) > 0:
-            self.batch_sizes.append(len(self.values))
-            return self.values
-            self.values = None
-        else:
-            return None
+        result = super().__call__(successes)
+        if result:
+            self.batch_sizes.append(len(result))
+
+        return result
 
 
 def test_batched_value_generation(join_worker_pool):
@@ -248,7 +240,7 @@ def test_batched_value_generation(join_worker_pool):
         ],
         seed=123)
 
-    factory = BatchFactory(list(outcomes))
+    factory = TestBatchValueFactory(values=list(outcomes), required_successes=10)
     pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=0.5)
     join_worker_pool(pool)
 

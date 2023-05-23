@@ -330,3 +330,48 @@ class WorkerPool:
                 break
 
         self._result_queue.put(PRODUCER_STOPPED)
+
+
+class BatchValueFactory:
+    def __init__(
+        self, values: List[Any], required_successes: int, batch_size: int = None
+    ):
+        if not values:
+            raise ValueError(f"No available values provided")
+        if required_successes <= 0:
+            raise ValueError(
+                f"Invalid number of successes required ({required_successes})"
+            )
+
+        self.values = values
+        self.required_successes = required_successes
+        if len(self.values) < self.required_successes:
+            raise ValueError(
+                f"Available values ({len(self.values)} less than required successes {self.required_successes}"
+            )
+
+        self._batch_start_index = 0
+
+        if batch_size is not None and batch_size <= 0:
+            raise ValueError(f"Invalid batch size specified ({batch_size})")
+        self.batch_size = batch_size if batch_size else required_successes
+
+    def __call__(self, successes) -> Optional[List[Any]]:
+        if successes >= self.required_successes:
+            # no more work needed to be done
+            return None
+
+        if self._batch_start_index == len(self.values):
+            # no more values to process
+            return None
+
+        batch_end_index = self._batch_start_index + self.batch_size
+        if batch_end_index <= len(self.values):
+            batch = self.values[self._batch_start_index : batch_end_index]
+            self._batch_start_index = batch_end_index
+            return batch
+        else:
+            # return all remaining values
+            batch = self.values[self._batch_start_index :]
+            self._batch_start_index = len(self.values)
+            return batch

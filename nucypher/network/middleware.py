@@ -262,7 +262,9 @@ class RestMiddleware:
         )
         return response
 
-    def get_decryption_share(self, ursula: 'Ursula', decryption_request_bytes: bytes):
+    def get_encrypted_decryption_share(
+        self, ursula: "Ursula", decryption_request_bytes: bytes
+    ):
         response = self.client.post(
             node_or_sprout=ursula,
             path=f"decrypt",
