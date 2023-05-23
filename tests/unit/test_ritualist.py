@@ -3,7 +3,6 @@ import pytest
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import FAKE_TRANSCRIPT
 from tests.mock.coordinator import MockCoordinatorAgent
 
 
@@ -84,10 +83,12 @@ def test_perform_round_1(ursula, random_address, cohort, agent):
     )
 
 
-def test_perform_round_2(ursula, cohort, transacting_power, agent, mocker):
+def test_perform_round_2(
+    ursula, cohort, transacting_power, agent, mocker, random_transcript
+):
     participants = [
         CoordinatorAgent.Ritual.Participant(
-            provider=c, aggregated=False, transcript=FAKE_TRANSCRIPT
+            provider=c, aggregated=False, transcript=bytes(random_transcript)
         )
         for c in cohort
     ]

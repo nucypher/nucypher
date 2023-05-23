@@ -10,6 +10,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
@@ -145,9 +146,19 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     def threshold_decrypt():
 
         # Deserialize and instantiate ThresholdDecryptionRequest from the request data
-        decryption_request = ThresholdDecryptionRequest.from_bytes(request.data)
+        encrypted_decryption_request = EncryptedThresholdDecryptionRequest.from_bytes(
+            request.data
+        )
+        (
+            decryption_request,
+            response_encrypting_key,
+        ) = this_node.decrypt_threshold_decryption_request(
+            encrypted_request=encrypted_decryption_request
+        )
 
-        log.info(f"Threshold decryption request for ritual ID #{decryption_request.id}")
+        log.info(
+            f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
+        )
 
         # Deserialize and instantiate ConditionLingo from the request data
         conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
@@ -169,17 +180,22 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
-        ritual = this_node.coordinator_agent.get_ritual(decryption_request.id, with_participants=True)
+        ritual = this_node.coordinator_agent.get_ritual(
+            decryption_request.ritual_id, with_participants=True
+        )
         participants = [p.provider for p in ritual.participants]
 
         # enforces that the node is part of the ritual
         if this_node.checksum_address not in participants:
-            return Response(f'Node not part of ritual {decryption_request.id}', status=HTTPStatus.FORBIDDEN)
+            return Response(
+                f"Node not part of ritual {decryption_request.ritual_id}",
+                status=HTTPStatus.FORBIDDEN,
+            )
 
         # derive the decryption share
         ciphertext = Ciphertext.from_bytes(decryption_request.ciphertext)
         decryption_share = this_node.derive_decryption_share(
-            ritual_id=decryption_request.id,
+            ritual_id=decryption_request.ritual_id,
             ciphertext=ciphertext,
             conditions=decryption_request.conditions,
             variant=FerveoVariant(decryption_request.variant),
@@ -189,7 +205,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # TODO: #3079 #3081 encrypt the response with the requester's public key
         # TODO: #3098 nucypher-core#49 Use DecryptionShare type
         response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))
-        return Response(bytes(response), headers={'Content-Type': 'application/octet-stream'})
+        encrypted_response = response.encrypt(encrypting_key=response_encrypting_key)
+        return Response(
+            bytes(encrypted_response),
+            headers={"Content-Type": "application/octet-stream"},
+        )
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():

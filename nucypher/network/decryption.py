@@ -1,16 +1,20 @@
 from typing import Dict, List, Tuple
 
 from eth_typing import ChecksumAddress
+from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
+    EncryptedThresholdDecryptionResponse,
+)
 
 from nucypher.network.client import ThresholdAccessControlClient
 from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
 class ThresholdDecryptionClient(ThresholdAccessControlClient):
-    class DecryptionRequestFailed(Exception):
+    class ThresholdDecryptionRequestFailed(Exception):
         """Raised when a decryption request returns a non-zero status code."""
 
-    class DecryptionRequestFactory(BatchValueFactory):
+    class ThresholdDecryptionRequestFactory(BatchValueFactory):
         def __init__(self, ursula_to_contact: List[ChecksumAddress], threshold: int):
             # TODO should we batch the ursulas to contact i.e. pass `batch_size` parameter
             super().__init__(values=ursula_to_contact, required_successes=threshold)
@@ -20,17 +24,22 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
 
     def gather_encrypted_decryption_shares(
         self,
-        encrypted_requests: Dict[ChecksumAddress, bytes],
+        encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
         timeout: float = 10,
-    ) -> Tuple[Dict[ChecksumAddress, bytes], Dict[ChecksumAddress, str]]:
+    ) -> Tuple[
+        Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
+        Dict[ChecksumAddress, str],
+    ]:
         self._ensure_ursula_availability(
             ursulas=list(encrypted_requests.keys()),
             threshold=threshold,
             timeout=timeout,
         )
 
-        def worker(ursula_address: ChecksumAddress) -> bytes:
+        def worker(
+            ursula_address: ChecksumAddress,
+        ) -> EncryptedThresholdDecryptionResponse:
             encrypted_request = encrypted_requests[ursula_address]
 
             try:
@@ -38,23 +47,24 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                 node_or_sprout.mature()
                 response = (
                     self._learner.network_middleware.get_encrypted_decryption_share(
-                        node_or_sprout, encrypted_request
+                        node_or_sprout, bytes(encrypted_request)
                     )
                 )
+                if response.status_code == 200:
+                    return EncryptedThresholdDecryptionResponse.from_bytes(
+                        response.content
+                    )
             except Exception as e:
                 self.log.warn(f"Node {ursula_address} raised {e}")
                 raise
-            else:
-                if response.status_code != 200:
-                    message = f"Node {ursula_address} returned {response.status_code} - {response.content}."
-                    self.log.warn(message)
-                    raise self.DecryptionRequestFailed(message)
 
-                return response.content
+            message = f"Node {ursula_address} returned {response.status_code} - {response.content}."
+            self.log.warn(message)
+            raise self.ThresholdDecryptionRequestFailed(message)
 
         worker_pool = WorkerPool(
             worker=worker,
-            value_factory=self.DecryptionRequestFactory(
+            value_factory=self.ThresholdDecryptionRequestFactory(
                 ursula_to_contact=list(encrypted_requests.keys()), threshold=threshold
             ),
             target_successes=threshold,

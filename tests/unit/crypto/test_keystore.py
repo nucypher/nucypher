@@ -7,25 +7,27 @@ import pytest
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from cryptography.hazmat.primitives._serialization import Encoding
 from mnemonic.mnemonic import Mnemonic
+from nucypher_core.umbral import SecretKeyFactory
 
-from nucypher_core.umbral import SecretKey, SecretKeyFactory
-
-from nucypher.crypto.constants import UMBRAL_SECRET_KEY_SIZE
 from nucypher.crypto.keystore import (
-    Keystore,
-    InvalidPassword,
-    validate_keystore_filename,
-    _MNEMONIC_LANGUAGE,
     _DELEGATING_INFO,
-)
-from nucypher.crypto.keystore import (
+    _MNEMONIC_LANGUAGE,
+    InvalidPassword,
+    Keystore,
     _assemble_keystore,
-    _serialize_keystore,
     _deserialize_keystore,
+    _read_keystore,
+    _serialize_keystore,
     _write_keystore,
-    _read_keystore
+    validate_keystore_filename,
 )
-from nucypher.crypto.powers import DecryptingPower, SigningPower, DelegatingPower, TLSHostingPower
+from nucypher.crypto.powers import (
+    DecryptingPower,
+    DelegatingPower,
+    SigningPower,
+    ThresholdRequestDecryptingPower,
+    TLSHostingPower,
+)
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -311,3 +313,35 @@ def test_derive_hosting_power(tmpdir):
     assert hosting_power.keypair.certificate.public_bytes(encoding=Encoding.PEM)
     rederived_hosting_power = keystore.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
     assert hosting_power.public_key().public_numbers() == rederived_hosting_power.public_key().public_numbers()
+
+
+def test_derive_threshold_request_decrypting_power(tmpdir):
+    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    threshold_request_decrypting_power = keystore.derive_crypto_power(
+        power_class=ThresholdRequestDecryptingPower
+    )
+
+    ritual_id = 23
+    request_encrypting_key = (
+        threshold_request_decrypting_power.get_pubkey_from_ritual_id(
+            ritual_id=ritual_id
+        )
+    )
+    other_request_encrypting_key = (
+        threshold_request_decrypting_power.get_pubkey_from_ritual_id(
+            ritual_id=ritual_id
+        )
+    )
+    assert (
+        request_encrypting_key.to_compressed_bytes()
+        == other_request_encrypting_key.to_compressed_bytes()
+    )
+
+    different_ritual_request_encrypting_key = (
+        threshold_request_decrypting_power.get_pubkey_from_ritual_id(ritual_id=0)
+    )
+    assert (
+        request_encrypting_key.to_compressed_bytes
+        != different_ritual_request_encrypting_key.to_compressed_bytes()
+    )

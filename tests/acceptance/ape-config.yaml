@@ -12,7 +12,8 @@ dependencies:
     version: 4.8.1
 
 solidity:
-  version: 0.8.17
+  version: 0.8.20
+  evm_version: paris
   import_remapping:
     - "@openzeppelin/contracts=openzeppelin/v4.8.1"
 
@@ -32,8 +33,6 @@ deployments:
         app: '::SimplePREApplication.address::'
         ritual_timeout: 3600
         max_dkg_size: 8
-
-
 
 test:
   mnemonic: test test test test test test test test test test test junk

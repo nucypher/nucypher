@@ -1,6 +1,3 @@
-
-
-
 from eth_tester import EthereumTester, PyEVMBackend
 from eth_tester.backends.mock.main import MockBackend
 from typing import Union
