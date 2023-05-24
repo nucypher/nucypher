@@ -136,8 +136,19 @@ class EventScanner:
     because it cannot correctly throttle and decrease the `eth_get_logs` block number range.
     """
 
-    def __init__(self, web3: Web3, contract: Contract, state: EventScannerState, events: List, filters: {},
-                 max_chunk_scan_size: int = 10000, max_request_retries: int = 30, request_retry_seconds: float = 3.0):
+    def __init__(
+        self,
+        web3: Web3,
+        contract: Contract,
+        state: EventScannerState,
+        events: List,
+        filters: {},
+        min_chunk_scan_size: int = 10,  # 12 s/block = 120 seconds period
+        max_chunk_scan_size: int = 10000,
+        max_request_retries: int = 30,
+        request_retry_seconds: float = 3.0,
+        chain_reorg_rescan_window: int = 0,
+    ):
         """
         :param contract: Contract
         :param events: List of web3 Event we scan
@@ -145,6 +156,7 @@ class EventScanner:
         :param max_chunk_scan_size: JSON-RPC API limit in the number of blocks we query. (Recommendation: 10,000 for mainnet, 500,000 for testnets)
         :param max_request_retries: How many times we try to reattempt a failed JSON-RPC call
         :param request_retry_seconds: Delay between failed requests to let JSON-RPC server to recover
+        :param chain_reorg_rescan_window: Number of blocks to rescan in case of chain reorganization (to prevent missed blocks)
         """
 
         self.logger = logger
@@ -155,10 +167,11 @@ class EventScanner:
         self.filters = filters
 
         # Our JSON-RPC throttling parameters
-        self.min_scan_chunk_size = 10  # 12 s/block = 120 seconds period
+        self.min_scan_chunk_size = min_chunk_scan_size
         self.max_scan_chunk_size = max_chunk_scan_size
         self.max_request_retries = max_request_retries
         self.request_retry_seconds = request_retry_seconds
+        self.chain_reorg_rescan_window = chain_reorg_rescan_window
 
         # Factor how fast we increase the chunk size if results are found
         # # (slow down scan after starting to get hits)
@@ -186,15 +199,14 @@ class EventScanner:
         """Get where we should start to scan for new token events.
 
         If there are no prior scans, start from block 1.
-        Otherwise, start from the last end block minus ten blocks.
-        We rescan the last ten scanned blocks in the case there were forks to avoid
+        Otherwise, start from the last end block minus chain reorg blocks.
+        We rescan some previous blocks in the case there were forks to avoid
         misaccounting due to minor single block works (happens once in a hour in Ethereum).
-        These heurestics could be made more robust, but this is for the sake of simple reference implementation.
         """
 
         end_block = self.get_last_scanned_block()
         if end_block:
-            return max(1, end_block - 10)
+            return max(1, end_block - self.chain_reorg_rescan_window)
         return 1
 
     def get_suggested_scan_end_block(self):
@@ -275,7 +287,7 @@ class EventScanner:
         processed = self.state.process_event(block_when, event)
         return processed
 
-    def estimate_next_chunk_size(self, current_chuck_size: int, event_found_count: int):
+    def estimate_next_chunk_size(self, current_chunk_size: int, event_found_count: int):
         """Try to figure out optimal chunk size
 
         Our scanner might need to scan the whole blockchain for all events
@@ -286,26 +298,25 @@ class EventScanner:
 
         * Do not overload node serving JSON-RPC API by asking data for too many events at a time
 
-        Currently Ethereum JSON-API does not have an API to tell when a first event occured in a blockchain
+        Currently, Ethereum JSON-API does not have an API to tell when a first event occurred in a blockchain
         and our heuristics try to accelerate block fetching (chunk size) until we see the first event.
 
-        These heurestics exponentially increase the scan chunk size depending on if we are seeing events or not.
+        These heuristics exponentially increase the scan chunk size depending on if we are seeing events or not.
         When any transfers are encountered, we are back to scanning only a few blocks at a time.
         It does not make sense to do a full chain scan starting from block 1, doing one JSON-RPC call per 20 blocks.
         """
 
         if event_found_count > 0:
             # When we encounter first events, reset the chunk size window
-            current_chuck_size = self.min_scan_chunk_size
+            current_chunk_size = self.min_scan_chunk_size
         else:
-            current_chuck_size *= self.chunk_size_increase
+            current_chunk_size *= self.chunk_size_increase
 
-        current_chuck_size = max(self.min_scan_chunk_size, current_chuck_size)
-        current_chuck_size = min(self.max_scan_chunk_size, current_chuck_size)
-        return int(current_chuck_size)
+        current_chunk_size = max(self.min_scan_chunk_size, current_chunk_size)
+        current_chunk_size = min(self.max_scan_chunk_size, current_chunk_size)
+        return int(current_chunk_size)
 
-    def scan(self, start_block, end_block, start_chunk_size=20, progress_callback=Optional[Callable]) -> Tuple[
-        list, int]:
+    def scan(self, start_block, end_block, start_chunk_size=20) -> Tuple[list, int]:
         """Perform a token balances scan.
 
         Assumes all balances in the database are valid before start_block (no forks sneaked in).
@@ -316,13 +327,11 @@ class EventScanner:
 
         :param start_chunk_size: How many blocks we try to fetch over JSON-RPC on the first attempt
 
-        :param progress_callback: If this is an UI application, update the progress of the scan
-
         :return: [All processed events, number of chunks used]
         """
 
         if start_block > end_block:
-            start_block = end_block - 1
+            raise ValueError(f"start block ({start_block} is greater than {end_block}")
 
         current_block = start_block
 

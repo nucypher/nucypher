@@ -16,12 +16,21 @@ from nucypher.utilities.task import SimpleTask
 class EventActuator(EventScanner):
     """Act on events that are found by the scanner."""
 
-    def __init__(self, hooks: List[Callable], clear: bool = True, *args, **kwargs):
+    def __init__(
+        self,
+        hooks: List[Callable],
+        clear: bool = True,
+        chain_reorg_rescan_window: int = 10,
+        *args,
+        **kwargs,
+    ):
         self.log = Logger("EventActuator")
         if clear and os.path.exists(JSONifiedState.STATE_FILENAME):
             os.remove(JSONifiedState.STATE_FILENAME)
         self.hooks = hooks
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            chain_reorg_rescan_window=chain_reorg_rescan_window, *args, **kwargs
+        )
 
     def process_event(self, event, get_block_when):
         for hook in self.hooks:
@@ -60,9 +69,6 @@ class ActiveRitualTracker:
         self,
         ritualist: "Ritualist",
         coordinator_agent: "CoordinatorAgent",
-        start_block: Optional[
-            int
-        ] = None,  # TODO: use a start block that correlates to the ritual timeout
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         self.log = Logger("RitualTracker")
@@ -71,9 +77,6 @@ class ActiveRitualTracker:
         self.coordinator_agent = coordinator_agent
 
         self.rituals = dict()  # TODO: use persistent storage?
-
-        # Determine the start block for the event scanner
-        self.start_block = start_block
 
         # Restore/create persistent event scanner state
         self.persistent = persistent
@@ -119,7 +122,7 @@ class ActiveRitualTracker:
     def contract(self):
         return self.coordinator_agent.contract
 
-    def _get_start_block_number(self) -> int:
+    def _get_first_scan_start_block_number(self) -> int:
         """
         Returns the block number to start scanning for events from.
         """
@@ -252,17 +255,20 @@ class ActiveRitualTracker:
         Because there might have been a minor Ethereum chain reorganisations since the last scan ended,
         we need to discard the last few blocks from the previous scan results.
         """
-        chain_reorg_safety_blocks = 10  # TODO: Make this chain dependent
-        self.scanner.delete_potentially_forked_block_data(self.state.get_last_scanned_block() - chain_reorg_safety_blocks)
+        self.scanner.delete_potentially_forked_block_data(
+            self.state.get_last_scanned_block() - self.chain_reorg_rescan_window
+        )
 
-        # Scan from [last block scanned] - [latest ethereum block]
-        # Note that our chain reorg safety blocks cannot go negative
-        if self.start_block is None:
-            self.start_block = self._get_start_block_number()
-        last_scanned_block = self.state.get_last_scanned_block()
-        start_block = max(last_scanned_block - chain_reorg_safety_blocks, self.start_block)
-        end_block = max(start_block, self.scanner.get_suggested_scan_end_block())
-        self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
+        if self.scanner.get_last_scanned_block() == 0:
+            # first run so calculate starting block number based on dkg timeout
+            suggested_start_block = self._get_first_scan_start_block_number()
+        else:
+            suggested_start_block = self.scanner.get_suggested_scan_start_block()
+
+        end_block = self.scanner.get_suggested_scan_end_block()
+        self.__scan(
+            suggested_start_block, end_block, self.ritualist.transacting_power.account
+        )
 
     def add_ritual(self, ritual_id, ritual):
         self.rituals[ritual_id] = ritual
