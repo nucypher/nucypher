@@ -143,7 +143,7 @@ def test_scan_invalid_start_end_block():
 @pytest.mark.parametrize("chunk_size", [1, 3, 5, 7, 10])
 def test_scan_when_events_always_found(chunk_size):
     state = JSONifiedState(persistent=False)
-    state.reset()  # TODO why is this eneded if persistent is False
+    state.reset()  # TODO why is this needed if persistent is False
     start_block = 0
     end_block = 100
 
@@ -173,7 +173,7 @@ def test_scan_when_events_always_found(chunk_size):
 @pytest.mark.parametrize("chunk_size", [2, 6, 7, 11, 15])
 def test_scan_when_events_never_found(chunk_size):
     state = JSONifiedState(persistent=False)
-    state.reset()  # TODO why is this eneded if persistent is False
+    state.reset()  # TODO why is this needed if persistent is False
     start_block = 0
     end_block = 999
 
@@ -207,7 +207,7 @@ def generate_expected_scan_calls_results(scanner, start_block, end_block):
     expected_calls = []
     current_chunk_size = scanner.min_scan_chunk_size
     while True:
-        chunk_end_block = start_block + current_chunk_size
+        chunk_end_block = min(start_block + current_chunk_size, end_block)
         expected_calls.append((start_block, chunk_end_block))
         start_block = chunk_end_block + 1  # next block
         current_chunk_size = (
@@ -235,7 +235,7 @@ class MyEventScanner(EventScanner):
         self.return_chunk_scan_event = return_event_for_scan_chunk
 
     def scan_chunk(self, start_block, end_block) -> Tuple[int, datetime, list]:
-        assert start_block < end_block
+        assert start_block <= end_block
         self.chunk_calls_made.append((start_block, end_block))
         event = ["event"] if self.return_chunk_scan_event else []
         end_block = min(end_block, self.target_end_block)

@@ -345,10 +345,12 @@ class EventScanner:
 
         while current_block <= end_block:
 
-            self.state.start_chunk(current_block, chunk_size)
+            self.state.start_chunk(current_block)
 
             # Print some diagnostics to logs to try to fiddle with real world JSON-RPC API performance
-            estimated_end_block = current_block + chunk_size
+            estimated_end_block = min(
+                current_block + chunk_size, end_block
+            )  # either entire full chunk, or we are at the end
             logger.debug(
                 "Scanning for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
                 current_block, estimated_end_block, chunk_size, last_scan_duration, last_logs_found)
@@ -528,8 +530,8 @@ class JSONifiedState(EventScannerState):
             if block_num in self.state["blocks"]:
                 del self.state["blocks"][block_num]
 
-    def start_chunk(self, block_number, chunk_size):
-        pass
+    def start_chunk(self, block_number):
+        pass  # TODO any reason this is not implemented?
 
     def end_chunk(self, block_number):
         """Save at the end of each block, so we can resume in the case of a crash or CTRL+C"""
