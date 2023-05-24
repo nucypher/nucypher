@@ -317,9 +317,7 @@ class EventScanner:
         return int(current_chunk_size)
 
     def scan(self, start_block, end_block, start_chunk_size=20) -> Tuple[list, int]:
-        """Perform a token balances scan.
-
-        Assumes all balances in the database are valid before start_block (no forks sneaked in).
+        """Perform a scan for events.
 
         :param start_block: The first block included in the scan
 
@@ -331,7 +329,9 @@ class EventScanner:
         """
 
         if start_block > end_block:
-            raise ValueError(f"start block ({start_block} is greater than {end_block}")
+            raise ValueError(
+                f"start block ({start_block}) is greater than end block ({end_block})"
+            )
 
         current_block = start_block
 
@@ -350,7 +350,7 @@ class EventScanner:
             # Print some diagnostics to logs to try to fiddle with real world JSON-RPC API performance
             estimated_end_block = current_block + chunk_size
             logger.debug(
-                "Scanning token transfers for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
+                "Scanning for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
                 current_block, estimated_end_block, chunk_size, last_scan_duration, last_logs_found)
 
             start = time.time()
