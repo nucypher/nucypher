@@ -889,7 +889,7 @@
   [
     "Coordinator",
     "v0.0.0",
-    "0x14EB9BB700E45D2Ee9233056b8cc341276c688Ba",
+    "0xc7590Ba497d1A7AB82c1BD61f7Dcd2685990986e",
     [
       {
         "inputs": [
@@ -1145,6 +1145,11 @@
                 "internalType": "bytes",
                 "name": "transcript",
                 "type": "bytes"
+              },
+              {
+                "internalType": "bytes",
+                "name": "requestEncryptingKey",
+                "type": "bytes"
               }
             ],
             "internalType": "struct Coordinator.Participant",
@@ -1180,6 +1185,11 @@
               {
                 "internalType": "bytes",
                 "name": "transcript",
+                "type": "bytes"
+              },
+              {
+                "internalType": "bytes",
+                "name": "requestEncryptingKey",
                 "type": "bytes"
               }
             ],
@@ -1296,6 +1306,11 @@
             "internalType": "struct BLS12381.G1Point",
             "name": "publicKey",
             "type": "tuple"
+          },
+          {
+            "internalType": "bytes",
+            "name": "requestEncryptingKey",
+            "type": "bytes"
           }
         ],
         "name": "postAggregation",
