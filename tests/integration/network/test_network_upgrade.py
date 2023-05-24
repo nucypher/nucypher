@@ -1,6 +1,3 @@
-
-
-
 from pathlib import Path
 
 import pytest_twisted
@@ -12,7 +9,9 @@ from nucypher.characters.lawful import Ursula
 
 
 @pytest_twisted.inlineCallbacks
-def test_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
+def test_nodes_connect_via_tls_and_verify(
+    lonely_ursula_maker, test_registry_source_manager
+):
     node = lonely_ursula_maker(quantity=1).pop()
     node_deployer = node.get_deployer()
 

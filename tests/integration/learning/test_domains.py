@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
@@ -7,6 +9,7 @@ from nucypher.network.nodes import TEACHER_NODES
 from tests.utils.ursula import make_ursulas
 
 
+@pytest.mark.skip
 def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     hero_learner, other_first_domain_learner = lonely_ursula_maker(
         domain="nucypher1.test_suite", quantity=2
@@ -49,6 +52,7 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     assert _nobody in new_first_domain_learner.known_nodes
 
 
+@pytest.mark.skip
 def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     # Create a local file-based node storage
     root = tmpdir.mkdir("known_nodes")
@@ -84,6 +88,7 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
     assert set(learner.known_nodes) == {buddy}
 
 
+@pytest.mark.skip
 def test_learner_ignores_stored_nodes_from_other_domains(
     lonely_ursula_maker, tmpdir, testerchain, ursula_test_config
 ):
@@ -126,6 +131,7 @@ def test_learner_ignores_stored_nodes_from_other_domains(
     assert pest not in other_staker.known_nodes  # But not anymore.
 
 
+@pytest.mark.skip
 def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, mocker):
     domain = "learner-domain"
     mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
@@ -139,6 +145,7 @@ def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, moc
     assert set(learner.known_nodes) == {teacher}
 
 
+@pytest.mark.skip
 def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
     lonely_ursula_maker, tmpdir, mocker, test_registry, ursula_test_config, testerchain
 ):

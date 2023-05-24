@@ -246,10 +246,11 @@ class BlockchainInterface:
 
     def attach_middleware(self):
         chain_id = int(self.client.chain_id)
-        if self.poa is None:  # If POA is not set explicitly, try to autodetect from chain id
-            self.poa = chain_id in POA_CHAINS
+        self.poa = chain_id in POA_CHAINS
 
-        self.log.debug(f'Ethereum chain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})')
+        self.log.debug(
+            f"Blockchain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})"
+        )
 
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
