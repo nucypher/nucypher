@@ -256,7 +256,7 @@ class ActiveRitualTracker:
         we need to discard the last few blocks from the previous scan results.
         """
         self.scanner.delete_potentially_forked_block_data(
-            self.state.get_last_scanned_block() - self.chain_reorg_rescan_window
+            self.state.get_last_scanned_block() - self.scanner.chain_reorg_rescan_window
         )
 
         if self.scanner.get_last_scanned_block() == 0:
