@@ -8,24 +8,18 @@ With the stateful mechanism, you can do one batch scan or incremental scans,
 where events are added wherever the scanner left off.
 """
 
-import json
-
-import time
-
-import datetime
-
-from abc import ABC, abstractmethod
-
-import logging
-
 import csv
+import datetime
+import json
+import logging
+import time
+from abc import ABC, abstractmethod
 from collections import OrderedDict
-
-from eth_abi.codec import ABICodec
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple, Callable, Iterable
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import maya
+from eth_abi.codec import ABICodec
 from web3 import Web3
 from web3._utils.events import get_event_data
 from web3._utils.filters import construct_event_filter_params
@@ -225,9 +219,6 @@ class EventScanner:
 
     def scan_chunk(self, start_block, end_block) -> Tuple[int, datetime.datetime, list]:
         """Read and process events between to block numbers.
-
-        Dynamically decrease the size of the chunk if the case JSON-RPC server pukes out.
-
         :return: tuple(actual end block number, when this block was mined, processed events)
         """
 
@@ -244,23 +235,13 @@ class EventScanner:
         all_processed = []
 
         for event_type in self.events:
-
-            # Callable that takes care of the underlying web3 call
-            def _fetch_events(_start_block, _end_block):
-                return _fetch_events_for_all_contracts(self.web3,
-                                                       event_type,
-                                                       self.filters,
-                                                       from_block=_start_block,
-                                                       to_block=_end_block)
-
-            # Do `n` retries on `eth_get_logs`,
-            # throttle down block range if needed
-            end_block, events = _retry_web3_call(
-                _fetch_events,
-                start_block=start_block,
-                end_block=end_block,
-                retries=self.max_request_retries,
-                delay=self.request_retry_seconds)
+            events = _fetch_events_for_all_contracts(
+                self.web3,
+                event_type,
+                self.filters,
+                from_block=start_block,
+                to_block=end_block,
+            )
 
             for evt in events:
                 processed = self.process_event(event=evt, get_block_when=get_block_when)
@@ -347,10 +328,9 @@ class EventScanner:
 
             self.state.start_chunk(current_block)
 
-            # Print some diagnostics to logs to try to fiddle with real world JSON-RPC API performance
             estimated_end_block = min(
                 current_block + chunk_size, end_block
-            )  # either entire full chunk, or we are at the end
+            )  # either entire full chunk, or we are at the last chunk
             logger.debug(
                 "Scanning for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
                 current_block, estimated_end_block, chunk_size, last_scan_duration, last_logs_found)
@@ -373,47 +353,6 @@ class EventScanner:
             self.state.end_chunk(current_end)
 
         return all_processed, total_chunks_scanned
-
-
-def _retry_web3_call(func, start_block, end_block, retries, delay) -> Tuple[int, list]:
-    """A custom retry loop to throttle down block range.
-
-    If our JSON-RPC server cannot serve all incoming `eth_get_logs` in a single request,
-    we retry and throttle down block range for every retry.
-
-    For example, Go Ethereum does not indicate what is an acceptable response size.
-    It just fails on the server-side with a "context was cancelled" warning.
-
-    :param func: A callable that triggers Ethereum JSON-RPC, as func(start_block, end_block)
-    :param start_block: The initial start block of the block range
-    :param end_block: The initial start block of the block range
-    :param retries: How many times we retry
-    :param delay: Time to sleep between retries
-    """
-    for i in range(retries):
-        try:
-            return end_block, func(start_block, end_block)
-        except Exception as e:
-            # Assume this is HTTPConnectionPool(host='localhost', port=8545): Read timed out. (read timeout=10)
-            # from Go Ethereum. This translates to the error "context was cancelled" on the server side:
-            # https://github.com/ethereum/go-ethereum/issues/20426
-            if i < retries - 1:
-                # Give some more verbose info than the default middleware
-                logger.warning(
-                    "Retrying events for block range %d - %d (%d) failed with %s, retrying in %s seconds",
-                    start_block,
-                    end_block,
-                    end_block-start_block,
-                    e,
-                    delay)
-                # Decrease the `eth_get_blocks` range
-                end_block = start_block + ((end_block - start_block) // 2)
-                # Let the JSON-RPC to recover e.g. from restart
-                time.sleep(delay)
-                continue
-            else:
-                logger.warning("Out of retries")
-                raise
 
 
 def _fetch_events_for_all_contracts(

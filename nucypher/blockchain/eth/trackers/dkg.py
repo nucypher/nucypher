@@ -5,7 +5,6 @@ from typing import Callable, List, Optional, Tuple, Type, Union
 from twisted.internet import threads
 from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
-from web3.middleware import http_retry_request_middleware
 
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.events import EventScanner, JSONifiedState

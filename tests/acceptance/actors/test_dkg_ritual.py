@@ -59,6 +59,12 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         assert coordinator_agent.number_of_rituals() == RITUAL_ID + 1
         assert coordinator_agent.get_ritual_status(RITUAL_ID) == coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
 
+        # time travel has a side effect of mining a block so that the scanner will definitively
+        # pick up ritual event since the block may/may not have been mined - doesn't really
+        # matter how much time has passed
+        # TODO is there a better strategy
+        testerchain.time_travel(seconds=1)
+
         # check that the ritual is being tracked locally upon initialization for each node
         for ursula in cohort:
             # this is a testing hack to make the event scanner work
