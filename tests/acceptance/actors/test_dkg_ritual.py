@@ -60,10 +60,9 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         assert coordinator_agent.get_ritual_status(RITUAL_ID) == coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
 
         # time travel has a side effect of mining a block so that the scanner will definitively
-        # pick up ritual event since the block may/may not have been mined - doesn't really
-        # matter how much time has passed
+        # pick up ritual event
         # TODO is there a better strategy
-        testerchain.time_travel(seconds=1)
+        testerchain.time_travel(seconds=EventScannerTask.INTERVAL)
 
         # check that the ritual is being tracked locally upon initialization for each node
         for ursula in cohort:

@@ -1,12 +1,13 @@
-import math
 import time
 from datetime import datetime
-from typing import List, Tuple
+from typing import Tuple
 from unittest.mock import MagicMock, Mock
 
 import pytest
 
 from nucypher.utilities.events import EventScanner, EventScannerState, JSONifiedState
+
+CHAIN_REORG_WINDOW = 10
 
 
 def test_estimate_next_chunk_size():
@@ -55,14 +56,13 @@ def test_estimate_next_chunk_size():
 def test_suggested_scan_start_block():
     state = Mock(spec=EventScannerState)
 
-    chain_reorg_window = 10
     scanner = EventScanner(
         web3=Mock(),
         contract=Mock(),
         state=state,
         events=[],
         filters={},
-        chain_reorg_rescan_window=chain_reorg_window,
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
 
     # mimic start
@@ -71,7 +71,7 @@ def test_suggested_scan_start_block():
     assert scanner.get_suggested_scan_start_block() == 1  # first block
 
     # we've progressed less than change reorg
-    last_scanned_block = chain_reorg_window - 4
+    last_scanned_block = CHAIN_REORG_WINDOW - 4
     state.get_last_scanned_block.return_value = last_scanned_block
     assert scanner.get_suggested_scan_start_block() == 1  # still first block
 
@@ -80,21 +80,20 @@ def test_suggested_scan_start_block():
     for last_scanned_block in last_scanned_blocks:
         state.get_last_scanned_block.return_value = last_scanned_block
         assert scanner.get_suggested_scan_start_block() == (
-            last_scanned_block - chain_reorg_window
+            last_scanned_block - CHAIN_REORG_WINDOW
         )
 
 
 def test_suggested_scan_end_block():
     web3 = MagicMock()
 
-    chain_reorg_window = 10
     scanner = EventScanner(
         web3=web3,
         contract=Mock(),
         state=Mock(),
         events=[],
         filters={},
-        chain_reorg_rescan_window=chain_reorg_window,
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
 
     block_nums = [1, 10, 231, 12319021]
@@ -132,7 +131,7 @@ def test_scan_invalid_start_end_block():
         state=Mock(),
         events=[],
         filters={},
-        chain_reorg_rescan_window=10,
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
 
     with pytest.raises(ValueError):
@@ -153,7 +152,7 @@ def test_scan_when_events_always_found(chunk_size):
         state=state,
         events=[],
         filters={},
-        chain_reorg_rescan_window=10,
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
         min_chunk_scan_size=chunk_size,
         target_end_block=end_block,
     )
@@ -169,6 +168,9 @@ def test_scan_when_events_always_found(chunk_size):
     assert scanner.scan_chunk_calls_made == expected_calls
     assert scanner.get_last_scanned_block() == end_block
 
+    # check value for next scan
+    assert scanner.get_suggested_scan_start_block() == (end_block - CHAIN_REORG_WINDOW)
+
 
 @pytest.mark.parametrize("chunk_size", [2, 6, 7, 11, 15])
 def test_scan_when_events_never_found(chunk_size):
@@ -183,7 +185,7 @@ def test_scan_when_events_never_found(chunk_size):
         state=state,
         events=[],
         filters={},
-        chain_reorg_rescan_window=10,
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
         min_chunk_scan_size=chunk_size,
         return_event_for_scan_chunk=False,  # min chunk size not used (but scales up)
         target_end_block=end_block,
@@ -202,6 +204,48 @@ def test_scan_when_events_never_found(chunk_size):
     assert scanner.scan_chunk_calls_made == expected_calls
     assert scanner.get_last_scanned_block() == end_block
 
+    # check value for next scan
+    assert scanner.get_suggested_scan_start_block() == (end_block - CHAIN_REORG_WINDOW)
+
+
+def test_scan_when_events_never_found_super_large_chunk_sizes():
+    state = JSONifiedState(persistent=False)
+    state.reset()  # TODO why is this needed if persistent is False
+    start_block = 0
+    end_block = 1320000
+
+    min_chunk_size = 200
+    max_chunk_size = 10000
+
+    scanner = MyEventScanner(
+        web3=Mock(),
+        contract=Mock(),
+        state=state,
+        events=[],
+        filters={},
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
+        min_chunk_scan_size=min_chunk_size,
+        max_chunk_scan_size=max_chunk_size,
+        return_event_for_scan_chunk=False,  # min chunk size not used (but scales up)
+        target_end_block=end_block,
+    )
+
+    expected_calls = generate_expected_scan_calls_results(
+        scanner, start_block, end_block
+    )
+
+    all_processed, total_chunks_scanned = scanner.scan(
+        start_block, end_block, start_chunk_size=min_chunk_size
+    )
+
+    assert total_chunks_scanned == len(expected_calls)
+    assert len(all_processed) == 0  # no events processed
+    assert scanner.scan_chunk_calls_made == expected_calls
+    assert scanner.get_last_scanned_block() == end_block
+
+    # check value for next scan
+    assert scanner.get_suggested_scan_start_block() == (end_block - CHAIN_REORG_WINDOW)
+
 
 def generate_expected_scan_calls_results(scanner, start_block, end_block):
     expected_calls = []
@@ -210,11 +254,11 @@ def generate_expected_scan_calls_results(scanner, start_block, end_block):
         chunk_end_block = min(start_block + current_chunk_size, end_block)
         expected_calls.append((start_block, chunk_end_block))
         start_block = chunk_end_block + 1  # next block
-        current_chunk_size = (
-            current_chunk_size
-            if scanner.return_chunk_scan_event
-            else current_chunk_size * scanner.chunk_size_increase
-        )
+        if not scanner.return_chunk_scan_event:
+            current_chunk_size = min(
+                scanner.max_scan_chunk_size,
+                current_chunk_size * scanner.chunk_size_increase,
+            )
         if start_block > end_block:
             break
 
@@ -236,9 +280,9 @@ class MyEventScanner(EventScanner):
 
     def scan_chunk(self, start_block, end_block) -> Tuple[int, datetime, list]:
         assert start_block <= end_block
+        assert end_block <= self.target_end_block
         self.chunk_calls_made.append((start_block, end_block))
         event = ["event"] if self.return_chunk_scan_event else []
-        end_block = min(end_block, self.target_end_block)
         return end_block, datetime.now(), event  # results
 
     @property
