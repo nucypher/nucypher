@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from eth_account import Account
-from nucypher_core.umbral import SecretKey
+from nucypher_core import RequestSecretKey
 
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
@@ -107,17 +107,17 @@ def test_mock_coordinator_round_2(
     for p in ritual.participants:
         assert p.transcript == bytes(random_transcript)
 
-    request_encrypting_keys = []
+    participant_public_keys = []
     for index, node_address in enumerate(nodes_transacting_powers):
-        request_encrypting_key = SecretKey.random().public_key()
+        participant_public_key = RequestSecretKey.random().public_key()
         coordinator.post_aggregation(
             ritual_id=0,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
-            request_encrypting_key=request_encrypting_key,
+            participant_public_key=participant_public_key,
             transacting_power=nodes_transacting_powers[node_address]
         )
-        request_encrypting_keys.append(request_encrypting_key)
+        participant_public_keys.append(participant_public_key)
         if index == len(nodes_transacting_powers) - 1:
             assert len(coordinator.EVENTS) == 2
 
@@ -128,10 +128,7 @@ def test_mock_coordinator_round_2(
         # unchanged
         assert p.transcript == bytes(random_transcript)
         assert p.transcript != bytes(aggregated_transcript)
-        assert (
-            p.requestEncryptingKey
-            == request_encrypting_keys[index].to_compressed_bytes()
-        )
+    assert p.requestEncryptingKey == bytes(participant_public_keys[index])
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
     assert (

@@ -40,6 +40,8 @@ from nucypher_core import (
     NodeMetadata,
     NodeMetadataPayload,
     ReencryptionResponse,
+    RequestPublicKey,
+    RequestSecretKey,
     ThresholdDecryptionRequest,
     TreasureMap,
 )
@@ -59,7 +61,6 @@ from nucypher_core.ferveo import (
 from nucypher_core.umbral import (
     PublicKey,
     RecoverableSignature,
-    SecretKey,
     VerifiedKeyFrag,
     reencrypt,
 )
@@ -587,7 +588,7 @@ class Bob(Character):
     def get_decryption_shares_using_existing_decryption_request(
         self,
         decryption_request: ThresholdDecryptionRequest,
-        request_encrypting_keys: Dict[ChecksumAddress, PublicKey],
+        participant_public_keys: Dict[ChecksumAddress, RequestPublicKey],
         variant: FerveoVariant,
         cohort: List["Ursula"],
         threshold: int,
@@ -600,18 +601,20 @@ class Bob(Character):
             share_type = DecryptionShareSimple
 
         # use ephemeral key for request
-        # TODO don't use Umbral in the long-run
-        response_sk = SecretKey.random()
-        response_encrypting_key = response_sk.public_key()
+        requester_sk = RequestSecretKey.random()
+        requester_public_key = requester_sk.public_key()
 
         decryption_request_mapping = {}
+        shared_secrets = {}
         for ursula in cohort:
             ursula_checksum_address = to_checksum_address(ursula.checksum_address)
-            request_encrypting_key = request_encrypting_keys[ursula_checksum_address]
+            participant_public_key = participant_public_keys[ursula_checksum_address]
+            shared_secret = requester_sk.diffie_hellman(participant_public_key)
             encrypted_decryption_request = decryption_request.encrypt(
-                request_encrypting_key=request_encrypting_key,
-                response_encrypting_key=response_encrypting_key,
+                shared_secret=shared_secret,
+                requester_public_key=requester_public_key,
             )
+            shared_secrets[ursula_checksum_address] = shared_secret
             decryption_request_mapping[
                 ursula_checksum_address
             ] = encrypted_decryption_request
@@ -627,7 +630,10 @@ class Bob(Character):
 
         gathered_shares = {}
         for provider_address, encrypted_decryption_response in successes.items():
-            decryption_response = encrypted_decryption_response.decrypt(sk=response_sk)
+            shared_secret = shared_secrets[provider_address]
+            decryption_response = encrypted_decryption_response.decrypt(
+                shared_secret=shared_secret
+            )
             decryption_share = share_type.from_bytes(
                 decryption_response.decryption_share
             )
@@ -642,7 +648,7 @@ class Bob(Character):
         lingo: LingoList,
         threshold: int,
         variant: FerveoVariant,
-        request_encrypting_keys: Dict[ChecksumAddress, PublicKey],
+        participant_public_keys: Dict[ChecksumAddress, RequestPublicKey],
         context: Optional[dict] = None,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
@@ -655,7 +661,7 @@ class Bob(Character):
             context=context,
         )
         return self.get_decryption_shares_using_existing_decryption_request(
-            decryption_request, request_encrypting_keys, variant, cohort, threshold
+            decryption_request, participant_public_keys, variant, cohort, threshold
         )
 
     def threshold_decrypt(
@@ -698,7 +704,7 @@ class Bob(Character):
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
-        request_encrypting_keys = ritual.request_encrypting_keys
+        participant_public_keys = ritual.participant_public_keys
         decryption_shares = self.gather_decryption_shares(
             ritual_id=ritual_id,
             cohort=ursulas,
@@ -707,7 +713,7 @@ class Bob(Character):
             lingo=conditions,
             threshold=threshold,
             variant=variant,
-            request_encrypting_keys=request_encrypting_keys,
+            participant_public_keys=participant_public_keys,
         )
 
         if not params:

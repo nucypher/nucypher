@@ -4,7 +4,12 @@ from unittest.mock import ANY
 import pytest
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
-from nucypher_core import Conditions, ThresholdDecryptionRequest
+from nucypher_core import (
+    Conditions,
+    RequestSecretKey,
+    ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse,
+)
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -175,35 +180,63 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         conditions=Conditions(json.dumps(CONDITIONS)),
     )
 
-    request_encrypting_key = ursula.threshold_request_power.get_pubkey_from_ritual_id(
-        ritual_id=ritual_id
-    )
-    response_encrypting_key = SecretKey.random().public_key()
-    encrypted_decryption_request = decryption_request.encrypt(
-        request_encrypting_key=request_encrypting_key,
-        response_encrypting_key=response_encrypting_key,
-    )
-    # successful decryption
-    (
-        decrypted_decryption_request,
-        decrypted_response_encrypting_key,
-    ) = ursula.threshold_request_power.decrypt_encrypted_request(
-        encrypted_decryption_request
-    )
-    assert bytes(decrypted_decryption_request) == bytes(decryption_request)
-    assert (
-        decrypted_response_encrypting_key.to_compressed_bytes()
-        == response_encrypting_key.to_compressed_bytes()
+    #
+    # test requester sends encrypted decryption request
+    #
+    ursula_request_public_key = (
+        ursula.threshold_request_power.get_pubkey_from_ritual_id(ritual_id=ritual_id)
     )
 
-    # failed decryption - incorrect encrypting key used
+    requester_sk = RequestSecretKey.random()
+    requester_public_key = requester_sk.public_key()
+    shared_secret = requester_sk.diffie_hellman(ursula_request_public_key)
+    encrypted_decryption_request = decryption_request.encrypt(
+        shared_secret=shared_secret,
+        requester_public_key=requester_public_key,
+    )
+    # successful decryption
+    decrypted_decryption_request = (
+        ursula.threshold_request_power.decrypt_encrypted_request(
+            encrypted_decryption_request
+        )
+    )
+    assert bytes(decrypted_decryption_request) == bytes(decryption_request)
+
+    # failed encryption - incorrect encrypting key used
     invalid_encrypted_decryption_request = decryption_request.encrypt(
-        request_encrypting_key=SecretKey.random().public_key(),
-        response_encrypting_key=response_encrypting_key,
+        shared_secret=RequestSecretKey.random().diffie_hellman(
+            ursula_request_public_key
+        ),
+        requester_public_key=requester_public_key,
     )
     with pytest.raises(
         ThresholdRequestDecryptingPower.ThresholdRequestDecryptionFailed
     ):
         ursula.threshold_request_power.decrypt_encrypted_request(
             invalid_encrypted_decryption_request
+        )
+    #
+    # test ursula sends encrypted response based on request
+    #
+    decryption_response = ThresholdDecryptionResponse(
+        ritual_id=ritual_id, decryption_share=b"decryption_share"
+    )
+    encrypted_decryption_response = (
+        ursula.threshold_request_power.encrypt_decryption_response(
+            decryption_response=decryption_response,
+            requester_public_key=requester_public_key,
+        )
+    )
+    # successful decryption
+    decrypted_decryption_response = encrypted_decryption_response.decrypt(shared_secret)
+    assert bytes(decrypted_decryption_response) == bytes(decryption_response)
+
+    # failed encryption - incorrect decrypting key used
+    with pytest.raises(
+        ThresholdRequestDecryptingPower.ThresholdResponseEncryptionFailed
+    ):
+        ursula.threshold_request_power.encrypt_decryption_response(
+            decryption_response=decryption_response,
+            # incorrect use of Umbral key here
+            requester_public_key=SecretKey.random().public_key(),
         )

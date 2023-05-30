@@ -54,7 +54,6 @@ pytest-mock = "*"
 pytest-timeout = "*"
 # Tools
 eth-ape = "*"
-# TODO eventually change to official release, issue #3131, once fix is available
 ape-solidity = ">=0.6.5"
 hypothesis = "*"
 pre-commit = "2.12.1"

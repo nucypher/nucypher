@@ -7,7 +7,10 @@ from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
+    EncryptedThresholdDecryptionResponse,
+    RequestPublicKey,
     ThresholdDecryptionRequest,
+    ThresholdDecryptionResponse,
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -15,7 +18,6 @@ from nucypher_core.ferveo import (
     FerveoPublicKey,
     Validator,
 )
-from nucypher_core.umbral import PublicKey
 from web3 import Web3
 from web3.types import TxReceipt
 
@@ -399,14 +401,14 @@ class Ritualist(BaseActor):
     ) -> TxReceipt:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
-        request_encrypting_key = self.threshold_request_power.get_pubkey_from_ritual_id(
+        participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
         receipt = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
-            request_encrypting_key=request_encrypting_key,
+            participant_public_key=participant_public_key,
             transacting_power=self.transacting_power
         )
         return receipt
@@ -599,9 +601,19 @@ class Ritualist(BaseActor):
 
     def decrypt_threshold_decryption_request(
         self, encrypted_request: EncryptedThresholdDecryptionRequest
-    ) -> Tuple[ThresholdDecryptionRequest, PublicKey]:
+    ) -> ThresholdDecryptionRequest:
         return self.threshold_request_power.decrypt_encrypted_request(
             encrypted_request=encrypted_request
+        )
+
+    def encrypt_threshold_decryption_response(
+        self,
+        decryption_response: ThresholdDecryptionResponse,
+        requester_public_key: RequestPublicKey,
+    ) -> EncryptedThresholdDecryptionResponse:
+        return self.threshold_request_power.encrypt_decryption_response(
+            decryption_response=decryption_response,
+            requester_public_key=requester_public_key,
         )
 
 

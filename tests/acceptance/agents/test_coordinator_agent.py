@@ -2,7 +2,7 @@ import os
 
 import pytest
 from eth_utils import keccak
-from nucypher_core.umbral import SecretKey
+from nucypher_core import RequestSecretKey
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -125,17 +125,17 @@ def test_post_aggregation(
     agent, aggregated_transcript, dkg_public_key, transacting_powers, cohort
 ):
     ritual_id = agent.number_of_rituals() - 1
-    request_encrypting_keys = {}
+    participant_public_keys = {}
     for i, transacting_power in enumerate(transacting_powers):
-        request_encrypting_key = SecretKey.random().public_key()
+        participant_public_key = RequestSecretKey.random().public_key()
         receipt = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
-            request_encrypting_key=request_encrypting_key,
+            participant_public_key=participant_public_key,
             transacting_power=transacting_power,
         )
-        request_encrypting_keys[cohort[i]] = request_encrypting_key
+        participant_public_keys[cohort[i]] = participant_public_key
         assert receipt["status"] == 1
 
         post_aggregation_events = (
@@ -151,13 +151,10 @@ def test_post_aggregation(
     participants = agent.get_participants(ritual_id)
     for p in participants:
         assert p.aggregated
-        assert (
-            p.requestEncryptingKey
-            == request_encrypting_keys[p.provider].to_compressed_bytes()
-        )
+        assert p.requestEncryptingKey == bytes(participant_public_keys[p.provider])
 
     ritual = agent.get_ritual(ritual_id)
-    assert ritual.request_encrypting_keys == request_encrypting_keys
+    assert ritual.participant_public_keys == participant_public_keys
 
     assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.FINALIZED
 

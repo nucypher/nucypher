@@ -13,6 +13,7 @@ import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from mnemonic.mnemonic import Mnemonic
 from nucypher_core.ferveo import Keypair
+from nucypher_core import RequestKeyFactory
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -43,7 +44,7 @@ _SIGNING_INFO = __INFO_BASE + b"signing"
 _DECRYPTING_INFO = __INFO_BASE + b"decrypting"
 _DELEGATING_INFO = __INFO_BASE + b"delegating"
 _RITUALISTIC_INFO = __INFO_BASE + b"ritualistic"
-_THRESHOLD_REQUEST_DECRYPTING_INFO = __INFO_BASE + b"threshoold_request_decrypting"
+_THRESHOLD_REQUEST_DECRYPTING_INFO = __INFO_BASE + b"threshold_request_decrypting"
 _TLS_INFO = __INFO_BASE + b"tls"
 
 # Wrapping key
@@ -433,6 +434,13 @@ class Keystore:
         elif issubclass(power_class, KeyPairBasedPower):
             keypair = power_class._keypair_class(__skf.make_key(info))
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
+
+        elif issubclass(power_class, ThresholdRequestDecryptingPower):
+            parent_skf = RequestKeyFactory.from_secure_randomness(self.__secret)
+            child_skf = parent_skf.make_factory(_THRESHOLD_REQUEST_DECRYPTING_INFO)
+            power = power_class(
+                request_key_factory=child_skf, *power_args, **power_kwargs
+            )
 
         elif issubclass(power_class, DerivedKeyBasedPower):
             parent_skf = SecretKeyFactory.from_secure_randomness(self.__secret)

@@ -11,7 +11,7 @@ from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
-from nucypher_core.umbral import PublicKey
+from nucypher_core import RequestPublicKey
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -617,14 +617,14 @@ class CoordinatorAgent(EthereumContractAgent):
             return len(self.providers)
 
         @property
-        def request_encrypting_keys(self):
-            request_encrypting_keys = {}
+        def participant_public_keys(self) -> Dict[ChecksumAddress, RequestPublicKey]:
+            participant_public_keys = {}
             for p in self.participants:
-                request_encrypting_keys[p.provider] = PublicKey.from_compressed_bytes(
+                participant_public_keys[p.provider] = RequestPublicKey.from_bytes(
                     p.requestEncryptingKey
                 )
 
-            return request_encrypting_keys
+            return participant_public_keys
 
     @contract_api(CONTRACT_CALL)
     def get_timeout(self) -> int:
@@ -724,14 +724,14 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-        request_encrypting_key: PublicKey,
+        participant_public_key: RequestPublicKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
             publicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
-            requestEncryptingKey=request_encrypting_key.to_compressed_bytes(),
+            requestEncryptingKey=bytes(participant_public_key),
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
