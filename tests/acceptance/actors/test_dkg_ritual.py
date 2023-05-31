@@ -62,7 +62,7 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         # time travel has a side effect of mining a block so that the scanner will definitively
         # pick up ritual event
         # TODO is there a better strategy
-        testerchain.time_travel(seconds=EventScannerTask.INTERVAL)
+        testerchain.time_travel(seconds=1)
 
         # check that the ritual is being tracked locally upon initialization for each node
         for ursula in cohort:
