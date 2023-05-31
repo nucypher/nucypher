@@ -151,7 +151,9 @@ def test_post_aggregation(
     participants = agent.get_participants(ritual_id)
     for p in participants:
         assert p.aggregated
-        assert p.requestEncryptingKey == bytes(participant_public_keys[p.provider])
+        assert p.decryption_request_static_key == bytes(
+            participant_public_keys[p.provider]
+        )
 
     ritual = agent.get_ritual(ritual_id)
     assert ritual.participant_public_keys == participant_public_keys

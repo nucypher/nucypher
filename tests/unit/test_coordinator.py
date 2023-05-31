@@ -128,7 +128,7 @@ def test_mock_coordinator_round_2(
         # unchanged
         assert p.transcript == bytes(random_transcript)
         assert p.transcript != bytes(aggregated_transcript)
-    assert p.requestEncryptingKey == bytes(participant_public_keys[index])
+    assert p.decryption_request_static_key == bytes(participant_public_keys[index])
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
     assert (
