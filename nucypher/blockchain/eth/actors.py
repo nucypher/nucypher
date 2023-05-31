@@ -425,16 +425,23 @@ class Ritualist(BaseActor):
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
+        # FIXME: Rearrange checks - for the moment, obtain more information for logging purposes
+        # validate the active ritual tracker state
+        participant = self.coordinator_agent.get_participant_from_provider(
+            ritual_id=ritual_id, provider=self.checksum_address
+        )
+
+        self.log.debug(
+            f"Ritual {ritual_id} with status {status}, timestamp {ritual.init_timestamp}. "
+            f"Stored transcript data is '{participant.transcript.hex()}'"
+        )
+
         # validate the status
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
             raise self.RitualError(
                 f"ritual #{ritual_id} is not waiting for transcripts; status={status}."
             )
 
-        # validate the active ritual tracker state
-        participant = self.coordinator_agent.get_participant_from_provider(
-            ritual_id=ritual_id, provider=self.checksum_address
-        )
         if participant.transcript:
             raise self.RitualError(
                 f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"
