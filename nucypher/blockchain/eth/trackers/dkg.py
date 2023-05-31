@@ -67,13 +67,12 @@ class ActiveRitualTracker:
     def __init__(
         self,
         ritualist: "Ritualist",
-        coordinator_agent: "CoordinatorAgent",
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         self.log = Logger("RitualTracker")
 
         self.ritualist = ritualist
-        self.coordinator_agent = coordinator_agent
+        self.coordinator_agent = ritualist.coordinator_agent
 
         self.rituals = dict()  # TODO: use persistent storage?
 
@@ -121,24 +120,26 @@ class ActiveRitualTracker:
     def contract(self):
         return self.coordinator_agent.contract
 
-    def _get_first_scan_start_block_number(self) -> int:
+    # TODO: should sample_window_size be additionally configurable/chain-dependent?
+    def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
         """
         Returns the block number to start scanning for events from.
         """
-        w3 = self.ritualist.coordinator_agent.blockchain.w3
-        timeout = self.ritualist.coordinator_agent.get_timeout()
+        w3 = self.web3
+        timeout = self.coordinator_agent.get_timeout()
 
         latest_block = w3.eth.get_block('latest')
         if latest_block.number == 0:
             return 0
 
         # get average block time
-        block_window_size = 100  # TODO: Make this configurable and/or chain-dependent
-        sample_block_number = latest_block.number - block_window_size
+        sample_block_number = latest_block.number - sample_window_size
         if sample_block_number <= 0:
             return 0
         base_block = w3.eth.get_block(sample_block_number)
-        average_block_time = (latest_block.timestamp - base_block.timestamp) / block_window_size
+        average_block_time = (
+            latest_block.timestamp - base_block.timestamp
+        ) / sample_window_size
 
         number_of_blocks_in_the_past = int(timeout / average_block_time)
 
@@ -159,7 +160,7 @@ class ActiveRitualTracker:
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
-        ritual = self.ritualist.coordinator_agent.get_ritual(
+        ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id, with_participants=with_participants
         )
         return ritual
@@ -168,7 +169,7 @@ class ActiveRitualTracker:
         """Refresh the list of rituals with the latest data from the blockchain"""
         ritual_ids = self.rituals.keys()
         if all:
-            ritual_ids = range(self.ritualist.coordinator_agent.number_of_rituals() - 1)
+            ritual_ids = range(self.coordinator_agent.number_of_rituals() - 1)
         elif fetch_rituals:
             ritual_ids = [*fetch_rituals, *ritual_ids]
         for rid in ritual_ids:

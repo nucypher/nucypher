@@ -306,7 +306,6 @@ class Ritualist(BaseActor):
         # track active onchain rituals
         self.ritual_tracker = ActiveRitualTracker(
             ritualist=self,
-            coordinator_agent=self.coordinator_agent,
         )
 
         self.publish_finalization = (
