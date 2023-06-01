@@ -1,20 +1,20 @@
 import inspect
 from typing import Any, List, Optional, Tuple
 
-import ferveo_py
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from ferveo_py import (
-    AggregatedTranscript,
-    Ciphertext,
-    DecryptionShareSimple,
-    Transcript,
-    Validator,
-)
 from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     ThresholdDecryptionRequest,
+)
+from nucypher_core.ferveo import (
+    AggregatedTranscript,
+    Ciphertext,
+    DecryptionShareSimple,
+    Keypair,
+    Transcript,
+    Validator,
 )
 from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generate_kfrags
 
@@ -253,7 +253,7 @@ class DecryptingPower(KeyPairBasedPower):
 
 class RitualisticPower(KeyPairBasedPower):
     _keypair_class = RitualisticKeypair
-    _default_private_key_class = ferveo_py.Keypair
+    _default_private_key_class = Keypair
 
     not_found_error = NoRitualisticPower
     provides = ("derive_decryption_share", "generate_transcript")

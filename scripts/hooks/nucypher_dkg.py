@@ -17,7 +17,7 @@ import time
 
 import click
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
-from ferveo_py.ferveo_py import DkgPublicKey
+from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (

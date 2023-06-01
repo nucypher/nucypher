@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List, Tuple, Union
 
 from eth_utils import keccak
-from ferveo_py.ferveo_py import *
+from nucypher_core.ferveo import *
 
 from nucypher.utilities.logging import Logger
 

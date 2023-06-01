@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Optional, Union
 
-import ferveo_py
+from OpenSSL.SSL import TLSv1_2_METHOD
+from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
-from ferveo_py.ferveo_py import Keypair as FerveoKeypair
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nucypher_core import (
@@ -14,6 +14,7 @@ from nucypher_core import (
     MessageKit,
     TreasureMap,
 )
+from nucypher_core.ferveo import Keypair as FerveoKeypair
 from nucypher_core.umbral import (
     PublicKey,
     SecretKey,
@@ -21,8 +22,6 @@ from nucypher_core.umbral import (
     Signer,
     VerifiedKeyFrag,
 )
-from OpenSSL.crypto import X509
-from OpenSSL.SSL import TLSv1_2_METHOD
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
@@ -107,16 +106,16 @@ class DecryptingKeypair(Keypair):
 class RitualisticKeypair(Keypair):
     """A keypair for Ferveo DKG"""
 
-    _private_key_source = ferveo_py.Keypair.random
+    _private_key_source = FerveoKeypair.random
     _public_key_method = "public_key"
 
     @classmethod
     def from_secure_randomness(cls, randomness: bytes) -> 'RitualisticKeypair':
         """Create a keypair from a precomputed secure source of randomness"""
-        size = FerveoKeypair.secure_randomness_size()
+        size = Keypair.secure_randomness_size()
         if len(randomness) != size:
             raise ValueError(f"precomputed randomness must be {size} bytes long")
-        keypair = FerveoKeypair.from_secure_randomness(randomness)
+        keypair = Keypair.from_secure_randomness(randomness)
         return cls(private_key=keypair)
 
 

@@ -16,7 +16,6 @@ from typing import (
     Union,
 )
 
-import ferveo_py
 import maya
 from constant_sorrow import constants
 from constant_sorrow.constants import (
@@ -30,17 +29,6 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
-from ferveo_py.ferveo_py import (
-    Ciphertext,
-    DecryptionSharePrecomputed,
-    DecryptionShareSimple,
-    DkgPublicParameters,
-    Transcript,
-    Validator,
-    combine_decryption_shares_precomputed,
-    combine_decryption_shares_simple,
-    decrypt_with_shared_secret,
-)
 from nucypher_core import (
     HRAC,
     Address,
@@ -54,6 +42,19 @@ from nucypher_core import (
     ReencryptionResponse,
     ThresholdDecryptionRequest,
     TreasureMap,
+)
+from nucypher_core.ferveo import (
+    Ciphertext,
+    DecryptionSharePrecomputed,
+    DecryptionShareSimple,
+    DkgPublicParameters,
+    DkgPublicKey,
+    Transcript,
+    Validator,
+    combine_decryption_shares_precomputed,
+    combine_decryption_shares_simple,
+    decrypt_with_shared_secret,
+    encrypt,
 )
 from nucypher_core.umbral import (
     PublicKey,
@@ -1128,15 +1129,14 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         operator_signature = self.operator_signature or (b"0" * 64 + b"\x00")
 
         operator_signature = RecoverableSignature.from_be_bytes(operator_signature)
+        ferveo_public_key = self.public_keys(RitualisticPower)
         payload = NodeMetadataPayload(
             staking_provider_address=Address(self.canonical_address),
             domain=self.domain,
             timestamp_epoch=timestamp.epoch,
             verifying_key=self.public_keys(SigningPower),
             encrypting_key=self.public_keys(DecryptingPower),
-            ferveo_public_key=bytes(
-                self.public_keys(RitualisticPower)
-            ),  # TODO: use type
+            ferveo_public_key=ferveo_public_key,
             certificate_der=self.certificate.public_bytes(Encoding.DER),
             host=self.rest_interface.host,
             port=self.rest_interface.port,
@@ -1383,7 +1383,7 @@ class Enrico:
 
     banner = ENRICO_BANNER
 
-    def __init__(self, encrypting_key: Union[PublicKey, ferveo_py.DkgPublicKey]):
+    def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()
         self._policy_pubkey = encrypting_key
         self.log = Logger(f'{self.__class__.__name__}-{encrypting_key}')
@@ -1403,7 +1403,7 @@ class Enrico:
     def encrypt_for_dkg(self, plaintext: bytes, conditions: LingoList) -> Ciphertext:
         validate_condition_lingo(conditions)
         conditions_bytes = json.dumps(conditions).encode()
-        ciphertext = ferveo_py.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
+        ciphertext = encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
 
     def encrypt_for_dkg_and_produce_decryption_request(self,

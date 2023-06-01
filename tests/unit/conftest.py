@@ -1,6 +1,5 @@
 import pytest
-from ferveo_py.ferveo_py import Keypair as FerveoKeyPair
-from ferveo_py.ferveo_py import Validator
+from nucypher_core.ferveo import Keypair, Validator
 
 from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import Operator
@@ -103,7 +102,7 @@ def random_transcript(get_random_checksum_address):
         validators.append(
             Validator(
                 address=get_random_checksum_address(),
-                public_key=FerveoKeyPair.random().public_key(),
+                public_key=Keypair.random().public_key(),
             )
         )
 

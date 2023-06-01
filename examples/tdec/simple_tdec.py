@@ -1,13 +1,12 @@
 import os
-from ferveo_py.ferveo_py import DkgPublicKey
 from pathlib import Path
+
+from nucypher_core.ferveo import DkgPublicKey
 
 import nucypher
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.characters.lawful import Bob
-from nucypher.characters.lawful import Enrico as Enrico
-from nucypher.characters.lawful import Ursula
+from nucypher.characters.lawful import Bob, Enrico as Enrico, Ursula
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 ######################

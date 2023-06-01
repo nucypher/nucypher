@@ -11,7 +11,6 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
-from tests.utils.ursula import make_ursulas
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"

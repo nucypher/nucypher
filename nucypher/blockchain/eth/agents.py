@@ -10,7 +10,7 @@ from constant_sorrow.constants import CONTRACT_ATTRIBUTE  # type: ignore
 from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
-from ferveo_py.ferveo_py import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
 from nucypher_core.umbral import PublicKey
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
