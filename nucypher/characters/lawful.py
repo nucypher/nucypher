@@ -47,8 +47,8 @@ from nucypher_core.ferveo import (
     Ciphertext,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
-    DkgPublicParameters,
     DkgPublicKey,
+    DkgPublicParameters,
     Transcript,
     Validator,
     combine_decryption_shares_precomputed,
@@ -578,7 +578,7 @@ class Bob(Character):
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=int(variant.value),
-            ciphertext=bytes(ciphertext),
+            ciphertext=ciphertext,
             conditions=conditions,
             context=context,
         )
@@ -1420,7 +1420,7 @@ class Enrico:
                                           conditions=conditions)
         tdr = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
-            ciphertext=bytes(ciphertext),
+            ciphertext=ciphertext,
             conditions=Conditions(json.dumps(conditions)),
             context=context,
             variant=variant_id,

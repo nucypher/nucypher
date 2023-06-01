@@ -18,7 +18,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_der_x509_certificate
 from eth_utils import to_checksum_address
 from nucypher_core import MetadataResponse, MetadataResponsePayload, NodeMetadata
-from nucypher_core.ferveo import FerveoPublicKey
 from nucypher_core.umbral import Signature
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
@@ -155,10 +154,18 @@ class NodeSprout:
 
         # Remote node cryptographic material
         crypto_power = CryptoPower()
-        crypto_power.consume_power_up(SigningPower(public_key=self._metadata_payload.verifying_key))
-        crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata_payload.encrypting_key))
-        crypto_power.consume_power_up(RitualisticPower(public_key=FerveoPublicKey.from_bytes((self._metadata_payload.ferveo_public_key))))
-        tls_certificate = load_der_x509_certificate(self._metadata_payload.certificate_der, backend=default_backend())
+        crypto_power.consume_power_up(
+            SigningPower(public_key=self._metadata_payload.verifying_key)
+        )
+        crypto_power.consume_power_up(
+            DecryptingPower(public_key=self._metadata_payload.encrypting_key)
+        )
+        crypto_power.consume_power_up(
+            RitualisticPower(public_key=self._metadata_payload.ferveo_public_key)
+        )
+        tls_certificate = load_der_x509_certificate(
+            self._metadata_payload.certificate_der, backend=default_backend()
+        )
 
         return Ursula(is_me=False,
                       crypto_power=crypto_power,

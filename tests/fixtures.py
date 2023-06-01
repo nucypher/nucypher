@@ -17,8 +17,8 @@ from nucypher_core.ferveo import (
     AggregatedTranscript,
     DkgPublicKey,
     DkgPublicParameters,
+    Keypair,
     Validator,
-    Keypair
 )
 from twisted.internet.task import Clock
 from web3 import Web3

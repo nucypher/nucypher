@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from OpenSSL.SSL import TLSv1_2_METHOD
-from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
@@ -22,6 +20,8 @@ from nucypher_core.umbral import (
     Signer,
     VerifiedKeyFrag,
 )
+from OpenSSL.crypto import X509
+from OpenSSL.SSL import TLSv1_2_METHOD
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp
@@ -112,10 +112,10 @@ class RitualisticKeypair(Keypair):
     @classmethod
     def from_secure_randomness(cls, randomness: bytes) -> 'RitualisticKeypair':
         """Create a keypair from a precomputed secure source of randomness"""
-        size = Keypair.secure_randomness_size()
+        size = FerveoKeypair.secure_randomness_size()
         if len(randomness) != size:
             raise ValueError(f"precomputed randomness must be {size} bytes long")
-        keypair = Keypair.from_secure_randomness(randomness)
+        keypair = FerveoKeypair.from_secure_randomness(randomness)
         return cls(private_key=keypair)
 
 

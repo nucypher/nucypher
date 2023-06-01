@@ -13,7 +13,7 @@ class DKGStorage:
     def store_transcript(self, ritual_id: int, transcript: Transcript) -> None:
         self.data["transcripts"][ritual_id] = bytes(transcript)
 
-    def get_transcript(self, ritual_id: int) -> AggregatedTranscript:
+    def get_transcript(self, ritual_id: int) -> Transcript:
         data = self.data["transcripts"][ritual_id]
         transcript = Transcript.from_bytes(data)
         return transcript

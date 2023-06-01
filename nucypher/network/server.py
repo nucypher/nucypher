@@ -192,10 +192,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
 
         # derive the decryption share
-        ciphertext = Ciphertext.from_bytes(decryption_request.ciphertext)
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
-            ciphertext=ciphertext,
+            ciphertext=decryption_request.ciphertext,
             conditions=decryption_request.conditions,
             variant=FerveoVariant(decryption_request.variant),
         )

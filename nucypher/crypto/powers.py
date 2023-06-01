@@ -12,6 +12,7 @@ from nucypher_core.ferveo import (
     AggregatedTranscript,
     Ciphertext,
     DecryptionShareSimple,
+    DkgPublicKey,
     Keypair,
     Transcript,
     Validator,
@@ -205,20 +206,11 @@ class KeyPairBasedPower(CryptoPowerUp):
 
     def __init__(self, public_key: PublicKey = None, keypair: keypairs.Keypair = None):
         if keypair and public_key:
-            raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
+            raise ValueError("Pass keypair or public key (or neither), but not both.")
         elif keypair:
             self.keypair = keypair
         else:
-            # They didn't pass a keypair; we'll make one with the bytes or
-            # Umbral PublicKey if they provided such a thing.
             if public_key:
-                try:
-                    public_key = public_key.as_umbral_pubkey()
-                except AttributeError:
-                    try:
-                        public_key = PublicKey.from_compressed_bytes(public_key)
-                    except TypeError:
-                        public_key = public_key
                 self.keypair = self._keypair_class(
                     public_key=public_key)
             else:
@@ -308,15 +300,15 @@ class RitualisticPower(KeyPairBasedPower):
             shares: int,
             threshold: int,
             transcripts: list
-    ) -> Tuple[AggregatedTranscript, PublicKey, Any]:
-        aggregated_transcript, public_key, params = dkg.aggregate_transcripts(
+    ) -> Tuple[AggregatedTranscript, DkgPublicKey, Any]:
+        aggregated_transcript, dkg_public_key, params = dkg.aggregate_transcripts(
             ritual_id=ritual_id,
             me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             transcripts=transcripts
         )
-        return aggregated_transcript, public_key, params
+        return aggregated_transcript, dkg_public_key, params
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):

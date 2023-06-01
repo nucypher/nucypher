@@ -6,7 +6,7 @@ from nucypher_core.ferveo import DkgPublicKey
 import nucypher
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import LocalContractRegistry
-from nucypher.characters.lawful import Bob, Enrico as Enrico, Ursula
+from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 ######################

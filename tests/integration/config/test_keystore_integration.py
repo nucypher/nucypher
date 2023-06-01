@@ -171,7 +171,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
         variant=0,
-        ciphertext=bytes(ciphertext),
+        ciphertext=ciphertext,
         conditions=Conditions(json.dumps(CONDITIONS)),
     )
 
