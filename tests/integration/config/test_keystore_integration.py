@@ -189,7 +189,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
 
     requester_sk = RequestSecretKey.random()
     requester_public_key = requester_sk.public_key()
-    shared_secret = requester_sk.diffie_hellman(ursula_request_public_key)
+    shared_secret = requester_sk.derive_shared_secret(ursula_request_public_key)
     encrypted_decryption_request = decryption_request.encrypt(
         shared_secret=shared_secret,
         requester_public_key=requester_public_key,
@@ -204,7 +204,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
 
     # failed encryption - incorrect encrypting key used
     invalid_encrypted_decryption_request = decryption_request.encrypt(
-        shared_secret=RequestSecretKey.random().diffie_hellman(
+        shared_secret=RequestSecretKey.random().derive_shared_secret(
             ursula_request_public_key
         ),
         requester_public_key=requester_public_key,

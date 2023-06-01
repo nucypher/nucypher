@@ -358,7 +358,7 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
                 encrypted_request.ritual_id
             )
             requester_public_key = encrypted_request.requester_public_key
-            shared_secret = secret_key.diffie_hellman(requester_public_key)
+            shared_secret = secret_key.derive_shared_secret(requester_public_key)
             decrypted_request = encrypted_request.decrypt(shared_secret)
             return decrypted_request
         except Exception as e:
@@ -373,7 +373,7 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
             secret_key = self._get_secret_key_from_ritual_id(
                 decryption_response.ritual_id
             )
-            shared_secret = secret_key.diffie_hellman(requester_public_key)
+            shared_secret = secret_key.derive_shared_secret(requester_public_key)
             encrypted_decryption_response = decryption_response.encrypt(shared_secret)
             return encrypted_decryption_response
         except Exception as e:

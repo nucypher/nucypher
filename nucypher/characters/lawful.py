@@ -609,7 +609,7 @@ class Bob(Character):
         for ursula in cohort:
             ursula_checksum_address = to_checksum_address(ursula.checksum_address)
             participant_public_key = participant_public_keys[ursula_checksum_address]
-            shared_secret = requester_sk.diffie_hellman(participant_public_key)
+            shared_secret = requester_sk.derive_shared_secret(participant_public_key)
             encrypted_decryption_request = decryption_request.encrypt(
                 shared_secret=shared_secret,
                 requester_public_key=requester_public_key,
