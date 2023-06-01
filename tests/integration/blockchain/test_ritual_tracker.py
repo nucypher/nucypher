@@ -90,7 +90,10 @@ def test_first_scan_start_block_calc_is_perfect(ritualist):
         seconds=expected_number_blocks_in_past * target_average_block_time
     ).epoch
 
+    calls_to_get_block = []
+
     def get_block_side_effect(block_identifier):
+        calls_to_get_block.append(block_identifier)
         if block_identifier == "latest":
             return BlockInfo(latest_block_number, latest_timestamp)
         elif block_identifier == sample_base_block_number:
@@ -108,6 +111,16 @@ def test_first_scan_start_block_calc_is_perfect(ritualist):
     first_scan_block_number = active_ritual_tracker._get_first_scan_start_block_number(
         sample_window_size=sample_window
     )
+
+    # create expected calls list of block ids
+    expected_calls_to_get_block = [
+        "latest",
+        sample_base_block_number,
+        expected_first_scan_block_number,
+    ]
+
+    assert len(calls_to_get_block) == len(expected_calls_to_get_block)
+    assert calls_to_get_block == expected_calls_to_get_block
 
     # returns the block before to be sure
     assert first_scan_block_number == expected_first_scan_block_number - 1
@@ -159,7 +172,11 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
         - (initial_calc_short_by_blocks * target_average_block_time)
     )
 
+    calls_to_get_block = []
+
     def get_block_side_effect(block_identifier):
+        calls_to_get_block.append(block_identifier)
+
         if block_identifier == "latest":
             return BlockInfo(latest_block_number, latest_timestamp)
         elif block_identifier == sample_base_block_number:
@@ -201,6 +218,23 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
     first_scan_block_number = active_ritual_tracker._get_first_scan_start_block_number(
         sample_window_size=sample_window
     )
+
+    # create expected calls list of block ids
+    expected_calls_to_get_block = [
+        "latest",
+        sample_base_block_number,
+        initial_calc_potential_first_scan_block_number,
+    ]
+    for i in range(1, initial_calc_short_by_blocks):
+        # include blocks when algorithm went further back
+        expected_calls_to_get_block.append(
+            initial_calc_potential_first_scan_block_number - i
+        )
+    expected_calls_to_get_block.append(correct_first_scan_block_number)
+
+    # ensure calls were expected
+    assert len(calls_to_get_block) == len(expected_calls_to_get_block)
+    assert calls_to_get_block == expected_calls_to_get_block
 
     # returns the block before to be sure
     assert first_scan_block_number == correct_first_scan_block_number - 1
