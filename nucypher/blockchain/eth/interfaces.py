@@ -257,10 +257,6 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-        self.client.add_middleware(middleware.time_based_cache_middleware)
-        # self.client.add_middleware(middleware.latest_block_based_cache_middleware)  # TODO: This line causes failed tests and nonce reuse in tests. See #2348.
-        self.client.add_middleware(middleware.simple_cache_middleware)
-
         self.configure_gas_strategy()
 
     def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:

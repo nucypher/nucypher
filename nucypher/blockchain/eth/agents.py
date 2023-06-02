@@ -61,17 +61,21 @@ class EthereumContractAgent:
         usually, a failed `require()`.
         """
 
-    def __init__(self,
-                 registry: BaseContractRegistry = None,  # TODO: Consider make it non-optional again. See comment in InstanceAgent.
-                 eth_provider_uri: Optional[str] = None,
-                 contract: Optional[Contract] = None,
-                 transaction_gas: Optional[Wei] = None,
-                 contract_version: Optional[str] = None):
+    def __init__(
+        self,
+        eth_provider_uri: str,
+        registry: BaseContractRegistry,
+        contract: Optional[Contract] = None,
+        transaction_gas: Optional[Wei] = None,
+        contract_version: Optional[str] = None,
+    ):
 
         self.log = Logger(self.__class__.__name__)
         self.registry = registry
 
-        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=eth_provider_uri)
+        self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(
+            eth_provider_uri=eth_provider_uri
+        )
 
         if not contract:  # Fetch the contract
             contract = self.blockchain.get_contract_by_name(

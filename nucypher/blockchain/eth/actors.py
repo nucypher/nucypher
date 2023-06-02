@@ -180,7 +180,6 @@ class Operator(BaseActor):
         # because, given the need for initialization context, it's far less melodramatic
         # to do it here, and it's still available via the public crypto powers API.
         crypto_power.consume_power_up(transacting_power)
-
         self.payment_method = payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
@@ -191,25 +190,32 @@ class Operator(BaseActor):
         self.__operator_address = operator_address
         self.__staking_provider_address = None  # set by block_until_ready
         if is_me:
-            self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+            self.application_agent = ContractAgency.get_agent(
+                PREApplicationAgent,
+                eth_provider_uri=eth_provider_uri,
+                registry=self.registry,
+            )
             self.work_tracker = work_tracker or WorkTracker(worker=self)
 
+            #
             # Multi-provider support
+            #
+
+            # TODO: Improve and formalize fully configurable multi-provider support
             # TODO: Abstract away payment provider  #3004
-            eth_chain = self.application_agent.blockchain
-            polygon_chain = payment_method.agent.blockchain
-
-            # TODO: #3094 This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
-            #       that has a different provider than the one passed to the constructor.  This is a temporary fix.
-            polygon_chain.client.w3 = Web3(polygon_chain.provider)
-
-            # TODO: Verify consistency between network names and provider connection?
             # TODO: #3094 Is chain ID stable and completely reliable?
-            # TODO: Can this be relocated to a higher layer to better support TAC?
+            # TODO: Relocate to a higher layer
+            eth_chain = self.application_agent.blockchain
+            polygon_chain = self.payment_method.agent.blockchain
+
+            # TODO: Use clients layer?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
-                polygon_chain.client.chain_id: polygon_chain.provider
+                polygon_chain.client.chain_id: polygon_chain.provider,
             }
+            self.log.info(
+                f"Connected to {len(self.condition_providers)} blockchains: {self.condition_providers}"
+            )
 
     def _local_operator_address(self):
         return self.__operator_address
