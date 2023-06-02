@@ -809,7 +809,6 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         known_nodes: Iterable[Teacher] = None,
         **character_kwargs,
     ):
-
         Character.__init__(
             self,
             is_me=is_me,
@@ -1261,8 +1260,12 @@ class Ursula(Teacher, Character, Operator, Ritualist):
 
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
-            application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
-            seednode_stake = application_agent.get_authorized_stake(staking_provider=staking_provider_address)
+            application_agent = ContractAgency.get_agent(
+                PREApplicationAgent, eth_provider_uri=provider_uri, registry=registry
+            )
+            seednode_stake = application_agent.get_authorized_stake(
+                staking_provider=staking_provider_address
+            )
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 
