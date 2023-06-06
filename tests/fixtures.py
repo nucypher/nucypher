@@ -13,9 +13,13 @@ import pytest
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
-from ferveo_py.ferveo_py import AggregatedTranscript, DkgPublicKey, DkgPublicParameters
-from ferveo_py.ferveo_py import Keypair as FerveoKeyPair
-from ferveo_py.ferveo_py import Transcript, Validator
+from nucypher_core.ferveo import (
+    AggregatedTranscript,
+    DkgPublicKey,
+    DkgPublicParameters,
+    Keypair,
+    Validator,
+)
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -712,7 +716,7 @@ def dkg_public_key_data(
         validators.append(
             Validator(
                 address=get_random_checksum_address(),
-                public_key=FerveoKeyPair.random().public_key(),
+                public_key=Keypair.random().public_key(),
             )
         )
 

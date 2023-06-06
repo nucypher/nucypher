@@ -1,20 +1,21 @@
 import inspect
 from typing import Any, List, Optional, Tuple
 
-import ferveo_py
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from ferveo_py import (
-    AggregatedTranscript,
-    Ciphertext,
-    DecryptionShareSimple,
-    Transcript,
-    Validator,
-)
 from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     ThresholdDecryptionRequest,
+    ferveo,
+)
+from nucypher_core.ferveo import (
+    AggregatedTranscript,
+    Ciphertext,
+    DecryptionShareSimple,
+    DkgPublicKey,
+    Transcript,
+    Validator,
 )
 from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generate_kfrags
 
@@ -42,14 +43,15 @@ class NoSigningPower(PowerUpError):
 class NoDecryptingPower(PowerUpError):
     pass
 
-
 class NoTransactingPower(PowerUpError):
     pass
-
 
 class NoRitualisticPower(PowerUpError):
     pass
 
+
+class NotImplmplemented(PowerUpError):
+    pass
 
 class NoThresholdRequestDecryptingPower(PowerUpError):
     pass
@@ -253,7 +255,7 @@ class DecryptingPower(KeyPairBasedPower):
 
 class RitualisticPower(KeyPairBasedPower):
     _keypair_class = RitualisticKeypair
-    _default_private_key_class = ferveo_py.Keypair
+    _default_private_key_class = ferveo.Keypair
 
     not_found_error = NoRitualisticPower
     provides = ("derive_decryption_share", "generate_transcript")
@@ -308,15 +310,15 @@ class RitualisticPower(KeyPairBasedPower):
             shares: int,
             threshold: int,
             transcripts: list
-    ) -> Tuple[AggregatedTranscript, PublicKey, Any]:
-        aggregated_transcript, public_key, params = dkg.aggregate_transcripts(
+    ) -> Tuple[AggregatedTranscript, DkgPublicKey, Any]:
+        aggregated_transcript, dkg_public_key, params = dkg.aggregate_transcripts(
             ritual_id=ritual_id,
             me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             transcripts=transcripts
         )
-        return aggregated_transcript, public_key, params
+        return aggregated_transcript, dkg_public_key, params
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):

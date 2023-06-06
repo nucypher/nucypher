@@ -11,8 +11,8 @@ from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
 
 import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
-from ferveo_py import ferveo_py
 from mnemonic.mnemonic import Mnemonic
+from nucypher_core.ferveo import Keypair
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -425,7 +425,7 @@ class Keystore:
 
         elif issubclass(power_class, RitualisticPower):
             keypair_class: RitualisticKeypair = power_class._keypair_class
-            size = ferveo_py.Keypair.secure_randomness_size()
+            size = Keypair.secure_randomness_size()
             blob = __skf.make_secret(info)[:size]
             keypair = keypair_class.from_secure_randomness(blob)
             power = power_class(keypair=keypair, *power_args, **power_kwargs)

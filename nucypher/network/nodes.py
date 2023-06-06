@@ -5,7 +5,6 @@ from pathlib import Path
 from queue import Queue
 from typing import Callable, List, Optional, Set, Tuple, Union
 
-import ferveo_py
 import maya
 import requests
 from constant_sorrow.constants import (
@@ -155,10 +154,18 @@ class NodeSprout:
 
         # Remote node cryptographic material
         crypto_power = CryptoPower()
-        crypto_power.consume_power_up(SigningPower(public_key=self._metadata_payload.verifying_key))
-        crypto_power.consume_power_up(DecryptingPower(public_key=self._metadata_payload.encrypting_key))
-        crypto_power.consume_power_up(RitualisticPower(public_key=ferveo_py.PublicKey.from_bytes((self._metadata_payload.ferveo_public_key))))
-        tls_certificate = load_der_x509_certificate(self._metadata_payload.certificate_der, backend=default_backend())
+        crypto_power.consume_power_up(
+            SigningPower(public_key=self._metadata_payload.verifying_key)
+        )
+        crypto_power.consume_power_up(
+            DecryptingPower(public_key=self._metadata_payload.encrypting_key)
+        )
+        crypto_power.consume_power_up(
+            RitualisticPower(public_key=self._metadata_payload.ferveo_public_key)
+        )
+        tls_certificate = load_der_x509_certificate(
+            self._metadata_payload.certificate_der, backend=default_backend()
+        )
 
         return Ursula(is_me=False,
                       crypto_power=crypto_power,

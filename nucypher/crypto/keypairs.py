@@ -1,10 +1,8 @@
 from pathlib import Path
 from typing import Optional, Union
 
-import ferveo_py
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
-from ferveo_py.ferveo_py import Keypair as FerveoKeypair
 from hendrix.deploy.tls import HendrixDeployTLS
 from hendrix.facilities.services import ExistingKeyTLSContextFactory
 from nucypher_core import (
@@ -14,6 +12,7 @@ from nucypher_core import (
     MessageKit,
     TreasureMap,
 )
+from nucypher_core.ferveo import Keypair as FerveoKeypair
 from nucypher_core.umbral import (
     PublicKey,
     SecretKey,
@@ -107,7 +106,7 @@ class DecryptingKeypair(Keypair):
 class RitualisticKeypair(Keypair):
     """A keypair for Ferveo DKG"""
 
-    _private_key_source = ferveo_py.Keypair.random
+    _private_key_source = FerveoKeypair.random
     _public_key_method = "public_key"
 
     @classmethod

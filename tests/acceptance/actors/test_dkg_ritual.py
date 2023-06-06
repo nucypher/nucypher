@@ -5,7 +5,6 @@ from twisted.internet.threads import deferToThread
 from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
-from tests.utils.ursula import start_pytest_ursula_services
 
 # constants
 DKG_SIZE = 4

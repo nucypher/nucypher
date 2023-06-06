@@ -5,7 +5,6 @@ from pathlib import Path
 
 from constant_sorrow import constants
 from constant_sorrow.constants import RELAX
-from ferveo_py.ferveo_py import Ciphertext
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
@@ -16,9 +15,9 @@ from nucypher_core import (
     MetadataResponsePayload,
     ReencryptionRequest,
     RevocationOrder,
-    ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
+from nucypher_core.ferveo import Ciphertext
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.ferveo.dkg import FerveoVariant
@@ -193,10 +192,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
 
         # derive the decryption share
-        ciphertext = Ciphertext.from_bytes(decryption_request.ciphertext)
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
-            ciphertext=ciphertext,
+            ciphertext=decryption_request.ciphertext,
             conditions=decryption_request.conditions,
             variant=FerveoVariant(decryption_request.variant),
         )

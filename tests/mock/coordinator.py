@@ -4,7 +4,7 @@ from typing import Dict, List
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
-from ferveo_py.ferveo_py import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
 from nucypher_core.umbral import PublicKey
 from web3.types import TxReceipt
 
