@@ -7,13 +7,13 @@ from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     ThresholdDecryptionRequest,
+    ferveo,
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
     Ciphertext,
     DecryptionShareSimple,
     DkgPublicKey,
-    Keypair,
     Transcript,
     Validator,
 )
@@ -43,14 +43,15 @@ class NoSigningPower(PowerUpError):
 class NoDecryptingPower(PowerUpError):
     pass
 
-
 class NoTransactingPower(PowerUpError):
     pass
-
 
 class NoRitualisticPower(PowerUpError):
     pass
 
+
+class NotImplmplemented(PowerUpError):
+    pass
 
 class NoThresholdRequestDecryptingPower(PowerUpError):
     pass
@@ -206,11 +207,20 @@ class KeyPairBasedPower(CryptoPowerUp):
 
     def __init__(self, public_key: PublicKey = None, keypair: keypairs.Keypair = None):
         if keypair and public_key:
-            raise ValueError("Pass keypair or public key (or neither), but not both.")
+            raise ValueError("Pass keypair or pubkey_bytes (or neither), but not both.")
         elif keypair:
             self.keypair = keypair
         else:
+            # They didn't pass a keypair; we'll make one with the bytes or
+            # Umbral PublicKey if they provided such a thing.
             if public_key:
+                try:
+                    public_key = public_key.as_umbral_pubkey()
+                except AttributeError:
+                    try:
+                        public_key = PublicKey.from_compressed_bytes(public_key)
+                    except TypeError:
+                        public_key = public_key
                 self.keypair = self._keypair_class(
                     public_key=public_key)
             else:
@@ -245,7 +255,7 @@ class DecryptingPower(KeyPairBasedPower):
 
 class RitualisticPower(KeyPairBasedPower):
     _keypair_class = RitualisticKeypair
-    _default_private_key_class = Keypair
+    _default_private_key_class = ferveo.Keypair
 
     not_found_error = NoRitualisticPower
     provides = ("derive_decryption_share", "generate_transcript")
