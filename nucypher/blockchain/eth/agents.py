@@ -10,8 +10,8 @@ from constant_sorrow.constants import CONTRACT_ATTRIBUTE  # type: ignore
 from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
+from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
-from nucypher_core import RequestPublicKey
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -617,10 +617,10 @@ class CoordinatorAgent(EthereumContractAgent):
             return len(self.providers)
 
         @property
-        def participant_public_keys(self) -> Dict[ChecksumAddress, RequestPublicKey]:
+        def participant_public_keys(self) -> Dict[ChecksumAddress, SessionStaticKey]:
             participant_public_keys = {}
             for p in self.participants:
-                participant_public_keys[p.provider] = RequestPublicKey.from_bytes(
+                participant_public_keys[p.provider] = SessionStaticKey.from_bytes(
                     p.decryption_request_static_key
                 )
 
@@ -724,7 +724,7 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-        participant_public_key: RequestPublicKey,
+        participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(

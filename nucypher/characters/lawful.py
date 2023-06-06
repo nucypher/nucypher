@@ -40,8 +40,8 @@ from nucypher_core import (
     NodeMetadata,
     NodeMetadataPayload,
     ReencryptionResponse,
-    RequestPublicKey,
-    RequestSecretKey,
+    SessionStaticKey,
+    SessionStaticSecret,
     ThresholdDecryptionRequest,
     TreasureMap,
 )
@@ -588,7 +588,7 @@ class Bob(Character):
     def get_decryption_shares_using_existing_decryption_request(
         self,
         decryption_request: ThresholdDecryptionRequest,
-        participant_public_keys: Dict[ChecksumAddress, RequestPublicKey],
+        participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
         variant: FerveoVariant,
         cohort: List["Ursula"],
         threshold: int,
@@ -601,7 +601,7 @@ class Bob(Character):
             share_type = DecryptionShareSimple
 
         # use ephemeral key for request
-        requester_sk = RequestSecretKey.random()
+        requester_sk = SessionStaticSecret.random()
         requester_public_key = requester_sk.public_key()
 
         decryption_request_mapping = {}
@@ -648,7 +648,7 @@ class Bob(Character):
         lingo: LingoList,
         threshold: int,
         variant: FerveoVariant,
-        participant_public_keys: Dict[ChecksumAddress, RequestPublicKey],
+        participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
         context: Optional[dict] = None,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]

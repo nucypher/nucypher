@@ -12,8 +12,8 @@ from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
 import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from mnemonic.mnemonic import Mnemonic
+from nucypher_core import SessionSecretFactory
 from nucypher_core.ferveo import Keypair
-from nucypher_core import RequestKeyFactory
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
@@ -436,10 +436,15 @@ class Keystore:
             power = power_class(keypair=keypair, *power_args, **power_kwargs)
 
         elif issubclass(power_class, ThresholdRequestDecryptingPower):
-            parent_skf = RequestKeyFactory.from_secure_randomness(self.__secret)
-            child_skf = parent_skf.make_factory(_THRESHOLD_REQUEST_DECRYPTING_INFO)
+            # TODO is this really how we want
+            #  to derive the session factory (similar to RitualisticPower)
+            size = SessionSecretFactory.seed_size()
+            secret = __skf.make_secret(info)[:size]
+            session_secret_factory = SessionSecretFactory.from_secure_randomness(secret)
             power = power_class(
-                request_key_factory=child_skf, *power_args, **power_kwargs
+                session_secret_factory=session_secret_factory,
+                *power_args,
+                **power_kwargs,
             )
 
         elif issubclass(power_class, DerivedKeyBasedPower):

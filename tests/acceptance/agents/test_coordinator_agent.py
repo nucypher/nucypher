@@ -2,7 +2,7 @@ import os
 
 import pytest
 from eth_utils import keccak
-from nucypher_core import RequestSecretKey
+from nucypher_core import SessionStaticSecret
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -127,7 +127,7 @@ def test_post_aggregation(
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
     for i, transacting_power in enumerate(transacting_powers):
-        participant_public_key = RequestSecretKey.random().public_key()
+        participant_public_key = SessionStaticSecret.random().public_key()
         receipt = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,

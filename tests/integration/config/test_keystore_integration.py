@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
 from nucypher_core import (
     Conditions,
-    RequestSecretKey,
+    SessionStaticSecret,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
@@ -187,7 +187,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         ursula.threshold_request_power.get_pubkey_from_ritual_id(ritual_id=ritual_id)
     )
 
-    requester_sk = RequestSecretKey.random()
+    requester_sk = SessionStaticSecret.random()
     requester_public_key = requester_sk.public_key()
     shared_secret = requester_sk.derive_shared_secret(ursula_request_public_key)
     encrypted_decryption_request = decryption_request.encrypt(
@@ -204,7 +204,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
 
     # failed encryption - incorrect encrypting key used
     invalid_encrypted_decryption_request = decryption_request.encrypt(
-        shared_secret=RequestSecretKey.random().derive_shared_secret(
+        shared_secret=SessionStaticSecret.random().derive_shared_secret(
             ursula_request_public_key
         ),
         requester_public_key=requester_public_key,

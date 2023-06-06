@@ -4,8 +4,8 @@ from typing import Dict, List
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
+from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
-from nucypher_core import RequestPublicKey
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
@@ -112,7 +112,7 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-        participant_public_key: RequestPublicKey,
+        participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]

@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from eth_account import Account
-from nucypher_core import RequestSecretKey
+from nucypher_core import SessionStaticSecret
 
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
@@ -109,7 +109,7 @@ def test_mock_coordinator_round_2(
 
     participant_public_keys = []
     for index, node_address in enumerate(nodes_transacting_powers):
-        participant_public_key = RequestSecretKey.random().public_key()
+        participant_public_key = SessionStaticSecret.random().public_key()
         coordinator.post_aggregation(
             ritual_id=0,
             aggregated_transcript=aggregated_transcript,

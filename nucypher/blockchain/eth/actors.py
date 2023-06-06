@@ -8,7 +8,7 @@ from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
-    RequestPublicKey,
+    SessionStaticKey,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
@@ -609,7 +609,7 @@ class Ritualist(BaseActor):
     def encrypt_threshold_decryption_response(
         self,
         decryption_response: ThresholdDecryptionResponse,
-        requester_public_key: RequestPublicKey,
+        requester_public_key: SessionStaticKey,
     ) -> EncryptedThresholdDecryptionResponse:
         return self.threshold_request_power.encrypt_decryption_response(
             decryption_response=decryption_response,

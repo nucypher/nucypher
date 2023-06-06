@@ -7,11 +7,12 @@ from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
-    RequestKeyFactory,
-    RequestPublicKey,
-    RequestSecretKey,
+    SessionSecretFactory,
+    SessionStaticKey,
+    SessionStaticSecret,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
+    ferveo,
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -339,26 +340,26 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
     class ThresholdResponseEncryptionFailed(Exception):
         """Raised when encryption of response to request fails."""
 
-    def __init__(self, request_key_factory: Optional[RequestKeyFactory] = None):
-        if not request_key_factory:
-            request_key_factory = RequestKeyFactory.random()
-        self.__request_key_factory = request_key_factory
+    def __init__(self, session_secret_factory: Optional[SessionSecretFactory] = None):
+        if not session_secret_factory:
+            session_secret_factory = SessionSecretFactory.random()
+        self.__request_key_factory = session_secret_factory
 
-    def _get_secret_key_from_ritual_id(self, ritual_id: int) -> RequestSecretKey:
+    def _get_static_secret_from_ritual_id(self, ritual_id: int) -> SessionStaticSecret:
         return self.__request_key_factory.make_key(bytes(ritual_id))
 
-    def get_pubkey_from_ritual_id(self, ritual_id: int) -> RequestPublicKey:
-        return self._get_secret_key_from_ritual_id(ritual_id).public_key()
+    def get_pubkey_from_ritual_id(self, ritual_id: int) -> SessionStaticKey:
+        return self._get_static_secret_from_ritual_id(ritual_id).public_key()
 
     def decrypt_encrypted_request(
         self, encrypted_request: EncryptedThresholdDecryptionRequest
     ) -> ThresholdDecryptionRequest:
         try:
-            secret_key = self._get_secret_key_from_ritual_id(
+            static_secret = self._get_static_secret_from_ritual_id(
                 encrypted_request.ritual_id
             )
             requester_public_key = encrypted_request.requester_public_key
-            shared_secret = secret_key.derive_shared_secret(requester_public_key)
+            shared_secret = static_secret.derive_shared_secret(requester_public_key)
             decrypted_request = encrypted_request.decrypt(shared_secret)
             return decrypted_request
         except Exception as e:
@@ -367,13 +368,13 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
     def encrypt_decryption_response(
         self,
         decryption_response: ThresholdDecryptionResponse,
-        requester_public_key: RequestPublicKey,
+        requester_public_key: SessionStaticKey,
     ) -> EncryptedThresholdDecryptionResponse:
         try:
-            secret_key = self._get_secret_key_from_ritual_id(
+            static_secret = self._get_static_secret_from_ritual_id(
                 decryption_response.ritual_id
             )
-            shared_secret = secret_key.derive_shared_secret(requester_public_key)
+            shared_secret = static_secret.derive_shared_secret(requester_public_key)
             encrypted_decryption_response = decryption_response.encrypt(shared_secret)
             return encrypted_decryption_response
         except Exception as e:
