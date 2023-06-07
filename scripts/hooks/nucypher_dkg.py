@@ -197,7 +197,11 @@ Those who know the essential to be essential and the unessential to be unessenti
 # -- Dhammapada
 
 CONDITIONS = [
-    {"returnValueTest": {"value": "0", "comparator": ">"}, "method": "timelock"}
+    {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "timelock",
+        "chain": blockchain.client.chain_id,
+    }
 ]
 encrypting_key = DkgPublicKey.from_bytes(
     coordinator_agent.get_ritual(ritual_id).public_key

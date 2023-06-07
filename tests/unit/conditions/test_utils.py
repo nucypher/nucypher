@@ -31,6 +31,7 @@ from nucypher.policy.conditions.utils import (
     to_camelcase,
     validate_condition_lingo,
 )
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (exception, constructor parameters, expected status code)
@@ -134,11 +135,16 @@ def test_condition_lingo_validation(compound_lingo):
     validate_condition_lingo(compound_lingo_list)
 
     invalid_operator_lingo = [
-        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+        {
+            "returnValueTest": {"value": 0, "comparator": ">"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
         {"operator": "AND_OPERATOR"},  # replace operator with invalid one
         {
             "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
             "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
         },
     ]
     with pytest.raises(InvalidLogicalOperator):

@@ -25,7 +25,11 @@ from nucypher.crypto.powers import (
 from nucypher.network.server import ProxyRESTServer
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
+from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_ETH_PROVIDER_URI,
+    TESTERCHAIN_CHAIN_ID,
+)
 from tests.utils.matchers import IsType
 
 
@@ -167,7 +171,11 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     # Use actual decryption request
     plaintext = b"Records break when you don't"  # Jordan branch ad tagline
     CONDITIONS = [
-        {"returnValueTest": {"value": "0", "comparator": ">"}, "method": "timelock"}
+        {
+            "returnValueTest": {"value": "0", "comparator": ">"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        }
     ]
 
     # encrypt

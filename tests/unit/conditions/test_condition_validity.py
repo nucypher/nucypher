@@ -11,6 +11,7 @@ def test_invalid_time_condition():
     with pytest.raises(InvalidCondition):
         _ = TimeCondition(
             return_value_test=ReturnValueTest('>', 0),
+            chain=TESTERCHAIN_CHAIN_ID,
             method="time_after_time",
         )
 

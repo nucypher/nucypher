@@ -5,6 +5,7 @@ from twisted.internet.threads import deferToThread
 from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 # constants
 DKG_SIZE = 4
@@ -16,7 +17,13 @@ TIME_TRAVEL_INTERVAL = 60
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
-CONDITIONS = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
+CONDITIONS = [
+    {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "timelock",
+        "chain": TESTERCHAIN_CHAIN_ID,
+    }
+]
 
 
 @pytest.fixture(scope='module')

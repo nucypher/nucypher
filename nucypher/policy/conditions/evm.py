@@ -9,7 +9,7 @@ from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
-from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
@@ -95,7 +95,7 @@ def _validate_chain(chain: int) -> None:
         )
 
 
-class RPCCondition(ReencryptionCondition):
+class RPCCondition(AccessControlCondition):
     ALLOWED_METHODS = (
 
         # Contract
@@ -140,7 +140,8 @@ class RPCCondition(ReencryptionCondition):
         self.method = self.validate_method(method=method)
 
         # test
-        self.parameters = parameters  # input
+        # should not be set to None - we do list unpacking so cannot be None; use empty list
+        self.parameters = parameters or []
         self.return_value_test = return_value_test  # output
 
     def validate_method(self, method):

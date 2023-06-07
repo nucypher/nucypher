@@ -1,22 +1,20 @@
-
-
-import time
-from typing import Optional, Tuple
+from typing import Any, List, Optional
 
 from marshmallow import fields, post_load
 
-from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
-class TimeCondition(ReencryptionCondition):
+class TimeCondition(RPCCondition):
     METHOD = 'timelock'
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
+        chain = fields.Int(required=True)
         method = fields.Str(dump_default="timelock", required=True)
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
@@ -27,12 +25,13 @@ class TimeCondition(ReencryptionCondition):
             return TimeCondition(**data)
 
     def __repr__(self) -> str:
-        r = f'{self.__class__.__name__}(timestamp={self.return_value_test.value})'
+        r = f"{self.__class__.__name__}(timestamp={self.return_value_test.value}, chain={self.chain})"
         return r
 
     def __init__(
         self,
         return_value_test: ReturnValueTest,
+        chain: int,
         method: str = METHOD,
         name: Optional[str] = None,
     ):
@@ -40,17 +39,18 @@ class TimeCondition(ReencryptionCondition):
             raise InvalidCondition(
                 f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
             )
-        self.return_value_test = return_value_test
-        self.name = name
+        super().__init__(
+            chain=chain, method=method, return_value_test=return_value_test, name=name
+        )
 
-    @property
-    def method(self):
-        return self.METHOD
+    def validate_method(self, method):
+        return method
 
     @property
     def timestamp(self):
         return self.return_value_test.value
 
-    def verify(self, *args, **kwargs) -> Tuple[bool, float]:
-        eval_time = time.time()   # system  clock
-        return self.return_value_test.eval(data=eval_time), eval_time
+    def _execute_call(self, parameters: List[Any]) -> Any:
+        """Execute onchain read and return result."""
+        latest_block = self.w3.eth.get_block("latest")
+        return latest_block.timestamp

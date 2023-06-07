@@ -5,14 +5,23 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import InvalidConditionLingo
 from nucypher.policy.conditions.lingo import ConditionLingo
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture(scope='module')
 def lingo():
     return [
-        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+        {
+            "returnValueTest": {"value": 0, "comparator": ">"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
         {"operator": "and"},
-        {"returnValueTest": {"value": 99999999999999999, "comparator": "<"}, "method": "timelock"},
+        {
+            "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
     ]
 
 
@@ -26,7 +35,11 @@ def test_invalid_condition():
     # operator in incorrect spot
     invalid_operator_position_lingo = [
         {"operator": "and"},
-        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+        {
+            "returnValueTest": {"value": 0, "comparator": ">"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
     ]
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_list(invalid_operator_position_lingo)

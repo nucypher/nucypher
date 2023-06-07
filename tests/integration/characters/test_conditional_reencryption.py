@@ -6,6 +6,7 @@ from nucypher_core import Conditions
 from nucypher.characters.lawful import Ursula
 from nucypher.policy.conditions.exceptions import *
 from nucypher.policy.conditions.lingo import ConditionLingo
+from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -25,11 +26,16 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     bob.start_learning_loop()
 
     conditions = [
-        {"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"},
+        {
+            "returnValueTest": {"value": 0, "comparator": ">"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
         {"operator": "and"},
         {
             "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
             "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
         },
     ]
     json_conditions = json.dumps(conditions)
@@ -55,7 +61,13 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
     # not actually used for eval, but satisfies serializers
     conditions = Conditions(
         json.dumps(
-            [{"returnValueTest": {"value": 0, "comparator": ">"}, "method": "timelock"}]
+            [
+                {
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "timelock",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                }
+            ]
         )
     )
 
@@ -113,6 +125,7 @@ def test_middleware_handling_of_failed_condition_responses(
                 {
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "timelock",
+                    "chain": TESTERCHAIN_CHAIN_ID,
                 }
             ]
         )

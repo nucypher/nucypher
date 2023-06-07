@@ -9,12 +9,19 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
+from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
-CONDITIONS = [{'returnValueTest': {'value': '0', 'comparator': '>'}, 'method': 'timelock'}]
+CONDITIONS = [
+    {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "timelock",
+        "chain": TESTERCHAIN_CHAIN_ID,
+    }
+]
 
 # TODO: Get these from the contract
 ROUND_1_EVENT_NAME = "StartRitual"

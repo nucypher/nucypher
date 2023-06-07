@@ -485,11 +485,13 @@ def test_time_condition_evaluation(testerchain, timelock_condition, condition_pr
     assert condition_result is True
 
 
-def test_simple_compound_conditions_evaluation(testerchain, compound_timelock_lingo):
+def test_simple_compound_conditions_evaluation(
+    testerchain, compound_timelock_lingo, condition_providers
+):
     # TODO Improve internals of evaluation here (natural vs recursive approach)
     conditions = json.dumps(compound_timelock_lingo)
     lingo = ConditionLingo.from_json(conditions)
-    result = lingo.eval()
+    result = lingo.eval(providers=condition_providers)
     assert result is True
 
 
@@ -513,7 +515,11 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
     bob.remember_node(ursulas[0])
     bob.start_learning_loop()
     conditions = [
-        {"returnValueTest": {"value": "0", "comparator": ">"}, "method": "timelock"},
+        {
+            "returnValueTest": {"value": "0", "comparator": ">"},
+            "method": "timelock",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
         {"operator": "and"},
         {
             "chain": TESTERCHAIN_CHAIN_ID,
