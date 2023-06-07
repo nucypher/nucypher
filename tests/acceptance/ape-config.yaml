@@ -4,7 +4,6 @@ plugins:
   - name: solidity
 
 dependencies:
-  # TODO change back to nucypher/nucypher-contracts once https://github.com/nucypher/nucypher-contracts/pull/84 is merged
   - name: nucypher-contracts
     github: nucypher/nucypher-contracts
     ref: main

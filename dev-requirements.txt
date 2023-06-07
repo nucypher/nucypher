@@ -8,7 +8,7 @@ async-timeout==4.0.2 ; python_version >= '3.6'
 attrs==23.1.0 ; python_version >= '3.7'
 backcall==0.2.0
 base58==1.0.3
-bitarray==2.7.3
+bitarray==2.7.4
 cached-property==1.5.2
 certifi==2023.5.7 ; python_version >= '3.6'
 cffi==1.15.1
@@ -17,16 +17,16 @@ charset-normalizer==2.1.1 ; python_full_version >= '3.6.0'
 click==8.1.3
 commonmark==0.9.1
 coverage==6.5.0
-cryptography==40.0.2
+cryptography==41.0.1
 cytoolz==0.12.1 ; implementation_name == 'cpython'
 dataclassy==0.11.1 ; python_version >= '3.6'
 decorator==5.1.1 ; python_version >= '3.5'
-deprecated==1.2.13 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
+deprecated==1.2.14 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 distlib==0.3.6
 eip712==0.2.1 ; python_version >= '3.8' and python_version < '4'
 eth-abi==4.0.0 ; python_version >= '3.7' and python_version < '4'
 eth-account==0.8.0 ; python_version >= '3.6' and python_version < '4'
-eth-ape==0.6.9
+eth-ape==0.6.10
 eth-bloom==2.0.0 ; python_version >= '3.7' and python_version < '4'
 eth-hash==0.5.1 ; python_version >= '3.7' and python_version < '4'
 eth-keyfile==0.6.1
@@ -35,7 +35,7 @@ eth-rlp==0.3.0 ; python_version >= '3.7' and python_version < '4'
 eth-tester==0.9.0b1
 eth-typing==3.3.0 ; python_full_version >= '3.7.2' and python_version < '4'
 eth-utils==2.1.0
-ethpm-types==0.5.1 ; python_version >= '3.8' and python_version < '4'
+ethpm-types==0.5.2 ; python_version >= '3.8' and python_version < '4'
 evm-trace==0.1.0a20 ; python_version >= '3.8' and python_version < '4'
 exceptiongroup==1.1.1 ; python_version < '3.11'
 executing==1.2.0
@@ -43,7 +43,7 @@ filelock==3.12.0 ; python_version >= '3.7'
 frozenlist==1.3.3 ; python_version >= '3.7'
 greenlet==2.0.2 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
 hexbytes==0.3.0 ; python_version >= '3.7' and python_version < '4'
-hypothesis==6.75.3
+hypothesis==6.76.0
 identify==2.5.24 ; python_version >= '3.7'
 idna==3.4 ; python_version >= '3.5'
 ijson==3.2.0.post0
@@ -52,10 +52,10 @@ importlib-resources==5.12.0 ; python_version < '3.9'
 iniconfig==2.0.0 ; python_version >= '3.7'
 ipython==8.12.2 ; python_version >= '3.8'
 jedi==0.18.2 ; python_version >= '3.6'
-jsonschema==4.18.0a7 ; python_version >= '3.8'
-jsonschema-specifications==2023.5.1 ; python_version >= '3.8'
+jsonschema==4.18.0a9 ; python_version >= '3.8'
+jsonschema-specifications==2023.5.2 ; python_version >= '3.8'
 lazyasd==0.1.4
-lru-dict==1.1.8
+lru-dict==1.2.0
 matplotlib-inline==0.1.6 ; python_version >= '3.5'
 morphys==1.0
 msgspec==0.15.1 ; python_version >= '3.8'
@@ -74,7 +74,7 @@ platformdirs==3.5.1 ; python_version >= '3.7'
 pluggy==1.0.0 ; python_version >= '3.6'
 pre-commit==3.3.2
 prompt-toolkit==3.0.38 ; python_full_version >= '3.7.0'
-protobuf==4.23.1 ; python_version >= '3.7'
+protobuf==4.23.2 ; python_version >= '3.7'
 ptyprocess==0.7.0
 pure-eval==0.2.2
 py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
@@ -96,7 +96,7 @@ pyjwt[crypto]==2.7.0 ; python_version >= '3.7'
 pynacl==1.5.0
 pysha3==1.0.2
 pytest==6.2.5
-pytest-cov==4.0.0
+pytest-cov==4.1.0
 pytest-mock==3.10.0
 pytest-timeout==2.1.0
 pytest-twisted==1.14.0
@@ -104,8 +104,8 @@ python-baseconv==1.2.2
 python-dateutil==2.8.2 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
 pytz==2023.3
 pyyaml==6.0 ; python_version >= '3.6'
-referencing==0.28.3 ; python_version >= '3.8'
-regex==2023.5.5 ; python_version >= '3.6'
+referencing==0.29.0 ; python_version >= '3.8'
+regex==2023.6.3 ; python_version >= '3.6'
 requests==2.31.0
 rich==12.6.0 ; python_full_version >= '3.6.3' and python_full_version < '4.0.0'
 rlp==3.0.0
@@ -122,8 +122,8 @@ toolz==0.12.0 ; python_version >= '3.5'
 tqdm==4.65.0 ; python_version >= '3.7'
 traitlets==5.9.0 ; python_version >= '3.7'
 trie==2.1.0 ; python_version >= '3.7' and python_version < '4'
-typing-extensions==4.6.0 ; python_version >= '3.7'
-urllib3==2.0.2 ; python_version >= '3.7'
+typing-extensions==4.6.3 ; python_version >= '3.7'
+urllib3==2.0.3 ; python_version >= '3.7'
 varint==1.0.2
 virtualenv==20.23.0 ; python_version >= '3.7'
 watchdog==2.3.1
