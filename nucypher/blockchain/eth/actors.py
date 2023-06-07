@@ -31,7 +31,10 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
@@ -180,7 +183,6 @@ class Operator(BaseActor):
         # because, given the need for initialization context, it's far less melodramatic
         # to do it here, and it's still available via the public crypto powers API.
         crypto_power.consume_power_up(transacting_power)
-
         self.payment_method = payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
@@ -191,24 +193,32 @@ class Operator(BaseActor):
         self.__operator_address = operator_address
         self.__staking_provider_address = None  # set by block_until_ready
         if is_me:
-            self.application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=self.registry)
+            self.application_agent = ContractAgency.get_agent(
+                PREApplicationAgent,
+                eth_provider_uri=eth_provider_uri,
+                registry=self.registry,
+            )
             self.work_tracker = work_tracker or WorkTracker(worker=self)
 
+            #
             # Multi-provider support
+            #
+
+            # TODO: Improve and formalize fully configurable multi-provider support
             # TODO: Abstract away payment provider  #3004
-            eth_chain = self.application_agent.blockchain
-            polygon_chain = payment_method.agent.blockchain
-
-            # TODO: #3094 This is a hack to get around a bug where an InfuraClient in instantiated with a Web3 instance
-            #       that has a different provider than the one passed to the constructor.  This is a temporary fix.
-            polygon_chain.client.w3 = Web3(polygon_chain.provider)
-
-            # TODO: Verify consistency between network names and provider connection?
             # TODO: #3094 Is chain ID stable and completely reliable?
+            # TODO: Relocate to a higher layer
+            eth_chain = self.application_agent.blockchain
+            polygon_chain = self.payment_method.agent.blockchain
+
+            # TODO: Use clients layer?
             self.condition_providers = {
                 eth_chain.client.chain_id: eth_chain.provider,
-                polygon_chain.client.chain_id: polygon_chain.provider
+                polygon_chain.client.chain_id: polygon_chain.provider,
             }
+            self.log.info(
+                f"Connected to {len(self.condition_providers)} blockchains: {self.condition_providers}"
+            )
 
     def _local_operator_address(self):
         return self.__operator_address
@@ -283,13 +293,14 @@ class Ritualist(BaseActor):
         """ritualist-specific errors"""
 
     def __init__(
-            self,
-            eth_provider_uri: str,
-            crypto_power: CryptoPower,
-            transacting_power: TransactingPower,
-            publish_finalization: bool = True,
-            *args,
-            **kwargs,
+        self,
+        provider_uri: str,  # this is a blockchain connection to the chain with the coordinator contract
+        network: str,
+        crypto_power: CryptoPower,
+        transacting_power: TransactingPower,
+        publish_finalization: bool = True,  # TODO: Remove this
+        *args,
+        **kwargs,
     ):
         crypto_power.consume_power_up(transacting_power)
         super().__init__(transacting_power=transacting_power, *args, **kwargs)
@@ -297,15 +308,13 @@ class Ritualist(BaseActor):
 
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
-            registry=self.registry,
-            eth_provider_uri=eth_provider_uri
+            registry=InMemoryContractRegistry.from_latest_publication(network=network),
+            eth_provider_uri=provider_uri,  # TODO: rename, this might be a polygon provider
         )
 
         # track active onchain rituals
         self.ritual_tracker = ActiveRitualTracker(
             ritualist=self,
-            eth_provider=self.coordinator_agent.blockchain.provider,
-            contract=self.coordinator_agent.contract
         )
 
         self.publish_finalization = (
@@ -424,16 +433,23 @@ class Ritualist(BaseActor):
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
+        # FIXME: Rearrange checks - for the moment, obtain more information for logging purposes
+        # validate the active ritual tracker state
+        participant = self.coordinator_agent.get_participant_from_provider(
+            ritual_id=ritual_id, provider=self.checksum_address
+        )
+
+        self.log.debug(
+            f"Ritual {ritual_id} with status {status}, timestamp {ritual.init_timestamp}. "
+            f"Stored transcript data is '{participant.transcript.hex()}'"
+        )
+
         # validate the status
         if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
             raise self.RitualError(
                 f"ritual #{ritual_id} is not waiting for transcripts; status={status}."
             )
 
-        # validate the active ritual tracker state
-        participant = self.coordinator_agent.get_participant_from_provider(
-            ritual_id=ritual_id, provider=self.checksum_address
-        )
         if participant.transcript:
             raise self.RitualError(
                 f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"

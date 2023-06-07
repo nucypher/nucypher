@@ -1,5 +1,6 @@
 import os
 
+import pytest
 import pytest_twisted
 from hexbytes import HexBytes
 from twisted.internet import threads
@@ -13,7 +14,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.trackers.pre import WorkTrackerBase, WorkTracker
+from nucypher.blockchain.eth.trackers.pre import WorkTracker, WorkTrackerBase
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
@@ -25,6 +26,7 @@ def log(message):
     print(message)
 
 
+@pytest.mark.usefixtures("test_registry_source_manager")
 def test_ursula_operator_confirmation(
     ursula_test_config,
     testerchain,

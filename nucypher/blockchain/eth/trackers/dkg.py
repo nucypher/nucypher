@@ -1,11 +1,10 @@
 import os
 import time
-from twisted.internet import threads
 from typing import Callable, List, Optional, Tuple, Type, Union
-from web3 import Web3
-from web3.contract.contract import Contract, ContractEvent
+
+from twisted.internet import threads
+from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
-from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -16,12 +15,21 @@ from nucypher.utilities.task import SimpleTask
 class EventActuator(EventScanner):
     """Act on events that are found by the scanner."""
 
-    def __init__(self, hooks: List[Callable], clear: bool = True, *args, **kwargs):
+    def __init__(
+        self,
+        hooks: List[Callable],
+        clear: bool = True,
+        chain_reorg_rescan_window: int = 10,
+        *args,
+        **kwargs,
+    ):
         self.log = Logger("EventActuator")
         if clear and os.path.exists(JSONifiedState.STATE_FILENAME):
             os.remove(JSONifiedState.STATE_FILENAME)
         self.hooks = hooks
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            chain_reorg_rescan_window=chain_reorg_rescan_window, *args, **kwargs
+        )
 
     def process_event(self, event, get_block_when):
         for hook in self.hooks:
@@ -56,24 +64,17 @@ class ActiveRitualTracker:
 
     MAX_CHUNK_SIZE = 10000
 
-    def __init__(self,
-                 ritualist,
-                 eth_provider: BaseProvider,
-                 contract: Contract,
-                 start_block: Optional[int] = None,  # TODO: use a start block that correlates to the ritual timeout
-                 persistent: bool = False  # TODO: use persistent storage?
-                 ):
-
+    def __init__(
+        self,
+        ritualist: "Ritualist",
+        persistent: bool = False,  # TODO: use persistent storage?
+    ):
         self.log = Logger("RitualTracker")
 
         self.ritualist = ritualist
+        self.coordinator_agent = ritualist.coordinator_agent
+
         self.rituals = dict()  # TODO: use persistent storage?
-
-        self.eth_provider = eth_provider
-        self.contract = contract
-
-        # Determine the start block for the event scanner
-        self.start_block = start_block
 
         # Restore/create persistent event scanner state
         self.persistent = persistent
@@ -82,18 +83,14 @@ class ActiveRitualTracker:
 
         # Map events to handlers
         self.actions = {
-            contract.events.StartRitual: self.ritualist.perform_round_1,
-            contract.events.StartAggregationRound: self.ritualist.perform_round_2,
+            self.contract.events.StartRitual: self.ritualist.perform_round_1,
+            self.contract.events.StartAggregationRound: self.ritualist.perform_round_2,
         }
         self.events = list(self.actions)
 
-        self.provider = eth_provider
-        # Remove the default JSON-RPC retry middleware
+        # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
-        self.provider._middlewares = (
-            tuple()
-        )  # TODO: Do this more precisely to not unintentionally remove other middlewares
-        self.web3 = Web3(self.provider)
+        # self.web3.middleware_onion.remove(http_retry_request_middleware)
 
         self.scanner = EventActuator(
             hooks=[self._handle_ritual_event],
@@ -101,7 +98,7 @@ class ActiveRitualTracker:
             state=self.state,
             contract=self.contract,
             events=self.events,
-            filters={"address": contract.address},
+            filters={"address": self.contract.address},
             # How many maximum blocks at the time we request from JSON-RPC,
             # and we are unlikely to exceed the response size limit of the JSON-RPC server
             max_chunk_scan_size=self.MAX_CHUNK_SIZE
@@ -111,47 +108,59 @@ class ActiveRitualTracker:
         self.active_tasks = set()
         self.refresh()
 
-    def _get_start_block_number(self) -> int:
+    @property
+    def provider(self):
+        return self.web3.provider
+
+    @property
+    def web3(self):
+        return self.coordinator_agent.blockchain.w3
+
+    @property
+    def contract(self):
+        return self.coordinator_agent.contract
+
+    # TODO: should sample_window_size be additionally configurable/chain-dependent?
+    def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
         """
         Returns the block number to start scanning for events from.
         """
-        w3 = self.ritualist.coordinator_agent.blockchain.w3
-        target_timestamp = time.time() - self.ritualist.coordinator_agent.get_timeout()
+        w3 = self.web3
+        timeout = self.coordinator_agent.get_timeout()
+
         latest_block = w3.eth.get_block('latest')
         if latest_block.number == 0:
             return 0
 
         # get average block time
-        num_past_blocks = 100
-        base_block_number = latest_block.number - num_past_blocks
-        if base_block_number <= 0:
+        sample_block_number = latest_block.number - sample_window_size
+        if sample_block_number <= 0:
             return 0
-        base_block = w3.eth.get_block(base_block_number)
-        average_block_time = (latest_block.timestamp - base_block.timestamp) / num_past_blocks
+        base_block = w3.eth.get_block(sample_block_number)
+        average_block_time = (
+            latest_block.timestamp - base_block.timestamp
+        ) / sample_window_size
 
-        number_of_blocks_in_the_past = int(
-            (latest_block.timestamp - target_timestamp) / average_block_time
-        )
+        number_of_blocks_in_the_past = int(timeout / average_block_time)
 
         expected_start_block = w3.eth.get_block(
             max(0, latest_block.number - number_of_blocks_in_the_past)
         )
+        target_timestamp = latest_block.timestamp - timeout
+
+        # Keep looking back until we find the last block before the target timestamp
         while (
             expected_start_block.number > 0
             and expected_start_block.timestamp > target_timestamp
         ):
             expected_start_block = w3.eth.get_block(expected_start_block.number - 1)
 
-        expected_start_block_number = 0
-        if expected_start_block.number > 0:
-            # if non-zero block found - return the block before
-            expected_start_block_number = int(expected_start_block.number - 1)
-
-        return expected_start_block_number
+        # if non-zero block found - return the block before
+        return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
 
     def get_ritual(self, ritual_id: int, with_participants: bool = True):
         """Get a ritual from the blockchain."""
-        ritual = self.ritualist.coordinator_agent.get_ritual(
+        ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id, with_participants=with_participants
         )
         return ritual
@@ -160,7 +169,7 @@ class ActiveRitualTracker:
         """Refresh the list of rituals with the latest data from the blockchain"""
         ritual_ids = self.rituals.keys()
         if all:
-            ritual_ids = range(self.ritualist.coordinator_agent.number_of_rituals() - 1)
+            ritual_ids = range(self.coordinator_agent.number_of_rituals() - 1)
         elif fetch_rituals:
             ritual_ids = [*fetch_rituals, *ritual_ids]
         for rid in ritual_ids:
@@ -230,7 +239,7 @@ class ActiveRitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        self.log.debug(f"({account[:8]}) Scanning events from blocks {start_block} - {end_block}")
+        self.log.debug(f"({account[:8]}) Scanning events in block range {start_block} - {end_block}")
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:
@@ -246,16 +255,20 @@ class ActiveRitualTracker:
         Because there might have been a minor Ethereum chain reorganisations since the last scan ended,
         we need to discard the last few blocks from the previous scan results.
         """
-        chain_reorg_safety_blocks = 10
-        self.scanner.delete_potentially_forked_block_data(self.state.get_last_scanned_block() - chain_reorg_safety_blocks)
+        self.scanner.delete_potentially_forked_block_data(
+            self.state.get_last_scanned_block() - self.scanner.chain_reorg_rescan_window
+        )
 
-        # Scan from [last block scanned] - [latest ethereum block]
-        # Note that our chain reorg safety blocks cannot go negative
-        if self.start_block is None:
-            self.start_block = self._get_start_block_number()
-        start_block = max(self.state.get_last_scanned_block() - chain_reorg_safety_blocks, self.start_block)
+        if self.scanner.get_last_scanned_block() == 0:
+            # first run so calculate starting block number based on dkg timeout
+            suggested_start_block = self._get_first_scan_start_block_number()
+        else:
+            suggested_start_block = self.scanner.get_suggested_scan_start_block()
+
         end_block = self.scanner.get_suggested_scan_end_block()
-        self.__scan(start_block, end_block, self.ritualist.transacting_power.account)
+        self.__scan(
+            suggested_start_block, end_block, self.ritualist.transacting_power.account
+        )
 
     def add_ritual(self, ritual_id, ritual):
         self.rituals[ritual_id] = ritual

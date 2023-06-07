@@ -810,7 +810,6 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         known_nodes: Iterable[Teacher] = None,
         **character_kwargs,
     ):
-
         Character.__init__(
             self,
             is_me=is_me,
@@ -849,19 +848,24 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                     payment_method=payment_method,
                     client_password=client_password,
                 )
+
+                # DKG Ritualist
+                Ritualist.__init__(
+                    self,
+                    domain=domain,
+                    provider_uri=payment_method.provider,
+                    network=payment_method.network,
+                    transacting_power=self.transacting_power,
+                    crypto_power=self._crypto_power,
+                    registry=self.registry,
+                )
+
             except Exception:
+                # TODO: Move this lower to encapsulate the Ritualist init in a try/except block.
                 # TODO: Do not announce self to "other nodes" until this init is finished.
                 # It's not possible to finish constructing this node.
                 self.stop(halt_reactor=False)
                 raise
-
-            # DKG Ritualist
-            Ritualist.__init__(self,
-                               domain=domain,
-                               eth_provider_uri=eth_provider_uri,
-                               transacting_power=self.transacting_power,
-                               registry=self.registry,
-                               crypto_power=self._crypto_power)
 
             # Use this power to substantiate the stamp
             self._substantiate_stamp()
@@ -1256,8 +1260,12 @@ class Ursula(Teacher, Character, Operator, Ritualist):
 
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
-            application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
-            seednode_stake = application_agent.get_authorized_stake(staking_provider=staking_provider_address)
+            application_agent = ContractAgency.get_agent(
+                PREApplicationAgent, eth_provider_uri=provider_uri, registry=registry
+            )
+            seednode_stake = application_agent.get_authorized_stake(
+                staking_provider=staking_provider_address
+            )
             if seednode_stake < minimum_stake:
                 raise Learner.NotATeacher(f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake}).")
 

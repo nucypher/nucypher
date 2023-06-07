@@ -8,24 +8,18 @@ With the stateful mechanism, you can do one batch scan or incremental scans,
 where events are added wherever the scanner left off.
 """
 
-import json
-
-import time
-
-import datetime
-
-from abc import ABC, abstractmethod
-
-import logging
-
 import csv
+import datetime
+import json
+import logging
+import time
+from abc import ABC, abstractmethod
 from collections import OrderedDict
-
-from eth_abi.codec import ABICodec
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple, Callable, Iterable
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import maya
+from eth_abi.codec import ABICodec
 from web3 import Web3
 from web3._utils.events import get_event_data
 from web3._utils.filters import construct_event_filter_params
@@ -136,8 +130,19 @@ class EventScanner:
     because it cannot correctly throttle and decrease the `eth_get_logs` block number range.
     """
 
-    def __init__(self, web3: Web3, contract: Contract, state: EventScannerState, events: List, filters: {},
-                 max_chunk_scan_size: int = 10000, max_request_retries: int = 30, request_retry_seconds: float = 3.0):
+    def __init__(
+        self,
+        web3: Web3,
+        contract: Contract,
+        state: EventScannerState,
+        events: List,
+        filters: {},
+        min_chunk_scan_size: int = 10,  # 12 s/block = 120 seconds period
+        max_chunk_scan_size: int = 10000,
+        max_request_retries: int = 30,
+        request_retry_seconds: float = 3.0,
+        chain_reorg_rescan_window: int = 0,
+    ):
         """
         :param contract: Contract
         :param events: List of web3 Event we scan
@@ -145,6 +150,7 @@ class EventScanner:
         :param max_chunk_scan_size: JSON-RPC API limit in the number of blocks we query. (Recommendation: 10,000 for mainnet, 500,000 for testnets)
         :param max_request_retries: How many times we try to reattempt a failed JSON-RPC call
         :param request_retry_seconds: Delay between failed requests to let JSON-RPC server to recover
+        :param chain_reorg_rescan_window: Number of blocks to rescan in case of chain reorganization (to prevent missed blocks)
         """
 
         self.logger = logger
@@ -155,10 +161,11 @@ class EventScanner:
         self.filters = filters
 
         # Our JSON-RPC throttling parameters
-        self.min_scan_chunk_size = 10  # 12 s/block = 120 seconds period
+        self.min_scan_chunk_size = min_chunk_scan_size
         self.max_scan_chunk_size = max_chunk_scan_size
         self.max_request_retries = max_request_retries
         self.request_retry_seconds = request_retry_seconds
+        self.chain_reorg_rescan_window = chain_reorg_rescan_window
 
         # Factor how fast we increase the chunk size if results are found
         # # (slow down scan after starting to get hits)
@@ -186,15 +193,14 @@ class EventScanner:
         """Get where we should start to scan for new token events.
 
         If there are no prior scans, start from block 1.
-        Otherwise, start from the last end block minus ten blocks.
-        We rescan the last ten scanned blocks in the case there were forks to avoid
+        Otherwise, start from the last end block minus chain reorg blocks.
+        We rescan some previous blocks in the case there were forks to avoid
         misaccounting due to minor single block works (happens once in a hour in Ethereum).
-        These heurestics could be made more robust, but this is for the sake of simple reference implementation.
         """
 
         end_block = self.get_last_scanned_block()
         if end_block:
-            return max(1, end_block - 10)
+            return max(1, end_block - self.chain_reorg_rescan_window)
         return 1
 
     def get_suggested_scan_end_block(self):
@@ -213,9 +219,6 @@ class EventScanner:
 
     def scan_chunk(self, start_block, end_block) -> Tuple[int, datetime.datetime, list]:
         """Read and process events between to block numbers.
-
-        Dynamically decrease the size of the chunk if the case JSON-RPC server pukes out.
-
         :return: tuple(actual end block number, when this block was mined, processed events)
         """
 
@@ -232,23 +235,13 @@ class EventScanner:
         all_processed = []
 
         for event_type in self.events:
-
-            # Callable that takes care of the underlying web3 call
-            def _fetch_events(_start_block, _end_block):
-                return _fetch_events_for_all_contracts(self.web3,
-                                                       event_type,
-                                                       self.filters,
-                                                       from_block=_start_block,
-                                                       to_block=_end_block)
-
-            # Do `n` retries on `eth_get_logs`,
-            # throttle down block range if needed
-            end_block, events = _retry_web3_call(
-                _fetch_events,
-                start_block=start_block,
-                end_block=end_block,
-                retries=self.max_request_retries,
-                delay=self.request_retry_seconds)
+            events = _fetch_events_for_all_contracts(
+                self.web3,
+                event_type,
+                self.filters,
+                from_block=start_block,
+                to_block=end_block,
+            )
 
             for evt in events:
                 processed = self.process_event(event=evt, get_block_when=get_block_when)
@@ -275,7 +268,7 @@ class EventScanner:
         processed = self.state.process_event(block_when, event)
         return processed
 
-    def estimate_next_chunk_size(self, current_chuck_size: int, event_found_count: int):
+    def estimate_next_chunk_size(self, current_chunk_size: int, event_found_count: int):
         """Try to figure out optimal chunk size
 
         Our scanner might need to scan the whole blockchain for all events
@@ -286,29 +279,26 @@ class EventScanner:
 
         * Do not overload node serving JSON-RPC API by asking data for too many events at a time
 
-        Currently Ethereum JSON-API does not have an API to tell when a first event occured in a blockchain
+        Currently, Ethereum JSON-API does not have an API to tell when a first event occurred in a blockchain
         and our heuristics try to accelerate block fetching (chunk size) until we see the first event.
 
-        These heurestics exponentially increase the scan chunk size depending on if we are seeing events or not.
+        These heuristics exponentially increase the scan chunk size depending on if we are seeing events or not.
         When any transfers are encountered, we are back to scanning only a few blocks at a time.
         It does not make sense to do a full chain scan starting from block 1, doing one JSON-RPC call per 20 blocks.
         """
 
         if event_found_count > 0:
             # When we encounter first events, reset the chunk size window
-            current_chuck_size = self.min_scan_chunk_size
+            current_chunk_size = self.min_scan_chunk_size
         else:
-            current_chuck_size *= self.chunk_size_increase
+            current_chunk_size *= self.chunk_size_increase
 
-        current_chuck_size = max(self.min_scan_chunk_size, current_chuck_size)
-        current_chuck_size = min(self.max_scan_chunk_size, current_chuck_size)
-        return int(current_chuck_size)
+        current_chunk_size = max(self.min_scan_chunk_size, current_chunk_size)
+        current_chunk_size = min(self.max_scan_chunk_size, current_chunk_size)
+        return int(current_chunk_size)
 
-    def scan(self, start_block, end_block, start_chunk_size=20, progress_callback=Optional[Callable]) -> Tuple[
-        list, int]:
-        """Perform a token balances scan.
-
-        Assumes all balances in the database are valid before start_block (no forks sneaked in).
+    def scan(self, start_block, end_block, start_chunk_size=20) -> Tuple[list, int]:
+        """Perform a scan for events.
 
         :param start_block: The first block included in the scan
 
@@ -316,13 +306,13 @@ class EventScanner:
 
         :param start_chunk_size: How many blocks we try to fetch over JSON-RPC on the first attempt
 
-        :param progress_callback: If this is an UI application, update the progress of the scan
-
         :return: [All processed events, number of chunks used]
         """
 
         if start_block > end_block:
-            start_block = end_block - 1
+            raise ValueError(
+                f"start block ({start_block}) is greater than end block ({end_block})"
+            )
 
         current_block = start_block
 
@@ -336,12 +326,13 @@ class EventScanner:
 
         while current_block <= end_block:
 
-            self.state.start_chunk(current_block, chunk_size)
+            self.state.start_chunk(current_block)
 
-            # Print some diagnostics to logs to try to fiddle with real world JSON-RPC API performance
-            estimated_end_block = current_block + chunk_size
+            estimated_end_block = min(
+                current_block + chunk_size, end_block
+            )  # either entire full chunk, or we are at the last chunk
             logger.debug(
-                "Scanning token transfers for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
+                "Scanning for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
                 current_block, estimated_end_block, chunk_size, last_scan_duration, last_logs_found)
 
             start = time.time()
@@ -362,47 +353,6 @@ class EventScanner:
             self.state.end_chunk(current_end)
 
         return all_processed, total_chunks_scanned
-
-
-def _retry_web3_call(func, start_block, end_block, retries, delay) -> Tuple[int, list]:
-    """A custom retry loop to throttle down block range.
-
-    If our JSON-RPC server cannot serve all incoming `eth_get_logs` in a single request,
-    we retry and throttle down block range for every retry.
-
-    For example, Go Ethereum does not indicate what is an acceptable response size.
-    It just fails on the server-side with a "context was cancelled" warning.
-
-    :param func: A callable that triggers Ethereum JSON-RPC, as func(start_block, end_block)
-    :param start_block: The initial start block of the block range
-    :param end_block: The initial start block of the block range
-    :param retries: How many times we retry
-    :param delay: Time to sleep between retries
-    """
-    for i in range(retries):
-        try:
-            return end_block, func(start_block, end_block)
-        except Exception as e:
-            # Assume this is HTTPConnectionPool(host='localhost', port=8545): Read timed out. (read timeout=10)
-            # from Go Ethereum. This translates to the error "context was cancelled" on the server side:
-            # https://github.com/ethereum/go-ethereum/issues/20426
-            if i < retries - 1:
-                # Give some more verbose info than the default middleware
-                logger.warning(
-                    "Retrying events for block range %d - %d (%d) failed with %s, retrying in %s seconds",
-                    start_block,
-                    end_block,
-                    end_block-start_block,
-                    e,
-                    delay)
-                # Decrease the `eth_get_blocks` range
-                end_block = start_block + ((end_block - start_block) // 2)
-                # Let the JSON-RPC to recover e.g. from restart
-                time.sleep(delay)
-                continue
-            else:
-                logger.warning("Out of retries")
-                raise
 
 
 def _fetch_events_for_all_contracts(
@@ -519,8 +469,8 @@ class JSONifiedState(EventScannerState):
             if block_num in self.state["blocks"]:
                 del self.state["blocks"][block_num]
 
-    def start_chunk(self, block_number, chunk_size):
-        pass
+    def start_chunk(self, block_number):
+        pass  # TODO any reason this is not implemented?
 
     def end_chunk(self, block_number):
         """Save at the end of each block, so we can resume in the case of a crash or CTRL+C"""

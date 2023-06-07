@@ -63,11 +63,13 @@ LOCAL_CHAINS = {
 
 # TODO: This list is incomplete, but it suffices for the moment - See #1857
 POA_CHAINS = {
-    4,    # Rinkeby
-    5,    # Goerli
-    42,   # Kovan
-    77,   # Sokol
+    4,  # Rinkeby
+    5,  # Goerli
+    42,  # Kovan
+    77,  # Sokol
     100,  # xDAI
+    137,  # Polygon/Mainnet
+    80001,  # "Polygon/Mumbai"
 }
 
 

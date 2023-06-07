@@ -59,7 +59,6 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas, test_registr
         if event['log_level'] == LogLevel.warn:
             warnings.append(event)
 
-
     ursulas = list(ursulas)
     ursula_whom_vladimir_will_imitate, other_ursula = ursulas[0], ursulas[1]
 

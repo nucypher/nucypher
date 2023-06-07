@@ -460,6 +460,17 @@ class CharacterConfiguration(BaseConfiguration):
                 f"Using existing blockchain interface connection ({self.eth_provider_uri})."
             )
 
+        # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
+        # for uri in eth_provider_uri (list of uris fom config):
+        BlockchainInterfaceFactory.get_or_create_interface(
+            eth_provider_uri=payment_provider,
+            poa=self.poa,
+            light=self.is_light,
+            emitter=emitter,
+            gas_strategy=self.gas_strategy,
+            max_gas_price=self.max_gas_price,
+        )
+
         if not self.registry:
             # TODO: These two code blocks are untested.
             if (

@@ -246,19 +246,16 @@ class BlockchainInterface:
 
     def attach_middleware(self):
         chain_id = int(self.client.chain_id)
-        if self.poa is None:  # If POA is not set explicitly, try to autodetect from chain id
-            self.poa = chain_id in POA_CHAINS
+        self.poa = chain_id in POA_CHAINS
 
-        self.log.debug(f'Ethereum chain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})')
+        self.log.debug(
+            f"Blockchain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})"
+        )
 
         # For use with Proof-Of-Authority test-blockchains
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
-
-        self.client.add_middleware(middleware.time_based_cache_middleware)
-        # self.client.add_middleware(middleware.latest_block_based_cache_middleware)  # TODO: This line causes failed tests and nonce reuse in tests. See #2348.
-        self.client.add_middleware(middleware.simple_cache_middleware)
 
         self.configure_gas_strategy()
 
@@ -840,7 +837,7 @@ class BlockchainInterfaceFactory:
         interface = interface_class(eth_provider_uri=eth_provider_uri,
                                     *interface_args,
                                     **interface_kwargs)
-
+        interface.connect()
         cls._interfaces[eth_provider_uri] = cls.CachedInterface(interface=interface, emitter=emitter)
 
     @classmethod

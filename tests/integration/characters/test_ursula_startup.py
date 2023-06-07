@@ -1,5 +1,9 @@
-def test_new_ursula_announces_herself(lonely_ursula_maker):
-    ursula_in_a_house, ursula_with_a_mouse = lonely_ursula_maker(quantity=2, domain="useless_domain")
+def test_new_ursula_announces_herself(
+    lonely_ursula_maker, test_registry_source_manager
+):
+    ursula_in_a_house, ursula_with_a_mouse = lonely_ursula_maker(
+        quantity=2, domain="useless_domain"
+    )
 
     # Neither Ursula knows about the other.
     assert ursula_with_a_mouse not in ursula_in_a_house.known_nodes
