@@ -38,6 +38,7 @@ from nucypher.cli.options import (
     option_dry_run,
     option_eth_provider_uri,
     option_force,
+    option_gas_strategy,
     option_key_material,
     option_light,
     option_lonely,
@@ -51,7 +52,7 @@ from nucypher.cli.options import (
     option_policy_registry_filepath,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri, option_gas_strategy,
+    option_teacher_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
@@ -285,16 +286,19 @@ class UrsulaCharacterOptions:
             )
 
         try:
-            URSULA = make_cli_character(character_config=ursula_config,
-                                        emitter=emitter,
-                                        min_stake=self.min_stake,
-                                        teacher_uri=self.teacher_uri,
-                                        unlock_keystore=not self.config_options.dev,
-                                        client_password=__password,
-                                        unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
-                                        lonely=self.config_options.lonely,
-                                        start_learning_now=load_seednodes,
-                                        json_ipc=json_ipc)
+            URSULA = make_cli_character(
+                character_config=ursula_config,
+                emitter=emitter,
+                provider_uri=ursula_config.eth_provider_uri,
+                min_stake=self.min_stake,
+                teacher_uri=self.teacher_uri,
+                unlock_keystore=not self.config_options.dev,
+                client_password=__password,
+                unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
+                lonely=self.config_options.lonely,
+                start_learning_now=load_seednodes,
+                json_ipc=json_ipc,
+            )
             return ursula_config, URSULA
 
         except Keystore.AuthenticationFailed as e:

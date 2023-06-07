@@ -132,7 +132,11 @@ class NucypherTokenActor(BaseActor):
     def token_agent(self):
         if self.__token_agent:
             return self.__token_agent
-        self.__token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=self.registry)
+        self.__token_agent = ContractAgency.get_agent(
+            NucypherTokenAgent,
+            eth_provider_uri=self.eth_provider_uri,
+            registry=self.registry,
+        )
         return self.__token_agent
 
     @property
@@ -297,7 +301,7 @@ class Ritualist(BaseActor):
     def __init__(
         self,
         provider_uri: str,  # this is a blockchain connection to the chain with the coordinator contract
-        network: str,
+        network: str,  # this must be the network where the coordinator lives
         crypto_power: CryptoPower,
         transacting_power: TransactingPower,
         publish_finalization: bool = True,  # TODO: Remove this

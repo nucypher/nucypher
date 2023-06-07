@@ -46,16 +46,17 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
     return emitter
 
 
-def make_cli_character(character_config,
-                       emitter,
-                       unlock_keystore: bool = True,
-                       unlock_signer: bool = True,
-                       teacher_uri: str = None,
-                       min_stake: int = 0,
-                       json_ipc: bool = False,
-                       **config_args
-                       ) -> Character:
-
+def make_cli_character(
+    character_config,
+    emitter,
+    provider_uri: str,
+    unlock_keystore: bool = True,
+    unlock_signer: bool = True,
+    teacher_uri: str = None,
+    min_stake: int = 0,
+    json_ipc: bool = False,
+    **config_args,
+) -> Character:
     #
     # Pre-Init
     #
@@ -84,13 +85,17 @@ def make_cli_character(character_config,
             teacher_uri=teacher_uri,
             min_stake=min_stake,
             network_middleware=character_config.network_middleware,
-            registry=character_config.registry
+            registry=character_config.registry,
+            provider_uri=provider_uri,
         )
         sage_nodes.append(maybe_sage_node)
 
-    CHARACTER = character_config(known_nodes=sage_nodes,
-                                 network_middleware=character_config.network_middleware,
-                                 **config_args)
+    CHARACTER = character_config(
+        known_nodes=sage_nodes,
+        network_middleware=character_config.network_middleware,
+        eth_provider_uri=provider_uri,
+        **config_args,
+    )
 
     #
     # Post-Init

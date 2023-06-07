@@ -75,7 +75,10 @@ from nucypher.blockchain.eth.agents import (
     PREApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.banners import (
     ALICE_BANNER,
@@ -428,18 +431,41 @@ class Bob(Character):
         def __init__(self, evidence: List):
             self.evidence = evidence
 
-    def __init__(self,
-                 is_me: bool = True,
-                 verify_node_bonding: bool = False,
-                 eth_provider_uri: str = None,
-                 *args, **kwargs) -> None:
+    def __init__(
+        self,
+        is_me: bool = True,
+        verify_node_bonding: bool = False,
+        eth_provider_uri: str = None,
+        coordinator_provider_uri: str = None,  # TODO: Move to a higher level and formalize
+        coordinator_network: str = None,  # TODO: Move to a higher level and formalize
+        *args,
+        **kwargs,
+    ) -> None:
+        Character.__init__(
+            self,
+            is_me=is_me,
+            known_node_class=Ursula,
+            verify_node_bonding=verify_node_bonding,
+            eth_provider_uri=eth_provider_uri,
+            *args,
+            **kwargs,
+        )
 
-        Character.__init__(self,
-                           is_me=is_me,
-                           known_node_class=Ursula,
-                           verify_node_bonding=verify_node_bonding,
-                           eth_provider_uri=eth_provider_uri,
-                           *args, **kwargs)
+        coordinator_agent = None
+        if coordinator_provider_uri:
+            if not coordinator_network:
+                raise ValueError(
+                    "If coordinator_provider_uri is set, coordinator_network must also be set"
+                )
+            coordinator_agent = ContractAgency.get_agent(
+                CoordinatorAgent,
+                eth_provider_uri=coordinator_provider_uri,
+                registry=InMemoryContractRegistry.from_latest_publication(
+                    network=coordinator_network
+                ),
+            )
+        self.coordinator_agent = coordinator_agent
+        self.coordinator_network = coordinator_network
 
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[int, TreasureMap] = {}
@@ -562,13 +588,13 @@ class Bob(Character):
 
         return cohort
 
+    @staticmethod
     def make_decryption_request(
-        self,
-        ritual_id: int,
-        ciphertext: Ciphertext,
-        lingo: Lingo,
-        variant: FerveoVariant,
-        context: Optional[dict] = None,
+            ritual_id: int,
+            ciphertext: Ciphertext,
+            lingo: Lingo,
+            variant: FerveoVariant,
+            context: Optional[dict] = None,
     ) -> ThresholdDecryptionRequest:
         conditions = Conditions(json.dumps(lingo))
         if context:
@@ -672,8 +698,11 @@ class Bob(Character):
         peering_timeout: int = 60,
     ) -> bytes:
         # blockchain reads: get the DKG parameters and the cohort.
-        coordinator_agent = ContractAgency.get_agent(CoordinatorAgent, registry=self.registry)
-        ritual = coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        if not self.coordinator_agent:
+            raise ValueError(
+                "No coordinator provider URI provided in Bob's constructor."
+            )
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
 
         if not ursulas:
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
@@ -1161,7 +1190,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
-    def seednode_for_network(cls, network: str) -> 'Ursula':
+    def seednode_for_network(cls, network: str, provider_uri: str) -> "Ursula":
         """Returns a default seednode ursula for a given network."""
         try:
             url = TEACHER_NODES[network][0]
@@ -1169,28 +1198,32 @@ class Ursula(Teacher, Character, Operator, Ritualist):
             raise ValueError(f'"{network}" is not a known network.')
         except IndexError:
             raise ValueError(f'No default seednodes available for "{network}".')
-        ursula = cls.from_seed_and_stake_info(seed_uri=url)
+        ursula = cls.from_seed_and_stake_info(seed_uri=url, provider_uri=provider_uri)
         return ursula
 
     @classmethod
-    def from_teacher_uri(cls,
-                         teacher_uri: str,
-                         min_stake: int,
-                         network_middleware: RestMiddleware = None,
-                         registry: BaseContractRegistry = None,
-                         retry_attempts: int = 2,
-                         retry_interval: int = 2
-                         ) -> 'Ursula':
-
+    def from_teacher_uri(
+        cls,
+        teacher_uri: str,
+        min_stake: int,
+        provider_uri: str,
+        registry: BaseContractRegistry = None,
+        network_middleware: RestMiddleware = None,
+        retry_attempts: int = 2,
+        retry_interval: int = 2,
+    ) -> "Ursula":
         def __attempt(attempt=1, interval=retry_interval) -> Ursula:
             if attempt >= retry_attempts:
                 raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
 
             try:
-                teacher = cls.from_seed_and_stake_info(seed_uri=teacher_uri,
-                                                       minimum_stake=min_stake,
-                                                       network_middleware=network_middleware,
-                                                       registry=registry)
+                teacher = cls.from_seed_and_stake_info(
+                    seed_uri=teacher_uri,
+                    provider_uri=provider_uri,
+                    minimum_stake=min_stake,
+                    network_middleware=network_middleware,
+                    registry=registry,
+                )
 
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
@@ -1204,13 +1237,14 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         return __attempt()
 
     @classmethod
-    def from_seed_and_stake_info(cls,
-                                 seed_uri: str,
-                                 minimum_stake: int = 0,
-                                 registry: BaseContractRegistry = None,
-                                 network_middleware: RestMiddleware = None,
-                                 ) -> Union['Ursula', 'NodeSprout']:
-
+    def from_seed_and_stake_info(
+        cls,
+        seed_uri: str,
+        provider_uri: str,
+        registry: BaseContractRegistry = None,
+        minimum_stake: int = 0,
+        network_middleware: RestMiddleware = None,
+    ) -> Union["Ursula", "NodeSprout"]:
         if network_middleware is None:
             network_middleware = RestMiddleware(registry=registry)
 

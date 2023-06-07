@@ -268,7 +268,10 @@ def alice(alice_test_config, ursulas, testerchain):
 
 @pytest.fixture(scope="module")
 def bob(bob_test_config, testerchain):
-    bob = bob_test_config.produce()
+    bob = bob_test_config.produce(
+        coordinator_provider_uri=MOCK_ETH_PROVIDER_URI,
+        coordinator_network=TEMPORARY_DOMAIN,
+    )
     yield bob
     bob.disenchant()
 

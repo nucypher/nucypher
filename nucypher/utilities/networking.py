@@ -97,11 +97,12 @@ def _request_from_node(teacher,
         log.debug(f'Failed to get external IP from teacher node ({teacher} returned {response.status_code})')
 
 
-def get_external_ip_from_default_teacher(network: str,
-                                         registry: Optional[BaseContractRegistry] = None,
-                                         log: Logger = IP_DETECTION_LOGGER
-                                         ) -> Union[str, None]:
-
+def get_external_ip_from_default_teacher(
+    network: str,
+    provider_uri: str,
+    registry: Optional[BaseContractRegistry] = None,
+    log: Logger = IP_DETECTION_LOGGER,
+) -> Union[str, None]:
     # Prevents circular imports
     from nucypher.characters.lawful import Ursula
     from nucypher.network.nodes import TEACHER_NODES
@@ -119,7 +120,7 @@ def get_external_ip_from_default_teacher(network: str,
     for teacher_uri in TEACHER_NODES[network]:
         try:
             teacher = Ursula.from_teacher_uri(
-                teacher_uri=teacher_uri, min_stake=0
+                teacher_uri=teacher_uri, provider_uri=provider_uri, min_stake=0
             )  # TODO: Handle customized min stake here.
             # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
             external_ip = _request_from_node(teacher=teacher)
@@ -165,7 +166,9 @@ def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -
     return ip
 
 
-def determine_external_ip_address(network: str, known_nodes: FleetSensor = None) -> str:
+def determine_external_ip_address(
+    network: str, provider_uri: str, known_nodes: FleetSensor = None
+) -> str:
     """
     Attempts to automatically determine the external IP in the following priority:
     1. Randomly Selected Known Nodes
@@ -182,7 +185,9 @@ def determine_external_ip_address(network: str, known_nodes: FleetSensor = None)
 
     # fallback 1
     if not rest_host:
-        rest_host = get_external_ip_from_default_teacher(network=network)
+        rest_host = get_external_ip_from_default_teacher(
+            network=network, provider_uri=provider_uri
+        )
 
     # fallback 2
     if not rest_host:

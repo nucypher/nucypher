@@ -758,23 +758,27 @@ class ContractAgency:
     __agents: Dict[str, Dict[Type[EthereumContractAgent], EthereumContractAgent]] = dict()
 
     @classmethod
-    def get_agent(cls,
-                  agent_class: Type[Agent],
-                  registry: Optional[BaseContractRegistry] = None,
-                  eth_provider_uri: Optional[str] = None,
-                  contract_version: Optional[str] = None
-                  ) -> Agent:
-
+    def get_agent(
+        cls,
+        agent_class: Type[Agent],
+        registry: Optional[BaseContractRegistry],
+        eth_provider_uri: Optional[str],
+        contract_version: Optional[str] = None,
+    ) -> Agent:
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError("Only agent subclasses can be used from the agency.")
 
+        if not eth_provider_uri:
+            raise ValueError(
+                "Need to specify an Ethereum provider URI in order to get an agent from the ContractAgency"
+            )
+
         if not registry:
-            if len(cls.__agents) == 1:
-                registry_id = list(cls.__agents.keys()).pop()
-            else:
-                raise ValueError("Need to specify a registry in order to get an agent from the ContractAgency")
-        else:
-            registry_id = registry.id
+            raise ValueError(
+                "Need to specify a registry in order to get an agent from the ContractAgency"
+            )
+        registry_id = registry.id
+
         try:
             return cast(Agent, cls.__agents[registry_id][agent_class])
         except KeyError:
