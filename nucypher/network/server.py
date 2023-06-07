@@ -148,10 +148,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         encrypted_decryption_request = EncryptedThresholdDecryptionRequest.from_bytes(
             request.data
         )
-        (
-            decryption_request,
-            response_encrypting_key,
-        ) = this_node.decrypt_threshold_decryption_request(
+
+        decryption_request = this_node.decrypt_threshold_decryption_request(
             encrypted_request=encrypted_decryption_request
         )
 
@@ -200,10 +198,15 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         )
 
         # return the decryption share
-        # TODO: #3079 #3081 encrypt the response with the requester's public key
         # TODO: #3098 nucypher-core#49 Use DecryptionShare type
-        response = ThresholdDecryptionResponse(decryption_share=bytes(decryption_share))
-        encrypted_response = response.encrypt(encrypting_key=response_encrypting_key)
+        decryption_response = ThresholdDecryptionResponse(
+            ritual_id=decryption_request.ritual_id,
+            decryption_share=bytes(decryption_share),
+        )
+        encrypted_response = this_node.encrypt_threshold_decryption_response(
+            decryption_response=decryption_response,
+            requester_public_key=encrypted_decryption_request.requester_public_key,
+        )
         return Response(
             bytes(encrypted_response),
             headers={"Content-Type": "application/octet-stream"},

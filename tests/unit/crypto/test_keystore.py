@@ -323,25 +323,15 @@ def test_derive_threshold_request_decrypting_power(tmpdir):
     )
 
     ritual_id = 23
-    request_encrypting_key = (
-        threshold_request_decrypting_power.get_pubkey_from_ritual_id(
-            ritual_id=ritual_id
-        )
+    public_key = threshold_request_decrypting_power.get_pubkey_from_ritual_id(
+        ritual_id=ritual_id
     )
-    other_request_encrypting_key = (
-        threshold_request_decrypting_power.get_pubkey_from_ritual_id(
-            ritual_id=ritual_id
-        )
+    other_public_key = threshold_request_decrypting_power.get_pubkey_from_ritual_id(
+        ritual_id=ritual_id
     )
-    assert (
-        request_encrypting_key.to_compressed_bytes()
-        == other_request_encrypting_key.to_compressed_bytes()
-    )
+    assert bytes(public_key) == bytes(other_public_key)
 
-    different_ritual_request_encrypting_key = (
+    different_ritual_public_key = (
         threshold_request_decrypting_power.get_pubkey_from_ritual_id(ritual_id=0)
     )
-    assert (
-        request_encrypting_key.to_compressed_bytes
-        != different_ritual_request_encrypting_key.to_compressed_bytes()
-    )
+    assert bytes(public_key) != bytes(different_ritual_public_key)
