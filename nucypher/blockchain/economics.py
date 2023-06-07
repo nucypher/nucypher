@@ -1,5 +1,3 @@
-
-
 from typing import Tuple, Optional
 
 from web3 import Web3
@@ -107,16 +105,13 @@ class EconomicsFactory:
     def retrieve_from_blockchain(registry: BaseContractRegistry, eth_provider_uri: Optional[str] = None) -> Economics:
 
         # Agents
-        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri)
+        application_agent = ContractAgency.get_agent(
+            PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri
+        )
 
         # PRE Application
         min_authorization = application_agent.get_min_authorization()
         min_operator_seconds = application_agent.get_min_operator_seconds()
-
-        # Adjudicator
-        # TODO: Reintroduce Adjudicator
-        # adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=registry, provider_uri=provider_uri)
-        # slashing_parameters = adjudicator_agent.slashing_parameters()
 
         # Aggregate
         economics_parameters = dict(min_authorization=min_authorization,

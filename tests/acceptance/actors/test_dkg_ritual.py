@@ -6,6 +6,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
+from tests.constants import PYEVM_DEV_URI
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 # constants
@@ -39,7 +40,9 @@ def cohort(ursulas):
 @pytest.fixture(scope='module')
 def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
-    return ContractAgency.get_agent(CoordinatorAgent, registry=test_registry)
+    return ContractAgency.get_agent(
+        CoordinatorAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
 
 
 @pytest_twisted.inlineCallbacks()

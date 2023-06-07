@@ -115,7 +115,17 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
 
 @pytest.mark.parametrize('dkg_size, ritual_id, variant', PARAMS)
 @pytest_twisted.inlineCallbacks()
-def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bob, dkg_size, ritual_id, variant):
+def test_ursula_ritualist(
+    testerchain,
+    mock_coordinator_agent,
+    cohort,
+    alice,
+    bob,
+    dkg_size,
+    ritual_id,
+    variant,
+    test_registry_source_manager,
+):
     """Tests the DKG and the encryption/decryption of a message"""
 
     cohort = cohort[:dkg_size]

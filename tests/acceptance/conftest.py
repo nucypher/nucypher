@@ -1,13 +1,11 @@
 import os
-import pytest
 import random
+
+import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    PREApplicationAgent,
-)
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -19,8 +17,10 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_STAKE_FOR_TESTS,
     MOCK_STAKING_CONTRACT_NAME,
+    TEST_ETH_PROVIDER_URI,
 )
-from tests.utils.ape import deploy_contracts as ape_deploy_contracts, registry_from_ape_deployments
+from tests.utils.ape import deploy_contracts as ape_deploy_contracts
+from tests.utils.ape import registry_from_ape_deployments
 from tests.utils.blockchain import TesterBlockchain
 
 test_logger = Logger("acceptance-test-logger")
@@ -70,7 +70,11 @@ def threshold_staking(testerchain, test_registry):
 
 @pytest.fixture(scope="module")
 def staking_providers(testerchain, test_registry, threshold_staking):
-    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    pre_application_agent = ContractAgency.get_agent(
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+    )
     blockchain = pre_application_agent.blockchain
 
     staking_providers = list()

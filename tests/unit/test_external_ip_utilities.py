@@ -21,7 +21,7 @@ from nucypher.utilities.networking import (
     get_external_ip_from_default_teacher,
     get_external_ip_from_known_nodes,
 )
-from tests.constants import MOCK_IP_ADDRESS
+from tests.constants import MOCK_IP_ADDRESS, PYEVM_DEV_URI
 
 MOCK_NETWORK = 'holodeck'
 MOCK_PORT = 1111
@@ -171,8 +171,10 @@ def test_get_external_ip_from_known_nodes_client(mocker, mock_client):
 def test_get_external_ip_default_teacher_unreachable(mocker):
     for error in NodeSeemsToBeDown:
         # Default seednode is down
-        mocker.patch.object(Ursula, 'from_teacher_uri', side_effect=error)
-        ip = get_external_ip_from_default_teacher(network=MOCK_NETWORK)
+        mocker.patch.object(Ursula, "from_teacher_uri", side_effect=error)
+        ip = get_external_ip_from_default_teacher(
+            network=MOCK_NETWORK, provider_uri=PYEVM_DEV_URI
+        )
         assert ip is None
 
 
@@ -183,7 +185,9 @@ def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy(b'deadbeefdeadbeefdead'))
 
     # "Success"
-    ip = get_external_ip_from_default_teacher(network=MOCK_NETWORK)
+    ip = get_external_ip_from_default_teacher(
+        network=MOCK_NETWORK, provider_uri=PYEVM_DEV_URI
+    )
     assert ip == MOCK_IP_ADDRESS
 
     # Check that the correct endpoint and function is targeted
@@ -199,12 +203,16 @@ def test_get_external_ip_default_unknown_network():
 
     # Without fleet sensor
     with pytest.raises(UnknownIPAddress):
-        determine_external_ip_address(network=unknown_domain)
+        determine_external_ip_address(
+            network=unknown_domain, provider_uri=PYEVM_DEV_URI
+        )
 
     # with fleet sensor
     sensor = FleetSensor(domain=unknown_domain)
     with pytest.raises(UnknownIPAddress):
-        determine_external_ip_address(known_nodes=sensor, network=unknown_domain)
+        determine_external_ip_address(
+            known_nodes=sensor, network=unknown_domain, provider_uri=PYEVM_DEV_URI
+        )
 
 
 def test_get_external_ip_cascade_failure(mocker, mock_requests):
@@ -216,8 +224,10 @@ def test_get_external_ip_cascade_failure(mocker, mock_requests):
     sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_fleet_state()
 
-    with pytest.raises(UnknownIPAddress, match='External IP address detection failed'):
-        determine_external_ip_address(network=MOCK_NETWORK, known_nodes=sensor)
+    with pytest.raises(UnknownIPAddress, match="External IP address detection failed"):
+        determine_external_ip_address(
+            network=MOCK_NETWORK, known_nodes=sensor, provider_uri=PYEVM_DEV_URI
+        )
 
     first.assert_called_once()
     second.assert_called_once()

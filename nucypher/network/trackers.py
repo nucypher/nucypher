@@ -29,9 +29,11 @@ class OperatorBondedTracker(SimpleTask):
         super().__init__()
 
     def run(self) -> None:
-        application_agent = ContractAgency.get_agent(PREApplicationAgent,
-                                                     registry=self._ursula.registry,
-                                                     eth_provider_uri=self._ursula.eth_provider_uri)
+        application_agent = ContractAgency.get_agent(
+            PREApplicationAgent,
+            registry=self._ursula.registry,
+            eth_provider_uri=self._ursula.eth_provider_uri,
+        )
         staking_provider_address = application_agent.get_staking_provider_from_operator(
             operator_address=self._ursula.operator_address)
         if staking_provider_address == NULL_ADDRESS:
