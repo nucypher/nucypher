@@ -47,20 +47,19 @@ class ReturnValueTestDict(TypedDict):
     key: NotRequired[Union[str, int]]
 
 
-class _ReencryptionConditionDict(TypedDict):
+class _AccessControlCondition(TypedDict):
     name: NotRequired[str]
 
 
-class TimeConditionDict(_ReencryptionConditionDict):
-    method: Literal["timelock"]
-    returnValueTest: ReturnValueTestDict
-
-
-class RPCConditionDict(_ReencryptionConditionDict):
+class RPCConditionDict(_AccessControlCondition):
     chain: int
     method: str
     parameters: NotRequired[List[Any]]
     returnValueTest: ReturnValueTestDict
+
+
+class TimeConditionDict(RPCConditionDict):
+    pass
 
 
 class ContractConditionDict(RPCConditionDict):
