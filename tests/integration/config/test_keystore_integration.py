@@ -173,7 +173,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     CONDITIONS = [
         {
             "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         }
     ]

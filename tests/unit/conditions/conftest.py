@@ -9,16 +9,15 @@ from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
-def compound_lingo(erc721_evm_condition,
-                   timelock_condition,
-                   rpc_condition,
-                   erc20_evm_condition):
+def compound_lingo(
+    erc721_evm_condition, time_condition, rpc_condition, erc20_evm_condition
+):
     """does not depend on contract deployments"""
     lingo = ConditionLingo(
         conditions=[
             erc721_evm_condition,
             OR,
-            timelock_condition,
+            time_condition,
             OR,
             rpc_condition,
             AND,

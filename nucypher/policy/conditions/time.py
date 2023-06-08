@@ -9,13 +9,13 @@ from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
 class TimeCondition(RPCCondition):
-    METHOD = 'timelock'
+    METHOD = "blocktime"
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
-        method = fields.Str(dump_default="timelock", required=True)
+        method = fields.Str(dump_default="blocktime", required=True)
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )

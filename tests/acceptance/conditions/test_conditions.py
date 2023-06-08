@@ -478,18 +478,16 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
     assert not condition_result
 
 
-def test_time_condition_evaluation(testerchain, timelock_condition, condition_providers):
-    condition_result, call_result = timelock_condition.verify(
-        providers=condition_providers
-    )
+def test_time_condition_evaluation(testerchain, time_condition, condition_providers):
+    condition_result, call_result = time_condition.verify(providers=condition_providers)
     assert condition_result is True
 
 
 def test_simple_compound_conditions_evaluation(
-    testerchain, compound_timelock_lingo, condition_providers
+    testerchain, compound_blocktime_lingo, condition_providers
 ):
     # TODO Improve internals of evaluation here (natural vs recursive approach)
-    conditions = json.dumps(compound_timelock_lingo)
+    conditions = json.dumps(compound_blocktime_lingo)
     lingo = ConditionLingo.from_json(conditions)
     result = lingo.eval(providers=condition_providers)
     assert result is True
@@ -517,7 +515,7 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
     conditions = [
         {
             "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
         {"operator": "and"},

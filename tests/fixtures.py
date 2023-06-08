@@ -597,7 +597,7 @@ def mock_condition_blockchains(mocker):
 
 
 @pytest.fixture
-def timelock_condition():
+def time_condition():
     condition = TimeCondition(
         chain=TESTERCHAIN_CHAIN_ID, return_value_test=ReturnValueTest(">", 0)
     )
@@ -605,23 +605,23 @@ def timelock_condition():
 
 
 @pytest.fixture
-def compound_timelock_lingo():
+def compound_blocktime_lingo():
     return [
         {
             "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
         {"operator": "and"},
         {
             "returnValueTest": {"value": "99999999999999999", "comparator": "<"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
         {"operator": "and"},
         {
             "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
     ]

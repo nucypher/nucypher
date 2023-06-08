@@ -41,13 +41,9 @@ def test_evm_condition_function_abi(t_staking_data):
 
 
 def test_type_resolution_from_json(
-    timelock_condition, rpc_condition, erc20_evm_condition, erc721_evm_condition
+    time_condition, rpc_condition, erc20_evm_condition, erc721_evm_condition
 ):
-    conditions = (
-        timelock_condition,
-        rpc_condition,
-        erc20_evm_condition
-    )
+    conditions = (time_condition, rpc_condition, erc20_evm_condition)
     for condition in conditions:
         condition_json = condition.to_json()
         resolved_condition = deserialize_condition_lingo(condition_json)

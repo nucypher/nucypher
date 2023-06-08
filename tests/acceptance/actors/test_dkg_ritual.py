@@ -20,7 +20,7 @@ PLAINTEXT = "peace at dawn"
 CONDITIONS = [
     {
         "returnValueTest": {"value": "0", "comparator": ">"},
-        "method": "timelock",
+        "method": "blocktime",
         "chain": TESTERCHAIN_CHAIN_ID,
     }
 ]

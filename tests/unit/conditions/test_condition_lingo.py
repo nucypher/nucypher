@@ -13,13 +13,13 @@ def lingo():
     return [
         {
             "returnValueTest": {"value": 0, "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
         {"operator": "and"},
         {
             "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
     ]
@@ -37,7 +37,7 @@ def test_invalid_condition():
         {"operator": "and"},
         {
             "returnValueTest": {"value": 0, "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
     ]

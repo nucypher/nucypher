@@ -137,13 +137,13 @@ def test_condition_lingo_validation(compound_lingo):
     invalid_operator_lingo = [
         {
             "returnValueTest": {"value": 0, "comparator": ">"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
         {"operator": "AND_OPERATOR"},  # replace operator with invalid one
         {
             "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-            "method": "timelock",
+            "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },
     ]

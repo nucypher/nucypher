@@ -112,8 +112,8 @@ def test_invalid_contract_condition():
         )
 
 
-def test_timelock_condition_schema_validation(timelock_condition):
-    condition_dict = timelock_condition.to_dict()
+def test_time_condition_schema_validation(time_condition):
+    condition_dict = time_condition.to_dict()
 
     # no issues here
     TimeCondition.validate(condition_dict)
@@ -124,13 +124,13 @@ def test_timelock_condition_schema_validation(timelock_condition):
 
     with pytest.raises(InvalidCondition):
         # no method
-        condition_dict = timelock_condition.to_dict()
+        condition_dict = time_condition.to_dict()
         del condition_dict["method"]
         TimeCondition.validate(condition_dict)
 
     with pytest.raises(InvalidCondition):
         # no returnValueTest defined
-        condition_dict = timelock_condition.to_dict()
+        condition_dict = time_condition.to_dict()
         del condition_dict["returnValueTest"]
         TimeCondition.validate(condition_dict)
 

@@ -199,7 +199,7 @@ Those who know the essential to be essential and the unessential to be unessenti
 CONDITIONS = [
     {
         "returnValueTest": {"value": "0", "comparator": ">"},
-        "method": "timelock",
+        "method": "blocktime",
         "chain": blockchain.client.chain_id,
     }
 ]
