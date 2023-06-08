@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 
 from marshmallow import fields, post_load
 
-from nucypher.policy.conditions.base import ReencryptionCondition
+from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
@@ -164,7 +164,7 @@ class ConditionLingo:
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, conditions: List[Union[ReencryptionCondition, Operator]]):
+    def __init__(self, conditions: List[Union[AccessControlCondition, Operator]]):
         """
         The input list *must* be structured as follows:
         condition
@@ -183,7 +183,7 @@ class ConditionLingo:
                 "conditions must be odd length, ever other element being an operator"
             )
         for index, element in enumerate(lingo):
-            if (not index % 2) and not (isinstance(element, ReencryptionCondition)):
+            if (not index % 2) and not (isinstance(element, AccessControlCondition)):
                 raise InvalidConditionLingo(
                     f"{index} element must be a condition; Got {type(element)}."
                 )
@@ -238,7 +238,7 @@ class ConditionLingo:
         # TODO: Prevent this lino from bein evaluated if this node does not have
         #       a connection to all the required blockchains (optimization)
         for task in self.conditions:
-            if isinstance(task, ReencryptionCondition):
+            if isinstance(task, AccessControlCondition):
                 condition = task
                 result, value = condition.verify(*args, **kwargs)
                 yield result

@@ -26,16 +26,18 @@ def mock_condition_blockchains(mocker):
 
 
 @pytest.fixture()
-def compound_lingo(erc721_evm_condition_balanceof,
-                   timelock_condition,
-                   rpc_condition,
-                   erc20_evm_condition_balanceof):
+def compound_lingo(
+    erc721_evm_condition_balanceof,
+    time_condition,
+    rpc_condition,
+    erc20_evm_condition_balanceof,
+):
     """depends on contract deployments"""
     lingo = ConditionLingo(
         conditions=[
             erc721_evm_condition_balanceof,
             OR,
-            timelock_condition,
+            time_condition,
             OR,
             rpc_condition,
             AND,

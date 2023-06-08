@@ -41,13 +41,9 @@ def test_evm_condition_function_abi(t_staking_data):
 
 
 def test_type_resolution_from_json(
-    timelock_condition, rpc_condition, erc20_evm_condition, erc721_evm_condition
+    time_condition, rpc_condition, erc20_evm_condition, erc721_evm_condition
 ):
-    conditions = (
-        timelock_condition,
-        rpc_condition,
-        erc20_evm_condition
-    )
+    conditions = (time_condition, rpc_condition, erc20_evm_condition)
     for condition in conditions:
         condition_json = condition.to_json()
         resolved_condition = deserialize_condition_lingo(condition_json)
@@ -70,7 +66,7 @@ def test_conditions_lingo_serialization(compound_lingo):
     assert restored_lingo.to_json() == lingo_json
 
 
-def test_reencryption_condition_to_from_bytes(compound_lingo):
+def test_access_control_condition_to_from_bytes(compound_lingo):
     # bytes
     for l in compound_lingo.conditions:
         if isinstance(l, Operator):
@@ -81,7 +77,7 @@ def test_reencryption_condition_to_from_bytes(compound_lingo):
         assert condition.to_json() == l.to_json()
 
 
-def test_reencryption_condition_to_from_dict(compound_lingo):
+def test_access_control_condition_to_from_dict(compound_lingo):
     # bytes
     for l in compound_lingo.conditions:
         condition_bytes = l.to_dict()

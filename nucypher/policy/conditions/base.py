@@ -47,7 +47,7 @@ class _Serializable:
         return instance
 
 
-class ReencryptionCondition(_Serializable, ABC):
+class AccessControlCondition(_Serializable, ABC):
 
     class Schema(Schema):
         name = NotImplemented

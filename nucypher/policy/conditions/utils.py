@@ -57,7 +57,7 @@ class CamelCaseSchema(Schema):
 
 def resolve_condition_lingo(
     data: Dict,
-) -> Union[Type["Operator"], Type["ReencryptionCondition"]]:
+) -> Union[Type["Operator"], Type["AccessControlCondition"]]:
     """
     TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
     Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
@@ -91,7 +91,7 @@ def resolve_condition_lingo(
 
 def deserialize_condition_lingo(
     data: LingoListEntry,
-) -> Union["Operator", "ReencryptionCondition"]:
+) -> Union["Operator", "AccessControlCondition"]:
     """Deserialization helper for condition lingo"""
     if isinstance(data, str):
         data = json.loads(data)
