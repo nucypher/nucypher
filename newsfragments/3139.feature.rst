@@ -1,1 +1,1 @@
-`TimeCondition` now uses the timestamp of the latest block for evaluating conditions, instead of system time. System time condition evaluation is no longer supported.
+``TimeCondition`` now uses the timestamp of the latest block for evaluating conditions, instead of system time. System time condition evaluation is no longer supported.

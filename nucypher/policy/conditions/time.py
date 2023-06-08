@@ -52,5 +52,6 @@ class TimeCondition(RPCCondition):
 
     def _execute_call(self, parameters: List[Any]) -> Any:
         """Execute onchain read and return result."""
+        # TODO may need to rethink as part of #3051 (multicall work).
         latest_block = self.w3.eth.get_block("latest")
         return latest_block.timestamp
