@@ -131,25 +131,27 @@ def test_camel_case_schema():
 
 def test_condition_lingo_validation(compound_lingo):
     # valid compound lingo; no issues here
-    compound_lingo_list = compound_lingo.to_list()
-    validate_condition_lingo(compound_lingo_list)
+    compound_lingo_dict = compound_lingo.to_dict()
+    validate_condition_lingo(compound_lingo_dict)
 
-    invalid_operator_lingo = [
-        {
-            "returnValueTest": {"value": 0, "comparator": ">"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-        {"operator": "AND_OPERATOR"},  # replace operator with invalid one
-        {
-            "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-    ]
-    with pytest.raises(InvalidLogicalOperator):
+    invalid_operator_lingo = {
+        "operator": "AND_OPERATOR",
+        "operands": [
+            {
+                "returnValueTest": {"value": 0, "comparator": ">"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+            {
+                "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+        ],
+    }
+    with pytest.raises(InvalidCondition):
         validate_condition_lingo(invalid_operator_lingo)
 
     # invalid condition
     with pytest.raises(InvalidConditionLingo):
-        validate_condition_lingo([{"dont_mind_me": "nothing_to_see_here"}])
+        validate_condition_lingo({"dont_mind_me": "nothing_to_see_here"})

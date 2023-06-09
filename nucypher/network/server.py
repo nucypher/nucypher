@@ -17,7 +17,6 @@ from nucypher_core import (
     RevocationOrder,
     ThresholdDecryptionResponse,
 )
-from nucypher_core.ferveo import Ciphertext
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.ferveo.dkg import FerveoVariant
@@ -159,7 +158,15 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # Deserialize and instantiate ConditionLingo from the request data
         conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
-        lingo = ConditionLingo.from_list(json.loads(conditions_data))  # str -> list -> ConditionLingo
+        if not conditions_data:
+            # TODO is this needed - this should never happen
+            return Response(
+                "No conditions present for ciphertext - invalid for CBD functionality",
+                status=HTTPStatus.FORBIDDEN,
+            )
+        lingo = ConditionLingo.from_dict(
+            json.loads(conditions_data)
+        )  # str -> list -> ConditionLingo
 
         # requester-supplied condition eval context
         context = None

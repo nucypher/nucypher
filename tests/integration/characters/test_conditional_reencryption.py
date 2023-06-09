@@ -25,19 +25,21 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     bob.remember_node(ursulas[0])
     bob.start_learning_loop()
 
-    conditions = [
-        {
-            "returnValueTest": {"value": 0, "comparator": ">"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-        {"operator": "and"},
-        {
-            "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-    ]
+    conditions = {
+        "operator": "and",
+        "operands": [
+            {
+                "returnValueTest": {"value": 0, "comparator": ">"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+            {
+                "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+        ],
+    }
     json_conditions = json.dumps(conditions)
     rust_conditions = Conditions(json_conditions)
     message_kits = [MessageKit(enacted_policy.public_key, b"lab", rust_conditions)]
@@ -61,13 +63,11 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
     # not actually used for eval, but satisfies serializers
     conditions = Conditions(
         json.dumps(
-            [
-                {
-                    "returnValueTest": {"value": 0, "comparator": ">"},
-                    "method": "blocktime",
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                }
-            ]
+            {
+                "returnValueTest": {"value": 0, "comparator": ">"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            }
         )
     )
 
@@ -121,13 +121,11 @@ def test_middleware_handling_of_failed_condition_responses(
     # not actually used for eval, but satisfies serializers
     conditions = Conditions(
         json.dumps(
-            [
-                {
-                    "returnValueTest": {"value": 0, "comparator": ">"},
-                    "method": "blocktime",
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                }
-            ]
+            {
+                "returnValueTest": {"value": 0, "comparator": ">"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            }
         )
     )
 

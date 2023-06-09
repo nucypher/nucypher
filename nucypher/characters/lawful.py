@@ -108,7 +108,7 @@ from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.network.trackers import AvailabilityTracker
-from nucypher.policy.conditions.types import LingoList
+from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
@@ -566,12 +566,12 @@ class Bob(Character):
         return cohort
 
     def make_decryption_request(
-            self,
-            ritual_id: int,
-            ciphertext: Ciphertext,
-            lingo: LingoList,
-            variant: FerveoVariant,
-            context: Optional[dict] = None,
+        self,
+        ritual_id: int,
+        ciphertext: Ciphertext,
+        lingo: Lingo,
+        variant: FerveoVariant,
+        context: Optional[dict] = None,
     ) -> ThresholdDecryptionRequest:
         conditions = Conditions(json.dumps(lingo))
         if context:
@@ -645,7 +645,7 @@ class Bob(Character):
         ritual_id: int,
         cohort: List["Ursula"],
         ciphertext: Ciphertext,
-        lingo: LingoList,
+        lingo: Lingo,
         threshold: int,
         variant: FerveoVariant,
         participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
@@ -668,7 +668,7 @@ class Bob(Character):
         self,
         ritual_id: int,
         ciphertext: Ciphertext,
-        conditions: LingoList,
+        conditions: Lingo,
         context: Optional[dict] = None,
         params: Optional[DkgPublicParameters] = None,
         ursulas: Optional[List["Ursula"]] = None,
@@ -734,7 +734,7 @@ class Bob(Character):
     def __decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
-        conditions: LingoList,
+        conditions: Lingo,
         params: DkgPublicParameters,
         variant: FerveoVariant,
     ):
@@ -1404,7 +1404,7 @@ class Enrico:
         self.log.info(self.banner.format(encrypting_key))
 
     def encrypt_for_pre(
-        self, plaintext: bytes, conditions: Optional[LingoList] = None
+        self, plaintext: bytes, conditions: Optional[Lingo] = None
     ) -> MessageKit:
         if conditions:
             validate_condition_lingo(conditions)
@@ -1414,24 +1414,21 @@ class Enrico:
                                  conditions=conditions)
         return message_kit
 
-    def encrypt_for_dkg(self, plaintext: bytes, conditions: LingoList) -> Ciphertext:
+    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> Ciphertext:
         validate_condition_lingo(conditions)
         conditions_bytes = json.dumps(conditions).encode()
         ciphertext = encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
 
-    def encrypt_for_dkg_and_produce_decryption_request(self,
-                                                      plaintext: bytes,
-                                                      conditions: LingoList,
-                                                      ritual_id: int,
-                                                      variant_id: int,
-                                                      context: Optional[bytes] = None
-
-                                                      ) -> Tuple[
-        Ciphertext, ThresholdDecryptionRequest]:
-
-        ciphertext = self.encrypt_for_dkg(plaintext=plaintext,
-                                          conditions=conditions)
+    def encrypt_for_dkg_and_produce_decryption_request(
+        self,
+        plaintext: bytes,
+        conditions: Lingo,
+        ritual_id: int,
+        variant_id: int,
+        context: Optional[bytes] = None,
+    ) -> Tuple[Ciphertext, ThresholdDecryptionRequest]:
+        ciphertext = self.encrypt_for_dkg(plaintext=plaintext, conditions=conditions)
         tdr = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             ciphertext=ciphertext,

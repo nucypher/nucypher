@@ -16,7 +16,7 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import ContextDict, LingoList, LingoListEntry
+from nucypher.policy.conditions.types import ContextDict, Lingo
 from nucypher.utilities.logging import Logger
 
 _ETH = "eth_"
@@ -56,8 +56,8 @@ class CamelCaseSchema(Schema):
 
 
 def resolve_condition_lingo(
-    data: Dict,
-) -> Union[Type["Operator"], Type["AccessControlCondition"]]:
+    data: Lingo,
+) -> Union[Type["CompoundAccessControlCondition"], Type["AccessControlCondition"]]:
     """
     TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
     Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
@@ -65,7 +65,7 @@ def resolve_condition_lingo(
     """
     # TODO: This is ugly but avoids circular imports :-|
     from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
-    from nucypher.policy.conditions.lingo import Operator
+    from nucypher.policy.conditions.lingo import CompoundAccessControlCondition
     from nucypher.policy.conditions.time import TimeCondition
 
     # Inspect
@@ -82,16 +82,14 @@ def resolve_condition_lingo(
         elif method.startswith(_ETH):
             return RPCCondition
     elif operator:
-        return Operator
-    else:
-        raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo type from data {data}"
-        )
+        return CompoundAccessControlCondition
+
+    raise InvalidConditionLingo(f"Cannot resolve condition lingo type from data {data}")
 
 
 def deserialize_condition_lingo(
-    data: LingoListEntry,
-) -> Union["Operator", "AccessControlCondition"]:
+    data: Lingo,
+) -> Union["CompoundAccessControlCondition", "AccessControlCondition"]:
     """Deserialization helper for condition lingo"""
     if isinstance(data, str):
         data = json.loads(data)
@@ -100,10 +98,9 @@ def deserialize_condition_lingo(
     return instance
 
 
-def validate_condition_lingo(conditions: LingoList) -> None:
-    for c in conditions:
-        lingo_class = resolve_condition_lingo(data=c)
-        lingo_class.validate(data=c)
+def validate_condition_lingo(condition: Lingo) -> None:
+    lingo_class = resolve_condition_lingo(data=condition)
+    lingo_class.validate(data=condition)
 
 
 def evaluate_condition_lingo(

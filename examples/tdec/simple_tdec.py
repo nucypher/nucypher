@@ -51,10 +51,8 @@ eth_balance_condition = {
     }
 }
 
-conditions = [
-    eth_balance_condition,
-    # add more conditions here
-]
+conditions = eth_balance_condition
+
 
 message = 'hello world'.encode()
 ciphertext = enrico.encrypt_for_dkg(

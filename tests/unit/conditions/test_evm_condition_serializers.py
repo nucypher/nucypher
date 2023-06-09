@@ -1,7 +1,7 @@
 import json
 
 from nucypher.policy.conditions.evm import ContractCondition
-from nucypher.policy.conditions.lingo import ConditionLingo, Operator
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import deserialize_condition_lingo
 
 
@@ -51,7 +51,7 @@ def test_type_resolution_from_json(
 
 
 def test_conditions_lingo_serialization(compound_lingo):
-    json_serialized_lingo = json.dumps([l.to_dict() for l in compound_lingo.conditions])
+    json_serialized_lingo = json.dumps(compound_lingo.condition.to_dict())
     lingo_json = compound_lingo.to_json()
     restored_lingo = ConditionLingo.from_json(data=lingo_json)
     assert lingo_json == json_serialized_lingo
@@ -68,18 +68,13 @@ def test_conditions_lingo_serialization(compound_lingo):
 
 def test_access_control_condition_to_from_bytes(compound_lingo):
     # bytes
-    for l in compound_lingo.conditions:
-        if isinstance(l, Operator):
-            # operators don't have byte representations
-            continue
-        condition_bytes = bytes(l)
-        condition = l.__class__.from_bytes(condition_bytes)
-        assert condition.to_json() == l.to_json()
+    condition_bytes = bytes(compound_lingo.condition)
+    condition = compound_lingo.condition.__class__.from_bytes(condition_bytes)
+    assert condition.to_json() == compound_lingo.condition.to_json()
 
 
 def test_access_control_condition_to_from_dict(compound_lingo):
-    # bytes
-    for l in compound_lingo.conditions:
-        condition_bytes = l.to_dict()
-        condition = l.__class__.from_dict(condition_bytes)
-        assert condition.to_json() == l.to_json()
+    # dict
+    condition_dict = compound_lingo.condition.to_dict()
+    condition = compound_lingo.condition.__class__.from_dict(condition_dict)
+    assert condition.to_json() == compound_lingo.condition.to_json()

@@ -17,13 +17,11 @@ TIME_TRAVEL_INTERVAL = 60
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
-CONDITIONS = [
-    {
-        "returnValueTest": {"value": "0", "comparator": ">"},
-        "method": "blocktime",
-        "chain": TESTERCHAIN_CHAIN_ID,
-    }
-]
+CONDITIONS = {
+    "returnValueTest": {"value": "0", "comparator": ">"},
+    "method": "blocktime",
+    "chain": TESTERCHAIN_CHAIN_ID,
+}
 
 
 @pytest.fixture(scope='module')

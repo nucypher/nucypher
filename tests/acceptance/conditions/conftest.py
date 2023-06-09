@@ -34,15 +34,18 @@ def compound_lingo(
 ):
     """depends on contract deployments"""
     lingo = ConditionLingo(
-        conditions=[
-            erc721_evm_condition_balanceof,
-            OR,
-            time_condition,
-            OR,
-            rpc_condition,
-            AND,
-            erc20_evm_condition_balanceof,
-        ]
+        condition=AND(
+            operands=[
+                erc721_evm_condition_balanceof,
+                OR(
+                    operands=[
+                        erc20_evm_condition_balanceof,
+                        time_condition,
+                        rpc_condition,
+                    ]
+                ),
+            ]
+        )
     )
     return lingo
 

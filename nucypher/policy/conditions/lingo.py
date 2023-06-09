@@ -3,68 +3,122 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
-from marshmallow import fields, post_load
+from marshmallow import fields, post_load, validate
 
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.exceptions import (
-    InvalidConditionLingo,
     InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import LingoList, OperatorDict
+from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     deserialize_condition_lingo,
 )
 
+Condition = Union[AccessControlCondition, "CompoundAccessControlCondition"]
 
-class Operator:
+
+class _ConditionsField(fields.Dict):
+    """Serializes/Deserializes Conditions to/from dictionaries"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        return value.to_dict()
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        condition = deserialize_condition_lingo(value)
+        return condition
+
+
+#
+# CONDITION = BASE_CONDITION | COMPOUND_CONDITION
+#
+# BASE_CONDITION = {
+#     // ..
+# }
+#
+# COMPOUND_CONDITION = {
+#     "operator": OPERATOR,
+#     "operands": [CONDITION*]
+# }
+
+
+class CompoundAccessControlCondition(AccessControlCondition):
     OPERATORS = ("and", "or")
 
-    def __init__(self, _operator: str):
-        if _operator not in self.OPERATORS:
-            raise InvalidLogicalOperator(f"{_operator} is not a valid operator")
-        self.operator = _operator
+    class Schema(CamelCaseSchema):
+        SKIP_VALUES = (None,)
+        name = fields.Str(required=False)
+        operator = fields.Str(required=True, validate=validate.OneOf(["and", "or"]))
+        operands = fields.List(
+            _ConditionsField, required=True, validate=validate.Length(min=2)
+        )
 
-    def __str__(self) -> str:
-        return self.operator
+        @post_load
+        def make(self, data, **kwargs):
+            return CompoundAccessControlCondition(
+                operator=data["operator"], operands=data["operands"]
+            )
 
-    def to_dict(self) -> OperatorDict:
-        # strict typing of operator value (must be a literal)
-        if self.operator == "and":
-            return {"operator": "and"}
-        else:
-            return {"operator": "or"}
+    def __init__(
+        self, operator: str, operands: List[Condition], name: Optional[str] = None
+    ):
+        """
+        COMPOUND_CONDITION = {
+            "operator": OPERATOR,
+            "operands": [CONDITION*]
+        }
+        """
+        if operator not in self.OPERATORS:
+            raise InvalidLogicalOperator(f"{operator} is not a valid operator")
+        self.operator = operator
+        self.operands = operands
+        self.name = name
+        self.id = md5(bytes(self)).hexdigest()[:6]
 
-    @classmethod
-    def from_dict(cls, data: OperatorDict) -> "Operator":
-        cls.validate(data)
-        instance = cls(_operator=data["operator"])
-        return instance
+    def __repr__(self):
+        return f"Operator={self.operator} (NumOperands={len(self.operands)} | id={self.id})"
 
-    @classmethod
-    def from_json(cls, data) -> 'Operator':
-        data = json.loads(data)
-        instance = cls.from_dict(data)
-        return instance
+    def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
+        values = []
+        overall_result = True
+        for condition in self.operands:
+            current_result, current_value = condition.verify(*args, **kwargs)
+            values.append(current_value)
+            # TODO: Additional protection and/or sanitation here
+            # [True/False, <Operator>, True/False] -> 'True/False and/or True/False'
+            eval_string = f"{overall_result} {self.operator} {current_result}"
+            overall_result = eval(eval_string)
+            # TODO need to test this short-circuit
+            if self.operator == "and" and overall_result is False:
+                # short-circuit checks
+                return False, values
 
-    def to_json(self) -> str:
-        data = self.to_dict()
-        json_data = json.dumps(data)
-        return json_data
+        return True, values
 
-    @classmethod
-    def validate(cls, data: Dict) -> None:
-        try:
-            _operator = data["operator"]
-        except KeyError:
-            raise InvalidLogicalOperator(f"Invalid operator data: {data}")
 
-        if _operator not in cls.OPERATORS:
-            raise InvalidLogicalOperator(f"{_operator} is not a valid operator")
+class OR(CompoundAccessControlCondition):
+    def __init__(self, operands: List[Condition], operator: Optional[str] = "or"):
+        if operator != "or":
+            raise InvalidLogicalOperator(
+                f"'or' operator must be used with {self.__class__.__name__}"
+            )
+        super().__init__(operator=operator, operands=operands)
+
+
+class AND(CompoundAccessControlCondition):
+    def __init__(self, operands: List[Condition], operator: Optional[str] = "and"):
+        if operator != "and":
+            raise InvalidLogicalOperator(
+                f"'and' operator must be used with {self.__class__.__name__}"
+            )
+        super().__init__(operator=operator, operands=operands)
 
 
 class ReturnValueTest:
@@ -158,58 +212,43 @@ class ReturnValueTest:
 
 class ConditionLingo:
     """
-    A Collection of re-encryption conditions evaluated as a compound boolean expression.
+    A Collection of access control conditions evaluated as a compound boolean expression.
 
     This is an alternate implementation of the condition expression format used in
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, conditions: List[Union[AccessControlCondition, Operator]]):
+    def __init__(self, condition: Condition):
         """
-        The input list *must* be structured as follows:
-        condition
-        operator
-        condition
-        ...
+        CONDITION = BASE_CONDITION | COMPOUND_CONDITION
+        BASE_CONDITION = {
+                // ..
+        }
+        COMPOUND_CONDITION = {
+                "operator": OPERATOR,
+                "operands": [CONDITION*]
+        }
         """
-        self._validate_grammar(lingo=conditions)
-        self.conditions = conditions
+        self.condition = condition
         self.id = md5(bytes(self)).hexdigest()[:6]
 
-    @staticmethod
-    def _validate_grammar(lingo) -> None:
-        if len(lingo) % 2 == 0:
-            raise InvalidConditionLingo(
-                "conditions must be odd length, ever other element being an operator"
-            )
-        for index, element in enumerate(lingo):
-            if (not index % 2) and not (isinstance(element, AccessControlCondition)):
-                raise InvalidConditionLingo(
-                    f"{index} element must be a condition; Got {type(element)}."
-                )
-            elif (index % 2) and (not isinstance(element, Operator)):
-                raise InvalidConditionLingo(
-                    f"{index} element must be an operator; Got {type(element)}."
-                )
+    def to_dict(self) -> Lingo:
+        return self.condition.to_dict()
 
     @classmethod
-    def from_list(cls, payload: LingoList) -> "ConditionLingo":
-        conditions = [deserialize_condition_lingo(c) for c in payload]
-        instance = cls(conditions=conditions)
+    def from_dict(cls, data: Lingo) -> "ConditionLingo":
+        condition = deserialize_condition_lingo(data)
+        instance = cls(condition=condition)
         return instance
 
-    def to_list(self) -> LingoList:  # TODO: __iter__ ?
-        payload = [c.to_dict() for c in self.conditions]
-        return payload
-
     def to_json(self) -> str:
-        data = json.dumps(self.to_list())
+        data = json.dumps(self.to_dict())
         return data
 
     @classmethod
     def from_json(cls, data: str) -> 'ConditionLingo':
         payload = json.loads(data)
-        instance = cls.from_list(payload=payload)
+        instance = cls.from_dict(data=payload)
         return instance
 
     def to_base64(self) -> bytes:
@@ -227,35 +266,8 @@ class ConditionLingo:
         return data
 
     def __repr__(self):
-        return f"{self.__class__.__name__} (id={self.id} | size={len(bytes(self))})"
-
-    def __eval(self, eval_string: str):
-        # TODO: Additional protection and/or sanitation here
-        result = eval(eval_string)
-        return result
-
-    def __process(self, *args, **kwargs) -> Iterator:
-        # TODO: Prevent this lino from bein evaluated if this node does not have
-        #       a connection to all the required blockchains (optimization)
-        for task in self.conditions:
-            if isinstance(task, AccessControlCondition):
-                condition = task
-                result, value = condition.verify(*args, **kwargs)
-                yield result
-            elif isinstance(task, Operator):
-                yield task
-            else:
-                raise InvalidConditionLingo(
-                    f"Unrecognized type {type(task)} for ConditionLingo"
-                )
+        return f"{self.__class__.__name__} (id={self.id} | size={len(bytes(self))}) | condition=({self.condition})"
 
     def eval(self, *args, **kwargs) -> bool:
-        data = self.__process(*args, **kwargs)
-        # [True, <Operator>, False] -> 'True or False'
-        eval_string = ' '.join(str(e) for e in data)
-        result = self.__eval(eval_string=eval_string)
+        result, _ = self.condition.verify(*args, **kwargs)
         return result
-
-
-OR = Operator('or')
-AND = Operator('and')

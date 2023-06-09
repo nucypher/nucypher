@@ -19,5 +19,7 @@ def _serialize_rust_lingos(lingos: List[Conditions]) -> Conditions:
 def _deserialize_rust_lingos(reenc_request: ReencryptionRequest):
     """Shim for nucypher-core lingos"""
     json_lingos = json.loads(str(reenc_request.conditions))
-    lingo = [ConditionLingo.from_list(lingo) if lingo else None for lingo in json_lingos]
+    lingo = [
+        ConditionLingo.from_dict(lingo) if lingo else None for lingo in json_lingos
+    ]
     return lingo
