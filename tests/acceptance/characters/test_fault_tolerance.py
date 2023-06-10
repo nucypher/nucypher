@@ -9,6 +9,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
+from tests.constants import PYEVM_DEV_URI
 from tests.utils.ursula import make_ursulas, start_pytest_ursula_services
 
 
@@ -90,7 +91,7 @@ def test_invalid_operators_tolerance(
     # Setup
     #
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry
+        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
     )
     (
         creator,
@@ -142,10 +143,13 @@ def test_invalid_operators_tolerance(
         force=True,
         registry=test_registry,
         network_middleware_client=ursula.network_middleware.client,
+        eth_provider_uri=ursula.eth_provider_uri,
     )
     # In particular, we know that it's bonded to a staker who is really staking.
     assert ursula.is_confirmed
-    assert ursula._staking_provider_is_really_staking(registry=test_registry)
+    assert ursula._staking_provider_is_really_staking(
+        registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
 
     # OK. Now we learn about this new worker.
     assert existing_ursula.remember_node(ursula)
@@ -162,7 +166,9 @@ def test_invalid_operators_tolerance(
     )
 
     # OK...so...the staker is not staking anymore ...
-    assert not ursula._staking_provider_is_really_staking(registry=test_registry)
+    assert not ursula._staking_provider_is_really_staking(
+        registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
 
     # ... but the worker node still is "verified" (since we're not forcing on-chain verification)
     ursula.verify_node(
@@ -176,6 +182,7 @@ def test_invalid_operators_tolerance(
             force=True,
             registry=test_registry,
             network_middleware_client=ursula.network_middleware.client,
+            eth_provider_uri=PYEVM_DEV_URI,
         )
 
     #

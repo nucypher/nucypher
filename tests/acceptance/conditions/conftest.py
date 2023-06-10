@@ -10,11 +10,10 @@ from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import (
     AndCompoundCondition,
-    ConditionLingo,
     OrCompoundCondition,
-    ReturnValueTest,
 )
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
+from tests.constants import PYEVM_DEV_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
@@ -57,7 +56,9 @@ def compound_lingo(
 
 @pytest.fixture()
 def erc20_evm_condition_balanceof(testerchain, test_registry):
-    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    token = ContractAgency.get_agent(
+        NucypherTokenAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
     condition = ContractCondition(
         contract_address=token.contract.address,
         method="balanceOf",
@@ -117,7 +118,7 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
     testerchain, test_registry
 ):
     subscription_manager = ContractAgency.get_agent(
-        SubscriptionManagerAgent, registry=test_registry
+        SubscriptionManagerAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
@@ -151,7 +152,9 @@ def subscription_manager_is_active_policy_condition(testerchain, test_registry):
 def custom_context_variable_erc20_condition(
     test_registry, testerchain, mock_condition_blockchains
 ):
-    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    token = ContractAgency.get_agent(
+        NucypherTokenAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
     condition = ContractCondition(
         contract_address=token.contract.address,
         method="balanceOf",

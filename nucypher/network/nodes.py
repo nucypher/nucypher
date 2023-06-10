@@ -465,9 +465,12 @@ class Learner:
             registry = self.registry if self._verify_node_bonding else None
 
             try:
-                node.verify_node(force=force_verification_recheck,
-                                 network_middleware_client=self.network_middleware.client,
-                                 registry=registry)
+                node.verify_node(
+                    force=force_verification_recheck,
+                    network_middleware_client=self.network_middleware.client,
+                    registry=registry,
+                    eth_provider_uri=self.eth_provider_uri,
+                )
             except SSLError:
                 # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
                 return False
@@ -1058,8 +1061,14 @@ class Teacher:
         is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
         return is_staking
 
-    def validate_operator(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None) -> None:
-        eth_provider_uri = eth_provider_uri or self.eth_provider_uri
+    def validate_operator(
+        self,
+        registry: BaseContractRegistry = None,
+        eth_provider_uri: Optional[str] = None,
+    ) -> None:
+        # TODO: restore this enforcement
+        # if registry and not eth_provider_uri:
+        #     raise ValueError("If registry is provided, eth_provider_uri must also be provided.")
 
         # Try to derive the worker address if it hasn't been derived yet.
         try:

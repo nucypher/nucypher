@@ -17,7 +17,9 @@ from tests.constants import PYEVM_DEV_URI
 def test_sampling_distribution(testerchain, test_registry, threshold_staking, application_economics):
 
     # setup
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
     stake_provider_accounts = testerchain.stake_providers_accounts
     amount = application_economics.min_authorization
     all_locked_tokens = len(stake_provider_accounts) * amount
