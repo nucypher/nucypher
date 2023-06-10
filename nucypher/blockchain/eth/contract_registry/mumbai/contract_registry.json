@@ -889,7 +889,7 @@
   [
     "Coordinator",
     "v0.0.0",
-    "0xc7590Ba497d1A7AB82c1BD61f7Dcd2685990986e",
+    "0x0f019Ade1D34399D946CF2f161386362655Dd1A4",
     [
       {
         "inputs": [
@@ -1148,7 +1148,7 @@
               },
               {
                 "internalType": "bytes",
-                "name": "requestEncryptingKey",
+                "name": "decryptionRequestStaticKey",
                 "type": "bytes"
               }
             ],
@@ -1189,7 +1189,7 @@
               },
               {
                 "internalType": "bytes",
-                "name": "requestEncryptingKey",
+                "name": "decryptionRequestStaticKey",
                 "type": "bytes"
               }
             ],
@@ -1309,7 +1309,7 @@
           },
           {
             "internalType": "bytes",
-            "name": "requestEncryptingKey",
+            "name": "decryptionRequestStaticKey",
             "type": "bytes"
           }
         ],
