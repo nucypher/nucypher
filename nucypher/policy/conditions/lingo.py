@@ -50,7 +50,9 @@ class _ConditionsField(fields.Dict):
 
 
 class CompoundAccessControlCondition(AccessControlCondition):
-    OPERATORS = ("and", "or")
+    AND_OPERATOR = "and"
+    OR_OPERATOR = "or"
+    OPERATORS = (AND_OPERATOR, OR_OPERATOR)
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
@@ -62,9 +64,7 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
         @post_load
         def make(self, data, **kwargs):
-            return CompoundAccessControlCondition(
-                operator=data["operator"], operands=data["operands"]
-            )
+            return CompoundAccessControlCondition(**data)
 
     def __init__(
         self, operator: str, operands: List[Condition], name: Optional[str] = None
@@ -83,42 +83,36 @@ class CompoundAccessControlCondition(AccessControlCondition):
         self.id = md5(bytes(self)).hexdigest()[:6]
 
     def __repr__(self):
-        return f"Operator={self.operator} (NumOperands={len(self.operands)} | id={self.id})"
+        return f"Operator={self.operator} (NumOperands={len(self.operands)}), id={self.id})"
 
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         values = []
-        overall_result = True
+        overall_result = True if self.operator == self.AND_OPERATOR else False
         for condition in self.operands:
             current_result, current_value = condition.verify(*args, **kwargs)
             values.append(current_value)
-            # TODO: Additional protection and/or sanitation here
             # [True/False, <Operator>, True/False] -> 'True/False and/or True/False'
             eval_string = f"{overall_result} {self.operator} {current_result}"
+            # TODO: Additional protection and/or sanitation here
             overall_result = eval(eval_string)
-            # TODO need to test this short-circuit
-            if self.operator == "and" and overall_result is False:
-                # short-circuit checks
+
+            # short-circuit checks
+            if self.operator == self.AND_OPERATOR and overall_result is False:
                 return False, values
+            if self.operator == self.OR_OPERATOR and overall_result is True:
+                return True, values
 
-        return True, values
-
-
-class OR(CompoundAccessControlCondition):
-    def __init__(self, operands: List[Condition], operator: Optional[str] = "or"):
-        if operator != "or":
-            raise InvalidLogicalOperator(
-                f"'or' operator must be used with {self.__class__.__name__}"
-            )
-        super().__init__(operator=operator, operands=operands)
+        return overall_result, values
 
 
-class AND(CompoundAccessControlCondition):
-    def __init__(self, operands: List[Condition], operator: Optional[str] = "and"):
-        if operator != "and":
-            raise InvalidLogicalOperator(
-                f"'and' operator must be used with {self.__class__.__name__}"
-            )
-        super().__init__(operator=operator, operands=operands)
+class OrCompoundCondition(CompoundAccessControlCondition):
+    def __init__(self, operands: List[Condition]):
+        super().__init__(operator=self.OR_OPERATOR, operands=operands)
+
+
+class AndCompoundCondition(CompoundAccessControlCondition):
+    def __init__(self, operands: List[Condition]):
+        super().__init__(operator=self.AND_OPERATOR, operands=operands)
 
 
 class ReturnValueTest:

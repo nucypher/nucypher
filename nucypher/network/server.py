@@ -164,6 +164,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 "No conditions present for ciphertext - invalid for CBD functionality",
                 status=HTTPStatus.FORBIDDEN,
             )
+
+        # TODO what if this fails i.e. ValidationError with the schema
         lingo = ConditionLingo.from_dict(
             json.loads(conditions_data)
         )  # str -> list -> ConditionLingo
