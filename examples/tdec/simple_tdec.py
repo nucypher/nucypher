@@ -39,7 +39,7 @@ coordinator_agent = CoordinatorAgent(
         network=coordinator_network
     ),
 )
-ritual_id = 3  # got this from a side channel
+ritual_id = 0  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 enrico = Enrico(encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)))
 
