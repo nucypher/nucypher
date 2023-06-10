@@ -182,7 +182,12 @@ class UrsulaConfigOptions:
 
         # Resolve rest host
         if not self.rest_host:
-            self.rest_host = collect_operator_ip_address(emitter, network=self.domain, force=force)
+            self.rest_host = collect_operator_ip_address(
+                emitter,
+                network=self.domain,
+                force=force,
+                provider_uri=self.eth_provider_uri,
+            )
 
         return UrsulaConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
@@ -477,11 +482,18 @@ def config(general_config, config_options, config_file, force, action):
     """
     emitter = setup_emitter(general_config, config_options.operator_address)
     if not config_file:
-        config_file = select_config_file(emitter=emitter,
-                                         checksum_address=config_options.operator_address,
-                                         config_class=UrsulaConfiguration)
-    if action == 'ip-address':
-        rest_host = collect_operator_ip_address(emitter=emitter, network=config_options.domain, force=force)
+        config_file = select_config_file(
+            emitter=emitter,
+            checksum_address=config_options.operator_address,
+            config_class=UrsulaConfiguration,
+        )
+    if action == "ip-address":
+        rest_host = collect_operator_ip_address(
+            emitter=emitter,
+            network=config_options.domain,
+            force=force,
+            provider_uri=config_options.eth_provider_uri,
+        )
         config_options.rest_host = rest_host
     elif action:
         emitter.error(f'"{action}" is not a valid command.')

@@ -93,7 +93,7 @@ PYEVM_DEV_URI = "tester://pyevm"
 
 TEST_ETH_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Pytest flag entry point?
 
-TEST_POLYGON_PROVIDER_URI = "tester://polygon"
+TEST_POLYGON_PROVIDER_URI = PYEVM_DEV_URI  # TODO: Introduce multichain separation tests
 
 MOCK_ETH_PROVIDER_URI = 'tester://mock'
 

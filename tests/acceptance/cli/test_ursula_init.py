@@ -1,11 +1,12 @@
 import json
-import pytest
 import secrets
-from eth_account import Account
 from pathlib import Path
+
+import pytest
+from eth_account import Account
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.main import nucypher_cli
@@ -17,10 +18,11 @@ from nucypher.config.constants import (
 )
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
-    MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI,
     INSECURE_DEVELOPMENT_PASSWORD,
-    TEST_POLYGON_PROVIDER_URI
+    MOCK_IP_ADDRESS,
+    PYEVM_DEV_URI,
+    TEST_ETH_PROVIDER_URI,
+    TEST_POLYGON_PROVIDER_URI,
 )
 from tests.utils.ursula import select_test_port
 
@@ -53,30 +55,40 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
     provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    pre_application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
-    pre_application_agent.bond_operator(staking_provider=provider_address,
-                                        operator=account.address,
-                                        transacting_power=provider_power)
+    pre_application_agent = ContractAgency.get_agent(
+        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+    )
+    pre_application_agent.bond_operator(
+        staking_provider=provider_address,
+        operator=account.address,
+        transacting_power=provider_power,
+    )
 
     return account, password, keystore
 
 
-@pytest.mark.skip(
-    "TODO fix and re-enable - failing because of invalid polygon provider uri"
-)
-def test_ursula_and_local_keystore_signer_integration(
-    click_runner,
-    tmp_path,
-    staking_providers,
-    application_economics,
-    mocker,
-    mock_funded_account_password_keystore,
-    testerchain,
-    test_registry_source_manager,
-):
+@pytest.mark.skip()
+def test_ursula_and_local_keystore_signer_integration(click_runner,
+                                                      tmp_path,
+                                                      staking_providers,
+                                                      application_economics,
+                                                      mocker,
+                                                      mock_funded_account_password_keystore,
+                                                      testerchain,
+                                                      test_registry_source_manager):
     config_root_path = tmp_path
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_funded_account_password_keystore
+
+    testerchain.wait_for_receipt(
+        testerchain.client.w3.eth.send_transaction(
+            {
+                "to": worker_account,
+                "from": testerchain.etherbase_account,
+                "value": Web3.to_wei("100", "ether"),
+            }
+        )
+    )
 
     #
     # Operator Steps

@@ -1,6 +1,3 @@
-
-
-
 import random
 import socket
 import time
@@ -12,6 +9,7 @@ from nucypher_core import MetadataRequest, FleetStateChecksum
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
+from tests.constants import PYEVM_DEV_URI
 from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE
 
 
@@ -144,7 +142,9 @@ class NodeIsDownMiddleware(MockRestMiddleware):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.client = _MiddlewareClientWithConnectionProblems()
+        self.client = _MiddlewareClientWithConnectionProblems(
+            eth_provider_uri=PYEVM_DEV_URI
+        )
 
     def node_is_down(self, node):
         self.client.ports_that_are_down.add(node.rest_interface.port)

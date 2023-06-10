@@ -25,12 +25,14 @@ class NucypherMiddlewareClient:
     library = requests
     timeout = 1.2
 
-    def __init__(self,
-                 registry: Optional['BaseContractRegistry'] = None,
-                 eth_provider_uri: Optional[str] = None,
-                 storage: Optional['NodeStorage'] = None,
-                 *args, **kwargs):
-
+    def __init__(
+        self,
+        eth_provider_uri: Optional[str],
+        registry: Optional["BaseContractRegistry"] = None,
+        storage: Optional["NodeStorage"] = None,
+        *args,
+        **kwargs,
+    ):
         self.registry = registry
         self.eth_provider_uri = eth_provider_uri
         self.storage = storage or ForgetfulNodeStorage()  # for certificate storage

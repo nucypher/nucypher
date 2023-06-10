@@ -3,13 +3,14 @@ import pytest
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
 
 
 @pytest.fixture(scope="module")
 def agent(mock_contract_agency) -> MockCoordinatorAgent:
     coordinator_agent: CoordinatorAgent = mock_contract_agency.get_agent(
-        CoordinatorAgent, registry=None
+        CoordinatorAgent, registry=None, eth_provider_uri=MOCK_ETH_PROVIDER_URI
     )
     return coordinator_agent
 
