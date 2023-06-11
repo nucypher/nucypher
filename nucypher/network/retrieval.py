@@ -26,7 +26,6 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.client import ThresholdAccessControlClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.policy.conditions.exceptions import InvalidConditionContext
-from nucypher.policy.conditions.rust_shims import _serialize_rust_lingos
 from nucypher.policy.kits import RetrievalResult
 
 
@@ -158,9 +157,20 @@ class RetrievalWorkOrder:
         return [rk.capsule for rk in self.__retrieval_kits]
 
     @property
-    def lingos(self) -> Conditions:
-        _lingos = [rk.conditions for rk in self.__retrieval_kits]
-        rust_lingos = _serialize_rust_lingos(_lingos)
+    def conditions(self) -> Conditions:
+        _conditions_list = [rk.conditions for rk in self.__retrieval_kits]
+        rust_conditions = self._serialize_rust_conditions(_conditions_list)
+        return rust_conditions
+
+    @staticmethod
+    def _serialize_rust_conditions(conditions_list: List[Conditions]) -> Conditions:
+        lingo_lists = list()
+        for condition in conditions_list:
+            lingo = condition
+            if condition:
+                lingo = json.loads((str(condition)))
+            lingo_lists.append(lingo)
+        rust_lingos = Conditions(json.dumps(lingo_lists))
         return rust_lingos
 
 
@@ -280,7 +290,7 @@ class PRERetrievalClient(ThresholdAccessControlClient):
 
             reencryption_request = ReencryptionRequest(
                 capsules=work_order.capsules,
-                conditions=work_order.lingos,
+                conditions=work_order.conditions,
                 context=Context(request_context_string),
                 hrac=treasure_map.hrac,
                 encrypted_kfrag=treasure_map.destinations[work_order.ursula_address],

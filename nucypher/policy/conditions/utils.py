@@ -3,7 +3,7 @@ import re
 from http import HTTPStatus
 from typing import Dict, NamedTuple, Optional, Tuple, Type, Union
 
-from marshmallow import Schema, post_dump
+from marshmallow import Schema, ValidationError, post_dump
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.exceptions import (
@@ -104,7 +104,7 @@ def validate_condition_lingo(condition: Lingo) -> None:
 
 
 def evaluate_condition_lingo(
-    lingo: "ConditionLingo",
+    condition_lingo: Lingo,
     providers: Optional[Dict[int, BaseProvider]] = None,
     context: Optional[ContextDict] = None,
     log: Logger = __LOGGER,
@@ -116,6 +116,9 @@ def evaluate_condition_lingo(
     # TODO: Evaluate all conditions even if one fails and report the result
     """
 
+    # prevent circular import
+    from nucypher.policy.conditions.lingo import ConditionLingo
+
     # Setup (don't use mutable defaults)
     context = context or dict()
     providers = providers or dict()
@@ -123,13 +126,23 @@ def evaluate_condition_lingo(
 
     # Evaluate
     try:
-        log.info(f"Evaluating access conditions {lingo}")
-        result = lingo.eval(providers=providers, **context)
-        if not result:
-            # explicit condition failure
-            error = EvalError(
-                "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
-            )
+        if condition_lingo:
+            log.info(f"Evaluating access conditions {condition_lingo}")
+            lingo = ConditionLingo.from_dict(condition_lingo)
+            result = lingo.eval(providers=providers, **context)
+            if not result:
+                # explicit condition failure
+                error = EvalError(
+                    "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
+                )
+    except ValidationError as e:
+        # marshmallow Validation Error
+        # TODO get this to always be InvalidConditionInfo/InvalidCondition
+        #  so that this block can be removed
+        error = EvalError(
+            f"Invalid condition grammar: {e}",
+            HTTPStatus.BAD_REQUEST,
+        )
     except ReturnValueEvaluationError as e:
         error = EvalError(
             f"Unable to evaluate return value: {e}",

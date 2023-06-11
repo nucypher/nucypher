@@ -17,7 +17,7 @@
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import List, Optional, Tuple, Type
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from marshmallow import fields
@@ -57,38 +57,58 @@ def test_evaluate_condition_exception_cases(
     condition_lingo = Mock()
     condition_lingo.eval.side_effect = exception_class(*exception_constructor_params)
 
-    eval_error = evaluate_condition_lingo(
-        lingo=condition_lingo
-    )  # provider and context default to empty dicts
-    assert eval_error
-    assert eval_error.status_code == expected_status_code
+    with patch(
+        "nucypher.policy.conditions.lingo.ConditionLingo.from_dict"
+    ) as mocked_from_dict:
+        mocked_from_dict.return_value = condition_lingo
+
+        eval_error = evaluate_condition_lingo(
+            condition_lingo=condition_lingo
+        )  # provider and context default to empty dicts
+        assert eval_error
+        assert eval_error.status_code == expected_status_code
 
 
 def test_evaluate_condition_eval_returns_false():
     condition_lingo = Mock()
     condition_lingo.eval.return_value = False
-    eval_error = evaluate_condition_lingo(
-        lingo=condition_lingo,
-        providers={1: Mock(spec=BaseProvider)},  # fake provider
-        context={"key": "value"},  # fake context
-    )
-    assert eval_error
-    assert eval_error.status_code == HTTPStatus.FORBIDDEN
+
+    with patch(
+        "nucypher.policy.conditions.lingo.ConditionLingo.from_dict"
+    ) as mocked_from_dict:
+        mocked_from_dict.return_value = condition_lingo
+
+        eval_error = evaluate_condition_lingo(
+            condition_lingo=condition_lingo,
+            providers={1: Mock(spec=BaseProvider)},  # fake provider
+            context={"key": "value"},  # fake context
+        )
+        assert eval_error
+        assert eval_error.status_code == HTTPStatus.FORBIDDEN
 
 
 def test_evaluate_condition_eval_returns_true():
     condition_lingo = Mock()
     condition_lingo.eval.return_value = True
-    eval_error = evaluate_condition_lingo(
-        lingo=condition_lingo,
-        providers={
-            1: Mock(spec=BaseProvider),
-            2: Mock(spec=BaseProvider),
-        },  # multiple fake provider
-        context={"key1": "value1", "key2": "value2"},  # multiple values in fake context
-    )
 
-    assert eval_error is None
+    with patch(
+        "nucypher.policy.conditions.lingo.ConditionLingo.from_dict"
+    ) as mocked_from_dict:
+        mocked_from_dict.return_value = condition_lingo
+
+        eval_error = evaluate_condition_lingo(
+            condition_lingo=condition_lingo,
+            providers={
+                1: Mock(spec=BaseProvider),
+                2: Mock(spec=BaseProvider),
+            },  # multiple fake provider
+            context={
+                "key1": "value1",
+                "key2": "value2",
+            },  # multiple values in fake context
+        )
+
+        assert eval_error is None
 
 
 @pytest.mark.parametrize(
