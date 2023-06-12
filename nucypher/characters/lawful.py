@@ -1467,6 +1467,7 @@ class Enrico:
     """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
+    default_dkg_variant = FerveoVariant.PRECOMPUTED
 
     def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()
@@ -1507,7 +1508,7 @@ class Enrico:
             ciphertext=ciphertext,
             conditions=Conditions(json.dumps(conditions)),
             context=context,
-            variant=variant_id,
+            variant=variant,
         )
 
         return ciphertext, tdr
