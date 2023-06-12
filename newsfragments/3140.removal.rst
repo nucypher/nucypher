@@ -1,1 +1,1 @@
-Remove the use of infix notation for access control conditions in favor of prefix notation.
+Remove the use of infix notation for access control conditions with logical operators in favor of prefix notation.

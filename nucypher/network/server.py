@@ -161,7 +161,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 json.loads(str(decryption_request.context)) or dict()
             )  # nucypher_core.Context -> str -> dict
 
-        # Deserialize and instantiate ConditionLingo from the request data
+        # obtain condition from request
         condition_lingo = json.loads(
             str(decryption_request.conditions)
         )  # nucypher_core.Conditions -> str -> Lingo
@@ -226,7 +226,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # Deserialize and instantiate the request
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
-        # Deserialize and instantiate ConditionLingo from the request data
+        # obtain conditions from request
         condition_lingo_list = json.loads(
             str(reenc_request.conditions)
         )  # Conditions -> str -> List[Lingo]

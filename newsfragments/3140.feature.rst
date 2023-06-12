@@ -1,1 +1,1 @@
-Implement prefix notation for access control conditions.
+Implement prefix notation for access control conditions with logical operators.
