@@ -91,16 +91,17 @@ class CompoundAccessControlCondition(AccessControlCondition):
         for condition in self.operands:
             current_result, current_value = condition.verify(*args, **kwargs)
             values.append(current_value)
-            # [True/False, <Operator>, True/False] -> 'True/False and/or True/False'
-            eval_string = f"{overall_result} {self.operator} {current_result}"
-            # TODO: Additional protection and/or sanitation here
-            overall_result = eval(eval_string)
-
-            # short-circuit checks
-            if self.operator == self.AND_OPERATOR and overall_result is False:
-                return False, values
-            if self.operator == self.OR_OPERATOR and overall_result is True:
-                return True, values
+            if self.operator == self.AND_OPERATOR:
+                overall_result = overall_result and current_result
+                # short-circuit check
+                if overall_result is False:
+                    break
+            else:
+                # or operator
+                overall_result = overall_result or current_result
+                # short-circuit check
+                if overall_result is True:
+                    break
 
         return overall_result, values
 
