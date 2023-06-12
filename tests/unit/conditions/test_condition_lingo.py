@@ -46,8 +46,7 @@ def test_invalid_condition():
             }
         ],
     }
-    # TODO - see if I can customize this error
-    with pytest.raises(ValidationError):
+    with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_operator_position_lingo)
 
 

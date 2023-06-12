@@ -69,6 +69,14 @@ def test_evaluate_condition_exception_cases(
         assert eval_error.status_code == expected_status_code
 
 
+def test_evaluate_condition_invalid_lingo():
+    eval_error = evaluate_condition_lingo(
+        condition_lingo={"dont_mind_me": "nothing_to_see_here"}
+    )  # provider and context default to empty dicts
+    assert "Invalid condition grammar" in eval_error.message
+    assert eval_error.status_code == HTTPStatus.BAD_REQUEST
+
+
 def test_evaluate_condition_eval_returns_false():
     condition_lingo = Mock()
     condition_lingo.eval.return_value = False
@@ -155,7 +163,7 @@ def test_condition_lingo_validation(compound_lingo):
     validate_condition_lingo(compound_lingo_dict)
 
     invalid_operator_lingo = {
-        "operator": "AND_OPERATOR",
+        "operator": "AND_OPERATOR",  # invalid operator
         "operands": [
             {
                 "returnValueTest": {"value": 0, "comparator": ">"},
@@ -172,6 +180,6 @@ def test_condition_lingo_validation(compound_lingo):
     with pytest.raises(InvalidCondition):
         validate_condition_lingo(invalid_operator_lingo)
 
-    # invalid condition
+    # type of condition is unknown
     with pytest.raises(InvalidConditionLingo):
         validate_condition_lingo({"dont_mind_me": "nothing_to_see_here"})

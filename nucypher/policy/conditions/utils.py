@@ -3,7 +3,7 @@ import re
 from http import HTTPStatus
 from typing import Dict, NamedTuple, Optional, Tuple, Type, Union
 
-from marshmallow import Schema, ValidationError, post_dump
+from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.exceptions import (
@@ -135,14 +135,6 @@ def evaluate_condition_lingo(
                 error = EvalError(
                     "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
                 )
-    except ValidationError as e:
-        # marshmallow Validation Error
-        # TODO get this to always be InvalidConditionInfo/InvalidCondition
-        #  so that this block can be removed
-        error = EvalError(
-            f"Invalid condition grammar: {e}",
-            HTTPStatus.BAD_REQUEST,
-        )
     except ReturnValueEvaluationError as e:
         error = EvalError(
             f"Unable to evaluate return value: {e}",
