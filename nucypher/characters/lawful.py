@@ -440,6 +440,7 @@ class Bob(Character):
     banner = BOB_BANNER
     default_dkg_variant = FerveoVariant.PRECOMPUTED
     _default_crypto_powerups = [SigningPower, DecryptingPower]
+    _threshold_decryption_client_class = ThresholdDecryptionClient
 
     class IncorrectCFragsReceived(Exception):
         """
@@ -676,7 +677,7 @@ class Bob(Character):
                 ursula_checksum_address
             ] = encrypted_decryption_request
 
-        decryption_client = ThresholdDecryptionClient(learner=self)
+        decryption_client = self._threshold_decryption_client_class(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
             encrypted_requests=decryption_request_mapping, threshold=threshold
         )

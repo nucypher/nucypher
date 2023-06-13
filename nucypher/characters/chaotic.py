@@ -1,8 +1,11 @@
 import json
+from typing import Dict, Tuple
 
-from nucypher_core import ferveo
+from nucypher_core import EncryptedThresholdDecryptionResponse, ferveo
 
 from nucypher.characters.lawful import Bob, Enrico
+from nucypher.cli.types import ChecksumAddress
+from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.policy.conditions.types import LingoList
 from nucypher.policy.conditions.utils import validate_condition_lingo
 
@@ -97,6 +100,34 @@ class BobGonnaBob(Bob, DKGOmniscient):
 
     After all, Bob gonna Bob.
     """
+
+    class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
+        def gather_encrypted_decryption_shares(
+            self,
+            *args,
+            **kwargs,
+        ) -> Tuple[
+            Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
+            Dict[ChecksumAddress, str],
+        ]:
+            assert (
+                False  # This is where DKGomniscent just knows the shares in question.
+            )
+
+    _threshold_decryption_client_class = DKGOmniscientDecryptionClient
+
+    @property
+    def done_seeding(self, *args, **kwargs):
+        return True
+
+    @done_seeding.setter
+    def done_seeding(self, *args, **kwargs):
+        return True  # We were done seeding before we started.
+
+    def ensure_ursula_availability_is_of_no_conern_to_anyone(self, *args, **kwargs):
+        pass
+
+    _ensure_ursula_availability = ensure_ursula_availability_is_of_no_conern_to_anyone
 
     def threshold_decrypt(self, ciphertext, *args, **kwargs) -> bytes:
         """
