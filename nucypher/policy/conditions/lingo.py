@@ -4,7 +4,16 @@ import operator as pyoperator
 from hashlib import md5
 from typing import Any, List, Optional, Tuple
 
-from marshmallow import Schema, ValidationError, fields, post_load, pre_load, validate
+from marshmallow import (
+    Schema,
+    ValidationError,
+    fields,
+    post_load,
+    pre_load,
+    validate,
+    validates,
+)
+from packaging.version import parse as parse_version
 
 from nucypher.policy.conditions.base import AccessControlCondition, _Serializable
 from nucypher.policy.conditions.context import is_context_variable
@@ -212,15 +221,19 @@ class ReturnValueTest:
 
 
 class ConditionLingo(_Serializable):
-    VERSION = 1
+    VERSION = "1.0.0"
 
     class Schema(Schema):
-        version = fields.Int(required=True)  # TODO validation here
+        version = fields.Str(required=True)
         condition = _ConditionField(required=True)
 
         # maintain field declaration ordering
         class Meta:
             ordered = True
+
+        @validates("version")
+        def validate_version(self, version):
+            ConditionLingo.check_version_compatibility(version)
 
         @pre_load
         def set_lingo_version(self, data, **kwargs):
@@ -239,7 +252,7 @@ class ConditionLingo(_Serializable):
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, condition: AccessControlCondition, version: int = VERSION):
+    def __init__(self, condition: AccessControlCondition, version: str = VERSION):
         """
         CONDITION = BASE_CONDITION | COMPOUND_CONDITION
         BASE_CONDITION = {
@@ -251,10 +264,7 @@ class ConditionLingo(_Serializable):
         }
         """
         self.condition = condition
-        if version > self.VERSION:
-            raise ValueError(
-                f"Version provided is in the future {version} > {self.VERSION}"
-            )
+        self.check_version_compatibility(version)
         self.version = version
         self.id = md5(bytes(self)).hexdigest()[:6]
 
@@ -312,11 +322,6 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
-        if version and version > ConditionLingo.VERSION:
-            raise InvalidConditionLingo(
-                f"Version is in the future: {version} > {ConditionLingo.VERSION}"
-            )
-
         # Inspect
         method = condition.get("method")
         operator = condition.get("operator")
@@ -338,3 +343,10 @@ class ConditionLingo(_Serializable):
         raise InvalidConditionLingo(
             f"Cannot resolve condition lingo type from data {condition}"
         )
+
+    @classmethod
+    def check_version_compatibility(cls, version: str):
+        if parse_version(version).major > parse_version(cls.VERSION).major:
+            raise InvalidConditionLingo(
+                f"Version provided, {version}, is incompatible with current version {cls.VERSION}"
+            )

@@ -84,5 +84,5 @@ ConditionDict = Union[
 # - condition
 #     - ConditionDict
 class Lingo(TypedDict):
-    version: int
+    version: str
     condition: ConditionDict

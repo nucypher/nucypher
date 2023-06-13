@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from packaging.version import parse as parse_version
 
 import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -32,13 +33,16 @@ def lingo():
     }
 
 
-def test_invalid_condition():
+def test_invalid_condition(lingo):
+    # no version or condition
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict({})
 
+    # no condition
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict({"version": ConditionLingo.VERSION})
 
+    # invalid condition
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(
             {
@@ -63,6 +67,38 @@ def test_invalid_condition():
     }
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_operator_position_lingo)
+
+
+@pytest.mark.parametrize("case", ["major", "minor", "patch"])
+def test_invalid_condition_version(case):
+    # version in the future
+    current_version = parse_version(ConditionLingo.VERSION)
+    major = current_version.major
+    minor = current_version.minor
+    patch = current_version.micro
+    if case == "major":
+        major += 1
+    elif case == "minor":
+        minor += 1
+    else:
+        patch += 1
+
+    newer_version_string = f"{major}.{minor}.{patch}"
+    lingo_dict = {
+        "version": newer_version_string,
+        "condition": {
+            "returnValueTest": {"value": 0, "comparator": ">"},
+            "method": "blocktime",
+            "chain": TESTERCHAIN_CHAIN_ID,
+        },
+    }
+    if case == "major":
+        # exception should be thrown since incompatible:
+        with pytest.raises(InvalidConditionLingo):
+            ConditionLingo.from_dict(lingo_dict)
+    else:
+        # no exception thrown
+        ConditionLingo.from_dict(lingo_dict)
 
 
 def test_condition_lingo_to_from_dict(lingo):
