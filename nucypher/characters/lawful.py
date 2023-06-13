@@ -438,6 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
+    default_dkg_variant = FerveoVariant.PRECOMPUTED
     _default_crypto_powerups = [SigningPower, DecryptingPower]
 
     class IncorrectCFragsReceived(Exception):
@@ -643,12 +644,14 @@ class Bob(Character):
         self,
         decryption_request: ThresholdDecryptionRequest,
         participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
-        variant: FerveoVariant,
         cohort: List["Ursula"],
         threshold: int,
+        variant: FerveoVariant = None,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
     ]:
+        if variant is None:
+            variant = self.default_dkg_variant.value
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
