@@ -99,10 +99,6 @@ class RPCCondition(AccessControlCondition):
     ETH_PREFIX = "eth_"
 
     ALLOWED_METHODS = (
-
-        # Contract
-        'balanceOf',
-
         # RPC
         'eth_getBalance',
     )  # TODO other allowed methods (tDEC #64)
@@ -151,8 +147,7 @@ class RPCCondition(AccessControlCondition):
             raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
-        # TODO this needs to be resolved (balanceof isn't actually allowed)
-        if not method.startswith('eth_'):
+        if not method.startswith(self.ETH_PREFIX):
             raise InvalidCondition(
                 f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."
             )

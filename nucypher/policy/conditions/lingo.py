@@ -333,9 +333,7 @@ class ConditionLingo(_Serializable):
                 return TimeCondition
             elif contract:
                 return ContractCondition
-            # TODO this needs to be resolved (balanceof isn't actually allowed)
-            #  also this should be a method on RPCCondition
-            elif method.startswith(RPCCondition.ETH_PREFIX):
+            elif method in RPCCondition.ALLOWED_METHODS:
                 return RPCCondition
         elif operator:
             return CompoundAccessControlCondition
