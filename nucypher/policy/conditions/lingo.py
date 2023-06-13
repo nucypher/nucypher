@@ -1,26 +1,23 @@
 import ast
 import base64
-import json
 import operator as pyoperator
 from hashlib import md5
 from typing import Any, List, Optional, Tuple
 
-from marshmallow import fields, post_load, validate
+from marshmallow import Schema, ValidationError, fields, post_load, pre_load, validate
 
-from nucypher.policy.conditions.base import AccessControlCondition
+from nucypher.policy.conditions.base import AccessControlCondition, _Serializable
 from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.exceptions import (
+    InvalidConditionLingo,
     InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
-from nucypher.policy.conditions.types import Lingo
-from nucypher.policy.conditions.utils import (
-    CamelCaseSchema,
-    deserialize_condition_lingo,
-)
+from nucypher.policy.conditions.types import ConditionDict, Lingo
+from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
-class _ConditionsField(fields.Dict):
+class _ConditionField(fields.Dict):
     """Serializes/Deserializes Conditions to/from dictionaries"""
 
     def __init__(self, *args, **kwargs):
@@ -30,9 +27,13 @@ class _ConditionsField(fields.Dict):
         return value.to_dict()
 
     def _deserialize(self, value, attr, data, **kwargs):
-        condition = deserialize_condition_lingo(value)
-        return condition
-
+        lingo_version = self.context.get("lingo_version")
+        condition_data = value
+        condition_class = ConditionLingo.resolve_condition_class(
+            condition=condition_data, version=lingo_version
+        )
+        instance = condition_class.from_dict(condition_data)
+        return instance
 
 #
 # CONDITION = BASE_CONDITION | COMPOUND_CONDITION
@@ -57,8 +58,12 @@ class CompoundAccessControlCondition(AccessControlCondition):
         name = fields.Str(required=False)
         operator = fields.Str(required=True, validate=validate.OneOf(["and", "or"]))
         operands = fields.List(
-            _ConditionsField, required=True, validate=validate.Length(min=2)
+            _ConditionField, required=True, validate=validate.Length(min=2)
         )
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
 
         @post_load
         def make(self, data, **kwargs):
@@ -206,7 +211,27 @@ class ReturnValueTest:
         return result
 
 
-class ConditionLingo:
+class ConditionLingo(_Serializable):
+    VERSION = 1
+
+    class Schema(Schema):
+        version = fields.Int(required=True)  # TODO validation here
+        condition = _ConditionField(required=True)
+
+        # maintain field declaration ordering
+        class Meta:
+            ordered = True
+
+        @pre_load
+        def set_lingo_version(self, data, **kwargs):
+            version = data.get("version")
+            self.context["lingo_version"] = version
+            return data
+
+        @post_load
+        def make(self, data, **kwargs):
+            return ConditionLingo(**data)
+
     """
     A Collection of access control conditions evaluated as a compound boolean expression.
 
@@ -214,7 +239,7 @@ class ConditionLingo:
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, condition: AccessControlCondition):
+    def __init__(self, condition: AccessControlCondition, version: int = VERSION):
         """
         CONDITION = BASE_CONDITION | COMPOUND_CONDITION
         BASE_CONDITION = {
@@ -226,26 +251,26 @@ class ConditionLingo:
         }
         """
         self.condition = condition
+        if version > self.VERSION:
+            raise ValueError(
+                f"Version provided is in the future {version} > {self.VERSION}"
+            )
+        self.version = version
         self.id = md5(bytes(self)).hexdigest()[:6]
-
-    def to_dict(self) -> Lingo:
-        return self.condition.to_dict()
 
     @classmethod
     def from_dict(cls, data: Lingo) -> "ConditionLingo":
-        condition = deserialize_condition_lingo(data)
-        instance = cls(condition=condition)
-        return instance
-
-    def to_json(self) -> str:
-        data = json.dumps(self.to_dict())
-        return data
+        try:
+            return super().from_dict(data)
+        except ValidationError as e:
+            raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
     @classmethod
     def from_json(cls, data: str) -> 'ConditionLingo':
-        payload = json.loads(data)
-        instance = cls.from_dict(data=payload)
-        return instance
+        try:
+            return super().from_json(data)
+        except ValidationError as e:
+            raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
 
     def to_base64(self) -> bytes:
         data = base64.b64encode(self.to_json().encode())
@@ -262,8 +287,54 @@ class ConditionLingo:
         return data
 
     def __repr__(self):
-        return f"{self.__class__.__name__} (id={self.id} | size={len(bytes(self))}) | condition=({self.condition})"
+        return f"{self.__class__.__name__} (version={self.version} | id={self.id} | size={len(bytes(self))}) | condition=({self.condition})"
 
     def eval(self, *args, **kwargs) -> bool:
         result, _ = self.condition.verify(*args, **kwargs)
         return result
+
+    @classmethod
+    def validate_condition_lingo(cls, lingo: Lingo):
+        errors = cls.Schema().validate(data=lingo)
+        if errors:
+            raise InvalidConditionLingo(f"Invalid {cls.__name__}: {errors}")
+
+    @classmethod
+    def resolve_condition_class(
+        cls, condition: ConditionDict, version: int = None
+    ) -> Union[Type[CompoundAccessControlCondition], Type[AccessControlCondition]]:
+        """
+        TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
+        Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
+        conditions expression framework.
+        """
+        from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+        from nucypher.policy.conditions.time import TimeCondition
+
+        # version logical adjustments can be made here as required
+        if version and version > ConditionLingo.VERSION:
+            raise InvalidConditionLingo(
+                f"Version is in the future: {version} > {ConditionLingo.VERSION}"
+            )
+
+        # Inspect
+        method = condition.get("method")
+        operator = condition.get("operator")
+        contract = condition.get("contractAddress")
+
+        # Resolve
+        if method:
+            if method == TimeCondition.METHOD:
+                return TimeCondition
+            elif contract:
+                return ContractCondition
+            # TODO this needs to be resolved (balanceof isn't actually allowed)
+            #  also this should be a method on RPCCondition
+            elif method.startswith(RPCCondition.ETH_PREFIX):
+                return RPCCondition
+        elif operator:
+            return CompoundAccessControlCondition
+
+        raise InvalidConditionLingo(
+            f"Cannot resolve condition lingo type from data {condition}"
+        )

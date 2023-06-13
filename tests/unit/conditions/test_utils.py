@@ -24,6 +24,7 @@ from marshmallow import fields
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.exceptions import *
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     camel_case_to_snake,
@@ -71,7 +72,10 @@ def test_evaluate_condition_exception_cases(
 
 def test_evaluate_condition_invalid_lingo():
     eval_error = evaluate_condition_lingo(
-        condition_lingo={"dont_mind_me": "nothing_to_see_here"}
+        condition_lingo={
+            "version": ConditionLingo.VERSION,
+            "condition": {"dont_mind_me": "nothing_to_see_here"},
+        }
     )  # provider and context default to empty dicts
     assert "Invalid condition grammar" in eval_error.message
     assert eval_error.status_code == HTTPStatus.BAD_REQUEST
@@ -163,23 +167,31 @@ def test_condition_lingo_validation(compound_lingo):
     validate_condition_lingo(compound_lingo_dict)
 
     invalid_operator_lingo = {
-        "operator": "AND_OPERATOR",  # invalid operator
-        "operands": [
-            {
-                "returnValueTest": {"value": 0, "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-            {
-                "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-        ],
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "operator": "AND_OPERATOR",  # invalid operator
+            "operands": [
+                {
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+            ],
+        },
     }
-    with pytest.raises(InvalidCondition):
+    with pytest.raises(InvalidConditionLingo):
         validate_condition_lingo(invalid_operator_lingo)
 
     # type of condition is unknown
     with pytest.raises(InvalidConditionLingo):
-        validate_condition_lingo({"dont_mind_me": "nothing_to_see_here"})
+        validate_condition_lingo(
+            {
+                "version": ConditionLingo.VERSION,
+                "condition": {"dont_mind_me": "nothing_to_see_here"},
+            }
+        )

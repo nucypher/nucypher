@@ -96,6 +96,8 @@ def _validate_chain(chain: int) -> None:
 
 
 class RPCCondition(AccessControlCondition):
+    ETH_PREFIX = "eth_"
+
     ALLOWED_METHODS = (
 
         # Contract
@@ -149,6 +151,7 @@ class RPCCondition(AccessControlCondition):
             raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
+        # TODO this needs to be resolved (balanceof isn't actually allowed)
         if not method.startswith('eth_'):
             raise InvalidCondition(
                 f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."

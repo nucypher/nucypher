@@ -56,14 +56,6 @@ class ContractConditionDict(RPCConditionDict):
 
 
 #
-# ConditionDict is a dictionary of:
-# - TimeCondition
-# - RPCCondition
-# - ContractCondition
-ConditionDict = Union[TimeConditionDict, RPCConditionDict, ContractConditionDict]
-
-
-#
 # CompoundCondition represents:
 # {
 #     "operator": ["and" | "or"]
@@ -76,7 +68,21 @@ class CompoundConditionDict(TypedDict):
 
 
 #
-# Lingo is:
-# - Condition
+# ConditionDict is a dictionary of:
+# - TimeCondition
+# - RPCCondition
+# - ContractCondition
 # - CompoundConditionDict
-Lingo = Union[ConditionDict, CompoundConditionDict]
+ConditionDict = Union[
+    TimeConditionDict, RPCConditionDict, ContractConditionDict, CompoundConditionDict
+]
+
+
+#
+# Lingo is:
+# - version
+# - condition
+#     - ConditionDict
+class Lingo(TypedDict):
+    version: int
+    condition: ConditionDict

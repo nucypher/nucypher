@@ -2,7 +2,6 @@ import json
 
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.policy.conditions.utils import deserialize_condition_lingo
 
 
 def test_simple_lingo_serialization(custom_abi_with_multiple_parameters, erc1155_balance_condition_data):
@@ -45,13 +44,18 @@ def test_type_resolution_from_json(
 ):
     conditions = (time_condition, rpc_condition, erc20_evm_condition)
     for condition in conditions:
-        condition_json = condition.to_json()
-        resolved_condition = deserialize_condition_lingo(condition_json)
-        assert isinstance(resolved_condition, type(condition))
+        clingo = ConditionLingo(condition=condition)
+        condition_json = clingo.to_json()
+        resolved_condition_lingo = ConditionLingo.from_json(condition_json)
+        assert isinstance(resolved_condition_lingo.condition, type(condition))
 
 
 def test_conditions_lingo_serialization(compound_lingo):
-    json_serialized_lingo = json.dumps(compound_lingo.condition.to_dict())
+    lingo_dict = {
+        "version": ConditionLingo.VERSION,
+        "condition": compound_lingo.condition.to_dict(),
+    }
+    json_serialized_lingo = json.dumps(lingo_dict)
     lingo_json = compound_lingo.to_json()
     restored_lingo = ConditionLingo.from_json(data=lingo_json)
     assert lingo_json == json_serialized_lingo

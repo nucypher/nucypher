@@ -1,7 +1,6 @@
-import json
 import re
 from http import HTTPStatus
-from typing import Dict, NamedTuple, Optional, Tuple, Type, Union
+from typing import Dict, NamedTuple, Optional, Tuple
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
@@ -19,7 +18,6 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.types import ContextDict, Lingo
 from nucypher.utilities.logging import Logger
 
-_ETH = "eth_"
 __LOGGER = Logger("condition-eval")
 
 
@@ -55,52 +53,11 @@ class CamelCaseSchema(Schema):
         }
 
 
-def resolve_condition_lingo(
-    data: Lingo,
-) -> Union[Type["CompoundAccessControlCondition"], Type["AccessControlCondition"]]:
-    """
-    TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
-    Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
-    conditions expression framework.
-    """
-    # TODO: This is ugly but avoids circular imports :-|
-    from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
-    from nucypher.policy.conditions.lingo import CompoundAccessControlCondition
-    from nucypher.policy.conditions.time import TimeCondition
+def validate_condition_lingo(lingo: Lingo) -> None:
+    # TODO potentially remove
+    from nucypher.policy.conditions.lingo import ConditionLingo
 
-    # Inspect
-    method = data.get("method")
-    operator = data.get("operator")
-    contract = data.get("contractAddress")
-
-    # Resolve
-    if method:
-        if method == TimeCondition.METHOD:
-            return TimeCondition
-        elif contract:
-            return ContractCondition
-        elif method.startswith(_ETH):
-            return RPCCondition
-    elif operator:
-        return CompoundAccessControlCondition
-
-    raise InvalidConditionLingo(f"Cannot resolve condition lingo type from data {data}")
-
-
-def deserialize_condition_lingo(
-    data: Lingo,
-) -> Union["CompoundAccessControlCondition", "AccessControlCondition"]:
-    """Deserialization helper for condition lingo"""
-    if isinstance(data, str):
-        data = json.loads(data)
-    lingo_class = resolve_condition_lingo(data=data)
-    instance = lingo_class.from_dict(data)
-    return instance
-
-
-def validate_condition_lingo(condition: Lingo) -> None:
-    lingo_class = resolve_condition_lingo(data=condition)
-    lingo_class.validate(data=condition)
+    ConditionLingo.validate_condition_lingo(lingo=lingo)
 
 
 def evaluate_condition_lingo(
