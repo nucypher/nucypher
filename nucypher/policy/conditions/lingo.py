@@ -2,7 +2,7 @@ import ast
 import base64
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Type
 
 from marshmallow import (
     Schema,
@@ -312,7 +312,7 @@ class ConditionLingo(_Serializable):
     @classmethod
     def resolve_condition_class(
         cls, condition: ConditionDict, version: int = None
-    ) -> Union[Type[CompoundAccessControlCondition], Type[AccessControlCondition]]:
+    ) -> Type[AccessControlCondition]:
         """
         TODO: This feels like a jenky way to resolve data types from JSON blobs, but it works.
         Inspects a given bloc of JSON and attempts to resolve it's intended  datatype within the
