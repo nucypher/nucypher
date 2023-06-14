@@ -135,7 +135,7 @@ def test_compound_condition(mock_conditions):
     assert len(value) == 1, "or_condition"
     assert value == [
         [1, 2, 3]
-    ]  # or condition does not short circuit, but and is short-circuited because or is False
+    ]  # or-condition does not short circuit, but and-condition is short-circuited because or-condition is False
 
     # or condition is True but condition 4 is False
     condition_1.verify.return_value = (True, 1)
@@ -147,7 +147,7 @@ def test_compound_condition(mock_conditions):
     assert value == [
         [1],
         4,
-    ]  # or condition short-circuited because condition_1 was True
+    ]  # or-condition short-circuited because condition_1 was True
 
     # condition_4 is now true
     condition_4.verify.return_value = (True, 4)
@@ -157,7 +157,7 @@ def test_compound_condition(mock_conditions):
     assert value == [
         [1],
         4,
-    ]  # or condition short-circuited because condition_1 was True
+    ]  # or-condition short-circuited because condition_1 was True
 
 
 def test_nested_compound_condition(mock_conditions):
@@ -186,15 +186,18 @@ def test_nested_compound_condition(mock_conditions):
     assert len(value) == 2, "or_condition and condition_4"
     assert value == [[1], 4]  # or short-circuited since condition_1 is True
 
-    # condition_1 is now false so nested and condition must be evaluated
+    # set condition_1 to False so nested and-condition must be evaluated
     condition_1.verify.return_value = (False, 1)
 
     result, value = nested_compound_condition.verify()
     assert result is True
     assert len(value) == 2, "or_condition and condition_4"
-    assert value == [[1, [2, 3]], 4]  # nested and was evaluated and evaluated to True
+    assert value == [
+        [1, [2, 3]],
+        4,
+    ]  # nested and-condition was evaluated and evaluated to True
 
-    # condition_4 is False so result flips to True
+    # set condition_4 to False so that overall result flips to False
     condition_4.verify.return_value = (False, 4)
     result, value = nested_compound_condition.verify()
     assert result is False
