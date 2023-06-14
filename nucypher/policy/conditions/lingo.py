@@ -3,7 +3,7 @@ import base64
 import json
 import operator as pyoperator
 from hashlib import md5
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple
 
 from marshmallow import fields, post_load, validate
 
@@ -18,8 +18,6 @@ from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     deserialize_condition_lingo,
 )
-
-Condition = Union[AccessControlCondition, "CompoundAccessControlCondition"]
 
 
 class _ConditionsField(fields.Dict):
@@ -67,7 +65,10 @@ class CompoundAccessControlCondition(AccessControlCondition):
             return CompoundAccessControlCondition(**data)
 
     def __init__(
-        self, operator: str, operands: List[Condition], name: Optional[str] = None
+        self,
+        operator: str,
+        operands: List[AccessControlCondition],
+        name: Optional[str] = None,
     ):
         """
         COMPOUND_CONDITION = {
@@ -107,12 +108,12 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
 
 class OrCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[Condition]):
+    def __init__(self, operands: List[AccessControlCondition]):
         super().__init__(operator=self.OR_OPERATOR, operands=operands)
 
 
 class AndCompoundCondition(CompoundAccessControlCondition):
-    def __init__(self, operands: List[Condition]):
+    def __init__(self, operands: List[AccessControlCondition]):
         super().__init__(operator=self.AND_OPERATOR, operands=operands)
 
 
@@ -213,7 +214,7 @@ class ConditionLingo:
     the Lit Protocol (https://github.com/LIT-Protocol); credit to the authors for inspiring this work.
     """
 
-    def __init__(self, condition: Condition):
+    def __init__(self, condition: AccessControlCondition):
         """
         CONDITION = BASE_CONDITION | COMPOUND_CONDITION
         BASE_CONDITION = {
