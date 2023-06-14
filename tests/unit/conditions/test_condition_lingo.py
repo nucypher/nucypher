@@ -33,7 +33,7 @@ def lingo():
     }
 
 
-def test_invalid_condition(lingo):
+def test_invalid_condition():
     # no version or condition
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict({})
@@ -98,13 +98,24 @@ def test_invalid_condition_version(case):
             ConditionLingo.from_dict(lingo_dict)
     else:
         # no exception thrown
-        ConditionLingo.from_dict(lingo_dict)
+        ConditionLingo.validate_condition_lingo(lingo_dict)
+        _ = ConditionLingo.from_dict(lingo_dict)
 
 
 def test_condition_lingo_to_from_dict(lingo):
     clingo = ConditionLingo.from_dict(lingo)
     clingo_dict = clingo.to_dict()
     assert clingo_dict == lingo
+
+
+def test_condition_lingo_to_from_json(lingo):
+    # A bit more convoluted because fields aren't
+    # necessarily ordered - so string comparison is tricky
+    clingo_from_dict = ConditionLingo.from_dict(lingo)
+    lingo_json = clingo_from_dict.to_json()
+
+    clingo_from_json = ConditionLingo.from_json(lingo_json)
+    assert clingo_from_json.to_dict() == lingo
 
 
 def test_condition_lingo_repr(lingo):
@@ -121,13 +132,15 @@ def test_lingo_parameter_int_type_preservation(custom_abi_with_multiple_paramete
         nucypher.policy.conditions.context._DIRECTIVES,
         {USER_ADDRESS_CONTEXT: lambda: NULL_ADDRESS},
     )
-    clingo = ConditionLingo.from_dict(
+    clingo_json = json.dumps(
         {
             "version": ConditionLingo.VERSION,
             "condition": json.loads(
-                custom_abi_with_multiple_parameters
-            ),  # TODO fix this
+                custom_abi_with_multiple_parameters  # fixture is already a json string
+            ),
         }
     )
+
+    clingo = ConditionLingo.from_json(clingo_json)
     conditions = clingo.to_dict()
     assert conditions["condition"]["parameters"][2] == 4

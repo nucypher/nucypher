@@ -479,6 +479,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
 
 
 def test_time_condition_evaluation(testerchain, time_condition, condition_providers):
+    assert time_condition.timestamp == 0
     condition_result, call_result = time_condition.verify(providers=condition_providers)
     assert condition_result is True
 
