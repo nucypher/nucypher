@@ -170,13 +170,11 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     ritual_id = 23
     # Use actual decryption request
     plaintext = b"Records break when you don't"  # Jordan branch ad tagline
-    CONDITIONS = [
-        {
-            "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        }
-    ]
+    CONDITIONS = {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "blocktime",
+        "chain": TESTERCHAIN_CHAIN_ID,
+    }
 
     # encrypt
     enrico = Enrico(encrypting_key=dkg_public_key)

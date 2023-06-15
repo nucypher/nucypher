@@ -24,25 +24,12 @@ ContextDict = Dict[str, Any]
 # ConditionLingo
 ################
 
-#
-# OperatorDict represents:
-# - {"operator": "and" | "or"}
-class OperatorDict(TypedDict):
-    operator: Literal["and", "or"]
-
-
-#
-# ConditionDict is a dictionary of:
-# - TimeCondition
-# - RPCCondition
-# - ContractCondition
-
-OperatorLiteral = Literal["==", "!=", ">", "<", ">=", "<="]
+ComparatorLiteral = Literal["==", "!=", ">", "<", ">=", "<="]
 
 
 # Return Value Test
 class ReturnValueTestDict(TypedDict):
-    comparator: OperatorLiteral
+    comparator: ComparatorLiteral
     value: Any
     key: NotRequired[Union[str, int]]
 
@@ -68,15 +55,28 @@ class ContractConditionDict(RPCConditionDict):
     functionAbi: NotRequired[ABIFunction]
 
 
+#
+# ConditionDict is a dictionary of:
+# - TimeCondition
+# - RPCCondition
+# - ContractCondition
 ConditionDict = Union[TimeConditionDict, RPCConditionDict, ContractConditionDict]
 
-#
-# LingoListEntry is:
-# - Condition
-# - Operator
-#
-LingoListEntry = Union[OperatorDict, ConditionDict]
 
 #
-# LingoList contains a list of LingoEntries
-LingoList = List[LingoListEntry]
+# CompoundCondition represents:
+# {
+#     "operator": ["and" | "or"]
+#     "operands": List[AccessControlCondition | CompoundCondition]
+#
+#
+class CompoundConditionDict(TypedDict):
+    operator: Literal["and", "or"]
+    operands: List["Lingo"]
+
+
+#
+# Lingo is:
+# - Condition
+# - CompoundConditionDict
+Lingo = Union[ConditionDict, CompoundConditionDict]

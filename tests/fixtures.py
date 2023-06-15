@@ -606,25 +606,26 @@ def time_condition():
 
 @pytest.fixture
 def compound_blocktime_lingo():
-    return [
-        {
-            "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-        {"operator": "and"},
-        {
-            "returnValueTest": {"value": "99999999999999999", "comparator": "<"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-        {"operator": "and"},
-        {
-            "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "blocktime",
-            "chain": TESTERCHAIN_CHAIN_ID,
-        },
-    ]
+    return {
+        "operator": "and",
+        "operands": [
+            {
+                "returnValueTest": {"value": "0", "comparator": ">"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+            {
+                "returnValueTest": {"value": "99999999999999999", "comparator": "<"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+            {
+                "returnValueTest": {"value": "0", "comparator": ">"},
+                "method": "blocktime",
+                "chain": TESTERCHAIN_CHAIN_ID,
+            },
+        ],
+    }
 
 
 @pytest.fixture

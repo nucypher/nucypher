@@ -3,9 +3,12 @@ from abc import ABC, abstractmethod
 from base64 import b64decode, b64encode
 from typing import Any, Dict, Tuple
 
-from marshmallow import Schema
+from marshmallow import Schema, ValidationError
 
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
+    InvalidConditionLingo,
+)
 
 
 class _Serializable:
@@ -62,3 +65,17 @@ class AccessControlCondition(_Serializable, ABC):
         errors = cls.Schema().validate(data=data)
         if errors:
             raise InvalidCondition(f"Invalid {cls.__name__}: {errors}")
+
+    @classmethod
+    def from_dict(cls, data) -> "_Serializable":
+        try:
+            return super().from_dict(data)
+        except ValidationError as e:
+            raise InvalidConditionLingo(f"Invalid condition grammar: {e}")
+
+    @classmethod
+    def from_json(cls, data) -> "_Serializable":
+        try:
+            return super().from_json(data)
+        except ValidationError as e:
+            raise InvalidConditionLingo(f"Invalid condition grammar: {e}")

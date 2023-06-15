@@ -17,7 +17,6 @@ from nucypher_core import (
     RevocationOrder,
     ThresholdDecryptionResponse,
 )
-from nucypher_core.ferveo import Ciphertext
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.ferveo.dkg import FerveoVariant
@@ -26,8 +25,6 @@ from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.lingo import ConditionLingo
-from nucypher.policy.conditions.rust_shims import _deserialize_rust_lingos
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.utilities.logging import Logger
 
@@ -157,18 +154,27 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
         )
 
-        # Deserialize and instantiate ConditionLingo from the request data
-        conditions_data = str(decryption_request.conditions)  # nucypher_core.Conditions -> str
-        lingo = ConditionLingo.from_list(json.loads(conditions_data))  # str -> list -> ConditionLingo
-
         # requester-supplied condition eval context
         context = None
         if decryption_request.context:
-            context = json.loads(str(decryption_request.context)) or dict()  # nucypher_core.Context -> str -> dict
+            context = (
+                json.loads(str(decryption_request.context)) or dict()
+            )  # nucypher_core.Context -> str -> dict
+
+        # obtain condition from request
+        condition_lingo = json.loads(
+            str(decryption_request.conditions)
+        )  # nucypher_core.Conditions -> str -> Lingo
+        if not condition_lingo:
+            # this should never happen for CBD - defeats the purpose
+            return Response(
+                "No conditions present for ciphertext - invalid for CBD functionality",
+                status=HTTPStatus.FORBIDDEN,
+            )
 
         # evaluate the conditions for this ciphertext
         error = evaluate_condition_lingo(
-            lingo=lingo,
+            condition_lingo=condition_lingo,
             context=context,
             providers=this_node.condition_providers,
         )
@@ -220,14 +226,16 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # Deserialize and instantiate the request
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
-        # Deserialize and instantiate ConditionLingo from the request data
-        lingos = _deserialize_rust_lingos(reenc_request=reenc_request)
+        # obtain conditions from request
+        lingo_list = json.loads(
+            str(reenc_request.conditions)
+        )  # Conditions -> str -> List[Lingo]
 
         # requester-supplied reencryption condition context
         context = json.loads(str(reenc_request.context)) or dict()
 
         # zip capsules with their respective conditions
-        packets = zip(reenc_request.capsules, lingos)
+        packets = zip(reenc_request.capsules, lingo_list)
 
         # TODO: Relocate HRAC to RE.context
         hrac = reenc_request.hrac
@@ -283,7 +291,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         for capsule, condition_lingo in packets:
             if condition_lingo:
                 error = evaluate_condition_lingo(
-                    lingo=condition_lingo,
+                    condition_lingo=condition_lingo,
                     providers=this_node.condition_providers,
                     context=context
                 )

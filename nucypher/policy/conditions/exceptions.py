@@ -3,7 +3,7 @@ class InvalidConditionLingo(Exception):
     """Invalid lingo grammar."""
 
 
-class InvalidLogicalOperator(Exception):
+class InvalidLogicalOperator(InvalidConditionLingo):
     """Invalid definition of logical lingo operator."""
 
 

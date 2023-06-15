@@ -8,7 +8,12 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
-from nucypher.policy.conditions.lingo import AND, OR, ConditionLingo, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    AndCompoundCondition,
+    ConditionLingo,
+    OrCompoundCondition,
+    ReturnValueTest,
+)
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
@@ -34,15 +39,18 @@ def compound_lingo(
 ):
     """depends on contract deployments"""
     lingo = ConditionLingo(
-        conditions=[
-            erc721_evm_condition_balanceof,
-            OR,
-            time_condition,
-            OR,
-            rpc_condition,
-            AND,
-            erc20_evm_condition_balanceof,
-        ]
+        condition=OrCompoundCondition(
+            operands=[
+                erc721_evm_condition_balanceof,
+                time_condition,
+                AndCompoundCondition(
+                    operands=[
+                        rpc_condition,
+                        erc20_evm_condition_balanceof,
+                    ]
+                ),
+            ]
+        )
     )
     return lingo
 
