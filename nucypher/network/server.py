@@ -166,7 +166,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             str(decryption_request.conditions)
         )  # nucypher_core.Conditions -> str -> Lingo
         if not condition_lingo:
-            # TODO is this needed - this should never happen for CBD - defeats the purpose
+            # this should never happen for CBD - defeats the purpose
             return Response(
                 "No conditions present for ciphertext - invalid for CBD functionality",
                 status=HTTPStatus.FORBIDDEN,
@@ -227,7 +227,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         reenc_request = ReencryptionRequest.from_bytes(request.data)
 
         # obtain conditions from request
-        condition_lingo_list = json.loads(
+        lingo_list = json.loads(
             str(reenc_request.conditions)
         )  # Conditions -> str -> List[Lingo]
 
@@ -235,7 +235,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         context = json.loads(str(reenc_request.context)) or dict()
 
         # zip capsules with their respective conditions
-        packets = zip(reenc_request.capsules, condition_lingo_list)
+        packets = zip(reenc_request.capsules, lingo_list)
 
         # TODO: Relocate HRAC to RE.context
         hrac = reenc_request.hrac

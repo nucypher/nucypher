@@ -51,14 +51,9 @@ eth_balance_condition = {
     }
 }
 
-conditions = eth_balance_condition
 
-
-message = 'hello world'.encode()
-ciphertext = enrico.encrypt_for_dkg(
-    plaintext=message,
-    conditions=conditions
-)
+message = "hello world".encode()
+ciphertext = enrico.encrypt_for_dkg(plaintext=message, conditions=eth_balance_condition)
 
 print(f'Encrypted message: {bytes(ciphertext).hex()}')
 
@@ -79,7 +74,7 @@ bob.start_learning_loop(now=True)
 cleartext = bob.threshold_decrypt(
     ritual_id=ritual_id,
     ciphertext=ciphertext,
-    conditions=conditions,
+    conditions=eth_balance_condition,
     # uncomment to use the precomputed variant
     # variant=FerveoVariant.PRECOMPUTED.name
 )
