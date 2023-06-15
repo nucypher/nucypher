@@ -7,6 +7,7 @@ import nucypher
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.characters.lawful import Bob, Enrico, Ursula
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 ######################
@@ -39,18 +40,14 @@ print(f'Fetched DKG public key {bytes(enrico.policy_pubkey).hex()} '
       f'from Coordinator {coordinator_agent.contract.address}')
 
 eth_balance_condition = {
-    "chain": 80001,
-    "method": "eth_getBalance",
-    "parameters": [
-        "0x210eeAC07542F815ebB6FD6689637D8cA2689392",
-        "latest"
-    ],
-    "returnValueTest": {
-        "comparator": "==",
-        "value": 0
-    }
+    "version": ConditionLingo.VERSION,
+    "condition": {
+        "chain": 80001,
+        "method": "eth_getBalance",
+        "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
+        "returnValueTest": {"comparator": "==", "value": 0},
+    },
 }
-
 
 message = "hello world".encode()
 ciphertext = enrico.encrypt_for_dkg(plaintext=message, conditions=eth_balance_condition)

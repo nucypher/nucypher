@@ -35,6 +35,7 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Bob, Enrico, Ursula
 from nucypher.crypto.powers import TransactingPower
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -197,9 +198,12 @@ Those who know the essential to be essential and the unessential to be unessenti
 # -- Dhammapada
 
 CONDITIONS = {
-    "returnValueTest": {"value": "0", "comparator": ">"},
-    "method": "blocktime",
-    "chain": blockchain.client.chain_id,
+    "version": ConditionLingo.VERSION,
+    "condition": {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "blocktime",
+        "chain": blockchain.client.chain_id,
+    },
 }
 
 encrypting_key = DkgPublicKey.from_bytes(
