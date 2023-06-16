@@ -145,7 +145,6 @@ class Alice(Character, PolicyAuthor):
         *args,
         **kwargs,
     ):
-
         #
         # Fallback Policy Values
         #
@@ -162,18 +161,27 @@ class Alice(Character, PolicyAuthor):
             self.threshold = STRANGER_ALICE
             self.shares = STRANGER_ALICE
 
-        Character.__init__(self,
-                           known_node_class=Ursula,
-                           is_me=is_me,
-                           eth_provider_uri=eth_provider_uri,
-                           checksum_address=checksum_address,
-                           network_middleware=network_middleware,
-                           *args, **kwargs)
+        Character.__init__(
+            self,
+            known_node_class=Ursula,
+            is_me=is_me,
+            eth_provider_uri=eth_provider_uri,
+            checksum_address=checksum_address,
+            network_middleware=network_middleware,
+            *args,
+            **kwargs,
+        )
 
         if is_me:  # TODO: #289
-            blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=self.eth_provider_uri)
-            signer = signer or Web3Signer(blockchain.client)  # fallback to web3 provider by default for Alice.
-            self.transacting_power = TransactingPower(account=checksum_address, signer=signer)
+            blockchain = BlockchainInterfaceFactory.get_interface(
+                eth_provider_uri=self.eth_provider_uri
+            )
+            signer = signer or Web3Signer(
+                blockchain.client
+            )  # fallback to web3 provider by default for Alice.
+            self.transacting_power = TransactingPower(
+                account=checksum_address, signer=signer
+            )
             self._crypto_power.consume_power_up(self.transacting_power)
             PolicyAuthor.__init__(
                 self,
@@ -185,10 +193,11 @@ class Alice(Character, PolicyAuthor):
 
         self.log = Logger(self.__class__.__name__)
         if is_me:
-
             # Policy Payment
             if not payment_method:
-                raise ValueError('payment_method is a required argument for a local Alice.')
+                raise ValueError(
+                    "payment_method is a required argument for a local Alice."
+                )
             self.payment_method = payment_method
             self.rate = rate
             self.duration = duration
@@ -209,12 +218,9 @@ class Alice(Character, PolicyAuthor):
             raise KeyError("Policy already exists in active_policies.")
         self.active_policies[active_policy.hrac] = active_policy
 
-    def generate_kfrags(self,
-                        bob: 'Bob',
-                        label: bytes,
-                        threshold: int = None,
-                        shares: int = None
-                        ) -> List:
+    def generate_kfrags(
+        self, bob: "Bob", label: bytes, threshold: int = None, shares: int = None
+    ) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
 
@@ -228,11 +234,13 @@ class Alice(Character, PolicyAuthor):
 
         bob_encrypting_key = bob.public_keys(DecryptingPower)
         delegating_power = self._crypto_power.power_ups(DelegatingPower)
-        policy_key_and_kfrags = delegating_power.generate_kfrags(bob_pubkey_enc=bob_encrypting_key,
-                                                                 signer=self.stamp.as_umbral_signer(),
-                                                                 label=label,
-                                                                 threshold=threshold or self.threshold,
-                                                                 shares=shares or self.shares)
+        policy_key_and_kfrags = delegating_power.generate_kfrags(
+            bob_pubkey_enc=bob_encrypting_key,
+            signer=self.stamp.as_umbral_signer(),
+            label=label,
+            threshold=threshold or self.threshold,
+            shares=shares or self.shares,
+        )
         return policy_key_and_kfrags
 
     def create_policy(self, bob: "Bob", label: bytes, **policy_params):
@@ -242,44 +250,46 @@ class Alice(Character, PolicyAuthor):
         """
 
         policy_params = self.generate_policy_parameters(**policy_params)
-        shares = policy_params.pop('shares')
+        shares = policy_params.pop("shares")
 
         # Generate KFrags
-        public_key, kfrags = self.generate_kfrags(bob=bob,
-                                                  label=label,
-                                                  threshold=policy_params['threshold'],
-                                                  shares=shares)
-        payload = dict(label=label,
-                       bob=bob,
-                       kfrags=kfrags,
-                       public_key=public_key,
-                       **policy_params)
+        public_key, kfrags = self.generate_kfrags(
+            bob=bob, label=label, threshold=policy_params["threshold"], shares=shares
+        )
+        payload = dict(
+            label=label, bob=bob, kfrags=kfrags, public_key=public_key, **policy_params
+        )
 
         # Sample from blockchain
         payload.update(**policy_params)
         policy = Policy(publisher=self, **payload)
         return policy
 
-    def generate_policy_parameters(self,
-                                   threshold: Optional[int] = None,
-                                   shares: Optional[int] = None,
-                                   duration: Optional[int] = None,
-                                   commencement: Optional[maya.MayaDT] = None,
-                                   expiration: Optional[maya.MayaDT] = None,
-                                   value: Optional[int] = None,
-                                   rate: Optional[int] = None,
-                                   payment_method: Optional[PaymentMethod] = None
-                                   ) -> dict:
+    def generate_policy_parameters(
+        self,
+        threshold: Optional[int] = None,
+        shares: Optional[int] = None,
+        duration: Optional[int] = None,
+        commencement: Optional[maya.MayaDT] = None,
+        expiration: Optional[maya.MayaDT] = None,
+        value: Optional[int] = None,
+        rate: Optional[int] = None,
+        payment_method: Optional[PaymentMethod] = None,
+    ) -> dict:
         """Construct policy creation from default parameters or overrides."""
 
         if not duration and not expiration:
-            raise ValueError("Policy end time must be specified as 'expiration' or 'duration', got neither.")
+            raise ValueError(
+                "Policy end time must be specified as 'expiration' or 'duration', got neither."
+            )
 
         # Merge injected and default params.
         threshold = threshold or self.threshold
         shares = shares or self.shares
         duration = duration or self.duration
-        rate = rate if rate is not None else self.rate  # TODO conflict with CLI default value, see #1709
+        rate = (
+            rate if rate is not None else self.rate
+        )  # TODO conflict with CLI default value, see #1709
         payment_method = payment_method or self.payment_method
 
         # Calculate Policy Rate, Duration, and Value
@@ -289,7 +299,7 @@ class Alice(Character, PolicyAuthor):
             commencement=commencement.epoch if commencement else None,
             expiration=expiration.epoch if expiration else None,
             rate=rate,
-            value=value
+            value=value,
         )
 
         params = dict(
@@ -300,7 +310,7 @@ class Alice(Character, PolicyAuthor):
             commencement=quote.commencement,
             expiration=quote.expiration,
             rate=quote.rate,
-            value=quote.value
+            value=quote.value,
         )
         return params
 
@@ -315,13 +325,14 @@ class Alice(Character, PolicyAuthor):
         #     raise RuntimeError(f"The requested duration for this policy (until {policy.expiration}) exceeds the "
         #                        f"probationary period ({END_OF_POLICIES_PROBATIONARY_PERIOD}).")
 
-    def grant(self,
-              bob: "Bob",
-              label: bytes,
-              ursulas: set = None,
-              timeout: int = None,
-              **policy_params):
-
+    def grant(
+        self,
+        bob: "Bob",
+        label: bytes,
+        ursulas: set = None,
+        timeout: int = None,
+        **policy_params,
+    ):
         timeout = timeout or self.timeout
 
         #
@@ -344,7 +355,9 @@ class Alice(Character, PolicyAuthor):
         #
 
         self.log.debug(f"Enacting {policy} ... ")
-        enacted_policy = policy.enact(network_middleware=self.network_middleware, ursulas=ursulas)
+        enacted_policy = policy.enact(
+            network_middleware=self.network_middleware, ursulas=ursulas
+        )
 
         self.add_active_policy(enacted_policy)
         return enacted_policy
@@ -354,14 +367,11 @@ class Alice(Character, PolicyAuthor):
         policy_pubkey = alice_delegating_power.get_pubkey_from_label(label)
         return policy_pubkey
 
-    def revoke(self,
-               policy: Policy,
-               onchain: bool = True,
-               offchain: bool = True
-               ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple['Revocation', Exception]]]:
-
+    def revoke(
+        self, policy: Policy, onchain: bool = True, offchain: bool = True
+    ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple["Revocation", Exception]]]:
         if not (offchain or onchain):
-            raise ValueError('offchain or onchain must be True to issue revocation')
+            raise ValueError("offchain or onchain must be True to issue revocation")
 
         receipt, failed = dict(), dict()
 
@@ -380,10 +390,11 @@ class Alice(Character, PolicyAuthor):
             """
             try:
                 # Wait for a revocation threshold of nodes to be known ((n - m) + 1)
-                revocation_threshold = ((policy.shares - policy.threshold) + 1)
+                revocation_threshold = (policy.shares - policy.threshold) + 1
                 self.block_until_specific_nodes_are_known(
                     policy.revocation_kit.revokable_addresses,
-                    allow_missing=(policy.shares - revocation_threshold))
+                    allow_missing=(policy.shares - revocation_threshold),
+                )
             except self.NotEnoughTeachers:
                 raise  # TODO  NRN
 
@@ -391,11 +402,16 @@ class Alice(Character, PolicyAuthor):
                 ursula = self.known_nodes[node_id]
                 revocation = policy.revocation_kit[node_id]
                 try:
-                    response = self.network_middleware.request_revocation(ursula, revocation)
+                    response = self.network_middleware.request_revocation(
+                        ursula, revocation
+                    )
                 except self.network_middleware.NotFound:
                     failed[node_id] = (revocation, self.network_middleware.NotFound)
                 except self.network_middleware.UnexpectedResponse:
-                    failed[node_id] = (revocation, self.network_middleware.UnexpectedResponse)
+                    failed[node_id] = (
+                        revocation,
+                        self.network_middleware.UnexpectedResponse,
+                    )
                 else:
                     if response.status_code != 200:
                         message = f"Failed to revocation for node {node_id} with status code {response.status_code}"
@@ -474,22 +490,24 @@ class Bob(Character):
         if is_me:
             self.log.info(self.banner)
 
-    def _decrypt_treasure_map(self,
-                              encrypted_treasure_map: EncryptedTreasureMap,
-                              publisher_verifying_key: PublicKey
-                              ) -> TreasureMap:
+    def _decrypt_treasure_map(
+        self,
+        encrypted_treasure_map: EncryptedTreasureMap,
+        publisher_verifying_key: PublicKey,
+    ) -> TreasureMap:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt_treasure_map(encrypted_treasure_map,
-                                                     publisher_verifying_key=publisher_verifying_key)
+        return decrypting_power.decrypt_treasure_map(
+            encrypted_treasure_map, publisher_verifying_key=publisher_verifying_key
+        )
 
     def retrieve(
-            self,
-            message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
-            alice_verifying_key: PublicKey,  # KeyFrag signer's key
-            encrypted_treasure_map: EncryptedTreasureMap,
-            publisher_verifying_key: Optional[PublicKey] = None,
-            **context,  # TODO: dont use one context to rule them all
-            ) -> List[PolicyMessageKit]:
+        self,
+        message_kits: Sequence[Union[MessageKit, PolicyMessageKit]],
+        alice_verifying_key: PublicKey,  # KeyFrag signer's key
+        encrypted_treasure_map: EncryptedTreasureMap,
+        publisher_verifying_key: Optional[PublicKey] = None,
+        **context,  # TODO: dont use one context to rule them all
+    ) -> List[PolicyMessageKit]:
         """
         Attempts to retrieve reencrypted capsule fragments
         corresponding to given message kits from Ursulas.
@@ -506,7 +524,9 @@ class Bob(Character):
 
         if not publisher_verifying_key:
             publisher_verifying_key = alice_verifying_key
-        publisher_verifying_key = PublicKey.from_compressed_bytes(publisher_verifying_key.to_compressed_bytes())
+        publisher_verifying_key = PublicKey.from_compressed_bytes(
+            publisher_verifying_key.to_compressed_bytes()
+        )
 
         # A small optimization to avoid multiple treasure map decryptions.
         map_hash = hash(bytes(encrypted_treasure_map))
@@ -515,18 +535,25 @@ class Bob(Character):
         else:
             # Have to decrypt the treasure map first to find out what the threshold is.
             # Otherwise, we could check the message kits for completeness right away.
-            treasure_map = self._decrypt_treasure_map(encrypted_treasure_map, publisher_verifying_key)
+            treasure_map = self._decrypt_treasure_map(
+                encrypted_treasure_map, publisher_verifying_key
+            )
             self._treasure_maps[map_hash] = treasure_map
 
         # Normalize input
         message_kits: List[PolicyMessageKit] = [
-            PolicyMessageKit.from_message_kit(message_kit, treasure_map.policy_encrypting_key, treasure_map.threshold)
-                if isinstance(message_kit, MessageKit) else message_kit
+            PolicyMessageKit.from_message_kit(
+                message_kit, treasure_map.policy_encrypting_key, treasure_map.threshold
+            )
+            if isinstance(message_kit, MessageKit)
+            else message_kit
             for message_kit in message_kits
-            ]
+        ]
 
         # Clear up all unrelated information from message kits before retrieval.
-        retrieval_kits = [message_kit.as_retrieval_kit() for message_kit in message_kits]
+        retrieval_kits = [
+            message_kit.as_retrieval_kit() for message_kit in message_kits
+        ]
 
         # Retrieve capsule frags
         client = PRERetrievalClient(learner=self)
@@ -536,7 +563,7 @@ class Bob(Character):
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
             bob_verifying_key=self.stamp.as_umbral_pubkey(),
-            **context
+            **context,
         )
 
         # Refill message kits with newly retrieved capsule frags
@@ -558,7 +585,9 @@ class Bob(Character):
 
         for message_kit in message_kits:
             if not message_kit.is_decryptable_by_receiver():
-                raise Ursula.NotEnoughUrsulas(f"Not enough cfrags retrieved to open capsule {message_kit.message_kit.capsule}")
+                raise Ursula.NotEnoughUrsulas(
+                    f"Not enough cfrags retrieved to open capsule {message_kit.message_kit.capsule}"
+                )
 
         cleartexts = []
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
@@ -568,8 +597,9 @@ class Bob(Character):
 
         return cleartexts
 
-    def resolve_cohort(self, ritual: CoordinatorAgent.Ritual, timeout: int) -> List['Ursula']:
-
+    def resolve_cohort(
+        self, ritual: CoordinatorAgent.Ritual, timeout: int
+    ) -> List["Ursula"]:
         if timeout > 0:
             if not self._learning_task.running:
                 self.start_learning_loop(now=True)
@@ -590,11 +620,11 @@ class Bob(Character):
 
     @staticmethod
     def make_decryption_request(
-            ritual_id: int,
-            ciphertext: Ciphertext,
-            lingo: Lingo,
-            variant: FerveoVariant,
-            context: Optional[dict] = None,
+        ritual_id: int,
+        ciphertext: Ciphertext,
+        lingo: Lingo,
+        variant: FerveoVariant,
+        context: Optional[dict] = None,
     ) -> ThresholdDecryptionRequest:
         conditions = Conditions(json.dumps(lingo))
         if context:
@@ -769,7 +799,6 @@ class Bob(Character):
 
 
 class Ursula(Teacher, Character, Operator, Ritualist):
-
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -829,7 +858,6 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         )
 
         if is_me:
-
             if metadata:
                 raise ValueError("A local node must generate its own metadata.")
             self._metadata = None
@@ -987,12 +1015,15 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         block_until_ready: bool = True,
         eager: bool = False,
     ) -> None:
-
         """Schedule and start select ursula services, then optionally start the reactor."""
 
         # Connect to Provider
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=self.eth_provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=self.eth_provider_uri)
+        if not BlockchainInterfaceFactory.is_interface_initialized(
+            eth_provider_uri=self.eth_provider_uri
+        ):
+            BlockchainInterfaceFactory.initialize_interface(
+                eth_provider_uri=self.eth_provider_uri
+            )
 
         if preflight:
             self.__preflight()
@@ -1007,7 +1038,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
             if emitter:
-                emitter.message(f"✓ Node Discovery ({self.domain.capitalize()})", color='green')
+                emitter.message(
+                    f"✓ Node Discovery ({self.domain.capitalize()})", color="green"
+                )
 
         if self._availability_check or availability:
             self._availability_tracker.start(now=eager)
@@ -1027,7 +1060,10 @@ class Ursula(Teacher, Character, Operator, Ritualist):
             work_is_needed = self.get_work_is_needed_check()(self)
             if work_is_needed:
                 message = "✓ Work Tracking"
-                self.work_tracker.start(commit_now=True, requirement_func=self.work_tracker.worker.get_work_is_needed_check())  # requirement_func=self._availability_tracker.status)  # TODO: #2277
+                self.work_tracker.start(
+                    commit_now=True,
+                    requirement_func=self.work_tracker.worker.get_work_is_needed_check(),
+                )  # requirement_func=self._availability_tracker.status)  # TODO: #2277
             else:
                 message = "✓ Operator already confirmed.  Not starting worktracker."
             if emitter:
@@ -1064,14 +1100,18 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                 return
 
             if emitter:
-                emitter.message("Working ~ Keep Ursula Online!", color='blue', bold=True)
+                emitter.message(
+                    "Working ~ Keep Ursula Online!", color="blue", bold=True
+                )
 
             try:
                 deployer.run()  # <--- Blocking Call (Reactor)
             except Exception as e:
                 self.log.critical(str(e))
                 if emitter:
-                    emitter.message(f"{e.__class__.__name__} {e}", color='red', bold=True)
+                    emitter.message(
+                        f"{e.__class__.__name__} {e}", color="red", bold=True
+                    )
                 raise  # Crash :-(
 
         elif start_reactor:  # ... without hendrix
@@ -1084,7 +1124,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         """
         self.log.debug(f"---------Stopping {self}")
         # Handles the shutdown of a partially initialized character.
-        with contextlib.suppress(AttributeError):  # TODO: Is this acceptable here, what are alternatives?
+        with contextlib.suppress(
+            AttributeError
+        ):  # TODO: Is this acceptable here, what are alternatives?
             self._availability_tracker.stop()
             self.stop_learning_loop()
             self.work_tracker.stop()
@@ -1110,7 +1152,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         return (
             self.rest_server.rest_interface,
             hosting_power.keypair.certificate,
-            hosting_power.keypair.pubkey
+            hosting_power.keypair.pubkey,
         )
 
     @property
@@ -1119,7 +1161,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
 
     def get_deployer(self):
         port = self.rest_interface.port
-        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(rest_app=self.rest_app, port=port)
+        deployer = self._crypto_power.power_ups(TLSHostingPower).get_deployer(
+            rest_app=self.rest_app, port=port
+        )
         return deployer
 
     @property
@@ -1172,10 +1216,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         return NodeSprout(NodeMetadata.from_bytes(metadata_bytes))
 
     @classmethod
-    def from_rest_url(cls,
-                      network_middleware: RestMiddleware,
-                      host: str,
-                      port: int):
+    def from_rest_url(cls, network_middleware: RestMiddleware, host: str, port: int):
         response_data = network_middleware.client.node_information(host, port)
         stranger_ursula_from_public_keys = cls.from_metadata_bytes(response_data)
         return stranger_ursula_from_public_keys
@@ -1186,7 +1227,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         Essentially another deserialization method, but this one doesn't reconstruct a complete
         node from bytes; instead it's just enough to connect to and verify a node.
         """
-        seed_uri = f'{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}'
+        seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
@@ -1214,7 +1255,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
     ) -> "Ursula":
         def __attempt(attempt=1, interval=retry_interval) -> Ursula:
             if attempt >= retry_attempts:
-                raise ConnectionRefusedError("Host {} Refused Connection".format(teacher_uri))
+                raise ConnectionRefusedError(
+                    "Host {} Refused Connection".format(teacher_uri)
+                )
 
             try:
                 teacher = cls.from_seed_and_stake_info(
@@ -1228,7 +1271,10 @@ class Ursula(Teacher, Character, Operator, Ritualist):
             except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
                 log.warn(
-                    "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(attempt, interval))
+                    "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(
+                        attempt, interval
+                    )
+                )
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
@@ -1253,12 +1299,16 @@ class Ursula(Teacher, Character, Operator, Ritualist):
 
         # Fetch the hosts TLS certificate and read the common name
         try:
-            certificate, _filepath = network_middleware.client.get_certificate(host=host, port=port)
+            certificate, _filepath = network_middleware.client.get_certificate(
+                host=host, port=port
+            )
         except NodeSeemsToBeDown as e:
             e.args += (f"While trying to load seednode {seed_uri}",)
             e.crash_right_now = True
             raise
-        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[
+            0
+        ].value
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
@@ -1276,12 +1326,14 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                 staking_provider=staking_provider_address
             )
             if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake}).")
+                raise Learner.NotATeacher(
+                    f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake})."
+                )
 
         return potential_seed_node
 
     @classmethod
-    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> 'Ursula':
+    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> "Ursula":
         return node_storage.get(checksum_address=checksum_adress)
 
     #
@@ -1313,9 +1365,16 @@ class Ursula(Teacher, Character, Operator, Ritualist):
     # Re-Encryption
     #
 
-    def _decrypt_kfrag(self, encrypted_kfrag: EncryptedKeyFrag, hrac: HRAC, publisher_verifying_key: PublicKey) -> VerifiedKeyFrag:
+    def _decrypt_kfrag(
+        self,
+        encrypted_kfrag: EncryptedKeyFrag,
+        hrac: HRAC,
+        publisher_verifying_key: PublicKey,
+    ) -> VerifiedKeyFrag:
         decrypting_power = self._crypto_power.power_ups(DecryptingPower)
-        return decrypting_power.decrypt_kfrag(encrypted_kfrag, hrac, publisher_verifying_key)
+        return decrypting_power.decrypt_kfrag(
+            encrypted_kfrag, hrac, publisher_verifying_key
+        )
 
     def _reencrypt(self, kfrag: VerifiedKeyFrag, capsules) -> ReencryptionResponse:
         cfrags = []
@@ -1324,10 +1383,11 @@ class Ursula(Teacher, Character, Operator, Ritualist):
             cfrags.append(cfrag)
             self.log.info(f"Re-encrypted capsule {capsule} -> made {cfrag}.")
         results = list(zip(capsules, cfrags))
-        return ReencryptionResponse(signer=self.stamp.as_umbral_signer(), capsules_and_vcfrags=results)
+        return ReencryptionResponse(
+            signer=self.stamp.as_umbral_signer(), capsules_and_vcfrags=results
+        )
 
-    def status_info(self, omit_known_nodes: bool = False) -> 'LocalUrsulaStatus':
-
+    def status_info(self, omit_known_nodes: bool = False) -> "LocalUrsulaStatus":
         domain = self.domain
         version = nucypher.__version__
 
@@ -1335,30 +1395,32 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         previous_fleet_states = self.known_nodes.previous_states(4)
 
         if not omit_known_nodes:
-            known_nodes_info = [self.known_nodes.status_info(node) for node in self.known_nodes]
+            known_nodes_info = [
+                self.known_nodes.status_info(node) for node in self.known_nodes
+            ]
         else:
             known_nodes_info = None
 
         balance_eth = float(self.eth_balance)
 
-        return LocalUrsulaStatus(nickname=self.nickname,
-                                 staker_address=self.checksum_address,
-                                 operator_address=self.operator_address,
-                                 rest_url=self.rest_url(),
-                                 timestamp=self.timestamp,
-                                 domain=domain,
-                                 version=version,
-                                 fleet_state=fleet_state,
-                                 previous_fleet_states=previous_fleet_states,
-                                 known_nodes=known_nodes_info,
-                                 balance_eth=balance_eth,
-                                 )
+        return LocalUrsulaStatus(
+            nickname=self.nickname,
+            staker_address=self.checksum_address,
+            operator_address=self.operator_address,
+            rest_url=self.rest_url(),
+            timestamp=self.timestamp,
+            domain=domain,
+            version=version,
+            fleet_state=fleet_state,
+            previous_fleet_states=previous_fleet_states,
+            known_nodes=known_nodes_info,
+            balance_eth=balance_eth,
+        )
 
     def as_external_validator(self) -> Validator:
         """Returns an Validator instance for this Ursula for use in DKG operations."""
         validator = Validator(
-            address=self.checksum_address,
-            public_key=self.public_keys(RitualisticPower)
+            address=self.checksum_address, public_key=self.public_keys(RitualisticPower)
         )
         return validator
 
@@ -1381,18 +1443,21 @@ class LocalUrsulaStatus(NamedTuple):
             known_nodes_json = None
         else:
             known_nodes_json = [status.to_json() for status in self.known_nodes]
-        return dict(nickname=self.nickname.to_json(),
-                    staker_address=self.staker_address,
-                    operator_address=self.operator_address,
-                    rest_url=self.rest_url,
-                    timestamp=self.timestamp.iso8601(),
-                    domain=self.domain,
-                    version=self.version,
-                    fleet_state=self.fleet_state.to_json(),
-                    previous_fleet_states=[state.to_json() for state in self.previous_fleet_states],
-                    known_nodes=known_nodes_json,
-                    balance_eth=self.balance_eth,
-                    )
+        return dict(
+            nickname=self.nickname.to_json(),
+            staker_address=self.staker_address,
+            operator_address=self.operator_address,
+            rest_url=self.rest_url,
+            timestamp=self.timestamp.iso8601(),
+            domain=self.domain,
+            version=self.version,
+            fleet_state=self.fleet_state.to_json(),
+            previous_fleet_states=[
+                state.to_json() for state in self.previous_fleet_states
+            ],
+            known_nodes=known_nodes_json,
+            balance_eth=self.balance_eth,
+        )
 
 
 class Enrico:
@@ -1403,7 +1468,7 @@ class Enrico:
     def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()
         self._policy_pubkey = encrypting_key
-        self.log = Logger(f'{self.__class__.__name__}-{encrypting_key}')
+        self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
 
     def encrypt_for_pre(
@@ -1412,9 +1477,11 @@ class Enrico:
         if conditions:
             validate_condition_lingo(conditions)
             conditions = Conditions(json.dumps(conditions))
-        message_kit = MessageKit(policy_encrypting_key=self.policy_pubkey,
-                                 plaintext=plaintext,
-                                 conditions=conditions)
+        message_kit = MessageKit(
+            policy_encrypting_key=self.policy_pubkey,
+            plaintext=plaintext,
+            conditions=conditions,
+        )
         return message_kit
 
     def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> Ciphertext:
@@ -1455,5 +1522,7 @@ class Enrico:
     @property
     def policy_pubkey(self):
         if not self._policy_pubkey:
-            raise TypeError("This Enrico doesn't know which policy encrypting key he used.  Oh well.")
+            raise TypeError(
+                "This Enrico doesn't know which policy encrypting key he used.  Oh well."
+            )
         return self._policy_pubkey
