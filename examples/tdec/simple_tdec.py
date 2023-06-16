@@ -1,15 +1,10 @@
 import os
-from pathlib import Path
 
 from nucypher_core.ferveo import DkgPublicKey
 
-import nucypher
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.registry import (
-    InMemoryContractRegistry,
-    LocalContractRegistry,
-)
-from nucypher.characters.lawful import Bob, Enrico, Ursula
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -17,7 +12,7 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 # Boring setup stuff #
 ######################
 
-LOG_LEVEL = 'info'
+LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
@@ -31,10 +26,10 @@ coordinator_network = "mumbai"
 # Enrico
 ###############
 
-print('--------- Threshold Encryption ---------')
+print("--------- Threshold Encryption ---------")
 
 coordinator_agent = CoordinatorAgent(
-    eth_provider_uri=coordinator_provider_uri,
+    provider_uri=coordinator_provider_uri,
     registry=InMemoryContractRegistry.from_latest_publication(
         network=coordinator_network
     ),
@@ -43,9 +38,11 @@ ritual_id = 0  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 enrico = Enrico(encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)))
 
-print(f'Fetched DKG public key {bytes(enrico.policy_pubkey).hex()} '
-      f'for ritual #{ritual_id} '
-      f'from Coordinator {coordinator_agent.contract.address}')
+print(
+    f"Fetched DKG public key {bytes(enrico.policy_pubkey).hex()} "
+    f"for ritual #{ritual_id} "
+    f"from Coordinator {coordinator_agent.contract.address}"
+)
 
 eth_balance_condition = {
     "version": ConditionLingo.VERSION,
@@ -60,12 +57,12 @@ eth_balance_condition = {
 message = "hello world".encode()
 ciphertext = enrico.encrypt_for_dkg(plaintext=message, conditions=eth_balance_condition)
 
-print(f'Encrypted message: {bytes(ciphertext).hex()}')
+print(f"Encrypted message: {bytes(ciphertext).hex()}")
 
 ###############
 # Bob
 ###############
-print('--------- Threshold Decryption ---------')
+print("--------- Threshold Decryption ---------")
 
 bob = Bob(
     eth_provider_uri=staking_provider_uri,
@@ -81,8 +78,6 @@ cleartext = bob.threshold_decrypt(
     ritual_id=ritual_id,
     ciphertext=ciphertext,
     conditions=eth_balance_condition,
-    # uncomment to use the precomputed variant
-    # variant=FerveoVariant.PRECOMPUTED.name
 )
 
 print(bytes(cleartext).decode())
