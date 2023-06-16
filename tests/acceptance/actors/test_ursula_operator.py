@@ -17,7 +17,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.pre import WorkTracker, WorkTrackerBase
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
-from tests.constants import PYEVM_DEV_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 logger = Logger("test-operator")
@@ -36,7 +36,9 @@ def test_ursula_operator_confirmation(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     staking_provider = testerchain.stake_provider_account(0)
@@ -94,7 +96,9 @@ def test_ursula_operator_confirmation_autopilot(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     staking_provider2 = testerchain.stake_provider_account(1)
     operator2 = testerchain.ursula_account(1)
@@ -166,7 +170,9 @@ def test_work_tracker(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     staking_provider3 = testerchain.stake_provider_account(2)

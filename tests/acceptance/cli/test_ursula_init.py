@@ -20,7 +20,6 @@ from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_IP_ADDRESS,
-    PYEVM_DEV_URI,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
 )
@@ -56,7 +55,9 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     pre_application_agent.bond_operator(
         staking_provider=provider_address,

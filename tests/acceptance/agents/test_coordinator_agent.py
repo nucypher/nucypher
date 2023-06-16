@@ -11,13 +11,13 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import PYEVM_DEV_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry) -> CoordinatorAgent:
     coordinator_agent = ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        CoordinatorAgent, registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
     )
     return coordinator_agent
 
@@ -39,7 +39,9 @@ def cohort(testerchain, staking_providers):
 def ursulas(cohort, test_registry):
     ursulas_for_cohort = []
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     for provider in cohort:
         operator = application_agent.get_operator_from_staking_provider(provider)

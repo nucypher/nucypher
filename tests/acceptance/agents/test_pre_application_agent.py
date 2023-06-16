@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 from nucypher.types import StakingProviderInfo
-from tests.constants import PYEVM_DEV_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 MIN_AUTHORIZATION = 1
 MIN_SECONDS = 1
@@ -15,7 +15,9 @@ MIN_SECONDS = 1
 
 def test_get_min_authorization(test_registry, application_economics):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     result = application_agent.get_min_authorization()
     assert result == application_economics.min_authorization
@@ -23,7 +25,9 @@ def test_get_min_authorization(test_registry, application_economics):
 
 def test_get_min_seconds(test_registry, application_economics):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     result = application_agent.get_min_operator_seconds()
     assert result == application_economics.min_operator_seconds
@@ -33,7 +37,9 @@ def test_authorized_tokens(
     testerchain, application_economics, test_registry, staking_providers
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     provider_account = staking_providers[0]
     authorized_amount = application_agent.get_authorized_stake(staking_provider=provider_account)
@@ -44,7 +50,9 @@ def test_staking_providers_and_operators_relationships(
     testerchain, test_registry, threshold_staking, application_economics
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
@@ -73,7 +81,9 @@ def test_staking_providers_and_operators_relationships(
 
 def test_get_staker_population(staking_providers, test_registry):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     # Apart from all the providers in the fixture, we also added a new provider above
@@ -82,7 +92,9 @@ def test_get_staker_population(staking_providers, test_registry):
 
 def test_get_swarm(staking_providers, test_registry):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     swarm = application_agent.swarm()
@@ -98,7 +110,9 @@ def test_get_swarm(staking_providers, test_registry):
 @pytest.mark.usefixtures("staking_providers")
 def test_sample_staking_providers(test_registry):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     providers_population = application_agent.get_staking_providers_population()
@@ -124,7 +138,9 @@ def test_sample_staking_providers(test_registry):
 
 def test_get_staking_provider_info(testerchain, test_registry):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+        PREApplicationAgent,
+        registry=test_registry,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
     info: StakingProviderInfo = application_agent.get_staking_provider_info(staking_provider=staking_provider_account)
