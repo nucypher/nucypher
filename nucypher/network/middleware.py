@@ -33,6 +33,11 @@ class NucypherMiddlewareClient:
         *args,
         **kwargs,
     ):
+        if not eth_provider_uri:
+            raise ValueError(
+                "eth_provider_uri is required for NucypherMiddlewareClient"
+            )
+
         self.registry = registry
         self.eth_provider_uri = eth_provider_uri
         self.storage = storage or ForgetfulNodeStorage()  # for certificate storage
@@ -243,7 +248,7 @@ class RestMiddleware:
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
-    def __init__(self, registry=None, eth_provider_uri: str = None):
+    def __init__(self, eth_provider_uri: str, registry=None):
         self.client = self._client_class(registry=registry, eth_provider_uri=eth_provider_uri)
 
     def request_revocation(self, ursula, revocation):

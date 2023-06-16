@@ -73,6 +73,7 @@ def test_anybody_can_verify(random_address):
         domain=TEMPORARY_DOMAIN,
         checksum_address=random_address,
         payment_method=FreeReencryptions(),
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
 
     # So, our story is fairly simple: an everyman meets Alice.

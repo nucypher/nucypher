@@ -83,11 +83,18 @@ def test_characters_use_keystore(
         start_learning_now=False,
         keystore=keystore,
         domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
         payment_method=payment_method,
     )
-    Bob(start_learning_now=False, keystore=keystore, domain=TEMPORARY_DOMAIN)
+    Bob(
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        start_learning_now=False,
+        keystore=keystore,
+        domain=TEMPORARY_DOMAIN,
+    )
     Ursula(
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
@@ -96,7 +103,6 @@ def test_characters_use_keystore(
         payment_method=payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 

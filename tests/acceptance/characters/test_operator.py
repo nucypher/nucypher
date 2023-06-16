@@ -8,9 +8,8 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.utils import verify_eip_191
 from nucypher.policy.policies import Policy
-from tests.constants import TEST_ETH_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI, TEST_ETH_PROVIDER_URI
 from tests.utils.middleware import NodeIsDownMiddleware
-from tests.utils.ursula import make_ursulas
 
 
 def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
@@ -158,7 +157,9 @@ def test_ursulas_reencrypt(ursulas, alice, bob, policy_value):
     assert plaintexts == [message]
 
     # Let's consider also that a node may be down when granting
-    alice.network_middleware = NodeIsDownMiddleware()
+    alice.network_middleware = NodeIsDownMiddleware(
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI
+    )
     alice.network_middleware.node_is_down(ursulas[0])
 
     with pytest.raises(Policy.NotEnoughUrsulas):

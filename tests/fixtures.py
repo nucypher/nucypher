@@ -204,7 +204,7 @@ def enacted_policy(idle_policy, ursulas):
     # cannot set them again
     # deposit = NON_PAYMENT(b"0000000")
     # contract_end_datetime = maya.now() + datetime.timedelta(days=5)
-    network_middleware = MockRestMiddleware()
+    network_middleware = MockRestMiddleware(eth_provider_uri=TEST_ETH_PROVIDER_URI)
 
     # REST call happens here, as does population of TreasureMap.
     enacted_policy = idle_policy.enact(
@@ -450,13 +450,18 @@ def fleet_of_highperf_mocked_ursulas(
 def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, testerchain):
     monkeymodule.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
 
-    config = AliceConfiguration(dev_mode=True,
-                                domain=TEMPORARY_DOMAIN,
-                                checksum_address=testerchain.alice_account,
-                                network_middleware=MockRestMiddlewareForLargeFleetTests(),
-                                abort_on_learning_error=True,
-                                save_metadata=False,
-                                reload_metadata=False)
+    config = AliceConfiguration(
+        dev_mode=True,
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        checksum_address=testerchain.alice_account,
+        network_middleware=MockRestMiddlewareForLargeFleetTests(
+            eth_provider_uri=TEST_ETH_PROVIDER_URI
+        ),
+        abort_on_learning_error=True,
+        save_metadata=False,
+        reload_metadata=False,
+    )
 
     with mock_cert_storage, mock_verify_node, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
@@ -467,12 +472,17 @@ def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source
 
 @pytest.fixture(scope="module")
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
-    config = BobConfiguration(dev_mode=True,
-                              domain=TEMPORARY_DOMAIN,
-                              network_middleware=MockRestMiddlewareForLargeFleetTests(),
-                              abort_on_learning_error=True,
-                              save_metadata=False,
-                              reload_metadata=False)
+    config = BobConfiguration(
+        dev_mode=True,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        domain=TEMPORARY_DOMAIN,
+        network_middleware=MockRestMiddlewareForLargeFleetTests(
+            eth_provider_uri=TEST_ETH_PROVIDER_URI
+        ),
+        abort_on_learning_error=True,
+        save_metadata=False,
+        reload_metadata=False,
+    )
 
     with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_keep_learning:
         bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
@@ -510,7 +520,12 @@ def click_runner():
 
 @pytest.fixture(scope='module')
 def nominal_configuration_fields(test_registry_source_manager):
-    config = UrsulaConfiguration(dev_mode=True, payment_network=TEMPORARY_DOMAIN, domain=TEMPORARY_DOMAIN)
+    config = UrsulaConfiguration(
+        dev_mode=True,
+        payment_network=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+    )
     config_fields = config.static_payload()
     yield tuple(config_fields.keys())
     del config
@@ -571,7 +586,7 @@ def basic_auth_file(temp_dir_path):
 
 @pytest.fixture(scope='module')
 def mock_rest_middleware():
-    return MockRestMiddleware()
+    return MockRestMiddleware(eth_provider_uri=TEST_ETH_PROVIDER_URI)
 
 
 #

@@ -1292,7 +1292,9 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         network_middleware: RestMiddleware = None,
     ) -> Union["Ursula", "NodeSprout"]:
         if network_middleware is None:
-            network_middleware = RestMiddleware(registry=registry)
+            network_middleware = RestMiddleware(
+                registry=registry, eth_provider_uri=provider_uri
+            )
 
         # Parse node URI
         host, port, staking_provider_address = parse_node_uri(seed_uri)
