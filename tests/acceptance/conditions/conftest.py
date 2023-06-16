@@ -10,9 +10,10 @@ from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.lingo import (
     AndCompoundCondition,
+    ConditionLingo,
     OrCompoundCondition,
+    ReturnValueTest,
 )
-from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
@@ -25,7 +26,9 @@ def condition_providers(testerchain):
 def mock_condition_blockchains(mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     mocker.patch.object(
-        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([TESTERCHAIN_CHAIN_ID])
+        nucypher.policy.conditions.evm,
+        "_CONDITION_CHAINS",
+        tuple([TESTERCHAIN_CHAIN_ID]),
     )
 
 
@@ -126,7 +129,9 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.get_function_by_name("getPolicy").abi,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
@@ -138,12 +143,13 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
 @pytest.fixture
 def subscription_manager_is_active_policy_condition(testerchain, test_registry):
     subscription_manager = ContractAgency.get_agent(
-        SubscriptionManagerAgent,
-        registry=test_registry
+        SubscriptionManagerAgent, registry=test_registry
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.get_function_by_name("isPolicyActive").abi,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "isPolicyActive"
+        ).abi,
         method="isPolicyActive",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", True),
