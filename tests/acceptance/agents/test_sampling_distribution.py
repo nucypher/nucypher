@@ -20,7 +20,7 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     stake_provider_accounts = testerchain.stake_providers_accounts
     amount = application_economics.min_authorization

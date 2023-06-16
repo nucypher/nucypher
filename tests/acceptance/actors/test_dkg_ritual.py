@@ -40,7 +40,7 @@ def cohort(ursulas):
 def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
     return ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
     )
 
 

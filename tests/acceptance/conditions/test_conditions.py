@@ -25,7 +25,7 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.constants import TEST_POLYGON_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.policy import make_message_kits
 
 
@@ -460,7 +460,9 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
         ":sponsor": sponsor,
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
-        SubscriptionManagerAgent, registry=test_registry
+        SubscriptionManagerAgent,
+        registry=test_registry,
+        provider_uri=TEST_POLYGON_PROVIDER_URI,
     )
 
     # test "sponsor" index not equal to correct value

@@ -106,7 +106,7 @@ class EconomicsFactory:
 
         # Agents
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri
+            PREApplicationAgent, registry=registry, provider_uri=eth_provider_uri
         )
 
         # PRE Application
