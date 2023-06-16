@@ -9,6 +9,7 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
@@ -16,9 +17,12 @@ from tests.mock.interfaces import MockBlockchain
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
 CONDITIONS = {
-    "returnValueTest": {"value": "0", "comparator": ">"},
-    "method": "blocktime",
-    "chain": TESTERCHAIN_CHAIN_ID,
+    "version": ConditionLingo.VERSION,
+    "condition": {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "blocktime",
+        "chain": TESTERCHAIN_CHAIN_ID,
+    },
 }
 
 

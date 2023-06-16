@@ -5,6 +5,7 @@ from twisted.internet.threads import deferToThread
 from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
+from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 # constants
@@ -18,9 +19,12 @@ TIME_TRAVEL_INTERVAL = 60
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
 CONDITIONS = {
-    "returnValueTest": {"value": "0", "comparator": ">"},
-    "method": "blocktime",
-    "chain": TESTERCHAIN_CHAIN_ID,
+    "version": ConditionLingo.VERSION,
+    "condition": {
+        "returnValueTest": {"value": "0", "comparator": ">"},
+        "method": "blocktime",
+        "chain": TESTERCHAIN_CHAIN_ID,
+    },
 }
 
 

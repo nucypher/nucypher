@@ -479,6 +479,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
 
 
 def test_time_condition_evaluation(testerchain, time_condition, condition_providers):
+    assert time_condition.timestamp == 0
     condition_result, call_result = time_condition.verify(providers=condition_providers)
     assert condition_result is True
 
@@ -512,20 +513,23 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
     bob.remember_node(ursulas[0])
     bob.start_learning_loop()
     conditions = {
-        "operator": "and",
-        "operands": [
-            {
-                "returnValueTest": {"value": "0", "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-            {
-                "chain": TESTERCHAIN_CHAIN_ID,
-                "method": "eth_getBalance",
-                "parameters": [bob.checksum_address, "latest"],
-                "returnValueTest": {"comparator": ">=", "value": "10000000000000"},
-            },
-        ],
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "operator": "and",
+            "operands": [
+                {
+                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                    "method": "eth_getBalance",
+                    "parameters": [bob.checksum_address, "latest"],
+                    "returnValueTest": {"comparator": ">=", "value": "10000000000000"},
+                },
+            ],
+        },
     }
     messages, message_kits = make_message_kits(enacted_policy.public_key, conditions)
     policy_info_kwargs = dict(

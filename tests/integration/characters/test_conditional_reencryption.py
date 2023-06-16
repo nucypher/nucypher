@@ -26,19 +26,22 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     bob.start_learning_loop()
 
     conditions = {
-        "operator": "and",
-        "operands": [
-            {
-                "returnValueTest": {"value": 0, "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-            {
-                "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-        ],
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "operator": "and",
+            "operands": [
+                {
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+            ],
+        },
     }
     json_conditions = json.dumps(conditions)
     rust_conditions = Conditions(json_conditions)
@@ -64,9 +67,12 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
     conditions = Conditions(
         json.dumps(
             {
-                "returnValueTest": {"value": 0, "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
+                "version": ConditionLingo.VERSION,
+                "condition": {
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
             }
         )
     )
@@ -122,9 +128,12 @@ def test_middleware_handling_of_failed_condition_responses(
     conditions = Conditions(
         json.dumps(
             {
-                "returnValueTest": {"value": 0, "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
+                "version": ConditionLingo.VERSION,
+                "condition": {
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
             }
         )
     )

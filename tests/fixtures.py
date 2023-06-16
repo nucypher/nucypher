@@ -44,7 +44,7 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
-from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
@@ -607,24 +607,30 @@ def time_condition():
 @pytest.fixture
 def compound_blocktime_lingo():
     return {
-        "operator": "and",
-        "operands": [
-            {
-                "returnValueTest": {"value": "0", "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-            {
-                "returnValueTest": {"value": "99999999999999999", "comparator": "<"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-            {
-                "returnValueTest": {"value": "0", "comparator": ">"},
-                "method": "blocktime",
-                "chain": TESTERCHAIN_CHAIN_ID,
-            },
-        ],
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "operator": "and",
+            "operands": [
+                {
+                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "returnValueTest": {
+                        "value": "99999999999999999",
+                        "comparator": "<",
+                    },
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+            ],
+        },
     }
 
 
