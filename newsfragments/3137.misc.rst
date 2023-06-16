@@ -1,0 +1,1 @@
+Reworks internal blockchain connection cache to support multiple concurrent connections.
