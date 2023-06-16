@@ -1,15 +1,12 @@
 import os
-from pathlib import Path
 
 from nucypher_core.ferveo import DkgPublicKey
 
-import nucypher
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import (
     InMemoryContractRegistry,
-    LocalContractRegistry,
 )
-from nucypher.characters.lawful import Bob, Enrico, Ursula
+from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -34,7 +31,7 @@ coordinator_network = "mumbai"
 print('--------- Threshold Encryption ---------')
 
 coordinator_agent = CoordinatorAgent(
-    eth_provider_uri=coordinator_provider_uri,
+    provider_uri=coordinator_provider_uri,
     registry=InMemoryContractRegistry.from_latest_publication(
         network=coordinator_network
     ),
@@ -81,8 +78,6 @@ cleartext = bob.threshold_decrypt(
     ritual_id=ritual_id,
     ciphertext=ciphertext,
     conditions=eth_balance_condition,
-    # uncomment to use the precomputed variant
-    # variant=FerveoVariant.PRECOMPUTED.name
 )
 
 print(bytes(cleartext).decode())
