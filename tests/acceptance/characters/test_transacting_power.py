@@ -1,6 +1,6 @@
 from nucypher.characters.lawful import Character
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import MOCK_ETH_PROVIDER_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 def test_character_transacting_power_signing(testerchain, test_registry):
@@ -10,7 +10,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     signer = Character(
         is_me=True,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
         registry=test_registry,
         checksum_address=eth_address,
     )
@@ -125,7 +125,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, test_registry):
     agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     contract_function = agent.contract.functions.confirmOperatorAddress()
 

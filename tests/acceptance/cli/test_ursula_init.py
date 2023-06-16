@@ -57,7 +57,7 @@ def mock_funded_account_password_keystore(tmp_path_factory, testerchain, thresho
     pre_application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     pre_application_agent.bond_operator(
         staking_provider=provider_address,

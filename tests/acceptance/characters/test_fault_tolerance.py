@@ -93,7 +93,7 @@ def test_invalid_operators_tolerance(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     (
         creator,

@@ -63,7 +63,7 @@ class EthereumContractAgent:
 
     def __init__(
         self,
-        eth_provider_uri: str,
+        provider_uri: str,
         registry: BaseContractRegistry,
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
@@ -74,7 +74,7 @@ class EthereumContractAgent:
         self.registry = registry
 
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(
-            eth_provider_uri=eth_provider_uri
+            eth_provider_uri=provider_uri
         )
 
         if not contract:  # Fetch the contract
@@ -762,13 +762,13 @@ class ContractAgency:
         cls,
         agent_class: Type[Agent],
         registry: Optional[BaseContractRegistry],
-        eth_provider_uri: Optional[str],
+        provider_uri: Optional[str],
         contract_version: Optional[str] = None,
     ) -> Agent:
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError("Only agent subclasses can be used from the agency.")
 
-        if not eth_provider_uri:
+        if not provider_uri:
             raise ValueError(
                 "Need to specify an Ethereum provider URI in order to get an agent from the ContractAgency"
             )
@@ -782,7 +782,14 @@ class ContractAgency:
         try:
             return cast(Agent, cls.__agents[registry_id][agent_class])
         except KeyError:
-            agent = cast(Agent, agent_class(registry=registry, eth_provider_uri=eth_provider_uri, contract_version=contract_version))
+            agent = cast(
+                Agent,
+                agent_class(
+                    registry=registry,
+                    provider_uri=provider_uri,
+                    contract_version=contract_version,
+                ),
+            )
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
             cls.__agents[registry_id][agent_class] = agent
             return agent
@@ -810,7 +817,7 @@ class ContractAgency:
         agent: EthereumContractAgent = cls.get_agent(
             agent_class=agent_class,
             registry=registry,
-            eth_provider_uri=eth_provider_uri,
+            provider_uri=eth_provider_uri,
             contract_version=contract_version
         )
         return agent

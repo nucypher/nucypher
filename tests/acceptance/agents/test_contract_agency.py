@@ -9,12 +9,12 @@ def test_get_agent_with_different_registries(application_economics, test_registr
     application_agent_1 = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     application_agent_2 = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     assert application_agent_2.registry == application_agent_1.registry == test_registry
     assert application_agent_2 is application_agent_1
@@ -23,7 +23,7 @@ def test_get_agent_with_different_registries(application_economics, test_registr
     application_agent_2 = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=agency_local_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     assert application_agent_2.registry == test_registry
     assert application_agent_2 is application_agent_1

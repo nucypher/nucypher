@@ -73,7 +73,7 @@ def staking_providers(testerchain, test_registry, threshold_staking):
     pre_application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     blockchain = pre_application_agent.blockchain
 

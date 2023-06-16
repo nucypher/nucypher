@@ -134,7 +134,7 @@ class NucypherTokenActor(BaseActor):
             return self.__token_agent
         self.__token_agent = ContractAgency.get_agent(
             NucypherTokenAgent,
-            eth_provider_uri=self.eth_provider_uri,
+            provider_uri=self.eth_provider_uri,
             registry=self.registry,
         )
         return self.__token_agent
@@ -201,7 +201,7 @@ class Operator(BaseActor):
         if is_me:
             self.application_agent = ContractAgency.get_agent(
                 PREApplicationAgent,
-                eth_provider_uri=eth_provider_uri,
+                provider_uri=eth_provider_uri,
                 registry=self.registry,
             )
             self.work_tracker = work_tracker or WorkTracker(worker=self)
@@ -315,7 +315,7 @@ class Ritualist(BaseActor):
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
             registry=InMemoryContractRegistry.from_latest_publication(network=network),
-            eth_provider_uri=provider_uri,  # TODO: rename, this might be a polygon provider
+            provider_uri=provider_uri,  # TODO: rename, this might be a polygon provider
         )
 
         # track active onchain rituals
@@ -626,9 +626,7 @@ class PolicyAuthor(NucypherTokenActor):
     def __init__(self, eth_provider_uri: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.application_agent = ContractAgency.get_agent(
-            PREApplicationAgent,
-            registry=self.registry,
-            eth_provider_uri=eth_provider_uri
+            PREApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
         )
 
     def create_policy(self, *args, **kwargs):

@@ -459,7 +459,7 @@ class Bob(Character):
                 )
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
-                eth_provider_uri=coordinator_provider_uri,
+                provider_uri=coordinator_provider_uri,
                 registry=InMemoryContractRegistry.from_latest_publication(
                     network=coordinator_network
                 ),
@@ -1270,7 +1270,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(
-                PREApplicationAgent, eth_provider_uri=provider_uri, registry=registry
+                PREApplicationAgent, provider_uri=provider_uri, registry=registry
             )
             seednode_stake = application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address

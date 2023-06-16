@@ -17,7 +17,7 @@ from tests.constants import TEST_ETH_PROVIDER_URI
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry) -> CoordinatorAgent:
     coordinator_agent = ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
     )
     return coordinator_agent
 
@@ -41,7 +41,7 @@ def ursulas(cohort, test_registry):
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     for provider in cohort:
         operator = application_agent.get_operator_from_staking_provider(provider)

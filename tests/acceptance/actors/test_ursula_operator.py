@@ -38,7 +38,7 @@ def test_ursula_operator_confirmation(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     staking_provider = testerchain.stake_provider_account(0)
@@ -98,7 +98,7 @@ def test_ursula_operator_confirmation_autopilot(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     staking_provider2 = testerchain.stake_provider_account(1)
     operator2 = testerchain.ursula_account(1)
@@ -172,7 +172,7 @@ def test_work_tracker(
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     staking_provider3 = testerchain.stake_provider_account(2)
