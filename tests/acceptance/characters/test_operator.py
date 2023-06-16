@@ -8,7 +8,7 @@ from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Vladimir
 from nucypher.crypto.utils import verify_eip_191
 from nucypher.policy.policies import Policy
-from tests.constants import PYEVM_DEV_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.ursula import make_ursulas
 
@@ -16,7 +16,9 @@ from tests.utils.ursula import make_ursulas
 def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
     assert len(ursulas) == len(staking_providers)
     for ursula in ursulas:
-        ursula.validate_operator(registry=test_registry, eth_provider_uri=PYEVM_DEV_URI)
+        ursula.validate_operator(
+            registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+        )
         assert ursula.verified_operator
 
 
@@ -103,7 +105,7 @@ def test_vladimir_uses_his_own_signing_key(alice, ursulas, test_registry):
     message = f"Operator {vladimir.operator_address} is not bonded"
     with pytest.raises(vladimir.UnbondedOperator, match=message):
         vladimir.validate_metadata(
-            registry=test_registry, eth_provider_uri=PYEVM_DEV_URI
+            registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
         )
 
 

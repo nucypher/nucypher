@@ -1,20 +1,21 @@
-import pytest
 import shutil
 from pathlib import Path
+
+import pytest
 
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    TEMPORARY_DOMAIN
+    TEMPORARY_DOMAIN,
 )
 from nucypher.crypto.keystore import InvalidPassword
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI,
-    TEST_POLYGON_PROVIDER_URI
+    TEST_POLYGON_PROVIDER_URI,
 )
 
 
@@ -60,15 +61,24 @@ def test_corrupted_configuration(click_runner,
     # Chaos
     #
 
-    init_args = ('ursula', 'init',
-                 '--eth-provider', TEST_ETH_PROVIDER_URI,
-                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
-                 '--operator-address', another_ursula,
-                 '--network', TEMPORARY_DOMAIN,
-                 '--payment-network', TEMPORARY_DOMAIN,
-                 '--rest-host', MOCK_IP_ADDRESS,
-                 '--config-root', str(custom_filepath.absolute()),
-                 )
+    init_args = (
+        "ursula",
+        "init",
+        "--eth-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-provider",
+        TEST_POLYGON_PROVIDER_URI,
+        "--operator-address",
+        another_ursula,
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--payment-network",
+        TEMPORARY_DOMAIN,
+        "--rest-host",
+        MOCK_IP_ADDRESS,
+        "--config-root",
+        str(custom_filepath.absolute()),
+    )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: ''}
@@ -90,15 +100,26 @@ def test_corrupted_configuration(click_runner,
     assert not path.exists()
 
     # Attempt installation again, with full args
-    init_args = ('ursula', 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--payment-network', TEMPORARY_DOMAIN,
-                 '--eth-provider', TEST_ETH_PROVIDER_URI,
-                 '--payment-provider', TEST_POLYGON_PROVIDER_URI,
-                 '--operator-address', another_ursula,
-                 '--rest-host', MOCK_IP_ADDRESS,
-                 '--registry-filepath', str(agency_local_registry.filepath.absolute()),
-                 '--config-root', str(custom_filepath.absolute()))
+    init_args = (
+        "ursula",
+        "init",
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--payment-network",
+        TEMPORARY_DOMAIN,
+        "--eth-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-provider",
+        TEST_POLYGON_PROVIDER_URI,
+        "--operator-address",
+        another_ursula,
+        "--rest-host",
+        MOCK_IP_ADDRESS,
+        "--registry-filepath",
+        str(agency_local_registry.filepath.absolute()),
+        "--config-root",
+        str(custom_filepath.absolute()),
+    )
 
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)

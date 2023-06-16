@@ -8,8 +8,8 @@ from nucypher.utilities.networking import UnknownIPAddress
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
+    MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
     YES_ENTER,
 )
@@ -34,7 +34,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_ma
         "--network",
         TEMPORARY_DOMAIN,
         "--eth-provider",
-        TEST_ETH_PROVIDER_URI,
+        MOCK_ETH_PROVIDER_URI,
         "--payment-provider",
         TEST_POLYGON_PROVIDER_URI,
         "--force",
@@ -53,7 +53,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_ma
         TEMPORARY_DOMAIN,
         "--force",
         "--eth-provider",
-        TEST_ETH_PROVIDER_URI,
+        MOCK_ETH_PROVIDER_URI,
         "--payment-provider",
         TEST_POLYGON_PROVIDER_URI,
     )
@@ -64,8 +64,20 @@ def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_ma
 
     # Patch get_external_ip call to error output
     mocker.patch(target, side_effect=UnknownIPAddress)
-    args = ('ursula', 'init', '--network', TEMPORARY_DOMAIN, '--force', '--eth-provider', TEST_ETH_PROVIDER_URI, '--payment-provider', TEST_POLYGON_PROVIDER_URI)
-    result = click_runner.invoke(nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED)
+    args = (
+        "ursula",
+        "init",
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--force",
+        "--eth-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-provider",
+        TEST_POLYGON_PROVIDER_URI,
+    )
+    result = click_runner.invoke(
+        nucypher_cli, args, catch_exceptions=True, input=FAKE_PASSWORD_CONFIRMED
+    )
     assert result.exit_code == 1, result.output
     assert isinstance(result.exception, UnknownIPAddress)
 
