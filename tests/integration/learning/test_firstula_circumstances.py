@@ -4,6 +4,7 @@ import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
 from nucypher.network.middleware import RestMiddleware
+from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
 def test_proper_seed_node_instantiation(
@@ -32,8 +33,10 @@ def test_get_cert_from_running_seed_node(lonely_ursula_maker):
     certificate_as_deployed = node_deployer.cert.to_cryptography()
 
     firstula_as_seed_node = firstula.seed_node_metadata()
-    any_other_ursula = lonely_ursula_maker(seed_nodes=[firstula_as_seed_node],
-                                           network_middleware=RestMiddleware()).pop()
+    any_other_ursula = lonely_ursula_maker(
+        seed_nodes=[firstula_as_seed_node],
+        network_middleware=RestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+    ).pop()
     assert not any_other_ursula.known_nodes
 
     yield deferToThread(lambda: any_other_ursula.load_seednodes(record_fleet_state=True))

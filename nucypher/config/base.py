@@ -531,7 +531,9 @@ class CharacterConfiguration(BaseConfiguration):
             self._setup_node_storage(node_storage=node_storage)
 
         # Network
-        self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(registry=self.registry)
+        self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(
+            registry=self.registry, eth_provider_uri=self.eth_provider_uri
+        )
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 

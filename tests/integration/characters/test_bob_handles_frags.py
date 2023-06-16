@@ -1,9 +1,9 @@
 import json
 
-import pytest
 from nucypher_core import Address, Conditions, RetrievalKit
 from nucypher_core._nucypher_core import MessageKit
 
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import NodeIsDownMiddleware
 from tests.utils.policy import make_message_kits
 
@@ -84,7 +84,9 @@ def test_use_external_cache(enacted_policy, bob, ursulas):
     ursulas = list(ursulas)
 
     # All Ursulas are down except for two
-    bob.network_middleware = NodeIsDownMiddleware()
+    bob.network_middleware = NodeIsDownMiddleware(
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI
+    )
     for ursula in ursulas[2:]:
         bob.network_middleware.node_is_down(ursula)
 

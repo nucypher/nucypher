@@ -114,19 +114,25 @@ def test_default_character_configuration_preservation(
         # use keystore
         keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
         keystore.signing_public_key = SecretKey.random().public_key()
-        character_config = configuration_class(checksum_address=fake_address,
-                                               domain=network,
-                                               rest_host=MOCK_IP_ADDRESS,
-                                               payment_provider=MOCK_ETH_PROVIDER_URI,
-                                               policy_registry=test_registry,
-                                               payment_network=TEMPORARY_DOMAIN,
-                                               keystore=keystore)
+        character_config = configuration_class(
+            checksum_address=fake_address,
+            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+            domain=network,
+            rest_host=MOCK_IP_ADDRESS,
+            payment_provider=MOCK_ETH_PROVIDER_URI,
+            policy_registry=test_registry,
+            payment_network=TEMPORARY_DOMAIN,
+            keystore=keystore,
+        )
 
     else:
-        character_config = configuration_class(checksum_address=fake_address,
-                                               domain=network,
-                                               payment_network=TEMPORARY_DOMAIN,
-                                               policy_registry=test_registry)
+        character_config = configuration_class(
+            checksum_address=fake_address,
+            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+            domain=network,
+            payment_network=TEMPORARY_DOMAIN,
+            policy_registry=test_registry,
+        )
 
     generated_filepath = character_config.generate_filepath()
     assert generated_filepath == expected_filepath

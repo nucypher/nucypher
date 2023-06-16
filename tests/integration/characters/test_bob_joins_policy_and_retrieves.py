@@ -8,7 +8,10 @@ from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+from tests.constants import (
+    MOCK_ETH_PROVIDER_URI,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+)
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -45,11 +48,14 @@ def test_bob_retrieves(
     rest_of_ursulas = list(ursulas)[2:]
 
     # Bob becomes
-    bob = Bob(domain=TEMPORARY_DOMAIN,
-              start_learning_now=True,
-              network_middleware=MockRestMiddleware(),
-              abort_on_learning_error=True,
-              known_nodes=a_couple_of_ursulas)
+    bob = Bob(
+        domain=TEMPORARY_DOMAIN,
+        start_learning_now=True,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        abort_on_learning_error=True,
+        known_nodes=a_couple_of_ursulas,
+    )
 
     # Bob has only connected to - at most - 2 nodes.
     assert sum(node.verified_node for node in bob.known_nodes) <= 2
