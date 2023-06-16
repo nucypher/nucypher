@@ -1,13 +1,10 @@
 import click
 
-from nucypher.cli.commands import (
-    ursula,
-    bond
-)
+from nucypher.cli.commands import ursula
 from nucypher.cli.painting.help import (
-    echo_version,
     echo_config_root_path,
-    echo_logging_root_path
+    echo_logging_root_path,
+    echo_version,
 )
 
 
@@ -27,17 +24,8 @@ def nucypher_cli():
 #
 
 ENTRY_POINTS = (
-
-    # Characters & Actors
-    ursula.ursula,  # Untrusted Re-Encryption Proxy
-
-    # PRE Application
-    bond.bond,
-    bond.unbond,
-
-    # Utility Commands
-    # status.status,  # Network status explorer
-
+    ursula.ursula,
+    # add more entry points here
 )
 
 for entry_point in ENTRY_POINTS:
