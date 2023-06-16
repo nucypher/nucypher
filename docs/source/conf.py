@@ -206,10 +206,9 @@ epub_exclude_files = ['search.html']
 # -- Intersphinx configuration ------------------------------------------------
 
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3.5', None),
-    'pyUbmbral': ('http://pyumbral.readthedocs.io/en/latest/', None),
-    'web3py': ('https://web3py.readthedocs.io/en/latest/', None),
-
+    "python": ("https://docs.python.org/3.8", None),
+    "pyUbmbral": ("http://pyumbral.readthedocs.io/en/latest/", None),
+    "web3py": ("https://web3py.readthedocs.io/en/latest/", None),
 }
 
 # -- Autodoc configuration ----------------------------------------

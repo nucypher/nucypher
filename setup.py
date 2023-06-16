@@ -117,8 +117,9 @@ def read_requirements(path):
     return requirements
 
 
-INSTALL_REQUIRES = read_requirements('requirements.txt')
-DEV_REQUIRES = read_requirements('dev-requirements.txt')
+INSTALL_REQUIRES = read_requirements("requirements.txt")
+DEV_REQUIRES = read_requirements("dev-requirements.txt")
+DOC_REQUIRES = read_requirements("docs-requirements.txt")
 
 BENCHMARK_REQUIRES = [
     'pytest-benchmark'
@@ -136,10 +137,11 @@ URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming
 EXTRAS = {
 
     # Admin
-    'dev': DEV_REQUIRES + URSULA_REQUIRES,
-    'benchmark': DEV_REQUIRES + BENCHMARK_REQUIRES,
-    'deploy': DEPLOY_REQUIRES,
-    'ursula': URSULA_REQUIRES,
+    "dev": DEV_REQUIRES + URSULA_REQUIRES,
+    "benchmark": DEV_REQUIRES + BENCHMARK_REQUIRES,
+    "deploy": DEPLOY_REQUIRES,
+    "ursula": URSULA_REQUIRES,
+    "docs": DOC_REQUIRES,
 }
 
 
