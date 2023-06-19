@@ -59,7 +59,12 @@ class _FakeRitual:
 
 
 class DKGOmniscient:
+    """
+    A mixin to give a Character the ability to see the inner-workings of a DKG.
+    """
+
     class DKGInsight:
+        # TODO: Make these configurable:
         tau = 1
         security_threshold = 3
         shares_num = 4
@@ -70,13 +75,22 @@ class DKGOmniscient:
             def gen_eth_addr(i: int) -> str:
                 return f"0x{i:040x}"
 
+            checksum_addresses = [gen_eth_addr(i) for i in range(0, self.shares_num)]
+
+            self.fake_ritual = _FakeRitual(
+                tau=self.tau,
+                threshold=self.security_threshold,
+                shares_num=self.shares_num,
+                checksum_addresses=checksum_addresses,
+            )
+
             ### Here is the generation thing.
             validator_keypairs = [
                 ferveo.Keypair.random() for _ in range(0, self.shares_num)
             ]
 
             validators = [
-                ferveo.Validator(gen_eth_addr(i), keypair.public_key())
+                ferveo.Validator(checksum_addresses[i], keypair.public_key())
                 for i, keypair in enumerate(validator_keypairs)
             ]
 
