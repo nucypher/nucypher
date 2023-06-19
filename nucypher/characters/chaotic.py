@@ -1,13 +1,61 @@
 import json
 from typing import Dict, Tuple
 
-from nucypher_core import EncryptedThresholdDecryptionResponse, ferveo
+from nucypher_core import (
+    EncryptedThresholdDecryptionResponse,
+    SessionSecretFactory,
+    SessionStaticKey,
+    ferveo,
+)
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
+from nucypher.crypto.powers import ThresholdRequestDecryptingPower
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.policy.conditions.types import LingoList
 from nucypher.policy.conditions.utils import validate_condition_lingo
+
+
+class FakeNode:
+    def __init__(self, checksum_address):
+        self.checksum_address = checksum_address
+
+
+class _ParticipantKeyDict(dict):
+    def __init__(self, threshold_request_decrypting_power, *args, **kwargs):
+        self.threshold_request_decrypting_power = threshold_request_decrypting_power
+        super().__init__(*args, **kwargs)
+
+    def __getitem__(self, _item):
+        # Everybody has the same public key at the moment.
+        fifty_fiver = (
+            self.threshold_request_decrypting_power._get_static_secret_from_ritual_id(
+                55
+            )
+        )
+        return fifty_fiver.public_key()
+
+
+class _FakeRitual:
+    def __init__(
+        self, tau, threshold, shares_num, checksum_addresses, session_seed=None
+    ):
+        self.tau = tau
+        self.threshold = threshold
+        self.shares = shares_num
+        self.fake_nodes = [
+            FakeNode(checksum_address) for checksum_address in checksum_addresses
+        ]
+        self.checksum_addresses = checksum_addresses
+        if session_seed == None:
+            session_seed = b"ABytestringOf32BytesIsNeededHere"
+        secret_factory = SessionSecretFactory.from_secure_randomness(session_seed)
+        self.threshold_request_decrypting_power = ThresholdRequestDecryptingPower(
+            session_secret_factory=secret_factory
+        )
+        self.participant_public_keys = _ParticipantKeyDict(
+            self.threshold_request_decrypting_power
+        )
 
 
 class DKGOmniscient:
