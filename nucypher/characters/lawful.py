@@ -721,8 +721,16 @@ class Bob(Character):
             context=context,
         )
         return self.get_decryption_shares_using_existing_decryption_request(
-            decryption_request, participant_public_keys, variant, cohort, threshold
+            decryption_request, participant_public_keys, cohort, threshold
         )
+
+    def get_ritual_from_id(self, ritual_id):
+        # blockchain reads: get the DKG parameters and the cohort.
+        coordinator_agent = ContractAgency.get_agent(
+            CoordinatorAgent, registry=self.registry
+        )
+        ritual = coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        return ritual
 
     def threshold_decrypt(
         self,
