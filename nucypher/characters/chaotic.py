@@ -101,79 +101,97 @@ class BobGonnaBob(Bob, DKGOmniscient):
     After all, Bob gonna Bob.
     """
 
+    def __init__(self, session_seed=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         def gather_encrypted_decryption_shares(
             self,
-            *args,
-            **kwargs,
+            encrypted_requests,
+            threshold: int,
+            timeout: float = 10,
         ) -> Tuple[
             Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
             Dict[ChecksumAddress, str],
         ]:
-            assert (
-                False  # This is where DKGomniscent just knows the shares in question.
-            )
+            decryption_shares = {}
+
+            ####################
+            etdr = list(encrypted_requests.values())[0]
+
+            #################
+
+            for validator, validator_keypair in zip(
+                self._learner._dkg_insight.validators,
+                self._learner._dkg_insight.validator_keypairs,
+            ):
+                dkg = ferveo.Dkg(
+                    tau=self._learner._dkg_insight.tau,
+                    shares_num=self._learner._dkg_insight.shares_num,
+                    security_threshold=self._learner._dkg_insight.security_threshold,
+                    validators=self._learner._dkg_insight.validators,
+                    me=validator,
+                )
+
+                # We can also obtain the aggregated transcript from the side-channel (deserialize)
+                aggregate = ferveo.AggregatedTranscript(
+                    self._learner._dkg_insight.aggregation_messages
+                )
+                assert aggregate.verify(
+                    self._learner._dkg_insight.shares_num,
+                    self._learner._dkg_insight.aggregation_messages,
+                )
+
+                trdp = (
+                    self._learner._dkg_insight.fake_ritual.threshold_request_decrypting_power
+                )
+                decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
+                ciphertext = decrypted_encryption_request.ciphertext
+                decryption_share = aggregate.create_decryption_share_simple(
+                    dkg,
+                    ciphertext,
+                    self._learner._dkg_insight.conditions_bytes,
+                    validator_keypair,
+                )
+                decryption_shares[validator.address] = decryption_share
+                print(f"At share time: {self._learner._dkg_insight.dkg.public_key}")
+
+                # Public key has changed because of transcript aggregation?
+                self._learner._dkg_insight.dkg = dkg
+
+            NO_FAILURES = {}
+            return decryption_shares, NO_FAILURES
 
     _threshold_decryption_client_class = DKGOmniscientDecryptionClient
 
-    @property
-    def done_seeding(self, *args, **kwargs):
-        return True
+    def get_ritual_from_id(self, ritual_id):
+        return self._dkg_insight.fake_ritual
 
-    @done_seeding.setter
-    def done_seeding(self, *args, **kwargs):
-        return True  # We were done seeding before we started.
+    def resolve_cohort(self, ritual, timeout):
+        return self._dkg_insight.fake_ritual.fake_nodes
 
     def ensure_ursula_availability_is_of_no_conern_to_anyone(self, *args, **kwargs):
         pass
 
     _ensure_ursula_availability = ensure_ursula_availability_is_of_no_conern_to_anyone
 
-    def threshold_decrypt(self, ciphertext, *args, **kwargs) -> bytes:
-        """
-        https://imgflip.com/i/7o0q5d  # Copilot gonns copilot
-
-        Cut Ursula out of the picture.
-        """
-        decryption_shares = []
-        for validator, validator_keypair in zip(
-            self._dkg_insight.validators, self._dkg_insight.validator_keypairs
-        ):
-            dkg = ferveo.Dkg(
-                tau=self._dkg_insight.tau,
-                shares_num=self._dkg_insight.shares_num,
-                security_threshold=self._dkg_insight.security_threshold,
-                validators=self._dkg_insight.validators,
-                me=validator,
-            )
-
-            # We can also obtain the aggregated transcript from the side-channel (deserialize)
-            aggregate = ferveo.AggregatedTranscript(
-                self._dkg_insight.aggregation_messages
-            )
-            assert aggregate.verify(
-                self._dkg_insight.shares_num, self._dkg_insight.aggregation_messages
-            )
-
-            # We can also obtain the aggregated transcript from the side-channel (deserialize)
-            aggregate = ferveo.AggregatedTranscript(
-                self._dkg_insight.aggregation_messages
-            )
-            assert aggregate.verify(
-                self._dkg_insight.shares_num, self._dkg_insight.aggregation_messages
-            )
-
-            # Create a decryption share for the ciphertext
-            decryption_share = aggregate.create_decryption_share_simple(
-                dkg, ciphertext, self._dkg_insight.conditions_bytes, validator_keypair
-            )
-            decryption_shares.append(decryption_share)
-        shared_secret = ferveo.combine_decryption_shares_simple(decryption_shares)
-
-        cleartext = ferveo.decrypt_with_shared_secret(
-            ciphertext,
-            self._dkg_insight.conditions_bytes,
-            shared_secret,
-            self._dkg_insight.dkg.public_params,
-        )
-        return bytes(cleartext)
+    # def threshold_decrypt(self, ciphertext, *args, **kwargs) -> bytes:
+    #     """
+    #     https://imgflip.com/i/7o0q5d  # Copilot gonns copilot
+    #
+    #     Cut Ursula out of the picture.
+    #     """
+    #     decryption_client = self._threshold_decryption_client_class(self)
+    #     decryption_shares = decryption_client.gather_encrypted_decryption_shares(ciphertext)
+    #
+    #     shared_secret = ferveo.combine_decryption_shares_simple(decryption_shares)
+    #
+    #     print(f"Passing {self._dkg_insight.dkg.public_key} as the public key")
+    #
+    #     cleartext = ferveo.decrypt_with_shared_secret(
+    #         ciphertext,
+    #         self._dkg_insight.conditions_bytes,
+    #         shared_secret,
+    #         self._dkg_insight.dkg.public_params,
+    #     )
+    #     return bytes(cleartext)

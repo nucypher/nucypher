@@ -9,20 +9,26 @@ bob = BobGonnaBob(domain="lynx")
 
 aad = "my-aad".encode()
 
-ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID_HERE = 55
+ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
 
 ciphertext, tdr = enrico.encrypt_for_dkg_and_produce_decryption_request(
     plaintext=plaintext,
     conditions=[ten_oclock_florida_time],
-    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID_HERE,
+    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
 )
-decrypted_cleartext_from_ciphertext = bob.threshold_decrypt(ciphertext=ciphertext)
-decrypted_cleartext_from_tdr = (
-    bob.get_decryption_shares_using_existing_decryption_request(tdr)
+print(f"After encryption: {enrico.policy_pubkey}")
+decrypted_cleartext_from_ciphertext = bob.threshold_decrypt(
+    ciphertext=ciphertext,
+    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
+    conditions=[ten_oclock_florida_time],
 )
 
-assert (
-    decrypted_cleartext_from_ciphertext
-    == plaintext
-    == decrypted_cleartext_from_ciphertext
-)
+
+
+# decrypted_cleartext_from_tdr = bob.get_decryption_shares_using_existing_decryption_request(tdr,
+#                                                                                            participant_public_keys=THESE_CAN_BE_FAKE_FOR_THE_PURPOSES_OF_THIS_DEMO,
+#                                                                                            cohort=THESE_CAN_BE_FAKE_FOR_THE_PURPOSES_OF_THIS_DEMO,
+#                                                                                            threshold=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA)
+
+assert decrypted_cleartext_from_ciphertext == plaintext
+assert plaintext == decrypted_cleartext_from_ciphertext

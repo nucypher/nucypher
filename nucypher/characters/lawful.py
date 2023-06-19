@@ -666,7 +666,9 @@ class Bob(Character):
         shared_secrets = {}
         for ursula in cohort:
             ursula_checksum_address = to_checksum_address(ursula.checksum_address)
+
             participant_public_key = participant_public_keys[ursula_checksum_address]
+
             shared_secret = requester_sk.derive_shared_secret(participant_public_key)
             encrypted_decryption_request = decryption_request.encrypt(
                 shared_secret=shared_secret,
@@ -732,12 +734,7 @@ class Bob(Character):
         variant: str = "simple",
         peering_timeout: int = 60,
     ) -> bytes:
-        # blockchain reads: get the DKG parameters and the cohort.
-        if not self.coordinator_agent:
-            raise ValueError(
-                "No coordinator provider URI provided in Bob's constructor."
-            )
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        ritual = self.get_ritual_from_id(ritual_id)
 
         if not ursulas:
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
