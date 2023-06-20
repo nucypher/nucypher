@@ -1,7 +1,7 @@
 import json
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 from ape import config as ape_config
 from ape.api import DependencyAPI
@@ -15,7 +15,7 @@ from nucypher.blockchain.eth.agents import (
     SubscriptionManagerAgent,
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from tests.constants import MOCK_STAKING_CONTRACT_NAME
+from tests.constants import MOCK_STAKING_CONTRACT_NAME, MULTICALL_CONTRACT_NAME
 
 # order sensitive
 _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
@@ -24,6 +24,7 @@ _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
     PREApplicationAgent.contract_name,
     SubscriptionManagerAgent.contract_name,
     CoordinatorAgent.contract_name,
+    MULTICALL_CONTRACT_NAME,
 )
 
 
@@ -81,37 +82,50 @@ def get_deployment_params(
         return dict(), ChecksumAddress(deployer_address)
 
 
-def deploy_contracts(nucypher_contracts: DependencyAPI, accounts):
-    """Deploy contracts o via ape's API for testing."""
+def deploy_contracts(dependencies: List[DependencyAPI], accounts):
+    """Deploy contracts via ape's API for testing."""
+    # TODO: Optimize this
     config = ape_config.get_config("deployments")["ethereum"]["local"]
     deployments = dict()
-    for name in _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN:
-        params, deployer_account = get_deployment_params(
-            name, deployments=deployments, config=config, accounts=accounts
-        )
-        dependency_contract = getattr(nucypher_contracts, name)
-        deployed_contract = deployer_account.deploy(dependency_contract, *params.values())
-        deployments[name] = deployed_contract
+    for dependency in dependencies:
+        for contract_name in _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN:
+            params, deployer_account = get_deployment_params(
+                contract_name, deployments=deployments, config=config, accounts=accounts
+            )
+            dependency_contract = getattr(dependency, contract_name, None)
+            if dependency_contract:
+                deployed_contract = deployer_account.deploy(
+                    dependency_contract, *params.values()
+                )
+                deployments[contract_name] = deployed_contract
+
     return deployments
 
 
-def registry_from_ape_deployments(nucypher_contracts: DependencyAPI, deployments: Dict) -> InMemoryContractRegistry:
+def registry_from_ape_deployments(
+    dependencies: List[DependencyAPI], deployments: Dict
+) -> InMemoryContractRegistry:
     """Creates a registry from ape deployments."""
 
-    # Get the raw abi from the cached manifest
-    manifest = json.loads(nucypher_contracts.cached_manifest.json())
-    contract_data = manifest['contractTypes']
-
     data = list()
-    for contract_name, deployment in deployments.items():
-        abi = contract_data[contract_name]['abi']
-        entry = [
-            contract_name,
-            'v0.0.0',  # TODO: get version from contract
-            to_checksum_address(deployment.address),
-            abi
-        ]
-        data.append(entry)
+    for dependency in dependencies:
+        # Get the raw abi from the cached manifest
+        manifest = json.loads(dependency.cached_manifest.json())
+        contract_data = manifest["contractTypes"]
+
+        for contract_name, deployment in deployments.items():
+            try:
+                abi = contract_data[contract_name]["abi"]
+                entry = [
+                    contract_name,
+                    "v0.0.0",  # TODO: get version from contract
+                    to_checksum_address(deployment.address),
+                    abi,
+                ]
+            except KeyError:
+                continue
+            data.append(entry)
+
     registry = InMemoryContractRegistry()
     registry.write(data)
     return registry

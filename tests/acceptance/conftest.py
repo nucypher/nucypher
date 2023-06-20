@@ -2,6 +2,7 @@ import os
 import random
 
 import pytest
+from multicall import constants as multicall_constants
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Operator
@@ -18,6 +19,7 @@ from tests.constants import (
     MIN_STAKE_FOR_TESTS,
     MOCK_STAKING_CONTRACT_NAME,
     TEST_ETH_PROVIDER_URI,
+    MULTICALL_CONTRACT_NAME,
 )
 from tests.utils.ape import deploy_contracts as ape_deploy_contracts
 from tests.utils.ape import registry_from_ape_deployments
@@ -35,17 +37,25 @@ def nucypher_contracts(project):
     return nucypher_contracts
 
 
+@pytest.fixture(scope="session", autouse=True)
+def multicall_contracts(project):
+    multicall_contracts_dependency_api = project.dependencies["multicall"]
+    # simply use first entry - could be from github ('main') or local ('local')
+    _, multicall_contracts = list(multicall_contracts_dependency_api.items())[0]
+    multicall_contracts.compile()
+    return multicall_contracts
+
 @pytest.fixture(scope='module', autouse=True)
-def deploy_contracts(nucypher_contracts, accounts):
-    deployments = ape_deploy_contracts(
-        nucypher_contracts=nucypher_contracts, accounts=accounts
-    )
+def deploy_contracts(nucypher_contracts, multicall_contracts, accounts):
+    dependencies = [nucypher_contracts, multicall_contracts]
+    deployments = ape_deploy_contracts(dependencies=dependencies, accounts=accounts)
     return deployments
 
 
 @pytest.fixture(scope='module', autouse=True)
-def test_registry(nucypher_contracts, deploy_contracts):
-    registry = registry_from_ape_deployments(nucypher_contracts, deployments=deploy_contracts)
+def test_registry(nucypher_contracts, multicall_contracts, deploy_contracts):
+    dependencies = [nucypher_contracts, multicall_contracts]
+    registry = registry_from_ape_deployments(dependencies, deployments=deploy_contracts)
     return registry
 
 
@@ -137,3 +147,14 @@ def manual_operator(testerchain):
     txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
+
+
+@pytest.fixture(scope="module", autouse=True)
+def multicall_address(testerchain, deploy_contracts):
+    # Add the address of multicall contract deployed on testerchain
+    multicall_address = deploy_contracts[MULTICALL_CONTRACT_NAME].address
+    multicall_constants.MULTICALL3_ADDRESSES[
+        testerchain.w3.eth.chain_id
+    ] = multicall_address
+    # eth-tester doesn't support state_override in ethereum calls
+    multicall_constants.NO_STATE_OVERRIDE.append(testerchain.w3.eth.chain_id)

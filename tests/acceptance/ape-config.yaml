@@ -10,6 +10,10 @@ dependencies:
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.8.1
+  - name: multicall
+    github: mds1/multicall
+    ref: main
+    contracts_folder: src
 
 solidity:
   version: 0.8.20
