@@ -166,6 +166,10 @@ class BobGonnaBob(Bob, DKGOmniscient):
     def __init__(self, session_seed=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def _derive_dkg_parameters(
+        self, ritual_id: int, ursulas, ritual, threshold
+    ) -> None:
+        return self._dkg_insight.dkg.public_params
     class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         def gather_encrypted_decryption_shares(
             self,
