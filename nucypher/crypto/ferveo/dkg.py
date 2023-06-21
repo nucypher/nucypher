@@ -56,9 +56,7 @@ def aggregate_transcripts(
     _dkg = _make_dkg(nodes=validators, shares=shares, *args, **kwargs)
     pvss_aggregated = _dkg.aggregate_transcripts(transcripts)
     verify_aggregate(pvss_aggregated, shares, transcripts)
-    LOGGER.debug(
-        f"derived final DKG key {bytes(_dkg.public_key).hex()[:10]}"
-    )
+    LOGGER.debug(f"derived final DKG key {bytes(_dkg.public_key).hex()[:10]}")
     return pvss_aggregated, _dkg.public_key
 
 
