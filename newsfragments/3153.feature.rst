@@ -1,0 +1,1 @@
+Increase default timeout for ``/reencrypt`` requests to limit timeouts when multiple retrieval kits are included in a single request.
