@@ -36,12 +36,6 @@ class DKGStorage:
     def get_aggregated_transcript_receipt(self, ritual_id: int) -> TxReceipt:
         return self.data["aggregated_transcript_receipts"][ritual_id]
 
-    def store_dkg_params(self, ritual_id: int, public_params) -> None:
-        self.data["public_params"][ritual_id] = public_params
-
-    def get_dkg_params(self, ritual_id: int) -> int:
-        return self.data["public_params"][ritual_id]
-
     def store_public_key(self, ritual_id: int, public_key: bytes) -> None:
         self.data["public_keys"][ritual_id] = public_key
 

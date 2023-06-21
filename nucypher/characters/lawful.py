@@ -50,7 +50,6 @@ from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
-    DkgPublicParameters,
     Transcript,
     Validator,
     combine_decryption_shares_precomputed,
@@ -670,7 +669,6 @@ class Bob(Character):
         ciphertext: Ciphertext,
         conditions: Lingo,
         context: Optional[dict] = None,
-        params: Optional[DkgPublicParameters] = None,
         ursulas: Optional[List["Ursula"]] = None,
         variant: str = "simple",
         peering_timeout: int = 60,
@@ -716,18 +714,8 @@ class Bob(Character):
             participant_public_keys=participant_public_keys,
         )
 
-        if not params:
-            # TODO: Bob can call.verify here instead of aggregating the shares.
-            # if the DKG parameters are not provided, we need to
-            # aggregate the transcripts and derive them.
-
-            # TODO we don't need all ursulas, only threshold of them
-            # ursulas = [u for u in ursulas if u.checksum_address in decryption_shares]
-            params = self.__derive_dkg_parameters(ritual_id, ursulas, ritual, threshold)
-            # TODO: compare the results with the on-chain records (Coordinator).
-
         return self.__decrypt(
-            list(decryption_shares.values()), ciphertext, conditions, params, variant
+            list(decryption_shares.values()), ciphertext, conditions, variant
         )
 
     @staticmethod
@@ -735,7 +723,6 @@ class Bob(Character):
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
         conditions: Lingo,
-        params: DkgPublicParameters,
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
@@ -750,24 +737,8 @@ class Bob(Character):
             ciphertext,
             conditions,       # aad
             shared_secret,
-            params            # dkg params
         )
         return cleartext
-
-    @staticmethod
-    def __derive_dkg_parameters(ritual_id: int, ursulas, ritual, threshold) -> DkgPublicParameters:
-        validators = [u.as_external_validator() for u in ursulas]
-        validators = sorted(validators, key=lambda v: v.address)
-        transcripts = [Transcript.from_bytes(t[1]) for t in ritual.transcripts]
-        data = list(zip(validators, transcripts))
-        pvss_aggregated, public_key, params = aggregate_transcripts(
-            ritual_id=ritual_id,
-            me=validators[0],  # TODO: #3097 this is awkward, but we need to pass "me" here to derive_generator_inverse
-            threshold=threshold,
-            shares=ritual.shares,
-            transcripts=data
-        )
-        return params
 
 
 class Ursula(Teacher, Character, Operator, Ritualist):

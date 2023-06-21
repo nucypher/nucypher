@@ -16,7 +16,6 @@ from eth_utils import to_checksum_address
 from nucypher_core.ferveo import (
     AggregatedTranscript,
     DkgPublicKey,
-    DkgPublicParameters,
     Keypair,
     Validator,
 )
@@ -729,7 +728,7 @@ def ursulas(
 @pytest.fixture(scope="session")
 def dkg_public_key_data(
     get_random_checksum_address,
-) -> Tuple[AggregatedTranscript, DkgPublicKey, DkgPublicParameters]:
+) -> Tuple[AggregatedTranscript, DkgPublicKey]:
     ritual_id = 0
     num_shares = 4
     threshold = 3
@@ -755,7 +754,7 @@ def dkg_public_key_data(
         )
         transcripts.append(transcript)
 
-    aggregate_transcript, public_key, params = dkg.aggregate_transcripts(
+    aggregate_transcript, public_key = dkg.aggregate_transcripts(
         ritual_id=ritual_id,
         me=validators[0],
         shares=num_shares,
@@ -763,16 +762,16 @@ def dkg_public_key_data(
         transcripts=list(zip(validators, transcripts)),
     )
 
-    return aggregate_transcript, public_key, params
+    return aggregate_transcript, public_key
 
 
 @pytest.fixture(scope="session")
 def dkg_public_key(dkg_public_key_data) -> DkgPublicKey:
-    _, dkg_public_key, _ = dkg_public_key_data
+    _, dkg_public_key = dkg_public_key_data
     return dkg_public_key
 
 
 @pytest.fixture(scope="session")
 def aggregated_transcript(dkg_public_key_data) -> AggregatedTranscript:
-    aggregated_transcript, _, _ = dkg_public_key_data
+    aggregated_transcript, _ = dkg_public_key_data
     return aggregated_transcript

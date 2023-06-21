@@ -534,11 +534,10 @@ class Ritualist(BaseActor):
             self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
             raise e
         else:
-            aggregated_transcript, dkg_public_key, params = result
+            aggregated_transcript, dkg_public_key = result
 
         # Store the DKG artifacts for later us
         self.dkg_storage.store_aggregated_transcript(ritual_id=ritual_id, aggregated_transcript=aggregated_transcript)
-        self.dkg_storage.store_dkg_params(ritual_id=ritual_id, public_params=params)
         self.dkg_storage.store_public_key(ritual_id=ritual_id, public_key=dkg_public_key)
 
         # publish the transcript and store the receipt

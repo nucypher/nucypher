@@ -175,14 +175,10 @@ def test_ursula_ritualist(testerchain, mock_coordinator_agent, cohort, alice, bo
         print("==================== DKG DECRYPTION ====================")
         bob.start_learning_loop(now=True)
 
-        # ritual_id, ciphertext, conditions, and params are obtained from the side channel
-        params = cohort[0].dkg_storage.get_dkg_params(ritual_id)
-
         cleartext = bob.threshold_decrypt(
             ritual_id=ritual_id,
             ciphertext=ciphertext,
             conditions=CONDITIONS,
-            params=params,
             peering_timeout=0,
             variant=variant
         )
