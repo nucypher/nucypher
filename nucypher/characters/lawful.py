@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    default_dkg_variant = FerveoVariant.PRECOMPUTED
+    default_dkg_variant = FerveoVariant.SIMPLE
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -652,7 +652,7 @@ class Bob(Character):
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
     ]:
         if variant is None:
-            variant = self.default_dkg_variant.value
+            variant = self.default_dkg_variant
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
