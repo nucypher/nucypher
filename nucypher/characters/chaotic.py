@@ -5,6 +5,7 @@ from nucypher_core import (
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
     SessionStaticKey,
+    ThresholdDecryptionResponse,
     ferveo,
 )
 
@@ -36,7 +37,7 @@ class _ParticipantKeyDict(dict):
         return fifty_fiver.public_key()
 
 
-class _FakeRitual:
+class _Blasphemy:
     def __init__(
         self, tau, threshold, shares_num, checksum_addresses, session_seed=None
     ):
@@ -77,7 +78,7 @@ class DKGOmniscient:
 
             checksum_addresses = [gen_eth_addr(i) for i in range(0, self.shares_num)]
 
-            self.fake_ritual = _FakeRitual(
+            self.fake_ritual = _Blasphemy(
                 tau=self.tau,
                 threshold=self.security_threshold,
                 shares_num=self.shares_num,
