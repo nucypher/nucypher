@@ -34,3 +34,4 @@ decrypted_cleartext_from_ciphertext = bytes(decrypted_cleartext_from_ciphertext_
 
 assert decrypted_cleartext_from_ciphertext == plaintext
 assert plaintext == decrypted_cleartext_from_ciphertext
+print(f"Decrypted cleartext: {decrypted_cleartext_from_ciphertext}")
