@@ -180,7 +180,7 @@ class BobGonnaBob(Bob, DKGOmniscient):
             Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
             Dict[ChecksumAddress, str],
         ]:
-            decryption_shares = {}
+            responses = {}
 
             ####################
             etdr = list(encrypted_requests.values())[0]
@@ -213,20 +213,34 @@ class BobGonnaBob(Bob, DKGOmniscient):
                 )
                 decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
                 ciphertext = decrypted_encryption_request.ciphertext
+
+                # Presuming simple for now.  Is this OK?
                 decryption_share = aggregate.create_decryption_share_simple(
                     dkg,
                     ciphertext,
                     self._learner._dkg_insight.conditions_bytes,
                     validator_keypair,
                 )
-                decryption_shares[validator.address] = decryption_share
-                print(f"At share time: {self._learner._dkg_insight.dkg.public_key}")
 
-                # Public key has changed because of transcript aggregation?
-                self._learner._dkg_insight.dkg = dkg
+                decryption_share_bytes = bytes(decryption_share)
+
+                ##### Uncomment for sanity check
+                # ferveo.DecryptionShareSimple.from_bytes(decryption_share_bytes)  # No IOError!  Let's go!
+                ##################
+
+                decryption_response = ThresholdDecryptionResponse(
+                    ritual_id=55,  # TODO: Abstract this somewhere
+                    decryption_share=bytes(decryption_share_bytes),
+                )
+
+                encrypted_decryptiopn_response = trdp.encrypt_decryption_response(
+                    decryption_response=decryption_response,
+                    requester_public_key=etdr.requester_public_key,
+                )
+                responses[validator.address] = encrypted_decryptiopn_response
 
             NO_FAILURES = {}
-            return decryption_shares, NO_FAILURES
+            return responses, NO_FAILURES
 
     _threshold_decryption_client_class = DKGOmniscientDecryptionClient
 
