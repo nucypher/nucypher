@@ -1,6 +1,7 @@
 import json
 from typing import Dict, Tuple
 
+from ferveo_py import DkgPublicParameters
 from nucypher_core import (
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
@@ -169,8 +170,9 @@ class BobGonnaBob(Bob, DKGOmniscient):
 
     def _derive_dkg_parameters(
         self, ritual_id: int, ursulas, ritual, threshold
-    ) -> None:
+    ) -> DkgPublicParameters:
         return self._dkg_insight.dkg.public_params
+
     class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         def gather_encrypted_decryption_shares(
             self,

@@ -25,13 +25,20 @@ decrypted_cleartext_from_ciphertext_list = bob.threshold_decrypt(
 
 
 
-# decrypted_cleartext_from_tdr = bob.get_decryption_shares_using_existing_decryption_request(tdr,
-#                                                                                            participant_public_keys=THESE_CAN_BE_FAKE_FOR_THE_PURPOSES_OF_THIS_DEMO,
-#                                                                                            cohort=THESE_CAN_BE_FAKE_FOR_THE_PURPOSES_OF_THIS_DEMO,
-#                                                                                            threshold=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA)
+cohort = bob._dkg_insight.fake_ritual.fake_nodes
+
+decrypted_cleartext_from_tdr_list = bob.decrypt_using_existing_decryption_request(
+    tdr,
+    participant_public_keys=bob._dkg_insight.fake_ritual.participant_public_keys,
+    cohort=cohort,
+    threshold=1,
+    params=bob._dkg_insight.dkg.public_params,
+)
+
 
 decrypted_cleartext_from_ciphertext = bytes(decrypted_cleartext_from_ciphertext_list)
+decrypted_cleartext_from_ciphertext_list = bytes(decrypted_cleartext_from_tdr_list)
 
 assert decrypted_cleartext_from_ciphertext == plaintext
-assert plaintext == decrypted_cleartext_from_ciphertext
+assert plaintext == decrypted_cleartext_from_ciphertext_list
 print(f"Decrypted cleartext: {decrypted_cleartext_from_ciphertext}")
