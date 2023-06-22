@@ -47,7 +47,9 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                 node_or_sprout.mature()
                 response = (
                     self._learner.network_middleware.get_encrypted_decryption_share(
-                        node_or_sprout, bytes(encrypted_request)
+                        ursula=node_or_sprout,
+                        decryption_request_bytes=bytes(encrypted_request),
+                        timeout=timeout,
                     )
                 )
                 if response.status_code == 200:
