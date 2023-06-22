@@ -188,6 +188,10 @@ class BobGonnaBob(Bob, DKGOmniscient):
             Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
             Dict[ChecksumAddress, str],
         ]:
+            # Set aside the power instance for use later, in the loop.
+            trdp = (
+                self._learner._dkg_insight.fake_ritual.threshold_request_decrypting_power
+            )
             responses = {}
 
             # We only really need one encrypted tdr.
@@ -214,9 +218,6 @@ class BobGonnaBob(Bob, DKGOmniscient):
                     self._learner._dkg_insight.aggregation_messages,
                 )
 
-                trdp = (
-                    self._learner._dkg_insight.fake_ritual.threshold_request_decrypting_power
-                )
                 decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
                 ciphertext = decrypted_encryption_request.ciphertext
 
