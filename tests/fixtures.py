@@ -752,14 +752,14 @@ def dkg_public_key_data(
             threshold=threshold,
             nodes=validators,
         )
-        transcripts.append(transcript)
+        transcripts.append((validator, transcript))
 
     aggregate_transcript, public_key = dkg.aggregate_transcripts(
         ritual_id=ritual_id,
         me=validators[0],
         shares=num_shares,
         threshold=threshold,
-        transcripts=list(zip(validators, transcripts)),
+        transcripts=transcripts,
     )
 
     return aggregate_transcript, public_key

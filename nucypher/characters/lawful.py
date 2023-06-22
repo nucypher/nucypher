@@ -50,7 +50,6 @@ from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
-    Transcript,
     Validator,
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
@@ -87,7 +86,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.crypto.ferveo.dkg import FerveoVariant, aggregate_transcripts
+from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
