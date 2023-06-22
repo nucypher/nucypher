@@ -86,7 +86,6 @@ class DKGOmniscient:
                 checksum_addresses=checksum_addresses,
             )
 
-            ### Here is the generation thing.
             validator_keypairs = [
                 ferveo.Keypair.random() for _ in range(0, self.shares_num)
             ]
@@ -141,9 +140,13 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
     """
 
     def __init__(self, encrypting_key, *args, **kwargs):
-        # We're going to use the DKG public key as the encrypting key, and ignore the key passed in.
+        del encrypting_key  # We take this to match the Enrico public API, but we don't use it, because...
+
+        # ...we're going to use the DKG public key as the encrypting key, and ignore the key passed in.
         encrypting_key_we_actually_want_to_use = self._dkg_insight.dkg.public_key
-        super().__init__(encrypting_key_we_actually_want_to_use, *args, **kwargs)
+        super().__init__(
+            encrypting_key=encrypting_key_we_actually_want_to_use, *args, **kwargs
+        )
 
     def encrypt_for_dkg(
         self, plaintext: bytes, conditions: LingoList
@@ -153,6 +156,8 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
         """
         validate_condition_lingo(conditions)
         conditions_bytes = json.dumps(conditions).encode()
+
+        # TOOD: Why are we using this?  Why not let conditions be passed normally?
         self._dkg_insight.conditions_bytes = conditions_bytes
         ciphertext = ferveo.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
@@ -185,10 +190,8 @@ class BobGonnaBob(Bob, DKGOmniscient):
         ]:
             responses = {}
 
-            ####################
+            # We only really need one encrypted tdr.
             etdr = list(encrypted_requests.values())[0]
-
-            #################
 
             for validator, validator_keypair in zip(
                 self._learner._dkg_insight.validators,
