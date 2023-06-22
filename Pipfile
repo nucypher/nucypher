@@ -11,7 +11,7 @@ python_version = "3"
 constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=4.0"
-nucypher-core = {git="https://github.com/nucypher/nucypher-core.git", ref="704a2ea5b5d0ed29c55bd0d57db7cdd9e4fe26ea", subdirectory="nucypher-core-python"}
+nucypher-core = {git="https://github.com/nucypher/nucypher-core.git", ref="b1bf17756ad1961a31afd5ddb943f0c3841909e6", subdirectory="nucypher-core-python"}
 # Cryptography
 cryptography = ">=3.2"
 mnemonic = "*"
