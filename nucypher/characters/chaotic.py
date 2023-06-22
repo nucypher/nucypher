@@ -255,24 +255,3 @@ class BobGonnaBob(Bob, DKGOmniscient):
         pass
 
     _ensure_ursula_availability = ensure_ursula_availability_is_of_no_conern_to_anyone
-
-    # def threshold_decrypt(self, ciphertext, *args, **kwargs) -> bytes:
-    #     """
-    #     https://imgflip.com/i/7o0q5d  # Copilot gonns copilot
-    #
-    #     Cut Ursula out of the picture.
-    #     """
-    #     decryption_client = self._threshold_decryption_client_class(self)
-    #     decryption_shares = decryption_client.gather_encrypted_decryption_shares(ciphertext)
-    #
-    #     shared_secret = ferveo.combine_decryption_shares_simple(decryption_shares)
-    #
-    #     print(f"Passing {self._dkg_insight.dkg.public_key} as the public key")
-    #
-    #     cleartext = ferveo.decrypt_with_shared_secret(
-    #         ciphertext,
-    #         self._dkg_insight.conditions_bytes,
-    #         shared_secret,
-    #         self._dkg_insight.dkg.public_params,
-    #     )
-    #     return bytes(cleartext)
