@@ -315,15 +315,15 @@ class RitualisticPower(KeyPairBasedPower):
             shares: int,
             threshold: int,
             transcripts: list
-    ) -> Tuple[AggregatedTranscript, DkgPublicKey, Any]:
-        aggregated_transcript, dkg_public_key, params = dkg.aggregate_transcripts(
+    ) -> Tuple[AggregatedTranscript, DkgPublicKey]:
+        aggregated_transcript, dkg_public_key = dkg.aggregate_transcripts(
             ritual_id=ritual_id,
             me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
             shares=shares,
             threshold=threshold,
             transcripts=transcripts
         )
-        return aggregated_transcript, dkg_public_key, params
+        return aggregated_transcript, dkg_public_key
 
 
 class DerivedKeyBasedPower(CryptoPowerUp):
