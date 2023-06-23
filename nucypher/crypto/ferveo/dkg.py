@@ -54,7 +54,7 @@ def aggregate_transcripts(
 ) -> Tuple[AggregatedTranscript, DkgPublicKey]:
     validators = [t[0] for t in transcripts]
     _dkg = _make_dkg(nodes=validators, shares=shares, *args, **kwargs)
-    validator_msgs = [ValidatorMessage(v[0], v[1]) for v in transcripts]
+    validator_msgs = [(v[0], v[1]) for v in transcripts]
     pvss_aggregated = _dkg.aggregate_transcripts(validator_msgs)
     verify_aggregate(pvss_aggregated, shares, validator_msgs)
     LOGGER.debug(f"derived final DKG key {bytes(_dkg.public_key).hex()[:10]}")
@@ -64,9 +64,10 @@ def aggregate_transcripts(
 def verify_aggregate(
     pvss_aggregated: AggregatedTranscript,
     shares: int,
-    transcripts: List[ValidatorMessage],
+    transcripts: List[Tuple[Validator, Transcript]],
 ):
     pvss_aggregated.verify(shares, transcripts)
+
 
 def derive_decryption_share(
     nodes: List[Validator],
