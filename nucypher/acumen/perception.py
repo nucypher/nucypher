@@ -5,14 +5,14 @@ import random
 import weakref
 from collections import deque
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 import maya
 from eth_typing import ChecksumAddress
-
 from nucypher_core import FleetStateChecksum, NodeMetadata
 
 from nucypher.utilities.logging import Logger
+
 from .nicknames import Nickname
 
 

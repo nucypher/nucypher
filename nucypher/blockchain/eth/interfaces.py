@@ -1,44 +1,46 @@
 import math
 import pprint
+from pathlib import Path
+from typing import Callable, NamedTuple, Optional, Union
+from urllib.parse import urlparse
+
 import requests
 from constant_sorrow.constants import (
     INSUFFICIENT_ETH,
     NO_BLOCKCHAIN_CONNECTION,
-    UNKNOWN_TX_STATUS
+    UNKNOWN_TX_STATUS,
 )
 from eth.typing import TransactionDict
 from eth_tester import EthereumTester
-from eth_tester.exceptions import TransactionFailed as TestTransactionFailed, ValidationError
+from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
+from eth_tester.exceptions import ValidationError
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
-from pathlib import Path
-from typing import Callable, NamedTuple, Union, Optional
-from urllib.parse import urlparse
-from web3 import Web3, middleware, IPCProvider, WebsocketProvider, HTTPProvider
+from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
-from nucypher.blockchain.eth.clients import EthereumClient, POA_CHAINS, InfuraClient
+from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
+    _get_auto_provider,
     _get_HTTP_provider,
     _get_IPC_provider,
-    _get_auto_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
-    _get_websocket_provider
+    _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
+    WEB3_GAS_STRATEGIES,
     construct_datafeed_median_strategy,
     max_price_gas_strategy_wrapper,
-    WEB3_GAS_STRATEGIES
 )
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 

@@ -1,12 +1,9 @@
-from typing import Dict, Union
+from typing import Union
 
 from _pydecimal import Decimal
 from eth_utils import currency
-from twisted.internet import reactor, task
-from web3.exceptions import TransactionNotFound
 
 from nucypher.types import ERC20UNits, NuNits, TuNits
-from nucypher.utilities.logging import Logger
 
 
 class ERC20:

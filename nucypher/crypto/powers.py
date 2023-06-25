@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress

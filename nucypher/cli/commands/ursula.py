@@ -29,7 +29,6 @@ from nucypher.cli.literature import (
     FORCE_MODE_WARNING,
     SELECT_OPERATOR_ACCOUNT,
     SELECT_PAYMENT_NETWORK,
-    SUCCESSFUL_MANUALLY_SAVE_METADATA,
 )
 from nucypher.cli.options import (
     group_options,

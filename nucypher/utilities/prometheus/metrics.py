@@ -2,11 +2,6 @@
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 try:
-    from prometheus_client import Counter, Enum, Gauge, Histogram, Info, Summary
-except ImportError:
-    raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
-
-try:
     from prometheus_client.core import Timestamp
     from prometheus_client.registry import REGISTRY, CollectorRegistry
     from prometheus_client.utils import floatToGoString
