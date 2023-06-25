@@ -14,7 +14,6 @@ from nucypher_core import (
     MetadataResponse,
     MetadataResponsePayload,
     ReencryptionRequest,
-    RevocationOrder,
     ThresholdDecryptionResponse,
 )
 
