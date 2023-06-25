@@ -63,7 +63,6 @@ from nucypher_core.umbral import (
     reencrypt,
 )
 from twisted.internet import reactor
-from twisted.logger import Logger
 from web3.types import TxReceipt
 
 import nucypher
