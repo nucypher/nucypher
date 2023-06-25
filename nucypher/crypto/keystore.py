@@ -327,8 +327,11 @@ class Keystore:
         that the provided blob is recoverable and secure.
         """
         emitter = StdoutEmitter()
-        emitter.message(f'WARNING: Key importing assumes that you have already secured your secret '
-                        f'and can recover it. No mnemonic will be generated.\n', color='yellow')
+        emitter.message(
+            "WARNING: Key importing assumes that you have already secured your secret "
+            "and can recover it. No mnemonic will be generated.\n",
+            color="yellow",
+        )
         if len(key_material) != SecretKeyFactory.seed_size():
             raise ValueError(
                 f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
@@ -377,8 +380,10 @@ class Keystore:
 
         # notification
         emitter = StdoutEmitter()
-        emitter.message(f'Backup your seed words, you will not be able to view them again.\n')
-        emitter.message(f'{__words}\n', color='cyan')
+        emitter.message(
+            "Backup your seed words, you will not be able to view them again.\n"
+        )
+        emitter.message(f"{__words}\n", color="cyan")
         if not click.confirm("Have you backed up your seed phrase?"):
             emitter.message('Keystore generation aborted.', color='red')
             raise click.Abort()

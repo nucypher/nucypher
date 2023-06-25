@@ -140,7 +140,7 @@ class SubscriptionManagerPayment(ContractPayment):
         if not any((duration, expiration, value)):
             raise ValueError("Policy end time must be specified with 'expiration', 'duration' or 'value'.")
         if sum(True for i in (commencement, expiration, duration, value, rate) if i is not None and i < 0) > 0:
-            raise ValueError(f"Negative policy parameters are not allowed. Be positive.")
+            raise ValueError("Negative policy parameters are not allowed. Be positive.")
 
         if not commencement:
             if expiration and duration:

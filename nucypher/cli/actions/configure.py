@@ -129,7 +129,7 @@ def collect_operator_ip_address(emitter: StdoutEmitter, network: str, force: boo
 
     # From node swarm
     try:
-        message = f'Detecting external IP address automatically'
+        message = "Detecting external IP address automatically"
         emitter.message(message, verbosity=2)
         ip = determine_external_ip_address(network=network)
     except UnknownIPAddress:
@@ -172,11 +172,13 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
 
     ip_mismatch = external_ip != rest_host
     if ip_mismatch and not force:
-        error = f'\nx External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n'
-        hint = f"Run 'nucypher ursula config ip-address' to reconfigure the IP address then try " \
-               f"again or use --no-ip-checkup to bypass this check (not recommended).\n"
-        emitter.message(error, color='red')
-        emitter.message(hint, color='yellow')
+        error = f"\nx External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n"
+        hint = (
+            "Run 'nucypher ursula config ip-address' to reconfigure the IP address then try "
+            "again or use --no-ip-checkup to bypass this check (not recommended).\n"
+        )
+        emitter.message(error, color="red")
+        emitter.message(hint, color="yellow")
         raise click.Abort()
     else:
         emitter.message('✓ External IP matches configuration', 'green')

@@ -512,7 +512,7 @@ class PREApplicationAgent(EthereumContractAgent):
         self.log.debug(f"Got {len(stake_provider_map)} staking providers with {n_tokens} total tokens "
                        f"({filtered_out} filtered out)")
         if n_tokens == 0:
-            raise self.NotEnoughStakingProviders(f'There are no locked tokens.')
+            raise self.NotEnoughStakingProviders("There are no locked tokens.")
 
         return StakingProvidersReservoir(stake_provider_map)
 
@@ -766,7 +766,7 @@ class ContractAgency:
                   ) -> Agent:
 
         if not issubclass(agent_class, EthereumContractAgent):
-            raise TypeError(f"Only agent subclasses can be used from the agency.")
+            raise TypeError("Only agent subclasses can be used from the agency.")
 
         if not registry:
             if len(cls.__agents) == 1:

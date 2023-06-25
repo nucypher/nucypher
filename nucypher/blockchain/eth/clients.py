@@ -428,9 +428,9 @@ class GethClient(EthereumClient):
         debug_message = f"Unlocking account {account}"
 
         if duration is None:
-            debug_message += f" for 5 minutes"
+            debug_message += " for 5 minutes"
         elif duration == 0:
-            debug_message += f" indefinitely"
+            debug_message += " indefinitely"
         elif duration > 0:
             debug_message += f" for {duration} seconds"
 

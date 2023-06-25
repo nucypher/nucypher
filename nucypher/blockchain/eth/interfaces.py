@@ -858,7 +858,9 @@ class BlockchainInterfaceFactory:
             try:
                 cached_interface = list(cls._interfaces.values())[-1]
             except IndexError:
-                raise cls.NoRegisteredInterfaces(f"There is no existing blockchain connection.")
+                raise cls.NoRegisteredInterfaces(
+                    "There is no existing blockchain connection."
+                )
 
         # Connect and Sync
         interface, emitter = cached_interface

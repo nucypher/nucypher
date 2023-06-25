@@ -75,7 +75,9 @@ def _request_from_node(teacher,
     if not client:
         client = NucypherMiddlewareClient()
     try:
-        response = client.get(node_or_sprout=teacher, path=f"ping", timeout=timeout)  # TLS certificate logic within
+        response = client.get(
+            node_or_sprout=teacher, path="ping", timeout=timeout
+        )  # TLS certificate logic within
     except RestMiddleware.UnexpectedResponse:
         # 404, 405, 500, All server response codes handled by will be caught here.
         return  # Default teacher does not support this request - just move on.

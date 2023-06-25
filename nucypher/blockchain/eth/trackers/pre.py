@@ -55,7 +55,7 @@ class WorkTrackerBase:
     def stop(self) -> None:
         if self._tracking_task.running:
             self._tracking_task.stop()
-            self.log.info(f"STOPPED WORK TRACKING")
+            self.log.info("STOPPED WORK TRACKING")
 
     def start(self, commit_now: bool = True, requirement_func: Callable = None, force: bool = False) -> None:
         """
@@ -109,7 +109,7 @@ class WorkTrackerBase:
             return True
         r = self.__requirement(self.worker)
         if not isinstance(r, bool):
-            raise ValueError(f"'requirement' must return a boolean.")
+            raise ValueError("'requirement' must return a boolean.")
         return r
 
     @property
@@ -174,7 +174,7 @@ class WorkTrackerBase:
         tx_firing_block_number, txhash = list(sorted(self.pending.items()))[0]
         if txhash is UNTRACKED_PENDING_TRANSACTION:
             # TODO: Detect if this untracked pending transaction is a commitment transaction at all.
-            message = f"We have an untracked pending transaction. Issuing a replacement transaction."
+            message = "We have an untracked pending transaction. Issuing a replacement transaction."
         else:
             # If the transaction is still not mined after a max confirmation time
             # (based on current gas strategy) issue a replacement transaction.

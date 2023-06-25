@@ -337,7 +337,7 @@ class BatchValueFactory:
         self, values: List[Any], required_successes: int, batch_size: int = None
     ):
         if not values:
-            raise ValueError(f"No available values provided")
+            raise ValueError("No available values provided")
         if required_successes <= 0:
             raise ValueError(
                 f"Invalid number of successes required ({required_successes})"

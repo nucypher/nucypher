@@ -409,7 +409,7 @@ class CharacterConfiguration(BaseConfiguration):
                         f" and '{registry_filepath.absolute()}'."
                 raise ValueError(error)
             else:
-                self.log.warn(f"Registry and registry filepath were both passed.")
+                self.log.warn("Registry and registry filepath were both passed.")
         self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
@@ -476,7 +476,7 @@ class CharacterConfiguration(BaseConfiguration):
             if (
                 not self.registry_filepath
             ):  # TODO: Registry URI  (goerli://speedynet.json) :-)
-                self.log.info(f"Fetching latest registry from source.")
+                self.log.info("Fetching latest registry from source.")
                 self.registry = InMemoryContractRegistry.from_latest_publication(
                     network=self.domain
                 )
@@ -506,7 +506,7 @@ class CharacterConfiguration(BaseConfiguration):
             # TODO: Dedupe
             if not self.policy_registry:
                 if not self.policy_registry_filepath:
-                    self.log.info(f"Fetching latest policy registry from source.")
+                    self.log.info("Fetching latest policy registry from source.")
                     self.policy_registry = (
                         InMemoryContractRegistry.from_latest_publication(
                             network=self.payment_network
