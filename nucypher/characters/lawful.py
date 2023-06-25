@@ -1192,7 +1192,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                                                        network_middleware=network_middleware,
                                                        registry=registry)
 
-            except NodeSeemsToBeDown as e:
+            except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
                 log.warn(
                     "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(attempt, interval))

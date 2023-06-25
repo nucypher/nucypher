@@ -117,11 +117,9 @@ class FleetState:
             this_node = self._this_node_ref()
             this_node_metadata = this_node.metadata()
             this_node_updated = self._this_node_metadata != this_node_metadata
-            this_node_list = [this_node]
         else:
             this_node_metadata = self._this_node_metadata
             this_node_updated = False
-            this_node_list = []
 
         diff = self._calculate_diff(this_node_updated, nodes_to_add, nodes_to_remove)
 

@@ -261,7 +261,7 @@ class WorkerPool:
             self._result_queue.put(Success(value, result))
         except Cancelled as e:
             self._result_queue.put(e)
-        except BaseException as e:
+        except BaseException:
             self._result_queue.put(Failure(value, sys.exc_info()))
 
     def _process_results(self):

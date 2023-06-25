@@ -112,7 +112,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # If these nodes already have the same fleet state, no exchange is necessary.
 
-        learner_fleet_state = request.args.get('fleet')
         if metadata_request.fleet_state_checksum == this_node.known_nodes.checksum:
             # log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))  # 1712
             headers = {'Content-Type': 'application/octet-stream'}
@@ -310,7 +309,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/revoke', methods=['POST'])
     def revoke():
-        revocation = RevocationOrder.from_bytes(request.data)
         # TODO: Implement off-chain revocation.
         return Response(status=HTTPStatus.OK)
 
@@ -362,7 +360,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         headers = {"Content-Type": "text/html", "charset": "utf-8"}
         try:
             content = status_template.render(status_info)
-        except Exception as e:
+        except Exception:
             text_error = mako_exceptions.text_error_template().render()
             html_error = mako_exceptions.html_error_template().render()
             log.debug("Template Rendering Exception:\n" + text_error)
