@@ -137,7 +137,7 @@ class DKGOmniscient:
 
 class NiceGuyEddie(Enrico, DKGOmniscient):
     """
-    Like Enrico, but from Reswervoir Dogs.
+    Like Enrico, but from Reservoir Dogs.
 
     He doesn't know who's shot, who's not.
     """
