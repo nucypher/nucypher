@@ -1,0 +1,1 @@
+Removes linting errors from codebase
