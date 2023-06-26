@@ -36,8 +36,9 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
         maybe_public_key = new_configuration.keystore.id
     else:
         maybe_public_key = "(no keystore attached)"
-    emitter.message(f"Generated keystore", color='green')
-    emitter.message(f"""
+    emitter.message("Generated keystore", color="green")
+    emitter.message(
+        f"""
     
 Public Key:   {maybe_public_key}
 Path to Keystore: {new_configuration.keystore_dir}
@@ -47,7 +48,8 @@ Path to Keystore: {new_configuration.keystore_dir}
 - Backup your keystore! Character keys are required to interact with the protocol!
 - Remember your password! Without the password, it's impossible to decrypt the key!
 
-""")
+"""
+    )
 
     default_config_filepath = True
     if new_configuration.default_filepath() != filepath:

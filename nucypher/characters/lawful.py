@@ -63,7 +63,6 @@ from nucypher_core.umbral import (
     reencrypt,
 )
 from twisted.internet import reactor
-from twisted.logger import Logger
 from web3.types import TxReceipt
 
 import nucypher
@@ -624,7 +623,7 @@ class Bob(Character):
 
         if len(successes) < threshold:
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
-        self.log.debug(f"Got enough shares to decrypt.")
+        self.log.debug("Got enough shares to decrypt.")
 
         gathered_shares = {}
         for provider_address, encrypted_decryption_response in successes.items():
@@ -974,7 +973,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         #
 
         if emitter:
-            emitter.message(f"Starting services", color='yellow')
+            emitter.message("Starting services", color="yellow")
 
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
@@ -984,12 +983,12 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         if self._availability_check or availability:
             self._availability_tracker.start(now=eager)
             if emitter:
-                emitter.message(f"✓ Availability Checks", color='green')
+                emitter.message("✓ Availability Checks", color="green")
 
         if ritualist:
             self.ritual_tracker.start()
             if emitter:
-                emitter.message(f"✓ DKG Ritual Tracking", color='green')
+                emitter.message("✓ DKG Ritual Tracking", color="green")
 
         if worker:
             if block_until_ready:
@@ -1012,7 +1011,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         # Continuous bonded check now that Ursula is all ready to run
         self._operator_bonded_tracker.start(now=eager)
         if emitter:
-            emitter.message(f"✓ Start Operator Bonded Tracker", color="green")
+            emitter.message("✓ Start Operator Bonded Tracker", color="green")
 
         if prometheus_config:
             # Locally scoped to prevent import without prometheus explicitly installed
@@ -1020,7 +1019,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
 
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
-                emitter.message(f"✓ Prometheus Exporter", color="green")
+                emitter.message("✓ Prometheus Exporter", color="green")
 
         if hendrix:
             if emitter:
@@ -1193,7 +1192,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                                                        network_middleware=network_middleware,
                                                        registry=registry)
 
-            except NodeSeemsToBeDown as e:
+            except NodeSeemsToBeDown:
                 log = Logger(cls.__name__)
                 log.warn(
                     "Can't connect to peer (attempt {}).  Will retry in {} seconds.".format(attempt, interval))

@@ -248,7 +248,7 @@ class RestMiddleware:
         # TODO: Implement offchain revocation #2787
         response = self.client.post(
             node_or_sprout=ursula,
-            path=f"revoke",
+            path="revoke",
             data=bytes(revocation),
         )
         return response
@@ -256,7 +256,7 @@ class RestMiddleware:
     def reencrypt(self, ursula: "Ursula", reencryption_request_bytes: bytes, timeout=8):
         response = self.client.post(
             node_or_sprout=ursula,
-            path=f"reencrypt",
+            path="reencrypt",
             data=reencryption_request_bytes,
             timeout=timeout,
         )
@@ -267,7 +267,7 @@ class RestMiddleware:
     ):
         response = self.client.post(
             node_or_sprout=ursula,
-            path=f"decrypt",
+            path="decrypt",
             data=decryption_request_bytes,
             timeout=timeout,
         )

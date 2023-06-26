@@ -140,7 +140,7 @@ class AvailabilityTracker:
         else:
             # Restart on failure
             if not self.running:
-                self.log.debug(f"Availability check crashed, restarting...")
+                self.log.debug("Availability check crashed, restarting...")
                 self.start(now=True)
 
     def status(self) -> bool:

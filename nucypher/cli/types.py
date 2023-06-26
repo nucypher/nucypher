@@ -23,7 +23,7 @@ class ChecksumAddress(click.ParamType):
     def convert(self, value, param, ctx):
         try:
             value = to_checksum_address(value=value)
-        except ValueError as e:
+        except ValueError:
             self.fail("Invalid ethereum address")
         else:
             return value

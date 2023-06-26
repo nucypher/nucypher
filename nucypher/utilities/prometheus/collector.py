@@ -4,7 +4,7 @@
 from nucypher.blockchain.eth.events import ContractEventsThrottler
 
 try:
-    from prometheus_client import Counter, Enum, Gauge, Histogram, Info, Summary
+    from prometheus_client import Enum, Gauge, Info
     from prometheus_client.registry import CollectorRegistry
 except ImportError:
     raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')

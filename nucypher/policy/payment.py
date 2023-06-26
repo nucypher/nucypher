@@ -27,13 +27,13 @@ class PaymentMethod(ABC):
     @abstractmethod
     def pay(self, policy: Policy) -> Dict:
         """Carry out payment for the given policy."""
-        raise NotImplemented
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def rate(self) -> int:
         """The cost of this payment method per unit."""
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def quote(self,
@@ -45,14 +45,14 @@ class PaymentMethod(ABC):
               rate: Optional[int] = None
               ) -> Quote:
         """Generates a valid quote for this payment method using pricing details."""
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def validate_price(self,
                        shares: int,
                        value: int,
                        duration: int) -> None:
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class ContractPayment(PaymentMethod, ABC):
@@ -140,7 +140,7 @@ class SubscriptionManagerPayment(ContractPayment):
         if not any((duration, expiration, value)):
             raise ValueError("Policy end time must be specified with 'expiration', 'duration' or 'value'.")
         if sum(True for i in (commencement, expiration, duration, value, rate) if i is not None and i < 0) > 0:
-            raise ValueError(f"Negative policy parameters are not allowed. Be positive.")
+            raise ValueError("Negative policy parameters are not allowed. Be positive.")
 
         if not commencement:
             if expiration and duration:

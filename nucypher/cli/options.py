@@ -14,7 +14,6 @@ from nucypher.cli.types import (
     NETWORK_PORT,
     PAYMENT_METHOD_CHOICES,
     STAKED_TOKENS_RANGE,
-    WEI,
     NuCypherNetworkName,
 )
 from nucypher.utilities.logging import Logger

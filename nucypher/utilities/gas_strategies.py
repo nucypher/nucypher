@@ -10,8 +10,6 @@ from web3.gas_strategies.rpc import rpc_gas_price_strategy
 from web3.types import Wei, TxParams
 
 from nucypher.utilities.datafeeds import (
-    Datafeed,
-    EtherchainGasPriceDatafeed,
     UpvestGasPriceDatafeed,
     ZoltuGasPriceDatafeed
 )

@@ -3,7 +3,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address

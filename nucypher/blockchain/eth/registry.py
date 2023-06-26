@@ -1,12 +1,11 @@
-from json import JSONDecodeError
-
 import hashlib
 import json
-import requests
 from abc import ABC, abstractmethod
-from eth_utils import to_checksum_address
+from json import JSONDecodeError
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Dict, Iterator, List, Optional, Union
+
+import requests
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory

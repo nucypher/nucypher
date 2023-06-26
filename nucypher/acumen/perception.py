@@ -5,14 +5,14 @@ import random
 import weakref
 from collections import deque
 from collections.abc import KeysView
-from typing import Optional, Dict, Iterable, List, Tuple, NamedTuple, Union, Any
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 import maya
 from eth_typing import ChecksumAddress
-
 from nucypher_core import FleetStateChecksum, NodeMetadata
 
 from nucypher.utilities.logging import Logger
+
 from .nicknames import Nickname
 
 
@@ -117,11 +117,9 @@ class FleetState:
             this_node = self._this_node_ref()
             this_node_metadata = this_node.metadata()
             this_node_updated = self._this_node_metadata != this_node_metadata
-            this_node_list = [this_node]
         else:
             this_node_metadata = self._this_node_metadata
             this_node_updated = False
-            this_node_list = []
 
         diff = self._calculate_diff(this_node_updated, nodes_to_add, nodes_to_remove)
 

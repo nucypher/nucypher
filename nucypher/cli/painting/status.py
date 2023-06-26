@@ -4,7 +4,6 @@ from web3.main import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    NucypherTokenAgent,
     PREApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
