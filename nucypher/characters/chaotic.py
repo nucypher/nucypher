@@ -89,7 +89,7 @@ class DKGOmniscient:
             )
 
             validator_keypairs = [
-                ferveo.Keypair.random() for _ in range(0, self.shares_num)
+                ferveo.Keypair.random() for _ in range(self.shares_num)
             ]
 
             validators = [
