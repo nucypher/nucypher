@@ -1,4 +1,5 @@
 import json
+from operator import attrgetter
 from typing import Dict, Tuple
 
 from ferveo_py import DkgPublicParameters
@@ -97,7 +98,7 @@ class DKGOmniscient:
             ]
 
             # Validators must be sorted by their public key
-            validators.sort(key=lambda v: v.address)
+            validators.sort(key=attrgetter("address"))
 
             # Each validator holds their own DKG instance and generates a transcript every
             # validator, including themselves
