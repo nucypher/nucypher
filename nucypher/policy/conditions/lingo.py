@@ -22,6 +22,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
+from nucypher.policy.conditions.multicall import MulticallConditions
 from nucypher.policy.conditions.types import ConditionDict, Lingo
 from nucypher.policy.conditions.utils import CamelCaseSchema
 
@@ -103,6 +104,14 @@ class CompoundAccessControlCondition(AccessControlCondition):
     def verify(self, *args, **kwargs) -> Tuple[bool, Any]:
         values = []
         overall_result = True if self.operator == self.AND_OPERATOR else False
+
+        # TODO: check if providers and :userAddress are present in kwargs
+        # TODO: :userAddress could not exist for other conditions like blocktime
+        providers = kwargs["providers"]
+        context = kwargs[":userAddress"]
+        multicall_conditions = MulticallConditions(self.operands, providers, context)
+        multicall_results = multicall_conditions.verify()
+
         for condition in self.operands:
             current_result, current_value = condition.verify(*args, **kwargs)
             values.append(current_value)
