@@ -1,9 +1,9 @@
-from json import JSONDecodeError
-
 import json
-import pytest
+from json import JSONDecodeError
 from pathlib import Path
 from unittest.mock import PropertyMock
+
+import pytest
 
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.literature import (
@@ -28,8 +28,8 @@ from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
+    MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
-    TEST_ETH_PROVIDER_URI,
     YES_ENTER,
 )
 from tests.utils.ursula import select_test_port
@@ -54,10 +54,16 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_regist
     mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
 
     # Use default ursula init args
-    init_args = ('ursula', 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--eth-provider', TEST_ETH_PROVIDER_URI,
-                 '--payment-provider', TEST_ETH_PROVIDER_URI)
+    init_args = (
+        "ursula",
+        "init",
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--eth-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-provider",
+        MOCK_ETH_PROVIDER_URI,
+    )
 
     user_input = '0\n' + '0\n' + YES_ENTER + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
@@ -81,16 +87,29 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
 
     deploy_port = select_test_port()
     # Use a custom local filepath for configuration
-    init_args = ('ursula', 'init',
-                 '--network', TEMPORARY_DOMAIN,
-                 '--config-root', str(custom_filepath.absolute()),
-                 '--rest-host', MOCK_IP_ADDRESS,
-                 '--rest-port', deploy_port,
-                 '--eth-provider', TEST_ETH_PROVIDER_URI,
-                 '--payment-provider', TEST_ETH_PROVIDER_URI,
-                 '--payment-network', TEMPORARY_DOMAIN,
-                 '--operator-address', testerchain.ursulas_accounts[0])
-    result = click_runner.invoke(nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False)
+    init_args = (
+        "ursula",
+        "init",
+        "--network",
+        TEMPORARY_DOMAIN,
+        "--config-root",
+        str(custom_filepath.absolute()),
+        "--rest-host",
+        MOCK_IP_ADDRESS,
+        "--rest-port",
+        deploy_port,
+        "--eth-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-provider",
+        MOCK_ETH_PROVIDER_URI,
+        "--payment-network",
+        TEMPORARY_DOMAIN,
+        "--operator-address",
+        testerchain.ursulas_accounts[0],
+    )
+    result = click_runner.invoke(
+        nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False
+    )
     assert result.exit_code == 0, result.output
 
     # CLI Output

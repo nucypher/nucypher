@@ -1,6 +1,6 @@
 from nucypher.characters.lawful import Character
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import MOCK_ETH_PROVIDER_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 def test_character_transacting_power_signing(testerchain, test_registry):
@@ -10,7 +10,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     signer = Character(
         is_me=True,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_provider_uri=TEST_ETH_PROVIDER_URI,
         registry=test_registry,
         checksum_address=eth_address,
     )
@@ -53,10 +53,10 @@ import pytest
 from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
-from nucypher.crypto.utils import verify_eip_191
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.utils import verify_eip_191
 from tests.conftest import LOCK_FUNCTION
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
@@ -122,8 +122,11 @@ def test_transacting_power_sign_transaction(testerchain):
 
 
 def test_transacting_power_sign_agent_transaction(testerchain, test_registry):
-
-    agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    agent = ContractAgency.get_agent(
+        PREApplicationAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
+    )
     contract_function = agent.contract.functions.confirmOperatorAddress()
 
     payload = {'chainId': int(testerchain.client.chain_id),

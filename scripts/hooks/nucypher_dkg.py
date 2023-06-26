@@ -224,7 +224,11 @@ bob = Bob(
     domain=network,
     registry=registry,
     known_nodes=[
-        Ursula.from_teacher_uri(f"https://{network}.nucypher.network:9151", min_stake=0)
+        Ursula.from_teacher_uri(
+            f"https://{network}.nucypher.network:9151",
+            provider_uri=eth_provider_uri,
+            min_stake=0,
+        )
     ],
 )
 bob.start_learning_loop(now=True)

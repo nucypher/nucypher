@@ -22,6 +22,7 @@ class MockCoordinatorAgent(MockContractAgent):
     G1Point = CoordinatorAgent.Ritual.G1Point
 
     EVENTS = {}
+    rituals = []
 
     class Events(Enum):
         START_RITUAL = 0
@@ -29,7 +30,6 @@ class MockCoordinatorAgent(MockContractAgent):
 
     def __init__(self, blockchain: MockBlockchain, max_dkg_size: int = 64, timeout: int = 600):
         self.blockchain = blockchain
-        self.rituals = []
         self.timeout = timeout
         self.max_dkg_size = max_dkg_size
         # Note that the call to super() is not necessary here

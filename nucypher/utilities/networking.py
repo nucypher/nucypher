@@ -67,13 +67,15 @@ def _request(url: str, certificate=None) -> Union[str, None]:
         return response.text
 
 
-def _request_from_node(teacher,
-                       client: Optional[NucypherMiddlewareClient] = None,
-                       timeout: int = 2,
-                       log: Logger = IP_DETECTION_LOGGER
-                       ) -> Union[str, None]:
+def _request_from_node(
+    teacher,
+    provider_uri: str,
+    client: Optional[NucypherMiddlewareClient] = None,
+    timeout: int = 2,
+    log: Logger = IP_DETECTION_LOGGER,
+) -> Union[str, None]:
     if not client:
-        client = NucypherMiddlewareClient()
+        client = NucypherMiddlewareClient(eth_provider_uri=provider_uri)
     try:
         response = client.get(
             node_or_sprout=teacher, path="ping", timeout=timeout
@@ -97,11 +99,12 @@ def _request_from_node(teacher,
         log.debug(f'Failed to get external IP from teacher node ({teacher} returned {response.status_code})')
 
 
-def get_external_ip_from_default_teacher(network: str,
-                                         registry: Optional[BaseContractRegistry] = None,
-                                         log: Logger = IP_DETECTION_LOGGER
-                                         ) -> Union[str, None]:
-
+def get_external_ip_from_default_teacher(
+    network: str,
+    provider_uri: str,
+    registry: Optional[BaseContractRegistry] = None,
+    log: Logger = IP_DETECTION_LOGGER,
+) -> Union[str, None]:
     # Prevents circular imports
     from nucypher.characters.lawful import Ursula
     from nucypher.network.nodes import TEACHER_NODES
@@ -119,10 +122,10 @@ def get_external_ip_from_default_teacher(network: str,
     for teacher_uri in TEACHER_NODES[network]:
         try:
             teacher = Ursula.from_teacher_uri(
-                teacher_uri=teacher_uri, min_stake=0
+                teacher_uri=teacher_uri, provider_uri=provider_uri, min_stake=0
             )  # TODO: Handle customized min stake here.
             # TODO: Pass registry here to verify stake (not essential here since it's a hardcoded node)
-            external_ip = _request_from_node(teacher=teacher)
+            external_ip = _request_from_node(teacher=teacher, provider_uri=provider_uri)
             # Found a reachable teacher, return from loop
             if external_ip:
                 break
@@ -137,10 +140,12 @@ def get_external_ip_from_default_teacher(network: str,
     return external_ip
 
 
-def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
-                                     sample_size: int = 3,
-                                     log: Logger = IP_DETECTION_LOGGER
-                                     ) -> Union[str, None]:
+def get_external_ip_from_known_nodes(
+    known_nodes: FleetSensor,
+    provider_uri: str,
+    sample_size: int = 3,
+    log: Logger = IP_DETECTION_LOGGER,
+) -> Union[str, None]:
     """
     Randomly select a sample of peers to determine the external IP address
     of this host. The first node to reply successfully will be used.
@@ -149,9 +154,9 @@ def get_external_ip_from_known_nodes(known_nodes: FleetSensor,
     if len(known_nodes) < sample_size:
         return  # There are too few known nodes
     sample = random.sample(list(known_nodes), sample_size)
-    client = NucypherMiddlewareClient()
+    client = NucypherMiddlewareClient(eth_provider_uri=provider_uri)
     for node in sample:
-        ip = _request_from_node(teacher=node, client=client)
+        ip = _request_from_node(teacher=node, client=client, provider_uri=provider_uri)
         if ip:
             log.info(f'Fetched external IP address ({ip}) from randomly selected known nodes.')
             return ip
@@ -165,7 +170,9 @@ def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -
     return ip
 
 
-def determine_external_ip_address(network: str, known_nodes: FleetSensor = None) -> str:
+def determine_external_ip_address(
+    network: str, provider_uri: str, known_nodes: FleetSensor = None
+) -> str:
     """
     Attempts to automatically determine the external IP in the following priority:
     1. Randomly Selected Known Nodes
@@ -178,11 +185,15 @@ def determine_external_ip_address(network: str, known_nodes: FleetSensor = None)
 
     # primary source
     if known_nodes:
-        rest_host = get_external_ip_from_known_nodes(known_nodes=known_nodes)
+        rest_host = get_external_ip_from_known_nodes(
+            known_nodes=known_nodes, provider_uri=provider_uri
+        )
 
     # fallback 1
     if not rest_host:
-        rest_host = get_external_ip_from_default_teacher(network=network)
+        rest_host = get_external_ip_from_default_teacher(
+            network=network, provider_uri=provider_uri
+        )
 
     # fallback 2
     if not rest_host:

@@ -8,7 +8,7 @@ from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -18,8 +18,9 @@ def test_alices_powers_are_persistent(
     # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
         config_root=config_root,
-        network_middleware=MockRestMiddleware(),
+        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
         domain=TEMPORARY_DOMAIN,
         payment_network=TEMPORARY_DOMAIN,
         checksum_address=testerchain.alice_account,
@@ -57,7 +58,12 @@ def test_alices_powers_are_persistent(
     threshold, shares = 3, 4
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 
-    bob = Bob(start_learning_now=False, domain=TEMPORARY_DOMAIN, network_middleware=MockRestMiddleware())
+    bob = Bob(
+        start_learning_now=False,
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+    )
 
     bob_policy = alice.grant(bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
 
@@ -79,7 +85,7 @@ def test_alices_powers_are_persistent(
     # A new Alice is restored from the configuration file
     new_alice_config = AliceConfiguration.from_configuration_file(
         filepath=alice_config_file,
-        network_middleware=MockRestMiddleware(),
+        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
         start_learning_now=False,
         config_root=config_root,
         known_nodes=ursulas,
@@ -94,7 +100,12 @@ def test_alices_powers_are_persistent(
     assert alices_receiving_key == new_alice.public_keys(DecryptingPower)
 
     # Bob's eldest brother, Roberto, appears too
-    roberto = Bob(domain=TEMPORARY_DOMAIN, start_learning_now=False, network_middleware=MockRestMiddleware())
+    roberto = Bob(
+        domain=TEMPORARY_DOMAIN,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        start_learning_now=False,
+        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+    )
 
     # Alice creates a new policy for Roberto. Note how all the parameters
     # except for the label (i.e., recipient, m, n, policy_end) are different

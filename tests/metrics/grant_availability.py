@@ -188,19 +188,23 @@ def setup():
     GlobalLoggerSettings.set_log_level('info')
 
 
-def aggregate_nodes() -> Tuple[Set[Ursula], Set[Ursula]]:
+def aggregate_nodes(provider_uri: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     """generates ursulas from URIs used in grant metrics collection"""
 
     seednodes = set()
     if DEFAULT_SEEDNODE_URIS:
         for uri in DEFAULT_SEEDNODE_URIS:
-            ursula = Ursula.from_seed_and_stake_info(seed_uri=uri)
+            ursula = Ursula.from_seed_and_stake_info(
+                seed_uri=uri, provider_uri=provider_uri
+            )
             seednodes.add(ursula)
 
     ursulas = set()
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
-            ursula = Ursula.from_seed_and_stake_info(seed_uri=uri)
+            ursula = Ursula.from_seed_and_stake_info(
+                seed_uri=uri, provider_uri=provider_uri
+            )
             ursulas.add(ursula)
 
     return seednodes, ursulas
@@ -208,6 +212,6 @@ def aggregate_nodes() -> Tuple[Set[Ursula], Set[Ursula]]:
 
 if __name__ == '__main__':
     setup()
-    seednodes, ursulas = aggregate_nodes()
+    seednodes, ursulas = aggregate_nodes(provider_uri=ETHEREUM_PROVIDER_URI)
     alice = make_alice(known_nodes=seednodes)
     collect(alice=alice, ursulas=ursulas)

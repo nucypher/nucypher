@@ -9,6 +9,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.payment import FreeReencryptions
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 class Vladimir(Ursula):
@@ -38,7 +39,7 @@ class Vladimir(Ursula):
             from tests.utils.middleware import EvilMiddleWare
         except ImportError:
             raise DevelopmentInstallationRequired(importable_name='tests.utils.middleware.EvilMiddleWare')
-        cls.network_middleware = EvilMiddleWare()
+        cls.network_middleware = EvilMiddleWare(eth_provider_uri=TEST_ETH_PROVIDER_URI)
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 

@@ -11,13 +11,17 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower, CryptoPower
-from tests.constants import PYEVM_DEV_URI
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 def test_sampling_distribution(testerchain, test_registry, threshold_staking, application_economics):
 
     # setup
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=test_registry)
+    application_agent = ContractAgency.get_agent(
+        PREApplicationAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
+    )
     stake_provider_accounts = testerchain.stake_providers_accounts
     amount = application_economics.min_authorization
     all_locked_tokens = len(stake_provider_accounts) * amount
@@ -39,14 +43,16 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
                                         operator=operator_address,
                                         transacting_power=power)
 
-        operator = Operator(is_me=True,
-                            operator_address=operator_address,
-                            domain=TEMPORARY_DOMAIN,
-                            registry=test_registry,
-                            crypto_power=CryptoPower(),
-                            transacting_power=power,
-                            eth_provider_uri=PYEVM_DEV_URI,
-                            payment_method=Mock())
+        operator = Operator(
+            is_me=True,
+            operator_address=operator_address,
+            domain=TEMPORARY_DOMAIN,
+            registry=test_registry,
+            crypto_power=CryptoPower(),
+            transacting_power=power,
+            eth_provider_uri=TEST_ETH_PROVIDER_URI,
+            payment_method=Mock(),
+        )
         operator.confirm_address()
 
     #

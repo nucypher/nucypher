@@ -1,11 +1,12 @@
-import pytest
 import random
 import time
 from typing import List
 
+import pytest
+
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.types import StakingProviderInfo
-from tests.constants import TEST_ETH_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI
 
 try:
     # all prometheus related imports
@@ -74,7 +75,7 @@ def test_ursula_info_metrics_collector(test_registry, ursulas):
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_blockchain_metrics_collector(testerchain):
-    collector = BlockchainMetricsCollector(eth_provider_uri=TEST_ETH_PROVIDER_URI)
+    collector = BlockchainMetricsCollector(eth_provider_uri=MOCK_ETH_PROVIDER_URI)
 
     collector_registry = CollectorRegistry()
     prefix = 'test_blockchain_metrics_collector'

@@ -269,7 +269,9 @@ class Learner:
 
         self.learning_deferred = Deferred()
         self.domain = domain
-        default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(registry=self.registry)
+        default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
+            registry=self.registry, eth_provider_uri=self.eth_provider_uri
+        )
         self.network_middleware = network_middleware or default_middleware
         self.save_metadata = save_metadata
         self.start_learning_now = start_learning_now
@@ -353,10 +355,13 @@ class Learner:
 
             for uri in canonical_sage_uris:
                 try:
-                    maybe_sage_node = self.node_class.from_teacher_uri(teacher_uri=uri,
-                                                                       min_stake=0,  # TODO: Where to get this?
-                                                                       network_middleware=self.network_middleware,
-                                                                       registry=self.registry)
+                    maybe_sage_node = self.node_class.from_teacher_uri(
+                        teacher_uri=uri,
+                        min_stake=0,
+                        provider_uri=self.eth_provider_uri,
+                        network_middleware=self.network_middleware,
+                        registry=self.registry,
+                    )
                 except Exception as e:
                     # TODO: log traceback here?
                     # TODO: distinguish between versioning errors and other errors?
@@ -374,9 +379,11 @@ class Learner:
             self.log.debug(f"Seeding from: {node_tag}")
 
             try:
-                seed_node = self.node_class.from_seednode_metadata(seednode_metadata=seednode_metadata,
-                                                                   network_middleware=self.network_middleware,
-                                                                   )
+                seed_node = self.node_class.from_seednode_metadata(
+                    seednode_metadata=seednode_metadata,
+                    network_middleware=self.network_middleware,
+                    provider_uri=self.eth_provider_uri,
+                )
             except Exception as e:
                 # TODO: log traceback here?
                 # TODO: distinguish between versioning errors and other errors?
@@ -460,9 +467,12 @@ class Learner:
             registry = self.registry if self._verify_node_bonding else None
 
             try:
-                node.verify_node(force=force_verification_recheck,
-                                 network_middleware_client=self.network_middleware.client,
-                                 registry=registry)
+                node.verify_node(
+                    force=force_verification_recheck,
+                    network_middleware_client=self.network_middleware.client,
+                    registry=registry,
+                    eth_provider_uri=self.eth_provider_uri,
+                )
             except SSLError:
                 # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
                 return False
@@ -743,8 +753,11 @@ class Learner:
 
         if not signature.verify(verifying_pk=stranger.stamp.as_umbral_pubkey(), message=message):
             try:
-                node_on_the_other_end = self.node_class.from_seednode_metadata(stranger.seed_node_metadata(),
-                                                                               network_middleware=self.network_middleware)
+                node_on_the_other_end = self.node_class.from_seednode_metadata(
+                    stranger.seed_node_metadata(),
+                    provider_uri=self.provider_uri,
+                    network_middleware=self.network_middleware,
+                )
                 if node_on_the_other_end != stranger:
                     raise self.node_class.InvalidNode(
                         f"Expected to connect to {stranger}, got {node_on_the_other_end} instead.")
@@ -1023,13 +1036,17 @@ class Teacher:
         response = MetadataResponse(self.stamp.as_umbral_signer(), response_payload)
         return bytes(response)
 
-    def _operator_is_bonded(self, registry: BaseContractRegistry) -> bool:
+    def _operator_is_bonded(
+        self, provider_uri: str, registry: BaseContractRegistry
+    ) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the worker is bonded to a staking provider, but it may be
         the case that the "staking provider" isn't "staking" (e.g., all her tokens have been slashed).
         """
-        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)  # type: PREApplicationAgent
+        application_agent = ContractAgency.get_agent(
+            PREApplicationAgent, provider_uri=provider_uri, registry=registry
+        )  # type: PREApplicationAgent
         staking_provider_address = application_agent.get_staking_provider_from_operator(operator_address=self.operator_address)
         if staking_provider_address == NULL_ADDRESS:
             raise self.UnbondedOperator(f"Operator {self.operator_address} is not bonded")
@@ -1040,11 +1057,21 @@ class Teacher:
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the staking provider is, indeed, staking.
         """
-        application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry, eth_provider_uri=eth_provider_uri)  # type: PREApplicationAgent
+        application_agent = ContractAgency.get_agent(
+            PREApplicationAgent, registry=registry, provider_uri=eth_provider_uri
+        )  # type: PREApplicationAgent
         is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
         return is_staking
 
-    def validate_operator(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None) -> None:
+    def validate_operator(
+        self,
+        registry: BaseContractRegistry = None,
+        eth_provider_uri: Optional[str] = None,
+    ) -> None:
+        # TODO: restore this enforcement
+        # if registry and not eth_provider_uri:
+        #     raise ValueError("If registry is provided, eth_provider_uri must also be provided.")
+
         # Try to derive the worker address if it hasn't been derived yet.
         try:
             # TODO: This is overtly implicit
@@ -1055,8 +1082,9 @@ class Teacher:
 
         # On-chain staking check, if registry is present
         if registry:
-
-            if not self._operator_is_bonded(registry=registry):  # <-- Blockchain CALL
+            if not self._operator_is_bonded(
+                registry=registry, provider_uri=eth_provider_uri
+            ):  # <-- Blockchain CALL
                 message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
                 self.log.debug(message)
                 raise self.UnbondedOperator(message)

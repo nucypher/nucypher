@@ -1,15 +1,18 @@
 import os
-from ape_test import LocalProvider
 from typing import List, Optional, Tuple, Union
 
 import maya
+from ape_test import LocalProvider
 from eth_tester.exceptions import TransactionFailed
 from eth_utils import to_canonical_address
 from hexbytes import HexBytes
 from web3 import Web3
 
 from nucypher.blockchain.economics import Economics
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory, BlockchainInterface
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
@@ -26,7 +29,7 @@ from tests.constants import (
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
-    PYEVM_DEV_URI,
+    TEST_ETH_PROVIDER_URI,
 )
 
 
@@ -64,7 +67,7 @@ class TesterBlockchain(BlockchainInterface):
 
     # Web3
     GAS_STRATEGIES = {**BlockchainInterface.GAS_STRATEGIES, 'free': free_gas_price_strategy}
-    ETH_PROVIDER_URI = PYEVM_DEV_URI
+    ETH_PROVIDER_URI = TEST_ETH_PROVIDER_URI
     DEFAULT_GAS_STRATEGY = 'free'
 
     # Reserved addresses
@@ -214,4 +217,3 @@ class TesterBlockchain(BlockchainInterface):
 
     def get_block_number(self) -> int:
         return self.client.block_number
-

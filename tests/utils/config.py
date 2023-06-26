@@ -31,11 +31,13 @@ def assemble(checksum_address: str = None,
 
     """Assemble a dictionary of keyword arguments to use when constructing a test configuration."""
     # Generate runtime config params
-    runtime_params = dict(eth_provider_uri=eth_provider_uri,
-                          registry=test_registry,
-                          network_middleware=MockRestMiddleware(),
-                          known_nodes=known_nodes,
-                          checksum_address=checksum_address)
+    runtime_params = dict(
+        eth_provider_uri=eth_provider_uri,
+        registry=test_registry,
+        network_middleware=MockRestMiddleware(eth_provider_uri=eth_provider_uri),
+        known_nodes=known_nodes,
+        checksum_address=checksum_address,
+    )
 
     # Combine and return
     base_test_params = dict(**TEST_CHARACTER_CONFIG_BASE_PARAMS, **runtime_params)

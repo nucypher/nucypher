@@ -38,6 +38,7 @@ from nucypher.cli.options import (
     option_dry_run,
     option_eth_provider_uri,
     option_force,
+    option_gas_strategy,
     option_key_material,
     option_light,
     option_lonely,
@@ -51,7 +52,7 @@ from nucypher.cli.options import (
     option_policy_registry_filepath,
     option_registry_filepath,
     option_signer_uri,
-    option_teacher_uri, option_gas_strategy,
+    option_teacher_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
@@ -181,7 +182,12 @@ class UrsulaConfigOptions:
 
         # Resolve rest host
         if not self.rest_host:
-            self.rest_host = collect_operator_ip_address(emitter, network=self.domain, force=force)
+            self.rest_host = collect_operator_ip_address(
+                emitter,
+                network=self.domain,
+                force=force,
+                provider_uri=self.eth_provider_uri,
+            )
 
         return UrsulaConfiguration.generate(
             password=get_nucypher_password(emitter=emitter, confirm=True),
@@ -285,16 +291,19 @@ class UrsulaCharacterOptions:
             )
 
         try:
-            URSULA = make_cli_character(character_config=ursula_config,
-                                        emitter=emitter,
-                                        min_stake=self.min_stake,
-                                        teacher_uri=self.teacher_uri,
-                                        unlock_keystore=not self.config_options.dev,
-                                        client_password=__password,
-                                        unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
-                                        lonely=self.config_options.lonely,
-                                        start_learning_now=load_seednodes,
-                                        json_ipc=json_ipc)
+            URSULA = make_cli_character(
+                character_config=ursula_config,
+                emitter=emitter,
+                provider_uri=ursula_config.eth_provider_uri,
+                min_stake=self.min_stake,
+                teacher_uri=self.teacher_uri,
+                unlock_keystore=not self.config_options.dev,
+                client_password=__password,
+                unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
+                lonely=self.config_options.lonely,
+                start_learning_now=load_seednodes,
+                json_ipc=json_ipc,
+            )
             return ursula_config, URSULA
 
         except Keystore.AuthenticationFailed as e:
@@ -473,11 +482,18 @@ def config(general_config, config_options, config_file, force, action):
     """
     emitter = setup_emitter(general_config, config_options.operator_address)
     if not config_file:
-        config_file = select_config_file(emitter=emitter,
-                                         checksum_address=config_options.operator_address,
-                                         config_class=UrsulaConfiguration)
-    if action == 'ip-address':
-        rest_host = collect_operator_ip_address(emitter=emitter, network=config_options.domain, force=force)
+        config_file = select_config_file(
+            emitter=emitter,
+            checksum_address=config_options.operator_address,
+            config_class=UrsulaConfiguration,
+        )
+    if action == "ip-address":
+        rest_host = collect_operator_ip_address(
+            emitter=emitter,
+            network=config_options.domain,
+            force=force,
+            provider_uri=config_options.eth_provider_uri,
+        )
         config_options.rest_host = rest_host
     elif action:
         emitter.error(f'"{action}" is not a valid command.')

@@ -14,7 +14,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()
@@ -26,7 +26,9 @@ def condition_providers(testerchain):
 def mock_condition_blockchains(mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     mocker.patch.object(
-        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([TESTERCHAIN_CHAIN_ID])
+        nucypher.policy.conditions.evm,
+        "_CONDITION_CHAINS",
+        tuple([TESTERCHAIN_CHAIN_ID]),
     )
 
 
@@ -57,7 +59,11 @@ def compound_lingo(
 
 @pytest.fixture()
 def erc20_evm_condition_balanceof(testerchain, test_registry):
-    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    token = ContractAgency.get_agent(
+        NucypherTokenAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
+    )
     condition = ContractCondition(
         contract_address=token.contract.address,
         method="balanceOf",
@@ -117,11 +123,15 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
     testerchain, test_registry
 ):
     subscription_manager = ContractAgency.get_agent(
-        SubscriptionManagerAgent, registry=test_registry
+        SubscriptionManagerAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.get_function_by_name("getPolicy").abi,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
         method="getPolicy",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
@@ -133,12 +143,13 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
 @pytest.fixture
 def subscription_manager_is_active_policy_condition(testerchain, test_registry):
     subscription_manager = ContractAgency.get_agent(
-        SubscriptionManagerAgent,
-        registry=test_registry
+        SubscriptionManagerAgent, registry=test_registry
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,
-        function_abi=subscription_manager.contract.get_function_by_name("isPolicyActive").abi,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "isPolicyActive"
+        ).abi,
         method="isPolicyActive",
         chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest("==", True),
@@ -151,7 +162,11 @@ def subscription_manager_is_active_policy_condition(testerchain, test_registry):
 def custom_context_variable_erc20_condition(
     test_registry, testerchain, mock_condition_blockchains
 ):
-    token = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    token = ContractAgency.get_agent(
+        NucypherTokenAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
+    )
     condition = ContractCondition(
         contract_address=token.contract.address,
         method="balanceOf",

@@ -6,7 +6,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 # constants
 DKG_SIZE = 4
@@ -39,7 +39,9 @@ def cohort(ursulas):
 @pytest.fixture(scope='module')
 def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
-    return ContractAgency.get_agent(CoordinatorAgent, registry=test_registry)
+    return ContractAgency.get_agent(
+        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
+    )
 
 
 @pytest_twisted.inlineCallbacks()
