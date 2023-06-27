@@ -5,9 +5,7 @@ plaintext = b"PEACE AD DAWN"
 THIS_IS_NOT_A_TRINKET = 55
 
 enrico = NiceGuyEddie(encrypting_key=THIS_IS_NOT_A_TRINKET)
-bob = BobGonnaBob(domain="lynx")
-
-aad = "my-aad".encode()
+bob = BobGonnaBob(domain="lynx", eth_provider_uri="Nowhere")
 
 ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
 
