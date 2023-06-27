@@ -29,7 +29,7 @@ class NucypherMiddlewareClient:
     def __init__(
         self,
         eth_provider_uri: Optional[str],
-        registry: Optional["BaseContractRegistry"] = None,
+        registry: Optional[BaseContractRegistry] = None,
         storage: Optional[NodeStorage] = None,
         *args,
         **kwargs,
