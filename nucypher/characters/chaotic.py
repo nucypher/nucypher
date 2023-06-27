@@ -14,7 +14,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
 from nucypher.network.decryption import ThresholdDecryptionClient
-from nucypher.policy.conditions.types import LingoList
+from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.conditions.utils import validate_condition_lingo
 
 
@@ -148,9 +148,7 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
             encrypting_key=encrypting_key_we_actually_want_to_use, *args, **kwargs
         )
 
-    def encrypt_for_dkg(
-        self, plaintext: bytes, conditions: LingoList
-    ) -> ferveo.Ciphertext:
+    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> ferveo.Ciphertext:
         """
         https://imgflip.com/i/7o0po4
         """
