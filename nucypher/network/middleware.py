@@ -12,8 +12,9 @@ from cryptography.hazmat.backends import default_backend
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
 from requests.exceptions import SSLError
 
+from nucypher import characters
 from nucypher.blockchain.eth.registry import BaseContractRegistry
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.utilities.logging import Logger
 
@@ -29,7 +30,7 @@ class NucypherMiddlewareClient:
         self,
         eth_provider_uri: Optional[str],
         registry: Optional["BaseContractRegistry"] = None,
-        storage: Optional["NodeStorage"] = None,
+        storage: Optional[NodeStorage] = None,
         *args,
         **kwargs,
     ):
@@ -260,7 +261,12 @@ class RestMiddleware:
         )
         return response
 
-    def reencrypt(self, ursula: "Ursula", reencryption_request_bytes: bytes, timeout=8):
+    def reencrypt(
+        self,
+        ursula: "characters.lawful.Ursula",
+        reencryption_request_bytes: bytes,
+        timeout=8,
+    ):
         response = self.client.post(
             node_or_sprout=ursula,
             path="reencrypt",
@@ -270,7 +276,10 @@ class RestMiddleware:
         return response
 
     def get_encrypted_decryption_share(
-        self, ursula: "Ursula", decryption_request_bytes: bytes, timeout=8
+        self,
+        ursula: "characters.lawful.Ursula",
+        decryption_request_bytes: bytes,
+        timeout=8,
     ):
         response = self.client.post(
             node_or_sprout=ursula,

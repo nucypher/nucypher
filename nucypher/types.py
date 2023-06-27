@@ -3,12 +3,16 @@ from typing import NamedTuple, NewType, TypeVar, Union
 from eth_typing.evm import ChecksumAddress
 from web3.types import TxReceipt, Wei
 
+from nucypher.blockchain.eth import agents
+
 ERC20UNits = NewType("ERC20UNits", int)
 NuNits = NewType("NuNits", ERC20UNits)
 TuNits = NewType("TuNits", ERC20UNits)
 
-Agent = TypeVar('Agent', bound='EthereumContractAgent')
-ContractReturnValue = TypeVar('ContractReturnValue', bound=Union[TxReceipt, Wei, int, str, bool])
+Agent = TypeVar("Agent", bound="agents.EthereumContractAgent")
+ContractReturnValue = TypeVar(
+    "ContractReturnValue", bound=Union[TxReceipt, Wei, int, str, bool]
+)
 
 
 class StakingProviderInfo(NamedTuple):

@@ -8,12 +8,13 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
+from nucypher import characters
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.nodes import NodeSprout
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.task import SimpleTask
 
@@ -263,7 +264,9 @@ class AvailabilityTracker:
                 self.log.debug(f'{ursula_or_sprout} responded to uptime check with {e.__class__.__name__}')
                 continue
 
-    def measure(self, ursula_or_sprout: Union['Ursula', NodeSprout]) -> None:
+    def measure(
+        self, ursula_or_sprout: Union["characters.lawful.Ursula", NodeSprout]
+    ) -> None:
         """Measure self-availability from a single remote node that participates uptime checks."""
         try:
             response = self._ursula.network_middleware.check_availability(initiator=self._ursula, responder=ursula_or_sprout)

@@ -15,7 +15,7 @@ from typing import Dict, Type
 from eth_typing.evm import ChecksumAddress
 
 import nucypher
-from nucypher.blockchain.eth.actors import NucypherTokenActor
+from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     EthereumContractAgent,
@@ -23,6 +23,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.characters import lawful
 
 
 class MetricsCollector(ABC):
@@ -73,7 +74,8 @@ class BaseMetricsCollector(MetricsCollector):
 
 class UrsulaInfoMetricsCollector(BaseMetricsCollector):
     """Collector for Ursula specific metrics."""
-    def __init__(self, ursula: 'Ursula'):
+
+    def __init__(self, ursula: "lawful.Ursula"):
         super().__init__()
         self.ursula = ursula
 
@@ -210,7 +212,7 @@ class OperatorMetricsCollector(BaseMetricsCollector):
         }
 
     def _collect_internal(self) -> None:
-        operator_token_actor = NucypherTokenActor(
+        operator_token_actor = actors.NucypherTokenActor(
             registry=self.contract_registry,
             domain=self.domain,
             checksum_address=self.operator_address,

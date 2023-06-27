@@ -10,7 +10,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
 )
-from nucypher.policy.policies import Policy
+from nucypher.policy import policies
 
 
 class PaymentMethod(ABC):
@@ -25,7 +25,7 @@ class PaymentMethod(ABC):
         shares: int
 
     @abstractmethod
-    def pay(self, policy: Policy) -> Dict:
+    def pay(self, policy: "policies.Policy") -> Dict:
         """Carry out payment for the given policy."""
         raise NotImplementedError
 
@@ -101,7 +101,7 @@ class SubscriptionManagerPayment(ContractPayment):
         result = self.agent.is_policy_active(policy_id=bytes(request.hrac))
         return result
 
-    def pay(self, policy: Policy) -> TxReceipt:
+    def pay(self, policy: "policies.Policy") -> TxReceipt:
         """Writes a new policy to the SubscriptionManager contract."""
         receipt = self.agent.create_policy(
             value=policy.value,                   # wei
@@ -176,7 +176,7 @@ class FreeReencryptions(PaymentMethod):
     def verify(self, payee: ChecksumAddress, request: ReencryptionRequest) -> bool:
         return True
 
-    def pay(self, policy: Policy) -> Dict:
+    def pay(self, policy: "policies.Policy") -> Dict:
         receipt = f'Receipt for free policy {bytes(policy.hrac).hex()}.'
         return dict(receipt=receipt.encode())
 

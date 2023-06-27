@@ -2,11 +2,13 @@ from typing import Dict, Iterable, List, Optional, Sequence
 
 import maya
 from eth_typing.evm import ChecksumAddress
-from nucypher_core import HRAC, Address, TreasureMap
+from nucypher_core import HRAC, Address, EncryptedTreasureMap, TreasureMap
 from nucypher_core.umbral import PublicKey, VerifiedKeyFrag
 
+from nucypher import characters
 from nucypher.crypto.powers import DecryptingPower
 from nucypher.network.middleware import RestMiddleware
+from nucypher.policy import payment
 from nucypher.policy.reservoir import PrefetchStrategy, make_staking_provider_reservoir
 from nucypher.policy.revocation import RevocationKit
 from nucypher.utilities.concurrency import WorkerPool
@@ -29,21 +31,21 @@ class Policy:
         number of available qualified network nodes.
         """
 
-    def __init__(self,
-                 publisher: 'Alice',
-                 label: bytes,
-                 bob: 'Bob',
-                 kfrags: Sequence[VerifiedKeyFrag],
-                 public_key: PublicKey,
-                 threshold: int,
-                 expiration: maya.MayaDT,
-                 commencement: maya.MayaDT,
-                 value: int,
-                 rate: int,
-                 duration: int,
-                 payment_method: 'PaymentMethod'
-                 ):
-
+    def __init__(
+        self,
+        publisher: "characters.lawful.Alice",
+        label: bytes,
+        bob: "characters.lawful.Bob",
+        kfrags: Sequence[VerifiedKeyFrag],
+        public_key: PublicKey,
+        threshold: int,
+        expiration: maya.MayaDT,
+        commencement: maya.MayaDT,
+        value: int,
+        rate: int,
+        duration: int,
+        payment_method: "payment.PaymentMethod",
+    ):
         self.threshold = threshold
         self.shares = len(kfrags)
         self.label = label
@@ -75,12 +77,14 @@ class Policy:
         )
         return reservoir
 
-    def _publish(self, ursulas: List['Ursula']) -> Dict:
+    def _publish(self, ursulas: List["characters.lawful.Ursula"]) -> Dict:
         self.nodes = [ursula.checksum_address for ursula in ursulas]
         receipt = self.payment_method.pay(policy=self)
         return receipt
 
-    def _ping_node(self, address: ChecksumAddress, network_middleware: RestMiddleware) -> 'Ursula':
+    def _ping_node(
+        self, address: ChecksumAddress, network_middleware: RestMiddleware
+    ) -> "characters.lawful.Ursula":
         # Handles edge case when provided address is not a known peer.
         if address not in self.publisher.known_nodes:
             raise RuntimeError(f"{address} is not a known peer")
@@ -94,11 +98,12 @@ class Policy:
         else:
             raise RuntimeError(f"{ursula} is not available for selection ({status_code}).")
 
-    def _sample(self,
-                network_middleware: RestMiddleware,
-                ursulas: Optional[Iterable['Ursula']] = None,
-                timeout: int = 10,
-                ) -> List['Ursula']:
+    def _sample(
+        self,
+        network_middleware: RestMiddleware,
+        ursulas: Optional[Iterable["characters.lawful.Ursula"]] = None,
+        timeout: int = 10,
+    ) -> List["characters.lawful.Ursula"]:
         """Send concurrent requests to the /ping HTTP endpoint of nodes drawn from the reservoir."""
 
         ursulas = ursulas or []
@@ -108,7 +113,7 @@ class Policy:
         reservoir = self._make_reservoir(handpicked_addresses)
         value_factory = PrefetchStrategy(reservoir, self.shares)
 
-        def worker(address) -> 'Ursula':
+        def worker(address) -> "characters.lawful.Ursula":
             return self._ping_node(address, network_middleware)
 
         worker_pool = WorkerPool(
@@ -142,7 +147,11 @@ class Policy:
         ursulas = list(successes.values())
         return ursulas
 
-    def enact(self, network_middleware: RestMiddleware, ursulas: Optional[Iterable['Ursula']] = None) -> 'EnactedPolicy':
+    def enact(
+        self,
+        network_middleware: RestMiddleware,
+        ursulas: Optional[Iterable["characters.lawful.Ursula"]] = None,
+    ) -> "EnactedPolicy":
         """Attempts to enact the policy, returns an `EnactedPolicy` object on success."""
 
         ursulas = self._sample(network_middleware=network_middleware, ursulas=ursulas)
@@ -177,16 +186,16 @@ class Policy:
 
 
 class EnactedPolicy:
-
-    def __init__(self,
-                 hrac: HRAC,
-                 label: bytes,
-                 public_key: PublicKey,
-                 threshold: int,
-                 treasure_map: 'EncryptedTreasureMap',
-                 revocation_kit: RevocationKit,
-                 publisher_verifying_key: PublicKey):
-
+    def __init__(
+        self,
+        hrac: HRAC,
+        label: bytes,
+        public_key: PublicKey,
+        threshold: int,
+        treasure_map: EncryptedTreasureMap,
+        revocation_kit: RevocationKit,
+        publisher_verifying_key: PublicKey,
+    ):
         self.hrac = hrac
         self.label = label
         self.public_key = public_key

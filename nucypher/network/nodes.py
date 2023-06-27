@@ -23,6 +23,7 @@ from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
 
+from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
@@ -150,7 +151,6 @@ class NodeSprout:
         return self._metadata_payload.domain
 
     def finish(self):
-        from nucypher.characters.lawful import Ursula
 
         # Remote node cryptographic material
         crypto_power = CryptoPower()
@@ -167,16 +167,18 @@ class NodeSprout:
             self._metadata_payload.certificate_der, backend=default_backend()
         )
 
-        return Ursula(is_me=False,
-                      crypto_power=crypto_power,
-                      rest_host=self._metadata_payload.host,
-                      rest_port=self._metadata_payload.port,
-                      checksum_address=self.checksum_address,
-                      domain=self._metadata_payload.domain,
-                      timestamp=self.timestamp,
-                      operator_signature_from_metadata=self.operator_signature_from_metadata,
-                      certificate=tls_certificate,
-                      metadata=self._metadata)
+        return characters.lawful.Ursula(
+            is_me=False,
+            crypto_power=crypto_power,
+            rest_host=self._metadata_payload.host,
+            rest_port=self._metadata_payload.port,
+            checksum_address=self.checksum_address,
+            domain=self._metadata_payload.domain,
+            timestamp=self.timestamp,
+            operator_signature_from_metadata=self.operator_signature_from_metadata,
+            certificate=tls_certificate,
+            metadata=self._metadata,
+        )
 
     def mature(self):
         if self._is_finishing:
@@ -293,8 +295,7 @@ class Learner:
         if save_metadata and node_storage is NO_STORAGE_AVAILABLE:
             raise ValueError("Cannot save nodes without a configured node storage")
 
-        from nucypher.characters.lawful import Ursula
-        self.node_class = node_class or Ursula
+        self.node_class = node_class or characters.lawful.Ursula
         self.node_class.set_cert_storage_function(
             node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
@@ -745,13 +746,15 @@ class Learner:
     def write_node_metadata(self, node, serializer=bytes) -> str:
         return self.node_storage.store_node_metadata(node=node)
 
-    def verify_from(self,
-                    stranger: 'Character',
-                    message: bytes,
-                    signature: Signature
-                    ):
-
-        if not signature.verify(verifying_pk=stranger.stamp.as_umbral_pubkey(), message=message):
+    def verify_from(
+        self,
+        stranger: "characters.base.Character",
+        message: bytes,
+        signature: Signature,
+    ):
+        if not signature.verify(
+            verifying_pk=stranger.stamp.as_umbral_pubkey(), message=message
+        ):
             try:
                 node_on_the_other_end = self.node_class.from_seednode_metadata(
                     stranger.seed_node_metadata(),

@@ -15,6 +15,8 @@ from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
+from nucypher import types
+from nucypher.blockchain.eth import events
 from nucypher.blockchain.eth.constants import (
     ADJUDICATOR_CONTRACT_NAME,
     DISPATCHER_CONTRACT_NAME,
@@ -25,7 +27,6 @@ from nucypher.blockchain.eth.constants import (
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
-from nucypher.blockchain.eth.events import ContractEvents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.config.constants import (
@@ -34,7 +35,6 @@ from nucypher.config.constants import (
 )
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import sha256_digest
-from nucypher.types import Agent, NuNits, StakingProviderInfo, TuNits
 from nucypher.utilities.logging import Logger  # type: ignore
 
 
@@ -87,7 +87,7 @@ class EthereumContractAgent:
             )
 
         self.__contract = contract
-        self.events = ContractEvents(contract)
+        self.events = events.ContractEvents(contract)
         if not transaction_gas:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
         self.transaction_gas = transaction_gas
@@ -129,23 +129,26 @@ class NucypherTokenAgent(EthereumContractAgent):
     contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
 
     @contract_api(CONTRACT_CALL)
-    def get_balance(self, address: ChecksumAddress) -> NuNits:
+    def get_balance(self, address: ChecksumAddress) -> types.NuNits:
         """Get the NU balance (in NuNits) of a token holder address, or of this contract address"""
         balance: int = self.contract.functions.balanceOf(address).call()
-        return NuNits(balance)
+        return types.NuNits(balance)
 
     @contract_api(CONTRACT_CALL)
-    def get_allowance(self, owner: ChecksumAddress, spender: ChecksumAddress) -> NuNits:
+    def get_allowance(
+        self, owner: ChecksumAddress, spender: ChecksumAddress
+    ) -> types.NuNits:
         """Check the amount of tokens that an owner allowed to a spender"""
         allowance: int = self.contract.functions.allowance(owner, spender).call()
-        return NuNits(allowance)
+        return types.NuNits(allowance)
 
     @contract_api(TRANSACTION)
-    def increase_allowance(self,
-                           transacting_power: TransactingPower,
-                           spender_address: ChecksumAddress,
-                           increase: NuNits
-                           ) -> TxReceipt:
+    def increase_allowance(
+        self,
+        transacting_power: TransactingPower,
+        spender_address: ChecksumAddress,
+        increase: types.NuNits,
+    ) -> TxReceipt:
         """Increase the allowance of a spender address funded by a sender address"""
         contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, increase)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -153,11 +156,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def decrease_allowance(self,
-                           transacting_power: TransactingPower,
-                           spender_address: ChecksumAddress,
-                           decrease: NuNits
-                           ) -> TxReceipt:
+    def decrease_allowance(
+        self,
+        transacting_power: TransactingPower,
+        spender_address: ChecksumAddress,
+        decrease: types.NuNits,
+    ) -> TxReceipt:
         """Decrease the allowance of a spender address funded by a sender address"""
         contract_function: ContractFunction = self.contract.functions.decreaseAllowance(spender_address, decrease)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -165,11 +169,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def approve_transfer(self,
-                         amount: NuNits,
-                         spender_address: ChecksumAddress,
-                         transacting_power: TransactingPower
-                         ) -> TxReceipt:
+    def approve_transfer(
+        self,
+        amount: types.NuNits,
+        spender_address: ChecksumAddress,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
         """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
         self._validate_zero_allowance(amount, spender_address, transacting_power)
 
@@ -181,7 +186,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def transfer(self, amount: NuNits, target_address: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def transfer(
+        self,
+        amount: types.NuNits,
+        target_address: ChecksumAddress,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
         """Transfer an amount of tokens from the sender address to the target address."""
         contract_function: ContractFunction = self.contract.functions.transfer(target_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
@@ -189,13 +199,14 @@ class NucypherTokenAgent(EthereumContractAgent):
         return receipt
 
     @contract_api(TRANSACTION)
-    def approve_and_call(self,
-                         amount: NuNits,
-                         target_address: ChecksumAddress,
-                         transacting_power: TransactingPower,
-                         call_data: bytes = b'',
-                         gas_limit: Optional[Wei] = None
-                         ) -> TxReceipt:
+    def approve_and_call(
+        self,
+        amount: types.NuNits,
+        target_address: ChecksumAddress,
+        transacting_power: TransactingPower,
+        call_data: bytes = b"",
+        gas_limit: Optional[Wei] = None,
+    ) -> TxReceipt:
         self._validate_zero_allowance(amount, target_address, transacting_power)
 
         payload = None
@@ -402,10 +413,12 @@ class PREApplicationAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_staking_provider_info(self, staking_provider: ChecksumAddress) -> StakingProviderInfo:
+    def get_staking_provider_info(
+        self, staking_provider: ChecksumAddress
+    ) -> types.StakingProviderInfo:
         # remove reserved fields
         info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return StakingProviderInfo(*info[0:3])
+        return types.StakingProviderInfo(*info[0:3])
 
     @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
@@ -441,8 +454,9 @@ class PREApplicationAgent(EthereumContractAgent):
             yield address
 
     @contract_api(CONTRACT_CALL)
-    def get_all_active_staking_providers(self, pagination_size: Optional[int] = None) -> Tuple[TuNits, Dict[ChecksumAddress, TuNits]]:
-
+    def get_all_active_staking_providers(
+        self, pagination_size: Optional[int] = None
+    ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         if pagination_size is None:
             pagination_size = self.DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE if self.blockchain.is_light else self.DEFAULT_PROVIDERS_PAGINATION_SIZE
             self.log.debug(f"Defaulting to pagination size {pagination_size}")
@@ -488,10 +502,12 @@ class PREApplicationAgent(EthereumContractAgent):
         def checksum_address(address: int) -> ChecksumAddress:
             return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
 
-        typed_staking_providers = {checksum_address(address): TuNits(authorized_tokens)
-                                   for address, authorized_tokens in staking_providers.items()}
+        typed_staking_providers = {
+            checksum_address(address): types.TuNits(authorized_tokens)
+            for address, authorized_tokens in staking_providers.items()
+        }
 
-        return TuNits(n_tokens), typed_staking_providers
+        return types.TuNits(n_tokens), typed_staking_providers
 
     def get_staking_provider_reservoir(self,
                                        without: Iterable[ChecksumAddress] = None,
@@ -760,11 +776,11 @@ class ContractAgency:
     @classmethod
     def get_agent(
         cls,
-        agent_class: Type[Agent],
+        agent_class: Type[types.Agent],
         registry: Optional[BaseContractRegistry],
         provider_uri: Optional[str],
         contract_version: Optional[str] = None,
-    ) -> Agent:
+    ) -> types.Agent:
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError("Only agent subclasses can be used from the agency.")
 
@@ -780,10 +796,10 @@ class ContractAgency:
         registry_id = registry.id
 
         try:
-            return cast(Agent, cls.__agents[registry_id][agent_class])
+            return cast(types.Agent, cls.__agents[registry_id][agent_class])
         except KeyError:
             agent = cast(
-                Agent,
+                types.Agent,
                 agent_class(
                     registry=registry,
                     provider_uri=provider_uri,

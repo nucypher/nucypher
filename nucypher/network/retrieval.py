@@ -22,6 +22,7 @@ from nucypher_core.umbral import (
     VerifiedCapsuleFrag,
 )
 
+from nucypher.characters import lawful
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.client import ThresholdAccessControlClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -182,13 +183,14 @@ class PRERetrievalClient(ThresholdAccessControlClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def _request_reencryption(self,
-                              ursula: 'Ursula',
-                              reencryption_request: ReencryptionRequest,
-                              alice_verifying_key: PublicKey,
-                              policy_encrypting_key: PublicKey,
-                              bob_encrypting_key: PublicKey,
-                              ) -> Dict['Capsule', 'VerifiedCapsuleFrag']:
+    def _request_reencryption(
+        self,
+        ursula: "lawful.Ursula",
+        reencryption_request: ReencryptionRequest,
+        alice_verifying_key: PublicKey,
+        policy_encrypting_key: PublicKey,
+        bob_encrypting_key: PublicKey,
+    ) -> Dict["Capsule", "VerifiedCapsuleFrag"]:
         """
         Sends a reencryption request to a single Ursula and processes the results.
 

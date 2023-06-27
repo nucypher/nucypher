@@ -11,6 +11,7 @@ import maya
 from eth_typing import ChecksumAddress
 from nucypher_core import FleetStateChecksum, NodeMetadata
 
+from nucypher import characters
 from nucypher.utilities.logging import Logger
 
 from .nicknames import Nickname
@@ -41,7 +42,7 @@ class StateDiff(NamedTuple):
 
 class FleetState:
     """
-    Fleet state as perceived by a local Ursula.
+    Fleet state as perceived by a local "lawful.Ursula".
 
     Assumptions we're based on:
 
@@ -57,7 +58,9 @@ class FleetState:
     """
 
     @classmethod
-    def new(cls, this_node: Optional['Ursula'] = None) -> 'FleetState':
+    def new(
+        cls, this_node: Optional["characters.lawful.Ursula"] = None
+    ) -> "FleetState":
         this_node_ref = weakref.ref(this_node) if this_node else None
         # `this_node` might not have its metadata available yet.
         this_node_metadata = None
@@ -66,12 +69,16 @@ class FleetState:
                    this_node_ref=this_node_ref,
                    this_node_metadata=this_node_metadata)
 
-    def __init__(self,
-                 nodes: Dict[ChecksumAddress, 'Ursula'],
-                 this_node_ref: Optional[weakref.ReferenceType],
-                 this_node_metadata: Optional[NodeMetadata]):
-        self.checksum = FleetStateChecksum(this_node=this_node_metadata,
-                                           other_nodes=[node.metadata() for node in nodes.values()])
+    def __init__(
+        self,
+        nodes: Dict[ChecksumAddress, "characters.lawful.Ursula"],
+        this_node_ref: Optional[weakref.ReferenceType],
+        this_node_metadata: Optional[NodeMetadata],
+    ):
+        self.checksum = FleetStateChecksum(
+            this_node=this_node_metadata,
+            other_nodes=[node.metadata() for node in nodes.values()],
+        )
         self.nickname = Nickname.from_seed(bytes(self.checksum), length=1)
         self._nodes = nodes
         self.timestamp = maya.now()
@@ -84,12 +91,12 @@ class FleetState:
                                   timestamp=self.timestamp,
                                   population=self.population)
 
-    def _calculate_diff(self,
-                        this_node_updated: bool,
-                        nodes_to_add: Iterable['Ursula'],
-                        nodes_to_remove: Iterable[ChecksumAddress]
-                        ) -> StateDiff:
-
+    def _calculate_diff(
+        self,
+        this_node_updated: bool,
+        nodes_to_add: Iterable["characters.lawful.Ursula"],
+        nodes_to_remove: Iterable[ChecksumAddress],
+    ) -> StateDiff:
         nodes_updated = []
         for node in nodes_to_add:
             if node.checksum_address in nodes_to_remove:
@@ -107,12 +114,12 @@ class FleetState:
                          nodes_updated=nodes_updated,
                          nodes_removed=nodes_removed)
 
-    def with_updated_nodes(self,
-                           nodes_to_add: Iterable['Ursula'],
-                           nodes_to_remove: Iterable[ChecksumAddress],
-                           skip_this_node: bool = False,
-                           ) -> 'FleetState':
-
+    def with_updated_nodes(
+        self,
+        nodes_to_add: Iterable["characters.lawful.Ursula"],
+        nodes_to_remove: Iterable[ChecksumAddress],
+        skip_this_node: bool = False,
+    ) -> "FleetState":
         if self._this_node_ref is not None and not skip_this_node:
             this_node = self._this_node_ref()
             this_node_metadata = this_node.metadata()
@@ -169,7 +176,7 @@ class FleetState:
     def __len__(self):
         return len(self._nodes)
 
-    def shuffled(self) -> List['Ursula']:
+    def shuffled(self) -> List["characters.lawful.Ursula"]:
         nodes_we_know_about = list(self._nodes.values())
         random.shuffle(nodes_we_know_about)
         return nodes_we_know_about
@@ -206,8 +213,9 @@ class FleetSensor:
     """
     log = Logger("Learning")
 
-    def __init__(self, domain: str, this_node: Optional['Ursula'] = None):
-
+    def __init__(
+        self, domain: str, this_node: Optional["characters.lawful.Ursula"] = None
+    ):
         self._domain = domain
 
         self._current_state = FleetState.new(this_node)
@@ -221,7 +229,7 @@ class FleetSensor:
 
         self._auto_update_state = False
 
-    def record_node(self, node: 'Ursula'):
+    def record_node(self, node: "characters.lawful.Ursula"):
 
         if node.domain == self._domain:
             # Replace the existing object with a newer object, even if they're equal
@@ -330,7 +338,7 @@ class FleetSensor:
     def shuffled(self):
         return self._current_state.shuffled()
 
-    def mark_as(self, label: Exception, node: 'Ursula'):
+    def mark_as(self, label: Exception, node: "characters.lawful.Ursula"):
         # TODO: for now we're not using `label` in any way, so we're just ignoring it
         self._nodes_to_remove.add(node.checksum_address)
 
@@ -352,8 +360,10 @@ class FleetSensor:
         self._remote_last_seen[checksum_address] = maya.now()
         self._remote_states[checksum_address] = state
 
-    def status_info(self, checksum_address_or_node: Union[ChecksumAddress, 'Ursula']) -> 'RemoteUrsulaStatus':
-
+    def status_info(
+        self,
+        checksum_address_or_node: Union[ChecksumAddress, "characters.lawful.Ursula"],
+    ) -> "RemoteUrsulaStatus":
         if isinstance(checksum_address_or_node, str):
             node = self[checksum_address_or_node]
         else:
