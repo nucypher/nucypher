@@ -24,9 +24,7 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     PREApplicationAgent,
 )
-from nucypher.blockchain.eth.registry import (
-    InMemoryContractRegistry,
-)
+from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.crypto.powers import TransactingPower
