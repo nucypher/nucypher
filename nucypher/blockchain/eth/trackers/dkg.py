@@ -6,7 +6,7 @@ from twisted.internet import threads
 from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
 
-from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth import actors
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
@@ -67,7 +67,7 @@ class ActiveRitualTracker:
 
     def __init__(
         self,
-        ritualist: Ritualist,
+        ritualist: "actors.Ritualist",
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         self.log = Logger("RitualTracker")

@@ -1,19 +1,20 @@
 
 
-import eth_utils
 import functools
 import inspect
+from datetime import datetime
+from typing import Callable, Optional, TypeVar, Union
+
+import eth_utils
 from constant_sorrow.constants import (
     CONTRACT_ATTRIBUTE,
     CONTRACT_CALL,
+    NO_BLOCKCHAIN_CONNECTION,
     TRANSACTION,
     UNKNOWN_CONTRACT_INTERFACE,
-    NO_BLOCKCHAIN_CONNECTION
 )
-from datetime import datetime
-from typing import Callable, Optional, Union
+from web3.types import TxReceipt, Wei
 
-from nucypher.types import ContractReturnValue
 from nucypher.utilities.logging import Logger
 
 ContractInterfaces = Union[
@@ -22,6 +23,9 @@ ContractInterfaces = Union[
     CONTRACT_ATTRIBUTE,
     UNKNOWN_CONTRACT_INTERFACE
 ]
+ContractReturnValue = TypeVar(
+    "ContractReturnValue", bound=Union[TxReceipt, Wei, int, str, bool]
+)
 
 
 __VERIFIED_ADDRESSES = set()
