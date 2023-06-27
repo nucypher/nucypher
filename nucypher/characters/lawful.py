@@ -783,7 +783,7 @@ class Bob(Character):
             participant_public_keys=participant_public_keys,
         )
 
-        return self.__decrypt(
+        return self._decrypt(
             list(decryption_shares.values()), ciphertext, conditions, variant
         )
 
@@ -1510,10 +1510,14 @@ class Enrico:
         plaintext: bytes,
         conditions: Lingo,
         ritual_id: int,
-        variant_id: int,
+        variant: int = None,
         context: Optional[bytes] = None,
     ) -> Tuple[Ciphertext, ThresholdDecryptionRequest]:
         ciphertext = self.encrypt_for_dkg(plaintext=plaintext, conditions=conditions)
+
+        if variant is None:
+            variant = self.default_dkg_variant.value
+
         tdr = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             ciphertext=ciphertext,
