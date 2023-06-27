@@ -11,14 +11,14 @@ ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
 
 ciphertext, tdr = enrico.encrypt_for_dkg_and_produce_decryption_request(
     plaintext=plaintext,
-    conditions=[ten_oclock_florida_time],
+    conditions=ten_oclock_florida_time,
     ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
 )
 
 decrypted_cleartext_from_ciphertext_list = bob.threshold_decrypt(
     ciphertext=ciphertext,
     ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
-    conditions=[ten_oclock_florida_time],
+    conditions=ten_oclock_florida_time,
 )
 
 
