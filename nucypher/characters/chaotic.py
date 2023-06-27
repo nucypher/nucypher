@@ -9,6 +9,7 @@ from nucypher_core import (
     ThresholdDecryptionResponse,
     ferveo,
 )
+from nucypher_core.ferveo import ValidatorMessage
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
@@ -109,13 +110,14 @@ class DKGOmniscient:
                     validators=validators,
                     me=sender,
                 )
-                self.aggregation_messages.append((sender, dkg.generate_transcript()))
+                self.aggregation_messages.append(
+                    ValidatorMessage(sender, dkg.generate_transcript())
+                )
 
             self.dkg = dkg
             self.validators = validators
             self.validator_keypairs = validator_keypairs
 
-            # Server can aggregate the transcripts
             self.server_aggregate = dkg.aggregate_transcripts(self.aggregation_messages)
             assert self.server_aggregate.verify(
                 self.shares_num, self.aggregation_messages
