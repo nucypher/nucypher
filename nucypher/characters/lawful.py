@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    default_dkg_variant = FerveoVariant.SIMPLE
+    default_dkg_variant = FerveoVariant.PRECOMPUTED
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -726,10 +726,12 @@ class Bob(Character):
 
     def get_ritual_from_id(self, ritual_id):
         # blockchain reads: get the DKG parameters and the cohort.
-        coordinator_agent = ContractAgency.get_agent(
-            CoordinatorAgent, registry=self.registry
-        )
-        ritual = coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        if not self.coordinator_agent:
+            raise ValueError(
+                "No coordinator provider URI provided in Bob's constructor."
+            )
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+
         return ritual
 
     def threshold_decrypt(

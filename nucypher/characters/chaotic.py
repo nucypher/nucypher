@@ -222,7 +222,7 @@ class BobGonnaBob(Bob, DKGOmniscient):
                 ciphertext = decrypted_encryption_request.ciphertext
 
                 # Presuming simple for now.  Is this OK?
-                decryption_share = aggregate.create_decryption_share_simple(
+                decryption_share = aggregate.create_decryption_share_precomputed(
                     dkg,
                     ciphertext,
                     self._learner._dkg_insight.conditions_bytes,
