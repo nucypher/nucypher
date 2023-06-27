@@ -741,7 +741,7 @@ class Bob(Character):
         conditions: Lingo,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        variant: str = "simple",
+        variant: str = "precomputed",
         peering_timeout: int = 60,
     ) -> bytes:
         ritual = self.get_ritual_from_id(ritual_id)
