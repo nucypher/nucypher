@@ -787,8 +787,36 @@ class Bob(Character):
             list(decryption_shares.values()), ciphertext, conditions, variant
         )
 
+    def decrypt_using_existing_decryption_request(
+        self,
+        decryption_request,
+        participant_public_keys,
+        cohort,
+        threshold,
+        variant=None,
+    ):
+        if variant is None:
+            variant = self.default_dkg_variant
+
+        addresses_and_dfrags = (
+            self.get_decryption_shares_using_existing_decryption_request(
+                decryption_request, participant_public_keys, cohort, threshold
+            )
+        )
+
+        # TODO: 3154
+        conditions_as_json_string = str(decryption_request.conditions)
+        conditions_as_list = json.loads(conditions_as_json_string)
+
+        return self._decrypt(
+            list(addresses_and_dfrags.values()),
+            decryption_request.ciphertext,
+            conditions_as_list,
+            variant,
+        )
+
     @staticmethod
-    def __decrypt(
+    def _decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
         conditions: Lingo,
