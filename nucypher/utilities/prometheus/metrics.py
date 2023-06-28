@@ -14,6 +14,7 @@ from typing import List
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
+from nucypher.characters import lawful
 from nucypher.utilities.prometheus.collector import (
     BlockchainMetricsCollector,
     MetricsCollector,
@@ -118,9 +119,11 @@ def collect_prometheus_metrics(metrics_collectors: List[MetricsCollector]) -> No
         collector.collect()
 
 
-def start_prometheus_exporter(ursula: 'Ursula',
-                              prometheus_config: PrometheusMetricsConfig,
-                              registry: CollectorRegistry = REGISTRY) -> None:
+def start_prometheus_exporter(
+    ursula: "lawful.Ursula",
+    prometheus_config: PrometheusMetricsConfig,
+    registry: CollectorRegistry = REGISTRY,
+) -> None:
     """Configure, collect, and serve prometheus metrics."""
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
@@ -148,7 +151,7 @@ def start_prometheus_exporter(ursula: 'Ursula',
     reactor.listenTCP(prometheus_config.port, factory, interface=prometheus_config.listen_address)
 
 
-def create_metrics_collectors(ursula: "Ursula") -> List[MetricsCollector]:
+def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]:
     """Create collectors used to obtain metrics."""
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 

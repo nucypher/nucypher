@@ -68,7 +68,7 @@ from web3.types import TxReceipt
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth.actors import Operator, PolicyAuthor, Ritualist
+from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -100,6 +100,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
     TransactingPower,
 )
+from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -107,7 +108,6 @@ from nucypher.network.nodes import TEACHER_NODES, NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
-from nucypher.network.trackers import AvailabilityTracker
 from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
@@ -116,9 +116,10 @@ from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
+from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 
-class Alice(Character, PolicyAuthor):
+class Alice(Character, actors.PolicyAuthor):
     banner = ALICE_BANNER
     _default_crypto_powerups = [SigningPower, DecryptingPower, DelegatingPower]
 
@@ -183,7 +184,7 @@ class Alice(Character, PolicyAuthor):
                 account=checksum_address, signer=signer
             )
             self._crypto_power.consume_power_up(self.transacting_power)
-            PolicyAuthor.__init__(
+            actors.PolicyAuthor.__init__(
                 self,
                 domain=self.domain,
                 transacting_power=self.transacting_power,
@@ -369,7 +370,7 @@ class Alice(Character, PolicyAuthor):
 
     def revoke(
         self, policy: Policy, onchain: bool = True, offchain: bool = True
-    ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple["Revocation", Exception]]]:
+    ) -> Tuple[TxReceipt, Dict[ChecksumAddress, Tuple["actors.Revocation", Exception]]]:
         if not (offchain or onchain):
             raise ValueError("offchain or onchain must be True to issue revocation")
 
@@ -798,7 +799,7 @@ class Bob(Character):
         return cleartext
 
 
-class Ursula(Teacher, Character, Operator, Ritualist):
+class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -864,11 +865,11 @@ class Ursula(Teacher, Character, Operator, Ritualist):
 
             # Health Checks
             self._availability_check = availability_check
-            self._availability_tracker = AvailabilityTracker(ursula=self)
+            self._availability_tracker = trackers.AvailabilityTracker(ursula=self)
 
             try:
                 payment_method: ContractPayment
-                Operator.__init__(
+                actors.Operator.__init__(
                     self,
                     is_me=is_me,
                     domain=self.domain,
@@ -882,7 +883,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
                 )
 
                 # DKG Ritualist
-                Ritualist.__init__(
+                actors.Ritualist.__init__(
                     self,
                     domain=domain,
                     provider_uri=payment_method.provider,
@@ -1010,7 +1011,7 @@ class Ursula(Teacher, Character, Operator, Ritualist):
         ritualist: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
-        prometheus_config: "PrometheusMetricsConfig" = None,
+        prometheus_config: PrometheusMetricsConfig = None,
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,

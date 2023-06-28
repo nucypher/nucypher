@@ -39,7 +39,7 @@ from nucypher.blockchain.eth.registry import (
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
 from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
 from nucypher.crypto.powers import (
@@ -319,7 +319,7 @@ class Ritualist(BaseActor):
         )
 
         # track active onchain rituals
-        self.ritual_tracker = ActiveRitualTracker(
+        self.ritual_tracker = dkg.ActiveRitualTracker(
             ritualist=self,
         )
 

@@ -3,6 +3,7 @@ import os
 
 from web3.contract.contract import Contract
 
+from nucypher.blockchain.eth import agents
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.config.constants import NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS
 
@@ -71,13 +72,15 @@ class ContractEventsThrottler:
     # default to 1000 - smallest default heard about so far (alchemy)
     DEFAULT_MAX_BLOCKS_PER_CALL = int(os.environ.get(NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS, 1000))
 
-    def __init__(self,
-                 agent: 'EthereumContractAgent',
-                 event_name: str,
-                 from_block: int,
-                 to_block: int = None,  # defaults to latest block
-                 max_blocks_per_call: int = DEFAULT_MAX_BLOCKS_PER_CALL,
-                 **argument_filters):
+    def __init__(
+        self,
+        agent: "agents.EthereumContractAgent",
+        event_name: str,
+        from_block: int,
+        to_block: int = None,  # defaults to latest block
+        max_blocks_per_call: int = DEFAULT_MAX_BLOCKS_PER_CALL,
+        **argument_filters,
+    ):
         self.event_filter = agent.events[event_name]
         self.from_block = from_block
         self.to_block = to_block if to_block is not None else agent.blockchain.client.block_number

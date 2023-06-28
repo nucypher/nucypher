@@ -5,9 +5,10 @@ from unittest.mock import Mock
 from constant_sorrow.constants import CONTRACT_ATTRIBUTE, CONTRACT_CALL, TRANSACTION
 
 from nucypher.blockchain.eth import agents
-from nucypher.blockchain.eth.agents import Agent, ContractAgency, EthereumContractAgent
+from nucypher.blockchain.eth.agents import ContractAgency, EthereumContractAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.types import Agent
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.interfaces import MockBlockchain
 
