@@ -42,7 +42,7 @@ class StateDiff(NamedTuple):
 
 class FleetState:
     """
-    Fleet state as perceived by a local "lawful.Ursula".
+    Fleet state as perceived by a local "Ursula".
 
     Assumptions we're based on:
 
