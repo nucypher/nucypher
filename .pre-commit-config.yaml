@@ -42,17 +42,13 @@ repos:
     rev: 1.6.1
     hooks:
     -   id: darker
-        args: [--isort]
-        additional_dependencies:
-        -   isort~=5.9
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 'v0.0.275'
+    hooks:
+    - id: ruff
 
 # TODO: May be incrementally introduced
-#  - repo: https://gitlab.com/pycqa/flake8
-#    rev: '3.7.9'
-#    hooks:
-#      - id: flake8
-
 #  - repo: https://github.com/psf/black
 #    rev: stable
 #    hooks:
