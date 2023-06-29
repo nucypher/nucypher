@@ -42,7 +42,7 @@ from nucypher.utilities.gas_strategies import (
     construct_datafeed_median_strategy,
     max_price_gas_strategy_wrapper,
 )
-from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.logging import Logger
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
 
