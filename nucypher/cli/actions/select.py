@@ -11,21 +11,27 @@ from web3.main import Web3
 from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry, BaseContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+    InMemoryContractRegistry,
+)
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
+    DEFAULT_TO_LONE_CONFIG_FILE,
     GENERIC_SELECT_ACCOUNT,
+    IGNORE_OLD_CONFIGURATION,
     NO_CONFIGURATIONS_ON_DISK,
     NO_ETH_ACCOUNTS,
     SELECT_NETWORK,
     SELECTED_ACCOUNT,
-    IGNORE_OLD_CONFIGURATION,
-    DEFAULT_TO_LONE_CONFIG_FILE
 )
 from nucypher.config.base import CharacterConfiguration
-from nucypher.config.constants import NUCYPHER_ENVVAR_OPERATOR_ADDRESS, DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
+    NUCYPHER_ENVVAR_OPERATOR_ADDRESS,
+)
 from nucypher.utilities.emitters import StdoutEmitter
 
 

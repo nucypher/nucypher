@@ -14,7 +14,7 @@ from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import TToken
 from nucypher.policy.payment import PAYMENT_METHODS
-from nucypher.utilities.networking import validate_operator_ip, InvalidOperatorIP
+from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 
 
 class ChecksumAddress(click.ParamType):

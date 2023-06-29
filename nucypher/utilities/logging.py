@@ -3,13 +3,14 @@
 
 import pathlib
 from contextlib import contextmanager
+
 from twisted.logger import (
     FileLogObserver,
+    LogLevel,
     formatEvent,
     formatEventAsClassicLogText,
     globalLogPublisher,
     jsonFileLogObserver,
-    LogLevel,
 )
 from twisted.logger import Logger as TwistedLogger
 from twisted.python.logfile import LogFile
@@ -136,7 +137,7 @@ class _SentryInitGuard:
 
 def sentry_observer(event):
     try:
-        from sentry_sdk import capture_exception, add_breadcrumb
+        from sentry_sdk import add_breadcrumb, capture_exception
     except ImportError:
         raise ImportError('Sentry SDK is not installed. Please install it and try again.')
 

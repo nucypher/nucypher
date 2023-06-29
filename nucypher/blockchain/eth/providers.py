@@ -1,7 +1,8 @@
-from eth_tester import EthereumTester, PyEVMBackend
-from eth_tester.backends.mock.main import MockBackend
 from typing import Union
 from urllib.parse import urlparse
+
+from eth_tester import EthereumTester, PyEVMBackend
+from eth_tester.backends.mock.main import MockBackend
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
@@ -43,7 +44,7 @@ def _get_auto_provider(eth_provider_uri) -> BaseProvider:
 def _get_pyevm_test_backend() -> PyEVMBackend:
     try:
         # TODO: Consider packaged support of --dev mode with testerchain
-        from tests.constants import PYEVM_GAS_LIMIT, NUMBER_OF_ETH_TEST_ACCOUNTS
+        from tests.constants import NUMBER_OF_ETH_TEST_ACCOUNTS, PYEVM_GAS_LIMIT
     except ImportError:
         raise DevelopmentInstallationRequired(importable_name='tests.constants')
 

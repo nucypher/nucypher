@@ -1,7 +1,8 @@
 from copy import copy
+from unittest.mock import Mock, patch
+
 from eth_tester.exceptions import ValidationError
 from nucypher_core import NodeMetadata
-from unittest.mock import patch, Mock
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula

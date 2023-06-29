@@ -1,5 +1,6 @@
-import requests
 import socket
+
+import requests
 
 NodeSeemsToBeDown = (
     requests.exceptions.ConnectionError,

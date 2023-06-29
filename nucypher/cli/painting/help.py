@@ -2,10 +2,7 @@ import click
 from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 
 from nucypher.characters.banners import NUCYPHER_BANNER
-from nucypher.config.constants import (
-    DEFAULT_CONFIG_ROOT,
-    USER_LOG_DIR
-)
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 
 
 def echo_version(ctx, param, value):

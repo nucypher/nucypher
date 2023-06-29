@@ -4,8 +4,8 @@ import io
 import sys
 import traceback
 from queue import Queue
-from threading import Thread, Event, Lock
-from typing import Callable, List, Any, Optional, Dict
+from threading import Event, Lock, Thread
+from typing import Any, Callable, Dict, List, Optional
 
 from constant_sorrow.constants import PRODUCER_STOPPED, TIMEOUT_TRIGGERED
 from twisted.python.threadpool import ThreadPool

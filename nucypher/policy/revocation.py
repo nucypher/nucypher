@@ -2,9 +2,9 @@
 
 
 from eth_typing.evm import ChecksumAddress
-from eth_utils import to_checksum_address, to_canonical_address
-
+from eth_utils import to_canonical_address, to_checksum_address
 from nucypher_core import Address, RevocationOrder
+
 from nucypher.crypto.signing import SignatureStamp
 
 
