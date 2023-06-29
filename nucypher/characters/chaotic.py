@@ -148,20 +148,9 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
         # ...we're going to use the DKG public key as the encrypting key, and ignore the key passed in.
         encrypting_key_we_actually_want_to_use = self._dkg_insight.dkg.public_key
         super().__init__(
+            # https://imgflip.com/i/7o0po4
             encrypting_key=encrypting_key_we_actually_want_to_use, *args, **kwargs
         )
-
-    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> ferveo.Ciphertext:
-        """
-        https://imgflip.com/i/7o0po4
-        """
-        validate_condition_lingo(conditions)
-        conditions_bytes = json.dumps(conditions).encode()
-
-        # TOOD: Why are we using this?  Why not let conditions be passed normally?
-        self._dkg_insight.conditions_bytes = conditions_bytes
-        ciphertext = ferveo.encrypt(plaintext, conditions_bytes, self.policy_pubkey)
-        return ciphertext
 
 
 class _UpAndDownInTheWater(Bob, DKGOmniscient):
@@ -221,13 +210,14 @@ class _UpAndDownInTheWater(Bob, DKGOmniscient):
 
                 decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
                 ciphertext = decrypted_encryption_request.ciphertext
+                conditions_bytes = str(decrypted_encryption_request.conditions).encode()
 
                 # Presuming simple for now.  Is this OK?
                 decryption_share = aggregate.create_decryption_share_precomputed(
-                    dkg,
-                    ciphertext,
-                    self._learner._dkg_insight.conditions_bytes,
-                    validator_keypair,
+                    dkg=dkg,
+                    ciphertext=ciphertext,
+                    aad=conditions_bytes,
+                    validator_keypair=validator_keypair,
                 )
 
                 decryption_share_bytes = bytes(decryption_share)
