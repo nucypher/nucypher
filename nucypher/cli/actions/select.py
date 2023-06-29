@@ -84,8 +84,6 @@ def select_client_account(emitter,
 
     # Display account info
     headers = ['Account']
-    if show_staking:
-        headers.append('Staking')
     if show_eth_balance:
         headers.append('ETH')
     if show_nu_balance:
