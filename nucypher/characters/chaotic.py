@@ -164,7 +164,7 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
         return ciphertext
 
 
-class BobGonnaBob(Bob, DKGOmniscient):
+class _UpAndDownInTheWater(Bob, DKGOmniscient):
     """
     A Bob that, if the proper knowledge lands in his hands, is all too happy to perform decryption without Ursula.
 
@@ -262,3 +262,15 @@ class BobGonnaBob(Bob, DKGOmniscient):
         pass
 
     _ensure_ursula_availability = ensure_ursula_availability_is_of_no_conern_to_anyone
+
+
+class ThisBobAlwaysDecrypts(_UpAndDownInTheWater):
+    """
+    A tool for testing success cases.
+    """
+
+
+class ThisBobAlwaysFails(_UpAndDownInTheWater):
+    """
+    A tool for testing interfaces which handle failures from conditions not having been met.
+    """
