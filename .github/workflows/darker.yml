@@ -18,5 +18,4 @@ jobs:
           python-version: '3.7'
       - uses: akaihola/darker@1.6.1
         with:
-          options: "--check --diff --isort"
           version: "1.6.1"
