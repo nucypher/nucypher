@@ -84,8 +84,6 @@ def select_client_account(emitter,
 
     # Display account info
     headers = ['Account']
-    if show_staking:
-        headers.append('Staking')
     if show_eth_balance:
         headers.append('ETH')
     if show_nu_balance:
@@ -94,11 +92,6 @@ def select_client_account(emitter,
     rows = list()
     for index, account in enumerated_accounts.items():
         row = [account]
-        if show_staking:
-            staker = Staker(domain=network, checksum_address=account, registry=registry)
-            staker.refresh_stakes()
-            is_staking = 'Yes' if bool(staker.stakes) else 'No'
-            row.append(is_staking)
         if show_eth_balance:
             ether_balance = Web3.from_wei(blockchain.client.get_balance(account), 'ether')
             row.append(f'{ether_balance} ETH')

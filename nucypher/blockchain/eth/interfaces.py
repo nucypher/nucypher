@@ -519,10 +519,7 @@ class BlockchainInterface:
         #
 
         # TODO # 1754 - Move this to singleton - I do not approve... nor does Bogdan?
-        if GlobalLoggerSettings._json_ipc:
-            emitter = JSONRPCStdoutEmitter()
-        else:
-            emitter = StdoutEmitter()
+        emitter = StdoutEmitter()
 
         #
         # Sign
