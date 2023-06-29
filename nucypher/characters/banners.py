@@ -2,7 +2,6 @@
 
 import nucypher
 
-
 NU_BANNER = r'''
         
 ███╗   ██╗██╗   ██╗

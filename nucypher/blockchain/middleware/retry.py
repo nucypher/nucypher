@@ -1,7 +1,7 @@
 
 
 import time
-from typing import Callable, Any, Union
+from typing import Any, Callable, Union
 
 from requests import HTTPError
 from web3 import Web3

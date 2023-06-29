@@ -1,16 +1,18 @@
-import maya
-from hexbytes import HexBytes
+import random
 from typing import Callable, Dict
 
-import random
-
+import maya
+from constant_sorrow.constants import NOT_STAKING, UNTRACKED_PENDING_TRANSACTION
+from hexbytes import HexBytes
 from twisted.internet import reactor, task
 from web3.exceptions import TransactionNotFound
 
-from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS, NULL_ADDRESS
+from nucypher.blockchain.eth.constants import (
+    AVERAGE_BLOCK_TIME_IN_SECONDS,
+    NULL_ADDRESS,
+)
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
-from constant_sorrow.constants import NOT_STAKING, UNTRACKED_PENDING_TRANSACTION
 
 
 class WorkTrackerBase:

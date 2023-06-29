@@ -29,7 +29,10 @@ class Web3Signer(Signer):
 
     @classmethod
     def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Web3Signer':
-        from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
+        from nucypher.blockchain.eth.interfaces import (
+            BlockchainInterface,
+            BlockchainInterfaceFactory,
+        )
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=uri)
         except BlockchainInterface.UnsupportedProvider:

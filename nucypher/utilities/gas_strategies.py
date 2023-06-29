@@ -7,12 +7,9 @@ from web3 import Web3
 from web3.exceptions import ValidationError
 from web3.gas_strategies import time_based
 from web3.gas_strategies.rpc import rpc_gas_price_strategy
-from web3.types import Wei, TxParams
+from web3.types import TxParams, Wei
 
-from nucypher.utilities.datafeeds import (
-    UpvestGasPriceDatafeed,
-    ZoltuGasPriceDatafeed
-)
+from nucypher.utilities.datafeeds import UpvestGasPriceDatafeed, ZoltuGasPriceDatafeed
 
 
 class GasStrategyError(RuntimeError):

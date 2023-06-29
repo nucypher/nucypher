@@ -1,9 +1,9 @@
 
 
 import json
+import random
 from pathlib import Path
 from typing import List
-import random
 
 _HERE = Path(__file__).parent
 with open(_HERE / 'web_colors.json') as f:

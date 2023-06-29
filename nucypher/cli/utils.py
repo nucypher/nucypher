@@ -1,11 +1,12 @@
 
 
-import click
 import os
 import shutil
 from distutils.util import strtobool
 from pathlib import Path
 from typing import Dict, Optional, Tuple
+
+import click
 from web3.types import BlockIdentifier
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent

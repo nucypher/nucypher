@@ -5,9 +5,9 @@ from difflib import get_close_matches
 from typing import Optional
 
 import requests
-from constant_sorrow.constants import SLOW, MEDIUM, FAST, FASTEST
+from constant_sorrow.constants import FAST, FASTEST, MEDIUM, SLOW
 from web3 import Web3
-from web3.types import Wei, TxParams
+from web3.types import TxParams, Wei
 
 
 class Datafeed(ABC):

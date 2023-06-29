@@ -1,12 +1,9 @@
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 from web3 import Web3
 from web3.types import Wei
 
-from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    PREApplicationAgent
-)
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import TToken
 
