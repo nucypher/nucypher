@@ -1,5 +1,4 @@
 from nucypher.characters.chaotic import NiceGuyEddie, ThisBobAlwaysDecrypts
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
