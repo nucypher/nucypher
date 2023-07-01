@@ -153,22 +153,80 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
         )
 
 
-class _UpAndDownInTheWater(Bob, DKGOmniscient):
-    """
-    A Bob that, if the proper knowledge lands in his hands, is all too happy to perform decryption without Ursula.
+class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
+    def gather_encrypted_decryption_shares(
+        self,
+        encrypted_requests,
+        threshold: int,
+        timeout: float = 10,
+    ) -> Tuple[
+        Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
+        Dict[ChecksumAddress, str],
+    ]:
+        # Set aside the power instance for use later, in the loop.
+        trdp = self._learner._dkg_insight.fake_ritual.threshold_request_decrypting_power
+        responses = {}
 
-    After all, Bob gonna Bob.
-    """
+        # We only really need one encrypted tdr.
+        etdr = list(encrypted_requests.values())[0]
 
-    def __init__(self, session_seed=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        for validator, validator_keypair in zip(
+            self._learner._dkg_insight.validators,
+            self._learner._dkg_insight.validator_keypairs,
+        ):
+            dkg = ferveo.Dkg(
+                tau=self._learner._dkg_insight.tau,
+                shares_num=self._learner._dkg_insight.shares_num,
+                security_threshold=self._learner._dkg_insight.security_threshold,
+                validators=self._learner._dkg_insight.validators,
+                me=validator,
+            )
 
-    def _derive_dkg_parameters(
-        self, ritual_id: int, ursulas, ritual, threshold
-    ) -> DkgPublicParameters:
-        return self._dkg_insight.dkg.public_params
+            # We can also obtain the aggregated transcript from the side-channel (deserialize)
+            aggregate = ferveo.AggregatedTranscript(
+                self._learner._dkg_insight.aggregation_messages
+            )
+            assert aggregate.verify(
+                self._learner._dkg_insight.shares_num,
+                self._learner._dkg_insight.aggregation_messages,
+            )
 
-    class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
+            decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
+            ciphertext = decrypted_encryption_request.ciphertext
+            conditions_bytes = str(decrypted_encryption_request.conditions).encode()
+
+            # Presuming simple for now.  Is this OK?
+            decryption_share = aggregate.create_decryption_share_precomputed(
+                dkg=dkg,
+                ciphertext=ciphertext,
+                aad=conditions_bytes,
+                validator_keypair=validator_keypair,
+            )
+
+            decryption_share_bytes = bytes(decryption_share)
+
+            ##### Uncomment for sanity check
+            # ferveo.DecryptionShareSimple.from_bytes(decryption_share_bytes)  # No IOError!  Let's go!
+            ##################
+
+            decryption_response = ThresholdDecryptionResponse(
+                ritual_id=55,  # TODO: Abstract this somewhere
+                decryption_share=bytes(decryption_share_bytes),
+            )
+
+            encrypted_decryptiopn_response = trdp.encrypt_decryption_response(
+                decryption_response=decryption_response,
+                requester_public_key=etdr.requester_public_key,
+            )
+            responses[validator.address] = encrypted_decryptiopn_response
+
+        NO_FAILURES = {}
+        return responses, NO_FAILURES
+
+    class DoomedDecryptionClient(ThresholdDecryptionClient):
+        """
+        A decryption client that always fails, claiming that conditions are not satisfed.
+        """
         def gather_encrypted_decryption_shares(
             self,
             encrypted_requests,
