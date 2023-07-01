@@ -16,6 +16,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
 from nucypher.network.decryption import ThresholdDecryptionClient
+from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.conditions.types import Lingo
 from nucypher.policy.conditions.utils import validate_condition_lingo
 
@@ -236,69 +237,26 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
             Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
             Dict[ChecksumAddress, str],
         ]:
-            # Set aside the power instance for use later, in the loop.
-            trdp = (
-                self._learner._dkg_insight.fake_ritual.threshold_request_decrypting_power
-            )
-            responses = {}
+            return [
+                RestMiddleware.Unauthorized("Decryption conditions not satisfied")
+                for _ in encrypted_requests
+            ]
 
-            # We only really need one encrypted tdr.
-            etdr = list(encrypted_requests.values())[0]
 
-            for validator, validator_keypair in zip(
-                self._learner._dkg_insight.validators,
-                self._learner._dkg_insight.validator_keypairs,
-            ):
-                dkg = ferveo.Dkg(
-                    tau=self._learner._dkg_insight.tau,
-                    shares_num=self._learner._dkg_insight.shares_num,
-                    security_threshold=self._learner._dkg_insight.security_threshold,
-                    validators=self._learner._dkg_insight.validators,
-                    me=validator,
-                )
+class _UpAndDownInTheWater(Bob, DKGOmniscient):
+    """
+    A Bob that, if the proper knowledge lands in his hands, is all too happy to perform decryption without Ursula.
 
-                # We can also obtain the aggregated transcript from the side-channel (deserialize)
-                aggregate = ferveo.AggregatedTranscript(
-                    self._learner._dkg_insight.aggregation_messages
-                )
-                assert aggregate.verify(
-                    self._learner._dkg_insight.shares_num,
-                    self._learner._dkg_insight.aggregation_messages,
-                )
+    After all, Bob gonna Bob.
+    """
 
-                decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
-                ciphertext = decrypted_encryption_request.ciphertext
-                conditions_bytes = str(decrypted_encryption_request.conditions).encode()
+    def __init__(self, session_seed=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-                # Presuming simple for now.  Is this OK?
-                decryption_share = aggregate.create_decryption_share_precomputed(
-                    dkg=dkg,
-                    ciphertext=ciphertext,
-                    aad=conditions_bytes,
-                    validator_keypair=validator_keypair,
-                )
-
-                decryption_share_bytes = bytes(decryption_share)
-
-                ##### Uncomment for sanity check
-                # ferveo.DecryptionShareSimple.from_bytes(decryption_share_bytes)  # No IOError!  Let's go!
-                ##################
-
-                decryption_response = ThresholdDecryptionResponse(
-                    ritual_id=55,  # TODO: Abstract this somewhere
-                    decryption_share=bytes(decryption_share_bytes),
-                )
-
-                encrypted_decryptiopn_response = trdp.encrypt_decryption_response(
-                    decryption_response=decryption_response,
-                    requester_public_key=etdr.requester_public_key,
-                )
-                responses[validator.address] = encrypted_decryptiopn_response
-
-            NO_FAILURES = {}
-            return responses, NO_FAILURES
-
-    _threshold_decryption_client_class = DKGOmniscientDecryptionClient
+    def _derive_dkg_parameters(
+        self, ritual_id: int, ursulas, ritual, threshold
+    ) -> DkgPublicParameters:
+        return self._dkg_insight.dkg.public_params
 
     def get_ritual_from_id(self, ritual_id):
         return self._dkg_insight.fake_ritual
@@ -309,7 +267,9 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
     def ensure_ursula_availability_is_of_no_conern_to_anyone(self, *args, **kwargs):
         pass
 
+    _threshold_decryption_client_class = DKGOmniscientDecryptionClient
     _ensure_ursula_availability = ensure_ursula_availability_is_of_no_conern_to_anyone
+
 
 
 class ThisBobAlwaysDecrypts(_UpAndDownInTheWater):
