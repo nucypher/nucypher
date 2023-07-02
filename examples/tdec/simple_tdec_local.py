@@ -1,11 +1,11 @@
 from examples.tdec.demo_utilities.demo_sample_conditions import ten_oclock_florida_time
-from nucypher.characters.chaotic import NiceGuyEddie, _UpAndDownInTheWater
+from nucypher.characters.chaotic import NiceGuyEddie, ThisBobAlwaysDecrypts
 
 plaintext = b"PEACE AD DAWN"
 THIS_IS_NOT_A_TRINKET = 55
 
 enrico = NiceGuyEddie(encrypting_key=THIS_IS_NOT_A_TRINKET)
-bob = _UpAndDownInTheWater(domain="lynx", eth_provider_uri="Nowhere")
+bob = ThisBobAlwaysDecrypts(domain="lynx", eth_provider_uri="Nowhere")
 
 ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
 

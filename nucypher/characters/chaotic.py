@@ -1,4 +1,4 @@
-import json
+import sys
 from operator import attrgetter
 from typing import Dict, Tuple
 
@@ -6,7 +6,6 @@ from ferveo_py import DkgPublicParameters
 from nucypher_core import (
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
-    SessionStaticKey,
     ThresholdDecryptionResponse,
     ferveo,
 )
@@ -17,8 +16,7 @@ from nucypher.cli.types import ChecksumAddress
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.conditions.types import Lingo
-from nucypher.policy.conditions.utils import validate_condition_lingo
+from nucypher.utilities.concurrency import Failure
 
 
 class FakeNode:
@@ -224,23 +222,34 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         NO_FAILURES = {}
         return responses, NO_FAILURES
 
-    class DoomedDecryptionClient(ThresholdDecryptionClient):
-        """
-        A decryption client that always fails, claiming that conditions are not satisfed.
-        """
-        def gather_encrypted_decryption_shares(
+
+class DoomedDecryptionClient(ThresholdDecryptionClient):
+    """
+    A decryption client that always fails, claiming that conditions are not satisfed.
+    """
+
+    def gather_encrypted_decryption_shares(
             self,
             encrypted_requests,
             threshold: int,
             timeout: float = 10,
-        ) -> Tuple[
-            Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
-            Dict[ChecksumAddress, str],
-        ]:
-            return [
-                RestMiddleware.Unauthorized("Decryption conditions not satisfied")
-                for _ in encrypted_requests
-            ]
+    ) -> Tuple[
+        Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
+        Dict[ChecksumAddress, str],
+    ]:
+        NO_SUCCESSES = {}
+        failures = {}
+
+        for checksum_address in encrypted_requests:
+            # Not really ideal, but we'll fake an exception here.
+            # (to be forward-compatible with changes to Failure)
+            # TODO: Dehydrate this logic in a single failure flow.
+            try:
+                raise RestMiddleware.Unauthorized("Decryption conditions not satisfied")
+            except RestMiddleware.Unauthorized as e:
+                failures[checksum_address] = sys.exc_info()
+
+        return NO_SUCCESSES, failures
 
 
 class _UpAndDownInTheWater(Bob, DKGOmniscient):
@@ -267,9 +276,7 @@ class _UpAndDownInTheWater(Bob, DKGOmniscient):
     def ensure_ursula_availability_is_of_no_conern_to_anyone(self, *args, **kwargs):
         pass
 
-    _threshold_decryption_client_class = DKGOmniscientDecryptionClient
     _ensure_ursula_availability = ensure_ursula_availability_is_of_no_conern_to_anyone
-
 
 
 class ThisBobAlwaysDecrypts(_UpAndDownInTheWater):
@@ -277,8 +284,12 @@ class ThisBobAlwaysDecrypts(_UpAndDownInTheWater):
     A tool for testing success cases.
     """
 
+    _threshold_decryption_client_class = DKGOmniscientDecryptionClient
+
 
 class ThisBobAlwaysFails(_UpAndDownInTheWater):
     """
     A tool for testing interfaces which handle failures from conditions not having been met.
     """
+
+    _threshold_decryption_client_class = DoomedDecryptionClient
