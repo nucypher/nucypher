@@ -1,4 +1,11 @@
-from nucypher.characters.chaotic import NiceGuyEddie, ThisBobAlwaysDecrypts
+import pytest
+
+from nucypher.characters.chaotic import (
+    NiceGuyEddie,
+    ThisBobAlwaysDecrypts,
+    ThisBobAlwaysFails,
+)
+from nucypher.characters.lawful import Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
@@ -7,19 +14,17 @@ from tests.constants import (
 )
 
 
-def test_always_success():
+def _attempt_decryption(BobClass, plaintext):
     trinket = 80  # Doens't matter.
 
     enrico = NiceGuyEddie(encrypting_key=trinket)
-    bob = ThisBobAlwaysDecrypts(
+    bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
         domain="lynx",
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
 
     ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
-
-    plaintext = b"ever thus to deadbeats"
 
     definitely_false_condition = {
         "version": ConditionLingo.VERSION,
@@ -42,4 +47,22 @@ def test_always_success():
         conditions=definitely_false_condition,
     )
 
-    assert bytes(decrypted_cleartext_from_ciphertext_list) == bytes(plaintext)
+    return decrypted_cleartext_from_ciphertext_list
+
+
+def test_user_controls_success():
+    plaintext = b"ever thus to deadbeats"
+    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext)
+    assert bytes(result) == bytes(plaintext)
+
+
+def test_user_controls_success():
+    plaintext = b"ever thus to deadbeats"
+    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext)
+    assert bytes(result) == bytes(plaintext)
+
+
+def test_user_controls_failure():
+    plaintext = b"ever thus to deadbeats"
+    with pytest.raises(Ursula.NotEnoughUrsulas) as e:
+        result = _attempt_decryption(ThisBobAlwaysFails, plaintext)
