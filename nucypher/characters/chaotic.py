@@ -146,7 +146,9 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
         encrypting_key_we_actually_want_to_use = self._dkg_insight.dkg.public_key
         super().__init__(
             # https://imgflip.com/i/7o0po4
-            encrypting_key=encrypting_key_we_actually_want_to_use, *args, **kwargs
+            encrypting_key=encrypting_key_we_actually_want_to_use,
+            *args,
+            **kwargs,
         )
 
 
@@ -227,10 +229,10 @@ class DoomedDecryptionClient(ThresholdDecryptionClient):
     """
 
     def gather_encrypted_decryption_shares(
-            self,
-            encrypted_requests,
-            threshold: int,
-            timeout: float = 10,
+        self,
+        encrypted_requests,
+        threshold: int,
+        timeout: float = 10,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
