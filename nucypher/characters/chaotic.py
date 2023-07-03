@@ -2,14 +2,12 @@ import sys
 from operator import attrgetter
 from typing import Dict, Tuple
 
-from ferveo_py import DkgPublicParameters
 from nucypher_core import (
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
     ThresholdDecryptionResponse,
     ferveo,
 )
-from nucypher_core.ferveo import ValidatorMessage
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
@@ -111,7 +109,7 @@ class DKGOmniscient:
                     me=sender,
                 )
                 self.aggregation_messages.append(
-                    ValidatorMessage(sender, dkg.generate_transcript())
+                    ferveo.ValidatorMessage(sender, dkg.generate_transcript())
                 )
 
             self.dkg = dkg
@@ -261,11 +259,6 @@ class _UpAndDownInTheWater(Bob, DKGOmniscient):
 
     def __init__(self, session_seed=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-    def _derive_dkg_parameters(
-        self, ritual_id: int, ursulas, ritual, threshold
-    ) -> DkgPublicParameters:
-        return self._dkg_insight.dkg.public_params
 
     def get_ritual_from_id(self, ritual_id):
         return self._dkg_insight.fake_ritual

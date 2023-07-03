@@ -1,7 +1,7 @@
 from nucypher.characters.chaotic import NiceGuyEddie, ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo
 
-plaintext = b"PEACE AD DAWN"
+plaintext = b"paz al amanecer"
 THIS_IS_NOT_A_TRINKET = 55
 
 enrico = NiceGuyEddie(encrypting_key=THIS_IS_NOT_A_TRINKET)
