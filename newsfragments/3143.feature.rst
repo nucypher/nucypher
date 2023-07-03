@@ -1,0 +1,1 @@
+Sublcasses of Bob and Enrico which allow local, off-chain development and styling of both success and failure cases, which can be forced instead of checking conditions.
