@@ -721,7 +721,11 @@ class Bob(Character):
             context=context,
         )
         return self.get_decryption_shares_using_existing_decryption_request(
-            decryption_request, participant_public_keys, cohort, threshold
+            decryption_request,
+            participant_public_keys,
+            cohort,
+            threshold,
+            variant=variant,
         )
 
     def get_ritual_from_id(self, ritual_id):
