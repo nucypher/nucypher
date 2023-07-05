@@ -58,15 +58,16 @@ emitter = StdoutEmitter(verbosity=2)
     "--ritual-id",
     "ritual_id",
     "-r",
-    help="Ritual ID; existing id or -1 (to initiate a new ritual)",
+    help="Ritual ID; defaults to -1 to initiate a new ritual",
     type=click.INT,
+    default=-1,
     required=True,
 )
 @click.option(
     "--signer",
     "signer_uri",
     "-S",
-    help="Signer URI for initializing new ritual",
+    help="Signer URI for initiating a new ritual with Coordinator contract",
     default=None,
     type=click.STRING,
 )
@@ -82,7 +83,8 @@ def nucypher_dkg(
         raise click.BadOptionUsage(
             option_name="--ritual-id, --signer",
             message=click.style(
-                "--signer must be provided when --ritual-id is -1", fg="red"
+                "--signer must be provided to create new ritual when --ritual-id is not provided",
+                fg="red",
             ),
         )
 
