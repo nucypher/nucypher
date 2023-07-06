@@ -7,7 +7,7 @@ THIS_IS_NOT_A_TRINKET = 55
 enrico = NiceGuyEddie(encrypting_key=THIS_IS_NOT_A_TRINKET)
 bob = ThisBobAlwaysDecrypts(domain="lynx", eth_provider_uri="Nowhere")
 
-ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
+ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55
 
 before_the_beginning_of_time = {
     "version": ConditionLingo.VERSION,
@@ -21,12 +21,12 @@ before_the_beginning_of_time = {
 ciphertext, tdr = enrico.encrypt_for_dkg_and_produce_decryption_request(
     plaintext=plaintext,
     conditions=before_the_beginning_of_time,
-    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
+    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
 )
 
 decrypted_cleartext_from_ciphertext_list = bob.threshold_decrypt(
     ciphertext=ciphertext,
-    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
+    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
     conditions=before_the_beginning_of_time,
 )
 
