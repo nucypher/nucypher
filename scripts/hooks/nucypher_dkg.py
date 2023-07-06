@@ -131,9 +131,11 @@ def nucypher_dkg(
         # find staking addresses
         _, staking_providers_dict = application_agent.get_all_active_staking_providers()
         staking_providers = list(staking_providers_dict.keys())
-        staking_providers.remove(
-            "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
-        )  # TODO skip Bogdan's node; remove at some point
+
+        if eth_staking_network == "lynx":
+            staking_providers.remove(
+                "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
+            )  # TODO skip Bogdan's node; remove at some point
 
         # sample then sort
         dkg_staking_providers = random.sample(staking_providers, 2)
