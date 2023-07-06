@@ -3,13 +3,30 @@ from typing import Any, Dict, List
 from multicall import Call, Multicall
 from web3 import Web3
 from web3.providers import BaseProvider
+from web3.types import ABIFunction
 
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition, NoConnectionToChain
 
 
+# Transforms function ABI to signature format supported by multicall.py:
+# <func_name>(input_type1,input_type2)(output_type1,output_type2)
+def abi_to_signature(abi: ABIFunction) -> str:
+    signature = abi["name"]
+    signature += "("
+    for input in abi["inputs"]:
+        signature += input["type"] + ","
+    signature = signature[:-1]
+    signature += ")("
+    for output in abi["outputs"]:
+        signature += output["type"] + ","
+    signature = signature[:-1]
+    signature += ")"
+
+    return signature
+
+
 class MulticallConditions:
-    # TODO: add arguments types
     def __init__(
         self,
         conditions: List[AccessControlCondition],
@@ -19,7 +36,7 @@ class MulticallConditions:
         filtered_conditions = filter(self._filter, conditions)
         chain_conditions = {}
 
-        # TODO: make test for multi-chain compound condition
+        # TODO: make a new test for *multi-chain* compound condition case
         for condition in filtered_conditions:
             if condition.chain in chain_conditions:
                 chain_conditions[condition.chain].append(condition)
@@ -72,15 +89,9 @@ class MulticallConditions:
         self, condition: AccessControlCondition, context: Dict[str, Any]
     ) -> Call:
         if condition.__class__.__name__ == "ContractCondition":
-            if condition.method == "balanceOf":
-                contract_addr = condition.contract_address
-                return Call(
-                    contract_addr,
-                    # TODO: we need a parser that converts from nucypher conditions to
-                    # TODO:     seth-style format: method_name(arguments)(returns)
-                    ["balanceOf(address)(uint256)", context["address"]],
-                    [["balanceOf: {contract}".format(contract=contract_addr), None]],
-                )
+            signature = abi_to_signature(
+                ABIFunction(condition.contract_function.contract_abi[0])
+            )
 
     def verify(self) -> Dict[int, Dict[str, Any]]:
         multicall_results = {}
