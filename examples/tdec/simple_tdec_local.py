@@ -24,7 +24,7 @@ ciphertext, tdr = enrico.encrypt_for_dkg_and_produce_decryption_request(
     ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
 )
 
-decrypted_cleartext_from_ciphertext_list = bob.threshold_decrypt(
+cleartest_from_tdr = bob.threshold_decrypt(
     ciphertext=ciphertext,
     ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
     conditions=before_the_beginning_of_time,
@@ -34,16 +34,16 @@ decrypted_cleartext_from_ciphertext_list = bob.threshold_decrypt(
 
 cohort = bob._dkg_insight.fake_ritual.fake_nodes
 
-decrypted_cleartext_from_tdr_list = bob.decrypt_using_existing_decryption_request(
+cleartext_from_ciphertext = bob.decrypt_using_existing_decryption_request(
     tdr,
     participant_public_keys=bob._dkg_insight.fake_ritual.participant_public_keys,
     cohort=cohort,
     threshold=1,
 )
 
-decrypted_cleartext_from_ciphertext = bytes(decrypted_cleartext_from_ciphertext_list)
-decrypted_cleartext_from_ciphertext_list = bytes(decrypted_cleartext_from_tdr_list)
+decoded_cleartext_from_ciphertext = bytes(cleartext_from_ciphertext)
+decoded_cleartext_from_tdr = bytes(cleartest_from_tdr)
 
-assert decrypted_cleartext_from_ciphertext == plaintext
-assert plaintext == decrypted_cleartext_from_ciphertext_list
-print(f"Decrypted cleartext: {decrypted_cleartext_from_ciphertext}")
+assert decoded_cleartext_from_ciphertext == plaintext
+assert plaintext == decoded_cleartext_from_tdr
+print(f"Decrypted cleartext: {decoded_cleartext_from_ciphertext}")
