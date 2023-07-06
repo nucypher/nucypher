@@ -1,0 +1,28 @@
+name: 🧹 Lint with Ruff
+
+on:
+  pull_request:
+    branches:
+      - main
+      - development
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff
+          pip install .
+
+      - name: Lint with Ruff
+        run: ruff --format=github nucypher

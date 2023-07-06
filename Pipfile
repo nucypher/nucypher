@@ -55,7 +55,6 @@ ape-solidity = ">=0.6.5"
 hypothesis = "*"
 pre-commit = "2.12.1"
 coverage = "<=6.5.0"
-ruff = "*"
 
 [scripts]
 nucypher = "python3 nucypher/cli/main.py"
