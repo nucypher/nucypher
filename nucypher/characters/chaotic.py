@@ -155,7 +155,7 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
 class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
     def gather_encrypted_decryption_shares(
         self,
-        encrypted_requests,
+        encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
         timeout: float = 10,
     ) -> Tuple[
