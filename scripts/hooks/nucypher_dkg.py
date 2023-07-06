@@ -71,6 +71,14 @@ emitter = StdoutEmitter(verbosity=2)
     default=None,
     type=click.STRING,
 )
+@click.option(
+    "--dkg-size",
+    "dkg_size",
+    "-n",
+    help="Number of nodes to participate in ritual",
+    type=click.INT,
+    required=True,
+)
 def nucypher_dkg(
     eth_provider_uri,
     eth_staking_network,
@@ -78,6 +86,7 @@ def nucypher_dkg(
     coordinator_network,
     ritual_id,
     signer_uri,
+    dkg_size,
 ):
     if ritual_id < 0 and signer_uri is None:
         raise click.BadOptionUsage(
@@ -86,6 +95,11 @@ def nucypher_dkg(
                 "--signer must be provided to create new ritual when --ritual-id is not provided",
                 fg="red",
             ),
+        )
+
+    if dkg_size <= 1 or dkg_size % 2 != 0:
+        raise click.BadOptionUsage(
+            option_name="--dkg-size", message="DKG size must be > 1 and a power of 2"
         )
 
     coordinator_agent = ContractAgency.get_agent(
@@ -128,7 +142,6 @@ def nucypher_dkg(
             color="green",
         )
 
-        # find staking addresses
         _, staking_providers_dict = application_agent.get_all_active_staking_providers()
         staking_providers = list(staking_providers_dict.keys())
 
@@ -138,7 +151,7 @@ def nucypher_dkg(
             )  # TODO skip Bogdan's node; remove at some point
 
         # sample then sort
-        dkg_staking_providers = random.sample(staking_providers, 2)
+        dkg_staking_providers = random.sample(staking_providers, dkg_size)
         dkg_staking_providers.sort()
         emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
         receipt = coordinator_agent.initiate_ritual(
