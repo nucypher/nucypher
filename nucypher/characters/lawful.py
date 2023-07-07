@@ -438,7 +438,9 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
+    default_dkg_variant = FerveoVariant.PRECOMPUTED
     _default_crypto_powerups = [SigningPower, DecryptingPower]
+    _threshold_decryption_client_class = ThresholdDecryptionClient
 
     class IncorrectCFragsReceived(Exception):
         """
@@ -643,12 +645,14 @@ class Bob(Character):
         self,
         decryption_request: ThresholdDecryptionRequest,
         participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
-        variant: FerveoVariant,
         cohort: List["Ursula"],
         threshold: int,
+        variant: FerveoVariant = None,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
     ]:
+        if variant is None:
+            variant = self.default_dkg_variant
         if variant == FerveoVariant.PRECOMPUTED:
             share_type = DecryptionSharePrecomputed
         elif variant == FerveoVariant.SIMPLE:
@@ -662,7 +666,9 @@ class Bob(Character):
         shared_secrets = {}
         for ursula in cohort:
             ursula_checksum_address = to_checksum_address(ursula.checksum_address)
+
             participant_public_key = participant_public_keys[ursula_checksum_address]
+
             shared_secret = requester_sk.derive_shared_secret(participant_public_key)
             encrypted_decryption_request = decryption_request.encrypt(
                 shared_secret=shared_secret,
@@ -673,7 +679,7 @@ class Bob(Character):
                 ursula_checksum_address
             ] = encrypted_decryption_request
 
-        decryption_client = ThresholdDecryptionClient(learner=self)
+        decryption_client = self._threshold_decryption_client_class(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
             encrypted_requests=decryption_request_mapping, threshold=threshold
         )
@@ -715,8 +721,22 @@ class Bob(Character):
             context=context,
         )
         return self.get_decryption_shares_using_existing_decryption_request(
-            decryption_request, participant_public_keys, variant, cohort, threshold
+            decryption_request,
+            participant_public_keys,
+            cohort,
+            threshold,
+            variant=variant,
         )
+
+    def get_ritual_from_id(self, ritual_id):
+        # blockchain reads: get the DKG parameters and the cohort.
+        if not self.coordinator_agent:
+            raise ValueError(
+                "No coordinator provider URI provided in Bob's constructor."
+            )
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+
+        return ritual
 
     def threshold_decrypt(
         self,
@@ -725,15 +745,10 @@ class Bob(Character):
         conditions: Lingo,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        variant: str = "simple",
+        variant: str = "precomputed",
         peering_timeout: int = 60,
     ) -> bytes:
-        # blockchain reads: get the DKG parameters and the cohort.
-        if not self.coordinator_agent:
-            raise ValueError(
-                "No coordinator provider URI provided in Bob's constructor."
-            )
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        ritual = self.get_ritual_from_id(ritual_id)
 
         if not ursulas:
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
@@ -772,12 +787,40 @@ class Bob(Character):
             participant_public_keys=participant_public_keys,
         )
 
-        return self.__decrypt(
+        return self._decrypt(
             list(decryption_shares.values()), ciphertext, conditions, variant
         )
 
+    def decrypt_using_existing_decryption_request(
+        self,
+        decryption_request,
+        participant_public_keys,
+        cohort,
+        threshold,
+        variant=None,
+    ):
+        if variant is None:
+            variant = self.default_dkg_variant
+
+        addresses_and_dfrags = (
+            self.get_decryption_shares_using_existing_decryption_request(
+                decryption_request, participant_public_keys, cohort, threshold
+            )
+        )
+
+        # TODO: 3154
+        conditions_as_json_string = str(decryption_request.conditions)
+        conditions_as_list = json.loads(conditions_as_json_string)
+
+        return self._decrypt(
+            list(addresses_and_dfrags.values()),
+            decryption_request.ciphertext,
+            conditions_as_list,
+            variant,
+        )
+
     @staticmethod
-    def __decrypt(
+    def _decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
         conditions: Lingo,
@@ -1467,6 +1510,7 @@ class Enrico:
     """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
+    default_dkg_variant = FerveoVariant.PRECOMPUTED
 
     def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()
@@ -1498,16 +1542,20 @@ class Enrico:
         plaintext: bytes,
         conditions: Lingo,
         ritual_id: int,
-        variant_id: int,
+        variant: int = None,
         context: Optional[bytes] = None,
     ) -> Tuple[Ciphertext, ThresholdDecryptionRequest]:
         ciphertext = self.encrypt_for_dkg(plaintext=plaintext, conditions=conditions)
+
+        if variant is None:
+            variant = self.default_dkg_variant.value
+
         tdr = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             ciphertext=ciphertext,
             conditions=Conditions(json.dumps(conditions)),
             context=context,
-            variant=variant_id,
+            variant=variant,
         )
 
         return ciphertext, tdr
