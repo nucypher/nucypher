@@ -3,7 +3,7 @@ from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 plaintext = b"paz al amanecer"
-THIS_IS_NOT_A_TRINKET = 55
+THIS_IS_NOT_A_TRINKET = 55  # sometimes called "public key"
 
 enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET)
 bob = ThisBobAlwaysDecrypts(domain="lynx", eth_provider_uri="Nowhere")
