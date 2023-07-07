@@ -1,10 +1,11 @@
-from nucypher.characters.chaotic import NiceGuyEddie, ThisBobAlwaysDecrypts
+from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
+from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo
 
 plaintext = b"paz al amanecer"
 THIS_IS_NOT_A_TRINKET = 55
 
-enrico = NiceGuyEddie(encrypting_key=THIS_IS_NOT_A_TRINKET)
+enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET)
 bob = ThisBobAlwaysDecrypts(domain="lynx", eth_provider_uri="Nowhere")
 
 ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55

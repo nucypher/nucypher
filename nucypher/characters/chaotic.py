@@ -3,6 +3,7 @@ from operator import attrgetter
 from typing import Dict, Tuple
 
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
     ThresholdDecryptionResponse,
