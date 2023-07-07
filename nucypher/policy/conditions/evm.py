@@ -1,3 +1,4 @@
+from hashlib import md5
 from typing import Any, Dict, List, Optional, Tuple
 
 from eth_typing import ChecksumAddress
@@ -127,7 +128,6 @@ class RPCCondition(AccessControlCondition):
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
     ):
-
         # Validate input
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
         _validate_chain(chain=chain)
@@ -136,6 +136,7 @@ class RPCCondition(AccessControlCondition):
         self.name = name
         self.chain = chain
         self.method = self.validate_method(method=method)
+        self.id = md5(bytes(self)).hexdigest()[:6]
 
         # test
         # should not be set to None - we do list unpacking so cannot be None; use empty list
