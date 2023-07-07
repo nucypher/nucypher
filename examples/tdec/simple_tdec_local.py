@@ -31,8 +31,6 @@ cleartest_from_tdr = bob.threshold_decrypt(
     conditions=before_the_beginning_of_time,
 )
 
-
-
 cohort = bob._dkg_insight.fake_ritual.fake_nodes
 
 cleartext_from_ciphertext = bob.decrypt_using_existing_decryption_request(
