@@ -38,7 +38,11 @@ class _ParticipantKeyDict(dict):
         return fifty_fiver.public_key()
 
 
-class _Blasphemy:
+class Uncoordinated:
+    """
+    A stand-in for some of the logic that is normally handled (and verified) by use of a Coordinator contract.
+    """
+
     def __init__(
         self, tau, threshold, shares_num, checksum_addresses, session_seed=None
     ):
@@ -79,7 +83,7 @@ class DKGOmniscient:
 
             checksum_addresses = [gen_eth_addr(i) for i in range(0, self.shares_num)]
 
-            self.fake_ritual = _Blasphemy(
+            self.fake_ritual = Uncoordinated(
                 tau=self.tau,
                 threshold=self.security_threshold,
                 shares_num=self.shares_num,
