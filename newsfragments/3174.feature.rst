@@ -1,0 +1,1 @@
+Reset default ferveo variant to be ``simple``. We can revisit whenever we add logic to properly deal with request failures for the ``precomputed`` variant.
