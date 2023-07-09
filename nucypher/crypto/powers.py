@@ -346,7 +346,7 @@ class ThresholdRequestDecryptingPower(DerivedKeyBasedPower):
         self.__request_key_factory = session_secret_factory
 
     def _get_static_secret_from_ritual_id(self, ritual_id: int) -> SessionStaticSecret:
-        return self.__request_key_factory.make_key(bytes(ritual_id))
+        return self.__request_key_factory.make_key(bytes(ritual_id.to_bytes(4, "big")))
 
     def get_pubkey_from_ritual_id(self, ritual_id: int) -> SessionStaticKey:
         return self._get_static_secret_from_ritual_id(ritual_id).public_key()
