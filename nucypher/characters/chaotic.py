@@ -12,10 +12,10 @@ from nucypher_core import (
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
+from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.middleware import RestMiddleware
-from nucypher.utilities.concurrency import Failure
 
 
 class FakeNode:
@@ -71,7 +71,7 @@ class DKGOmniscient:
 
     class DKGInsight:
         # TODO: Make these configurable:
-        tau = 1
+        tau = 1  # ritual id
         security_threshold = 3
         shares_num = 4
 
@@ -102,36 +102,29 @@ class DKGOmniscient:
             # Validators must be sorted by their public key
             validators.sort(key=attrgetter("address"))
 
-            # Each validator holds their own DKG instance and generates a transcript every
-            # validator, including themselves
-            self.aggregation_messages = []
+            # Each validator generates a transcript which is publicly stored
+            self.transcripts = []
             for sender in validators:
-                dkg = ferveo.Dkg(
-                    tau=self.tau,
-                    shares_num=self.shares_num,
-                    security_threshold=self.security_threshold,
-                    validators=validators,
+                transcript = dkg.generate_transcript(
+                    ritual_id=self.tau,
                     me=sender,
+                    shares=self.shares_num,
+                    threshold=self.security_threshold,
+                    nodes=validators,
                 )
-                self.aggregation_messages.append(
-                    ferveo.ValidatorMessage(sender, dkg.generate_transcript())
-                )
+                self.transcripts.append((sender, transcript))
 
             self.dkg = dkg
             self.validators = validators
             self.validator_keypairs = validator_keypairs
 
-            self.server_aggregate = dkg.aggregate_transcripts(self.aggregation_messages)
-            assert self.server_aggregate.verify(
-                self.shares_num, self.aggregation_messages
-            )
-
-            # And the client can also aggregate and verify the transcripts
-            self.client_aggregate = ferveo.AggregatedTranscript(
-                self.aggregation_messages
-            )
-            assert self.server_aggregate.verify(
-                self.shares_num, self.aggregation_messages
+            # any validator can generate the same aggregated transcript
+            self.server_aggregate, self.dkg_public_key = dkg.aggregate_transcripts(
+                ritual_id=self.tau,
+                me=validators[0],
+                shares=self.shares_num,
+                threshold=self.security_threshold,
+                transcripts=self.transcripts,
             )
 
     _dkg_insight = DKGInsight()
@@ -148,7 +141,7 @@ class NiceGuyEddie(Enrico, DKGOmniscient):
         del encrypting_key  # We take this to match the Enrico public API, but we don't use it, because...
 
         # ...we're going to use the DKG public key as the encrypting key, and ignore the key passed in.
-        encrypting_key_we_actually_want_to_use = self._dkg_insight.dkg.public_key
+        encrypting_key_we_actually_want_to_use = self._dkg_insight.dkg_public_key
         super().__init__(
             # https://imgflip.com/i/7o0po4
             encrypting_key=encrypting_key_we_actually_want_to_use,
@@ -174,54 +167,54 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         # We only really need one encrypted tdr.
         etdr = list(encrypted_requests.values())[0]
 
+        # decrypt request
+        threshold_decryption_request = trdp.decrypt_encrypted_request(etdr)
+        ciphertext = threshold_decryption_request.ciphertext
+        conditions = str(threshold_decryption_request.conditions).encode()
+        ritual_id = threshold_decryption_request.ritual_id
+        variant = threshold_decryption_request.variant
+
+        # We can obtain the transcripts from the side-channel (deserialize) and aggregate them
+        validator_messages = [
+            ferveo.ValidatorMessage(validator, transcript)
+            for validator, transcript in self._learner._dkg_insight.transcripts
+        ]
+        aggregate = ferveo.AggregatedTranscript(validator_messages)
+        assert aggregate.verify(
+            self._learner._dkg_insight.shares_num,
+            # TODO this list should have to be passed again (either make `verify` static or use list
+            #  provided in constructor
+            validator_messages,
+        )
+
         for validator, validator_keypair in zip(
             self._learner._dkg_insight.validators,
             self._learner._dkg_insight.validator_keypairs,
         ):
-            dkg = ferveo.Dkg(
-                tau=self._learner._dkg_insight.tau,
-                shares_num=self._learner._dkg_insight.shares_num,
-                security_threshold=self._learner._dkg_insight.security_threshold,
-                validators=self._learner._dkg_insight.validators,
+            # get decryption fragments/shares
+            decryption_share = dkg.derive_decryption_share(
+                ritual_id=ritual_id,
                 me=validator,
-            )
-
-            # We can also obtain the aggregated transcript from the side-channel (deserialize)
-            aggregate = ferveo.AggregatedTranscript(
-                self._learner._dkg_insight.aggregation_messages
-            )
-            assert aggregate.verify(
-                self._learner._dkg_insight.shares_num,
-                self._learner._dkg_insight.aggregation_messages,
-            )
-
-            decrypted_encryption_request = trdp.decrypt_encrypted_request(etdr)
-            ciphertext = decrypted_encryption_request.ciphertext
-            conditions_bytes = str(decrypted_encryption_request.conditions).encode()
-
-            decryption_share = aggregate.create_decryption_share_simple(
-                dkg=dkg,
+                shares=self._learner._dkg_insight.shares_num,
+                threshold=self._learner._dkg_insight.security_threshold,
+                nodes=self._learner._dkg_insight.validators,
+                aggregated_transcript=aggregate,
+                keypair=validator_keypair,
                 ciphertext=ciphertext,
-                aad=conditions_bytes,
-                validator_keypair=validator_keypair,
+                aad=conditions,
+                variant=dkg.FerveoVariant(variant),
             )
-
-            decryption_share_bytes = bytes(decryption_share)
-
-            ##### Uncomment for sanity check
-            # ferveo.DecryptionShareSimple.from_bytes(decryption_share_bytes)  # No IOError!  Let's go!
-            ##################
 
             decryption_response = ThresholdDecryptionResponse(
                 ritual_id=55,  # TODO: Abstract this somewhere
-                decryption_share=bytes(decryption_share_bytes),
+                decryption_share=bytes(decryption_share),
             )
 
-            encrypted_decryptiopn_response = trdp.encrypt_decryption_response(
+            encrypted_decryption_response = trdp.encrypt_decryption_response(
                 decryption_response=decryption_response,
                 requester_public_key=etdr.requester_public_key,
             )
-            responses[validator.address] = encrypted_decryptiopn_response
+            responses[validator.address] = encrypted_decryption_response
 
         NO_FAILURES = {}
         return responses, NO_FAILURES

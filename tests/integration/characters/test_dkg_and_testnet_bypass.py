@@ -35,19 +35,18 @@ def _attempt_decryption(BobClass, plaintext):
         },
     }
 
-    ciphertext, tdr = enrico.encrypt_for_dkg_and_produce_decryption_request(
+    ciphertext = enrico.encrypt_for_dkg(
         plaintext=plaintext,
         conditions=definitely_false_condition,
-        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
     )
 
-    decrypted_cleartext_from_ciphertext_list = bob.threshold_decrypt(
-        ciphertext=ciphertext,
+    decrypted_cleartext = bob.threshold_decrypt(
         ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
+        ciphertext=ciphertext,
         conditions=definitely_false_condition,
     )
 
-    return decrypted_cleartext_from_ciphertext_list
+    return decrypted_cleartext
 
 
 def test_user_controls_success():
@@ -65,4 +64,4 @@ def test_user_controls_success():
 def test_user_controls_failure():
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas) as e:
-        result = _attempt_decryption(ThisBobAlwaysFails, plaintext)
+        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext)
