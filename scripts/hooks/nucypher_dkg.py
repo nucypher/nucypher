@@ -1,5 +1,4 @@
 import random
-import sys
 import time
 
 import click
@@ -71,6 +70,21 @@ emitter = StdoutEmitter(verbosity=2)
     default=None,
     type=click.STRING,
 )
+@click.option(
+    "--dkg-size",
+    "dkg_size",
+    "-n",
+    help="Number of nodes to participate in ritual",
+    type=click.INT,
+    default=0,
+)
+@click.option(
+    "--num-rituals",
+    "num_rituals",
+    help="The number of rituals to initiate",
+    type=click.INT,
+    default=1,
+)
 def nucypher_dkg(
     eth_provider_uri,
     eth_staking_network,
@@ -78,15 +92,46 @@ def nucypher_dkg(
     coordinator_network,
     ritual_id,
     signer_uri,
+    dkg_size,
+    num_rituals,
 ):
-    if ritual_id < 0 and signer_uri is None:
-        raise click.BadOptionUsage(
-            option_name="--ritual-id, --signer",
-            message=click.style(
-                "--signer must be provided to create new ritual when --ritual-id is not provided",
-                fg="red",
-            ),
-        )
+    if ritual_id < 0:
+        # if creating ritual(s)
+        if signer_uri is None:
+            raise click.BadOptionUsage(
+                option_name="--ritual-id, --signer",
+                message=click.style(
+                    "--signer must be provided to create new ritual when --ritual-id is not provided",
+                    fg="red",
+                ),
+            )
+        if dkg_size <= 1 or dkg_size % 2 != 0:
+            raise click.BadOptionUsage(
+                option_name="--dkg-size",
+                message=click.style("DKG size must be > 1 and a power of 2", fg="red"),
+            )
+        if num_rituals < 1:
+            raise click.BadOptionUsage(
+                option_name="--num-rituals",
+                message=click.style("Number of rituals must be >= 1", fg="red"),
+            )
+
+    if ritual_id >= 0:
+        # if re-using existing ritual
+        if num_rituals != 1:
+            raise click.BadOptionUsage(
+                option_name="--ritual-id, --num-rituals",
+                message=click.style(
+                    "--ritual-id and --num-rituals cannot be used together", fg="red"
+                ),
+            )
+        if dkg_size != 0:
+            raise click.BadOptionUsage(
+                option_name="--ritual-id, --dkg-size",
+                message=click.style(
+                    "--ritual-id and --dkg-size cannot be used together", fg="red"
+                ),
+            )
 
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
@@ -124,67 +169,97 @@ def nucypher_dkg(
         transacting_power = TransactingPower(signer=signer, account=account_address)
 
         emitter.echo(
-            f"Commencing DKG Ritual on {coordinator_network} using {account_address}",
+            f"Commencing DKG Ritual(s) on {coordinator_network} using {account_address}",
             color="green",
         )
 
-        # find staking addresses
-        _, staking_providers_dict = application_agent.get_all_active_staking_providers()
-        staking_providers = list(staking_providers_dict.keys())
+        initiated_rituals = []
+        for i in range(num_rituals):
+            # find staking addresses
+            (
+                _,
+                staking_providers_dict,
+            ) = application_agent.get_all_active_staking_providers()
+            staking_providers = list(staking_providers_dict.keys())
 
-        if eth_staking_network == "lynx":
-            staking_providers.remove(
-                "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
-            )  # TODO skip Bogdan's node; remove at some point
+            if eth_staking_network == "lynx":
+                staking_providers.remove(
+                    "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
+                )  # TODO skip Bogdan's node; remove at some point
 
-        # sample then sort
-        dkg_staking_providers = random.sample(staking_providers, 2)
-        dkg_staking_providers.sort()
-        emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
-        receipt = coordinator_agent.initiate_ritual(
-            dkg_staking_providers, transacting_power
-        )
-        start_ritual_event = (
-            coordinator_agent.contract.events.StartRitual().process_receipt(receipt)
-        )
-        ritual_id = start_ritual_event[0]["args"]["ritualId"]
-        ritual_status = coordinator_agent.get_ritual_status(ritual_id)
-        assert (
-            ritual_status != coordinator_agent.Ritual.Status.NON_INITIATED
-        ), "ritual successfully initiated"
+            # sample then sort
+            dkg_staking_providers = random.sample(staking_providers, dkg_size)
+            dkg_staking_providers.sort()
+            emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
+            receipt = coordinator_agent.initiate_ritual(
+                dkg_staking_providers, transacting_power
+            )
+            start_ritual_event = (
+                coordinator_agent.contract.events.StartRitual().process_receipt(receipt)
+            )
+            ritual_id = start_ritual_event[0]["args"]["ritualId"]
+            ritual_status = coordinator_agent.get_ritual_status(ritual_id)
+            assert (
+                ritual_status != coordinator_agent.Ritual.Status.NON_INITIATED
+            ), "ritual successfully initiated"
 
-        emitter.echo(
-            f"DKG Ritual #{ritual_id} initiated: {Web3.to_hex(receipt['transactionHash'])}",
-            color="green",
-        )
+            initiated_rituals.append(ritual_id)
+            emitter.echo(
+                f"DKG Ritual #{ritual_id} initiated: {Web3.to_hex(receipt['transactionHash'])}",
+                color="green",
+            )
 
         #
-        # Wait for Ritual to complete
+        # Wait for Ritual(s) to complete
         # TODO perhaps reuse EventActuator here
         #
+        completed_rituals = dict()
         start_time = maya.now()
         while True:
-            ritual_status = coordinator_agent.get_ritual_status(ritual_id)
+            for initiated_ritual in initiated_rituals:
+                if initiated_ritual in completed_rituals:
+                    # already completed
+                    continue
 
-            if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+                ritual_status = coordinator_agent.get_ritual_status(initiated_ritual)
+                if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+                    # success
+                    emitter.echo(
+                        f"DKG Ritual #{initiated_ritual} completed after {(maya.now() - start_time).seconds}s",
+                        color="green",
+                    )
+                    completed_rituals[initiated_ritual] = ritual_status
+                elif (
+                    # failure
+                    ritual_status == coordinator_agent.Ritual.Status.TIMEOUT
+                    or ritual_status == coordinator_agent.Ritual.Status.INVALID
+                ):
+                    emitter.error(
+                        f"Ritual #{initiated_ritual} failed with status '{ritual_status}'"
+                    )
+                    completed_rituals[initiated_ritual] = ritual_status
+
+            if len(completed_rituals) >= num_rituals:
                 break
 
-            if (
-                ritual_status == coordinator_agent.Ritual.Status.TIMEOUT
-                or ritual_status == coordinator_agent.Ritual.Status.INVALID
-            ):
-                emitter.error(f"Ritual #{ritual_id} failed with status {ritual_status}")
-                sys.exit(-1)
-
             emitter.echo(
-                f"Waiting for Ritual to complete; {(maya.now() - start_time).seconds}s elapsed thus far"
+                f"Waiting for Ritual(s) to complete ({len(completed_rituals)} / {num_rituals} completed); {(maya.now() - start_time).seconds}s elapsed thus far"
             )
             time.sleep(15)
 
-        emitter.echo(
-            f"DKG Ritual #{ritual_id} completed after {(maya.now() - start_time).seconds}s",
-            color="green",
-        )
+        emitter.echo("\n--------- Ritual(s) Summary ---------")
+        # sort by ritual id, print results, stop script
+        for r_id in sorted(completed_rituals.keys()):
+            ritual_status = completed_rituals[r_id]
+            if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+                message = f"✓ Ritual #{r_id} successfully created"
+                color = "green"
+            else:
+                message = f"x Ritual #{r_id} failed with status {ritual_status}"
+                color = "red"
+
+            emitter.echo(message, color=color)
+        return
     else:
         # ensure ritual exists
         _ = coordinator_agent.get_ritual(ritual_id)  # ensure ritual can be found
