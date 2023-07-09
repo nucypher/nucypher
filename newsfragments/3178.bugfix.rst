@@ -1,0 +1,1 @@
+Properly convert ritual id to bytes when being used as a seed for generating a session key.
