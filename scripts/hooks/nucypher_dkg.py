@@ -76,12 +76,12 @@ emitter = StdoutEmitter(verbosity=2)
     "-n",
     help="Number of nodes to participate in ritual",
     type=click.INT,
-    required=True,
+    default=0,
 )
 @click.option(
     "--num-rituals",
     "num_rituals",
-    help="The number of rituals to create",
+    help="The number of rituals to initiate",
     type=click.INT,
     default=1,
 )
@@ -95,31 +95,43 @@ def nucypher_dkg(
     dkg_size,
     num_rituals,
 ):
-    if ritual_id < 0 and signer_uri is None:
-        raise click.BadOptionUsage(
-            option_name="--ritual-id, --signer",
-            message=click.style(
-                "--signer must be provided to create new ritual when --ritual-id is not provided",
-                fg="red",
-            ),
-        )
-    if ritual_id >= 0 and num_rituals != 1:
-        raise click.BadOptionUsage(
-            option_name="--ritual-id, --num-rituals",
-            message=click.style(
-                "--ritual-id and --num-rituals cannot be used together", fg="red"
-            ),
-        )
-    if num_rituals < 1:
-        raise click.BadOptionUsage(
-            option_name="--num-rituals",
-            message=click.style("Number of rituals must be >= 1", fg="red"),
-        )
+    if ritual_id < 0:
+        # if creating ritual(s)
+        if signer_uri is None:
+            raise click.BadOptionUsage(
+                option_name="--ritual-id, --signer",
+                message=click.style(
+                    "--signer must be provided to create new ritual when --ritual-id is not provided",
+                    fg="red",
+                ),
+            )
+        if dkg_size <= 1 or dkg_size % 2 != 0:
+            raise click.BadOptionUsage(
+                option_name="--dkg-size",
+                message=click.style("DKG size must be > 1 and a power of 2", fg="red"),
+            )
+        if num_rituals < 1:
+            raise click.BadOptionUsage(
+                option_name="--num-rituals",
+                message=click.style("Number of rituals must be >= 1", fg="red"),
+            )
 
-    if dkg_size <= 1 or dkg_size % 2 != 0:
-        raise click.BadOptionUsage(
-            option_name="--dkg-size", message="DKG size must be > 1 and a power of 2"
-        )
+    if ritual_id >= 0:
+        # if re-using existing ritual
+        if num_rituals != 1:
+            raise click.BadOptionUsage(
+                option_name="--ritual-id, --num-rituals",
+                message=click.style(
+                    "--ritual-id and --num-rituals cannot be used together", fg="red"
+                ),
+            )
+        if dkg_size != 0:
+            raise click.BadOptionUsage(
+                option_name="--ritual-id, --dkg-size",
+                message=click.style(
+                    "--ritual-id and --dkg-size cannot be used together", fg="red"
+                ),
+            )
 
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
@@ -201,11 +213,11 @@ def nucypher_dkg(
         # Wait for Ritual(s) to complete
         # TODO perhaps reuse EventActuator here
         #
-        rituals_results = dict()
+        completed_rituals = dict()
         start_time = maya.now()
         while True:
             for initiated_ritual in initiated_rituals:
-                if initiated_ritual in rituals_results:
+                if initiated_ritual in completed_rituals:
                     # already completed
                     continue
 
@@ -213,41 +225,41 @@ def nucypher_dkg(
                 if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
                     # success
                     emitter.echo(
-                        f"DKG Ritual #{ritual_id} completed after {(maya.now() - start_time).seconds}s",
+                        f"DKG Ritual #{initiated_ritual} completed after {(maya.now() - start_time).seconds}s",
                         color="green",
                     )
-                    rituals_results[initiated_ritual] = True
+                    completed_rituals[initiated_ritual] = ritual_status
                 elif (
                     # failure
                     ritual_status == coordinator_agent.Ritual.Status.TIMEOUT
                     or ritual_status == coordinator_agent.Ritual.Status.INVALID
                 ):
                     emitter.error(
-                        f"Ritual #{ritual_id} failed with status {ritual_status}"
+                        f"Ritual #{initiated_ritual} failed with status '{ritual_status}'"
                     )
-                    rituals_results[initiated_ritual] = False
+                    completed_rituals[initiated_ritual] = ritual_status
 
-            if len(rituals_results) < num_rituals:
+            if len(completed_rituals) >= num_rituals:
                 break
 
             emitter.echo(
-                f"Waiting for Ritual(s) to complete ({len(rituals_results)} / {num_rituals} completed); {(maya.now() - start_time).seconds}s elapsed thus far"
+                f"Waiting for Ritual(s) to complete ({len(completed_rituals)} / {num_rituals} completed); {(maya.now() - start_time).seconds}s elapsed thus far"
             )
             time.sleep(15)
 
-        if num_rituals > 1:
-            emitter.echo("--------- Ritual Results ---------")
-            # Creating multiple rituals - print end result and stop script
-            for r_id, successful in rituals_results.items():
-                if successful:
-                    message = f"✓ Ritual #{r_id} successfully created"
-                    color = "green"
-                else:
-                    message = f"x Ritual #{r_id} failed to initialize"
-                    color = "red"
+        emitter.echo("\n--------- Ritual(s) Summary ---------")
+        # sort by ritual id, print results, stop script
+        for r_id in sorted(completed_rituals.keys()):
+            ritual_status = completed_rituals[r_id]
+            if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+                message = f"✓ Ritual #{r_id} successfully created"
+                color = "green"
+            else:
+                message = f"x Ritual #{r_id} failed with status {ritual_status}"
+                color = "red"
 
-                emitter.echo(message, color=color)
-            return
+            emitter.echo(message, color=color)
+        return
     else:
         # ensure ritual exists
         _ = coordinator_agent.get_ritual(ritual_id)  # ensure ritual can be found
