@@ -177,9 +177,9 @@ class Operator(BaseActor):
 
         # Falsy values may be passed down from the superclass
         if not eth_provider_uri:
-            raise ValueError("ETH Provider URI is required to init a local character.")
+            raise ValueError("ETH Provider URI is required to init an operator.")
         if not payment_method:
-            raise ValueError("Payment method is required to init a local character.")
+            raise ValueError("Payment method is required to init an operator.")
 
         if not transacting_power:
             transacting_power = TransactingPower(

@@ -154,7 +154,7 @@ class RPCCondition(AccessControlCondition):
         return method
 
     def _configure_provider(self, providers: Dict[int, BaseProvider]):
-        """Binds the condition's contract function to a blockchian provider for evaluation"""
+        """Binds the condition's contract function to a blockchain provider for evaluation"""
         try:
             provider = providers[self.chain]
         except KeyError:
