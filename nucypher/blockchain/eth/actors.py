@@ -396,7 +396,8 @@ class Ritualist(BaseActor):
         receipt = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
-            transacting_power=self.transacting_power
+            transacting_power=self.transacting_power,
+            fire_and_forget=True,
         )
         return receipt
 
@@ -416,7 +417,8 @@ class Ritualist(BaseActor):
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             participant_public_key=participant_public_key,
-            transacting_power=self.transacting_power
+            transacting_power=self.transacting_power,
+            fire_and_forget=True,
         )
         return receipt
 

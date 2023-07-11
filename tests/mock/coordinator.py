@@ -85,6 +85,7 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
+        fire_and_forget: bool = False,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
         operator_address = transacting_power.account
@@ -114,6 +115,7 @@ class MockCoordinatorAgent(MockContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
+        fire_and_forget: bool = False,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
         operator_address = transacting_power.account

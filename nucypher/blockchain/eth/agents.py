@@ -729,12 +729,16 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
+        fire_and_forget: bool = False,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power,
+            fire_and_forget=fire_and_forget,
+        )
         return receipt
 
     @contract_api(TRANSACTION)
@@ -745,6 +749,7 @@ class CoordinatorAgent(EthereumContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
+        fire_and_forget: bool = False,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
@@ -754,7 +759,8 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
-            transacting_power=transacting_power
+            transacting_power=transacting_power,
+            fire_and_forget=fire_and_forget,
         )
         return receipt
 
