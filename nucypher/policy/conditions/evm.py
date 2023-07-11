@@ -21,13 +21,26 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
 
+# TODO: Move this to a more appropriate location,
+#  but be sure to change the mocks in tests too.
 # Permitted blockchains for condition evaluation
-_CONDITION_CHAINS = (
-    1,     # ethereum/mainnet
-    5,     # ethereum/goerli
-    137,   # polygon/mainnet
-    80001  # polygon/mumbai
-)
+
+_CONDITION_CHAINS = {
+    1: "ethereum/mainnet",
+    5: "ethereum/goerli",
+    11155111: "ethereum/sepolia",
+    137: "polygon/mainnet",
+    80001: "polygon/mumbai",
+    10: "optimism/mainnet",
+    69: "optimism/kovan",
+    420: "optimism/goerli",
+    42161: "arbitrum/mainnet",
+    421613: "arbitrum/goerli",
+    100: "gnosis/mainnet",
+    10200: "gnosis/chiado",
+    534352: "scroll/mainnet",
+    534351: "scroll/sepolia",
+}
 
 
 def _resolve_abi(

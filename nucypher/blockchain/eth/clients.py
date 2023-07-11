@@ -68,6 +68,7 @@ POA_CHAINS = {
     42,  # Kovan
     77,  # Sokol
     100,  # xDAI
+    10200,  # gnosis/chiado,
     137,  # Polygon/Mainnet
     80001,  # "Polygon/Mumbai"
 }
