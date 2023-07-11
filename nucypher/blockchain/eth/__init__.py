@@ -1,7 +1,8 @@
 
 
 from pathlib import Path
-from constant_sorrow.constants import (NO_BLOCKCHAIN_CONNECTION)
+
+from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
 # TODO: Move to constants.py?
 BASE_DIRECTORY = Path(__file__).parent

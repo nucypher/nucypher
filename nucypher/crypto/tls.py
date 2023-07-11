@@ -1,4 +1,8 @@
 import datetime
+from ipaddress import IPv4Address
+from pathlib import Path
+from typing import ClassVar, Optional, Tuple
+
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
@@ -8,9 +12,6 @@ from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
-from ipaddress import IPv4Address
-from pathlib import Path
-from typing import ClassVar, Optional, Tuple
 
 _TLS_CERTIFICATE_ENCODING = Encoding.PEM
 _TLS_CURVE = ec.SECP384R1

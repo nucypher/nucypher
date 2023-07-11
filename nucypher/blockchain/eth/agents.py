@@ -6,8 +6,11 @@ from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type, cast
 
-from constant_sorrow.constants import CONTRACT_ATTRIBUTE  # type: ignore
-from constant_sorrow.constants import CONTRACT_CALL, TRANSACTION
+from constant_sorrow.constants import (
+    CONTRACT_ATTRIBUTE,  # type: ignore
+    CONTRACT_CALL,
+    TRANSACTION,
+)
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from nucypher_core import SessionStaticKey

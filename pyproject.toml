@@ -39,3 +39,10 @@
         directory = "dev"
         name = "Internal Development Tasks"
         showcontent = true
+
+[tool.ruff]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.isort]
+known-first-party = ["nucypher"]

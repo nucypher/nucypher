@@ -11,13 +11,11 @@ from nucypher.cli.actions.auth import (
 from nucypher.cli.actions.configure import (
     collect_operator_ip_address,
     destroy_configuration,
-)
-from nucypher.cli.actions.configure import forget as forget_nodes
-from nucypher.cli.actions.configure import (
     get_or_update_configuration,
     handle_missing_configuration_file,
     perform_startup_ip_check,
 )
+from nucypher.cli.actions.configure import forget as forget_nodes
 from nucypher.cli.actions.select import (
     select_client_account,
     select_config_file,
