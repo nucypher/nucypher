@@ -17,7 +17,7 @@ from nucypher_core.ferveo import (
     Ciphertext,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
-    FerveoPublicKey,
+    DkgPublicKey,
     Transcript,
     Validator,
 )
@@ -404,7 +404,7 @@ class Ritualist(BaseActor):
         self,
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
-        public_key: FerveoPublicKey,
+        public_key: DkgPublicKey,
     ) -> TxReceipt:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
