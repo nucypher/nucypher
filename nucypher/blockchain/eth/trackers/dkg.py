@@ -1,7 +1,7 @@
 import datetime
 import os
 import time
-from typing import Callable, List, Optional, Tuple, Type, Union
+from typing import Callable, List, Type
 
 from twisted.internet import threads
 from web3.contract.contract import ContractEvent
@@ -68,6 +68,17 @@ class ActiveRitualTracker:
 
     MAX_CHUNK_SIZE = 10000
 
+    class ParticipationState:
+        def __init__(
+            self,
+            participating=False,
+            already_posted_transcript=False,
+            already_posted_aggregate=False,
+        ):
+            self.participating = (participating,)
+            self.already_posted_transcript = (already_posted_transcript,)
+            self.already_posted_aggregate = already_posted_aggregate
+
     def __init__(
         self,
         ritualist: "actors.Ritualist",
@@ -90,7 +101,14 @@ class ActiveRitualTracker:
             self.contract.events.StartRitual: self.ritualist.perform_round_1,
             self.contract.events.StartAggregationRound: self.ritualist.perform_round_2,
         }
-        self.events = list(self.actions)
+
+        self.events = [
+            self.contract.events.StartRitual,
+            self.contract.events.TranscriptPosted,
+            self.contract.events.StartAggregationRound,
+            self.contract.events.AggregationPosted,
+            self.contract.events.EndRitual,
+        ]
 
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
@@ -109,8 +127,7 @@ class ActiveRitualTracker:
         )
 
         self.task = EventScannerTask(scanner=self.scan)
-        self.active_tasks = set()
-        self.refresh()
+        self.participation_states = dict()  # { ritual_id -> ParticipationState }
 
     @property
     def provider(self):
@@ -168,17 +185,6 @@ class ActiveRitualTracker:
             ritual_id=ritual_id, with_participants=with_participants
         )
         return ritual
-
-    def refresh(self, fetch_rituals: Optional[List[int]] = None, all: bool = False):
-        """Refresh the list of rituals with the latest data from the blockchain"""
-        ritual_ids = self.rituals.keys()
-        if all:
-            ritual_ids = range(self.coordinator_agent.number_of_rituals() - 1)
-        elif fetch_rituals:
-            ritual_ids = [*fetch_rituals, *ritual_ids]
-        for rid in ritual_ids:
-            ritual = self.get_ritual(ritual_id=rid)
-            self.track_ritual(ritual_id=rid, ritual=ritual)
         
     def start(self):
         """Start the event scanner task."""
@@ -188,31 +194,53 @@ class ActiveRitualTracker:
         """Stop the event scanner task."""
         return self.task.stop()
 
-    def __action_required(self, event_type: Type[ContractEvent], block_number: int, ritual_id: int):
+    def __action_required(self, event_type: Type[ContractEvent]):
         """Check if an action is required for a given event."""
-        if (event_type, ritual_id) in self.active_tasks:
-            self.log.debug(
-                f"Already tracking {event_type} for ritual {ritual_id} from block #{block_number}"
+        return event_type in self.actions
+
+    def _event_applicable_to_me(
+        self, event: AttributeDict, event_type: Type[ContractEvent]
+    ) -> bool:
+        """Secondary filtration of events."""
+        args = event.args
+
+        # check for participation
+        participation_state = self.participation_states.get(args.ritualId)
+        if not participation_state:
+            # unsure about anything; create bare-bones state (default values); need to do more processing
+            participation_state = self.ParticipationState()
+            self.participation_states[args.ritualId] = participation_state
+
+        # now we know we have a participating state, can we get fresh data
+        if event_type == self.contract.events.StartRitual:
+            participation_state.participating = (
+                self.ritualist.checksum_address in args.participants
             )
+        elif event_type == self.contract.events.TranscriptPosted:
+            if args.node == self.ritualist.checksum_address:
+                participation_state.participating = True
+                participation_state.already_posted_transcript = True
+        elif event_type == self.contract.events.StartAggregationRound:
+            participation_state.participating = True
+            participation_state.already_posted_transcript = True
+        elif event_type == self.contract.events.AggregationPosted:
+            if args.node == self.ritualist.checksum_address:
+                # done all of our ritual tasks
+                participation_state.participating = True
+                participation_state.already_posted_transcript = True
+                participation_state.already_posted_aggregate = True
+        elif event_type == self.contract.events.EndRitual:
+            # ritual is over no need to track it anymore
+            self.participation_states.pop(args.ritualId)
+        else:
+            raise ValueError(f"unprocessed event type: {event_type}")
+
+        if not participation_state.participating:
             return False
+
         return True
 
-    def _filter(
-        self, event: AttributeDict
-    ) -> Tuple[Union[None, AttributeDict], Type[ContractEvent]]:
-        """Secondary filtration of events."""
-        name, args = event.event, event.args
-        event_type = getattr(self.contract.events, event.event)
-        if hasattr(args, "participants"):
-            # Filter out events that are not for me
-            if self.ritualist.checksum_address not in args.participants:
-                self.log.debug(f"Event {name} is not for me, skipping")
-                return None, event_type
-        if not self.__action_required(event_type, event.blockNumber, args.ritualId):
-            return None, event_type
-        return event, event_type
-
-    def __execute_round(
+    def __execute_action(
         self,
         event_type: Type[ContractEvent],
         timestamp: int,
@@ -226,7 +254,6 @@ class ActiveRitualTracker:
         if defer:
             d = threads.deferToThread(task)
             d.addErrback(self.task.handle_errors)
-            d.addCallback(self.refresh)
             return d
         else:
             return task()
@@ -234,12 +261,17 @@ class ActiveRitualTracker:
     def _handle_ritual_event(
         self, event: AttributeDict, get_block_when: Callable[[int], datetime.datetime]
     ):
-        # Refresh the list of rituals to make sure we have the latest data
-        self.refresh()
-        # Filter out events that are not for us
-        event, event_type = self._filter(event)
-        if not event:
+        event_type = getattr(self.contract.events, event.event)
+        # Filter out events that are not for me
+        if not self._event_applicable_to_me(event, event_type):
+            self.log.debug(f"Event {event.event} is not for me, skipping")
             return
+
+        # is event actionable or just used for understanding ritual state
+        if not self.__action_required(event_type):
+            self.log.debug(f"Non-actionable event {event.event}, skipping")
+            return
+
         # NOTE: this format splits on *capital letters* and converts to snake case
         #  so "StartConfirmationRound" becomes "start_confirmation_round"
         #  do not use abbreviations in event names (e.g. "DKG" -> "d_k_g")
@@ -248,8 +280,9 @@ class ActiveRitualTracker:
         ritual_id = event.args.ritualId
         ritual = self.get_ritual(ritual_id=ritual_id)
         self.add_ritual(ritual_id=ritual_id, ritual=ritual)
-        self.active_tasks.add((event_type, ritual_id))
-        d = self.__execute_round(event_type=event_type, timestamp=timestamp, **formatted_kwargs)
+        d = self.__execute_action(
+            event_type=event_type, timestamp=timestamp, **formatted_kwargs
+        )
         return d
 
     def __scan(self, start_block, end_block, account):

@@ -78,7 +78,6 @@ def test_perform_round_1(ursula, random_address, cohort, agent):
 
     agent.get_participant_from_provider = lambda *args, **kwargs: participants[0]
 
-    ursula.ritual_tracker.refresh(fetch_rituals=[0])
     ursula.perform_round_1(
         ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
     )

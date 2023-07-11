@@ -423,7 +423,6 @@ class Ritualist(BaseActor):
         timestamp: int,
     ):
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
-
         if self.checksum_address not in participants:
             # should never get here
             self.log.error(
@@ -437,27 +436,24 @@ class Ritualist(BaseActor):
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
-        # FIXME: Rearrange checks - for the moment, obtain more information for logging purposes
+        # validate the status
+        if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
+            self.log.debug(
+                f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
+            )
+            return
+
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant_from_provider(
             ritual_id=ritual_id, provider=self.checksum_address
         )
-
-        self.log.debug(
-            f"Ritual {ritual_id} with status {status}, timestamp {ritual.init_timestamp}. "
-            f"Stored transcript data is '{participant.transcript.hex()}'"
-        )
-
-        # validate the status
-        if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
-            raise self.RitualError(
-                f"ritual #{ritual_id} is not waiting for transcripts; status={status}."
-            )
-
         if participant.transcript:
-            raise self.RitualError(
-                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}; skipping execution"
             )
+            return
+
+        # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
 
         # gather the cohort
@@ -467,7 +463,6 @@ class Ritualist(BaseActor):
             self.log.debug(
                 f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.providers)}."
             )
-            self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
 
         # generate a transcript
         try:
@@ -503,16 +498,24 @@ class Ritualist(BaseActor):
         # Get the ritual and check the status from the blockchain
         # TODO Optimize local cache of ritual participants (#3052)
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        if self.checksum_address not in [p.provider for p in ritual.participants]:
-            raise self.RitualError(
-                f"Node is not part of {ritual_id}; no need to submit aggregated transcript"
-            )
-
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
-            raise self.ActorError(
-                f"ritual #{ritual_id} is not waiting for aggregations; status={status}."
+            self.log.debug(
+                f"ritual #{ritual_id} is not waiting for aggregations; status={status}; skipping execution"
             )
+            return
+
+        # validate the active ritual tracker state
+        participant = self.coordinator_agent.get_participant_from_provider(
+            ritual_id=ritual_id, provider=self.checksum_address
+        )
+        if participant.aggregated:
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
+            )
+            return
+
+        # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
