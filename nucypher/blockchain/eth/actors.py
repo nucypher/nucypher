@@ -339,13 +339,6 @@ class Ritualist(BaseActor):
             ThresholdRequestDecryptingPower
         )  # used for secure decryption request channel
 
-    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
-        try:
-            ritual = self.ritual_tracker.rituals[ritual_id]
-        except KeyError:
-            raise self.ActorError(f"{ritual_id} is not in the local cache")
-        return ritual
-
     def _resolve_validators(
             self,
             ritual: CoordinatorAgent.Ritual,
