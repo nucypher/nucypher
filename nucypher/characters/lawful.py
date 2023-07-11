@@ -820,6 +820,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         client_password: Optional[str] = None,
         operator_signature_from_metadata=NOT_SIGNED,
         eth_provider_uri: Optional[str] = None,
+        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
         abort_on_learning_error: bool = False,

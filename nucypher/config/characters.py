@@ -1,9 +1,6 @@
-
-
-
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
@@ -40,6 +37,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
         availability_check: Optional[bool] = None,
+        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -59,6 +57,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.certificate = certificate
         self.operator_address = operator_address
         self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
+        self.condition_provider_uris = condition_provider_uris or dict()
         super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
 
     @classmethod
@@ -85,12 +84,13 @@ class UrsulaConfiguration(CharacterConfiguration):
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             availability_check=self.availability_check,
+            condition_provider_uris=self.condition_provider_uris,
 
             # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
             payment_method=self.payment_method,
             payment_provider=self.payment_provider,
-            payment_network=self.payment_network
+            payment_network=self.payment_network,
         )
         return {**super().static_payload(), **payload}
 
