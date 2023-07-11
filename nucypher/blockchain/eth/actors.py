@@ -1,6 +1,6 @@
 import time
 from decimal import Decimal
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
@@ -22,7 +22,8 @@ from nucypher_core.ferveo import (
     Transcript,
     Validator,
 )
-from web3 import Web3
+from web3 import HTTPProvider, Web3
+from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -53,6 +54,7 @@ from nucypher.crypto.powers import (
 )
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.trackers import OperatorBondedTracker
+from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
@@ -209,26 +211,6 @@ class Operator(BaseActor):
             )
             self.work_tracker = work_tracker or WorkTracker(worker=self)
 
-            #
-            # Multi-provider support
-            #
-
-            # TODO: Improve and formalize fully configurable multi-provider support
-            # TODO: Abstract away payment provider  #3004
-            # TODO: #3094 Is chain ID stable and completely reliable?
-            # TODO: Relocate to a higher layer
-            eth_chain = self.application_agent.blockchain
-            polygon_chain = self.payment_method.agent.blockchain
-
-            # TODO: Use clients layer?
-            self.condition_providers = {
-                eth_chain.client.chain_id: eth_chain.provider,
-                polygon_chain.client.chain_id: polygon_chain.provider,
-            }
-            self.log.info(
-                f"Connected to {len(self.condition_providers)} blockchains: {self.condition_providers}"
-            )
-
     def _local_operator_address(self):
         return self.__operator_address
 
@@ -303,7 +285,8 @@ class Ritualist(BaseActor):
 
     def __init__(
         self,
-        provider_uri: str,  # this is a blockchain connection to the chain with the coordinator contract
+        condition_provider_uris: Dict[int, List[str]],
+        coordinator_provider_uri: str,
         network: str,  # this must be the network where the coordinator lives
         crypto_power: CryptoPower,
         transacting_power: TransactingPower,
@@ -318,7 +301,7 @@ class Ritualist(BaseActor):
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
             registry=InMemoryContractRegistry.from_latest_publication(network=network),
-            provider_uri=provider_uri,  # TODO: rename, this might be a polygon provider
+            provider_uri=coordinator_provider_uri,
         )
 
         # track active onchain rituals
@@ -337,6 +320,59 @@ class Ritualist(BaseActor):
         self.threshold_request_power = crypto_power.power_ups(
             ThresholdRequestDecryptingPower
         )  # used for secure decryption request channel
+
+        self.condition_provider_uris = self.get_web3_providers(condition_provider_uris)
+
+    def get_web3_providers(
+        self, condition_provider_uris: Dict[int, List[str]]
+    ) -> Dict[int, BaseProvider]:
+        """Multi-provider support"""
+
+        # Support multiple chains by borrowing default RPC endpoints from the Operator.
+        # Only works if the Operator is instantiated before the Ritualist,
+        # since the operator is has the application agent and the payment method
+        eth_chain = self.application_agent.blockchain
+        polygon_chain = self.payment_method.agent.blockchain
+
+        condition_providers = {
+            eth_chain.client.chain_id: eth_chain.provider,
+            polygon_chain.client.chain_id: polygon_chain.provider,
+        }
+
+        for chain_id, condition_provider_uris in condition_provider_uris.items():
+            if chain_id not in _CONDITION_CHAINS:
+                # this is a safety check to prevent the Ritualist from connecting to
+                # chains that are not supported by ursulas on the network.
+                # Prevent the Ursula/Ritualist from starting if this happens.
+                raise NotImplementedError(
+                    f"Chain ID {chain_id} is not supported by the Ritualist."
+                )
+
+            providers = list()
+            for uri in condition_provider_uris:
+                provider = HTTPProvider(endpoint_uri=uri)
+                providers.append(provider)
+
+            if chain_id in condition_providers:
+                condition_providers[chain_id].extend(providers)
+            else:
+                condition_providers[chain_id] = providers
+
+        humanized_chain_ids = ", ".join(
+            _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
+        )
+        self.log.info(
+            f"Connected to {len(condition_providers)} blockchains: {humanized_chain_ids}"
+        )
+
+        return condition_providers
+
+    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
+        try:
+            ritual = self.ritual_tracker.rituals[ritual_id]
+        except KeyError:
+            raise self.ActorError(f"{ritual_id} is not in the local cache")
+        return ritual
 
     def _resolve_validators(
             self,
