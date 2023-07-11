@@ -5,9 +5,11 @@ from eth_utils import to_checksum_address
 from marshmallow import fields, post_load, validates_schema
 from web3 import Web3
 from web3.contract.contract import ContractFunction
+from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
+from nucypher.blockchain.eth.clients import POA_CHAINS
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
@@ -162,6 +164,9 @@ class RPCCondition(AccessControlCondition):
 
         # Instantiate a local web3 instance
         self.w3 = Web3(provider)
+        if self.chain in POA_CHAINS:
+            # inject web3 middleware to handle POA chain extra_data field.
+            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
         # This next block validates that the actual web3 provider is *actually*
         # connected to the condition's chain ID by reading its RPC endpoint.
