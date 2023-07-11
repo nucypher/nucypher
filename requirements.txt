@@ -55,7 +55,7 @@ msgpack==1.0.5
 msgpack-python==0.5.6
 multidict==5.2.0 ; python_version >= '3.6'
 mypy-extensions==0.4.4 ; python_version >= '2.7'
-nucypher-core@git+https://github.com/nucypher/nucypher-core.git@3f411dfd5bd10483d5ed3a8ed4810a24662b2a78#subdirectory=nucypher-core-python
+nucypher-core@git+https://github.com/nucypher/nucypher-core.git@6489fdb5b0d2677348e2266662c0a40c8a2b1699#subdirectory=nucypher-core-python
 packaging==23.1 ; python_version >= '3.7'
 parsimonious==0.9.0
 pendulum==3.0.0a1 ; python_version >= '3.7' and python_version < '4.0'

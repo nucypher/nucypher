@@ -7,6 +7,7 @@ import pytest_twisted
 from eth_typing import ChecksumAddress
 from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
+from nucypher_core.ferveo import FerveoVariant
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula

@@ -18,6 +18,7 @@ from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
+    FerveoVariant,
     Transcript,
     Validator,
 )
@@ -44,7 +45,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
-from nucypher.crypto.ferveo.dkg import FerveoVariant
+from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,

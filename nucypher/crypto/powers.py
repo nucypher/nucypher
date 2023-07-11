@@ -20,6 +20,7 @@ from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
+    FerveoVariant,
     Transcript,
     Validator,
 )
@@ -29,7 +30,6 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.ferveo import dkg
-from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import (
     DecryptingKeypair,
     HostingKeypair,

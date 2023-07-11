@@ -50,6 +50,7 @@ from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
+    FerveoVariant,
     Validator,
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
@@ -88,7 +89,6 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    _default_dkg_variant = FerveoVariant.SIMPLE
+    _default_dkg_variant = FerveoVariant.simple
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -634,7 +634,7 @@ class Bob(Character):
             context = Context(json.dumps(context))
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
-            variant=int(variant.value),
+            variant=variant,
             ciphertext=ciphertext,
             conditions=conditions,
             context=context,
@@ -732,7 +732,7 @@ class Bob(Character):
         variant = self._default_dkg_variant
         threshold = (
             (ritual.shares // 2) + 1
-            if variant == FerveoVariant.SIMPLE
+            if variant == FerveoVariant.Simple
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
@@ -763,9 +763,9 @@ class Bob(Character):
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
-        if variant == FerveoVariant.PRECOMPUTED:
+        if variant == FerveoVariant.precomputed:
             shared_secret = combine_decryption_shares_precomputed(shares)
-        elif variant == FerveoVariant.SIMPLE:
+        elif variant == FerveoVariant.simple:
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")

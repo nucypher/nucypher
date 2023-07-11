@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List, Tuple, Union
 
 from nucypher_core.ferveo import (
@@ -8,6 +7,7 @@ from nucypher_core.ferveo import (
     DecryptionShareSimple,
     Dkg,
     DkgPublicKey,
+    FerveoVariant,
     Keypair,
     Transcript,
     Validator,
@@ -19,14 +19,11 @@ from nucypher.utilities.logging import Logger
 LOGGER = Logger('ferveo-dkg')
 
 
-class FerveoVariant(Enum):
-    SIMPLE = 0
-    PRECOMPUTED = 1
-
-
 _VARIANTS = {
-    FerveoVariant.SIMPLE: AggregatedTranscript.create_decryption_share_simple,
-    FerveoVariant.PRECOMPUTED: AggregatedTranscript.create_decryption_share_precomputed
+    str(FerveoVariant.simple): AggregatedTranscript.create_decryption_share_simple,
+    str(
+        FerveoVariant.precomputed
+    ): AggregatedTranscript.create_decryption_share_precomputed,
 }
 
 
@@ -92,7 +89,7 @@ def derive_decryption_share(
     if not all((nodes, aggregated_transcript, keypair, ciphertext, aad)):
         raise Exception("missing arguments")  # sanity check
     try:
-        derive_share = _VARIANTS[variant]
+        derive_share = _VARIANTS[str(variant)]
     except KeyError:
         raise ValueError(f"Invalid variant {variant}")
     share = derive_share(

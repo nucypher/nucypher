@@ -18,7 +18,6 @@ from nucypher_core import (
 )
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -198,7 +197,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             ritual_id=decryption_request.ritual_id,
             ciphertext=decryption_request.ciphertext,
             conditions=decryption_request.conditions,
-            variant=FerveoVariant(decryption_request.variant),
+            variant=decryption_request.variant,
         )
 
         # return the decryption share
