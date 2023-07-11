@@ -19,6 +19,7 @@ from nucypher_core.ferveo import (
     DecryptionShareSimple,
     DkgPublicKey,
     FerveoVariant,
+    FerveoVariant,
     Transcript,
     Validator,
 )

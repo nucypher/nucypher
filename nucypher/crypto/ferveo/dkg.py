@@ -87,7 +87,7 @@ def derive_decryption_share(
     if not all((nodes, aggregated_transcript, keypair, ciphertext, aad)):
         raise Exception("missing arguments")  # sanity check
     try:
-        derive_share = _VARIANTS[variant]
+        derive_share = _VARIANTS[str(variant)]
     except KeyError:
         raise ValueError(f"Invalid variant {variant}")
     share = derive_share(
