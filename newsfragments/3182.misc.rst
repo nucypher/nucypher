@@ -1,0 +1,1 @@
+Introduces `nucypher dkg ...` CLI for initiation of DKG ceremonies, and status checking.
