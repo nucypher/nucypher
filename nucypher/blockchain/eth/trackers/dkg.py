@@ -75,8 +75,8 @@ class ActiveRitualTracker:
             already_posted_transcript=False,
             already_posted_aggregate=False,
         ):
-            self.participating = (participating,)
-            self.already_posted_transcript = (already_posted_transcript,)
+            self.participating = participating
+            self.already_posted_transcript = already_posted_transcript
             self.already_posted_aggregate = already_posted_aggregate
 
     def __init__(
@@ -194,11 +194,11 @@ class ActiveRitualTracker:
         """Stop the event scanner task."""
         return self.task.stop()
 
-    def __action_required(self, event_type: Type[ContractEvent]):
+    def _action_required(self, event_type: Type[ContractEvent]):
         """Check if an action is required for a given event."""
         return event_type in self.actions
 
-    def _event_applicable_to_me(
+    def _is_relevant_event(
         self, event: AttributeDict, event_type: Type[ContractEvent]
     ) -> bool:
         """Secondary filtration of events."""
@@ -210,8 +210,11 @@ class ActiveRitualTracker:
             # unsure about anything; create bare-bones state (default values); need to do more processing
             participation_state = self.ParticipationState()
             self.participation_states[args.ritualId] = participation_state
+            state_already_tracked = False
+        else:
+            state_already_tracked = True
 
-        # now we know we have a participating state, can we get fresh data
+        # now we have a participating state to use/populate
         if event_type == self.contract.events.StartRitual:
             participation_state.participating = (
                 self.ritualist.checksum_address in args.participants
@@ -221,8 +224,21 @@ class ActiveRitualTracker:
                 participation_state.participating = True
                 participation_state.already_posted_transcript = True
         elif event_type == self.contract.events.StartAggregationRound:
-            participation_state.participating = True
-            participation_state.already_posted_transcript = True
+            # this is the only event where we can't tell participation from input arguments
+            if state_already_tracked and participation_state.participating:
+                # already know ritualist is participating and posted transcript
+                participation_state.already_posted_transcript = True
+            elif not state_already_tracked:
+                # do some work to figure out if this event is relevant
+                participants = self.coordinator_agent.get_participants(
+                    ritual_id=args.ritualId
+                )
+                for p in participants:
+                    if p.provider == self.ritualist.checksum_address:
+                        # ritualist is participating
+                        participation_state.participating = True
+                        participation_state.already_posted_transcript = True
+                        break
         elif event_type == self.contract.events.AggregationPosted:
             if args.node == self.ritualist.checksum_address:
                 # done all of our ritual tasks
@@ -230,11 +246,13 @@ class ActiveRitualTracker:
                 participation_state.already_posted_transcript = True
                 participation_state.already_posted_aggregate = True
         elif event_type == self.contract.events.EndRitual:
-            # ritual is over no need to track it anymore
-            self.participation_states.pop(args.ritualId)
+            # ritual is over no need to track it anymore - whether previously
+            # participating or not participating
+            self.participation_states.pop(args.ritualId, None)
         else:
             raise ValueError(f"unprocessed event type: {event_type}")
 
+        # what did we learn
         if not participation_state.participating:
             return False
 
@@ -263,12 +281,12 @@ class ActiveRitualTracker:
     ):
         event_type = getattr(self.contract.events, event.event)
         # Filter out events that are not for me
-        if not self._event_applicable_to_me(event, event_type):
+        if not self._is_relevant_event(event, event_type):
             self.log.debug(f"Event {event.event} is not for me, skipping")
             return
 
         # is event actionable or just used for understanding ritual state
-        if not self.__action_required(event_type):
+        if not self._action_required(event_type):
             self.log.debug(f"Non-actionable event {event.event}, skipping")
             return
 

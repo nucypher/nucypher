@@ -421,7 +421,7 @@ class Ritualist(BaseActor):
         initiator: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
-    ):
+    ) -> HexBytes:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
         if self.checksum_address not in participants:
             # should never get here
@@ -441,7 +441,7 @@ class Ritualist(BaseActor):
             self.log.debug(
                 f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
             )
-            return
+            return None
 
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant_from_provider(
@@ -451,7 +451,7 @@ class Ritualist(BaseActor):
             self.log.debug(
                 f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}; skipping execution"
             )
-            return
+            return None
 
         # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
@@ -494,7 +494,7 @@ class Ritualist(BaseActor):
         )
         return tx_hash
 
-    def perform_round_2(self, ritual_id: int, timestamp: int):
+    def perform_round_2(self, ritual_id: int, timestamp: int) -> HexBytes:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
         # Get the ritual and check the status from the blockchain
@@ -505,7 +505,7 @@ class Ritualist(BaseActor):
             self.log.debug(
                 f"ritual #{ritual_id} is not waiting for aggregations; status={status}; skipping execution"
             )
-            return
+            return None
 
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant_from_provider(
@@ -515,7 +515,7 @@ class Ritualist(BaseActor):
             self.log.debug(
                 f"Node {self.transacting_power.account} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
             )
-            return
+            return None
 
         # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(

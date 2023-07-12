@@ -59,49 +59,118 @@ def test_initiate_ritual(agent: CoordinatorAgent, cohort, transacting_power):
     return ritual_id
 
 
-def test_perform_round_1(ursula, random_address, cohort, agent):
-    participants = [
-        CoordinatorAgent.Ritual.Participant(
-            provider=c,
+def test_perform_round_1(ursula, random_address, cohort, agent, random_transcript):
+    participants = dict()
+    for checksum_address in cohort:
+        participants[checksum_address] = CoordinatorAgent.Ritual.Participant(
+            provider=checksum_address,
         )
-        for c in cohort
-    ]
+
     ritual = CoordinatorAgent.Ritual(
         initiator=random_address,
         dkg_size=4,
         init_timestamp=123456,
         total_transcripts=4,
-        participants=participants,
+        participants=list(participants.values()),
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
     agent.get_participants = lambda *args, **kwargs: participants
+    agent.get_participant_from_provider = lambda ritual_id, provider: participants[
+        provider
+    ]
 
-    agent.get_participant_from_provider = lambda *args, **kwargs: participants[0]
+    # ensure no operation performed for non-application-state
+    non_application_states = [
+        CoordinatorAgent.Ritual.Status.NON_INITIATED,
+        CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS,
+        CoordinatorAgent.Ritual.Status.FINALIZED,
+        CoordinatorAgent.Ritual.Status.TIMEOUT,
+        CoordinatorAgent.Ritual.Status.INVALID,
+    ]
+    for state in non_application_states:
+        agent.get_ritual_status = lambda *args, **kwargs: state
+        tx_hash = ursula.perform_round_1(
+            ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+        )
+        assert tx_hash is None  # no execution performed
 
-    ursula.perform_round_1(
+    # set correct state
+    agent.get_ritual_status = (
+        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS
+    )
+
+    tx_hash = ursula.perform_round_1(
         ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
     )
+    assert tx_hash is not None
+
+    # participant already posted transcript
+    participant = agent.get_participant_from_provider(
+        ritual_id=0, provider=ursula.checksum_address
+    )
+    participant.transcript = bytes(random_transcript)
+
+    # try submitting again
+    tx_hash = ursula.perform_round_1(
+        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+    )
+    assert tx_hash is None  # no execution performed
 
 
 def test_perform_round_2(
     ursula, cohort, transacting_power, agent, mocker, random_transcript
 ):
-    participants = [
-        CoordinatorAgent.Ritual.Participant(
-            provider=c, aggregated=False, transcript=bytes(random_transcript)
+    participants = dict()
+    for checksum_address in cohort:
+        participant = CoordinatorAgent.Ritual.Participant(
+            transcript=bytes(random_transcript),
+            provider=checksum_address,
         )
-        for c in cohort
-    ]
+
+        participants[checksum_address] = participant
+
     ritual = CoordinatorAgent.Ritual(
         initiator=transacting_power.account,
-        dkg_size=4,
+        dkg_size=len(cohort),
         init_timestamp=123456,
-        total_transcripts=4,
-        participants=participants,
+        total_transcripts=len(cohort),
+        participants=list(participants.values()),
     )
+
     agent.get_ritual = lambda *args, **kwargs: ritual
     agent.get_participants = lambda *args, **kwargs: participants
-    agent.get_ritual_status = lambda *args, **kwargs: 2
+    agent.get_participant_from_provider = lambda ritual_id, provider: participants[
+        provider
+    ]
+
+    # ensure no operation performed for non-application-state
+    non_application_states = [
+        CoordinatorAgent.Ritual.Status.NON_INITIATED,
+        CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS,
+        CoordinatorAgent.Ritual.Status.FINALIZED,
+        CoordinatorAgent.Ritual.Status.TIMEOUT,
+        CoordinatorAgent.Ritual.Status.INVALID,
+    ]
+    for state in non_application_states:
+        agent.get_ritual_status = lambda *args, **kwargs: state
+        tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+        assert tx_hash is None  # no execution performed
+
+    # set correct state
+    agent.get_ritual_status = (
+        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS
+    )
 
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")
-    ursula.perform_round_2(ritual_id=0, timestamp=0)
+    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert tx_hash is not None
+
+    # participant already posted aggregated transcript
+    participant = agent.get_participant_from_provider(
+        ritual_id=0, provider=ursula.checksum_address
+    )
+    participant.aggregated = True
+
+    # try submitting again
+    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert tx_hash is None  # no execution performed
