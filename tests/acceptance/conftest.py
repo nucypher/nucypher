@@ -18,12 +18,22 @@ from tests.constants import (
     MIN_STAKE_FOR_TESTS,
     MOCK_STAKING_CONTRACT_NAME,
     TEST_ETH_PROVIDER_URI,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.ape import deploy_contracts as ape_deploy_contracts
 from tests.utils.ape import registry_from_ape_deployments
 from tests.utils.blockchain import TesterBlockchain
 
 test_logger = Logger("acceptance-test-logger")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_condition_blockchains(session_mocker):
+    """adds testerchain's chain ID to permitted conditional chains"""
+    session_mocker.patch.dict(
+        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
+        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+    )
 
 
 @pytest.fixture(scope='session', autouse=True)

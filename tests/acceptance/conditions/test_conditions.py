@@ -165,7 +165,7 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     invalid_balance = balance + 1
     context[":balanceContextVar"] = invalid_balance
     condition_result, call_result = rpc_condition.verify(
-        providers={testerchain.client.chain_id: testerchain.provider}, **context
+        providers={testerchain.client.chain_id: [testerchain.provider]}, **context
     )
     assert condition_result is False
     assert call_result != invalid_balance

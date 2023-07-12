@@ -7,7 +7,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import MOCK_IP_ADDRESS
+from tests.constants import MOCK_IP_ADDRESS, PYEVM_DEV_URI, TESTERCHAIN_CHAIN_ID
 
 # Don't re-lock accounts in the background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
@@ -135,3 +135,12 @@ def mock_get_external_ip_from_url_source(session_mocker):
 def disable_check_grant_requirements(session_mocker):
     target = 'nucypher.characters.lawful.Alice._check_grant_requirements'
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_condition_blockchains(session_mocker):
+    """adds testerchain's chain ID to permitted conditional chains"""
+    session_mocker.patch.dict(
+        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
+        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+    )

@@ -13,12 +13,7 @@ import pytest
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
-from nucypher_core.ferveo import (
-    AggregatedTranscript,
-    DkgPublicKey,
-    Keypair,
-    Validator,
-)
+from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from twisted.internet.task import Clock
 from web3 import Web3
 
@@ -54,6 +49,7 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
+    PYEVM_DEV_URI,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
@@ -603,14 +599,6 @@ def conditions_test_data():
         if condition.get('chain'):
             condition['chain'] = TESTERCHAIN_CHAIN_ID
     return data
-
-
-@pytest.fixture(autouse=True)
-def mock_condition_blockchains(mocker):
-    """adds testerchain's chain ID to permitted conditional chains"""
-    mocker.patch.object(
-        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([TESTERCHAIN_CHAIN_ID])
-    )
 
 
 @pytest.fixture
