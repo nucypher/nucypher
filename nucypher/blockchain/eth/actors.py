@@ -331,7 +331,7 @@ class Ritualist(BaseActor):
         )
         self.dkg_storage = (
             DKGStorage()
-        )  # TODO: #3052 stores locally generated public DKG artifacts
+        )  # TODO: #3052 stores locally generated public DKG artifacts (is this still needed?)
         self.ritual_power = crypto_power.power_ups(
             RitualisticPower
         )  # ferveo material contained within
@@ -383,29 +383,29 @@ class Ritualist(BaseActor):
         result = sorted(result, key=lambda x: x[0].address)
         return result
 
-    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> TxReceipt:
+    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
         """Publish a transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
-        receipt = self.coordinator_agent.post_transcript(
+        tx_hash = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
             transacting_power=self.transacting_power,
             fire_and_forget=True,
         )
-        return receipt
+        return tx_hash
 
     def publish_aggregated_transcript(
         self,
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-    ) -> TxReceipt:
+    ) -> HexBytes:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
         participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
-        receipt = self.coordinator_agent.post_aggregation(
+        tx_hash = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
@@ -413,7 +413,7 @@ class Ritualist(BaseActor):
             transacting_power=self.transacting_power,
             fire_and_forget=True,
         )
-        return receipt
+        return tx_hash
 
     def perform_round_1(
         self,
@@ -482,15 +482,17 @@ class Ritualist(BaseActor):
         self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)
 
         # publish the transcript and store the receipt
-        receipt = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
-        self.dkg_storage.store_transcript_receipt(ritual_id=ritual_id, receipt=receipt)
+        tx_hash = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
+        self.dkg_storage.store_transcript_receipt(
+            ritual_id=ritual_id, txhash_or_receipt=tx_hash
+        )
 
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
             f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)})"
         )
-        return receipt
+        return tx_hash
 
     def perform_round_2(self, ritual_id: int, timestamp: int):
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
@@ -547,13 +549,13 @@ class Ritualist(BaseActor):
 
         # publish the transcript and store the receipt
         total = ritual.total_aggregations + 1
-        receipt = self.publish_aggregated_transcript(
+        tx_hash = self.publish_aggregated_transcript(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
         )
         self.dkg_storage.store_aggregated_transcript_receipt(
-            ritual_id=ritual_id, receipt=receipt
+            ritual_id=ritual_id, txhash_or_receipt=tx_hash
         )
 
         # logging
@@ -564,7 +566,7 @@ class Ritualist(BaseActor):
         if total >= len(ritual.providers):
             self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
 
-        return receipt
+        return tx_hash
 
     def derive_decryption_share(
         self,

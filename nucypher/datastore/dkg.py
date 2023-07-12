@@ -1,5 +1,7 @@
 from collections import defaultdict
+from typing import Union
 
+from hexbytes import HexBytes
 from nucypher_core.ferveo import AggregatedTranscript, Transcript
 from web3.types import TxReceipt
 
@@ -18,10 +20,12 @@ class DKGStorage:
         transcript = Transcript.from_bytes(data)
         return transcript
 
-    def store_transcript_receipt(self, ritual_id: int, receipt: TxReceipt) -> None:
-        self.data["transcript_receipts"][ritual_id] = receipt
+    def store_transcript_receipt(
+        self, ritual_id: int, txhash_or_receipt: Union[TxReceipt, HexBytes]
+    ) -> None:
+        self.data["transcript_receipts"][ritual_id] = txhash_or_receipt
 
-    def get_transcript_receipt(self, ritual_id: int) -> TxReceipt:
+    def get_transcript_receipt(self, ritual_id: int) -> Union[TxReceipt, HexBytes]:
         return self.data["transcript_receipts"][ritual_id]
 
     def store_aggregated_transcript(self, ritual_id: int, aggregated_transcript: AggregatedTranscript) -> None:
@@ -30,10 +34,14 @@ class DKGStorage:
     def get_aggregated_transcript(self, ritual_id: int) -> AggregatedTranscript:
         return self.data["aggregated_transcripts"][ritual_id]
 
-    def store_aggregated_transcript_receipt(self, ritual_id: int, receipt: TxReceipt) -> None:
-        self.data["aggregated_transcript_receipts"][ritual_id] = receipt
+    def store_aggregated_transcript_receipt(
+        self, ritual_id: int, txhash_or_receipt: Union[TxReceipt, HexBytes]
+    ) -> None:
+        self.data["aggregated_transcript_receipts"][ritual_id] = txhash_or_receipt
 
-    def get_aggregated_transcript_receipt(self, ritual_id: int) -> TxReceipt:
+    def get_aggregated_transcript_receipt(
+        self, ritual_id: int
+    ) -> Union[TxReceipt, HexBytes]:
         return self.data["aggregated_transcript_receipts"][ritual_id]
 
     def store_public_key(self, ritual_id: int, public_key: bytes) -> None:

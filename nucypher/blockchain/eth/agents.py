@@ -4,7 +4,18 @@ import sys
 from bisect import bisect_right
 from dataclasses import dataclass, field
 from itertools import accumulate
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type, cast
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from constant_sorrow.constants import (
     CONTRACT_ATTRIBUTE,  # type: ignore
@@ -13,6 +24,7 @@ from constant_sorrow.constants import (
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
+from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
 from web3.contract.contract import Contract, ContractFunction
@@ -730,7 +742,7 @@ class CoordinatorAgent(EthereumContractAgent):
         transcript: Transcript,
         transacting_power: TransactingPower,
         fire_and_forget: bool = False,
-    ) -> TxReceipt:
+    ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
@@ -750,7 +762,7 @@ class CoordinatorAgent(EthereumContractAgent):
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
         fire_and_forget: bool = False,
-    ) -> TxReceipt:
+    ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
