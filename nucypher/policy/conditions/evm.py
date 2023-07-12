@@ -1,9 +1,11 @@
-from typing import Any, Dict, List, Optional, Tuple
+from json import JSONDecodeError
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
+import requests
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import fields, post_load, validates_schema
-from web3 import Web3
+from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractFunction
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
@@ -24,6 +26,7 @@ from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snak
 # TODO: Move this to a more appropriate location,
 #  but be sure to change the mocks in tests too.
 # Permitted blockchains for condition evaluation
+from nucypher.utilities import logging
 
 _CONDITION_CHAINS = {
     1: "ethereum/mainnet",
@@ -118,6 +121,8 @@ class RPCCondition(AccessControlCondition):
         'eth_getBalance',
     )  # TODO other allowed methods (tDEC #64)
 
+    LOG = logging.Logger(__name__)
+
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
@@ -168,12 +173,21 @@ class RPCCondition(AccessControlCondition):
             )
         return method
 
-    def _configure_provider(self, providers: Dict[int, BaseProvider]):
-        """Binds the condition's contract function to a blockchain provider for evaluation"""
+    def _next_endpoint(
+        self, providers: Dict[int, Set[HTTPProvider]]
+    ) -> Iterator[HTTPProvider]:
+        """Yields the next web3 provider to try for a given chain ID"""
         try:
-            provider = providers[self.chain]
+            rpc_providers = providers[self.chain]
         except KeyError:
             raise NoConnectionToChain(chain=self.chain)
+        for provider in rpc_providers:
+            # Someday, we might make this whole function async, and then we can knock on
+            # each endpoint here to see if it's alive and only yield it if it is.
+            yield provider
+
+    def _configure_provider(self, provider: BaseProvider):
+        """Binds the condition's contract function to a blockchain provider for evaluation"""
 
         # Instantiate a local web3 instance
         self.w3 = Web3(provider)
@@ -205,19 +219,30 @@ class RPCCondition(AccessControlCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
-    def verify(self, providers: Dict[int, BaseProvider], **context) -> Tuple[bool, Any]:
+    def verify(
+        self, providers: Dict[int, Set[HTTPProvider]], **context
+    ) -> Tuple[bool, Any]:
         """
         Verifies the onchain condition is met by performing a
         read operation and evaluating the return value test.
         """
-        self._configure_provider(providers=providers)
-        parameters, return_value_test = _resolve_any_context_variables(
-            self.parameters, self.return_value_test, **context
-        )
-        try:
-            result = self._execute_call(parameters=parameters)
-        except Exception as e:
-            raise RPCExecutionFailed(f"Contract call '{self.method}' failed: {e}")
+        for provider in self._next_endpoint(providers=providers):
+            self._configure_provider(provider=provider)
+            parameters, return_value_test = _resolve_any_context_variables(
+                self.parameters, self.return_value_test, **context
+            )
+            try:
+                result = self._execute_call(parameters=parameters)
+                break
+            except Exception as e:
+                self.LOG.warn(
+                    f"RPC call '{self.method}' failed: {e}, attempting to try next endpoint."
+                )
+                # Something went wrong. Try the next endpoint.
+                continue
+        else:
+            # Fuck.
+            raise RPCExecutionFailed(f"Contract call '{self.method}' failed.")
 
         eval_result = return_value_test.eval(result)  # test
         return eval_result, result

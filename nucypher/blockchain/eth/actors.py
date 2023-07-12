@@ -1,6 +1,7 @@
 import time
+from collections import defaultdict
 from decimal import Decimal
-from typing import Dict, List, Optional, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
@@ -285,11 +286,11 @@ class Ritualist(BaseActor):
 
     def __init__(
         self,
-        condition_provider_uris: Dict[int, List[str]],
         coordinator_provider_uri: str,
         network: str,  # this must be the network where the coordinator lives
         crypto_power: CryptoPower,
         transacting_power: TransactingPower,
+        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         publish_finalization: bool = True,  # TODO: Remove this
         *args,
         **kwargs,
@@ -321,29 +322,34 @@ class Ritualist(BaseActor):
             ThresholdRequestDecryptingPower
         )  # used for secure decryption request channel
 
-        self.condition_provider_uris = self.get_web3_providers(condition_provider_uris)
+        self.condition_providers = self.connect_condition_providers(
+            condition_provider_uris
+        )
 
-    def get_web3_providers(
-        self, condition_provider_uris: Dict[int, List[str]]
-    ) -> Dict[int, BaseProvider]:
+    def connect_condition_providers(
+        self, condition_provider_uris: Optional[Dict[int, List[str]]] = None
+    ) -> DefaultDict[int, Set[HTTPProvider]]:
         """Multi-provider support"""
 
-        # Support multiple chains by borrowing default RPC endpoints from the Operator.
-        # Only works if the Operator is instantiated before the Ritualist,
-        # since the operator is has the application agent and the payment method
+        # If condition_provider_uris is `None` the node operator
+        # did not configure any additional condition providers.
+        condition_provider_uris = condition_provider_uris or dict()
+
+        # These are the chains that the Ritualist will connect to for conditions evaluation (read-only).
+        condition_providers = defaultdict(set)
+
+        # Borrow default RPC endpoints from the Operator.
         eth_chain = self.application_agent.blockchain
         polygon_chain = self.payment_method.agent.blockchain
+        condition_providers[eth_chain.client.chain_id].add(eth_chain.provider)
+        condition_providers[polygon_chain.client.chain_id].add(polygon_chain.provider)
 
-        condition_providers = {
-            eth_chain.client.chain_id: eth_chain.provider,
-            polygon_chain.client.chain_id: polygon_chain.provider,
-        }
-
+        # Add any additional providers that were passed in.
         for chain_id, condition_provider_uris in condition_provider_uris.items():
             if chain_id not in _CONDITION_CHAINS:
                 # this is a safety check to prevent the Ritualist from connecting to
-                # chains that are not supported by ursulas on the network.
-                # Prevent the Ursula/Ritualist from starting if this happens.
+                # chains that are not supported by ursulas on the network;
+                # Prevents the Ursula/Ritualist from starting up if this happens.
                 raise NotImplementedError(
                     f"Chain ID {chain_id} is not supported by the Ritualist."
                 )
@@ -352,12 +358,9 @@ class Ritualist(BaseActor):
             for uri in condition_provider_uris:
                 provider = HTTPProvider(endpoint_uri=uri)
                 providers.append(provider)
+            condition_providers[chain_id].update(providers)
 
-            if chain_id in condition_providers:
-                condition_providers[chain_id].extend(providers)
-            else:
-                condition_providers[chain_id] = providers
-
+        # Log the chains that the Ritualist is connected to.
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
         )
