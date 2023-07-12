@@ -182,7 +182,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         aggregate = ferveo.AggregatedTranscript(validator_messages)
         assert aggregate.verify(
             self._learner._dkg_insight.shares_num,
-            # TODO this list should have to be passed again (either make `verify` static or use list
+            # TODO this list should not have to be passed again (either make `verify` static or use list
             #  provided in constructor
             validator_messages,
         )
