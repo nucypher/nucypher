@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    default_dkg_variant = FerveoVariant.PRECOMPUTED
+    default_dkg_variant = FerveoVariant.SIMPLE
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -745,7 +745,7 @@ class Bob(Character):
         conditions: Lingo,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        variant: str = "precomputed",
+        variant: str = "simple",
         peering_timeout: int = 60,
     ) -> bytes:
         ritual = self.get_ritual_from_id(ritual_id)
@@ -1510,7 +1510,7 @@ class Enrico:
     """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
-    default_dkg_variant = FerveoVariant.PRECOMPUTED
+    default_dkg_variant = FerveoVariant.SIMPLE
 
     def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()

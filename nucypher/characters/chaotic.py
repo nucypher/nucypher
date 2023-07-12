@@ -199,8 +199,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
             ciphertext = decrypted_encryption_request.ciphertext
             conditions_bytes = str(decrypted_encryption_request.conditions).encode()
 
-            # Presuming simple for now.  Is this OK?
-            decryption_share = aggregate.create_decryption_share_precomputed(
+            decryption_share = aggregate.create_decryption_share_simple(
                 dkg=dkg,
                 ciphertext=ciphertext,
                 aad=conditions_bytes,

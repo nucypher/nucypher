@@ -1,5 +1,5 @@
 import inspect
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
@@ -17,6 +17,7 @@ from nucypher_core import (
 from nucypher_core.ferveo import (
     AggregatedTranscript,
     Ciphertext,
+    DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
     Transcript,
@@ -276,7 +277,7 @@ class RitualisticPower(KeyPairBasedPower):
             ciphertext: Ciphertext,
             conditions: bytes,
             variant: FerveoVariant
-    ) -> DecryptionShareSimple:
+    ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         decryption_share = dkg.derive_decryption_share(
             ritual_id=ritual_id,
             me=Validator(address=checksum_address, public_key=self.keypair.pubkey),
