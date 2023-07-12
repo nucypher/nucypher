@@ -1,4 +1,5 @@
 from copy import copy
+from unittest import mock
 from unittest.mock import Mock, patch
 
 from eth_tester.exceptions import ValidationError
@@ -10,7 +11,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.payment import FreeReencryptions
-from tests.constants import TEST_ETH_PROVIDER_URI
+from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 class Vladimir(Ursula):
@@ -52,6 +53,11 @@ class Vladimir(Ursula):
         bogus_payment_method.provider = Mock()
         bogus_payment_method.agent = Mock()
         bogus_payment_method.network = TEMPORARY_DOMAIN
+        bogus_payment_method.agent.blockchain.client.chain_id = TESTERCHAIN_CHAIN_ID
+        mock.patch(
+            "mock.interfaces.MockBlockchain.client.chain_id",
+            new_callable=mock.PropertyMock(return_value=TESTERCHAIN_CHAIN_ID),
+        )
 
         vladimir = cls(is_me=True,
                        crypto_power=crypto_power,
