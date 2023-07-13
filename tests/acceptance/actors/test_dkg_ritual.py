@@ -74,13 +74,19 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         # TODO is there a better strategy
         testerchain.time_travel(seconds=1)
 
-        # check that the ritual is being tracked locally upon initialization for each node
         for ursula in cohort:
             # this is a testing hack to make the event scanner work
             # normally it's called by the reactor clock in a loop
             ursula.ritual_tracker.task.run()
-            # check that the ritual was created locally for this node
-            assert len(ursula.ritual_tracker.rituals) == RITUAL_ID + 1
+            # nodes received `StartRitual` and submitted their transcripts
+            assert (
+                len(
+                    coordinator_agent.get_participant_from_provider(
+                        ritual_id=RITUAL_ID, provider=ursula.checksum_address
+                    ).transcript
+                )
+                > 0
+            ), "ursula posted transcript to Coordinator"
 
     def block_until_dkg_finalized(_):
         """simulates the passage of time and the execution of the event scanner"""

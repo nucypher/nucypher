@@ -329,9 +329,8 @@ class Ritualist(BaseActor):
         self.publish_finalization = (
             publish_finalization  # publish the DKG final key if True
         )
-        self.dkg_storage = (
-            DKGStorage()
-        )  # TODO: #3052 stores locally generated public DKG artifacts (is this still needed?)
+        # TODO: #3052 stores locally generated public DKG artifacts
+        self.dkg_storage = DKGStorage()
         self.ritual_power = crypto_power.power_ups(
             RitualisticPower
         )  # ferveo material contained within

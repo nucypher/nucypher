@@ -89,8 +89,6 @@ class ActiveRitualTracker:
         self.ritualist = ritualist
         self.coordinator_agent = ritualist.coordinator_agent
 
-        self.rituals = dict()  # TODO: use persistent storage?
-
         # Restore/create persistent event scanner state
         self.persistent = persistent
         self.state = JSONifiedState(persistent=persistent)
@@ -309,9 +307,6 @@ class ActiveRitualTracker:
         #  do not use abbreviations in event names (e.g. "DKG" -> "d_k_g")
         formatted_kwargs = {camel_case_to_snake(k): v for k, v in event.args.items()}
         timestamp = int(get_block_when(event.blockNumber).timestamp())
-        ritual_id = event.args.ritualId
-        ritual = self.coordinator_agent.get_ritual(ritual_id=ritual_id)
-        self.add_ritual(ritual_id=ritual_id, ritual=ritual)
         d = self.__execute_action(
             event_type=event_type, timestamp=timestamp, **formatted_kwargs
         )
@@ -349,27 +344,3 @@ class ActiveRitualTracker:
         self.__scan(
             suggested_start_block, end_block, self.ritualist.transacting_power.account
         )
-
-    def add_ritual(self, ritual_id, ritual):
-        self.rituals[ritual_id] = ritual
-        return ritual
-
-    def track_ritual(self, ritual_id: int, ritual=None, transcript=None, confirmations=None, checkin_timestamp=None):
-        try:
-            _ritual = self.rituals[ritual_id]
-        except KeyError:
-            if not ritual:
-                raise ValueError("Ritual not found and no new ritual provided")
-            _ritual = self.add_ritual(ritual_id=ritual_id, ritual=ritual)
-        if ritual_id and ritual:
-            # replace the whole ritual
-            self.rituals[ritual_id] = ritual
-        if transcript:
-            # update the transcript
-            _ritual.transcript = transcript
-        if confirmations:
-            # update the confirmations
-            _ritual.confirmations = confirmations
-        if checkin_timestamp:
-            # update the checkin timestamp
-            _ritual.checkin_timestamp = checkin_timestamp
