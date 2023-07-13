@@ -413,6 +413,47 @@ def test_is_relevant_event_end_ritual_participation_already_tracked(
     assert len(active_ritual_tracker.participation_states) == 0
 
 
+def test_is_relevant_event_unexpected_event_without_ritual_id_arg(cohort):
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    # TimeoutChanged
+    timeout_changed_event = agent.contract.events.TimeoutChanged()
+    event_type = getattr(agent.contract.events, timeout_changed_event.event_name)
+
+    # create args data
+    args_dict = {"oldTimeout": 1, "newTimeout": 2}
+
+    # ensure that test matches latest event information
+    verify_event_args_match_latest_event_inputs(
+        event=timeout_changed_event, args_dict=args_dict
+    )
+
+    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+
+    with pytest.raises(ValueError):
+        active_ritual_tracker._is_relevant_event(event_data, event_type)
+
+
+def test_is_relevant_event_unexpected_event_with_ritual_id_arg(cohort):
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    # TimeoutChanged
+    timeout_changed_event = agent.contract.events.TimeoutChanged()
+    event_type = getattr(agent.contract.events, timeout_changed_event.event_name)
+
+    # create args data - faked to include ritual id arg
+    args_dict = {"ritualId": 0, "oldTimeout": 1, "newTimeout": 2}
+
+    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+
+    with pytest.raises(ValueError):
+        active_ritual_tracker._is_relevant_event(event_data, event_type)
+
+
 def verify_not_participating(
     active_ritual_tracker,
     ritual_id,

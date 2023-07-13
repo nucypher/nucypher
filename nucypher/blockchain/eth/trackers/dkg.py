@@ -212,9 +212,14 @@ class ActiveRitualTracker:
         args = event.args
 
         # check for participation
-        participation_state = self.participation_states.get(args.ritualId)
+        try:
+            participation_state = self.participation_states.get(args.ritualId)
+        except AttributeError:
+            raise ValueError(f"Unexpected event type: {event_type}")
+
         if not participation_state:
-            # unsure about anything; create bare-bones state (default values); need to do more processing
+            # not previously tracked
+            # create bare-bones state (default values) and do more processing
             participation_state = self.ParticipationState()
             self.participation_states[args.ritualId] = participation_state
             state_already_tracked = False
@@ -262,7 +267,9 @@ class ActiveRitualTracker:
             # ritual is over no need to track the state anymore
             self.participation_states.pop(args.ritualId, None)
         else:
-            raise ValueError(f"unprocessed event type: {event_type}")
+            # should never happen since we specify the list of events we
+            # want to receive (1st level of filtering)
+            raise ValueError(f"Unexpected event type: {event_type}")
 
         # what did we learn
         if not participation_state.participating:
