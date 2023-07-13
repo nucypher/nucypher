@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "c7d3cc6be8688c6f43f357015368a5b9f4c942ee51cf89c07122174f4ef7e5a4"
+            "sha256": "8643b8b9e8d121464586f92b44f030f0ee991a62804a5172c1fb49bd60e334d2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -758,11 +758,11 @@
         },
         "jsonschema": {
             "hashes": [
-                "sha256:b5896514b46cc9283e9951bfebf51cc72fa3eab229919c0469f94e11b4387776",
-                "sha256:e5fde3cb78f3be8cf49150390ee4efbb8e73c46ea467d42cd4ec16e364495eb3"
+                "sha256:159fdff1443b4c5ed900d4eeac6b928a3485f4aff5fba6edd1e25cd66bb46b39",
+                "sha256:af3855bfa30e83b2200a5fe12ab5eb92460e4d3b8e4efd34094aa637f7272a87"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==4.18.1"
+            "version": "==4.18.2"
         },
         "jsonschema-specifications": {
             "hashes": [
@@ -2999,8 +2999,8 @@
         },
         "jsonschema": {
             "hashes": [
-                "sha256:b5896514b46cc9283e9951bfebf51cc72fa3eab229919c0469f94e11b4387776",
-                "sha256:e5fde3cb78f3be8cf49150390ee4efbb8e73c46ea467d42cd4ec16e364495eb3"
+                "sha256:159fdff1443b4c5ed900d4eeac6b928a3485f4aff5fba6edd1e25cd66bb46b39",
+                "sha256:af3855bfa30e83b2200a5fe12ab5eb92460e4d3b8e4efd34094aa637f7272a87"
             ],
             "markers": "python_version >= '3.8'",
             "version": "==4.18.2"
@@ -4415,8 +4415,8 @@
         },
         "zipp": {
             "hashes": [
-                "sha256:1876cb065531855bbe83b6c489dcf69ecc28f1068d8e95959fe8bbc77774c941",
-                "sha256:5dadc3ad0a1f825fe42ce1bce0f2fc5a13af2e6b2d386af5b0ff295bc0a287d3"
+                "sha256:0b37c326d826d5ca35f2b9685cd750292740774ef16190008b00a0227c256fe0",
+                "sha256:857b158da2cbf427b376da1c24fd11faecbac5a4ac7523c3607f8a01f94c2ec0"
             ],
             "markers": "python_version >= '3.8'",
             "version": "==3.16.1"
