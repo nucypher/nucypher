@@ -179,13 +179,6 @@ class ActiveRitualTracker:
         # if non-zero block found - return the block before
         return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
 
-    def get_ritual(self, ritual_id: int, with_participants: bool = True):
-        """Get a ritual from the blockchain."""
-        ritual = self.coordinator_agent.get_ritual(
-            ritual_id=ritual_id, with_participants=with_participants
-        )
-        return ritual
-        
     def start(self):
         """Start the event scanner task."""
         return self.task.start()
@@ -195,13 +188,29 @@ class ActiveRitualTracker:
         return self.task.stop()
 
     def _action_required(self, event_type: Type[ContractEvent]):
-        """Check if an action is required for a given event."""
+        """Check if an action is required for a given event type."""
         return event_type in self.actions
+
+    def _is_participating_in_ritual(self, ritual_id: int) -> bool:
+        """
+        Checks the Coordinator contact to determine if the Ritualist is participating in this
+        ritual.
+        """
+        # do some work to figure out if this event is relevant
+        participants = self.coordinator_agent.get_participants(ritual_id=ritual_id)
+        for p in participants:
+            if p.provider == self.ritualist.checksum_address:
+                return True
+
+        return False
 
     def _is_relevant_event(
         self, event: AttributeDict, event_type: Type[ContractEvent]
     ) -> bool:
-        """Secondary filtration of events."""
+        """
+        Secondary filtration of events. Returns whether this event is related to a ritual that
+        the Ritualist is participating in.
+        """
         args = event.args
 
         # check for participation
@@ -223,31 +232,36 @@ class ActiveRitualTracker:
             if args.node == self.ritualist.checksum_address:
                 participation_state.participating = True
                 participation_state.already_posted_transcript = True
-        elif event_type == self.contract.events.StartAggregationRound:
-            # this is the only event where we can't tell participation from input arguments
-            if state_already_tracked and participation_state.participating:
-                # already know ritualist is participating and posted transcript
-                participation_state.already_posted_transcript = True
-            elif not state_already_tracked:
-                # do some work to figure out if this event is relevant
-                participants = self.coordinator_agent.get_participants(
-                    ritual_id=args.ritualId
-                )
-                for p in participants:
-                    if p.provider == self.ritualist.checksum_address:
-                        # ritualist is participating
-                        participation_state.participating = True
-                        participation_state.already_posted_transcript = True
-                        break
         elif event_type == self.contract.events.AggregationPosted:
             if args.node == self.ritualist.checksum_address:
                 # done all of our ritual tasks
                 participation_state.participating = True
                 participation_state.already_posted_transcript = True
                 participation_state.already_posted_aggregate = True
+        #
+        # special cases where you can't determine participation from event input arguments
+        #
+        elif event_type == self.contract.events.StartAggregationRound:
+            if state_already_tracked and participation_state.participating:
+                # know ritualist is participating
+                participation_state.already_posted_transcript = True
+            elif not state_already_tracked:
+                if self._is_participating_in_ritual(ritual_id=args.ritualId):
+                    participation_state.participating = True
+                    participation_state.already_posted_transcript = True
         elif event_type == self.contract.events.EndRitual:
-            # ritual is over no need to track it anymore - whether previously
-            # participating or not participating
+            # while `EndRitual` signals the end of the ritual, the event being relevant is not
+            # the same as acting upon the event. Perhaps there is an event action for the EndRitual
+            # event for a ritual that is being participated in. So to be complete, and adhere to
+            # the expectations of this function we still determine if participating if state not
+            # previously tracked
+            if not state_already_tracked:
+                if self._is_participating_in_ritual(ritual_id=args.ritualId):
+                    participation_state.participating = True
+                    participation_state.already_posted_transcript = True
+                    participation_state.already_posted_aggregate = True
+
+            # ritual is over no need to track the state anymore
             self.participation_states.pop(args.ritualId, None)
         else:
             raise ValueError(f"unprocessed event type: {event_type}")
@@ -296,7 +310,7 @@ class ActiveRitualTracker:
         formatted_kwargs = {camel_case_to_snake(k): v for k, v in event.args.items()}
         timestamp = int(get_block_when(event.blockNumber).timestamp())
         ritual_id = event.args.ritualId
-        ritual = self.get_ritual(ritual_id=ritual_id)
+        ritual = self.coordinator_agent.get_ritual(ritual_id=ritual_id)
         self.add_ritual(ritual_id=ritual_id, ritual=ritual)
         d = self.__execute_action(
             event_type=event_type, timestamp=timestamp, **formatted_kwargs

@@ -1,4 +1,5 @@
 import os
+from unittest.mock import patch
 
 import pytest
 from web3.datastructures import AttributeDict
@@ -181,6 +182,67 @@ def test_is_relevant_event_aggregation_posted(cohort, get_random_checksum_addres
     )
 
 
+def test_is_relevant_event_start_aggregation_round_participation_not_already_tracked(
+    cohort, get_random_checksum_address
+):
+    # StartAggregation is a special case because we can't determine participation directly
+    #  from the event arguments
+    ritual_id = 12
+    args_dict = {"ritualId": ritual_id}
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    start_aggregation_round_event = agent.contract.events.StartAggregationRound()
+    event_type = getattr(
+        agent.contract.events, start_aggregation_round_event.event_name
+    )
+
+    # ensure that test matches latest event information
+    verify_event_args_match_latest_event_inputs(
+        event=start_aggregation_round_event, args_dict=args_dict
+    )
+    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+
+    def not_participating(*args, **kwargs):
+        return False
+
+    #
+    # not participating
+    #
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        not_participating,
+    ):
+        verify_not_participating(
+            active_ritual_tracker, ritual_id, event_data, event_type
+        )
+
+    #
+    # clear prior information
+    #
+    active_ritual_tracker.participation_states.clear()
+
+    #
+    # actually participating now
+    #
+    def participating(*args, **kwargs):
+        return True
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        participating,
+    ):
+        verify_participating(
+            active_ritual_tracker,
+            ritual_id,
+            event_data,
+            event_type,
+            expected_posted_transcript=True,
+            expected_posted_aggregate=False,
+        )
+
+
 def test_is_relevant_event_start_aggregation_round_participation_already_tracked(
     cohort, get_random_checksum_address
 ):
@@ -237,6 +299,118 @@ def test_is_relevant_event_start_aggregation_round_participation_already_tracked
 
     # no new information
     assert len(active_ritual_tracker.participation_states) == 1
+
+
+def test_is_relevant_event_end_ritual_participation_not_already_tracked(
+    cohort, get_random_checksum_address
+):
+    # StartAggregation is a special case because we can't determine participation directly
+    #  from the event arguments
+    ritual_id = 12
+    args_dict = {"ritualId": ritual_id}
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    end_ritual_event = agent.contract.events.EndRitual()
+    event_type = getattr(agent.contract.events, end_ritual_event.event_name)
+
+    # create args data
+    args_dict["initiator"] = get_random_checksum_address()
+    args_dict["successful"] = True
+
+    # ensure that test matches latest event information
+    verify_event_args_match_latest_event_inputs(
+        event=end_ritual_event, args_dict=args_dict
+    )
+    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+
+    #
+    # not participating
+    #
+    def not_participating(*args, **kwargs):
+        return False
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        not_participating,
+    ):
+        assert not active_ritual_tracker._is_relevant_event(event_data, event_type)
+
+        # not state stored
+        assert len(active_ritual_tracker.participation_states) == 0
+
+    #
+    # clear prior information
+    #
+    active_ritual_tracker.participation_states.clear()
+
+    #
+    # actually participating now
+    #
+    def participating(*args, **kwargs):
+        return True
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        participating,
+    ):
+        assert active_ritual_tracker._is_relevant_event(event_data, event_type)
+
+        # no state stored
+        assert len(active_ritual_tracker.participation_states) == 0
+
+
+def test_is_relevant_event_end_ritual_participation_already_tracked(
+    cohort, get_random_checksum_address
+):
+    # StartAggregation is a special case because we can't determine participation directly
+    #  from the event arguments
+    ritual_id = 12
+    args_dict = {"ritualId": ritual_id}
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    end_ritual_event = agent.contract.events.EndRitual()
+    event_type = getattr(agent.contract.events, end_ritual_event.event_name)
+
+    # create args data
+    args_dict["initiator"] = get_random_checksum_address()
+    args_dict["successful"] = False
+
+    # ensure that test matches latest event information
+    verify_event_args_match_latest_event_inputs(
+        event=end_ritual_event, args_dict=args_dict
+    )
+    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+
+    #
+    # not participating
+    #
+
+    # mimic already tracked prior state: not participating
+    active_ritual_tracker.participation_states[
+        ritual_id
+    ] = active_ritual_tracker.ParticipationState(False, False, False)
+    assert not active_ritual_tracker._is_relevant_event(event_data, event_type)
+
+    # state is removed
+    assert len(active_ritual_tracker.participation_states) == 0
+
+    #
+    # actually participating now
+    #
+
+    # mimic already tracked prior state: participating
+    active_ritual_tracker.participation_states[
+        ritual_id
+    ] = active_ritual_tracker.ParticipationState(True, False, False)
+
+    assert active_ritual_tracker._is_relevant_event(event_data, event_type)
+
+    # state is removed
+    assert len(active_ritual_tracker.participation_states) == 0
 
 
 def verify_not_participating(
