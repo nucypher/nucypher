@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    _default_dkg_variant = FerveoVariant.simple
+    default_dkg_variant = FerveoVariant.Simple
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -678,9 +678,9 @@ class Bob(Character):
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
         self.log.debug("Got enough shares to decrypt.")
 
-        if decryption_request.variant == FerveoVariant.precomputed:
+        if decryption_request.variant == FerveoVariant.Precomputed:
             share_type = DecryptionSharePrecomputed
-        elif decryption_request.variant == FerveoVariant.simple:
+        elif decryption_request.variant == FerveoVariant.Simple:
             share_type = DecryptionShareSimple
         else:
             raise ValueError(
@@ -767,9 +767,9 @@ class Bob(Character):
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
-        if variant == FerveoVariant.precomputed:
+        if variant == FerveoVariant.Precomputed:
             shared_secret = combine_decryption_shares_precomputed(shares)
-        elif variant == FerveoVariant.simple:
+        elif variant == FerveoVariant.Simple:
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")

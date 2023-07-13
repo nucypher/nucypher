@@ -20,10 +20,8 @@ LOGGER = Logger('ferveo-dkg')
 
 
 _VARIANTS = {
-    str(FerveoVariant.simple): AggregatedTranscript.create_decryption_share_simple,
-    str(
-        FerveoVariant.precomputed
-    ): AggregatedTranscript.create_decryption_share_precomputed,
+    FerveoVariant.Simple: AggregatedTranscript.create_decryption_share_simple,
+    FerveoVariant.Precomputed: AggregatedTranscript.create_decryption_share_precomputed,
 }
 
 
@@ -89,7 +87,7 @@ def derive_decryption_share(
     if not all((nodes, aggregated_transcript, keypair, ciphertext, aad)):
         raise Exception("missing arguments")  # sanity check
     try:
-        derive_share = _VARIANTS[str(variant)]
+        derive_share = _VARIANTS[variant]
     except KeyError:
         raise ValueError(f"Invalid variant {variant}")
     share = derive_share(

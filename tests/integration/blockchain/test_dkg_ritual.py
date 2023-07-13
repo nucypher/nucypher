@@ -34,17 +34,17 @@ ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
-    (2, 0, FerveoVariant.PRECOMPUTED),
-    (4, 1, FerveoVariant.PRECOMPUTED),
-    (8, 2, FerveoVariant.PRECOMPUTED),
-    (2, 3, FerveoVariant.SIMPLE),
-    (4, 4, FerveoVariant.SIMPLE),
-    (8, 5, FerveoVariant.SIMPLE),
+    (2, 0, FerveoVariant.Precomputed),
+    (5, 1, FerveoVariant.Precomputed),
+    (8, 2, FerveoVariant.Precomputed),
+    (2, 3, FerveoVariant.Simple),
+    (5, 4, FerveoVariant.Simple),
+    (8, 5, FerveoVariant.Simple),
     # TODO: slow and need additional accounts for testing
-    # (16, 6, FerveoVariant.PRECOMPUTED),
-    # (16, 7, FerveoVariant.SIMPLE),
-    # (32, 8, FerveoVariant.PRECOMPUTED),
-    # (32, 9, FerveoVariant.SIMPLE),
+    # (16, 6, FerveoVariant.Precomputed),
+    # (16, 7, FerveoVariant.Simple),
+    # (32, 8, FerveoVariant.Precomputed),
+    # (32, 9, FerveoVariant.Simple),
 ]
 
 BLOCKS = list(reversed(range(1, 1000)))

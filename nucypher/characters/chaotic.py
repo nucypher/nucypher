@@ -202,7 +202,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
                 keypair=validator_keypair,
                 ciphertext=ciphertext,
                 aad=conditions,
-                variant=dkg.FerveoVariant(variant),
+                variant=variant,
             )
 
             decryption_response = ThresholdDecryptionResponse(
