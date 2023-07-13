@@ -15,7 +15,10 @@ from nucypher_core import (
 from nucypher_core.ferveo import (
     AggregatedTranscript,
     Ciphertext,
+    DecryptionSharePrecomputed,
+    DecryptionShareSimple,
     FerveoPublicKey,
+    Transcript,
     Validator,
 )
 from web3 import Web3
@@ -41,7 +44,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
-from nucypher.crypto.ferveo.dkg import DecryptionShareSimple, FerveoVariant, Transcript
+from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -571,7 +574,7 @@ class Ritualist(BaseActor):
         ciphertext: Ciphertext,
         conditions: ConditionLingo,
         variant: FerveoVariant
-    ) -> DecryptionShareSimple:
+    ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.FINALIZED:

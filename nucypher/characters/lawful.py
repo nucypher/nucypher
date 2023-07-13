@@ -641,23 +641,15 @@ class Bob(Character):
         )
         return decryption_request
 
-    def get_decryption_shares_using_existing_decryption_request(
+    def _get_decryption_shares(
         self,
         decryption_request: ThresholdDecryptionRequest,
         participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
         cohort: List["Ursula"],
         threshold: int,
-        variant: FerveoVariant = None,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
     ]:
-        if variant is None:
-            variant = self.default_dkg_variant
-        if variant == FerveoVariant.PRECOMPUTED:
-            share_type = DecryptionSharePrecomputed
-        elif variant == FerveoVariant.SIMPLE:
-            share_type = DecryptionShareSimple
-
         # use ephemeral key for request
         requester_sk = SessionStaticSecret.random()
         requester_public_key = requester_sk.public_key()
@@ -666,9 +658,7 @@ class Bob(Character):
         shared_secrets = {}
         for ursula in cohort:
             ursula_checksum_address = to_checksum_address(ursula.checksum_address)
-
             participant_public_key = participant_public_keys[ursula_checksum_address]
-
             shared_secret = requester_sk.derive_shared_secret(participant_public_key)
             encrypted_decryption_request = decryption_request.encrypt(
                 shared_secret=shared_secret,
@@ -688,6 +678,11 @@ class Bob(Character):
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
         self.log.debug("Got enough shares to decrypt.")
 
+        if decryption_request.variant == FerveoVariant.PRECOMPUTED.value:
+            share_type = DecryptionSharePrecomputed
+        elif decryption_request.variant == FerveoVariant.SIMPLE.value:
+            share_type = DecryptionShareSimple
+
         gathered_shares = {}
         for provider_address, encrypted_decryption_response in successes.items():
             shared_secret = shared_secrets[provider_address]
@@ -699,34 +694,6 @@ class Bob(Character):
             )
             gathered_shares[provider_address] = decryption_share
         return gathered_shares
-
-    def gather_decryption_shares(
-        self,
-        ritual_id: int,
-        cohort: List["Ursula"],
-        ciphertext: Ciphertext,
-        lingo: Lingo,
-        threshold: int,
-        variant: FerveoVariant,
-        participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
-        context: Optional[dict] = None,
-    ) -> Dict[
-        ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
-    ]:
-        decryption_request = self.make_decryption_request(
-            ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            lingo=lingo,
-            variant=variant,
-            context=context,
-        )
-        return self.get_decryption_shares_using_existing_decryption_request(
-            decryption_request,
-            participant_public_keys,
-            cohort,
-            threshold,
-            variant=variant,
-        )
 
     def get_ritual_from_id(self, ritual_id):
         # blockchain reads: get the DKG parameters and the cohort.
@@ -762,6 +729,7 @@ class Bob(Character):
                         f"{ursula} ({ursula.staking_provider_address}) is not part of the cohort"
                     )
                 self.remember_node(ursula)
+
         try:
             variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
         except AttributeError:
@@ -775,48 +743,23 @@ class Bob(Character):
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
-        participant_public_keys = ritual.participant_public_keys
-        decryption_shares = self.gather_decryption_shares(
+        decryption_request = self.make_decryption_request(
             ritual_id=ritual_id,
-            cohort=ursulas,
             ciphertext=ciphertext,
-            context=context,
             lingo=conditions,
-            threshold=threshold,
             variant=variant,
+            context=context,
+        )
+        participant_public_keys = ritual.participant_public_keys
+        decryption_shares = self._get_decryption_shares(
+            decryption_request=decryption_request,
             participant_public_keys=participant_public_keys,
+            cohort=ursulas,
+            threshold=threshold,
         )
 
         return self._decrypt(
             list(decryption_shares.values()), ciphertext, conditions, variant
-        )
-
-    def decrypt_using_existing_decryption_request(
-        self,
-        decryption_request,
-        participant_public_keys,
-        cohort,
-        threshold,
-        variant=None,
-    ):
-        if variant is None:
-            variant = self.default_dkg_variant
-
-        addresses_and_dfrags = (
-            self.get_decryption_shares_using_existing_decryption_request(
-                decryption_request, participant_public_keys, cohort, threshold
-            )
-        )
-
-        # TODO: 3154
-        conditions_as_json_string = str(decryption_request.conditions)
-        conditions_as_list = json.loads(conditions_as_json_string)
-
-        return self._decrypt(
-            list(addresses_and_dfrags.values()),
-            decryption_request.ciphertext,
-            conditions_as_list,
-            variant,
         )
 
     @staticmethod
