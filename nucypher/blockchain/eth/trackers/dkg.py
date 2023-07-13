@@ -185,9 +185,26 @@ class ActiveRitualTracker:
         """Stop the event scanner task."""
         return self.task.stop()
 
-    def _action_required(self, event_type: Type[ContractEvent]):
+    def _action_required(
+        self, participation_state: ParticipationState, event_type: Type[ContractEvent]
+    ):
         """Check if an action is required for a given event type."""
-        return event_type in self.actions
+        if event_type not in self.actions:
+            return False
+
+        if (
+            event_type == self.contract.events.StartRitual
+            and participation_state.already_posted_transcript
+        ):
+            return False
+
+        if (
+            event_type == self.contract.events.StartAggregationRound
+            and participation_state.already_posted_aggregate
+        ):
+            return False
+
+        return True
 
     def _is_participating_in_ritual(self, ritual_id: int) -> bool:
         """
@@ -202,31 +219,47 @@ class ActiveRitualTracker:
 
         return False
 
-    def _is_relevant_event(
+    def _get_participation_state(
         self, event: AttributeDict, event_type: Type[ContractEvent]
-    ) -> bool:
+    ) -> ParticipationState:
         """
         Secondary filtration of events. Returns whether this event is related to a ritual that
         the Ritualist is participating in.
         """
+
+        if event_type not in self.events:
+            # should never happen since we specify the list of events we
+            # want to receive (1st level of filtering)
+            raise ValueError(f"Unexpected event type: {event_type}")
+
         args = event.args
 
         # check for participation
         try:
-            participation_state = self.participation_states.get(args.ritualId)
+            ritual_id = args.ritualId
         except AttributeError:
-            raise ValueError(f"Unexpected event type: {event_type}")
+            # no ritualId arg
+            raise ValueError(
+                f"Unexpected event type: '{event_type}'; no ritual id as argument"
+            )
 
+        participation_state = self.participation_states.get(ritual_id)
         if not participation_state:
             # not previously tracked
-            # create bare-bones state (default values) and do more processing
             participation_state = self.ParticipationState()
-            self.participation_states[args.ritualId] = participation_state
+            self.participation_states[ritual_id] = participation_state
             state_already_tracked = False
         else:
             state_already_tracked = True
 
-        # now we have a participating state to use/populate
+        if state_already_tracked and not participation_state.participating:
+            if event_type == self.contract.events.EndRitual:
+                # be sure to remove for EndRitual before returning
+                # since not participating we don't care about setting the state values
+                self.participation_states.pop(ritual_id)
+
+            return participation_state
+
         if event_type == self.contract.events.StartRitual:
             participation_state.participating = (
                 self.ritualist.checksum_address in args.participants
@@ -249,7 +282,7 @@ class ActiveRitualTracker:
                 # know ritualist is participating
                 participation_state.already_posted_transcript = True
             elif not state_already_tracked:
-                if self._is_participating_in_ritual(ritual_id=args.ritualId):
+                if self._is_participating_in_ritual(ritual_id=ritual_id):
                     participation_state.participating = True
                     participation_state.already_posted_transcript = True
         elif event_type == self.contract.events.EndRitual:
@@ -259,23 +292,36 @@ class ActiveRitualTracker:
             # the expectations of this function we still determine if participating if state not
             # previously tracked
             if not state_already_tracked:
-                if self._is_participating_in_ritual(ritual_id=args.ritualId):
+                if self._is_participating_in_ritual(ritual_id=ritual_id):
                     participation_state.participating = True
+
+            if participation_state.participating:
+                # since participating we now care about setting the state values correctly
+                if args.successful:
                     participation_state.already_posted_transcript = True
                     participation_state.already_posted_aggregate = True
+                else:
+                    if (
+                        not participation_state.already_posted_transcript
+                        or not participation_state.already_posted_aggregate
+                    ):
+                        # TODO improve this logic to be more efficient, and add testing
+                        participant = (
+                            self.coordinator_agent.get_participant_from_provider(
+                                self.ritualist.checksum_address
+                            )
+                        )
+                        participation_state.already_posted_transcript = (
+                            len(participant.transcript) > 0
+                        )
+                        participation_state.already_posted_aggregate = (
+                            participant.aggregated
+                        )
 
             # ritual is over no need to track the state anymore
-            self.participation_states.pop(args.ritualId, None)
-        else:
-            # should never happen since we specify the list of events we
-            # want to receive (1st level of filtering)
-            raise ValueError(f"Unexpected event type: {event_type}")
+            self.participation_states.pop(ritual_id)
 
-        # what did we learn
-        if not participation_state.participating:
-            return False
-
-        return True
+        return participation_state
 
     def __execute_action(
         self,
@@ -300,13 +346,16 @@ class ActiveRitualTracker:
     ):
         event_type = getattr(self.contract.events, event.event)
         # Filter out events that are not for me
-        if not self._is_relevant_event(event, event_type):
-            self.log.debug(f"Event {event.event} is not for me, skipping")
+        participation_state = self._get_participation_state(event, event_type)
+        if not participation_state.participating:
+            self.log.debug(f"Event '{event.event}' is not for me, skipping")
             return
 
         # is event actionable or just used for understanding ritual state
-        if not self._action_required(event_type):
-            self.log.debug(f"Non-actionable event {event.event}, skipping")
+        if not self._action_required(participation_state, event_type):
+            self.log.debug(
+                f"Event '{event.event}', does not require further action, either not actionable or previously handled; skipping"
+            )
             return
 
         # NOTE: this format splits on *capital letters* and converts to snake case
