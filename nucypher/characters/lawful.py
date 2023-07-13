@@ -678,10 +678,14 @@ class Bob(Character):
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
         self.log.debug("Got enough shares to decrypt.")
 
-        if decryption_request.variant == FerveoVariant.PRECOMPUTED.value:
+        if decryption_request.variant == FerveoVariant.precomputed:
             share_type = DecryptionSharePrecomputed
-        elif decryption_request.variant == FerveoVariant.SIMPLE.value:
+        elif decryption_request.variant == FerveoVariant.simple:
             share_type = DecryptionShareSimple
+        else:
+            raise ValueError(
+                f"Unknown decryption request variant: {decryption_request.variant}"
+            )
 
         gathered_shares = {}
         for provider_address, encrypted_decryption_response in successes.items():
