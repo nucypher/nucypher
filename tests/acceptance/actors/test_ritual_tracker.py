@@ -1,12 +1,15 @@
+import datetime
 import os
 from typing import Dict, Type
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
+import pytest_twisted
 from eth_typing import ChecksumAddress
 from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
 
+from nucypher.blockchain.eth.actors import Ritualist
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
@@ -585,27 +588,34 @@ def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
         active_ritual_tracker._get_participation_state(event_data, event_type)
 
 
-def test_get_participation_state_multiple_participation_states_concurrent_rituals(
-    cohort, get_random_checksum_address
-):
-    # let's pretend that rituals 5, 10, 15, 20 are being tracked at the same time
-    ritual_id_1 = 5
-    ritual_id_2 = 10
-    ritual_id_3 = 15
-    ritual_id_4 = 20
-    # this will be the ritual that the ursula is NOT participating in but getting events for
+@pytest_twisted.inlineCallbacks()
+def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_address):
+    # test overall processing of events
+
+    # let's pretend that rituals 1, 2, 3, 4 are being tracked at the same time
+    ritual_id_1 = 1
+    ritual_id_2 = 2
+    ritual_id_3 = 3
+    ritual_id_4 = 4  # ritual #4 is not being participated in
 
     ritual_ids = [ritual_id_1, ritual_id_2, ritual_id_3, ritual_id_4]
 
     ursula = cohort[0]
-    agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    ritualist = Mock(spec=Ritualist)
+    ritualist.checksum_address = ursula.checksum_address
+    ritualist.coordinator_agent = ursula.coordinator_agent
+
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+
+    blockNumber = 17692417  # random block number - value doesn't matter
+
+    def get_block_when(*args, **kwargs) -> datetime.datetime:
+        return datetime.datetime.now()
 
     #
-    # start ritual
+    # StartRitual
     #
-    event_type = agent.contract.events.StartRitual
-
     participants_when_participating = [
         get_random_checksum_address(),
         get_random_checksum_address(),
@@ -615,15 +625,19 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
     participants_when_not_participating = [
         get_random_checksum_address(),
         get_random_checksum_address(),
+        get_random_checksum_address(),
     ]
 
     # create list of events and use appropriately
     for i, r_id in enumerate(ritual_ids):
         event_data = AttributeDict(
             {
+                "event": "StartRitual",
+                "blockNumber": blockNumber,
                 "args": AttributeDict(
                     {
                         "ritualId": r_id,
+                        "initiator": get_random_checksum_address(),
                         "participants": participants_when_participating
                         if r_id != ritual_id_4
                         else participants_when_not_participating,
@@ -631,35 +645,46 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
                 )
             }
         )
-        participation_state = active_ritual_tracker._get_participation_state(
-            event_data, event_type
-        )
-        check_participation_state(
-            participation_state, expected_participating=(r_id != ritual_id_4)
-        )
-        assert len(active_ritual_tracker.participation_states) == (i + 1)
+        d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+        yield d
 
+        assert len(active_ritual_tracker.participation_states) == (i + 1)
+        participation_state = active_ritual_tracker.participation_states[r_id]
+        if r_id != ritual_id_4:
+            ritualist.perform_round_1.assert_called_with(
+                ritual_id=r_id, initiator=ANY, participants=ANY, timestamp=ANY
+            )
+            check_participation_state(participation_state, expected_participating=True)
+        else:
+            check_participation_state(participation_state, expected_participating=False)
+
+    assert (
+        ritualist.perform_round_1.call_count == 3
+    )  # participation and action required
+    assert ritualist.perform_round_2.call_count == 0  # nothing to do here
     assert len(active_ritual_tracker.participation_states) == 4
 
     #
-    # Transcript Posted
+    # Receive TranscriptPosted event for ritual_id 1
     #
-    event_type = agent.contract.events.TranscriptPosted
-
-    # receive transcript posted event for ritual_id 1
     event_data = AttributeDict(
         {
+            "event": "TranscriptPosted",
+            "blockNumber": blockNumber,
             "args": AttributeDict(
-                {"ritualId": ritual_id_1, "node": ursula.checksum_address}
-            )
+                {
+                    "ritualId": ritual_id_1,
+                    "node": ursula.checksum_address,
+                    "transcriptDigest": b"digest",
+                }
+            ),
         }
     )
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
-    assert (
-        participation_state == active_ritual_tracker.participation_states[ritual_id_1]
-    )
+    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    yield d
+
+    assert ritualist.perform_round_1.call_count == 3  # same count as before
+    assert ritualist.perform_round_2.call_count == 0  # nothing to do here
 
     check_participation_state(
         active_ritual_tracker.participation_states[ritual_id_1],
@@ -677,12 +702,12 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
     check_participation_state(active_ritual_tracker.participation_states[ritual_id_4])
 
     #
-    # Receive StartAggregation Round for ritual_id 2
+    # Receive StartAggregationRound for ritual_id 2
     #
-    event_type = agent.contract.events.StartAggregationRound
-
     event_data = AttributeDict(
         {
+            "event": "StartAggregationRound",
+            "blockNumber": blockNumber,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_2,
@@ -690,12 +715,12 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
             )
         }
     )
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
-    assert (
-        participation_state == active_ritual_tracker.participation_states[ritual_id_2]
-    )
+    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    yield d
+
+    assert ritualist.perform_round_1.call_count == 3  # same count as before
+    assert ritualist.perform_round_2.call_count == 1  # nothing to do here
+    ritualist.perform_round_2.assert_called_with(ritual_id=ritual_id_2, timestamp=ANY)
 
     check_participation_state(
         active_ritual_tracker.participation_states[ritual_id_1],
@@ -716,20 +741,26 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
     #
     # Receive AggregationPosted for ritual_id 3
     #
-    event_type = agent.contract.events.AggregationPosted
     event_data = AttributeDict(
         {
+            "event": "AggregationPosted",
+            "blockNumber": blockNumber,
             "args": AttributeDict(
-                {"ritualId": ritual_id_3, "node": ursula.checksum_address}
-            )
+                {
+                    "ritualId": ritual_id_3,
+                    "node": ursula.checksum_address,
+                    "aggregatedTranscriptDigest": b"agg_digest",
+                }
+            ),
         }
     )
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
-    assert (
-        participation_state == active_ritual_tracker.participation_states[ritual_id_3]
-    )
+    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    yield d
+
+    assert ritualist.perform_round_1.call_count == 3  # same as before
+    # same as before; round 2 execution not needed
+    # for ritual #3 since agg already posted
+    assert ritualist.perform_round_2.call_count == 1
 
     check_participation_state(
         active_ritual_tracker.participation_states[ritual_id_1],
@@ -752,20 +783,24 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
     #
     # Receive AggregationPosted for ritual id 4
     #
-    event_type = agent.contract.events.AggregationPosted
     event_data = AttributeDict(
         {
+            "event": "AggregationPosted",
+            "blockNumber": blockNumber,
             "args": AttributeDict(
-                {"ritualId": ritual_id_4, "node": ursula.checksum_address}
-            )
+                {
+                    "ritualId": ritual_id_4,
+                    "node": ursula.checksum_address,
+                    "aggregatedTranscriptDigest": b"agg_digest",
+                }
+            ),
         }
     )
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
-    assert (
-        participation_state == active_ritual_tracker.participation_states[ritual_id_4]
-    )
+    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    yield d
+
+    assert ritualist.perform_round_1.call_count == 3  # same as before
+    assert ritualist.perform_round_2.call_count == 1  # same as before
 
     check_participation_state(
         active_ritual_tracker.participation_states[ritual_id_1],
@@ -788,28 +823,28 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
     #
     # EndRitual received for ritual id 2
     #
-    event_type = agent.contract.events.EndRitual
     event_data = AttributeDict(
         {
+            "event": "EndRitual",
+            "blockNumber": blockNumber,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_2,
+                    "initiator": get_random_checksum_address(),
                     "successful": True,
                 }
             )
         }
     )
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
-    # no longer tracking ritual 2 since all done
-    assert participation_state not in active_ritual_tracker.participation_states
-    check_participation_state(
-        participation_state,
-        expected_participating=True,
-        expected_already_posted_transcript=True,
-        expected_already_posted_aggregate=True,
-    )
+    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    yield d
+
+    assert ritualist.perform_round_1.call_count == 3  # same as before
+    assert ritualist.perform_round_2.call_count == 1  # same as before
+
+    # ritual #2 removed from states
+    assert len(active_ritual_tracker.participation_states) == 3
+    assert not active_ritual_tracker.participation_states.get(ritual_id_2)
 
     check_participation_state(
         active_ritual_tracker.participation_states[ritual_id_1],
@@ -823,6 +858,45 @@ def test_get_participation_state_multiple_participation_states_concurrent_ritual
         expected_already_posted_aggregate=True,
     )
     check_participation_state(active_ritual_tracker.participation_states[ritual_id_4])
+
+    #
+    # EndRitual received for ritual id 4
+    #
+    event_data = AttributeDict(
+        {
+            "event": "EndRitual",
+            "blockNumber": blockNumber,
+            "args": AttributeDict(
+                {
+                    "ritualId": ritual_id_4,
+                    "initiator": get_random_checksum_address(),
+                    "successful": True,
+                }
+            ),
+        }
+    )
+    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
+    yield d
+
+    assert ritualist.perform_round_1.call_count == 3  # same as before
+    assert ritualist.perform_round_2.call_count == 1  # same as before
+
+    # ritual #4 removed from states
+    assert len(active_ritual_tracker.participation_states) == 2
+    assert not active_ritual_tracker.participation_states.get(ritual_id_4)
+
+    # only rituals #1 and #3 remain
+    check_participation_state(
+        active_ritual_tracker.participation_states[ritual_id_1],
+        expected_participating=True,
+        expected_already_posted_transcript=True,
+    )
+    check_participation_state(
+        active_ritual_tracker.participation_states[ritual_id_3],
+        expected_participating=True,
+        expected_already_posted_transcript=True,
+        expected_already_posted_aggregate=True,
+    )
 
 
 def verify_non_participation_flow(
