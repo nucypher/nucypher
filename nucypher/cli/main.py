@@ -1,6 +1,6 @@
 import click
 
-from nucypher.cli.commands import dkg, ursula
+from nucypher.cli.commands import ritual, ursula
 from nucypher.cli.painting.help import (
     echo_config_root_path,
     echo_logging_root_path,
@@ -25,7 +25,7 @@ def nucypher_cli():
 
 ENTRY_POINTS = (
     ursula.ursula,
-    dkg.dkg
+    ritual.ritual
     # add more entry points here
 )
 

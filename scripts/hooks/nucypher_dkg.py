@@ -3,7 +3,7 @@ import time
 
 import click
 import maya
-from nucypher_core.ferveo import DkgPublicKey
+from eth_utils import to_checksum_address
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (
@@ -13,10 +13,8 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.options import option_eth_provider_uri
 from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -49,35 +47,7 @@ option_coordinator_network = click.option(
 )
 
 
-def get_agency(
-    coordinator_network, coordinator_provider_uri, eth_staking_network, eth_provider_uri
-):
-    coordinator_agent = ContractAgency.get_agent(
-        agent_class=CoordinatorAgent,
-        registry=InMemoryContractRegistry.from_latest_publication(
-            network=coordinator_network
-        ),
-        provider_uri=coordinator_provider_uri,
-    )  # type: CoordinatorAgent
-
-    staking_network_registry = InMemoryContractRegistry.from_latest_publication(
-        network=eth_staking_network
-    )
-    application_agent = ContractAgency.get_agent(
-        agent_class=PREApplicationAgent,
-        registry=staking_network_registry,
-        provider_uri=eth_provider_uri,
-    )  # type: PREApplicationAgent
-
-    return coordinator_agent, application_agent, staking_network_registry
-
-
-@click.group()
-def dkg():
-    """DKG management commands"""
-
-
-@dkg.command()
+@click.command()
 @option_eth_provider_uri(required=True)
 @option_eth_staking_network
 @option_coordinator_provider
@@ -87,8 +57,8 @@ def dkg():
     "signer_uri",
     "-S",
     help="Signer URI for initiating a new ritual with Coordinator contract",
-    default=None,
     type=click.STRING,
+    required=True,
 )
 @click.option(
     "--dkg-size",
@@ -96,7 +66,7 @@ def dkg():
     "-n",
     help="Number of nodes to participate in ritual",
     type=click.INT,
-    default=0,
+    default=2,
 )
 @click.option(
     "--num-rituals",
@@ -115,19 +85,10 @@ def init(
     dkg_size,
     num_rituals,
 ):
-    # if creating ritual(s)
-    if signer_uri is None:
-        raise click.BadOptionUsage(
-            option_name="--ritual-id, --signer",
-            message=click.style(
-                "--signer must be provided to create new ritual when --ritual-id is not provided",
-                fg="red",
-            ),
-        )
-    if dkg_size <= 1 or dkg_size % 2 != 0:
+    if dkg_size <= 1:
         raise click.BadOptionUsage(
             option_name="--dkg-size",
-            message=click.style("DKG size must be > 1 and a power of 2", fg="red"),
+            message=click.style("DKG size must be > 1", fg="red"),
         )
     if num_rituals < 1:
         raise click.BadOptionUsage(
@@ -136,15 +97,24 @@ def init(
         )
 
     #
-    # Initial Ritual
+    # Initiate Ritual
     #
+    coordinator_agent = ContractAgency.get_agent(
+        agent_class=CoordinatorAgent,
+        registry=InMemoryContractRegistry.from_latest_publication(
+            network=coordinator_network
+        ),
+        provider_uri=coordinator_provider_uri,
+    )  # type: CoordinatorAgent
 
-    coordinator_agent, application_agent, staking_network_registry = get_agency(
-        coordinator_network,
-        coordinator_provider_uri,
-        eth_staking_network,
-        eth_provider_uri,
+    staking_network_registry = InMemoryContractRegistry.from_latest_publication(
+        network=eth_staking_network
     )
+    application_agent = ContractAgency.get_agent(
+        agent_class=PREApplicationAgent,
+        registry=staking_network_registry,
+        provider_uri=eth_provider_uri,
+    )  # type: PREApplicationAgent
 
     emitter.echo("--------- Initiating Ritual ---------", color="yellow")
     # create account from keystore file
@@ -176,7 +146,7 @@ def init(
 
         if eth_staking_network == "lynx":
             staking_providers.remove(
-                "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
+                to_checksum_address("0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe")
             )  # TODO skip Bogdan's node; remove at some point
 
         # sample then sort
@@ -239,105 +209,19 @@ def init(
         )
         time.sleep(15)
 
-        emitter.echo("\n--------- Ritual(s) Summary ---------")
-        # sort by ritual id, print results, stop script
-        for r_id in sorted(completed_rituals.keys()):
-            ritual_status = completed_rituals[r_id]
-            if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
-                message = f"✓ Ritual #{r_id} successfully created"
-                color = "green"
-            else:
-                message = f"x Ritual #{r_id} failed with status {ritual_status}"
-                color = "red"
+    emitter.echo("\n--------- Ritual(s) Summary ---------")
+    # sort by ritual id, print results, stop script
+    for r_id in sorted(completed_rituals.keys()):
+        ritual_status = completed_rituals[r_id]
+        if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+            message = f"✓ Ritual #{r_id} successfully created"
+            color = "green"
+        else:
+            message = f"x Ritual #{r_id} failed with status {ritual_status}"
+            color = "red"
 
-            emitter.echo(message, color=color)
-        return
+        emitter.echo(message, color=color)
 
 
-@dkg.command()
-@option_eth_provider_uri(required=True)
-@option_eth_staking_network
-@option_coordinator_provider
-@option_coordinator_network
-@click.option(
-    "--ritual-id",
-    "ritual_id",
-    "-r",
-    help="Ritual ID; defaults to -1 to initiate a new ritual",
-    type=click.INT,
-    required=True,
-)
-def check(
-    ritual_id: int,
-    eth_provider_uri: str,
-    eth_staking_network: str,
-    coordinator_provider_uri: str,
-    coordinator_network: str,
-):
-    coordinator_agent, application_agent, staking_network_registry = get_agency(
-        coordinator_network,
-        coordinator_provider_uri,
-        eth_staking_network,
-        eth_provider_uri,
-    )
-
-    # ensure ritual exists
-    _ = coordinator_agent.get_ritual(ritual_id)  # ensure ritual can be found
-    emitter.echo(f"Reusing existing DKG Ritual #{ritual_id}", color="green")
-
-    #
-    # Encrypt some data
-    #
-
-    emitter.echo("--------- Data Encryption ---------")
-
-    PLAINTEXT = """
-    Those who mistake the unessential to be essential and the essential to be unessential,
-    dwelling in wrong thoughts, never arrive at the essential.
-    
-    Those who know the essential to be essential and the unessential to be unessential,
-    dwelling in right thoughts, do arrive at the essential.
-    """
-    # -- Dhammapada
-
-    CONDITIONS = {
-        "version": ConditionLingo.VERSION,
-        "condition": {
-            "returnValueTest": {"value": "0", "comparator": ">"},
-            "method": "blocktime",
-            "chain": application_agent.blockchain.client.chain_id,
-        },
-    }
-
-    encrypting_key = DkgPublicKey.from_bytes(
-        bytes(coordinator_agent.get_ritual(ritual_id).public_key)
-    )
-
-    enrico = Enrico(encrypting_key=encrypting_key)
-    ciphertext = enrico.encrypt_for_dkg(
-        plaintext=PLAINTEXT.encode(), conditions=CONDITIONS
-    )
-
-    emitter.echo("-- Data encrypted --", color="green")
-
-    #
-    # Get Data Decrypted
-    #
-    emitter.echo("--------- Threshold Decryption ---------")
-    bob = Bob(
-        eth_provider_uri=eth_provider_uri,
-        domain=eth_staking_network,
-        registry=staking_network_registry,
-        coordinator_network=coordinator_network,
-        coordinator_provider_uri=coordinator_provider_uri,
-    )
-    bob.start_learning_loop(now=True)
-
-    cleartext = bob.threshold_decrypt(
-        ritual_id=ritual_id,
-        ciphertext=ciphertext,
-        conditions=CONDITIONS,
-    )
-
-    emitter.echo(f"\n-- Data decrypted -- \n{bytes(cleartext).decode()}", color="green")
-    assert bytes(cleartext).decode() == PLAINTEXT
+if __name__ == "__main__":
+    init()
