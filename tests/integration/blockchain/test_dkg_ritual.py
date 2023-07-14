@@ -132,6 +132,12 @@ def test_ursula_ritualist(
     """Tests the DKG and the encryption/decryption of a message"""
     cohort = cohort[:dkg_size]
 
+    def set_participant_pks():
+        """Sets the public keys of the participants"""
+        print("==================== SETTING PUBLIC KEYS ====================")
+        for ursula in cohort:
+            mock_coordinator_agent.set_provider_public_key
+
     def initialize():
         """Initiates the ritual"""
         print("==================== INITIALIZING ====================")

@@ -895,7 +895,7 @@
         "inputs": [
           {
             "internalType": "contract IAccessControlApplication",
-            "name": "app",
+            "name": "_stakes",
             "type": "address"
           },
           {
@@ -904,9 +904,19 @@
             "type": "uint32"
           },
           {
-            "internalType": "uint32",
+            "internalType": "uint16",
             "name": "_maxDkgSize",
-            "type": "uint32"
+            "type": "uint16"
+          },
+          {
+            "internalType": "address",
+            "name": "_admin",
+            "type": "address"
+          },
+          {
+            "internalType": "contract IFeeModel",
+            "name": "_feeModel",
+            "type": "address"
           }
         ],
         "stateMutability": "nonpayable",
@@ -939,18 +949,62 @@
       },
       {
         "anonymous": false,
+        "inputs": [],
+        "name": "DefaultAdminDelayChangeCanceled",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": false,
+            "internalType": "uint48",
+            "name": "newDelay",
+            "type": "uint48"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint48",
+            "name": "effectSchedule",
+            "type": "uint48"
+          }
+        ],
+        "name": "DefaultAdminDelayChangeScheduled",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [],
+        "name": "DefaultAdminTransferCanceled",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "newAdmin",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint48",
+            "name": "acceptSchedule",
+            "type": "uint48"
+          }
+        ],
+        "name": "DefaultAdminTransferScheduled",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
         "inputs": [
           {
             "indexed": true,
             "internalType": "uint32",
             "name": "ritualId",
             "type": "uint32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "initiator",
-            "type": "address"
           },
           {
             "indexed": false,
@@ -967,15 +1021,15 @@
         "inputs": [
           {
             "indexed": false,
-            "internalType": "uint32",
+            "internalType": "uint16",
             "name": "oldSize",
-            "type": "uint32"
+            "type": "uint16"
           },
           {
             "indexed": false,
-            "internalType": "uint32",
+            "internalType": "uint16",
             "name": "newSize",
-            "type": "uint32"
+            "type": "uint16"
           }
         ],
         "name": "MaxDkgSizeChanged",
@@ -986,18 +1040,116 @@
         "inputs": [
           {
             "indexed": true,
+            "internalType": "uint32",
+            "name": "ritualId",
+            "type": "uint32"
+          },
+          {
+            "indexed": true,
             "internalType": "address",
-            "name": "previousOwner",
+            "name": "participant",
+            "type": "address"
+          },
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "word0",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "word1",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "word2",
+                "type": "bytes32"
+              }
+            ],
+            "indexed": false,
+            "internalType": "struct BLS12381.G2Point",
+            "name": "publicKey",
+            "type": "tuple"
+          }
+        ],
+        "name": "ParticipantPublicKeySet",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "indexed": true,
+            "internalType": "bytes32",
+            "name": "previousAdminRole",
+            "type": "bytes32"
+          },
+          {
+            "indexed": true,
+            "internalType": "bytes32",
+            "name": "newAdminRole",
+            "type": "bytes32"
+          }
+        ],
+        "name": "RoleAdminChanged",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "account",
             "type": "address"
           },
           {
             "indexed": true,
             "internalType": "address",
-            "name": "newOwner",
+            "name": "sender",
             "type": "address"
           }
         ],
-        "name": "OwnershipTransferred",
+        "name": "RoleGranted",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          },
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "sender",
+            "type": "address"
+          }
+        ],
+        "name": "RoleRevoked",
         "type": "event"
       },
       {
@@ -1025,7 +1177,7 @@
           {
             "indexed": true,
             "internalType": "address",
-            "name": "initiator",
+            "name": "authority",
             "type": "address"
           },
           {
@@ -1084,6 +1236,39 @@
       },
       {
         "inputs": [],
+        "name": "DEFAULT_ADMIN_ROLE",
+        "outputs": [
+          {
+            "internalType": "bytes32",
+            "name": "",
+            "type": "bytes32"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "INITIATOR_ROLE",
+        "outputs": [
+          {
+            "internalType": "bytes32",
+            "name": "",
+            "type": "bytes32"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "acceptDefaultAdminTransfer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
         "name": "application",
         "outputs": [
           {
@@ -1093,6 +1278,39 @@
           }
         ],
         "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "newAdmin",
+            "type": "address"
+          }
+        ],
+        "name": "beginDefaultAdminTransfer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "cancelDefaultAdminTransfer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint48",
+            "name": "newDelay",
+            "type": "uint48"
+          }
+        ],
+        "name": "changeDefaultAdminDelay",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
       },
       {
@@ -1112,6 +1330,45 @@
           }
         ],
         "stateMutability": "pure",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "defaultAdmin",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "defaultAdminDelay",
+        "outputs": [
+          {
+            "internalType": "uint48",
+            "name": "",
+            "type": "uint48"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "defaultAdminDelayIncreaseWait",
+        "outputs": [
+          {
+            "internalType": "uint48",
+            "name": "",
+            "type": "uint48"
+          }
+        ],
+        "stateMutability": "view",
         "type": "function"
       },
       {
@@ -1204,6 +1461,47 @@
       {
         "inputs": [
           {
+            "internalType": "address",
+            "name": "_provider",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "_ritualId",
+            "type": "uint256"
+          }
+        ],
+        "name": "getProviderPublicKey",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "word0",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "word1",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "word2",
+                "type": "bytes32"
+              }
+            ],
+            "internalType": "struct BLS12381.G2Point",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
             "internalType": "uint256",
             "name": "ritualId",
             "type": "uint256"
@@ -1223,9 +1521,80 @@
       {
         "inputs": [
           {
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          }
+        ],
+        "name": "getRoleAdmin",
+        "outputs": [
+          {
+            "internalType": "bytes32",
+            "name": "",
+            "type": "bytes32"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "grantRole",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "hasRole",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
             "internalType": "address[]",
             "name": "providers",
             "type": "address[]"
+          },
+          {
+            "internalType": "address",
+            "name": "authority",
+            "type": "address"
+          },
+          {
+            "internalType": "uint32",
+            "name": "duration",
+            "type": "uint32"
           }
         ],
         "name": "initiateRitual",
@@ -1241,12 +1610,32 @@
       },
       {
         "inputs": [],
+        "name": "isInitiationPublic",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "makeInitiationPublic",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
         "name": "maxDkgSize",
         "outputs": [
           {
-            "internalType": "uint32",
+            "internalType": "uint16",
             "name": "",
-            "type": "uint32"
+            "type": "uint16"
           }
         ],
         "stateMutability": "view",
@@ -1279,6 +1668,61 @@
         "type": "function"
       },
       {
+        "inputs": [],
+        "name": "pendingDefaultAdmin",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "newAdmin",
+            "type": "address"
+          },
+          {
+            "internalType": "uint48",
+            "name": "schedule",
+            "type": "uint48"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "pendingDefaultAdminDelay",
+        "outputs": [
+          {
+            "internalType": "uint48",
+            "name": "newDelay",
+            "type": "uint48"
+          },
+          {
+            "internalType": "uint48",
+            "name": "schedule",
+            "type": "uint48"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "name": "pendingFees",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "inputs": [
           {
             "internalType": "uint32",
@@ -1304,7 +1748,7 @@
               }
             ],
             "internalType": "struct BLS12381.G1Point",
-            "name": "publicKey",
+            "name": "dkgPublicKey",
             "type": "tuple"
           },
           {
@@ -1337,8 +1781,50 @@
         "type": "function"
       },
       {
-        "inputs": [],
-        "name": "renounceOwnership",
+        "inputs": [
+          {
+            "internalType": "uint256",
+            "name": "ritualID",
+            "type": "uint256"
+          }
+        ],
+        "name": "processPendingFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "renounceRole",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bytes32",
+            "name": "role",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "account",
+            "type": "address"
+          }
+        ],
+        "name": "revokeRole",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -1360,23 +1846,38 @@
           },
           {
             "internalType": "uint32",
-            "name": "dkgSize",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint32",
             "name": "initTimestamp",
             "type": "uint32"
           },
           {
             "internalType": "uint32",
-            "name": "totalTranscripts",
+            "name": "endTimestamp",
             "type": "uint32"
           },
           {
-            "internalType": "uint32",
+            "internalType": "uint16",
+            "name": "totalTranscripts",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
             "name": "totalAggregations",
-            "type": "uint32"
+            "type": "uint16"
+          },
+          {
+            "internalType": "address",
+            "name": "authority",
+            "type": "address"
+          },
+          {
+            "internalType": "uint16",
+            "name": "dkgSize",
+            "type": "uint16"
+          },
+          {
+            "internalType": "bool",
+            "name": "aggregationMismatch",
+            "type": "bool"
           },
           {
             "components": [
@@ -1396,11 +1897,6 @@
             "type": "tuple"
           },
           {
-            "internalType": "bool",
-            "name": "aggregationMismatch",
-            "type": "bool"
-          },
-          {
             "internalType": "bytes",
             "name": "aggregatedTranscript",
             "type": "bytes"
@@ -1410,14 +1906,64 @@
         "type": "function"
       },
       {
+        "inputs": [],
+        "name": "rollbackDefaultAdminDelay",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
         "inputs": [
           {
-            "internalType": "uint32",
+            "internalType": "uint16",
             "name": "newSize",
-            "type": "uint32"
+            "type": "uint16"
           }
         ],
         "name": "setMaxDkgSize",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "components": [
+              {
+                "internalType": "bytes32",
+                "name": "word0",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "word1",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "word2",
+                "type": "bytes32"
+              }
+            ],
+            "internalType": "struct BLS12381.G2Point",
+            "name": "_publicKey",
+            "type": "tuple"
+          }
+        ],
+        "name": "setProviderPublicKey",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "contract IReimbursementPool",
+            "name": "pool",
+            "type": "address"
+          }
+        ],
+        "name": "setReimbursementPool",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -1436,6 +1982,25 @@
         "type": "function"
       },
       {
+        "inputs": [
+          {
+            "internalType": "bytes4",
+            "name": "interfaceId",
+            "type": "bytes4"
+          }
+        ],
+        "name": "supportsInterface",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
         "inputs": [],
         "name": "timeout",
         "outputs": [
@@ -1449,16 +2014,16 @@
         "type": "function"
       },
       {
-        "inputs": [
+        "inputs": [],
+        "name": "totalPendingFees",
+        "outputs": [
           {
-            "internalType": "address",
-            "name": "newOwner",
-            "type": "address"
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
           }
         ],
-        "name": "transferOwnership",
-        "outputs": [],
-        "stateMutability": "nonpayable",
+        "stateMutability": "view",
         "type": "function"
       }
     ]

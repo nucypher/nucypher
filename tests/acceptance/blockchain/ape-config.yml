@@ -1,5 +1,5 @@
 dependencies:
   - name: nucypher-contracts
-    github: nucypher/nucypher-contracts
-    ref: main
+    github: piotr-roslaniec/nucypher-contracts
+    ref: participant-pk
     contracts_folder: src

@@ -23,6 +23,7 @@ class MockCoordinatorAgent(MockContractAgent):
 
     EVENTS = {}
     rituals = []
+    keys_history = {}
 
     class Events(Enum):
         START_RITUAL = 0
@@ -143,6 +144,11 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual.total_aggregations += 1
         return self.blockchain.FAKE_RECEIPT
 
+    def set_provider_public_key(self, provider: ChecksumAddress, key: Ritual.G2Point) -> TxReceipt:
+        last_ritual_id = len(self.rituals)
+        provider_history = self.keys_history[provider] if provider in self.keys_history else []
+        provider_history.append((last_ritual_id, key))
+
     #
     # Calls
     #
@@ -199,3 +205,10 @@ class MockCoordinatorAgent(MockContractAgent):
             return None
 
         return ritual.public_key.to_dkg_public_key()
+
+    def get_provider_public_key(self, provider: ChecksumAddress, ritual_id: int):
+        provider_history = self.keys_history.get(provider, [])
+        for (last_ritual_id, pk) in provider_history:
+            if last_ritual_id <= ritual_id:
+                return pk
+        raise ValueError(f"Provider {provider} not found for ritual #{ritual_id}")
