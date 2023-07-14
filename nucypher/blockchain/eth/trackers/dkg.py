@@ -126,7 +126,7 @@ class ActiveRitualTracker:
         )
 
         self.task = EventScannerTask(scanner=self.scan)
-        self.participation_states = dict()  # { ritual_id -> ParticipationState }
+        self._participation_states = dict()  # { ritual_id -> ParticipationState }
 
     @property
     def provider(self):
@@ -241,11 +241,11 @@ class ActiveRitualTracker:
                 f"Unexpected event type: '{event_type}'; no ritual id as argument"
             )
 
-        participation_state = self.participation_states.get(ritual_id)
+        participation_state = self._participation_states.get(ritual_id)
         if not participation_state:
             # not previously tracked
             participation_state = self.ParticipationState()
-            self.participation_states[ritual_id] = participation_state
+            self._participation_states[ritual_id] = participation_state
             state_already_tracked = False
         else:
             state_already_tracked = True
@@ -255,7 +255,7 @@ class ActiveRitualTracker:
             if event_type == self.contract.events.EndRitual:
                 # be sure to remove for EndRitual before returning
                 # since not participating we don't care about setting the other state values
-                self.participation_states.pop(ritual_id)
+                self._participation_states.pop(ritual_id)
 
             return participation_state
 
@@ -296,7 +296,7 @@ class ActiveRitualTracker:
             # previously tracked
 
             # ritual is over no need to track the state anymore
-            self.participation_states.pop(ritual_id)
+            self._participation_states.pop(ritual_id)
 
             # gather state information
             if state_already_tracked:
