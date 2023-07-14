@@ -1,11 +1,13 @@
 import os
 from typing import Dict, Type
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
+from eth_typing import ChecksumAddress
 from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
 
+from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
 
@@ -238,13 +240,13 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     event_data = AttributeDict({"args": AttributeDict(args_dict)})
 
     def not_participating(*args, **kwargs):
-        return False
+        return None
 
     #
     # not participating
     #
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
         not_participating,
     ):
         verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
@@ -258,10 +260,10 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     # actually participating now
     #
     def participating(*args, **kwargs):
-        return True
+        return Mock(spec=CoordinatorAgent.Ritual.Participant)
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
         participating,
     ):
         verify_participation_flow(
@@ -370,10 +372,10 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     # not participating
     #
     def not_participating(*args, **kwargs):
-        return False
+        return None
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
         not_participating,
     ):
         participation_state = active_ritual_tracker._get_participation_state(
@@ -389,13 +391,20 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     active_ritual_tracker.participation_states.clear()
 
     #
-    # actually participating now
+    # actually participating now: successful
     #
     def participating(*args, **kwargs):
-        return True
+        participant = CoordinatorAgent.Ritual.Participant(
+            provider=ChecksumAddress(ursula.checksum_address),
+            aggregated=True,
+            transcript=os.urandom(32),
+            decryption_request_static_key=os.urandom(42),
+        )
+
+        return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._is_participating_in_ritual",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
         participating,
     ):
         participation_state = active_ritual_tracker._get_participation_state(
@@ -406,6 +415,68 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
             expected_participating=True,
             expected_already_posted_transcript=True,
             expected_already_posted_aggregate=True,
+        )
+        # no state stored
+        assert len(active_ritual_tracker.participation_states) == 0
+
+    #
+    # actually participating now: not successful - transcript not posted
+    #
+    def participating(*args, **kwargs):
+        participant = CoordinatorAgent.Ritual.Participant(
+            provider=ChecksumAddress(ursula.checksum_address),
+            aggregated=False,
+            transcript=b"",
+            decryption_request_static_key=os.urandom(42),
+        )
+
+        return participant
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        participating,
+    ):
+        args_dict["successful"] = False
+        event_data = AttributeDict({"args": AttributeDict(args_dict)})
+        participation_state = active_ritual_tracker._get_participation_state(
+            event_data, event_type
+        )
+        check_participation_state(
+            participation_state,
+            expected_participating=True,
+            expected_already_posted_transcript=False,
+            expected_already_posted_aggregate=False,
+        )
+        # no state stored
+        assert len(active_ritual_tracker.participation_states) == 0
+
+    #
+    # actually participating now: not successful - aggregate not posted
+    #
+    def participating(*args, **kwargs):
+        participant = CoordinatorAgent.Ritual.Participant(
+            provider=ChecksumAddress(ursula.checksum_address),
+            aggregated=False,
+            transcript=os.urandom(32),
+            decryption_request_static_key=os.urandom(42),
+        )
+
+        return participant
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        participating,
+    ):
+        args_dict["successful"] = False
+        event_data = AttributeDict({"args": AttributeDict(args_dict)})
+        participation_state = active_ritual_tracker._get_participation_state(
+            event_data, event_type
+        )
+        check_participation_state(
+            participation_state,
+            expected_participating=True,
+            expected_already_posted_transcript=True,
+            expected_already_posted_aggregate=False,
         )
         # no state stored
         assert len(active_ritual_tracker.participation_states) == 0

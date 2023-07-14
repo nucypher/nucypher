@@ -1,13 +1,14 @@
 import datetime
 import os
 import time
-from typing import Callable, List, Type
+from typing import Callable, List, Type, Union
 
 from twisted.internet import threads
 from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth import actors
+from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
@@ -206,18 +207,15 @@ class ActiveRitualTracker:
 
         return True
 
-    def _is_participating_in_ritual(self, ritual_id: int) -> bool:
-        """
-        Checks the Coordinator contact to determine if the Ritualist is participating in this
-        ritual.
-        """
-        # do some work to figure out if this event is relevant
+    def _get_participant_info(
+        self, ritual_id: int
+    ) -> Union[None, CoordinatorAgent.Ritual.Participant]:
         participants = self.coordinator_agent.get_participants(ritual_id=ritual_id)
         for p in participants:
             if p.provider == self.ritualist.checksum_address:
-                return True
+                return p
 
-        return False
+        return None
 
     def _get_participation_state(
         self, event: AttributeDict, event_type: Type[ContractEvent]
@@ -253,13 +251,16 @@ class ActiveRitualTracker:
             state_already_tracked = True
 
         if state_already_tracked and not participation_state.participating:
+            # already tracked and not participating -> we don't care about this event
             if event_type == self.contract.events.EndRitual:
                 # be sure to remove for EndRitual before returning
-                # since not participating we don't care about setting the state values
+                # since not participating we don't care about setting the other state values
                 self.participation_states.pop(ritual_id)
 
             return participation_state
 
+        # either we don't know anything about this ritual
+        # OR we are participating and need to update our state information
         if event_type == self.contract.events.StartRitual:
             participation_state.participating = (
                 self.ritualist.checksum_address in args.participants
@@ -282,7 +283,9 @@ class ActiveRitualTracker:
                 # know ritualist is participating
                 participation_state.already_posted_transcript = True
             elif not state_already_tracked:
-                if self._is_participating_in_ritual(ritual_id=ritual_id):
+                participant_info = self._get_participant_info(ritual_id=ritual_id)
+                if participant_info:
+                    # participating in this ritual
                     participation_state.participating = True
                     participation_state.already_posted_transcript = True
         elif event_type == self.contract.events.EndRitual:
@@ -291,35 +294,39 @@ class ActiveRitualTracker:
             # event for a ritual that is being participated in. So to be complete, and adhere to
             # the expectations of this function we still determine if participating if state not
             # previously tracked
-            if not state_already_tracked:
-                if self._is_participating_in_ritual(ritual_id=ritual_id):
-                    participation_state.participating = True
-
-            if participation_state.participating:
-                # since participating we now care about setting the state values correctly
-                if args.successful:
-                    participation_state.already_posted_transcript = True
-                    participation_state.already_posted_aggregate = True
-                else:
-                    if (
-                        not participation_state.already_posted_transcript
-                        or not participation_state.already_posted_aggregate
-                    ):
-                        # TODO improve this logic to be more efficient, and add testing
-                        participant = (
-                            self.coordinator_agent.get_participant_from_provider(
-                                self.ritualist.checksum_address
-                            )
-                        )
-                        participation_state.already_posted_transcript = (
-                            len(participant.transcript) > 0
-                        )
-                        participation_state.already_posted_aggregate = (
-                            participant.aggregated
-                        )
 
             # ritual is over no need to track the state anymore
             self.participation_states.pop(ritual_id)
+
+            # gather state information
+            if state_already_tracked:
+                if participation_state.participating:
+                    if args.successful:
+                        # since successful we know these values are true
+                        participation_state.already_posted_transcript = True
+                        participation_state.already_posted_aggregate = True
+                        return participation_state
+                    # else: we need to collect more information to be complete
+                else:
+                    # since not participating we don't care about other values
+                    return participation_state
+
+            # state not tracked or ritual not successful: need more information from contract
+            participant_info = self._get_participant_info(ritual_id)
+            if not participant_info:
+                # not participating in this ritual
+                participation_state.participating = False
+                participation_state.already_posted_transcript = False
+                participation_state.already_posted_aggregate = False
+            else:
+                # actually participating in this ritual
+                participation_state.participating = True
+                participation_state.already_posted_transcript = (
+                    len(participant_info.transcript) > 0
+                )
+                participation_state.already_posted_aggregate = (
+                    participant_info.aggregated
+                )
 
         return participation_state
 
