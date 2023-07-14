@@ -642,7 +642,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
                         if r_id != ritual_id_4
                         else participants_when_not_participating,
                     }
-                )
+                ),
             }
         )
         d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
@@ -712,7 +712,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
                 {
                     "ritualId": ritual_id_2,
                 }
-            )
+            ),
         }
     )
     d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
@@ -833,7 +833,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
                     "initiator": get_random_checksum_address(),
                     "successful": True,
                 }
-            )
+            ),
         }
     )
     d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
