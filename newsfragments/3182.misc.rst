@@ -1,1 +1,1 @@
-Introduces `nucypher dkg ...` CLI for initiation of DKG ceremonies, and status checking.
+Introduces `nucypher ritual check` CLI for checking ritual encryption/decryption functionality.
