@@ -103,9 +103,7 @@ class ActiveRitualTracker:
 
         self.events = [
             self.contract.events.StartRitual,
-            self.contract.events.TranscriptPosted,
             self.contract.events.StartAggregationRound,
-            self.contract.events.AggregationPosted,
             self.contract.events.EndRitual,
         ]
 
@@ -207,7 +205,7 @@ class ActiveRitualTracker:
 
         return True
 
-    def _get_participant_info(
+    def _get_ritual_participant_info(
         self, ritual_id: int
     ) -> Union[None, CoordinatorAgent.Ritual.Participant]:
         participants = self.coordinator_agent.get_participants(ritual_id=ritual_id)
@@ -243,90 +241,66 @@ class ActiveRitualTracker:
 
         participation_state = self._participation_states.get(ritual_id)
         if not participation_state:
-            # not previously tracked
-            participation_state = self.ParticipationState()
+            # not previously tracked; get current state from Coordinator
+            participation_state = (
+                self.ParticipationState()
+            )  # assume not participating initially
             self._participation_states[ritual_id] = participation_state
-            state_already_tracked = False
-        else:
-            state_already_tracked = True
 
-        if state_already_tracked and not participation_state.participating:
-            # already tracked and not participating -> we don't care about this event
-            if event_type == self.contract.events.EndRitual:
-                # be sure to remove for EndRitual before returning
-                # since not participating we don't care about setting the other state values
-                self._participation_states.pop(ritual_id)
-
-            return participation_state
-
-        # either we don't know anything about this ritual
-        # OR we are participating and need to update our state information
-        if event_type == self.contract.events.StartRitual:
-            participation_state.participating = (
-                self.ritualist.checksum_address in args.participants
-            )
-        elif event_type == self.contract.events.TranscriptPosted:
-            if args.node == self.ritualist.checksum_address:
-                participation_state.participating = True
-                participation_state.already_posted_transcript = True
-        elif event_type == self.contract.events.AggregationPosted:
-            if args.node == self.ritualist.checksum_address:
-                # done all of our ritual tasks
-                participation_state.participating = True
-                participation_state.already_posted_transcript = True
-                participation_state.already_posted_aggregate = True
-        #
-        # special cases where you can't determine participation from event input arguments
-        #
-        elif event_type == self.contract.events.StartAggregationRound:
-            if state_already_tracked and participation_state.participating:
-                # know ritualist is participating
-                participation_state.already_posted_transcript = True
-            elif not state_already_tracked:
-                participant_info = self._get_participant_info(ritual_id=ritual_id)
+            # need to determine if participating in this ritual or not
+            if event_type == self.contract.events.StartRitual:
+                participation_state.participating = (
+                    self.ritualist.checksum_address in args.participants
+                )
+            else:
+                participant_info = self._get_ritual_participant_info(
+                    ritual_id=ritual_id
+                )
                 if participant_info:
-                    # participating in this ritual
+                    # actually participating in this ritual
                     participation_state.participating = True
-                    participation_state.already_posted_transcript = True
-        elif event_type == self.contract.events.EndRitual:
-            # while `EndRitual` signals the end of the ritual, the event being relevant is not
-            # the same as acting upon the event. Perhaps there is an event action for the EndRitual
-            # event for a ritual that is being participated in. So to be complete, and adhere to
-            # the expectations of this function we still determine if participating if state not
-            # previously tracked
+                    # populate information since we already hit the contract
+                    participation_state.already_posted_transcript = (
+                        len(participant_info.transcript) > 0
+                    )
+                    participation_state.already_posted_aggregate = (
+                        participant_info.aggregated
+                    )
 
+        if participation_state.participating:
+            # we are now sure about participating in ritual - populate other values
+            if event_type == self.contract.events.StartAggregationRound:
+                participation_state.already_posted_transcript = True
+            elif event_type == self.contract.events.EndRitual:
+                # while `EndRitual` signals the end of the ritual, the event being relevant is not
+                # the same as acting upon the event. Perhaps there is an event action for the EndRitual
+                # event for a ritual that is being participated in. So to be complete, and adhere to
+                # the expectations of this function we still determine if participating if state not
+                # previously tracked
+
+                # gather state information
+                if args.successful:
+                    # since successful we know these values are true
+                    participation_state.already_posted_transcript = True
+                    participation_state.already_posted_aggregate = True
+                else:
+                    # not successful.
+                    # to be complete - double-check other values
+                    if (
+                        not participation_state.already_posted_transcript
+                        or not participation_state.already_posted_aggregate
+                    ):
+                        participant_info = self._get_ritual_participant_info(ritual_id)
+                        participation_state.already_posted_transcript = (
+                            len(participant_info.transcript) > 0
+                        )
+                        participation_state.already_posted_aggregate = (
+                            participant_info.aggregated
+                        )
+
+        if event_type == self.contract.events.EndRitual:
             # ritual is over no need to track the state anymore
             self._participation_states.pop(ritual_id)
-
-            # gather state information
-            if state_already_tracked:
-                if participation_state.participating:
-                    if args.successful:
-                        # since successful we know these values are true
-                        participation_state.already_posted_transcript = True
-                        participation_state.already_posted_aggregate = True
-                        return participation_state
-                    # else: we need to collect more information to be complete
-                else:
-                    # since not participating we don't care about other values
-                    return participation_state
-
-            # state not tracked or ritual not successful: need more information from contract
-            participant_info = self._get_participant_info(ritual_id)
-            if not participant_info:
-                # not participating in this ritual
-                participation_state.participating = False
-                participation_state.already_posted_transcript = False
-                participation_state.already_posted_aggregate = False
-            else:
-                # actually participating in this ritual
-                participation_state.participating = True
-                participation_state.already_posted_transcript = (
-                    len(participant_info.transcript) > 0
-                )
-                participation_state.already_posted_aggregate = (
-                    participant_info.aggregated
-                )
 
         return participation_state
 

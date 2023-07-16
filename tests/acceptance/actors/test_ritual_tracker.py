@@ -125,101 +125,6 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
     )
 
 
-def test_get_participation_state_transcript_posted(cohort, get_random_checksum_address):
-    ritual_id = 12
-    args_dict = {"ritualId": ritual_id}
-    ursula = cohort[0]
-    agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
-
-    # TranscriptPosted
-    transcript_posted_event = agent.contract.events.TranscriptPosted()
-    event_type = getattr(agent.contract.events, transcript_posted_event.event_name)
-
-    # create args data
-    args_dict["node"] = get_random_checksum_address()  # node address not this one
-    args_dict["transcriptDigest"] = os.urandom(32)
-
-    # ensure that test matches latest event information
-    check_event_args_match_latest_event_inputs(
-        event=transcript_posted_event, args_dict=args_dict
-    )
-
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
-
-    #
-    # not participating
-    #
-    verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
-
-    #
-    # clear prior information
-    #
-    active_ritual_tracker._participation_states.clear()
-
-    #
-    # actually participating now
-    #
-    args_dict["node"] = ursula.checksum_address  # set node address to ursula's
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
-
-    verify_participation_flow(
-        active_ritual_tracker,
-        event_data,
-        event_type,
-        expected_posted_transcript=True,
-        expected_posted_aggregate=False,
-    )
-
-
-def test_get_participation_state_aggregation_posted(
-    cohort, get_random_checksum_address
-):
-    ritual_id = 12
-    args_dict = {"ritualId": ritual_id}
-    ursula = cohort[0]
-    agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
-
-    # AggregationPosted
-    aggregation_posted_event = agent.contract.events.AggregationPosted()
-    event_type = getattr(agent.contract.events, aggregation_posted_event.event_name)
-
-    # create args data
-    args_dict["node"] = get_random_checksum_address()  # node address not this one
-    args_dict["aggregatedTranscriptDigest"] = os.urandom(32)
-
-    # ensure that test matches latest event information
-    check_event_args_match_latest_event_inputs(
-        event=aggregation_posted_event, args_dict=args_dict
-    )
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
-
-    #
-    # not participating
-    #
-    verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
-
-    #
-    # clear prior information
-    #
-    active_ritual_tracker._participation_states.clear()
-
-    #
-    # actually participating now
-    #
-    args_dict["node"] = ursula.checksum_address  # set node address to this one
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
-
-    verify_participation_flow(
-        active_ritual_tracker,
-        event_data,
-        event_type,
-        expected_posted_transcript=True,
-        expected_posted_aggregate=True,
-    )
-
-
 def test_get_participation_state_start_aggregation_round_participation_not_already_tracked(
     cohort, get_random_checksum_address
 ):
@@ -249,7 +154,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     # not participating
     #
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         not_participating,
     ):
         verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
@@ -263,10 +168,17 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     # actually participating now
     #
     def participating(*args, **kwargs):
-        return Mock(spec=CoordinatorAgent.Ritual.Participant)
+        participant = CoordinatorAgent.Ritual.Participant(
+            provider=ChecksumAddress(ursula.checksum_address),
+            aggregated=False,
+            transcript=os.urandom(32),
+            decryption_request_static_key=os.urandom(42),
+        )
+
+        return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         participating,
     ):
         verify_participation_flow(
@@ -378,7 +290,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return None
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         not_participating,
     ):
         participation_state = active_ritual_tracker._get_participation_state(
@@ -407,7 +319,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         participating,
     ):
         participation_state = active_ritual_tracker._get_participation_state(
@@ -423,7 +335,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         assert len(active_ritual_tracker._participation_states) == 0
 
     #
-    # actually participating now: not successful - transcript not posted
+    # actually participating now: not successful - transcript posted but not aggregate
     #
     def participating(*args, **kwargs):
         participant = CoordinatorAgent.Ritual.Participant(
@@ -436,7 +348,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         participating,
     ):
         args_dict["successful"] = False
@@ -467,7 +379,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         return participant
 
     with patch(
-        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participant_info",
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         participating,
     ):
         args_dict["successful"] = False
@@ -665,43 +577,6 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert len(active_ritual_tracker._participation_states) == 4
 
     #
-    # Receive TranscriptPosted event for ritual_id 1
-    #
-    event_data = AttributeDict(
-        {
-            "event": "TranscriptPosted",
-            "blockNumber": blockNumber,
-            "args": AttributeDict(
-                {
-                    "ritualId": ritual_id_1,
-                    "node": ursula.checksum_address,
-                    "transcriptDigest": b"digest",
-                }
-            ),
-        }
-    )
-    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
-    yield d
-
-    assert ritualist.perform_round_1.call_count == 3  # same count as before
-    assert ritualist.perform_round_2.call_count == 0  # nothing to do here
-
-    check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
-        expected_participating=True,
-        expected_already_posted_transcript=True,
-    )
-    check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_2],
-        expected_participating=True,
-    )
-    check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
-        expected_participating=True,
-    )
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
-
-    #
     # Receive StartAggregationRound for ritual_id 2
     #
     event_data = AttributeDict(
@@ -725,7 +600,6 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
         expected_participating=True,
-        expected_already_posted_transcript=True,
     )
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_2],
@@ -739,59 +613,15 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
 
     #
-    # Receive AggregationPosted for ritual_id 3
+    # Receive StartAggregationRound for ritual id 4
     #
     event_data = AttributeDict(
         {
-            "event": "AggregationPosted",
-            "blockNumber": blockNumber,
-            "args": AttributeDict(
-                {
-                    "ritualId": ritual_id_3,
-                    "node": ursula.checksum_address,
-                    "aggregatedTranscriptDigest": b"agg_digest",
-                }
-            ),
-        }
-    )
-    d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
-    yield d
-
-    assert ritualist.perform_round_1.call_count == 3  # same as before
-    # same as before; round 2 execution not needed
-    # for ritual #3 since agg already posted
-    assert ritualist.perform_round_2.call_count == 1
-
-    check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_1],
-        expected_participating=True,
-        expected_already_posted_transcript=True,
-    )
-    check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_2],
-        expected_participating=True,
-        expected_already_posted_transcript=True,
-    )
-    check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
-        expected_participating=True,
-        expected_already_posted_transcript=True,
-        expected_already_posted_aggregate=True,
-    )
-    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
-
-    #
-    # Receive AggregationPosted for ritual id 4
-    #
-    event_data = AttributeDict(
-        {
-            "event": "AggregationPosted",
+            "event": "StartAggregationRound",
             "blockNumber": blockNumber,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_4,
-                    "node": ursula.checksum_address,
-                    "aggregatedTranscriptDigest": b"agg_digest",
                 }
             ),
         }
@@ -805,7 +635,6 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
         expected_participating=True,
-        expected_already_posted_transcript=True,
     )
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_2],
@@ -815,13 +644,13 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_3],
         expected_participating=True,
-        expected_already_posted_transcript=True,
-        expected_already_posted_aggregate=True,
     )
+
+    # don't care about ritual 4 - so no new information stored
     check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
 
     #
-    # EndRitual received for ritual id 2
+    # EndRitual received for ritual id 3 (case where sequence of events are odd; eg. node restart etc.)
     #
     event_data = AttributeDict(
         {
@@ -829,7 +658,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
             "blockNumber": blockNumber,
             "args": AttributeDict(
                 {
-                    "ritualId": ritual_id_2,
+                    "ritualId": ritual_id_3,
                     "initiator": get_random_checksum_address(),
                     "successful": True,
                 }
@@ -842,21 +671,20 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert ritualist.perform_round_1.call_count == 3  # same as before
     assert ritualist.perform_round_2.call_count == 1  # same as before
 
-    # ritual #2 removed from states
+    # ritual #3 removed from states
     assert len(active_ritual_tracker._participation_states) == 3
-    assert not active_ritual_tracker._participation_states.get(ritual_id_2)
+    assert not active_ritual_tracker._participation_states.get(ritual_id_3)
 
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
         expected_participating=True,
-        expected_already_posted_transcript=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
+        active_ritual_tracker._participation_states[ritual_id_2],
         expected_participating=True,
         expected_already_posted_transcript=True,
-        expected_already_posted_aggregate=True,
     )
+
     check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
 
     #
@@ -885,17 +713,15 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert len(active_ritual_tracker._participation_states) == 2
     assert not active_ritual_tracker._participation_states.get(ritual_id_4)
 
-    # only rituals #1 and #3 remain
+    # only rituals #1 and #2 remain
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
         expected_participating=True,
-        expected_already_posted_transcript=True,
     )
     check_participation_state(
-        active_ritual_tracker._participation_states[ritual_id_3],
+        active_ritual_tracker._participation_states[ritual_id_2],
         expected_participating=True,
         expected_already_posted_transcript=True,
-        expected_already_posted_aggregate=True,
     )
 
 

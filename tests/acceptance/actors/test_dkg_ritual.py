@@ -98,6 +98,10 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
                 ursula.ritual_tracker.task.run()
             testerchain.time_travel(seconds=TIME_TRAVEL_INTERVAL)
 
+        # Ensure that all events processed, including EndRitual
+        for ursula in cohort:
+            ursula.ritual_tracker.task.run()
+
     def test_finality(_):
         """Checks the finality of the DKG"""
         print("==================== CHECKING DKG FINALITY ====================")
