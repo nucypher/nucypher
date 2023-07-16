@@ -53,7 +53,7 @@ class Uncoordinated:
             FakeNode(checksum_address) for checksum_address in checksum_addresses
         ]
         self.checksum_addresses = checksum_addresses
-        if session_seed == None:
+        if session_seed is None:
             session_seed = b"ABytestringOf32BytesIsNeededHere"
         secret_factory = SessionSecretFactory.from_secure_randomness(session_seed)
         self.threshold_request_decrypting_power = ThresholdRequestDecryptingPower(
@@ -243,7 +243,7 @@ class DoomedDecryptionClient(ThresholdDecryptionClient):
             # TODO: Dehydrate this logic in a single failure flow.
             try:
                 raise RestMiddleware.Unauthorized("Decryption conditions not satisfied")
-            except RestMiddleware.Unauthorized as e:
+            except RestMiddleware.Unauthorized:
                 failures[checksum_address] = sys.exc_info()
 
         return NO_SUCCESSES, failures
