@@ -104,6 +104,18 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
     )
     assert tx_hash is not None
 
+    # ensure tx hash is stored
+    assert ursula.dkg_storage.get_transcript_receipt(ritual_id=0) == tx_hash
+
+    # try again
+    tx_hash = ursula.perform_round_1(
+        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+    )
+    assert tx_hash is None  # no execution since pending tx already present
+
+    # clear tx hash
+    ursula.dkg_storage.store_transcript_receipt(ritual_id=0, txhash_or_receipt=None)
+
     # participant already posted transcript
     participant = agent.get_participant_from_provider(
         ritual_id=0, provider=ursula.checksum_address
@@ -115,6 +127,13 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
         ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
     )
     assert tx_hash is None  # no execution performed
+
+    # participant no longer already posted aggregated transcript
+    participant.transcript = bytes()
+    tx_hash = ursula.perform_round_1(
+        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+    )
+    assert tx_hash is not None  # execution occurs
 
 
 def test_perform_round_2(
@@ -165,6 +184,18 @@ def test_perform_round_2(
     tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert tx_hash is not None
 
+    # check tx hash
+    assert ursula.dkg_storage.get_aggregated_transcript_receipt(ritual_id=0) == tx_hash
+
+    # try again
+    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert tx_hash is None  # no execution since pending tx already present
+
+    # clear tx hash
+    ursula.dkg_storage.store_aggregated_transcript_receipt(
+        ritual_id=0, txhash_or_receipt=None
+    )
+
     # participant already posted aggregated transcript
     participant = agent.get_participant_from_provider(
         ritual_id=0, provider=ursula.checksum_address
@@ -174,3 +205,8 @@ def test_perform_round_2(
     # try submitting again
     tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert tx_hash is None  # no execution performed
+
+    # participant no longer already posted aggregated transcript
+    participant.aggregated = False
+    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert tx_hash is not None  # execution occurs
