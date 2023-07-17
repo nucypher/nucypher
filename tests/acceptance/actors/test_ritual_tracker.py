@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Dict, Type
+from typing import Dict
 from unittest.mock import ANY, Mock, patch
 
 import pytest
@@ -22,54 +22,137 @@ def cohort(ursulas):
     return nodes
 
 
-def test_action_required(cohort):
+def test_action_required_not_participating(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
     active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
 
-    start_ritual_type = agent.contract.events.StartRitual
-    start_aggregation_type = agent.contract.events.StartAggregationRound
-    actionable_event_types = [start_ritual_type, start_aggregation_type]
+    participation_state = ActiveRitualTracker.ParticipationState(
+        participating=False,  # not participating
+        already_posted_transcript=False,
+        already_posted_aggregate=False,
+    )
 
-    # non-actionable events
-    # if we get to _action_required() check, we know the node is
-    # participating, but no transcript/aggregate posted
+    def _my_get_participation_state(*args, **kwargs):
+        return participation_state
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participation_state",
+        _my_get_participation_state,
+    ):
+        for event in agent.contract.events:
+            ritual_event = AttributeDict(
+                {
+                    "event": event.event_name,
+                    "args": AttributeDict(
+                        {
+                            "ritualId": 23,
+                        }
+                    ),
+                }
+            )
+            # all events are irrelevant because not participating
+            assert not active_ritual_tracker._action_required(ritual_event)
+
+
+def test_action_required_only_for_events_with_corresponding_actions(cohort):
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    participation_state = ActiveRitualTracker.ParticipationState(
+        participating=True,  # participating
+        already_posted_transcript=False,
+        already_posted_aggregate=False,
+    )
+
+    def _my_get_participation_state(*args, **kwargs):
+        return participation_state
+
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participation_state",
+        _my_get_participation_state,
+    ):
+        for event in agent.contract.events:
+            event_type = getattr(agent.contract.events, event.event_name)
+            ritual_event = AttributeDict(
+                {
+                    "event": event.event_name,
+                    "args": AttributeDict(
+                        {
+                            "ritualId": 23,
+                        }
+                    ),
+                }
+            )
+
+            if event_type not in active_ritual_tracker.actions:
+                assert not active_ritual_tracker._action_required(ritual_event)
+            else:
+                # actionable events - both actions required since transcript/aggregate not posted
+                assert active_ritual_tracker._action_required(ritual_event)
+
+
+def test_action_required_depending_on_participation_state(cohort):
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
     participation_state = ActiveRitualTracker.ParticipationState(
         participating=True,
         already_posted_transcript=False,
         already_posted_aggregate=False,
     )
 
-    for event in agent.contract.events:
-        event_type = getattr(agent.contract.events, event.event_name)
-        if event_type not in actionable_event_types:
-            assert not active_ritual_tracker._action_required(
-                participation_state=participation_state, event_type=event_type
-            )
+    def _my_get_participation_state(*args, **kwargs):
+        return participation_state
 
-    # actionable events - both actions required since transcript/aggregate not posted
-    for event_type in actionable_event_types:
-        assert active_ritual_tracker._action_required(
-            participation_state=participation_state, event_type=event_type
+    with patch(
+        "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_participation_state",
+        _my_get_participation_state,
+    ):
+        # actionable events
+        start_ritual_event = AttributeDict(
+            {
+                "event": agent.contract.events.StartRitual.event_name,
+                "args": AttributeDict(
+                    {
+                        "ritualId": 23,
+                    }
+                ),
+            }
         )
+        assert agent.contract.events.StartRitual in active_ritual_tracker.actions
+        start_aggregation_event = AttributeDict(
+            {
+                "event": agent.contract.events.StartAggregationRound.event_name,
+                "args": AttributeDict(
+                    {
+                        "ritualId": 23,
+                    }
+                ),
+            }
+        )
+        assert (
+            agent.contract.events.StartAggregationRound in active_ritual_tracker.actions
+        )
+        assert (
+            len(active_ritual_tracker.actions) == 2
+        ), "untested event with corresponding action"
 
-    # already posted transcript - action on required for aggregation
-    participation_state.already_posted_transcript = True
-    assert not active_ritual_tracker._action_required(
-        participation_state=participation_state, event_type=start_ritual_type
-    )
-    assert active_ritual_tracker._action_required(
-        participation_state=participation_state, event_type=start_aggregation_type
-    )
+        #
+        # already posted transcript - action only required for aggregation
+        #
+        participation_state.already_posted_transcript = True
+        assert not active_ritual_tracker._action_required(start_ritual_event)
+        assert active_ritual_tracker._action_required(start_aggregation_event)
 
-    # already posted aggregate - no action required for both event types
-    participation_state.already_posted_aggregate = True
-    assert not active_ritual_tracker._action_required(
-        participation_state=participation_state, event_type=start_ritual_type
-    )
-    assert not active_ritual_tracker._action_required(
-        participation_state=participation_state, event_type=start_aggregation_type
-    )
+        #
+        # already posted aggregate - no action required for both event types
+        #
+        participation_state.already_posted_aggregate = True
+        assert not active_ritual_tracker._action_required(start_ritual_event)
+        assert not active_ritual_tracker._action_required(start_aggregation_event)
 
 
 def test_get_participation_state_start_ritual(cohort, get_random_checksum_address):
@@ -81,7 +164,6 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
 
     # StartRitual
     start_ritual_event = agent.contract.events.StartRitual()
-    event_type = getattr(agent.contract.events, start_ritual_event.event_name)
 
     # create args data
     args_dict["initiator"] = get_random_checksum_address()
@@ -96,12 +178,14 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
         event=start_ritual_event, args_dict=args_dict
     )
 
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {"event": start_ritual_event.event_name, "args": AttributeDict(args_dict)}
+    )
 
     #
     # not participating
     #
-    verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
+    verify_non_participation_flow(active_ritual_tracker, event_data)
 
     #
     # clear prior information
@@ -114,12 +198,13 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
     args_dict["participants"] = [
         u.checksum_address for u in cohort
     ]  # ursula address included
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {"event": start_ritual_event.event_name, "args": AttributeDict(args_dict)}
+    )
 
     verify_participation_flow(
         active_ritual_tracker,
         event_data,
-        event_type,
         expected_posted_transcript=False,
         expected_posted_aggregate=False,
     )
@@ -137,15 +222,17 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
 
     start_aggregation_round_event = agent.contract.events.StartAggregationRound()
-    event_type = getattr(
-        agent.contract.events, start_aggregation_round_event.event_name
-    )
 
     # ensure that test matches latest event information
     check_event_args_match_latest_event_inputs(
         event=start_aggregation_round_event, args_dict=args_dict
     )
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {
+            "event": start_aggregation_round_event.event_name,
+            "args": AttributeDict(args_dict),
+        }
+    )
 
     def not_participating(*args, **kwargs):
         return None
@@ -157,7 +244,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
         "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         not_participating,
     ):
-        verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
+        verify_non_participation_flow(active_ritual_tracker, event_data)
 
     #
     # clear prior information
@@ -184,7 +271,6 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
         verify_participation_flow(
             active_ritual_tracker,
             event_data,
-            event_type,
             expected_posted_transcript=True,
             expected_posted_aggregate=False,
         )
@@ -202,15 +288,17 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
 
     start_aggregation_round_event = agent.contract.events.StartAggregationRound()
-    event_type = getattr(
-        agent.contract.events, start_aggregation_round_event.event_name
-    )
 
     # ensure that test matches latest event information
     check_event_args_match_latest_event_inputs(
         event=start_aggregation_round_event, args_dict=args_dict
     )
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {
+            "event": start_aggregation_round_event.event_name,
+            "args": AttributeDict(args_dict),
+        }
+    )
 
     #
     # not participating
@@ -220,7 +308,8 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     active_ritual_tracker._participation_states[
         ritual_id
     ] = active_ritual_tracker.ParticipationState(False, False, False)
-    verify_non_participation_flow(active_ritual_tracker, event_data, event_type)
+
+    verify_non_participation_flow(active_ritual_tracker, event_data)
 
     #
     # actually participating now
@@ -231,9 +320,7 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
         ritual_id
     ] = active_ritual_tracker.ParticipationState(True, False, False)
 
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
         participation_state,
         expected_participating=True,
@@ -245,9 +332,7 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     assert active_ritual_tracker._participation_states[ritual_id] == participation_state
 
     # check again
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
         participation_state,
         expected_participating=True,
@@ -271,7 +356,6 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
 
     end_ritual_event = agent.contract.events.EndRitual()
-    event_type = getattr(agent.contract.events, end_ritual_event.event_name)
 
     # create args data
     args_dict["initiator"] = get_random_checksum_address()
@@ -281,7 +365,9 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     check_event_args_match_latest_event_inputs(
         event=end_ritual_event, args_dict=args_dict
     )
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {"event": end_ritual_event.event_name, "args": AttributeDict(args_dict)}
+    )
 
     #
     # not participating
@@ -293,12 +379,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         not_participating,
     ):
-        participation_state = active_ritual_tracker._get_participation_state(
-            event_data, event_type
-        )
-        check_participation_state(participation_state)
-        # no state stored
-        assert len(active_ritual_tracker._participation_states) == 0
+        verify_non_participation_flow(active_ritual_tracker, event_data)
 
     #
     # clear prior information
@@ -306,7 +387,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     active_ritual_tracker._participation_states.clear()
 
     #
-    # actually participating now: successful
+    # actually participating now: ritual successful
     #
     def participating(*args, **kwargs):
         participant = CoordinatorAgent.Ritual.Participant(
@@ -322,26 +403,26 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         "nucypher.blockchain.eth.trackers.dkg.ActiveRitualTracker._get_ritual_participant_info",
         participating,
     ):
-        participation_state = active_ritual_tracker._get_participation_state(
-            event_data, event_type
+        verify_participation_flow(
+            active_ritual_tracker,
+            event_data,
+            expected_posted_transcript=True,
+            expected_posted_aggregate=True,
         )
-        check_participation_state(
-            participation_state,
-            expected_participating=True,
-            expected_already_posted_transcript=True,
-            expected_already_posted_aggregate=True,
-        )
-        # no state stored
-        assert len(active_ritual_tracker._participation_states) == 0
 
     #
-    # actually participating now: not successful - transcript posted but not aggregate
+    # clear prior information
+    #
+    active_ritual_tracker._participation_states.clear()
+
+    #
+    # actually participating now: ritual not successful - transcript and aggregate not posted
     #
     def participating(*args, **kwargs):
         participant = CoordinatorAgent.Ritual.Participant(
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
-            transcript=b"",
+            transcript=bytes(),
             decryption_request_static_key=os.urandom(42),
         )
 
@@ -352,21 +433,23 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         participating,
     ):
         args_dict["successful"] = False
-        event_data = AttributeDict({"args": AttributeDict(args_dict)})
-        participation_state = active_ritual_tracker._get_participation_state(
-            event_data, event_type
+        event_data = AttributeDict(
+            {"event": end_ritual_event.event_name, "args": AttributeDict(args_dict)}
         )
-        check_participation_state(
-            participation_state,
-            expected_participating=True,
-            expected_already_posted_transcript=False,
-            expected_already_posted_aggregate=False,
+        verify_participation_flow(
+            active_ritual_tracker,
+            event_data,
+            expected_posted_transcript=False,
+            expected_posted_aggregate=False,
         )
-        # no state stored
-        assert len(active_ritual_tracker._participation_states) == 0
 
     #
-    # actually participating now: not successful - aggregate not posted
+    # clear prior information
+    #
+    active_ritual_tracker._participation_states.clear()
+
+    #
+    # actually participating now: not successful - transcript posted, aggregate not posted
     #
     def participating(*args, **kwargs):
         participant = CoordinatorAgent.Ritual.Participant(
@@ -383,18 +466,15 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
         participating,
     ):
         args_dict["successful"] = False
-        event_data = AttributeDict({"args": AttributeDict(args_dict)})
-        participation_state = active_ritual_tracker._get_participation_state(
-            event_data, event_type
+        event_data = AttributeDict(
+            {"event": end_ritual_event.event_name, "args": AttributeDict(args_dict)}
         )
-        check_participation_state(
-            participation_state,
-            expected_participating=True,
-            expected_already_posted_transcript=True,
-            expected_already_posted_aggregate=False,
+        verify_participation_flow(
+            active_ritual_tracker,
+            event_data,
+            expected_posted_transcript=True,
+            expected_posted_aggregate=False,
         )
-        # no state stored
-        assert len(active_ritual_tracker._participation_states) == 0
 
 
 def test_get_participation_state_end_ritual_participation_already_tracked(
@@ -409,7 +489,6 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
 
     end_ritual_event = agent.contract.events.EndRitual()
-    event_type = getattr(agent.contract.events, end_ritual_event.event_name)
 
     # create args data
     args_dict["initiator"] = get_random_checksum_address()
@@ -419,7 +498,9 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     check_event_args_match_latest_event_inputs(
         event=end_ritual_event, args_dict=args_dict
     )
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {"event": end_ritual_event.event_name, "args": AttributeDict(args_dict)}
+    )
 
     #
     # not participating
@@ -429,13 +510,10 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     active_ritual_tracker._participation_states[
         ritual_id
     ] = active_ritual_tracker.ParticipationState(False, False, False)
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
-    check_participation_state(participation_state, expected_participating=False)
 
-    # state is removed
-    assert len(active_ritual_tracker._participation_states) == 0
+    verify_non_participation_flow(active_ritual_tracker, event_data)
+    # no additional entry
+    assert len(active_ritual_tracker._participation_states) == 1
 
     #
     # actually participating now
@@ -446,9 +524,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
         ritual_id
     ] = active_ritual_tracker.ParticipationState(True, False, False)
 
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
         participation_state,
         expected_participating=True,
@@ -456,8 +532,9 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
         expected_already_posted_aggregate=True,
     )
 
-    # state is removed
-    assert len(active_ritual_tracker._participation_states) == 0
+    # no additional entry
+    assert active_ritual_tracker._participation_states[ritual_id] == participation_state
+    assert len(active_ritual_tracker._participation_states) == 1
 
 
 def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
@@ -467,7 +544,6 @@ def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
 
     # TimeoutChanged
     timeout_changed_event = agent.contract.events.TimeoutChanged()
-    event_type = getattr(agent.contract.events, timeout_changed_event.event_name)
 
     # create args data
     args_dict = {"oldTimeout": 1, "newTimeout": 2}
@@ -477,10 +553,12 @@ def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
         event=timeout_changed_event, args_dict=args_dict
     )
 
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    event_data = AttributeDict(
+        {"event": timeout_changed_event.event_name, "args": AttributeDict(args_dict)}
+    )
 
     with pytest.raises(ValueError):
-        active_ritual_tracker._get_participation_state(event_data, event_type)
+        active_ritual_tracker._get_participation_state(event_data)
 
 
 def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
@@ -488,16 +566,19 @@ def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
     agent = ursula.coordinator_agent
     active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
 
-    # TimeoutChanged
-    event_type = agent.contract.events.TimeoutChanged
-
     # create args data - faked to include ritual id arg
     args_dict = {"ritualId": 0, "oldTimeout": 1, "newTimeout": 2}
 
-    event_data = AttributeDict({"args": AttributeDict(args_dict)})
+    # TimeoutChanged event
+    event_data = AttributeDict(
+        {
+            "event": agent.contract.events.TimeoutChanged.event_name,
+            "args": AttributeDict(args_dict),
+        }
+    )
 
     with pytest.raises(ValueError):
-        active_ritual_tracker._get_participation_state(event_data, event_type)
+        active_ritual_tracker._get_participation_state(event_data)
 
 
 @pytest_twisted.inlineCallbacks()
@@ -646,7 +727,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
         expected_participating=True,
     )
 
-    # don't care about ritual 4 - so no new information stored
+    # don't care about ritual 4 since not participating - so no new information stored
     check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
 
     #
@@ -671,9 +752,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert ritualist.perform_round_1.call_count == 3  # same as before
     assert ritualist.perform_round_2.call_count == 1  # same as before
 
-    # ritual #3 removed from states
-    assert len(active_ritual_tracker._participation_states) == 3
-    assert not active_ritual_tracker._participation_states.get(ritual_id_3)
+    assert len(active_ritual_tracker._participation_states) == 4
 
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
@@ -683,6 +762,12 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
         active_ritual_tracker._participation_states[ritual_id_2],
         expected_participating=True,
         expected_already_posted_transcript=True,
+    )
+    check_participation_state(
+        active_ritual_tracker._participation_states[ritual_id_3],
+        expected_participating=True,
+        expected_already_posted_transcript=True,
+        expected_already_posted_aggregate=True,
     )
 
     check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
@@ -709,11 +794,6 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     assert ritualist.perform_round_1.call_count == 3  # same as before
     assert ritualist.perform_round_2.call_count == 1  # same as before
 
-    # ritual #4 removed from states
-    assert len(active_ritual_tracker._participation_states) == 2
-    assert not active_ritual_tracker._participation_states.get(ritual_id_4)
-
-    # only rituals #1 and #2 remain
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
         expected_participating=True,
@@ -724,17 +804,24 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
         expected_already_posted_transcript=True,
     )
 
+    check_participation_state(
+        active_ritual_tracker._participation_states[ritual_id_3],
+        expected_participating=True,
+        expected_already_posted_transcript=True,
+        expected_already_posted_aggregate=True,
+    )
+
+    # don't care about ritual 4 since not participating - so no new information stored
+    check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
+
 
 def verify_non_participation_flow(
     active_ritual_tracker: ActiveRitualTracker,
     event_data: AttributeDict,
-    event_type: Type[ContractEvent],
 ):
     ritual_id = event_data.args.ritualId
 
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(participation_state)
 
     # new participation state stored
@@ -742,9 +829,7 @@ def verify_non_participation_flow(
     assert active_ritual_tracker._participation_states[ritual_id] == participation_state
 
     # check again that not participating
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(participation_state)
 
     # no new information
@@ -755,15 +840,12 @@ def verify_non_participation_flow(
 def verify_participation_flow(
     active_ritual_tracker: ActiveRitualTracker,
     event_data: AttributeDict,
-    event_type: Type[ContractEvent],
     expected_posted_transcript: bool,
     expected_posted_aggregate: bool,
 ):
     ritual_id = event_data.args.ritualId
 
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
         participation_state=participation_state,
         expected_participating=True,
@@ -776,9 +858,7 @@ def verify_participation_flow(
     assert active_ritual_tracker._participation_states[ritual_id] == participation_state
 
     # check again if relevant
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
         participation_state=participation_state,
         expected_participating=True,
@@ -794,9 +874,7 @@ def verify_participation_flow(
     active_ritual_tracker._participation_states.clear()
     assert len(active_ritual_tracker._participation_states) == 0
 
-    participation_state = active_ritual_tracker._get_participation_state(
-        event_data, event_type
-    )
+    participation_state = active_ritual_tracker._get_participation_state(event_data)
     check_participation_state(
         participation_state=participation_state,
         expected_participating=True,
@@ -810,6 +888,7 @@ def verify_participation_flow(
 
 
 def check_event_args_match_latest_event_inputs(event: ContractEvent, args_dict: Dict):
+    """Ensures that we are testing with actual event arguments."""
     event_inputs = event.abi["inputs"]
     assert len(event_inputs) == len(args_dict)
     for event_input in event_inputs:
