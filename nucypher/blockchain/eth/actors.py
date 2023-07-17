@@ -431,8 +431,7 @@ class Ritualist(BaseActor):
                 f"Not part of ritual {ritual_id}; don't post transcript"
             )
 
-        # get the ritual and check its status from the blockchain
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
         # validate the status
@@ -464,6 +463,7 @@ class Ritualist(BaseActor):
         self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
 
         # gather the cohort
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
         nodes = sorted(nodes, key=lambda n: n.address)
         if any(transcripts):
@@ -506,7 +506,6 @@ class Ritualist(BaseActor):
 
         # Get the ritual and check the status from the blockchain
         # TODO Optimize local cache of ritual participants (#3052)
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
             self.log.debug(
@@ -539,6 +538,7 @@ class Ritualist(BaseActor):
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         transcripts = self._resolve_validators(ritual)
         if not all([t for _, t in transcripts]):
             raise self.ActorError(
