@@ -452,6 +452,14 @@ class Ritualist(BaseActor):
             )
             return None
 
+        # pending tx
+        pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
+        if pending_tx:
+            self.log.debug(
+                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting transcript for ritual {ritual_id}; skipping execution"
+            )
+            return None
+
         # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
 
@@ -513,6 +521,16 @@ class Ritualist(BaseActor):
         if participant.aggregated:
             self.log.debug(
                 f"Node {self.transacting_power.account} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
+            )
+            return None
+
+        # has pending tx
+        pending_tx = self.dkg_storage.get_aggregated_transcript_receipt(
+            ritual_id=ritual_id
+        )
+        if pending_tx:
+            self.log.debug(
+                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting aggregated transcript for ritual {ritual_id}; skipping execution"
             )
             return None
 
