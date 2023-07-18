@@ -1,7 +1,7 @@
 import datetime
 import os
 import time
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
@@ -228,61 +228,79 @@ class ActiveRitualTracker:
 
         return None
 
+    def _get_participation_state_values_from_contract(
+        self, ritual_id: int
+    ) -> Tuple[bool, bool, bool]:
+        """
+        Obtains values for ParticipationState from the Coordinator contract.
+        """
+        participating = False
+        already_posted_transcript = False
+        already_posted_aggregate = False
+
+        participant_info = self._get_ritual_participant_info(ritual_id=ritual_id)
+        if participant_info:
+            # actually participating in this ritual; get latest information
+            participating = True
+            # populate information since we already hit the contract
+            already_posted_transcript = bool(participant_info.transcript)
+            already_posted_aggregate = participant_info.aggregated
+
+        return participating, already_posted_transcript, already_posted_aggregate
+
     def _get_participation_state(self, event: AttributeDict) -> ParticipationState:
         """
-        Secondary filtration of events. Returns whether this event is related to a ritual that
-        the Ritualist is participating in.
+        Returns the current participation state of the Ritualist as it pertains to
+        the ritual associated with the provided event.
         """
         event_type = getattr(self.contract.events, event.event)
         if event_type not in self.events:
             # should never happen since we specify the list of events we
             # want to receive (1st level of filtering)
-            raise ValueError(f"Unexpected event type: {event_type}")
+            raise RuntimeError(f"Unexpected event type: {event_type}")
 
         args = event.args
 
-        # check for participation
         try:
             ritual_id = args.ritualId
         except AttributeError:
             # no ritualId arg
-            raise ValueError(
+            raise RuntimeError(
                 f"Unexpected event type: '{event_type}' has no ritual id as argument"
             )
 
         participation_state = self._participation_states.get(ritual_id)
         if not participation_state:
             # not previously tracked; get current state and return
-            participation_state = (
-                self.ParticipationState()
-            )  # assume not participating initially
-            self._participation_states[ritual_id] = participation_state
-
             # need to determine if participating in this ritual or not
             if event_type == self.contract.events.StartRitual:
-                participation_state.participating = (
-                    self.ritualist.checksum_address in args.participants
+                participation_state = self.ParticipationState(
+                    participating=(self.ritualist.checksum_address in args.participants)
                 )
-            else:
-                participant_info = self._get_ritual_participant_info(
-                    ritual_id=ritual_id
-                )
-                if participant_info:
-                    # actually participating in this ritual; get latest information
-                    participation_state.participating = True
-                    # populate information since we already hit the contract
-                    participation_state.already_posted_transcript = bool(
-                        participant_info.transcript
-                    )
-                    participation_state.already_posted_aggregate = (
-                        participant_info.aggregated
-                    )
+                self._participation_states[ritual_id] = participation_state
+                return participation_state
 
-            return participation_state
-        elif not participation_state.participating:
+            # obtain information from contract
+            (
+                participating,
+                posted_transcript,
+                posted_aggregate,
+            ) = self._get_participation_state_values_from_contract(ritual_id=ritual_id)
+            participation_state = self.ParticipationState(
+                participating=participating,
+                already_posted_transcript=posted_transcript,
+                already_posted_aggregate=posted_aggregate,
+            )
+            self._participation_states[ritual_id] = participation_state
             return participation_state
 
+        # already tracked but not participating
+        if not participation_state.participating:
+            return participation_state
+
+        #
         # already tracked and participating in ritual - populate other values
+        #
         if event_type == self.contract.events.StartAggregationRound:
             participation_state.already_posted_transcript = True
         elif event_type == self.contract.events.EndRitual:
@@ -291,26 +309,25 @@ class ActiveRitualTracker:
             # be one in the future. So to be complete, and adhere to
             # the expectations of this function we still update
             # the participation state
-
-            # gather state information
             if args.successful:
                 # since successful we know these values are true
                 participation_state.already_posted_transcript = True
                 participation_state.already_posted_aggregate = True
-            else:
-                # not successful
-                # to be complete - double-check other values
-                if (
-                    not participation_state.already_posted_transcript
-                    or not participation_state.already_posted_aggregate
-                ):
-                    participant_info = self._get_ritual_participant_info(ritual_id)
-                    participation_state.already_posted_transcript = bool(
-                        participant_info.transcript
-                    )
-                    participation_state.already_posted_aggregate = (
-                        participant_info.aggregated
-                    )
+            elif (
+                not participation_state.already_posted_transcript
+                or not participation_state.already_posted_aggregate
+            ):
+                # not successful - and unsure of state values
+                # obtain information from contract
+                (
+                    _,
+                    posted_transcript,
+                    posted_aggregate,
+                ) = self._get_participation_state_values_from_contract(
+                    ritual_id=ritual_id
+                )
+                participation_state.already_posted_transcript = posted_transcript
+                participation_state.already_posted_aggregate = posted_aggregate
 
         return participation_state
 

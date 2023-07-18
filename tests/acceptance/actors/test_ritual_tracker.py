@@ -557,7 +557,7 @@ def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
         {"event": timeout_changed_event.event_name, "args": AttributeDict(args_dict)}
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         active_ritual_tracker._get_participation_state(event_data)
 
 
@@ -577,7 +577,7 @@ def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
         }
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         active_ritual_tracker._get_participation_state(event_data)
 
 
