@@ -420,7 +420,7 @@ class Ritualist(BaseActor):
         initiator: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
-    ) -> HexBytes:
+    ) -> Optional[HexBytes]:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
         if self.checksum_address not in participants:
             # should never get here
@@ -451,7 +451,8 @@ class Ritualist(BaseActor):
             )
             return None
 
-        # pending tx
+        # check pending tx; since we check the coordinator contract
+        # above, we know this tx is pending
         pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
         if pending_tx:
             self.log.debug(
@@ -459,7 +460,6 @@ class Ritualist(BaseActor):
             )
             return None
 
-        # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
 
         # gather the cohort
@@ -497,15 +497,15 @@ class Ritualist(BaseActor):
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
-            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)})"
+            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) initiated by {initiator}"
         )
         return tx_hash
 
-    def perform_round_2(self, ritual_id: int, timestamp: int) -> HexBytes:
+    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
         # Get the ritual and check the status from the blockchain
-        # TODO Optimize local cache of ritual participants (#3052)
+        # TODO potentially optimize local cache of ritual participants (#3052)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
             self.log.debug(
@@ -523,7 +523,8 @@ class Ritualist(BaseActor):
             )
             return None
 
-        # has pending tx
+        # check pending tx; since we check the coordinator contract
+        # above, we know this tx is pending
         pending_tx = self.dkg_storage.get_aggregated_transcript_receipt(
             ritual_id=ritual_id
         )
@@ -533,7 +534,6 @@ class Ritualist(BaseActor):
             )
             return None
 
-        # TODO - process pending receipts before submitting a new tx (perhaps tx already submitted, but not finalized
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
