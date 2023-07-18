@@ -1,3 +1,4 @@
+import os
 from typing import NamedTuple
 from unittest.mock import Mock
 
@@ -238,3 +239,99 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
 
     # returns the block before to be sure
     assert first_scan_block_number == correct_first_scan_block_number - 1
+
+
+def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
+    mocked_agent = ritualist.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+
+    participants = []
+    # random participants
+    for i in range(0, 3):
+        participant = CoordinatorAgent.Ritual.Participant(
+            provider=get_random_checksum_address
+        )
+        participant.provider.return_value = get_random_checksum_address()
+        participants.append(participant)
+    mocked_agent.get_participants.return_value = participants
+
+    # ritualist not in participants list
+    participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
+    assert participant_info is None
+
+    # add ritualist to participants list
+    participant = CoordinatorAgent.Ritual.Participant(
+        provider=ritualist.checksum_address
+    )
+    participants.append(participant)
+
+    # ritualist in participants list
+    participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
+    assert participant_info
+    assert participant_info.provider == ritualist.checksum_address
+
+
+def test_get_participation_state_values_from_contract(
+    ritualist, get_random_checksum_address
+):
+    mocked_agent = ritualist.coordinator_agent
+    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+
+    participants = []
+    # random participants
+    for i in range(0, 5):
+        participant = CoordinatorAgent.Ritual.Participant(
+            provider=get_random_checksum_address
+        )
+        participant.provider.return_value = get_random_checksum_address()
+        participants.append(participant)
+
+    mocked_agent.get_participants.return_value = participants
+
+    # not participating so everything should be False
+    (
+        participating,
+        posted_transcript,
+        posted_aggregate,
+    ) = active_ritual_tracker._get_participation_state_values_from_contract(ritual_id=0)
+    assert not participating
+    assert not posted_transcript
+    assert not posted_aggregate
+
+    # add ritualist to participants list
+    ritual_participant = CoordinatorAgent.Ritual.Participant(
+        provider=ritualist.checksum_address
+    )
+    participants.append(ritual_participant)
+
+    # participating, but nothing submitted
+    (
+        participating,
+        posted_transcript,
+        posted_aggregate,
+    ) = active_ritual_tracker._get_participation_state_values_from_contract(ritual_id=0)
+    assert participating
+    assert not posted_transcript
+    assert not posted_aggregate
+
+    # submit transcript
+    ritual_participant.transcript = os.urandom(32)
+    (
+        participating,
+        posted_transcript,
+        posted_aggregate,
+    ) = active_ritual_tracker._get_participation_state_values_from_contract(ritual_id=0)
+    assert participating
+    assert posted_transcript
+    assert not posted_aggregate
+
+    # submit aggregate
+    ritual_participant.aggregated = True
+    (
+        participating,
+        posted_transcript,
+        posted_aggregate,
+    ) = active_ritual_tracker._get_participation_state_values_from_contract(ritual_id=0)
+    assert participating
+    assert posted_transcript
+    assert posted_aggregate

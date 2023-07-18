@@ -183,7 +183,7 @@ class ActiveRitualTracker:
         """Stop the event scanner task."""
         return self.task.stop()
 
-    def _action_required(self, ritual_event: AttributeDict):
+    def _action_required(self, ritual_event: AttributeDict) -> bool:
         """Check if an action is required for a given ritual event."""
         # establish participation state first
         participation_state = self._get_participation_state(ritual_event)
