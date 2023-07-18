@@ -890,9 +890,13 @@ def verify_participation_flow(
 def check_event_args_match_latest_event_inputs(event: ContractEvent, args_dict: Dict):
     """Ensures that we are testing with actual event arguments."""
     event_inputs = event.abi["inputs"]
-    assert len(event_inputs) == len(args_dict)
+    assert len(event_inputs) == len(
+        args_dict
+    ), "test events don't match latest Coordinator contract events"
     for event_input in event_inputs:
-        assert event_input["name"] in args_dict
+        assert (
+            event_input["name"] in args_dict
+        ), "test events don't match latest Coordinator contract events"
 
 
 def check_participation_state(
