@@ -193,18 +193,22 @@ class ActiveRitualTracker:
 
         # does event have an associated action
         event_type = getattr(self.contract.events, ritual_event.event)
-        if event_type not in self.actions:
-            return False
 
-        if (
+        event_has_associated_action = event_type in self.actions
+        already_posted_transcript = (
             event_type == self.contract.events.StartRitual
             and participation_state.already_posted_transcript
-        ):
-            return False
-
-        if (
+        )
+        already_posted_aggregate = (
             event_type == self.contract.events.StartAggregationRound
             and participation_state.already_posted_aggregate
+        )
+        if any(
+            [
+                not event_has_associated_action,
+                already_posted_transcript,
+                already_posted_aggregate,
+            ]
         ):
             return False
 
