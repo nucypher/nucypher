@@ -249,9 +249,8 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
     # random participants
     for i in range(0, 3):
         participant = CoordinatorAgent.Ritual.Participant(
-            provider=get_random_checksum_address
+            provider=get_random_checksum_address()
         )
-        participant.provider.return_value = get_random_checksum_address()
         participants.append(participant)
     mocked_agent.get_participants.return_value = participants
 
@@ -281,9 +280,8 @@ def test_get_participation_state_values_from_contract(
     # random participants
     for i in range(0, 5):
         participant = CoordinatorAgent.Ritual.Participant(
-            provider=get_random_checksum_address
+            provider=get_random_checksum_address()
         )
-        participant.provider.return_value = get_random_checksum_address()
         participants.append(participant)
 
     mocked_agent.get_participants.return_value = participants

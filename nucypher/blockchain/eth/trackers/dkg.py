@@ -320,7 +320,7 @@ class ActiveRitualTracker:
                 # not successful - and unsure of state values
                 # obtain information from contract
                 (
-                    _,
+                    _,  # participating ignored - we know we are participating
                     posted_transcript,
                     posted_aggregate,
                 ) = self._get_participation_state_values_from_contract(
