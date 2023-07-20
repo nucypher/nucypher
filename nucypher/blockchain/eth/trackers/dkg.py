@@ -73,6 +73,9 @@ class ActiveRitualTracker:
     # how often to check/purge for expired cached values - 8hrs?
     _PARTICIPATION_STATES_PURGE_INTERVAL = 60 * 60 * 8
 
+    # what's the buffer for potentially receiving repeated events - 10mins?
+    _RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER = 60 * 10
+
     class ParticipationState:
         def __init__(
             self,
@@ -129,10 +132,10 @@ class ActiveRitualTracker:
 
         self.task = EventScannerTask(scanner=self.scan)
 
-        ritual_timeout = self.coordinator_agent.get_timeout()
-        # what's the buffer for potentially receiving repeated events - one hour?
-        cache_ttl = ritual_timeout + (60 * 60)
-
+        cache_ttl = (
+            self.coordinator_agent.get_timeout()
+            + self._RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER
+        )
         self._participation_states = TTLCache(
             ttl=cache_ttl
         )  # { ritual_id -> ParticipationState }
