@@ -16,7 +16,10 @@ class DKGStorage:
         self.data["transcripts"][ritual_id] = bytes(transcript)
 
     def get_transcript(self, ritual_id: int) -> Optional[Transcript]:
-        data = self.data["transcripts"][ritual_id]
+        data = self.data["transcripts"].get(ritual_id)
+        if not data:
+            return None
+
         transcript = Transcript.from_bytes(data)
         return transcript
 
@@ -36,7 +39,12 @@ class DKGStorage:
     def get_aggregated_transcript(
         self, ritual_id: int
     ) -> Optional[AggregatedTranscript]:
-        return self.data["aggregated_transcripts"].get(ritual_id)
+        data = self.data["aggregated_transcripts"].get(ritual_id)
+        if not data:
+            return None
+
+        aggregated_transcript = AggregatedTranscript.from_bytes(data)
+        return aggregated_transcript
 
     def store_aggregated_transcript_receipt(
         self, ritual_id: int, txhash_or_receipt: Union[TxReceipt, HexBytes]
