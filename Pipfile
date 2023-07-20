@@ -23,7 +23,7 @@ marshmallow = "*"
 maya = "*"
 msgpack = "*"
 # Web
-aiohttp = "==3.8.2"
+aiohttp = "==3.8.5"
 flask = "*"
 requests = "*"
 # Third-Party Ethereum
