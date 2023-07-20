@@ -3,6 +3,7 @@ import os
 from typing import Dict
 from unittest.mock import ANY, Mock, patch
 
+import maya
 import pytest
 import pytest_twisted
 from eth_typing import ChecksumAddress
@@ -581,6 +582,139 @@ def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
         active_ritual_tracker._get_participation_state(event_data)
 
 
+def test_get_participation_state_purge_expired_cache_entries(
+    cohort, get_random_checksum_address
+):
+    ritual_id_1 = 1
+    ritual_id_2 = 2
+
+    ursula = cohort[0]
+    agent = ursula.coordinator_agent
+
+    # This test hinges on the relationship between ritual timeout and the purge interval
+    # This relationship should hold: ritual timeout (ttl) + buffer == to the purge
+    # interval for ease of testing; so fake the ritual timeout
+    faked_ritual_timeout = ActiveRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL - (
+        ActiveRitualTracker._RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER
+    )
+
+    with patch.object(agent, "get_timeout", return_value=faked_ritual_timeout):
+        # fake timeout only needed for initialization
+        active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+
+    now = maya.now()
+
+    start_ritual_event = agent.contract.events.StartRitual()
+    args_dict = {
+        "ritualId": ritual_id_1,
+        "initiator": get_random_checksum_address(),
+        "participants": [
+            get_random_checksum_address(),
+            get_random_checksum_address(),
+            ursula.checksum_address,  # participating
+        ],
+    }
+
+    with patch.object(
+        active_ritual_tracker._participation_states,
+        "purge_expired",
+        wraps=active_ritual_tracker._participation_states.purge_expired,
+    ) as mock_wrapped_purge_expired:
+        # start ritual event for ritual 1 (participating)
+        event_data = AttributeDict(
+            {"event": start_ritual_event.event_name, "args": AttributeDict(args_dict)}
+        )
+        participation_state = active_ritual_tracker._get_participation_state(event_data)
+        check_participation_state(participation_state, expected_participating=True)
+
+        # not enough time passed for purge_expired() to be called
+        mock_wrapped_purge_expired.assert_not_called()
+
+    assert len(active_ritual_tracker._participation_states) == 1
+
+    # modify the time that ritual id 2 is processed later on
+    def maya_now_for_ritual_2():
+        return now.add(
+            seconds=ActiveRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL / 2
+        )
+
+    with patch.object(
+        active_ritual_tracker._participation_states,
+        "purge_expired",
+        wraps=active_ritual_tracker._participation_states.purge_expired,
+    ) as mock_wrapped_purge_expired:
+        with patch("maya.now", maya_now_for_ritual_2):
+            # start ritual event for ritual 2 (not participating)
+            args_dict["ritualId"] = ritual_id_2
+            args_dict["participants"] = [
+                get_random_checksum_address(),
+                get_random_checksum_address(),
+                get_random_checksum_address(),
+            ]
+
+            event_data = AttributeDict(
+                {
+                    "event": start_ritual_event.event_name,
+                    "args": AttributeDict(args_dict),
+                }
+            )
+            participation_state = active_ritual_tracker._get_participation_state(
+                event_data
+            )
+            check_participation_state(participation_state)
+
+        # not enough time passed for purge_expired() to be called
+        mock_wrapped_purge_expired.assert_not_called()
+
+    assert len(active_ritual_tracker._participation_states) == 2
+    # be sure that the states are properly stored
+    check_participation_state(
+        active_ritual_tracker._participation_states[ritual_id_1],
+        expected_participating=True,
+    )
+    check_participation_state(active_ritual_tracker._participation_states[ritual_id_2])
+
+    # modify time so that purge occurs when another event is received
+    # fake event for ritual 2
+    def maya_now_for_purge_interval():
+        return now.add(
+            seconds=ActiveRitualTracker._PARTICIPATION_STATES_PURGE_INTERVAL + 1
+        )
+
+    with patch.object(
+        active_ritual_tracker._participation_states,
+        "purge_expired",
+        wraps=active_ritual_tracker._participation_states.purge_expired,
+    ) as mock_wrapped_purge_expired:
+        with patch("maya.now", maya_now_for_purge_interval):
+            # Receive StartAggregationRound for ritual_id 2
+            event_data = AttributeDict(
+                {
+                    "event": "StartAggregationRound",
+                    "blockNumber": 1234567,
+                    "args": AttributeDict(
+                        {
+                            "ritualId": ritual_id_2,
+                        }
+                    ),
+                }
+            )
+
+            participation_state = active_ritual_tracker._get_participation_state(
+                event_data
+            )
+            check_participation_state(participation_state)
+
+        # ensure that purge_expired called - enough time has passed
+        # len(states) below can call purge_expired, so this is the way
+        # to be sure it's called
+        mock_wrapped_purge_expired.assert_called()
+
+    assert len(active_ritual_tracker._participation_states) == 1
+    assert active_ritual_tracker._participation_states[ritual_id_1] is None
+    check_participation_state(active_ritual_tracker._participation_states[ritual_id_2])
+
+
 @pytest_twisted.inlineCallbacks()
 def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_address):
     # test overall processing of events
@@ -601,7 +735,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
 
     active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
 
-    blockNumber = 17692417  # random block number - value doesn't matter
+    block_number = 17692417  # random block number - value doesn't matter
 
     def get_block_when(*args, **kwargs) -> datetime.datetime:
         return datetime.datetime.now()
@@ -626,7 +760,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
         event_data = AttributeDict(
             {
                 "event": "StartRitual",
-                "blockNumber": blockNumber,
+                "blockNumber": block_number,
                 "args": AttributeDict(
                     {
                         "ritualId": r_id,
@@ -663,7 +797,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     event_data = AttributeDict(
         {
             "event": "StartAggregationRound",
-            "blockNumber": blockNumber,
+            "blockNumber": block_number,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_2,
@@ -699,7 +833,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     event_data = AttributeDict(
         {
             "event": "StartAggregationRound",
-            "blockNumber": blockNumber,
+            "blockNumber": block_number,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_4,
@@ -731,12 +865,13 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     check_participation_state(active_ritual_tracker._participation_states[ritual_id_4])
 
     #
-    # EndRitual received for ritual id 3 (case where sequence of events are odd; eg. node restart etc.)
+    # EndRitual received for ritual id 3 (case where sequence
+    # of events are odd; eg. node restart etc.)
     #
     event_data = AttributeDict(
         {
             "event": "EndRitual",
-            "blockNumber": blockNumber,
+            "blockNumber": block_number,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_3,
@@ -778,7 +913,7 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     event_data = AttributeDict(
         {
             "event": "EndRitual",
-            "blockNumber": blockNumber,
+            "blockNumber": block_number,
             "args": AttributeDict(
                 {
                     "ritualId": ritual_id_4,
