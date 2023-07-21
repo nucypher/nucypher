@@ -134,7 +134,6 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
             ritual_id=RITUAL_ID,
             ciphertext=ciphertext,
             conditions=CONDITIONS,
-            # params=cohort[0].dkg_storage.get_dkg_params(RITUAL_ID),
             peering_timeout=0
         )
         assert bytes(cleartext) == PLAINTEXT.encode()

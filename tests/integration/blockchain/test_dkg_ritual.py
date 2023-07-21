@@ -198,14 +198,6 @@ def test_ursula_ritualist(
             )
             assert bytes(cleartext) == PLAINTEXT.encode()
 
-            # again, but without `params`
-            cleartext = bob.threshold_decrypt(
-                ritual_id=ritual_id,
-                ciphertext=ciphertext,
-                conditions=CONDITIONS,
-                peering_timeout=0,
-            )
-            assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")
 
     def error_handler(e):
