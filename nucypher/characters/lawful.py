@@ -1453,7 +1453,6 @@ class Enrico:
     """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
-    default_dkg_variant = FerveoVariant.SIMPLE
 
     def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()
@@ -1479,29 +1478,6 @@ class Enrico:
         conditions_bytes = json.dumps(conditions).encode()
         ciphertext = encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
-
-    def encrypt_for_dkg_and_produce_decryption_request(
-        self,
-        plaintext: bytes,
-        conditions: Lingo,
-        ritual_id: int,
-        variant: int = None,
-        context: Optional[bytes] = None,
-    ) -> Tuple[Ciphertext, ThresholdDecryptionRequest]:
-        ciphertext = self.encrypt_for_dkg(plaintext=plaintext, conditions=conditions)
-
-        if variant is None:
-            variant = self.default_dkg_variant.value
-
-        tdr = ThresholdDecryptionRequest(
-            ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            conditions=Conditions(json.dumps(conditions)),
-            context=context,
-            variant=variant,
-        )
-
-        return ciphertext, tdr
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
