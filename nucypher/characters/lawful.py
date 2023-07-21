@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    default_dkg_variant = FerveoVariant.SIMPLE
+    _default_dkg_variant = FerveoVariant.SIMPLE
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -712,7 +712,6 @@ class Bob(Character):
         conditions: Lingo,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        variant: str = "simple",
         peering_timeout: int = 60,
     ) -> bytes:
         ritual = self.get_ritual_from_id(ritual_id)
@@ -730,13 +729,7 @@ class Bob(Character):
                     )
                 self.remember_node(ursula)
 
-        try:
-            variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
-        except AttributeError:
-            raise ValueError(
-                f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}"
-            )
-
+        variant = self._default_dkg_variant
         threshold = (
             (ritual.shares // 2) + 1
             if variant == FerveoVariant.SIMPLE
