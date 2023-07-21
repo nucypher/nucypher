@@ -622,7 +622,7 @@ class Bob(Character):
         return cohort
 
     @staticmethod
-    def make_decryption_request(
+    def __make_decryption_request(
         ritual_id: int,
         ciphertext: Ciphertext,
         lingo: Lingo,
@@ -736,7 +736,7 @@ class Bob(Character):
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
-        decryption_request = self.make_decryption_request(
+        decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
             ciphertext=ciphertext,
             lingo=conditions,
@@ -751,12 +751,12 @@ class Bob(Character):
             threshold=threshold,
         )
 
-        return self._decrypt(
+        return self.__decrypt(
             list(decryption_shares.values()), ciphertext, conditions, variant
         )
 
     @staticmethod
-    def _decrypt(
+    def __decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
         conditions: Lingo,
