@@ -1,5 +1,6 @@
 from time import time
 from typing import List
+from unittest.mock import PropertyMock, patch
 
 import pytest
 import pytest_twisted
@@ -9,6 +10,7 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -31,17 +33,17 @@ ROUND_1_EVENT_NAME = "StartRitual"
 ROUND_2_EVENT_NAME = "StartAggregationRound"
 
 PARAMS = [  # dkg_size, ritual_id, variant
-    (2, 0, "precomputed"),
-    (4, 1, "precomputed"),
-    (8, 2, "precomputed"),
-    (2, 3, "simple"),
-    (4, 4, "simple"),
-    (8, 5, "simple"),
+    (2, 0, FerveoVariant.PRECOMPUTED),
+    (4, 1, FerveoVariant.PRECOMPUTED),
+    (8, 2, FerveoVariant.PRECOMPUTED),
+    (2, 3, FerveoVariant.SIMPLE),
+    (4, 4, FerveoVariant.SIMPLE),
+    (8, 5, FerveoVariant.SIMPLE),
     # TODO: slow and need additional accounts for testing
-    # (16, 6, "precomputed"),
-    # (16, 7, "simple"),
-    # (32, 8, "precomputed"),
-    # (32, 9, "simple"),
+    # (16, 6, FerveoVariant.PRECOMPUTED),
+    # (16, 7, FerveoVariant.SIMPLE),
+    # (32, 8, FerveoVariant.PRECOMPUTED),
+    # (32, 9, FerveoVariant.SIMPLE),
 ]
 
 BLOCKS = list(reversed(range(1, 1000)))
@@ -127,7 +129,6 @@ def test_ursula_ritualist(
     test_registry_source_manager,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
-
     cohort = cohort[:dkg_size]
 
     def initialize():
@@ -185,24 +186,26 @@ def test_ursula_ritualist(
         print("==================== DKG DECRYPTION ====================")
         bob.start_learning_loop(now=True)
 
-        cleartext = bob.threshold_decrypt(
-            ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            conditions=CONDITIONS,
-            peering_timeout=0,
-            variant=variant
-        )
-        assert bytes(cleartext) == PLAINTEXT.encode()
+        # mock the use of non-default variants since it can no longer be specified
+        with patch.object(
+            bob, "_default_dkg_variant", new_callable=PropertyMock(return_value=variant)
+        ):
+            cleartext = bob.threshold_decrypt(
+                ritual_id=ritual_id,
+                ciphertext=ciphertext,
+                conditions=CONDITIONS,
+                peering_timeout=0,
+            )
+            assert bytes(cleartext) == PLAINTEXT.encode()
 
-        # again, but without `params`
-        cleartext = bob.threshold_decrypt(
-            ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            conditions=CONDITIONS,
-            peering_timeout=0,
-            variant=variant
-        )
-        assert bytes(cleartext) == PLAINTEXT.encode()
+            # again, but without `params`
+            cleartext = bob.threshold_decrypt(
+                ritual_id=ritual_id,
+                ciphertext=ciphertext,
+                conditions=CONDITIONS,
+                peering_timeout=0,
+            )
+            assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")
 
     def error_handler(e):
