@@ -4,7 +4,18 @@ import sys
 from bisect import bisect_right
 from dataclasses import dataclass, field
 from itertools import accumulate
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Tuple, Type, cast
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from constant_sorrow.constants import (
     CONTRACT_ATTRIBUTE,  # type: ignore
@@ -13,6 +24,7 @@ from constant_sorrow.constants import (
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
+from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
 from web3.contract.contract import Contract, ContractFunction
@@ -729,12 +741,16 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
-    ) -> TxReceipt:
+        fire_and_forget: bool = False,
+    ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            transacting_power=transacting_power,
+            fire_and_forget=fire_and_forget,
+        )
         return receipt
 
     @contract_api(TRANSACTION)
@@ -745,7 +761,8 @@ class CoordinatorAgent(EthereumContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
-    ) -> TxReceipt:
+        fire_and_forget: bool = False,
+    ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
@@ -754,7 +771,8 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
-            transacting_power=transacting_power
+            transacting_power=transacting_power,
+            fire_and_forget=fire_and_forget,
         )
         return receipt
 

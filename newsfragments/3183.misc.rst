@@ -1,0 +1,1 @@
+Ensure that nodes can be more resilient when handling events related to rituals.

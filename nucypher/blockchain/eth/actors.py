@@ -17,7 +17,7 @@ from nucypher_core.ferveo import (
     Ciphertext,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
-    FerveoPublicKey,
+    DkgPublicKey,
     Transcript,
     Validator,
 )
@@ -329,22 +329,14 @@ class Ritualist(BaseActor):
         self.publish_finalization = (
             publish_finalization  # publish the DKG final key if True
         )
-        self.dkg_storage = (
-            DKGStorage()
-        )  # TODO: #3052 stores locally generated public DKG artifacts
+        # TODO: #3052 stores locally generated public DKG artifacts
+        self.dkg_storage = DKGStorage()
         self.ritual_power = crypto_power.power_ups(
             RitualisticPower
         )  # ferveo material contained within
         self.threshold_request_power = crypto_power.power_ups(
             ThresholdRequestDecryptingPower
         )  # used for secure decryption request channel
-
-    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
-        try:
-            ritual = self.ritual_tracker.rituals[ritual_id]
-        except KeyError:
-            raise self.ActorError(f"{ritual_id} is not in the local cache")
-        return ritual
 
     def _resolve_validators(
             self,
@@ -390,35 +382,37 @@ class Ritualist(BaseActor):
         result = sorted(result, key=lambda x: x[0].address)
         return result
 
-    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> TxReceipt:
+    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
         """Publish a transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
-        receipt = self.coordinator_agent.post_transcript(
+        tx_hash = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
-            transacting_power=self.transacting_power
+            transacting_power=self.transacting_power,
+            fire_and_forget=True,
         )
-        return receipt
+        return tx_hash
 
     def publish_aggregated_transcript(
         self,
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
-        public_key: FerveoPublicKey,
-    ) -> TxReceipt:
+        public_key: DkgPublicKey,
+    ) -> HexBytes:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
         participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
-        receipt = self.coordinator_agent.post_aggregation(
+        tx_hash = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             participant_public_key=participant_public_key,
-            transacting_power=self.transacting_power
+            transacting_power=self.transacting_power,
+            fire_and_forget=True,
         )
-        return receipt
+        return tx_hash
 
     def perform_round_1(
         self,
@@ -426,9 +420,8 @@ class Ritualist(BaseActor):
         initiator: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
-    ):
+    ) -> Optional[HexBytes]:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
-
         if self.checksum_address not in participants:
             # should never get here
             self.log.error(
@@ -438,41 +431,45 @@ class Ritualist(BaseActor):
                 f"Not part of ritual {ritual_id}; don't post transcript"
             )
 
-        # get the ritual and check its status from the blockchain
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
+        # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
-        # FIXME: Rearrange checks - for the moment, obtain more information for logging purposes
+        # validate the status
+        if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
+            self.log.debug(
+                f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
+            )
+            return None
+
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant_from_provider(
             ritual_id=ritual_id, provider=self.checksum_address
         )
-
-        self.log.debug(
-            f"Ritual {ritual_id} with status {status}, timestamp {ritual.init_timestamp}. "
-            f"Stored transcript data is '{participant.transcript.hex()}'"
-        )
-
-        # validate the status
-        if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
-            raise self.RitualError(
-                f"ritual #{ritual_id} is not waiting for transcripts; status={status}."
-            )
-
         if participant.transcript:
-            raise self.RitualError(
-                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}"
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}; skipping execution"
             )
+            return None
+
+        # check pending tx; since we check the coordinator contract
+        # above, we know this tx is pending
+        pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
+        if pending_tx:
+            self.log.debug(
+                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting transcript for ritual {ritual_id}; skipping execution"
+            )
+            return None
+
         self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
 
         # gather the cohort
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
         nodes = sorted(nodes, key=lambda n: n.address)
         if any(transcripts):
             self.log.debug(
                 f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.providers)}."
             )
-            self.ritual_tracker.refresh(fetch_rituals=[ritual_id])
 
         # generate a transcript
         try:
@@ -492,36 +489,56 @@ class Ritualist(BaseActor):
         self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)
 
         # publish the transcript and store the receipt
-        receipt = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
-        self.dkg_storage.store_transcript_receipt(ritual_id=ritual_id, receipt=receipt)
+        tx_hash = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
+        self.dkg_storage.store_transcript_receipt(
+            ritual_id=ritual_id, txhash_or_receipt=tx_hash
+        )
 
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
-            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)})"
+            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) initiated by {initiator}"
         )
-        return receipt
+        return tx_hash
 
-    def perform_round_2(self, ritual_id: int, timestamp: int):
+    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
         # Get the ritual and check the status from the blockchain
-        # TODO Optimize local cache of ritual participants (#3052)
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        if self.checksum_address not in [p.provider for p in ritual.participants]:
-            raise self.RitualError(
-                f"Node is not part of {ritual_id}; no need to submit aggregated transcript"
-            )
-
+        # TODO potentially optimize local cache of ritual participants (#3052)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
-            raise self.ActorError(
-                f"ritual #{ritual_id} is not waiting for aggregations; status={status}."
+            self.log.debug(
+                f"ritual #{ritual_id} is not waiting for aggregations; status={status}; skipping execution"
             )
+            return None
+
+        # validate the active ritual tracker state
+        participant = self.coordinator_agent.get_participant_from_provider(
+            ritual_id=ritual_id, provider=self.checksum_address
+        )
+        if participant.aggregated:
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
+            )
+            return None
+
+        # check pending tx; since we check the coordinator contract
+        # above, we know this tx is pending
+        pending_tx = self.dkg_storage.get_aggregated_transcript_receipt(
+            ritual_id=ritual_id
+        )
+        if pending_tx:
+            self.log.debug(
+                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting aggregated transcript for ritual {ritual_id}; skipping execution"
+            )
+            return None
+
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
+        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
         transcripts = self._resolve_validators(ritual)
         if not all([t for _, t in transcripts]):
             raise self.ActorError(
@@ -549,13 +566,13 @@ class Ritualist(BaseActor):
 
         # publish the transcript and store the receipt
         total = ritual.total_aggregations + 1
-        receipt = self.publish_aggregated_transcript(
+        tx_hash = self.publish_aggregated_transcript(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
         )
         self.dkg_storage.store_aggregated_transcript_receipt(
-            ritual_id=ritual_id, receipt=receipt
+            ritual_id=ritual_id, txhash_or_receipt=tx_hash
         )
 
         # logging
@@ -566,7 +583,7 @@ class Ritualist(BaseActor):
         if total >= len(ritual.providers):
             self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
 
-        return receipt
+        return tx_hash
 
     def derive_decryption_share(
         self,
