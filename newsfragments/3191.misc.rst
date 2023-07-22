@@ -1,0 +1,1 @@
+Use a time-to-live cache for trakcing ritual participation state which gets periodically purged when ritual state is deemed stale.

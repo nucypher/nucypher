@@ -21,6 +21,7 @@ def ritualist(ursulas, mock_coordinator_agent) -> Ritualist:
     ursula = ursulas[0]
     mocked_agent = Mock(spec=CoordinatorAgent)
     mocked_agent.contract = mock_coordinator_agent.contract
+    mocked_agent.get_timeout.return_value = 60  # 60s
     mocked_blockchain = Mock()
     mocked_agent.blockchain = mocked_blockchain
     mocked_w3 = Mock()
