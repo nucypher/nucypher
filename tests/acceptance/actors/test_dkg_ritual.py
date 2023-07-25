@@ -126,18 +126,15 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         dkg_message_kit = enrico.encrypt_for_dkg(
             plaintext=plaintext, conditions=CONDITIONS
         )
-        return dkg_message_kit.ciphertext
+        return dkg_message_kit
 
-    def test_decrypt(ciphertext):
+    def test_decrypt(dkg_message_kit):
         """Decrypts a message and checks that it matches the original plaintext"""
         print("==================== DKG DECRYPTION ====================")
         # ritual_id, ciphertext, conditions are obtained from the side channel
         bob.start_learning_loop(now=True)
         cleartext = bob.threshold_decrypt(
-            ritual_id=RITUAL_ID,
-            ciphertext=ciphertext,
-            conditions=CONDITIONS,
-            peering_timeout=0
+            ritual_id=RITUAL_ID, dkg_message_kit=dkg_message_kit, peering_timeout=0
         )
         assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")

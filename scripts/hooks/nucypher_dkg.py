@@ -314,8 +314,7 @@ def nucypher_dkg(
 
     cleartext = bob.threshold_decrypt(
         ritual_id=ritual_id,
-        ciphertext=dkg_message_kit.ciphertext,
-        conditions=CONDITIONS,
+        dkg_message_kit=dkg_message_kit,
     )
 
     emitter.echo(f"\n-- Data decrypted -- \n{bytes(cleartext).decode()}", color="green")

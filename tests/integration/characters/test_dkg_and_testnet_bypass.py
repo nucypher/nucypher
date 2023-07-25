@@ -42,9 +42,7 @@ def _attempt_decryption(BobClass, plaintext):
     )
 
     decrypted_cleartext = bob.threshold_decrypt(
-        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
-        ciphertext=dkg_message_kit.ciphertext,
-        conditions=definitely_false_condition,
+        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA, dkg_message_kit=dkg_message_kit
     )
 
     return decrypted_cleartext

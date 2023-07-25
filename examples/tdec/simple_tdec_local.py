@@ -25,9 +25,8 @@ dkg_message_kit = enrico.encrypt_for_dkg(
 )
 
 cleartext_from_ciphertext = bob.threshold_decrypt(
-    ciphertext=dkg_message_kit.ciphertext,
     ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
-    conditions=before_the_beginning_of_time,
+    dkg_message_kit=dkg_message_kit,
 )
 
 decoded_cleartext_from_ciphertext = bytes(cleartext_from_ciphertext)

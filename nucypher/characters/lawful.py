@@ -715,9 +715,8 @@ class Bob(Character):
 
     def threshold_decrypt(
         self,
-        ritual_id: int,
-        ciphertext: Ciphertext,
-        conditions: Lingo,
+        ritual_id: int,  # TODO should ritual ID be in the DkgMessageKit/ACP? Feels that way
+        dkg_message_kit: DkgMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
@@ -746,8 +745,8 @@ class Bob(Character):
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            lingo=conditions,
+            ciphertext=dkg_message_kit.ciphertext,
+            lingo=dkg_message_kit.acp.conditions,
             variant=variant,
             context=context,
         )
@@ -760,7 +759,10 @@ class Bob(Character):
         )
 
         return self.__decrypt(
-            list(decryption_shares.values()), ciphertext, conditions, variant
+            list(decryption_shares.values()),
+            dkg_message_kit.ciphertext,
+            dkg_message_kit.acp.conditions,
+            variant,
         )
 
     @staticmethod

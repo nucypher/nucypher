@@ -183,9 +183,9 @@ def test_ursula_ritualist(
         dkg_message_kit = enrico.encrypt_for_dkg(
             plaintext=plaintext, conditions=CONDITIONS
         )
-        return dkg_message_kit.ciphertext
+        return dkg_message_kit
 
-    def decrypt(ciphertext):
+    def decrypt(dkg_message_kit):
         """Decrypts a message and checks that it matches the original plaintext"""
         print("==================== DKG DECRYPTION ====================")
         bob.start_learning_loop(now=True)
@@ -196,8 +196,7 @@ def test_ursula_ritualist(
         ):
             cleartext = bob.threshold_decrypt(
                 ritual_id=ritual_id,
-                ciphertext=ciphertext,
-                conditions=CONDITIONS,
+                dkg_message_kit=dkg_message_kit,
                 peering_timeout=0,
             )
             assert bytes(cleartext) == PLAINTEXT.encode()

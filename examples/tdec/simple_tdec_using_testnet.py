@@ -78,8 +78,7 @@ bob.start_learning_loop(now=True)
 
 cleartext = bob.threshold_decrypt(
     ritual_id=ritual_id,
-    ciphertext=dkg_message_kit.ciphertext,
-    conditions=eth_balance_condition,
+    dkg_message_kit=dkg_message_kit,
 )
 
 print(bytes(cleartext).decode())
