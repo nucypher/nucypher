@@ -293,7 +293,7 @@ def nucypher_dkg(
     )
 
     enrico = Enrico(encrypting_key=encrypting_key)
-    ciphertext = enrico.encrypt_for_dkg(
+    dkg_message_kit = enrico.encrypt_for_dkg(
         plaintext=PLAINTEXT.encode(), conditions=CONDITIONS
     )
 
@@ -314,7 +314,7 @@ def nucypher_dkg(
 
     cleartext = bob.threshold_decrypt(
         ritual_id=ritual_id,
-        ciphertext=ciphertext,
+        ciphertext=dkg_message_kit.ciphertext,
         conditions=CONDITIONS,
     )
 

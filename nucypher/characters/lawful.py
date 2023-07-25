@@ -90,6 +90,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
+from nucypher.core import AccessControlPolicy, DkgMessageKit
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -1475,11 +1476,26 @@ class Enrico:
         )
         return message_kit
 
-    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> Ciphertext:
+    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> DkgMessageKit:
         validate_condition_lingo(conditions)
         conditions_bytes = json.dumps(conditions).encode()
-        ciphertext = encrypt(plaintext, conditions_bytes, self.policy_pubkey)
-        return ciphertext
+        aad = conditions_bytes
+        ciphertext = encrypt(plaintext, aad, self.policy_pubkey)
+
+        # what are we signing again - ciphertext?
+        authorization = self.signing_power.keypair.sign(bytes(ciphertext)).to_be_bytes()
+
+        acp = AccessControlPolicy(
+            public_key=self.policy_pubkey,
+            conditions=conditions,
+            authorization=authorization,
+        )
+        message_kit = DkgMessageKit(
+            ciphertext=ciphertext,
+            acp=acp,
+        )
+
+        return message_kit
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):

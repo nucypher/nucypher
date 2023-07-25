@@ -123,8 +123,10 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         # encrypt
         # print(f'encrypting for DKG with key {bytes(encrypting_key.to_bytes()).hex()}')
         enrico = Enrico(encrypting_key=encrypting_key)
-        ciphertext = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
-        return ciphertext
+        dkg_message_kit = enrico.encrypt_for_dkg(
+            plaintext=plaintext, conditions=CONDITIONS
+        )
+        return dkg_message_kit.ciphertext
 
     def test_decrypt(ciphertext):
         """Decrypts a message and checks that it matches the original plaintext"""
