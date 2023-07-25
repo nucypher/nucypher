@@ -10,7 +10,7 @@ backports.zoneinfo==0.2.1 ; python_version >= '3.7' and python_version < '3.9'
 bitarray==2.7.4
 bytestring-splitter==2.4.1
 cached-property==1.5.2
-certifi==2023.5.7 ; python_version >= '3.6'
+certifi==2023.7.22 ; python_version >= '3.6'
 cffi==1.15.1
 charset-normalizer==2.1.1 ; python_full_version >= '3.6.0'
 click==8.1.3

@@ -10,7 +10,7 @@ backcall==0.2.0
 base58==1.0.3
 bitarray==2.7.4
 cached-property==1.5.2
-certifi==2023.5.7 ; python_version >= '3.6'
+certifi==2023.7.22 ; python_version >= '3.6'
 cffi==1.15.1
 cfgv==3.3.1 ; python_full_version >= '3.6.1'
 charset-normalizer==2.1.1 ; python_full_version >= '3.6.0'
