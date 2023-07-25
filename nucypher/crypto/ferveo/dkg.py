@@ -78,6 +78,7 @@ def verify_aggregate(
 ):
     pvss_aggregated.verify(shares, transcripts)
 
+
 def derive_decryption_share(
     nodes: List[Validator],
     aggregated_transcript: AggregatedTranscript,
@@ -93,7 +94,7 @@ def derive_decryption_share(
     try:
         derive_share = _VARIANTS[variant]
     except KeyError:
-        raise Exception(f"invalid variant {variant}")
+        raise ValueError(f"Invalid variant {variant}")
     share = derive_share(
         # first arg here is intended to be "self" since the method is unbound
         aggregated_transcript,

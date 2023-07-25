@@ -1,0 +1,1 @@
+Don't allow users to specify the FerveoVariant to use for threshold decryption. The default, simple variant, will be used.

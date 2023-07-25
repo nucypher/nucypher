@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    default_dkg_variant = FerveoVariant.SIMPLE
+    _default_dkg_variant = FerveoVariant.SIMPLE
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -622,7 +622,7 @@ class Bob(Character):
         return cohort
 
     @staticmethod
-    def make_decryption_request(
+    def __make_decryption_request(
         ritual_id: int,
         ciphertext: Ciphertext,
         lingo: Lingo,
@@ -712,7 +712,6 @@ class Bob(Character):
         conditions: Lingo,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        variant: str = "simple",
         peering_timeout: int = 60,
     ) -> bytes:
         ritual = self.get_ritual_from_id(ritual_id)
@@ -730,20 +729,14 @@ class Bob(Character):
                     )
                 self.remember_node(ursula)
 
-        try:
-            variant = FerveoVariant(getattr(FerveoVariant, variant.upper()).value)
-        except AttributeError:
-            raise ValueError(
-                f"Invalid variant: {variant}; Options are: {list(v.name.lower() for v in list(FerveoVariant))}"
-            )
-
+        variant = self._default_dkg_variant
         threshold = (
             (ritual.shares // 2) + 1
             if variant == FerveoVariant.SIMPLE
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
-        decryption_request = self.make_decryption_request(
+        decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
             ciphertext=ciphertext,
             lingo=conditions,
@@ -758,12 +751,12 @@ class Bob(Character):
             threshold=threshold,
         )
 
-        return self._decrypt(
+        return self.__decrypt(
             list(decryption_shares.values()), ciphertext, conditions, variant
         )
 
     @staticmethod
-    def _decrypt(
+    def __decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
         conditions: Lingo,
@@ -1453,7 +1446,6 @@ class Enrico:
     """A data source that encrypts data for some policy's public key"""
 
     banner = ENRICO_BANNER
-    default_dkg_variant = FerveoVariant.SIMPLE
 
     def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
         self.signing_power = SigningPower()
@@ -1479,29 +1471,6 @@ class Enrico:
         conditions_bytes = json.dumps(conditions).encode()
         ciphertext = encrypt(plaintext, conditions_bytes, self.policy_pubkey)
         return ciphertext
-
-    def encrypt_for_dkg_and_produce_decryption_request(
-        self,
-        plaintext: bytes,
-        conditions: Lingo,
-        ritual_id: int,
-        variant: int = None,
-        context: Optional[bytes] = None,
-    ) -> Tuple[Ciphertext, ThresholdDecryptionRequest]:
-        ciphertext = self.encrypt_for_dkg(plaintext=plaintext, conditions=conditions)
-
-        if variant is None:
-            variant = self.default_dkg_variant.value
-
-        tdr = ThresholdDecryptionRequest(
-            ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            conditions=Conditions(json.dumps(conditions)),
-            context=context,
-            variant=variant,
-        )
-
-        return ciphertext, tdr
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
