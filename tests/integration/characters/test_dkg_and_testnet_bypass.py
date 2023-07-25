@@ -56,12 +56,6 @@ def test_user_controls_success():
     assert bytes(result) == bytes(plaintext)
 
 
-def test_user_controls_success():
-    plaintext = b"ever thus to deadbeats"
-    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext)
-    assert bytes(result) == bytes(plaintext)
-
-
 def test_user_controls_failure():
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas):
