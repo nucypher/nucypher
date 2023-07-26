@@ -55,11 +55,11 @@ eth_balance_condition = {
 }
 
 message = "hello world".encode()
-dkg_message_kit = enrico.encrypt_for_dkg(
+threshold_message_kit = enrico.encrypt_for_dkg(
     plaintext=message, conditions=eth_balance_condition
 )
 
-print(f"Encrypted message: {bytes(dkg_message_kit.ciphertext).hex()}")
+print(f"Encrypted message: {bytes(threshold_message_kit.ciphertext).hex()}")
 
 ###############
 # Bob
@@ -78,7 +78,7 @@ bob.start_learning_loop(now=True)
 
 cleartext = bob.threshold_decrypt(
     ritual_id=ritual_id,
-    dkg_message_kit=dkg_message_kit,
+    threshold_message_kit=threshold_message_kit,
 )
 
 print(bytes(cleartext).decode())

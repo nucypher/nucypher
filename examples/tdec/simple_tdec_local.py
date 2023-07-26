@@ -19,14 +19,14 @@ before_the_beginning_of_time = {
     },
 }
 
-dkg_message_kit = enrico.encrypt_for_dkg(
+threshold_message_kit = enrico.encrypt_for_dkg(
     plaintext=plaintext,
     conditions=before_the_beginning_of_time,
 )
 
 cleartext_from_ciphertext = bob.threshold_decrypt(
     ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
-    dkg_message_kit=dkg_message_kit,
+    threshold_message_kit=threshold_message_kit,
 )
 
 decoded_cleartext_from_ciphertext = bytes(cleartext_from_ciphertext)

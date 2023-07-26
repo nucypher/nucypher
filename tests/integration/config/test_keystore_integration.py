@@ -191,11 +191,13 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
 
     # encrypt
     enrico = Enrico(encrypting_key=dkg_public_key)
-    dkg_message_kit = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
+    threshold_message_kit = enrico.encrypt_for_dkg(
+        plaintext=plaintext, conditions=CONDITIONS
+    )
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
         variant=FerveoVariant.Simple,
-        ciphertext=dkg_message_kit.ciphertext,
+        ciphertext=threshold_message_kit.ciphertext,
         conditions=Conditions(json.dumps(CONDITIONS)),
     )
 

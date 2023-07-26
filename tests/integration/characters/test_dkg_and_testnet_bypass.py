@@ -36,13 +36,14 @@ def _attempt_decryption(BobClass, plaintext):
         },
     }
 
-    dkg_message_kit = enrico.encrypt_for_dkg(
+    threshold_message_kit = enrico.encrypt_for_dkg(
         plaintext=plaintext,
         conditions=definitely_false_condition,
     )
 
     decrypted_cleartext = bob.threshold_decrypt(
-        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA, dkg_message_kit=dkg_message_kit
+        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
+        threshold_message_kit=threshold_message_kit,
     )
 
     return decrypted_cleartext

@@ -90,7 +90,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.core import AccessControlPolicy, DkgMessageKit
+from nucypher.core import AccessControlPolicy, ThresholdMessageKit
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -715,8 +715,8 @@ class Bob(Character):
 
     def threshold_decrypt(
         self,
-        ritual_id: int,  # TODO should ritual ID be in the DkgMessageKit/ACP? Feels that way
-        dkg_message_kit: DkgMessageKit,
+        ritual_id: int,  # TODO should ritual ID be in the ThresholdMessageKit/ACP? Feels that way
+        threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
@@ -745,8 +745,8 @@ class Bob(Character):
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
-            ciphertext=dkg_message_kit.ciphertext,
-            lingo=dkg_message_kit.acp.conditions,
+            ciphertext=threshold_message_kit.ciphertext,
+            lingo=threshold_message_kit.acp.conditions,
             variant=variant,
             context=context,
         )
@@ -760,8 +760,8 @@ class Bob(Character):
 
         return self.__decrypt(
             list(decryption_shares.values()),
-            dkg_message_kit.ciphertext,
-            dkg_message_kit.acp.conditions,
+            threshold_message_kit.ciphertext,
+            threshold_message_kit.acp.conditions,
             variant,
         )
 
@@ -1478,7 +1478,9 @@ class Enrico:
         )
         return message_kit
 
-    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> DkgMessageKit:
+    def encrypt_for_dkg(
+        self, plaintext: bytes, conditions: Lingo
+    ) -> ThresholdMessageKit:
         validate_condition_lingo(conditions)
         conditions_bytes = json.dumps(conditions).encode()
         aad = conditions_bytes
@@ -1492,7 +1494,7 @@ class Enrico:
             conditions=conditions,
             authorization=authorization,
         )
-        message_kit = DkgMessageKit(
+        message_kit = ThresholdMessageKit(
             ciphertext=ciphertext,
             acp=acp,
         )

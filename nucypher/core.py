@@ -45,7 +45,7 @@ class AccessControlPolicy(NamedTuple):
         return instance
 
 
-class DkgMessageKit(NamedTuple):
+class ThresholdMessageKit(NamedTuple):
     # one entry for now: thin ferveo ciphertext + symmetric ciphertext; ferveo#147
     ciphertext: Ciphertext
     acp: AccessControlPolicy
@@ -59,7 +59,7 @@ class DkgMessageKit(NamedTuple):
         return d
 
     @classmethod
-    def from_dict(cls, message_kit: Dict) -> "DkgMessageKit":
+    def from_dict(cls, message_kit: Dict) -> "ThresholdMessageKit":
         return cls(
             ciphertext=Ciphertext.from_bytes(
                 base64.b64decode(message_kit["ciphertext"])
@@ -73,7 +73,7 @@ class DkgMessageKit(NamedTuple):
         return b64_json_payload
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> "DkgMessageKit":
+    def from_bytes(cls, data: bytes) -> "ThresholdMessageKit":
         json_payload = base64.b64decode(data).decode()
         instance = cls.from_dict(json.loads(json_payload))
         return instance
