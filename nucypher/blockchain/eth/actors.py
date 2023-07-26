@@ -1,16 +1,15 @@
-import time
 from collections import defaultdict
 from decimal import Decimal
 from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
+import time
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
-    EncryptedThresholdDecryptionRequest,
+    Conditions,
     EncryptedThresholdDecryptionResponse,
     SessionStaticKey,
-    ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
 from nucypher_core.ferveo import (
@@ -46,6 +45,10 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
+from nucypher.core import (
+    EncryptedThresholdDecryptionRequest,
+    ThresholdDecryptionRequest,
+)
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -55,7 +58,6 @@ from nucypher.crypto.powers import (
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
-from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -631,7 +633,7 @@ class Ritualist(BaseActor):
         self,
         ritual_id: int,
         ciphertext: Ciphertext,
-        conditions: ConditionLingo,
+        conditions: Conditions,
         variant: FerveoVariant
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)

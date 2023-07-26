@@ -43,7 +43,6 @@ from nucypher_core import (
     ReencryptionResponse,
     SessionStaticKey,
     SessionStaticSecret,
-    ThresholdDecryptionRequest,
     TreasureMap,
 )
 from nucypher_core.ferveo import (
@@ -90,7 +89,11 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.core import AccessControlPolicy, ThresholdMessageKit
+from nucypher.core import (
+    AccessControlPolicy,
+    ThresholdDecryptionRequest,
+    ThresholdMessageKit,
+)
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -628,19 +631,17 @@ class Bob(Character):
     @staticmethod
     def __make_decryption_request(
         ritual_id: int,
-        ciphertext: Ciphertext,
-        lingo: Lingo,
+        threshold_message_kit: ThresholdMessageKit,
         variant: FerveoVariant,
         context: Optional[dict] = None,
     ) -> ThresholdDecryptionRequest:
-        conditions = Conditions(json.dumps(lingo))
         if context:
             context = Context(json.dumps(context))
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=variant,
-            ciphertext=ciphertext,
-            conditions=conditions,
+            ciphertext=threshold_message_kit.ciphertext,
+            access_control_policy=threshold_message_kit.acp,
             context=context,
         )
         return decryption_request
@@ -745,8 +746,7 @@ class Bob(Character):
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
-            ciphertext=threshold_message_kit.ciphertext,
-            lingo=threshold_message_kit.acp.conditions,
+            threshold_message_kit=threshold_message_kit,
             variant=variant,
             context=context,
         )
@@ -769,7 +769,7 @@ class Bob(Character):
     def __decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
         ciphertext: Ciphertext,
-        conditions: Lingo,
+        conditions: Conditions,
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
@@ -779,7 +779,7 @@ class Bob(Character):
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
-        conditions = json.dumps(conditions).encode()  # aad
+        conditions = str(conditions).encode()  # aad
         cleartext = decrypt_with_shared_secret(
             ciphertext,
             conditions,       # aad
@@ -1482,8 +1482,8 @@ class Enrico:
         self, plaintext: bytes, conditions: Lingo
     ) -> ThresholdMessageKit:
         validate_condition_lingo(conditions)
-        conditions_bytes = json.dumps(conditions).encode()
-        aad = conditions_bytes
+        conditions_json = json.dumps(conditions)
+        aad = json.dumps(conditions).encode()
         ciphertext = encrypt(plaintext, aad, self.policy_pubkey)
 
         # what are we signing again - ciphertext?
@@ -1491,7 +1491,7 @@ class Enrico:
 
         acp = AccessControlPolicy(
             public_key=self.policy_pubkey,
-            conditions=conditions,
+            conditions=Conditions(conditions_json),
             authorization=authorization,
         )
         message_kit = ThresholdMessageKit(

@@ -787,6 +787,12 @@ class CoordinatorAgent(EthereumContractAgent):
 
         return ritual.public_key.to_dkg_public_key()
 
+    def is_encryption_authorized(
+        self, ritual_id: int, evidence: bytes, digest: bytes
+    ) -> bool:
+        # get ritual -> get access controller -> call isAuthorized(ritualId, evidence, digest)
+        return True
+
 
 class ContractAgency:
     """Where agents live and die."""

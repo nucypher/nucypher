@@ -9,7 +9,6 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
-    EncryptedThresholdDecryptionRequest,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
@@ -18,6 +17,7 @@ from nucypher_core import (
 )
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
+from nucypher.core import EncryptedThresholdDecryptionRequest
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -172,7 +172,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # obtain condition from request
         condition_lingo = json.loads(
-            str(decryption_request.conditions)
+            str(decryption_request.access_control_policy.conditions)
         )  # nucypher_core.Conditions -> str -> Lingo
         if not condition_lingo:
             # this should never happen for CBD - defeats the purpose
@@ -204,11 +204,23 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 status=HTTPStatus.FORBIDDEN,
             )
 
+        # check whether enrico is authorized
+        authorization = decryption_request.access_control_policy.authorization
+        # TODO: how does the single entry "authorization" in ACP tie in with
+        #  "evidence" and "digest" values needed for contract isAuthorized() call
+        if not this_node.coordinator_agent.is_encryption_authorized(
+            ritual_id=decryption_request.ritual_id, evidence=authorization, digest=None
+        ):
+            return Response(
+                f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
+                status=HTTPStatus.UNAUTHORIZED,
+            )
+
         # derive the decryption share
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
             ciphertext=decryption_request.ciphertext,
-            conditions=decryption_request.conditions,
+            conditions=decryption_request.access_control_policy.conditions,
             variant=decryption_request.variant,
         )
 
