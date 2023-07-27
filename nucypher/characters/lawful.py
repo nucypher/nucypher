@@ -46,7 +46,6 @@ from nucypher_core import (
     TreasureMap,
 )
 from nucypher_core.ferveo import (
-    Ciphertext,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
@@ -641,7 +640,7 @@ class Bob(Character):
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=variant,
-            ciphertext=threshold_message_kit.ciphertext,
+            ciphertext=threshold_message_kit.kem_ciphertext,
             access_control_policy=threshold_message_kit.acp,
             context=context,
         )
@@ -761,16 +760,14 @@ class Bob(Character):
 
         return self.__decrypt(
             list(decryption_shares.values()),
-            threshold_message_kit.ciphertext,
-            threshold_message_kit.acp.conditions,
+            threshold_message_kit,
             variant,
         )
 
     @staticmethod
     def __decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
-        ciphertext: Ciphertext,
-        conditions: Conditions,
+        threshold_message_kit: ThresholdMessageKit,
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
@@ -780,12 +777,15 @@ class Bob(Character):
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
-        conditions = str(conditions).encode()  # aad
+        conditions = str(threshold_message_kit.acp.conditions).encode()  # aad
+        # TODO this ferveo call should probably take the kem_ciphertext and the dem_ciphertext
+        #  to actually obtain the cleartext
         cleartext = decrypt_with_shared_secret(
-            ciphertext,
+            threshold_message_kit.kem_ciphertext,
             conditions,       # aad
             shared_secret,
         )
+
         return cleartext
 
 
@@ -1485,10 +1485,16 @@ class Enrico:
         validate_condition_lingo(conditions)
         conditions_json = json.dumps(conditions)
         aad = json.dumps(conditions).encode()
-        ciphertext = encrypt(plaintext, aad, self.policy_pubkey)
 
-        ciphertext_hash = keccak_digest(bytes(ciphertext))
-        authorization = self.signing_power.keypair.sign(ciphertext_hash).to_be_bytes()
+        # let's assume we get back dem_ciphertext, kem_ciphertext from ferveo
+        dem_ciphertext = encrypt(plaintext, aad, self.policy_pubkey)
+        # TODO: don't want to use AES 256 at the moment
+        kem_ciphertext = dem_ciphertext
+
+        kem_ciphertext_hash = keccak_digest(bytes(kem_ciphertext))
+        authorization = self.signing_power.keypair.sign(
+            kem_ciphertext_hash
+        ).to_be_bytes()
 
         acp = AccessControlPolicy(
             public_key=self.policy_pubkey,
@@ -1496,7 +1502,8 @@ class Enrico:
             authorization=authorization,
         )
         message_kit = ThresholdMessageKit(
-            ciphertext=ciphertext,
+            kem_ciphertext=kem_ciphertext,
+            dem_ciphertext=dem_ciphertext,
             acp=acp,
         )
 
