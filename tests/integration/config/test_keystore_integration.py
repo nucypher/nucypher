@@ -197,7 +197,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
         variant=FerveoVariant.Simple,
-        ciphertext=threshold_message_kit.ciphertext,
+        ciphertext=threshold_message_kit.kem_ciphertext,
         conditions=Conditions(json.dumps(CONDITIONS)),
     )
 
