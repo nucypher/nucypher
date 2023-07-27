@@ -20,6 +20,7 @@ from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.core import EncryptedThresholdDecryptionRequest
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
@@ -206,10 +207,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # check whether enrico is authorized
         authorization = decryption_request.access_control_policy.authorization
-        # TODO: how does the single entry "authorization" in ACP tie in with
-        #  "evidence" and "digest" values needed for contract isAuthorized() call
+        ciphertext_hash = keccak_digest(bytes(decryption_request.ciphertext))
         if not this_node.coordinator_agent.is_encryption_authorized(
-            ritual_id=decryption_request.ritual_id, evidence=authorization, digest=None
+            ritual_id=decryption_request.ritual_id,
+            evidence=authorization,
+            digest=ciphertext_hash,
         ):
             return Response(
                 f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",

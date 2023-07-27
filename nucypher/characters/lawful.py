@@ -105,6 +105,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
     TransactingPower,
 )
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -1486,8 +1487,8 @@ class Enrico:
         aad = json.dumps(conditions).encode()
         ciphertext = encrypt(plaintext, aad, self.policy_pubkey)
 
-        # what are we signing again - ciphertext?
-        authorization = self.signing_power.keypair.sign(bytes(ciphertext)).to_be_bytes()
+        ciphertext_hash = keccak_digest(bytes(ciphertext))
+        authorization = self.signing_power.keypair.sign(ciphertext_hash).to_be_bytes()
 
         acp = AccessControlPolicy(
             public_key=self.policy_pubkey,
