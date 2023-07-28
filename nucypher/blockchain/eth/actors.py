@@ -339,18 +339,22 @@ class Ritualist(BaseActor):
 
         # Borrow default RPC endpoints from the Operator.
         eth_chain = self.application_agent.blockchain
+
+        # Presumably, they've already configured their polygon engpoint (or we'd not be this far),
+        # so we can use that for the polygon condition provider.
         polygon_chain = self.payment_method.agent.blockchain
         condition_providers[eth_chain.client.chain_id].add(eth_chain.provider)
         condition_providers[polygon_chain.client.chain_id].add(polygon_chain.provider)
+        # Done borrowing.
 
-        # Add any additional providers that were passed in.
+        # Now, add any additional providers that were passed in.
         for chain_id, condition_provider_uris in condition_provider_uris.items():
             if chain_id not in _CONDITION_CHAINS:
                 # this is a safety check to prevent the Ritualist from connecting to
                 # chains that are not supported by ursulas on the network;
                 # Prevents the Ursula/Ritualist from starting up if this happens.
                 raise NotImplementedError(
-                    f"Chain ID {chain_id} is not supported by the Ritualist."
+                    f"Chain ID {chain_id} is not supported for condition evaluation by the Ritualist."
                 )
 
             providers = list()
