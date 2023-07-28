@@ -47,13 +47,13 @@ class AccessControlPolicy(NamedTuple):
 class ThresholdMessageKit(NamedTuple):
     # one entry for now: thin ferveo ciphertext + symmetric ciphertext; ferveo#147
     kem_ciphertext: Ciphertext
-    dem_ciphertext: Ciphertext
+    dem_ciphertext: bytes
     acp: AccessControlPolicy
 
     def to_dict(self):
         d = {
             "kem_ciphertext": base64.b64encode(bytes(self.kem_ciphertext)).decode(),
-            "dem_ciphertext": base64.b64encode(bytes(self.dem_ciphertext)).decode(),
+            "dem_ciphertext": base64.b64encode(self.dem_ciphertext).decode(),
             "acp": self.acp.to_dict(),
         }
 
@@ -65,9 +65,7 @@ class ThresholdMessageKit(NamedTuple):
             kem_ciphertext=Ciphertext.from_bytes(
                 base64.b64decode(message_kit["kem_ciphertext"])
             ),
-            dem_ciphertext=Ciphertext.from_bytes(
-                base64.b64decode(message_kit["dem_ciphertext"])
-            ),
+            dem_ciphertext=base64.b64decode(message_kit["dem_ciphertext"]),
             acp=AccessControlPolicy.from_dict(message_kit["acp"]),
         )
 
