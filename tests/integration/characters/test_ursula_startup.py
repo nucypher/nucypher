@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_new_ursula_announces_herself(
     lonely_ursula_maker, test_registry_source_manager
 ):
@@ -27,3 +30,18 @@ def test_node_deployer(ursulas):
         deployer = ursula.get_deployer()
         assert deployer.options['https_port'] == ursula.rest_information()[0].port
         assert deployer.application == ursula.rest_app
+
+
+def test_goerli_and_mumbai_as_conditions_providers(
+    lonely_ursula_maker, test_registry_source_manager
+):
+    INVALID_CHAIN_ID = 66775827584859395569954838  # If we eventually support a chain with this ID, heaven help us.
+
+    with pytest.raises(NotImplementedError):
+        _ursula_who_tries_to_connect_to_an_invalid_chain = lonely_ursula_maker(
+            quantity=1,
+            domain="useless_domain",
+            condition_provider_uris={
+                INVALID_CHAIN_ID: "this is a provider URI, but it doesn't matter what we pass here because the chain_id is invalid."
+            },
+        )
