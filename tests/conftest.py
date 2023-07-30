@@ -7,7 +7,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import MOCK_IP_ADDRESS, PYEVM_DEV_URI, TESTERCHAIN_CHAIN_ID
+from tests.constants import MOCK_IP_ADDRESS, TESTERCHAIN_CHAIN_ID
 
 # Don't re-lock accounts in the background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account

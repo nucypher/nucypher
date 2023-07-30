@@ -24,7 +24,6 @@ from nucypher_core.ferveo import (
     Validator,
 )
 from web3 import HTTPProvider, Web3
-from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname

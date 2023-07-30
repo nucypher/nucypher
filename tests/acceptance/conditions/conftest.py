@@ -1,6 +1,5 @@
 import pytest
 
-import nucypher
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
@@ -14,7 +13,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
-from tests.constants import PYEVM_DEV_URI, TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
+from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 @pytest.fixture()

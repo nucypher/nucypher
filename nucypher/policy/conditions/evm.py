@@ -1,7 +1,5 @@
-from json import JSONDecodeError
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
-import requests
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import fields, post_load, validates_schema
@@ -22,7 +20,6 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
-
 # TODO: Move this to a more appropriate location,
 #  but be sure to change the mocks in tests too.
 # Permitted blockchains for condition evaluation
@@ -173,36 +170,46 @@ class RPCCondition(AccessControlCondition):
             )
         return method
 
-    def _next_endpoint(
-        self, providers: Dict[int, Set[HTTPProvider]]
-    ) -> Iterator[HTTPProvider]:
+    def _next_endpoint(self, providers: Dict[int, Set[str]]) -> Iterator[HTTPProvider]:
         """Yields the next web3 provider to try for a given chain ID"""
         try:
             rpc_providers = providers[self.chain]
+
+        # if there are no entries for the chain ID, there
+        # is no connection to that chain available.
         except KeyError:
+            raise NoConnectionToChain(chain=self.chain)
+        if not rpc_providers:
             raise NoConnectionToChain(chain=self.chain)
         for provider in rpc_providers:
             # Someday, we might make this whole function async, and then we can knock on
             # each endpoint here to see if it's alive and only yield it if it is.
-            yield provider
+            yield HTTPProvider(endpoint_uri=provider)
 
-    def _configure_provider(self, provider: BaseProvider):
-        """Binds the condition's contract function to a blockchain provider for evaluation"""
-
+    def _configure_w3(self, provider: BaseProvider) -> Web3:
         # Instantiate a local web3 instance
-        self.w3 = Web3(provider)
+        w3 = Web3(provider)
         if self.chain in POA_CHAINS:
             # inject web3 middleware to handle POA chain extra_data field.
             self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        return w3
 
-        # This next block validates that the actual web3 provider is *actually*
-        # connected to the condition's chain ID by reading its RPC endpoint.
+    def _check_chain_id(self) -> None:
+        """
+        Validates that the actual web3 provider is *actually*
+        connected to the condition's chain ID by reading its RPC endpoint.
+        """
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain:
             raise InvalidCondition(
                 f"This condition can only be evaluated on chain ID {self.chain} but the provider's "
                 f"connection is to chain ID {provider_chain}"
             )
+
+    def _configure_provider(self, provider: BaseProvider):
+        """Binds the condition's contract function to a blockchain provider for evaluation"""
+        self.w3 = self._configure_w3(provider=provider)
+        self._check_chain_id()
         return provider
 
     def _get_web3_py_function(self, rpc_method: str):

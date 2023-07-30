@@ -17,7 +17,6 @@ from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Va
 from twisted.internet.task import Clock
 from web3 import Web3
 
-import nucypher
 import tests
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.clients import EthereumClient
@@ -37,7 +36,7 @@ from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
@@ -49,7 +48,6 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
-    PYEVM_DEV_URI,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
