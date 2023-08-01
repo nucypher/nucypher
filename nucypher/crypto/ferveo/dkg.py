@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import List, Tuple, Union
 
 from nucypher_core.ferveo import (
@@ -8,6 +7,7 @@ from nucypher_core.ferveo import (
     DecryptionShareSimple,
     Dkg,
     DkgPublicKey,
+    FerveoVariant,
     Keypair,
     Transcript,
     Validator,
@@ -19,14 +19,9 @@ from nucypher.utilities.logging import Logger
 LOGGER = Logger('ferveo-dkg')
 
 
-class FerveoVariant(Enum):
-    SIMPLE = 0
-    PRECOMPUTED = 1
-
-
 _VARIANTS = {
-    FerveoVariant.SIMPLE: AggregatedTranscript.create_decryption_share_simple,
-    FerveoVariant.PRECOMPUTED: AggregatedTranscript.create_decryption_share_precomputed
+    FerveoVariant.Simple: AggregatedTranscript.create_decryption_share_simple,
+    FerveoVariant.Precomputed: AggregatedTranscript.create_decryption_share_precomputed,
 }
 
 

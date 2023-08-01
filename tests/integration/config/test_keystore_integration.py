@@ -11,6 +11,7 @@ from nucypher_core import (
     ThresholdDecryptionResponse,
 )
 from nucypher_core.umbral import SecretKey, Signer
+from nucypher_core.ferveo import FerveoVariant
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
@@ -192,7 +193,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     ciphertext = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
-        variant=FerveoVariant.SIMPLE.value,
+        variant=FerveoVariant.Simple,
         ciphertext=ciphertext,
         conditions=Conditions(json.dumps(CONDITIONS)),
     )

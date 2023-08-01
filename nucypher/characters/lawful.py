@@ -50,6 +50,7 @@ from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
+    FerveoVariant,
     Validator,
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
@@ -88,7 +89,6 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    _default_dkg_variant = FerveoVariant.SIMPLE
+    _default_dkg_variant = FerveoVariant.Simple
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
@@ -634,7 +634,7 @@ class Bob(Character):
             context = Context(json.dumps(context))
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
-            variant=int(variant.value),
+            variant=variant,
             ciphertext=ciphertext,
             conditions=conditions,
             context=context,
@@ -678,10 +678,14 @@ class Bob(Character):
             raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
         self.log.debug("Got enough shares to decrypt.")
 
-        if decryption_request.variant == FerveoVariant.PRECOMPUTED.value:
+        if decryption_request.variant == FerveoVariant.Precomputed:
             share_type = DecryptionSharePrecomputed
-        elif decryption_request.variant == FerveoVariant.SIMPLE.value:
+        elif decryption_request.variant == FerveoVariant.Simple:
             share_type = DecryptionShareSimple
+        else:
+            raise ValueError(
+                f"Unknown decryption request variant: {decryption_request.variant}"
+            )
 
         gathered_shares = {}
         for provider_address, encrypted_decryption_response in successes.items():
@@ -732,7 +736,7 @@ class Bob(Character):
         variant = self._default_dkg_variant
         threshold = (
             (ritual.shares // 2) + 1
-            if variant == FerveoVariant.SIMPLE
+            if variant == FerveoVariant.Simple
             else ritual.shares
         )  # TODO: #3095 get this from the ritual / put it on-chain?
 
@@ -763,9 +767,9 @@ class Bob(Character):
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
-        if variant == FerveoVariant.PRECOMPUTED:
+        if variant == FerveoVariant.Precomputed:
             shared_secret = combine_decryption_shares_precomputed(shares)
-        elif variant == FerveoVariant.SIMPLE:
+        elif variant == FerveoVariant.Simple:
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
