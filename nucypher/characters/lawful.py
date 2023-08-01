@@ -438,7 +438,7 @@ class Alice(Character, actors.PolicyAuthor):
 
 class Bob(Character):
     banner = BOB_BANNER
-    default_dkg_variant = FerveoVariant.Simple
+    _default_dkg_variant = FerveoVariant.Simple
     _default_crypto_powerups = [SigningPower, DecryptingPower]
     _threshold_decryption_client_class = ThresholdDecryptionClient
 
