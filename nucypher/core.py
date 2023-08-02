@@ -1,18 +1,26 @@
 import base64
 import json
-from typing import Dict, NamedTuple, Optional
+from typing import Callable, Dict, NamedTuple, Optional
 
+from cryptography.fernet import Fernet
 from nucypher_core import Conditions, Context, SessionSharedSecret, SessionStaticKey
-from nucypher_core.ferveo import Ciphertext, DkgPublicKey
+from nucypher_core.ferveo import Ciphertext, DkgPublicKey, encrypt
+
+from nucypher.crypto.utils import keccak_digest
 
 
 class AccessControlPolicy(NamedTuple):
     public_key: DkgPublicKey
-    conditions: Conditions  # should this be folded into aad?
+    conditions: Conditions
     authorization: bytes
+    version: int = 1
+
+    def aad(self) -> bytes:
+        return str(self.conditions).encode()
 
     def to_dict(self):
         d = {
+            "version": self.version,
             "public_key": base64.b64encode(bytes(self.public_key)).decode(),
             "access_conditions": str(self.conditions),
             "authorization": {
@@ -25,6 +33,7 @@ class AccessControlPolicy(NamedTuple):
     @classmethod
     def from_dict(cls, acp_dict: Dict) -> "AccessControlPolicy":
         return cls(
+            version=acp_dict["version"],
             public_key=DkgPublicKey.from_bytes(
                 base64.b64decode(acp_dict["public_key"])
             ),
@@ -44,14 +53,69 @@ class AccessControlPolicy(NamedTuple):
         return instance
 
 
-class ThresholdMessageKit(NamedTuple):
-    # one entry for now: thin ferveo ciphertext + symmetric ciphertext; ferveo#147
-    kem_ciphertext: Ciphertext
-    dem_ciphertext: bytes
-    acp: AccessControlPolicy
+class ThresholdMessageKit:
+    VERSION = 1
+
+    def __init__(
+        self,
+        kem_ciphertext: Ciphertext,
+        dem_ciphertext: bytes,
+        acp: AccessControlPolicy,
+        version: int = VERSION,
+    ):
+        self.version = version
+        self.kem_ciphertext = kem_ciphertext
+        self.dem_ciphertext = dem_ciphertext
+        self.acp = acp
+
+    @staticmethod
+    def _validate_aad_compatibility(tmk_aad: bytes, acp_aad: bytes):
+        if tmk_aad != acp_aad:
+            raise ValueError("Incompatible ThresholdMessageKit and AccessControlPolicy")
+
+    @classmethod
+    def encrypt_data(
+        cls,
+        plaintext: bytes,
+        conditions: Conditions,
+        dkg_public_key: DkgPublicKey,
+        signer: Callable[[bytes], bytes],
+    ):
+        symmetric_key = Fernet.generate_key()
+        fernet = Fernet(symmetric_key)
+        dem_ciphertext = fernet.encrypt(plaintext)
+
+        aad = str(conditions).encode()
+        kem_ciphertext = encrypt(symmetric_key, aad, dkg_public_key)
+
+        kem_ciphertext_hash = keccak_digest(bytes(kem_ciphertext))
+        authorization = signer(kem_ciphertext_hash)
+
+        acp = AccessControlPolicy(
+            public_key=dkg_public_key,
+            conditions=conditions,
+            authorization=authorization,
+        )
+
+        # we need to link the ThresholdMessageKit to a specific version of the ACP
+        # because the ACP.aad() function should return the same value as the aad used
+        # for encryption. Since the ACP version can change independently of
+        # ThresholdMessageKit this check is good for code maintenance and ensuring
+        # compatibility - unless we find a better way to link TMK and ACP.
+        #
+        # TODO: perhaps this can be improved. You could have ACP be an inner class of TMK,
+        #  but not sure how that plays out with rust and python bindings... OR ...?
+        cls._validate_aad_compatibility(aad, acp.aad())
+
+        return ThresholdMessageKit(
+            kem_ciphertext,
+            dem_ciphertext,
+            acp,
+        )
 
     def to_dict(self):
         d = {
+            "version": self.version,
             "kem_ciphertext": base64.b64encode(bytes(self.kem_ciphertext)).decode(),
             "dem_ciphertext": base64.b64encode(self.dem_ciphertext).decode(),
             "acp": self.acp.to_dict(),
@@ -62,6 +126,7 @@ class ThresholdMessageKit(NamedTuple):
     @classmethod
     def from_dict(cls, message_kit: Dict) -> "ThresholdMessageKit":
         return cls(
+            version=message_kit["version"],
             kem_ciphertext=Ciphertext.from_bytes(
                 base64.b64decode(message_kit["kem_ciphertext"])
             ),

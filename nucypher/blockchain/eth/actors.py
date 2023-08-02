@@ -7,7 +7,6 @@ import time
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
-    Conditions,
     EncryptedThresholdDecryptionResponse,
     SessionStaticKey,
     ThresholdDecryptionResponse,
@@ -630,11 +629,7 @@ class Ritualist(BaseActor):
         return tx_hash
 
     def derive_decryption_share(
-        self,
-        ritual_id: int,
-        ciphertext: Ciphertext,
-        conditions: Conditions,
-        variant: FerveoVariant
+        self, ritual_id: int, ciphertext: Ciphertext, aad: bytes, variant: FerveoVariant
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -648,7 +643,6 @@ class Ritualist(BaseActor):
             )
 
         threshold = (ritual.shares // 2) + 1
-        conditions = str(conditions).encode()
         # TODO: consider the usage of local DKG artifact storage here #3052
         # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
@@ -660,7 +654,7 @@ class Ritualist(BaseActor):
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             ciphertext=ciphertext,
-            conditions=conditions,
+            aad=aad,
             variant=variant
         )
 

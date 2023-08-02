@@ -222,7 +222,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
             ciphertext=decryption_request.ciphertext,
-            conditions=decryption_request.access_control_policy.conditions,
+            aad=decryption_request.access_control_policy.aad(),
             variant=decryption_request.variant,
         )
 

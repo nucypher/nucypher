@@ -55,7 +55,6 @@ from nucypher_core.ferveo import (
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
     decrypt_with_shared_secret,
-    encrypt,
 )
 from nucypher_core.umbral import (
     PublicKey,
@@ -90,7 +89,6 @@ from nucypher.characters.banners import (
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
 from nucypher.core import (
-    AccessControlPolicy,
     ThresholdDecryptionRequest,
     ThresholdMessageKit,
 )
@@ -105,7 +103,6 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
     TransactingPower,
 )
-from nucypher.crypto.utils import keccak_digest
 from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -778,12 +775,12 @@ class Bob(Character):
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
-        conditions = str(threshold_message_kit.acp.conditions).encode()  # aad
+        aad = threshold_message_kit.acp.aad()
         # TODO this ferveo call should probably take the kem_ciphertext and the dem_ciphertext
         #  to actually obtain the cleartext
         symmetric_key = decrypt_with_shared_secret(
             threshold_message_kit.kem_ciphertext,
-            conditions,       # aad
+            aad,  # aad
             shared_secret,
         )
 
@@ -1490,29 +1487,17 @@ class Enrico:
     ) -> ThresholdMessageKit:
         validate_condition_lingo(conditions)
         conditions_json = json.dumps(conditions)
-        aad = json.dumps(conditions).encode()
+        access_conditions = Conditions(conditions_json)
 
-        # let's assume we get back dem_ciphertext, kem_ciphertext from ferveo
-        # TODO use Fernet for now
-        symmetric_key = Fernet.generate_key()
-        fernet = Fernet(symmetric_key)
-        dem_ciphertext = fernet.encrypt(plaintext)
-        kem_ciphertext = encrypt(symmetric_key, aad, self.policy_pubkey)
+        # TODO perhaps the `Callable[[bytes]bytes]` for signing should be passed as a param?
+        def signer(data: bytes) -> bytes:
+            return self.signing_power.keypair.sign(data).to_be_bytes()
 
-        kem_ciphertext_hash = keccak_digest(bytes(kem_ciphertext))
-        authorization = self.signing_power.keypair.sign(
-            kem_ciphertext_hash
-        ).to_be_bytes()
-
-        acp = AccessControlPolicy(
-            public_key=self.policy_pubkey,
-            conditions=Conditions(conditions_json),
-            authorization=authorization,
-        )
-        message_kit = ThresholdMessageKit(
-            kem_ciphertext=kem_ciphertext,
-            dem_ciphertext=dem_ciphertext,
-            acp=acp,
+        message_kit = ThresholdMessageKit.encrypt_data(
+            plaintext=plaintext,
+            conditions=access_conditions,
+            dkg_public_key=self.policy_pubkey,
+            signer=signer,
         )
 
         return message_kit
