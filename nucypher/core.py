@@ -4,7 +4,7 @@ from typing import Callable, Dict, NamedTuple, Optional
 
 from cryptography.fernet import Fernet
 from nucypher_core import Conditions, Context, SessionSharedSecret, SessionStaticKey
-from nucypher_core.ferveo import Ciphertext, DkgPublicKey, encrypt
+from nucypher_core.ferveo import Ciphertext, DkgPublicKey, FerveoVariant, encrypt
 
 from nucypher.crypto.utils import keccak_digest
 
@@ -149,7 +149,7 @@ class ThresholdMessageKit:
 class ThresholdDecryptionRequest(NamedTuple):
     ritual_id: int
     access_control_policy: AccessControlPolicy
-    variant: int
+    variant: FerveoVariant
     ciphertext: Ciphertext
     context: Optional[Context]
 
@@ -166,7 +166,9 @@ class ThresholdDecryptionRequest(NamedTuple):
         d = {
             "ritual_id": self.ritual_id,
             "acp": self.access_control_policy.to_dict(),
-            "variant": self.variant,
+            "variant": "simple"
+            if self.variant == FerveoVariant.Simple
+            else "precomputed",
             "ciphertext": base64.b64encode(bytes(self.ciphertext)).decode(),
         }
 
@@ -187,7 +189,9 @@ class ThresholdDecryptionRequest(NamedTuple):
             access_control_policy=AccessControlPolicy.from_dict(
                 encrypted_request_dict["acp"]
             ),
-            variant=encrypted_request_dict["variant"],
+            variant=FerveoVariant.Simple
+            if encrypted_request_dict["variant"] == "simple"
+            else FerveoVariant.Precomputed,
             ciphertext=Ciphertext.from_bytes(
                 base64.b64decode(encrypted_request_dict["ciphertext"])
             ),
