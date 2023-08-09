@@ -20,9 +20,12 @@ from tests.constants import MOCK_STAKING_CONTRACT_NAME
 # order sensitive
 _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
     NucypherTokenAgent.contract_name,
+    'ThresholdStakingForTACoApplicationMock',
     MOCK_STAKING_CONTRACT_NAME,
     PREApplicationAgent.contract_name,
     SubscriptionManagerAgent.contract_name,
+    'StakeInfo', # TODO: Do we need an agent for that?
+    'FlatRateFeeModel', # TODO: Do we need an agent for that?
     CoordinatorAgent.contract_name,
 )
 
@@ -62,7 +65,7 @@ def get_deployment_params(
     config = deepcopy(config)
     while config:
         params = config.pop()
-        deployer_address = params.pop("address")
+        deployer_address = params.pop("deployer_index")
         name = params.pop("contract_type")
         if not is_checksum_address(deployer_address):
             try:
@@ -90,6 +93,7 @@ def deploy_contracts(nucypher_contracts: DependencyAPI, accounts):
             name, deployments=deployments, config=config, accounts=accounts
         )
         dependency_contract = getattr(nucypher_contracts, name)
+        print(f"Deploying {name} with params {params}")
         deployed_contract = deployer_account.deploy(dependency_contract, *params.values())
         deployments[name] = deployed_contract
     return deployments

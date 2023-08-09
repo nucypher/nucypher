@@ -19,8 +19,7 @@ from tests.constants import (
     MOCK_STAKING_CONTRACT_NAME,
     TEST_ETH_PROVIDER_URI,
 )
-from tests.utils.ape import deploy_contracts as ape_deploy_contracts
-from tests.utils.ape import registry_from_ape_deployments
+from tests.utils.ape import deploy_contracts as ape_deploy_contracts, registry_from_ape_deployments
 from tests.utils.blockchain import TesterBlockchain
 
 test_logger = Logger("acceptance-test-logger")
@@ -69,7 +68,17 @@ def threshold_staking(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def staking_providers(testerchain, test_registry, threshold_staking):
+def stake_info(testerchain, test_registry):
+    result = test_registry.search(contract_name="StakeInfo")[0]
+    stake_info = testerchain.w3.eth.contract(
+        address=result[2],
+        abi=result[3]
+    )
+    return stake_info
+
+
+@pytest.fixture(scope="module")
+def staking_providers(testerchain, test_registry, threshold_staking, stake_info):
     pre_application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
@@ -85,13 +94,22 @@ def staking_providers(testerchain, test_registry, threshold_staking):
         # for a random amount
         amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
+        stake_info.functions.updateOperator(provider_address, provider_address)
+        stake_info.functions.updateAmount(provider_address, amount)
+
         # initialize threshold stake
         tx = threshold_staking.functions.setRoles(provider_address).transact()
         testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
+        # TODO: ThresholdStakingForTACoApplicationMock doesn't have a setStakes function, but TestnetThresholdStaking does
+        # tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
+        # testerchain.wait_for_receipt(tx)
+        tx = threshold_staking.functions.authorizationIncreased(provider_address, 0, amount).transact()
         testerchain.wait_for_receipt(tx)
 
         # We assume that the staking provider knows in advance the account of her operator
+
+        # TODO: Fix "Not owner or provider" error
+        # TODO: Need to somehow increase the authorized stake of the provider
         pre_application_agent.bond_operator(staking_provider=provider_address,
                                             operator=operator_address,
                                             transacting_power=provider_power)

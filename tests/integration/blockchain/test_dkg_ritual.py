@@ -7,7 +7,6 @@ import pytest_twisted
 from eth_typing import ChecksumAddress
 from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
-from nucypher_core.ferveo import FerveoVariant
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.characters.lawful import Enrico, Ursula
@@ -132,11 +131,11 @@ def test_ursula_ritualist(
     """Tests the DKG and the encryption/decryption of a message"""
     cohort = cohort[:dkg_size]
 
-    def set_participant_pks():
+    def prerequisites():
         """Sets the public keys of the participants"""
         print("==================== SETTING PUBLIC KEYS ====================")
-        for ursula in cohort:
-            mock_coordinator_agent.set_provider_public_key
+        for u in cohort:
+            mock_coordinator_agent.set_provider_public_key(u.checksum_address, u.public_key)
 
     def initialize():
         """Initiates the ritual"""
@@ -214,8 +213,9 @@ def test_ursula_ritualist(
         raise e
 
     # order matters
-    d = deferToThread(initialize)
+    d = deferToThread(prerequisites)
     callbacks = [
+        initialize,
         round_1,
         round_2,
         finality,

@@ -1,8 +1,5 @@
 import pytest
 
-from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     NUMBER_OF_ETH_TEST_ACCOUNTS,

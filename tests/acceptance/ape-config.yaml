@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    github: piotr-roslaniec/nucypher-contracts
-    ref: participant-pk
+    github: nucypher/nucypher-contracts
+    ref: development
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.8.1
@@ -21,18 +21,34 @@ deployments:
   ethereum:
     local:
       - contract_type: NuCypherToken
-        address: 0  # account index
+        deployer_index: 0
         nu_token_supply: 1_000_000_000
-      - contract_type: SimplePREApplication
-        address: 0  # account index
-        threshold_staking: '::ThresholdStakingForPREApplicationMock.address::'
-        pre_min_authorization: 40000000000000000000000
-        pre_min_operator_seconds: 86400  # one day in seconds
+      - contract_type: ThresholdStakingForTACoApplicationMock
+        deployer_index: 0
+      - contract_type: TACoApplication
+        deployer_index: 0
+        nu_token: "::NuCypherToken.address::"
+        threshold_staking: "::ThresholdStakingForTACoApplicationMock.address::"
+        taco_min_authorization: 40000000000000000000000
+        taco_min_operator_seconds: 86400  # one day in seconds
+        taco_reward_duration: 86400  # one day in seconds
+        taco_deauthorization_duration: 86400  # one day in seconds
+      - contract_type: StakeInfo
+        deployer_index: 0
+        updaters:
+          - "0x0000000000000000000000000000000000000001"
+      - contract_type: FlatRateFeeModel
+        deployer_index: 0
+        currency: "::NuCypherToken.address::"
+        fee_rate_per_second: 1000000000000000000  # 1 NU per second
+        stakes: "::StakeInfo.address::"
       - contract_type: Coordinator
-        address: 0  # account index
-        app: '::SimplePREApplication.address::'
+        deployer_index: 0
+        stakes: "::StakeInfo.address::"
         ritual_timeout: 3600
         max_dkg_size: 8
+        admin: "0x0000000000000000000000000000000000000001"
+        fee_model: "::FlatRateFeeModel.address::"
 
 test:
   mnemonic: test test test test test test test test test test test junk
