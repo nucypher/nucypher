@@ -4,7 +4,14 @@ from typing import Callable, Dict, NamedTuple, Optional
 
 from cryptography.fernet import Fernet
 from nucypher_core import Conditions, Context, SessionSharedSecret, SessionStaticKey
-from nucypher_core.ferveo import Ciphertext, DkgPublicKey, FerveoVariant, encrypt
+from nucypher_core.ferveo import (
+    Ciphertext as FerveoCiphertext,
+)
+from nucypher_core.ferveo import (
+    DkgPublicKey,
+    FerveoVariant,
+    encrypt,
+)
 
 from nucypher.crypto.utils import keccak_digest
 
@@ -53,19 +60,74 @@ class AccessControlPolicy(NamedTuple):
         return instance
 
 
+class CiphertextHeader(NamedTuple):
+    data: FerveoCiphertext
+
+    def to_dict(self):
+        d = {
+            "data": base64.b64encode(bytes(self.data)).decode(),
+        }
+
+        return d
+
+    @classmethod
+    def from_dict(cls, ciphertext_header_dict: Dict) -> "CiphertextHeader":
+        return cls(
+            data=FerveoCiphertext.from_bytes(
+                base64.b64decode(ciphertext_header_dict["data"])
+            )
+        )
+
+    def __bytes__(self):
+        return bytes(self.data)
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "CiphertextHeader":
+        return CiphertextHeader(data=FerveoCiphertext.from_bytes(data))
+
+
+class CiphertextCombo(NamedTuple):
+    header: CiphertextHeader
+    payload: bytes
+
+    def to_dict(self):
+        d = {
+            "header": self.header.to_dict(),
+            "payload": base64.b64encode(self.payload).decode(),
+        }
+
+        return d
+
+    @classmethod
+    def from_dict(cls, ciphertext_dict: Dict) -> "CiphertextCombo":
+        return cls(
+            header=CiphertextHeader.from_dict(ciphertext_dict["header"]),
+            payload=base64.b64decode(ciphertext_dict["payload"]),
+        )
+
+    def __bytes__(self):
+        json_payload = json.dumps(self.to_dict()).encode()
+        b64_json_payload = base64.b64encode(json_payload)
+        return b64_json_payload
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "CiphertextCombo":
+        json_payload = base64.b64decode(data).decode()
+        instance = cls.from_dict(json.loads(json_payload))
+        return instance
+
+
 class ThresholdMessageKit:
     VERSION = 1
 
     def __init__(
         self,
-        kem_ciphertext: Ciphertext,
-        dem_ciphertext: bytes,
+        ciphertext: CiphertextCombo,
         acp: AccessControlPolicy,
         version: int = VERSION,
     ):
         self.version = version
-        self.kem_ciphertext = kem_ciphertext
-        self.dem_ciphertext = dem_ciphertext
+        self.ciphertext = ciphertext
         self.acp = acp
 
     @staticmethod
@@ -83,13 +145,13 @@ class ThresholdMessageKit:
     ):
         symmetric_key = Fernet.generate_key()
         fernet = Fernet(symmetric_key)
-        dem_ciphertext = fernet.encrypt(plaintext)
+        payload = fernet.encrypt(plaintext)
 
         aad = str(conditions).encode()
-        kem_ciphertext = encrypt(symmetric_key, aad, dkg_public_key)
+        key_ciphertext = encrypt(symmetric_key, aad, dkg_public_key)
 
-        kem_ciphertext_hash = keccak_digest(bytes(kem_ciphertext))
-        authorization = signer(kem_ciphertext_hash)
+        header_hash = keccak_digest(bytes(key_ciphertext))
+        authorization = signer(header_hash)
 
         acp = AccessControlPolicy(
             public_key=dkg_public_key,
@@ -108,16 +170,16 @@ class ThresholdMessageKit:
         cls._validate_aad_compatibility(aad, acp.aad())
 
         return ThresholdMessageKit(
-            kem_ciphertext,
-            dem_ciphertext,
+            CiphertextCombo(
+                header=CiphertextHeader(data=key_ciphertext), payload=payload
+            ),
             acp,
         )
 
     def to_dict(self):
         d = {
             "version": self.version,
-            "kem_ciphertext": base64.b64encode(bytes(self.kem_ciphertext)).decode(),
-            "dem_ciphertext": base64.b64encode(self.dem_ciphertext).decode(),
+            "ciphertext": self.ciphertext.to_dict(),
             "acp": self.acp.to_dict(),
         }
 
@@ -127,10 +189,7 @@ class ThresholdMessageKit:
     def from_dict(cls, message_kit: Dict) -> "ThresholdMessageKit":
         return cls(
             version=message_kit["version"],
-            kem_ciphertext=Ciphertext.from_bytes(
-                base64.b64decode(message_kit["kem_ciphertext"])
-            ),
-            dem_ciphertext=base64.b64decode(message_kit["dem_ciphertext"]),
+            ciphertext=CiphertextCombo.from_dict(message_kit["ciphertext"]),
             acp=AccessControlPolicy.from_dict(message_kit["acp"]),
         )
 
@@ -150,8 +209,8 @@ class ThresholdDecryptionRequest(NamedTuple):
     ritual_id: int
     access_control_policy: AccessControlPolicy
     variant: FerveoVariant
-    ciphertext: Ciphertext
-    context: Optional[Context]
+    ciphertext: CiphertextHeader
+    context: Optional[Context] = None
 
     def encrypt(
         self, shared_secret: SessionSharedSecret, requester_public_key: SessionStaticKey
@@ -169,7 +228,7 @@ class ThresholdDecryptionRequest(NamedTuple):
             "variant": "simple"
             if self.variant == FerveoVariant.Simple
             else "precomputed",
-            "ciphertext": base64.b64encode(bytes(self.ciphertext)).decode(),
+            "ciphertext": self.ciphertext.to_dict(),
         }
 
         # optional
@@ -192,9 +251,7 @@ class ThresholdDecryptionRequest(NamedTuple):
             variant=FerveoVariant.Simple
             if encrypted_request_dict["variant"] == "simple"
             else FerveoVariant.Precomputed,
-            ciphertext=Ciphertext.from_bytes(
-                base64.b64decode(encrypted_request_dict["ciphertext"])
-            ),
+            ciphertext=CiphertextHeader.from_dict(encrypted_request_dict["ciphertext"]),
             context=context,
         )
 

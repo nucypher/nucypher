@@ -169,7 +169,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
 
         # decrypt request
         threshold_decryption_request = trdp.decrypt_encrypted_request(etdr)
-        ciphertext = threshold_decryption_request.ciphertext
+        ciphertext = threshold_decryption_request.ciphertext.data
         conditions = str(
             threshold_decryption_request.access_control_policy.conditions
         ).encode()
