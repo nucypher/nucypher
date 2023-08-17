@@ -170,7 +170,7 @@ class RPCCondition(AccessControlCondition):
             )
         return method
 
-    def _next_endpoint(self, providers: Dict[int, Set[str]]) -> Iterator[HTTPProvider]:
+    def _next_endpoint(self, providers: Dict[int, Set[HTTPProvider]]) -> Iterator[HTTPProvider]:
         """Yields the next web3 provider to try for a given chain ID"""
         try:
             rpc_providers = providers[self.chain]
@@ -184,7 +184,7 @@ class RPCCondition(AccessControlCondition):
         for provider in rpc_providers:
             # Someday, we might make this whole function async, and then we can knock on
             # each endpoint here to see if it's alive and only yield it if it is.
-            yield HTTPProvider(endpoint_uri=provider)
+            yield provider
 
     def _configure_w3(self, provider: BaseProvider) -> Web3:
         # Instantiate a local web3 instance
