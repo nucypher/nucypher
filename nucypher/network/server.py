@@ -9,6 +9,7 @@ from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     MetadataRequest,
     MetadataResponse,
     MetadataResponsePayload,
@@ -17,7 +18,6 @@ from nucypher_core import (
 )
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
-from nucypher.core import EncryptedThresholdDecryptionRequest
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.crypto.utils import keccak_digest
@@ -173,7 +173,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # obtain condition from request
         condition_lingo = json.loads(
-            str(decryption_request.access_control_policy.conditions)
+            str(decryption_request.acp.conditions)
         )  # nucypher_core.Conditions -> str -> Lingo
         if not condition_lingo:
             # this should never happen for CBD - defeats the purpose
@@ -206,7 +206,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
 
         # check whether enrico is authorized
-        authorization = decryption_request.access_control_policy.authorization
+        authorization = decryption_request.acp.authorization
         ciphertext_hash = keccak_digest(bytes(decryption_request.ciphertext))
         if not this_node.coordinator_agent.is_encryption_authorized(
             ritual_id=decryption_request.ritual_id,
@@ -221,8 +221,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # derive the decryption share
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
-            ciphertext=decryption_request.ciphertext.data,
-            aad=decryption_request.access_control_policy.aad(),
+            ciphertext=decryption_request.ciphertext,
+            aad=decryption_request.acp.aad(),
             variant=decryption_request.variant,
         )
 

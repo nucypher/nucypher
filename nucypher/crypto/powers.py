@@ -5,10 +5,12 @@ from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
     SessionStaticKey,
     SessionStaticSecret,
+    ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
     ferveo,
 )
@@ -26,10 +28,6 @@ from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generat
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.core import (
-    EncryptedThresholdDecryptionRequest,
-    ThresholdDecryptionRequest,
-)
 from nucypher.crypto import keypairs
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keypairs import (

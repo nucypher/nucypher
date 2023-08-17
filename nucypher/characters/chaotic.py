@@ -3,6 +3,7 @@ from operator import attrgetter
 from typing import Dict, Tuple
 
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
     SessionSecretFactory,
     ThresholdDecryptionResponse,
@@ -11,7 +12,6 @@ from nucypher_core import (
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.cli.types import ChecksumAddress
-from nucypher.core import EncryptedThresholdDecryptionRequest
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import ThresholdRequestDecryptingPower
 from nucypher.network.decryption import ThresholdDecryptionClient
@@ -169,10 +169,8 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
 
         # decrypt request
         threshold_decryption_request = trdp.decrypt_encrypted_request(etdr)
-        ciphertext = threshold_decryption_request.ciphertext.data
-        conditions = str(
-            threshold_decryption_request.access_control_policy.conditions
-        ).encode()
+        ciphertext = threshold_decryption_request.ciphertext
+        acp = threshold_decryption_request.acp
         ritual_id = threshold_decryption_request.ritual_id
         variant = threshold_decryption_request.variant
 
@@ -203,7 +201,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
                 aggregated_transcript=aggregate,
                 keypair=validator_keypair,
                 ciphertext=ciphertext,
-                aad=conditions,
+                aad=acp.aad(),
                 variant=variant,
             )
 

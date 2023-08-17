@@ -44,6 +44,8 @@ from nucypher_core import (
     ReencryptionResponse,
     SessionStaticKey,
     SessionStaticSecret,
+    ThresholdDecryptionRequest,
+    ThresholdMessageKit,
     TreasureMap,
 )
 from nucypher_core.ferveo import (
@@ -88,10 +90,7 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.core import (
-    ThresholdDecryptionRequest,
-    ThresholdMessageKit,
-)
+from nucypher.core import encrypt_data
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -638,8 +637,8 @@ class Bob(Character):
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=variant,
-            ciphertext=threshold_message_kit.ciphertext.header,
-            access_control_policy=threshold_message_kit.acp,
+            ciphertext=threshold_message_kit.header,
+            acp=threshold_message_kit.acp,
             context=context,
         )
         return decryption_request
@@ -714,7 +713,7 @@ class Bob(Character):
 
     def threshold_decrypt(
         self,
-        ritual_id: int,  # TODO should ritual ID be in the ThresholdMessageKit/ACP? Feels that way
+        ritual_id: int,
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
@@ -779,7 +778,7 @@ class Bob(Character):
         # TODO this ferveo call should probably take the header and the payload
         #  to actually obtain the cleartext
         symmetric_key = decrypt_with_shared_secret(
-            threshold_message_kit.ciphertext.header.data,
+            threshold_message_kit.header,
             aad,  # aad
             shared_secret,
         )
@@ -787,7 +786,7 @@ class Bob(Character):
         # weird that `symmetric_key` is an integer list and I have to use
         # the bytes(...) constructor - without the bytes constructor this fails
         fernet = Fernet(bytes(symmetric_key))
-        cleartext = fernet.decrypt(threshold_message_kit.ciphertext.payload)
+        cleartext = fernet.decrypt(threshold_message_kit.payload)
 
         return cleartext
 
@@ -1493,7 +1492,7 @@ class Enrico:
         def signer(data: bytes) -> bytes:
             return self.signing_power.keypair.sign(data).to_be_bytes()
 
-        message_kit = ThresholdMessageKit.encrypt_data(
+        message_kit = encrypt_data(
             plaintext=plaintext,
             conditions=access_conditions,
             dkg_public_key=self.policy_pubkey,

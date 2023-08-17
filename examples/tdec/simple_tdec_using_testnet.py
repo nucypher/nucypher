@@ -59,7 +59,7 @@ threshold_message_kit = enrico.encrypt_for_dkg(
     plaintext=message, conditions=eth_balance_condition
 )
 
-print(f"Encrypted message: {bytes(threshold_message_kit.ciphertext).hex()}")
+print(f"Encrypted message: {bytes(threshold_message_kit.payload).hex()}")
 
 ###############
 # Bob

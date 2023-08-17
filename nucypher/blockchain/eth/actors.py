@@ -7,8 +7,10 @@ import time
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
+    EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
     SessionStaticKey,
+    ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
 from nucypher_core.ferveo import (
@@ -44,10 +46,6 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.pre import WorkTracker
-from nucypher.core import (
-    EncryptedThresholdDecryptionRequest,
-    ThresholdDecryptionRequest,
-)
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,

@@ -1,11 +1,9 @@
-import json
 from unittest.mock import ANY
 
 import pytest
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
 from nucypher_core import (
-    Conditions,
     SessionStaticSecret,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
@@ -196,8 +194,8 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
         variant=FerveoVariant.Simple,
-        ciphertext=threshold_message_kit.ciphertext.header.data,
-        conditions=Conditions(json.dumps(CONDITIONS)),
+        ciphertext=threshold_message_kit.header,
+        acp=threshold_message_kit.acp,
     )
 
     #
