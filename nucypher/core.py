@@ -16,10 +16,10 @@ def _validate_aad_compatibility(tmk_aad: bytes, acp_aad: bytes):
 
 
 def encrypt_data(
-        plaintext: bytes,
-        conditions: Conditions,
-        dkg_public_key: DkgPublicKey,
-        signer: Callable[[bytes], bytes],
+    plaintext: bytes,
+    conditions: Conditions,
+    dkg_public_key: DkgPublicKey,
+    signer: Callable[[bytes], bytes],
 ) -> ThresholdMessageKit:
     symmetric_key = Fernet.generate_key()
     fernet = Fernet(symmetric_key)
