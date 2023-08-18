@@ -26,7 +26,6 @@ from constant_sorrow.constants import (
     READY,
     STRANGER_ALICE,
 )
-from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate, NameOID
 from eth_typing.evm import ChecksumAddress
@@ -637,7 +636,7 @@ class Bob(Character):
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=variant,
-            ciphertext=threshold_message_kit.header,
+            ciphertext_header=threshold_message_kit.ciphertext.header,
             acp=threshold_message_kit.acp,
             context=context,
         )
@@ -775,18 +774,11 @@ class Bob(Character):
         else:
             raise ValueError(f"Invalid variant: {variant}.")
         aad = threshold_message_kit.acp.aad()
-        # TODO this ferveo call should probably take the header and the payload
-        #  to actually obtain the cleartext
-        symmetric_key = decrypt_with_shared_secret(
-            threshold_message_kit.header,
+        cleartext = decrypt_with_shared_secret(
+            threshold_message_kit.ciphertext,
             aad,  # aad
             shared_secret,
         )
-
-        # weird that `symmetric_key` is an integer list and I have to use
-        # the bytes(...) constructor - without the bytes constructor this fails
-        fernet = Fernet(bytes(symmetric_key))
-        cleartext = fernet.decrypt(threshold_message_kit.payload)
 
         return cleartext
 

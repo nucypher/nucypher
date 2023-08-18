@@ -16,7 +16,7 @@ from nucypher_core import (
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    Ciphertext,
+    CiphertextHeader,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
@@ -274,7 +274,7 @@ class RitualisticPower(KeyPairBasedPower):
         threshold: int,
         nodes: list,
         aggregated_transcript: AggregatedTranscript,
-        ciphertext: Ciphertext,
+        ciphertext_header: CiphertextHeader,
         aad: bytes,
         variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
@@ -286,7 +286,7 @@ class RitualisticPower(KeyPairBasedPower):
             nodes=nodes,
             aggregated_transcript=aggregated_transcript,
             keypair=self.keypair._privkey,
-            ciphertext=ciphertext,
+            ciphertext_header=ciphertext_header,
             aad=aad,
             variant=variant
         )

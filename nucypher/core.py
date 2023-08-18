@@ -1,6 +1,5 @@
 from typing import Callable
 
-from cryptography.fernet import Fernet
 from nucypher_core import AccessControlPolicy, Conditions, ThresholdMessageKit
 from nucypher_core.ferveo import (
     DkgPublicKey,
@@ -15,20 +14,17 @@ def _validate_aad_compatibility(tmk_aad: bytes, acp_aad: bytes):
         raise ValueError("Incompatible ThresholdMessageKit and AccessControlPolicy")
 
 
+# TODO this should probably move to `nucypher-core`
 def encrypt_data(
     plaintext: bytes,
     conditions: Conditions,
     dkg_public_key: DkgPublicKey,
     signer: Callable[[bytes], bytes],
 ) -> ThresholdMessageKit:
-    symmetric_key = Fernet.generate_key()
-    fernet = Fernet(symmetric_key)
-    payload = fernet.encrypt(plaintext)
-
     aad = bytes(dkg_public_key) + str(conditions).encode()
-    header = encrypt(symmetric_key, aad, dkg_public_key)
+    ciphertext = encrypt(plaintext, aad, dkg_public_key)
 
-    header_hash = keccak_digest(bytes(header))
+    header_hash = keccak_digest(bytes(ciphertext))
     authorization = signer(header_hash)
 
     acp = AccessControlPolicy(
@@ -48,7 +44,6 @@ def encrypt_data(
     _validate_aad_compatibility(aad, acp.aad())
 
     return ThresholdMessageKit(
-        header=header,
-        payload=payload,
+        ciphertext=ciphertext,
         acp=acp,
     )

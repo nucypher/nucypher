@@ -205,13 +205,15 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 status=HTTPStatus.FORBIDDEN,
             )
 
+        ciphertext_header = decryption_request.ciphertext_header
+
         # check whether enrico is authorized
         authorization = decryption_request.acp.authorization
-        ciphertext_hash = keccak_digest(bytes(decryption_request.ciphertext))
+        ciphertext_header_hash = keccak_digest(bytes(ciphertext_header))
         if not this_node.coordinator_agent.is_encryption_authorized(
             ritual_id=decryption_request.ritual_id,
             evidence=authorization,
-            digest=ciphertext_hash,
+            digest=ciphertext_header_hash,
         ):
             return Response(
                 f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
@@ -221,7 +223,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # derive the decryption share
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
-            ciphertext=decryption_request.ciphertext,
+            ciphertext_header=decryption_request.ciphertext_header,
             aad=decryption_request.acp.aad(),
             variant=decryption_request.variant,
         )

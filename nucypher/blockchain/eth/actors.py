@@ -15,7 +15,7 @@ from nucypher_core import (
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    Ciphertext,
+    CiphertextHeader,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
@@ -627,7 +627,11 @@ class Ritualist(BaseActor):
         return tx_hash
 
     def derive_decryption_share(
-        self, ritual_id: int, ciphertext: Ciphertext, aad: bytes, variant: FerveoVariant
+        self,
+        ritual_id: int,
+        ciphertext_header: CiphertextHeader,
+        aad: bytes,
+        variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -651,7 +655,7 @@ class Ritualist(BaseActor):
             checksum_address=self.checksum_address,
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
-            ciphertext=ciphertext,
+            ciphertext_header=ciphertext_header,
             aad=aad,
             variant=variant
         )

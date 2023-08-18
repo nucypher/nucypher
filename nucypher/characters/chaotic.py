@@ -169,7 +169,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
 
         # decrypt request
         threshold_decryption_request = trdp.decrypt_encrypted_request(etdr)
-        ciphertext = threshold_decryption_request.ciphertext
+        ciphertext_header = threshold_decryption_request.ciphertext_header
         acp = threshold_decryption_request.acp
         ritual_id = threshold_decryption_request.ritual_id
         variant = threshold_decryption_request.variant
@@ -200,7 +200,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
                 nodes=self._learner._dkg_insight.validators,
                 aggregated_transcript=aggregate,
                 keypair=validator_keypair,
-                ciphertext=ciphertext,
+                ciphertext_header=ciphertext_header,
                 aad=acp.aad(),
                 variant=variant,
             )
