@@ -152,6 +152,7 @@ class RPCCondition(AccessControlCondition):
         # internal
         self.name = name
         self.chain = chain
+        self.provider: Optional[BaseProvider] = None  # set in _configure_provider
         self.method = self.validate_method(method=method)
 
         # test
@@ -188,6 +189,7 @@ class RPCCondition(AccessControlCondition):
 
     def _configure_w3(self, provider: BaseProvider) -> Web3:
         # Instantiate a local web3 instance
+        self.provider = provider
         w3 = Web3(provider)
         if self.chain in POA_CHAINS:
             # inject web3 middleware to handle POA chain extra_data field.
