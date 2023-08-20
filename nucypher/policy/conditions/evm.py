@@ -20,6 +20,7 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
+
 # TODO: Move this to a more appropriate location,
 #  but be sure to change the mocks in tests too.
 # Permitted blockchains for condition evaluation
@@ -235,7 +236,8 @@ class RPCCondition(AccessControlCondition):
         Verifies the onchain condition is met by performing a
         read operation and evaluating the return value test.
         """
-        for provider in self._next_endpoint(providers=providers):
+        endpoints = self._next_endpoint(providers=providers)
+        for provider in endpoints:
             self._configure_provider(provider=provider)
             parameters, return_value_test = _resolve_any_context_variables(
                 self.parameters, self.return_value_test, **context
