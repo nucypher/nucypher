@@ -14,7 +14,7 @@ def _validate_aad_compatibility(tmk_aad: bytes, acp_aad: bytes):
         raise ValueError("Incompatible ThresholdMessageKit and AccessControlPolicy")
 
 
-# TODO this should probably move to `nucypher-core`
+# TODO should this move to `nucypher-core` - what about signing (python-side)
 def encrypt_data(
     plaintext: bytes,
     conditions: Conditions,
@@ -24,7 +24,7 @@ def encrypt_data(
     aad = bytes(dkg_public_key) + str(conditions).encode()
     ciphertext = encrypt(plaintext, aad, dkg_public_key)
 
-    header_hash = keccak_digest(bytes(ciphertext))
+    header_hash = keccak_digest(bytes(ciphertext.header))
     authorization = signer(header_hash)
 
     acp = AccessControlPolicy(
@@ -36,7 +36,7 @@ def encrypt_data(
     # we need to link the ThresholdMessageKit to a specific version of the ACP
     # because the ACP.aad() function should return the same value as the aad used
     # for encryption. Since the ACP version can change independently of
-    # ThresholdMessageKit this check is good for code maintenance and ensuring
+    # ThresholdMessageKit this check is needed for code maintenance and ensuring
     # compatibility - unless we find a better way to link TMK and ACP.
     #
     # TODO: perhaps this can be improved. You could have ACP be an inner class of TMK,
