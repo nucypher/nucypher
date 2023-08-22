@@ -150,10 +150,12 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         self,
         staking_provider_address: ChecksumAddress,
         contract_registry: BaseContractRegistry,
+        eth_provider_uri: str,
     ):
         super().__init__()
         self.staking_provider_address = staking_provider_address
         self.contract_registry = contract_registry
+        self.eth_provider_uri = eth_provider_uri
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
@@ -176,7 +178,9 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
 
     def _collect_internal(self) -> None:
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, registry=self.contract_registry
+            PREApplicationAgent,
+            self.contract_registry,
+            self.eth_provider_uri,
         )
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
