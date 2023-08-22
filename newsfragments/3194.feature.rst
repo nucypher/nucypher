@@ -1,0 +1,2 @@
+Implement data encapsulation when encrypting data using ``ferveo`` encryption by utilizing ``ThresholdMessageKit`` and ``AccessControlPolicy``.
+Provide framework to incorporate authorization allow logic for authorized encryptors of data for a ritual.
