@@ -368,7 +368,7 @@ class Ritualist(BaseActor):
             _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
         )
         self.log.info(
-            f"Connected to {len(condition_providers)} blockchains: {humanized_chain_ids}"
+            f"Connected to {len(condition_providers)} blockchains for condition checking: {humanized_chain_ids}"
         )
 
         return condition_providers
