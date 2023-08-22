@@ -32,7 +32,9 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
     HRAC,
+    AccessControlPolicy,
     Address,
+    AuthenticatedData,
     Conditions,
     Context,
     EncryptedKeyFrag,
@@ -56,6 +58,7 @@ from nucypher_core.ferveo import (
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
     decrypt_with_shared_secret,
+    encrypt,
 )
 from nucypher_core.umbral import (
     PublicKey,
@@ -89,7 +92,6 @@ from nucypher.characters.banners import (
 )
 from nucypher.characters.base import Character, Learner
 from nucypher.config.storages import NodeStorage
-from nucypher.core import encrypt_data
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -101,6 +103,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
     TransactingPower,
 )
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -1484,14 +1487,19 @@ class Enrico:
         def signer(data: bytes) -> bytes:
             return self.signing_power.keypair.sign(data).to_be_bytes()
 
-        message_kit = encrypt_data(
-            plaintext=plaintext,
-            conditions=access_conditions,
-            dkg_public_key=self.policy_pubkey,
-            signer=signer,
+        auth_data = AuthenticatedData(
+            public_key=self.policy_pubkey, conditions=access_conditions
         )
 
-        return message_kit
+        ciphertext = encrypt(plaintext, auth_data.aad(), self.policy_pubkey)
+
+        header_hash = keccak_digest(bytes(ciphertext.header))
+        authorization = signer(header_hash)
+
+        return ThresholdMessageKit(
+            ciphertext=ciphertext,
+            acp=AccessControlPolicy(auth_data=auth_data, authorization=authorization),
+        )
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):
