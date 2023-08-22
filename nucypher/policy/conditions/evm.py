@@ -29,18 +29,11 @@ from nucypher.utilities import logging
 _CONDITION_CHAINS = {
     1: "ethereum/mainnet",
     5: "ethereum/goerli",
-    11155111: "ethereum/sepolia",
     137: "polygon/mainnet",
     80001: "polygon/mumbai",
-    10: "optimism/mainnet",
-    69: "optimism/kovan",
-    420: "optimism/goerli",
-    42161: "arbitrum/mainnet",
-    421613: "arbitrum/goerli",
-    100: "gnosis/mainnet",
-    10200: "gnosis/chiado",
-    534352: "scroll/mainnet",
-    534351: "scroll/sepolia",
+    # TODO: Permit support for these chains
+    # 100: "gnosis/mainnet",
+    # 10200: "gnosis/chiado",
 }
 
 
