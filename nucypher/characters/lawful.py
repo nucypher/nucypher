@@ -34,7 +34,6 @@ from nucypher_core import (
     HRAC,
     AccessControlPolicy,
     Address,
-    AuthenticatedData,
     Conditions,
     Context,
     EncryptedKeyFrag,
@@ -48,6 +47,7 @@ from nucypher_core import (
     ThresholdDecryptionRequest,
     ThresholdMessageKit,
     TreasureMap,
+    encrypt_for_dkg,
 )
 from nucypher_core.ferveo import (
     DecryptionSharePrecomputed,
@@ -58,7 +58,6 @@ from nucypher_core.ferveo import (
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
     decrypt_with_shared_secret,
-    encrypt,
 )
 from nucypher_core.umbral import (
     PublicKey,
@@ -1483,18 +1482,14 @@ class Enrico:
         conditions_json = json.dumps(conditions)
         access_conditions = Conditions(conditions_json)
 
-        # TODO perhaps the `Callable[[bytes]bytes]` for signing should be passed as a param?
-        def signer(data: bytes) -> bytes:
-            return self.signing_power.keypair.sign(data).to_be_bytes()
-
-        auth_data = AuthenticatedData(
-            public_key=self.policy_pubkey, conditions=access_conditions
+        ciphertext, auth_data = encrypt_for_dkg(
+            plaintext, self.policy_pubkey, access_conditions
         )
 
-        ciphertext = encrypt(plaintext, auth_data.aad(), self.policy_pubkey)
-
+        # authentication for AllowLogic
+        # TODO Replace with `Signer` to be passed as parameter
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = signer(header_hash)
+        authorization = self.signing_power.keypair.sign(header_hash).to_be_bytes()
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
