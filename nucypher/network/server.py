@@ -164,6 +164,21 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
         )
 
+        ciphertext_header = decryption_request.ciphertext_header
+
+        # check whether enrico is authorized - AllowLogic
+        authorization = decryption_request.acp.authorization
+        ciphertext_header_hash = keccak_digest(bytes(ciphertext_header))
+        if not this_node.coordinator_agent.is_encryption_authorized(
+            ritual_id=decryption_request.ritual_id,
+            evidence=authorization,
+            digest=ciphertext_header_hash,
+        ):
+            return Response(
+                f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
+                status=HTTPStatus.UNAUTHORIZED,
+            )
+
         # requester-supplied condition eval context
         context = None
         if decryption_request.context:
@@ -203,21 +218,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(
                 f"Node not part of ritual {decryption_request.ritual_id}",
                 status=HTTPStatus.FORBIDDEN,
-            )
-
-        ciphertext_header = decryption_request.ciphertext_header
-
-        # check whether enrico is authorized
-        authorization = decryption_request.acp.authorization
-        ciphertext_header_hash = keccak_digest(bytes(ciphertext_header))
-        if not this_node.coordinator_agent.is_encryption_authorized(
-            ritual_id=decryption_request.ritual_id,
-            evidence=authorization,
-            digest=ciphertext_header_hash,
-        ):
-            return Response(
-                f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
-                status=HTTPStatus.UNAUTHORIZED,
             )
 
         # derive the decryption share

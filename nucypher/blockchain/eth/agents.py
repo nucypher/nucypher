@@ -790,6 +790,7 @@ class CoordinatorAgent(EthereumContractAgent):
     def is_encryption_authorized(
         self, ritual_id: int, evidence: bytes, digest: bytes
     ) -> bool:
+        # TODO: actually call contract.
         # get ritual -> get access controller -> call isAuthorized(ritualId, evidence, digest)
         return True
 
