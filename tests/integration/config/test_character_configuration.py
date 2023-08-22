@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -148,7 +149,7 @@ def test_default_character_configuration_preservation(
 
         # Restore from JSON file
         restored_configuration = configuration_class.from_configuration_file()
-        assert character_config.serialize() == restored_configuration.serialize()
+        assert json.loads(character_config.serialize()) == json.loads(restored_configuration.serialize())
 
         # File still exists after reading
         assert written_filepath.exists()

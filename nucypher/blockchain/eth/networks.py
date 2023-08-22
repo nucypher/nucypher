@@ -34,11 +34,18 @@ class NetworksInventory:  # TODO: See #1564
         pass
 
     @classmethod
-    def get_ethereum_chain_id(cls, network):  # TODO: Use this (where?) to make sure we're in the right chain
+    def get_ethereum_chain_id(cls, network):
         try:
-            return cls.__to_ethereum_chain_id[network]
+            return cls.__to_chain_id_eth[network]
         except KeyError:
-            return 1337  # TODO: what about chain id when testing?
+            raise cls.UnrecognizedNetwork(network)
+
+    @classmethod
+    def get_polygon_chain_id(cls, network):
+        try:
+            return cls.__to_chain_id_polygon[network]
+        except KeyError:
+            raise cls.UnrecognizedNetwork(network)
 
     @classmethod
     def validate_network_name(cls, network_name: str):

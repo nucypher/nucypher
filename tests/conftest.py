@@ -3,6 +3,8 @@ from collections import defaultdict
 import pytest
 from eth_utils.crypto import keccak
 
+from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
@@ -143,4 +145,19 @@ def mock_condition_blockchains(session_mocker):
     session_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_multichain_configuration(module_mocker, testerchain):
+    module_mocker.patch.object(
+        Ritualist, "_make_condition_provider", return_value=testerchain.provider
     )

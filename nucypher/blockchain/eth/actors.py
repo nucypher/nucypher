@@ -325,31 +325,30 @@ class Ritualist(BaseActor):
             condition_provider_uris
         )
 
+    @staticmethod
+    def _is_permitted_condition_chain(chain_id: int) -> bool:
+        return int(chain_id) in [int(cid) for cid in _CONDITION_CHAINS.keys()]
+
+    @staticmethod
+    def _make_condition_provider(uri: str) -> HTTPProvider:
+        provider = HTTPProvider(endpoint_uri=uri)
+        return provider
+
     def connect_condition_providers(
         self, condition_provider_uris: Optional[Dict[int, List[str]]] = None
     ) -> DefaultDict[int, Set[HTTPProvider]]:
         """Multi-provider support"""
 
-        # If condition_provider_uris is `None` the node operator
+        # If condition_provider_uris is None the node operator
         # did not configure any additional condition providers.
         condition_provider_uris = condition_provider_uris or dict()
 
         # These are the chains that the Ritualist will connect to for conditions evaluation (read-only).
         condition_providers = defaultdict(set)
 
-        # Borrow default RPC endpoints from the Operator.
-        eth_chain = self.application_agent.blockchain
-
-        # Presumably, they've already configured their polygon engpoint (or we'd not be this far),
-        # so we can use that for the polygon condition provider.
-        polygon_chain = self.payment_method.agent.blockchain
-        condition_providers[eth_chain.client.chain_id].add(eth_chain.provider)
-        condition_providers[polygon_chain.client.chain_id].add(polygon_chain.provider)
-        # Done borrowing.
-
         # Now, add any additional providers that were passed in.
         for chain_id, condition_provider_uris in condition_provider_uris.items():
-            if chain_id not in _CONDITION_CHAINS:
+            if not self._is_permitted_condition_chain(chain_id):
                 # this is a safety check to prevent the Ritualist from connecting to
                 # chains that are not supported by ursulas on the network;
                 # Prevents the Ursula/Ritualist from starting up if this happens.
@@ -357,11 +356,12 @@ class Ritualist(BaseActor):
                     f"Chain ID {chain_id} is not supported for condition evaluation by the Ritualist."
                 )
 
-            providers = list()
+            providers = set()
             for uri in condition_provider_uris:
-                provider = HTTPProvider(endpoint_uri=uri)
-                providers.append(provider)
-            condition_providers[chain_id].update(providers)
+                provider = self._make_condition_provider(uri)
+                providers.add(provider)
+
+            condition_providers[int(chain_id)] = providers
 
         # Log the chains that the Ritualist is connected to.
         humanized_chain_ids = ", ".join(

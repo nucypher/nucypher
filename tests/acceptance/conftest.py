@@ -4,9 +4,10 @@ import random
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Operator
+from nucypher.blockchain.eth.actors import Operator, Ritualist
 from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower, TransactingPower
@@ -33,6 +34,21 @@ def mock_condition_blockchains(session_mocker):
     session_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_multichain_configuration(module_mocker, testerchain):
+    module_mocker.patch.object(
+        Ritualist, "_make_condition_provider", return_value=testerchain.provider
     )
 
 
