@@ -29,15 +29,18 @@ characters = (Alice, Bob, Ursula)
 
 # Assemble
 characters_and_configurations = list(zip(characters, configurations))
-all_characters = tuple(characters, )
-all_configurations = tuple(configurations, )
+all_characters = tuple(
+    characters,
+)
+all_configurations = tuple(
+    configurations,
+)
 
 
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_development_character_configurations(
     character, configuration, test_registry_source_manager, mocker, testerchain
 ):
-
     mocker.patch.object(
         CharacterConfiguration, "DEFAULT_PAYMENT_NETWORK", TEMPORARY_DOMAIN
     )
@@ -74,7 +77,7 @@ def test_development_character_configurations(
 
     # Node Storage
     assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
-    assert ':memory:' in thing_one.node_storage._name
+    assert ":memory:" in thing_one.node_storage._name
 
     # All development characters are unique
     _characters = [thing_one, thing_two]
@@ -96,15 +99,16 @@ def test_default_character_configuration_preservation(
     tmpdir,
     test_registry,
 ):
-
-    configuration_class.DEFAULT_CONFIG_ROOT = Path('/tmp')
-    fake_address = '0xdeadbeef'
+    configuration_class.DEFAULT_CONFIG_ROOT = Path("/tmp")
+    fake_address = "0xdeadbeef"
     network = TEMPORARY_DOMAIN
 
-    expected_filename = f'{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}'
+    expected_filename = (
+        f"{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}"
+    )
     generated_filename = configuration_class.generate_filename()
     assert generated_filename == expected_filename
-    expected_filepath = Path('/', 'tmp', generated_filename)
+    expected_filepath = Path("/", "tmp", generated_filename)
 
     if expected_filepath.exists():
         expected_filepath.unlink()
@@ -113,7 +117,9 @@ def test_default_character_configuration_preservation(
     if configuration_class == UrsulaConfiguration:
         # special case for rest_host & dev mode
         # use keystore
-        keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+        keystore = Keystore.generate(
+            password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir
+        )
         keystore.signing_public_key = SecretKey.random().public_key()
         character_config = configuration_class(
             checksum_address=fake_address,
@@ -144,12 +150,16 @@ def test_default_character_configuration_preservation(
 
     try:
         # Read
-        with open(character_config.filepath, 'r') as f:
-            contents = f.read()
+        with open(character_config.filepath, "r") as f:
+            _contents = json.loads(
+                f.read()
+            )  # ensure this can be read and is valid JSON
 
         # Restore from JSON file
         restored_configuration = configuration_class.from_configuration_file()
-        assert json.loads(character_config.serialize()) == json.loads(restored_configuration.serialize())
+        assert json.loads(character_config.serialize()) == json.loads(
+            restored_configuration.serialize()
+        )
 
         # File still exists after reading
         assert written_filepath.exists()
@@ -184,7 +194,7 @@ def test_ursula_development_configuration(test_registry_source_manager, testerch
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
     assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
     assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
-    assert ':memory:' in ursula_one.node_storage._name
+    assert ":memory:" in ursula_one.node_storage._name
 
     # Alternate way to produce a character with a direct call
     ursula_two = config.produce()
@@ -202,19 +212,15 @@ def test_ursula_development_configuration(test_registry_source_manager, testerch
 
 
 @pytest.mark.skip("See #2016")
-def test_destroy_configuration(config,
-                               test_emitter,
-                               capsys,
-                               mocker):
+def test_destroy_configuration(config, test_emitter, capsys, mocker):
     # Setup
-    config_class = config.__class__
     config_file = config.filepath
 
     # Isolate from filesystem and Spy on the methods we're testing here
-    spy_keystore_attached = mocker.spy(CharacterConfiguration, 'attach_keystore')
-    mock_config_destroy = mocker.patch.object(CharacterConfiguration, 'destroy')
-    spy_keystore_destroy = mocker.spy(Keystore, 'destroy')
-    mock_os_remove = mocker.patch('pathlib.Path.unlink')
+    spy_keystore_attached = mocker.spy(CharacterConfiguration, "attach_keystore")
+    mock_config_destroy = mocker.patch.object(CharacterConfiguration, "destroy")
+    spy_keystore_destroy = mocker.spy(Keystore, "destroy")
+    mock_os_remove = mocker.patch("pathlib.Path.unlink")
 
     # Test
     destroy_configuration(emitter=test_emitter, character_config=config)

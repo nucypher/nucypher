@@ -45,10 +45,10 @@ _CONDITION_CHAINS = {
 
 
 def _resolve_abi(
-        w3: Web3,
-        method: str,
-        standard_contract_type: Optional[str] = None,
-        function_abi: Optional[ABIFunction] = None,
+    w3: Web3,
+    method: str,
+    standard_contract_type: Optional[str] = None,
+    function_abi: Optional[ABIFunction] = None,
 ) -> ABIFunction:
     """Resolves the contract an/or function ABI from a standard contract name"""
 
@@ -69,7 +69,9 @@ def _resolve_abi(
         try:
             # Extract all function ABIs from the contract's ABI.
             # Will raise a ValueError if there is not exactly one match.
-            function_abi = w3.eth.contract(abi=contract_abi).get_function_by_name(method).abi
+            function_abi = (
+                w3.eth.contract(abi=contract_abi).get_function_by_name(method).abi
+            )
         except ValueError as e:
             raise InvalidCondition(str(e))
 
@@ -77,7 +79,7 @@ def _resolve_abi(
 
 
 def _resolve_any_context_variables(
-        parameters: List[Any], return_value_test: ReturnValueTest, **context
+    parameters: List[Any], return_value_test: ReturnValueTest, **context
 ):
     processed_parameters = []
     for p in parameters:
@@ -116,7 +118,7 @@ class RPCCondition(AccessControlCondition):
 
     ALLOWED_METHODS = (
         # RPC
-        'eth_getBalance',
+        "eth_getBalance",
     )  # TODO other allowed methods (tDEC #64)
 
     LOG = logging.Logger(__name__)
@@ -126,15 +128,17 @@ class RPCCondition(AccessControlCondition):
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
         method = fields.Str(required=True)
-        parameters = fields.List(fields.Field, attribute='parameters', required=False)
-        return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema(), required=True)
+        parameters = fields.List(fields.Field, attribute="parameters", required=False)
+        return_value_test = fields.Nested(
+            ReturnValueTest.ReturnValueTestSchema(), required=True
+        )
 
         @post_load
         def make(self, data, **kwargs):
             return RPCCondition(**data)
 
     def __repr__(self) -> str:
-        r = f'{self.__class__.__name__}(function={self.method}, chain={self.chain})'
+        r = f"{self.__class__.__name__}(function={self.method}, chain={self.chain})"
         return r
 
     def __init__(
@@ -145,7 +149,6 @@ class RPCCondition(AccessControlCondition):
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
     ):
-
         # Validate input
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
         _validate_chain(chain=chain)
@@ -172,7 +175,9 @@ class RPCCondition(AccessControlCondition):
             )
         return method
 
-    def _next_endpoint(self, providers: Dict[int, Set[HTTPProvider]]) -> Iterator[HTTPProvider]:
+    def _next_endpoint(
+        self, providers: Dict[int, Set[HTTPProvider]]
+    ) -> Iterator[HTTPProvider]:
         """Yields the next web3 provider to try for a given chain ID"""
         try:
             rpc_providers = providers[self.chain]
@@ -284,7 +289,7 @@ class ContractCondition(RPCCondition):
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         # internal
         super().__init__(*args, **kwargs)
@@ -305,9 +310,11 @@ class ContractCondition(RPCCondition):
         self.contract_function = self._get_unbound_contract_function()
 
     def __repr__(self) -> str:
-        r = f'{self.__class__.__name__}(function={self.method}, ' \
-            f'contract={self.contract_address[:6]}..., ' \
-            f'chain={self.chain})'
+        r = (
+            f"{self.__class__.__name__}(function={self.method}, "
+            f"contract={self.contract_address[:6]}..., "
+            f"chain={self.chain})"
+        )
         return r
 
     def validate_method(self, method):
