@@ -57,7 +57,6 @@ from nucypher_core.ferveo import (
     Validator,
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
-    decrypt_with_shared_secret,
 )
 from nucypher_core.umbral import (
     PublicKey,
@@ -638,7 +637,7 @@ class Bob(Character):
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=variant,
-            ciphertext_header=threshold_message_kit.ciphertext.header,
+            ciphertext_header=threshold_message_kit.ciphertext_header,
             acp=threshold_message_kit.acp,
             context=context,
         )
@@ -775,13 +774,8 @@ class Bob(Character):
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
-        aad = threshold_message_kit.acp.aad()
-        cleartext = decrypt_with_shared_secret(
-            threshold_message_kit.ciphertext,
-            aad,  # aad
-            shared_secret,
-        )
 
+        cleartext = threshold_message_kit.decrypt_with_shared_secret(shared_secret)
         return cleartext
 
 
