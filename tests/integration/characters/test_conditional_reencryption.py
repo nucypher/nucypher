@@ -28,14 +28,17 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     conditions = {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "compound",
             "operator": "and",
             "operands": [
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -69,6 +72,7 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
             {
                 "version": ConditionLingo.VERSION,
                 "condition": {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -130,6 +134,7 @@ def test_middleware_handling_of_failed_condition_responses(
             {
                 "version": ConditionLingo.VERSION,
                 "condition": {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,

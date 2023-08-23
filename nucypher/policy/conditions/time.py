@@ -10,9 +10,11 @@ from nucypher.policy.conditions.utils import CamelCaseSchema
 
 class TimeCondition(RPCCondition):
     METHOD = "blocktime"
+    CONDITION_TYPE = "time"
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
+        condition_type = fields.Str(required=True)
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
         method = fields.Str(dump_default="blocktime", required=True)
@@ -33,6 +35,7 @@ class TimeCondition(RPCCondition):
         return_value_test: ReturnValueTest,
         chain: int,
         method: str = METHOD,
+        condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
         if method != self.METHOD:
@@ -40,7 +43,11 @@ class TimeCondition(RPCCondition):
                 f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
             )
         super().__init__(
-            chain=chain, method=method, return_value_test=return_value_test, name=name
+            chain=chain,
+            method=method,
+            return_value_test=return_value_test,
+            name=name,
+            condition_type=condition_type,
         )
 
     def validate_method(self, method):

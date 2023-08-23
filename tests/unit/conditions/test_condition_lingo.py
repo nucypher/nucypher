@@ -16,14 +16,17 @@ def lingo():
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "compound",
             "operator": "and",
             "operands": [
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -55,9 +58,11 @@ def test_invalid_condition():
     invalid_operator_position_lingo = {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "compound",
             "operator": "and",
             "operands": [
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -87,6 +92,7 @@ def test_invalid_condition_version(case):
     lingo_dict = {
         "version": newer_version_string,
         "condition": {
+            "conditionType": "time",
             "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,

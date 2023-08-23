@@ -108,17 +108,17 @@ def _validate_chain(chain: int) -> None:
 
 class RPCCondition(AccessControlCondition):
     ETH_PREFIX = "eth_"
-
     ALLOWED_METHODS = (
         # RPC
         "eth_getBalance",
     )  # TODO other allowed methods (tDEC #64)
-
     LOG = logging.Logger(__name__)
+    CONDITION_TYPE = "rpc"
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
+        condition_type = fields.Str(required=True)
         chain = fields.Int(required=True)
         method = fields.Str(required=True)
         parameters = fields.List(fields.Field, attribute="parameters", required=False)
@@ -139,6 +139,7 @@ class RPCCondition(AccessControlCondition):
         chain: int,
         method: str,
         return_value_test: ReturnValueTest,
+        condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
     ):
@@ -147,6 +148,7 @@ class RPCCondition(AccessControlCondition):
         _validate_chain(chain=chain)
 
         # internal
+        self.condition_type = condition_type
         self.name = name
         self.chain = chain
         self.provider: Optional[BaseProvider] = None  # set in _configure_provider
@@ -258,7 +260,10 @@ class RPCCondition(AccessControlCondition):
 
 
 class ContractCondition(RPCCondition):
+    CONDITION_TYPE = "contract"
+
     class Schema(RPCCondition.Schema):
+        condition_type = fields.Str(required=True)
         standard_contract_type = fields.Str(required=False)
         contract_address = fields.Str(required=True)
         function_abi = fields.Dict(required=False)
@@ -279,6 +284,7 @@ class ContractCondition(RPCCondition):
     def __init__(
         self,
         contract_address: ChecksumAddress,
+        condition_type: str = CONDITION_TYPE,
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
@@ -298,6 +304,7 @@ class ContractCondition(RPCCondition):
 
         # spec
         self.contract_address = contract_address
+        self.condition_type = condition_type
         self.standard_contract_type = standard_contract_type
         self.function_abi = function_abi
         self.contract_function = self._get_unbound_contract_function()

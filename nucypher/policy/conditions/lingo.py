@@ -61,9 +61,11 @@ class CompoundAccessControlCondition(AccessControlCondition):
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     OPERATORS = (AND_OPERATOR, OR_OPERATOR)
+    CONDITION_TYPE = "compound"
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
+        condition_type = fields.Str(required=True)
         name = fields.Str(required=False)
         operator = fields.Str(required=True, validate=validate.OneOf(["and", "or"]))
         operands = fields.List(
@@ -82,6 +84,7 @@ class CompoundAccessControlCondition(AccessControlCondition):
         self,
         operator: str,
         operands: List[AccessControlCondition],
+        condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
         """
@@ -90,10 +93,12 @@ class CompoundAccessControlCondition(AccessControlCondition):
             "operands": [CONDITION*]
         }
         """
+        self.condition_type = condition_type
         if operator not in self.OPERATORS:
             raise InvalidLogicalOperator(f"{operator} is not a valid operator")
         self.operator = operator
         self.operands = operands
+        self.condition_type = condition_type
         self.name = name
         self.id = md5(bytes(self)).hexdigest()[:6]
 
@@ -123,12 +128,16 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
 class OrCompoundCondition(CompoundAccessControlCondition):
     def __init__(self, operands: List[AccessControlCondition]):
-        super().__init__(operator=self.OR_OPERATOR, operands=operands)
+        super().__init__(
+            operator=self.OR_OPERATOR, operands=operands, condition_type="compound"
+        )
 
 
 class AndCompoundCondition(CompoundAccessControlCondition):
     def __init__(self, operands: List[AccessControlCondition]):
-        super().__init__(operator=self.AND_OPERATOR, operands=operands)
+        super().__init__(
+            operator=self.AND_OPERATOR, operands=operands, condition_type="compound"
+        )
 
 
 class ReturnValueTest:
@@ -322,24 +331,19 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
-        # Inspect
-        method = condition.get("method")
-        operator = condition.get("operator")
-        contract = condition.get("contractAddress")
 
-        # Resolve
-        if method:
-            if method == TimeCondition.METHOD:
-                return TimeCondition
-            elif contract:
-                return ContractCondition
-            elif method in RPCCondition.ALLOWED_METHODS:
-                return RPCCondition
-        elif operator:
-            return CompoundAccessControlCondition
+        condition_type = condition.get("conditionType")
+        for condition in (
+            TimeCondition,
+            ContractCondition,
+            RPCCondition,
+            CompoundAccessControlCondition,
+        ):
+            if condition.CONDITION_TYPE == condition_type:
+                return condition
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo type from data {condition}"
+            f"Cannot resolve condition lingo with condition type {condition_type}"
         )
 
     @classmethod

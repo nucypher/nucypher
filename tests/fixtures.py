@@ -612,14 +612,17 @@ def compound_blocktime_lingo():
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "compound",
             "operator": "and",
             "operands": [
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": "0", "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
+                    "conditionType": "time",
                     "returnValueTest": {
                         "value": "99999999999999999",
                         "comparator": "<",
@@ -628,6 +631,7 @@ def compound_blocktime_lingo():
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": "0", "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
