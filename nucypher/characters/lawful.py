@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from queue import Queue
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -116,7 +117,9 @@ from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
-from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+
+if TYPE_CHECKING:
+    from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
 
 class Alice(Character, actors.PolicyAuthor):
@@ -990,13 +993,13 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
     def run(
         self,
         emitter: StdoutEmitter = None,
-        discovery: bool = True,  # TODO: see below
+        discovery: bool = True,
         availability: bool = False,
         worker: bool = True,
         ritualist: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
-        prometheus_config: PrometheusMetricsConfig = None,
+        prometheus_config: "PrometheusMetricsConfig" = None,
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,
