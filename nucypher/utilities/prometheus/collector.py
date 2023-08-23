@@ -179,8 +179,8 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
     def _collect_internal(self) -> None:
         application_agent = ContractAgency.get_agent(
             PREApplicationAgent,
-            self.contract_registry,
-            self.eth_provider_uri,
+            registry=self.contract_registry,
+            eth_provider_uri=self.eth_provider_uri,
         )
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
