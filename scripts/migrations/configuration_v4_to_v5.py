@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 
-
 import json
 import os
-
 import sys
 
 BACKUP_SUFFIX = '.old'
