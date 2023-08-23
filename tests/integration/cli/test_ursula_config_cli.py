@@ -5,6 +5,8 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+import nucypher
+from nucypher.blockchain.eth.actors import Ritualist
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
@@ -31,6 +33,7 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     YES_ENTER,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.ursula import select_test_port
 
@@ -180,7 +183,9 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
 
-def test_run_ursula_from_config_file(custom_filepath: Path, click_runner, mock_funding_and_bonding):
+def test_run_ursula_from_config_file(
+    custom_filepath: Path, click_runner, mock_funding_and_bonding, mocker
+):
 
     # Ensure the configuration file still exists
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()

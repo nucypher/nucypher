@@ -1,6 +1,5 @@
 import pytest
 
-import nucypher
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     NucypherTokenAgent,
@@ -19,17 +18,8 @@ from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 @pytest.fixture()
 def condition_providers(testerchain):
-    providers = {testerchain.client.chain_id: testerchain.provider}
+    providers = {testerchain.client.chain_id: {testerchain.provider}}
     return providers
-
-
-def mock_condition_blockchains(mocker):
-    """adds testerchain's chain ID to permitted conditional chains"""
-    mocker.patch.object(
-        nucypher.policy.conditions.evm,
-        "_CONDITION_CHAINS",
-        tuple([TESTERCHAIN_CHAIN_ID]),
-    )
 
 
 @pytest.fixture()

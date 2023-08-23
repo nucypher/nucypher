@@ -1,13 +1,11 @@
-
-
-
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Dict, List, Optional
 
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
@@ -40,6 +38,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
         availability_check: Optional[bool] = None,
+        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -58,8 +57,27 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host
         self.certificate = certificate
         self.operator_address = operator_address
-        self.availability_check = availability_check if availability_check is not None else self.DEFAULT_AVAILABILITY_CHECKS
-        super().__init__(dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs)
+        self.availability_check = (
+            availability_check
+            if availability_check is not None
+            else self.DEFAULT_AVAILABILITY_CHECKS
+        )
+        super().__init__(
+            dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs
+        )
+        self.condition_provider_uris = condition_provider_uris or dict()
+        self.configure_condition_provider_uris()
+
+    def configure_condition_provider_uris(self) -> None:
+        """Configure default condition provider URIs for mainnet and polygon network."""
+
+        # Polygon
+        polygon_chain_id = NetworksInventory.get_polygon_chain_id(self.payment_network)
+        self.condition_provider_uris[polygon_chain_id] = [self.payment_provider]
+
+        # Ethereum
+        staking_chain_id = NetworksInventory.get_ethereum_chain_id(self.domain)
+        self.condition_provider_uris[staking_chain_id] = [self.eth_provider_uri]
 
     @classmethod
     def address_from_filepath(cls, filepath: Path) -> str:
@@ -85,12 +103,13 @@ class UrsulaConfiguration(CharacterConfiguration):
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             availability_check=self.availability_check,
+            condition_provider_uris=self.condition_provider_uris,
 
             # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
             payment_method=self.payment_method,
             payment_provider=self.payment_provider,
-            payment_network=self.payment_network
+            payment_network=self.payment_network,
         )
         return {**super().static_payload(), **payload}
 

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.actors import Operator
+from nucypher.blockchain.eth.actors import Operator, Ritualist
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
@@ -15,6 +15,7 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.characters.lawful import Ursula
@@ -26,6 +27,7 @@ from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
@@ -245,3 +247,20 @@ def staking_providers(testerchain, test_registry, monkeymodule):
 
     Operator.get_staking_provider_address = faked
     return testerchain.stake_providers_accounts
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_condition_blockchains(session_mocker):
+    """adds testerchain's chain ID to permitted conditional chains"""
+    session_mocker.patch.dict(
+        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
+        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )

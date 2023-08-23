@@ -13,16 +13,10 @@ import pytest
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
-from nucypher_core.ferveo import (
-    AggregatedTranscript,
-    DkgPublicKey,
-    Keypair,
-    Validator,
-)
+from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from twisted.internet.task import Clock
 from web3 import Web3
 
-import nucypher
 import tests
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.clients import EthereumClient
@@ -42,7 +36,7 @@ from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
@@ -603,14 +597,6 @@ def conditions_test_data():
         if condition.get('chain'):
             condition['chain'] = TESTERCHAIN_CHAIN_ID
     return data
-
-
-@pytest.fixture(autouse=True)
-def mock_condition_blockchains(mocker):
-    """adds testerchain's chain ID to permitted conditional chains"""
-    mocker.patch.object(
-        nucypher.policy.conditions.evm, "_CONDITION_CHAINS", tuple([TESTERCHAIN_CHAIN_ID])
-    )
 
 
 @pytest.fixture

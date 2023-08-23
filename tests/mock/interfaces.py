@@ -15,7 +15,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import MOCK_ETH_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
 
 
@@ -90,3 +90,6 @@ class MockEthereumClient(EthereumClient):
     def add_middleware(self, middleware):
         pass
 
+    @property
+    def chain_id(self) -> int:
+        return TESTERCHAIN_CHAIN_ID

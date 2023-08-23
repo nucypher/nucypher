@@ -3,11 +3,13 @@ from collections import defaultdict
 import pytest
 from eth_utils.crypto import keccak
 
+from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import MOCK_IP_ADDRESS
+from tests.constants import MOCK_IP_ADDRESS, TESTERCHAIN_CHAIN_ID
 
 # Don't re-lock accounts in the background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
@@ -135,3 +137,27 @@ def mock_get_external_ip_from_url_source(session_mocker):
 def disable_check_grant_requirements(session_mocker):
     target = 'nucypher.characters.lawful.Alice._check_grant_requirements'
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_condition_blockchains(session_mocker):
+    """adds testerchain's chain ID to permitted conditional chains"""
+    session_mocker.patch.dict(
+        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
+        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_multichain_configuration(module_mocker, testerchain):
+    module_mocker.patch.object(
+        Ritualist, "_make_condition_provider", return_value=testerchain.provider
+    )

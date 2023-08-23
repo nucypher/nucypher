@@ -1,13 +1,15 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import fields, post_load, validates_schema
-from web3 import Web3
+from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractFunction
+from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import ABIFunction
 
+from nucypher.blockchain.eth.clients import POA_CHAINS
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions.base import AccessControlCondition
 from nucypher.policy.conditions.context import get_context_value, is_context_variable
@@ -19,20 +21,27 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
 
+# TODO: Move this to a more appropriate location,
+#  but be sure to change the mocks in tests too.
 # Permitted blockchains for condition evaluation
-_CONDITION_CHAINS = (
-    1,     # ethereum/mainnet
-    5,     # ethereum/goerli
-    137,   # polygon/mainnet
-    80001  # polygon/mumbai
-)
+from nucypher.utilities import logging
+
+_CONDITION_CHAINS = {
+    1: "ethereum/mainnet",
+    5: "ethereum/goerli",
+    137: "polygon/mainnet",
+    80001: "polygon/mumbai",
+    # TODO: Permit support for these chains
+    # 100: "gnosis/mainnet",
+    # 10200: "gnosis/chiado",
+}
 
 
 def _resolve_abi(
-        w3: Web3,
-        method: str,
-        standard_contract_type: Optional[str] = None,
-        function_abi: Optional[ABIFunction] = None,
+    w3: Web3,
+    method: str,
+    standard_contract_type: Optional[str] = None,
+    function_abi: Optional[ABIFunction] = None,
 ) -> ABIFunction:
     """Resolves the contract an/or function ABI from a standard contract name"""
 
@@ -53,7 +62,9 @@ def _resolve_abi(
         try:
             # Extract all function ABIs from the contract's ABI.
             # Will raise a ValueError if there is not exactly one match.
-            function_abi = w3.eth.contract(abi=contract_abi).get_function_by_name(method).abi
+            function_abi = (
+                w3.eth.contract(abi=contract_abi).get_function_by_name(method).abi
+            )
         except ValueError as e:
             raise InvalidCondition(str(e))
 
@@ -61,7 +72,7 @@ def _resolve_abi(
 
 
 def _resolve_any_context_variables(
-        parameters: List[Any], return_value_test: ReturnValueTest, **context
+    parameters: List[Any], return_value_test: ReturnValueTest, **context
 ):
     processed_parameters = []
     for p in parameters:
@@ -100,23 +111,27 @@ class RPCCondition(AccessControlCondition):
 
     ALLOWED_METHODS = (
         # RPC
-        'eth_getBalance',
+        "eth_getBalance",
     )  # TODO other allowed methods (tDEC #64)
+
+    LOG = logging.Logger(__name__)
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
         method = fields.Str(required=True)
-        parameters = fields.List(fields.Field, attribute='parameters', required=False)
-        return_value_test = fields.Nested(ReturnValueTest.ReturnValueTestSchema(), required=True)
+        parameters = fields.List(fields.Field, attribute="parameters", required=False)
+        return_value_test = fields.Nested(
+            ReturnValueTest.ReturnValueTestSchema(), required=True
+        )
 
         @post_load
         def make(self, data, **kwargs):
             return RPCCondition(**data)
 
     def __repr__(self) -> str:
-        r = f'{self.__class__.__name__}(function={self.method}, chain={self.chain})'
+        r = f"{self.__class__.__name__}(function={self.method}, chain={self.chain})"
         return r
 
     def __init__(
@@ -127,7 +142,6 @@ class RPCCondition(AccessControlCondition):
         name: Optional[str] = None,
         parameters: Optional[List[Any]] = None,
     ):
-
         # Validate input
         # TODO: Additional validation (function is valid for ABI, RVT validity, standard contract name validity, etc.)
         _validate_chain(chain=chain)
@@ -135,6 +149,7 @@ class RPCCondition(AccessControlCondition):
         # internal
         self.name = name
         self.chain = chain
+        self.provider: Optional[BaseProvider] = None  # set in _configure_provider
         self.method = self.validate_method(method=method)
 
         # test
@@ -153,24 +168,49 @@ class RPCCondition(AccessControlCondition):
             )
         return method
 
-    def _configure_provider(self, providers: Dict[int, BaseProvider]):
-        """Binds the condition's contract function to a blockchian provider for evaluation"""
+    def _next_endpoint(
+        self, providers: Dict[int, Set[HTTPProvider]]
+    ) -> Iterator[HTTPProvider]:
+        """Yields the next web3 provider to try for a given chain ID"""
         try:
-            provider = providers[self.chain]
+            rpc_providers = providers[self.chain]
+
+        # if there are no entries for the chain ID, there
+        # is no connection to that chain available.
         except KeyError:
             raise NoConnectionToChain(chain=self.chain)
+        if not rpc_providers:
+            raise NoConnectionToChain(chain=self.chain)
+        for provider in rpc_providers:
+            # Someday, we might make this whole function async, and then we can knock on
+            # each endpoint here to see if it's alive and only yield it if it is.
+            yield provider
 
+    def _configure_w3(self, provider: BaseProvider) -> Web3:
         # Instantiate a local web3 instance
-        self.w3 = Web3(provider)
+        self.provider = provider
+        w3 = Web3(provider)
+        if self.chain in POA_CHAINS:
+            # inject web3 middleware to handle POA chain extra_data field.
+            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        return w3
 
-        # This next block validates that the actual web3 provider is *actually*
-        # connected to the condition's chain ID by reading its RPC endpoint.
+    def _check_chain_id(self) -> None:
+        """
+        Validates that the actual web3 provider is *actually*
+        connected to the condition's chain ID by reading its RPC endpoint.
+        """
         provider_chain = self.w3.eth.chain_id
         if provider_chain != self.chain:
             raise InvalidCondition(
                 f"This condition can only be evaluated on chain ID {self.chain} but the provider's "
                 f"connection is to chain ID {provider_chain}"
             )
+
+    def _configure_provider(self, provider: BaseProvider):
+        """Binds the condition's contract function to a blockchain provider for evaluation"""
+        self.w3 = self._configure_w3(provider=provider)
+        self._check_chain_id()
         return provider
 
     def _get_web3_py_function(self, rpc_method: str):
@@ -187,19 +227,31 @@ class RPCCondition(AccessControlCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
-    def verify(self, providers: Dict[int, BaseProvider], **context) -> Tuple[bool, Any]:
+    def verify(
+        self, providers: Dict[int, Set[HTTPProvider]], **context
+    ) -> Tuple[bool, Any]:
         """
         Verifies the onchain condition is met by performing a
         read operation and evaluating the return value test.
         """
-        self._configure_provider(providers=providers)
-        parameters, return_value_test = _resolve_any_context_variables(
-            self.parameters, self.return_value_test, **context
-        )
-        try:
-            result = self._execute_call(parameters=parameters)
-        except Exception as e:
-            raise RPCExecutionFailed(f"Contract call '{self.method}' failed: {e}")
+        endpoints = self._next_endpoint(providers=providers)
+        for provider in endpoints:
+            self._configure_provider(provider=provider)
+            parameters, return_value_test = _resolve_any_context_variables(
+                self.parameters, self.return_value_test, **context
+            )
+            try:
+                result = self._execute_call(parameters=parameters)
+                break
+            except Exception as e:
+                self.LOG.warn(
+                    f"RPC call '{self.method}' failed: {e}, attempting to try next endpoint."
+                )
+                # Something went wrong. Try the next endpoint.
+                continue
+        else:
+            # Fuck.
+            raise RPCExecutionFailed(f"Contract call '{self.method}' failed.")
 
         eval_result = return_value_test.eval(result)  # test
         return eval_result, result
@@ -230,7 +282,7 @@ class ContractCondition(RPCCondition):
         standard_contract_type: Optional[str] = None,
         function_abi: Optional[ABIFunction] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         # internal
         super().__init__(*args, **kwargs)
@@ -251,9 +303,11 @@ class ContractCondition(RPCCondition):
         self.contract_function = self._get_unbound_contract_function()
 
     def __repr__(self) -> str:
-        r = f'{self.__class__.__name__}(function={self.method}, ' \
-            f'contract={self.contract_address[:6]}..., ' \
-            f'chain={self.chain})'
+        r = (
+            f"{self.__class__.__name__}(function={self.method}, "
+            f"contract={self.contract_address[:6]}..., "
+            f"chain={self.chain})"
+        )
         return r
 
     def validate_method(self, method):
