@@ -2,7 +2,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
-from marshmallow import fields, post_load, validates_schema
+from marshmallow import fields, post_load, validate, validates_schema
 from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractFunction
 from web3.middleware import geth_poa_middleware
@@ -18,7 +18,7 @@ from nucypher.policy.conditions.exceptions import (
     NoConnectionToChain,
     RPCExecutionFailed,
 )
-from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snake
 
 # TODO: Move this to a more appropriate location,
@@ -113,12 +113,14 @@ class RPCCondition(AccessControlCondition):
         "eth_getBalance",
     )  # TODO other allowed methods (tDEC #64)
     LOG = logging.Logger(__name__)
-    CONDITION_TYPE = "rpc"
+    CONDITION_TYPE = ConditionType.RPC.value
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         name = fields.Str(required=False)
-        condition_type = fields.Str(required=True)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.RPC.value), required=True
+        )
         chain = fields.Int(required=True)
         method = fields.Str(required=True)
         parameters = fields.List(fields.Field, attribute="parameters", required=False)
@@ -260,10 +262,12 @@ class RPCCondition(AccessControlCondition):
 
 
 class ContractCondition(RPCCondition):
-    CONDITION_TYPE = "contract"
+    CONDITION_TYPE = ConditionType.CONTRACT.value
 
     class Schema(RPCCondition.Schema):
-        condition_type = fields.Str(required=True)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.CONTRACT.value), required=True
+        )
         standard_contract_type = fields.Str(required=False)
         contract_address = fields.Str(required=True)
         function_abi = fields.Dict(required=False)

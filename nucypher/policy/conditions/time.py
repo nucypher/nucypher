@@ -1,20 +1,22 @@
 from typing import Any, List, Optional
 
-from marshmallow import fields, post_load
+from marshmallow import fields, post_load, validate
 
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
-from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema
 
 
 class TimeCondition(RPCCondition):
     METHOD = "blocktime"
-    CONDITION_TYPE = "time"
+    CONDITION_TYPE = ConditionType.TIME.value
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
-        condition_type = fields.Str(required=True)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.TIME.value), required=True
+        )
         name = fields.Str(required=False)
         chain = fields.Int(required=True)
         method = fields.Str(dump_default="blocktime", required=True)
@@ -35,7 +37,7 @@ class TimeCondition(RPCCondition):
         return_value_test: ReturnValueTest,
         chain: int,
         method: str = METHOD,
-        condition_type: str = CONDITION_TYPE,
+        condition_type: str = ConditionType.TIME.value,
         name: Optional[str] = None,
     ):
         if method != self.METHOD:

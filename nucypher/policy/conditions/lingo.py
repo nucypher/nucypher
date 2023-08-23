@@ -1,6 +1,7 @@
 import ast
 import base64
 import operator as pyoperator
+from enum import Enum
 from hashlib import md5
 from typing import Any, List, Optional, Tuple, Type
 
@@ -57,15 +58,32 @@ class _ConditionField(fields.Dict):
 # }
 
 
+class ConditionType(Enum):
+    """
+    Defines the types of conditions that can be evaluated.
+    """
+
+    TIME = "time"
+    CONTRACT = "contract"
+    RPC = "rpc"
+    COMPOUND = "compound"
+
+    @classmethod
+    def values(cls) -> List[str]:
+        return [condition.value for condition in cls]
+
+
 class CompoundAccessControlCondition(AccessControlCondition):
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     OPERATORS = (AND_OPERATOR, OR_OPERATOR)
-    CONDITION_TYPE = "compound"
+    CONDITION_TYPE = ConditionType.COMPOUND.value
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
-        condition_type = fields.Str(required=True)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.COMPOUND.value), required=True
+        )
         name = fields.Str(required=False)
         operator = fields.Str(required=True, validate=validate.OneOf(["and", "or"]))
         operands = fields.List(
@@ -128,16 +146,12 @@ class CompoundAccessControlCondition(AccessControlCondition):
 
 class OrCompoundCondition(CompoundAccessControlCondition):
     def __init__(self, operands: List[AccessControlCondition]):
-        super().__init__(
-            operator=self.OR_OPERATOR, operands=operands, condition_type="compound"
-        )
+        super().__init__(operator=self.OR_OPERATOR, operands=operands)
 
 
 class AndCompoundCondition(CompoundAccessControlCondition):
     def __init__(self, operands: List[AccessControlCondition]):
-        super().__init__(
-            operator=self.AND_OPERATOR, operands=operands, condition_type="compound"
-        )
+        super().__init__(operator=self.AND_OPERATOR, operands=operands)
 
 
 class ReturnValueTest:

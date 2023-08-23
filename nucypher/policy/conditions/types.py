@@ -39,6 +39,7 @@ class _AccessControlCondition(TypedDict):
 
 
 class RPCConditionDict(_AccessControlCondition):
+    conditionType: str
     chain: int
     method: str
     parameters: NotRequired[List[Any]]
@@ -63,6 +64,7 @@ class ContractConditionDict(RPCConditionDict):
 #
 #
 class CompoundConditionDict(TypedDict):
+    conditionType: str
     operator: Literal["and", "or"]
     operands: List["Lingo"]
 
