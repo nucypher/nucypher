@@ -100,6 +100,7 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers, mo
     collector = StakingProviderMetricsCollector(
         staking_provider_address=staking_provider_address,
         contract_registry=test_registry,
+        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
     collector_registry = CollectorRegistry()
     prefix = "test_staking_provider_metrics_collector"
