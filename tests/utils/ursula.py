@@ -4,10 +4,15 @@ from threading import Lock
 from typing import Iterable, List
 
 from cryptography.x509 import Certificate
+from web3 import HTTPProvider
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
-from tests.constants import NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK
+from nucypher.policy.conditions.evm import _CONDITION_CHAINS
+from tests.constants import (
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    TESTERCHAIN_CHAIN_ID,
+)
 
 
 class __ActivePortCache:
@@ -114,6 +119,32 @@ def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
 
     certificate_as_deployed = node_deployer.cert.to_cryptography()
     return certificate_as_deployed
+
+
+def mock_permitted_multichain_connections(mocker) -> List[int]:
+    ids = [
+        TESTERCHAIN_CHAIN_ID,
+        TESTERCHAIN_CHAIN_ID + 1,
+        TESTERCHAIN_CHAIN_ID + 2,
+        123456789,
+    ]
+    mocker.patch.dict(_CONDITION_CHAINS, {cid: "fakechain/mainnet" for cid in ids})
+    return ids
+
+
+def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> None:
+    base_uri = "tester://multichain.{}"
+    base_fallback_uri = "tester://multichain.fallback.{}"
+    provider_uris = [base_uri.format(i) for i in range(len(chain_ids))]
+    fallback_provider_uris = [
+        base_fallback_uri.format(i) for i in range(len(chain_ids))
+    ]
+    mocked_condition_providers = {
+        cid: {HTTPProvider(uri), HTTPProvider(furi)}
+        for cid, uri, furi in zip(chain_ids, provider_uris, fallback_provider_uris)
+    }
+    for ursula in ursulas:
+        ursula.condition_providers = mocked_condition_providers
 
 
 MOCK_KNOWN_URSULAS_CACHE = dict()

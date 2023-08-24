@@ -1,12 +1,10 @@
 from collections import defaultdict
 
 import pytest
-from web3 import HTTPProvider
 
-from nucypher.policy.conditions.evm import _CONDITION_CHAINS, RPCCondition
+from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.policy import make_message_kits
 
 GlobalLoggerSettings.start_text_file_logging()
@@ -45,66 +43,13 @@ def make_multichain_evm_conditions(bob, chain_ids):
 
 
 @pytest.fixture(scope="module")
-def chain_ids(module_mocker):
-    ids = [
-        TESTERCHAIN_CHAIN_ID,
-        TESTERCHAIN_CHAIN_ID + 1,
-        TESTERCHAIN_CHAIN_ID + 2,
-        123456789,
-    ]
-    module_mocker.patch.dict(
-        _CONDITION_CHAINS, {cid: "fakechain/mainnet" for cid in ids}
-    )
-    return ids
-
-
-@pytest.fixture(scope="module", autouse=True)
-def multichain_ursulas(ursulas, chain_ids):
-    base_uri = "tester://multichain.{}"
-    base_fallback_uri = "tester://multichain.fallback.{}"
-    provider_uris = [base_uri.format(i) for i in range(len(chain_ids))]
-    fallback_provider_uris = [
-        base_fallback_uri.format(i) for i in range(len(chain_ids))
-    ]
-    mocked_condition_providers = {
-        cid: {HTTPProvider(uri), HTTPProvider(furi)}
-        for cid, uri, furi in zip(chain_ids, provider_uris, fallback_provider_uris)
-    }
-    for ursula in ursulas:
-        ursula.condition_providers = mocked_condition_providers
-    return ursulas
-
-
-@pytest.fixture(scope="module")
-def conditions(bob, chain_ids):
-    _conditions = make_multichain_evm_conditions(bob, chain_ids)
+def conditions(bob, multichain_ids):
+    _conditions = make_multichain_evm_conditions(bob, multichain_ids)
     return _conditions
 
 
-@pytest.fixture(scope="module")
-def monkeymodule():
-    from _pytest.monkeypatch import MonkeyPatch
-
-    mpatch = MonkeyPatch()
-    yield mpatch
-    mpatch.undo()
-
-
-@pytest.fixture(scope="module")
-def mock_rpc_condition(module_mocker, testerchain, monkeymodule):
-    def configure_mock(condition, provider, *args, **kwargs):
-        condition.provider = provider
-        return testerchain.w3
-
-    monkeymodule.setattr(RPCCondition, "_configure_w3", configure_mock)
-    configure_spy = module_mocker.spy(RPCCondition, "_configure_w3")
-
-    chain_id_check_mock = module_mocker.patch.object(RPCCondition, "_check_chain_id")
-    return configure_spy, chain_id_check_mock
-
-
 def test_single_retrieve_with_multichain_conditions(
-    enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition, mocker
+    enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
 ):
     bob.remember_node(multichain_ursulas[0])
     bob.start_learning_loop()

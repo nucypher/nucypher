@@ -135,6 +135,18 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
         return all_known_nodes()
 
+    @rest_app.route("/condition_chains", methods=["GET"])
+    def condition_chains():
+        """
+        An endpoint that returns the condition evaluation blockchains
+        this node has connected to.
+        """
+        # TODO: When non-evm chains are supported, bump the version.
+        #  this can return a list of chain names or other verifiable identifiers.
+
+        payload = {"version": 1.0, "evm": list(this_node.condition_providers)}
+        return Response(json.dumps(payload), mimetype="application/json")
+
     @rest_app.route('/decrypt', methods=["POST"])
     def threshold_decrypt():
 

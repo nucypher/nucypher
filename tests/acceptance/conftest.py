@@ -11,6 +11,7 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.logging import Logger
 from tests.constants import (
@@ -24,6 +25,10 @@ from tests.constants import (
 from tests.utils.ape import deploy_contracts as ape_deploy_contracts
 from tests.utils.ape import registry_from_ape_deployments
 from tests.utils.blockchain import TesterBlockchain
+from tests.utils.ursula import (
+    mock_permitted_multichain_connections,
+    setup_multichain_ursulas,
+)
 
 test_logger = Logger("acceptance-test-logger")
 
@@ -163,3 +168,37 @@ def manual_operator(testerchain):
     txhash = testerchain.client.w3.eth.send_transaction(tx)
     _receipt = testerchain.wait_for_receipt(txhash)
     yield address
+
+
+@pytest.fixture(scope="module")
+def monkeymodule():
+    from _pytest.monkeypatch import MonkeyPatch
+
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
+@pytest.fixture(scope="module")
+def mock_rpc_condition(module_mocker, testerchain, monkeymodule):
+    def configure_mock(condition, provider, *args, **kwargs):
+        condition.provider = provider
+        return testerchain.w3
+
+    monkeymodule.setattr(RPCCondition, "_configure_w3", configure_mock)
+    configure_spy = module_mocker.spy(RPCCondition, "_configure_w3")
+
+    chain_id_check_mock = module_mocker.patch.object(RPCCondition, "_check_chain_id")
+    return configure_spy, chain_id_check_mock
+
+
+@pytest.fixture(scope="module")
+def multichain_ids(module_mocker):
+    ids = mock_permitted_multichain_connections(mocker=module_mocker)
+    return ids
+
+
+@pytest.fixture(scope="module")
+def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
+    setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
+    return ursulas

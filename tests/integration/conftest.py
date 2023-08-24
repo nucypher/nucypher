@@ -1,15 +1,17 @@
-import pytest
-from eth_account.account import Account
 from pathlib import Path
 from typing import Iterable, Optional
 
+import pytest
+from eth_account.account import Account
+
 from nucypher.blockchain.economics import EconomicsFactory
-from nucypher.blockchain.eth.actors import Operator, Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
+    CoordinatorAgent,
     PREApplicationAgent,
-    StakingProvidersReservoir, CoordinatorAgent,
+    StakingProvidersReservoir,
 )
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
@@ -31,21 +33,14 @@ from tests.constants import (
 )
 from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
 from tests.mock.io import MockStdinWrapper
+from tests.utils.ursula import (
+    mock_permitted_multichain_connections,
+    setup_multichain_ursulas,
+)
 
 
 def pytest_addhooks(pluginmanager):
     pluginmanager.set_blocked('ape_test')
-
-
-@pytest.fixture(scope='function', autouse=True)
-def mock_contract_agency(monkeypatch, module_mocker, application_economics):
-    from tests.mock.agents import MockContractAgency
-
-    monkeypatch.setattr(ContractAgency, 'get_agent', MockContractAgency.get_agent)
-    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
-    mock_agency = MockContractAgency()
-    yield mock_agency
-    mock_agency.reset()
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -264,3 +259,15 @@ def mock_condition_blockchains(session_mocker):
     session_mocker.patch.object(
         NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
     )
+
+
+@pytest.fixture(scope="module")
+def multichain_ids(module_mocker):
+    ids = mock_permitted_multichain_connections(mocker=module_mocker)
+    return ids
+
+
+@pytest.fixture(scope="module")
+def multichain_ursulas(ursulas, multichain_ids):
+    setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
+    return ursulas
