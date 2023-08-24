@@ -29,6 +29,7 @@ def _attempt_decryption(BobClass, plaintext):
     definitely_false_condition = {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "time",
             "chain": TESTERCHAIN_CHAIN_ID,
             "method": "blocktime",
             "returnValueTest": {"comparator": "<", "value": 0},

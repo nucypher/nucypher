@@ -1,6 +1,7 @@
 import ast
 import base64
 import operator as pyoperator
+from enum import Enum
 from hashlib import md5
 from typing import Any, List, Optional, Tuple, Type
 
@@ -57,13 +58,32 @@ class _ConditionField(fields.Dict):
 # }
 
 
+class ConditionType(Enum):
+    """
+    Defines the types of conditions that can be evaluated.
+    """
+
+    TIME = "time"
+    CONTRACT = "contract"
+    RPC = "rpc"
+    COMPOUND = "compound"
+
+    @classmethod
+    def values(cls) -> List[str]:
+        return [condition.value for condition in cls]
+
+
 class CompoundAccessControlCondition(AccessControlCondition):
     AND_OPERATOR = "and"
     OR_OPERATOR = "or"
     OPERATORS = (AND_OPERATOR, OR_OPERATOR)
+    CONDITION_TYPE = ConditionType.COMPOUND.value
 
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
+        condition_type = fields.Str(
+            validate=validate.Equal(ConditionType.COMPOUND.value), required=True
+        )
         name = fields.Str(required=False)
         operator = fields.Str(required=True, validate=validate.OneOf(["and", "or"]))
         operands = fields.List(
@@ -82,6 +102,7 @@ class CompoundAccessControlCondition(AccessControlCondition):
         self,
         operator: str,
         operands: List[AccessControlCondition],
+        condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
         """
@@ -90,10 +111,12 @@ class CompoundAccessControlCondition(AccessControlCondition):
             "operands": [CONDITION*]
         }
         """
+        self.condition_type = condition_type
         if operator not in self.OPERATORS:
             raise InvalidLogicalOperator(f"{operator} is not a valid operator")
         self.operator = operator
         self.operands = operands
+        self.condition_type = condition_type
         self.name = name
         self.id = md5(bytes(self)).hexdigest()[:6]
 
@@ -322,24 +345,19 @@ class ConditionLingo(_Serializable):
         from nucypher.policy.conditions.time import TimeCondition
 
         # version logical adjustments can be made here as required
-        # Inspect
-        method = condition.get("method")
-        operator = condition.get("operator")
-        contract = condition.get("contractAddress")
 
-        # Resolve
-        if method:
-            if method == TimeCondition.METHOD:
-                return TimeCondition
-            elif contract:
-                return ContractCondition
-            elif method in RPCCondition.ALLOWED_METHODS:
-                return RPCCondition
-        elif operator:
-            return CompoundAccessControlCondition
+        condition_type = condition.get("conditionType")
+        for condition in (
+            TimeCondition,
+            ContractCondition,
+            RPCCondition,
+            CompoundAccessControlCondition,
+        ):
+            if condition.CONDITION_TYPE == condition_type:
+                return condition
 
         raise InvalidConditionLingo(
-            f"Cannot resolve condition lingo type from data {condition}"
+            f"Cannot resolve condition lingo with condition type {condition_type}"
         )
 
     @classmethod

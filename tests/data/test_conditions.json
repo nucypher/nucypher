@@ -1,8 +1,13 @@
 {
-  "customABIMultipleParameters" : {
+  "customABIMultipleParameters": {
+    "conditionType": "contract",
     "contractAddress": "0x01B67b1194C75264d06F808A921228a95C765dd7",
     "method": "isSubscribedToToken",
-    "parameters": [":userAddress", "subscriptionCode", 4],
+    "parameters": [
+      ":userAddress",
+      "subscriptionCode",
+      4
+    ],
     "functionAbi": {
       "inputs": [
         {
@@ -72,6 +77,7 @@
     }
   },
   "TStaking": {
+    "conditionType": "contract",
     "contractAddress": "0x01B67b1194C75264d06F808A921228a95C765dd7",
     "chain": 1,
     "method": "stakes",
@@ -114,6 +120,7 @@
     }
   },
   "SubscriptionManagerPayment": {
+    "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "chain": 137,
     "method": "isValidPolicy",
@@ -126,6 +133,7 @@
     }
   },
   "ERC1155_balance": {
+    "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC1155",
     "chain": 1,
@@ -140,20 +148,32 @@
     }
   },
   "ERC1155_balance_batch": {
+    "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC1155",
     "chain": 1,
     "method": "balanceOfBatch",
     "parameters": [
-      [":userAddress",":userAddress",":userAddress",":userAddress"],
-      [1,2,10003,10004]
+      [
+        ":userAddress",
+        ":userAddress",
+        ":userAddress",
+        ":userAddress"
+      ],
+      [
+        1,
+        2,
+        10003,
+        10004
+      ]
     ],
     "returnValueTest": {
       "comparator": ">",
       "value": 0
     }
   },
-  "ERC721_ownership":   {
+  "ERC721_ownership": {
+    "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC721",
     "chain": 1,
@@ -166,7 +186,8 @@
       "value": ":userAddress"
     }
   },
-  "ERC721_balance":   {
+  "ERC721_balance": {
+    "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC721",
     "chain": 1,
@@ -179,7 +200,8 @@
       "value": 0
     }
   },
-  "ERC20_balance":   {
+  "ERC20_balance": {
+    "conditionType": "contract",
     "contractAddress": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
     "standardContractType": "ERC20",
     "chain": 1,
@@ -192,7 +214,8 @@
       "value": 0
     }
   },
-  "ETH_balance":   {
+  "ETH_balance": {
+    "conditionType": "contract",
     "contractAddress": "",
     "standardContractType": "",
     "chain": 1,
@@ -206,7 +229,8 @@
       "value": 10000000000000
     }
   },
-  "specific_wallet_address":   {
+  "specific_wallet_address": {
+    "conditionType": "contract",
     "contractAddress": "",
     "standardContractType": "",
     "chain": 1,
@@ -219,12 +243,15 @@
       "value": "0xaDD9D957170dF6F33982001E4c22eCCdd5539118"
     }
   },
-  "timestamp":   {
+  "timestamp": {
+    "conditionType": "contract",
     "contractAddress": "",
     "standardContractType": "timestamp",
     "chain": 1,
     "method": "eth_getBlockByNumber",
-    "parameters": ["latest"],
+    "parameters": [
+      "latest"
+    ],
     "returnValueTest": {
       "comparator": ">=",
       "value": 1234567890

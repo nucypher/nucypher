@@ -1,0 +1,1 @@
+Add a mandatory condition_type field to condition schemas

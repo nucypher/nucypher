@@ -7,23 +7,36 @@ import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import InvalidConditionLingo
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
-@pytest.fixture(scope='module')
-def lingo():
+@pytest.fixture(scope="module")
+def lingo_with_condition():
+    return {
+        "conditionType": "time",
+        "returnValueTest": {"value": 0, "comparator": ">"},
+        "method": "blocktime",
+        "chain": TESTERCHAIN_CHAIN_ID,
+    }
+
+
+@pytest.fixture(scope="module")
+def lingo_with_compound_condition():
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "compound",
             "operator": "and",
             "operands": [
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -55,9 +68,11 @@ def test_invalid_condition():
     invalid_operator_position_lingo = {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "compound",
             "operator": "and",
             "operands": [
                 {
+                    "conditionType": "time",
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -87,6 +102,7 @@ def test_invalid_condition_version(case):
     lingo_dict = {
         "version": newer_version_string,
         "condition": {
+            "conditionType": "time",
             "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
@@ -102,24 +118,24 @@ def test_invalid_condition_version(case):
         _ = ConditionLingo.from_dict(lingo_dict)
 
 
-def test_condition_lingo_to_from_dict(lingo):
-    clingo = ConditionLingo.from_dict(lingo)
+def test_condition_lingo_to_from_dict(lingo_with_compound_condition):
+    clingo = ConditionLingo.from_dict(lingo_with_compound_condition)
     clingo_dict = clingo.to_dict()
-    assert clingo_dict == lingo
+    assert clingo_dict == lingo_with_compound_condition
 
 
-def test_condition_lingo_to_from_json(lingo):
+def test_condition_lingo_to_from_json(lingo_with_compound_condition):
     # A bit more convoluted because fields aren't
     # necessarily ordered - so string comparison is tricky
-    clingo_from_dict = ConditionLingo.from_dict(lingo)
+    clingo_from_dict = ConditionLingo.from_dict(lingo_with_compound_condition)
     lingo_json = clingo_from_dict.to_json()
 
     clingo_from_json = ConditionLingo.from_json(lingo_json)
-    assert clingo_from_json.to_dict() == lingo
+    assert clingo_from_json.to_dict() == lingo_with_compound_condition
 
 
-def test_condition_lingo_repr(lingo):
-    clingo = ConditionLingo.from_dict(lingo)
+def test_condition_lingo_repr(lingo_with_compound_condition):
+    clingo = ConditionLingo.from_dict(lingo_with_compound_condition)
     clingo_string = f"{clingo}"
     assert f"{clingo.__class__.__name__}" in clingo_string
     assert f"version={ConditionLingo.VERSION}" in clingo_string
@@ -144,3 +160,16 @@ def test_lingo_parameter_int_type_preservation(custom_abi_with_multiple_paramete
     clingo = ConditionLingo.from_json(clingo_json)
     conditions = clingo.to_dict()
     assert conditions["condition"]["parameters"][2] == 4
+
+
+def test_lingo_resolves_condition_type(lingo_with_condition):
+    for condition_type in ConditionType.values():
+        lingo_with_condition["conditionType"] = condition_type
+        ConditionLingo.resolve_condition_class(lingo_with_condition)
+
+
+def test_lingo_rejects_invalid_condition_type(lingo_with_condition):
+    for condition_type in ["invalid", "", None]:
+        lingo_with_condition["conditionType"] = condition_type
+        with pytest.raises(InvalidConditionLingo):
+            ConditionLingo.resolve_condition_class(lingo_with_condition)
