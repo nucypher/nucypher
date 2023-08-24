@@ -2,6 +2,7 @@ class NetworksInventory:  # TODO: See #1564
 
     MAINNET = "mainnet"
     LYNX = "lynx"
+    IBEX = "ibex"  # this is required for configuration file migrations (backwards compatibility)
     ETH = "ethereum"
     TAPIR = "tapir"
     ORYX = "oryx"
@@ -15,6 +16,7 @@ class NetworksInventory:  # TODO: See #1564
 
     __to_chain_id_eth = {
         MAINNET: 1,  # Ethereum Mainnet
+        IBEX: 5,  # this is required for configuration file migrations (backwards compatibility)
         LYNX: 5,  # Goerli
         TAPIR: 5,
         ORYX: 5
