@@ -4,7 +4,7 @@ import pytest
 from web3 import HTTPProvider
 
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS, RPCCondition
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.policy import make_message_kits
@@ -18,11 +18,13 @@ def make_multichain_evm_conditions(bob, chain_ids):
     for chain_id in chain_ids:
         operand = [
             {
+                "conditionType": ConditionType.TIME.value,
                 "returnValueTest": {"value": "0", "comparator": ">"},
                 "method": "blocktime",
                 "chain": chain_id,
             },
             {
+                "conditionType": ConditionType.RPC.value,
                 "chain": chain_id,
                 "method": "eth_getBalance",
                 "parameters": [bob.checksum_address, "latest"],
@@ -34,6 +36,7 @@ def make_multichain_evm_conditions(bob, chain_ids):
     _conditions = {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "and",
             "operands": operands,
         },
