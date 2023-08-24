@@ -1,0 +1,1 @@
+New HTTP(S) endpoint to return a list of all the blockchains a node is currently connected to for conditions evaluation.
