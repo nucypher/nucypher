@@ -24,7 +24,7 @@ Docker Installation and Update
 Local Installation
 ------------------
 
-``nucypher`` supports Python 3.7 and 3.8. If you don’t already have it, install `Python <https://www.python.org/downloads/>`_.
+``nucypher`` supports Python 3.9, 3.10, and 3.11. If you don’t already have it, install `Python <https://www.python.org/downloads/>`_.
 
 In order to isolate global system dependencies from nucypher-specific dependencies, we *highly* recommend
 using ``python-virtualenv`` to install ``nucypher`` inside a dedicated virtual environment.
