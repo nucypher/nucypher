@@ -61,6 +61,10 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN,
 )
 from nucypher.config.migrations import MIGRATIONS
+from nucypher.config.migrations.common import (
+    InvalidMigration,
+    WrongConfigurationVersion,
+)
 from nucypher.crypto.keystore import Keystore
 
 
@@ -482,6 +486,14 @@ def config(general_config, config_options, config_file, force, action):
     emitter = setup_emitter(general_config, config_options.operator_address)
 
     if not config_file:
+        if action == "migrate":
+            # This is required because normally outdated configuration files
+            # are excluded from interactive selection, making it impossible to
+            # select a configuration file that is requires a migration.
+            emitter.error(
+                "--config-file <FILEPATH> is required to run a configuration file migration."
+            )
+            return click.Abort()
         config_file = select_config_file(
             emitter=emitter,
             checksum_address=config_options.operator_address,
@@ -497,10 +509,11 @@ def config(general_config, config_options, config_file, force, action):
         config_options.rest_host = rest_host
     if action == "migrate":
         for jump, migration in MIGRATIONS.items():
-            emitter.message(f"Checking migration {jump[0]} -> {jump[1]}")
+            old, new = jump
+            emitter.message(f"Checking migration {old} -> {new}")
             if not migration:
                 emitter.echo(
-                    f"Migration {jump[0]} -> {jump[1]} not found.",
+                    f"Migration {old} -> {new} not found.",
                     color="yellow",
                     verbosity=1,
                 )
@@ -508,20 +521,20 @@ def config(general_config, config_options, config_file, force, action):
             try:
                 migration(config_file)
                 emitter.echo(
-                    f"Successfully ran migration {jump[0]} -> {jump[1]}",
+                    f"Successfully ran migration {old} -> {new}",
                     color="green",
                     verbosity=1,
                 )
 
-            except RuntimeError:
+            except WrongConfigurationVersion:
                 emitter.echo(
-                    f"Migration {migration.__name__} not required.",
+                    f"Migration {old} -> {new} not required.",
                     color="yellow",
                     verbosity=1,
                 )
 
-            except Exception as e:
-                emitter.error(f"Migration {migration.__name__} failed: {str(e)}")
+            except InvalidMigration as e:
+                emitter.error(f"Migration {old} -> {new} failed: {str(e)}")
                 click.Abort()
 
         emitter.echo("Done! ✨", color="green", verbosity=1)

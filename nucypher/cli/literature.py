@@ -75,7 +75,10 @@ CONFIRM_FORGET_NODES = "Permanently delete all known node data?"
 
 SUCCESSFUL_FORGET_NODES = "Removed all stored known nodes metadata and certificates"
 
-IGNORE_OLD_CONFIGURATION = "Ignoring configuration file '{config_file}' - version is too old"
+IGNORE_OLD_CONFIGURATION = """
+Ignoring configuration file '{config_file}' - version is too old,
+Run `nucypher ursula config migrate --config-file {config_file}` to update it.
+"""
 
 DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: '{config_file}'"
 
