@@ -9,7 +9,7 @@ def __migration(config: Dict) -> None:
     eth_chain_id = NetworksInventory.get_ethereum_chain_id(config["domain"])
     polygon_provider = config["payment_provider"]
     polygon_chain_id = NetworksInventory.get_polygon_chain_id(config["payment_network"])
-    config["condition_providers"] = {
+    config["condition_provider_uris"] = {
         eth_chain_id: [eth_provider],
         polygon_chain_id: [polygon_provider],
     }
