@@ -196,7 +196,7 @@ class RPCCondition(AccessControlCondition):
         w3 = Web3(provider)
         if self.chain in POA_CHAINS:
             # inject web3 middleware to handle POA chain extra_data field.
-            self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         return w3
 
     def _check_chain_id(self) -> None:
