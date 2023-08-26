@@ -47,6 +47,7 @@ print(
 eth_balance_condition = {
     "version": ConditionLingo.VERSION,
     "condition": {
+        "conditionType": "rpc",
         "chain": 80001,
         "method": "eth_getBalance",
         "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],

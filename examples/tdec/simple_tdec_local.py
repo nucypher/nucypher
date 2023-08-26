@@ -13,6 +13,7 @@ ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55
 before_the_beginning_of_time = {
     "version": ConditionLingo.VERSION,
     "condition": {
+        "conditionType": "time",
         "chain": 1,
         "method": "blocktime",
         "returnValueTest": {"comparator": "<", "value": 0},
