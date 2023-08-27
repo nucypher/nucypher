@@ -32,6 +32,7 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
     HRAC,
+    AccessControlPolicy,
     Address,
     Conditions,
     Context,
@@ -44,10 +45,11 @@ from nucypher_core import (
     SessionStaticKey,
     SessionStaticSecret,
     ThresholdDecryptionRequest,
+    ThresholdMessageKit,
     TreasureMap,
+    encrypt_for_dkg,
 )
 from nucypher_core.ferveo import (
-    Ciphertext,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
@@ -55,8 +57,6 @@ from nucypher_core.ferveo import (
     Validator,
     combine_decryption_shares_precomputed,
     combine_decryption_shares_simple,
-    decrypt_with_shared_secret,
-    encrypt,
 )
 from nucypher_core.umbral import (
     PublicKey,
@@ -101,6 +101,7 @@ from nucypher.crypto.powers import (
     TLSHostingPower,
     TransactingPower,
 )
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
@@ -627,19 +628,17 @@ class Bob(Character):
     @staticmethod
     def __make_decryption_request(
         ritual_id: int,
-        ciphertext: Ciphertext,
-        lingo: Lingo,
+        threshold_message_kit: ThresholdMessageKit,
         variant: FerveoVariant,
         context: Optional[dict] = None,
     ) -> ThresholdDecryptionRequest:
-        conditions = Conditions(json.dumps(lingo))
         if context:
             context = Context(json.dumps(context))
         decryption_request = ThresholdDecryptionRequest(
             ritual_id=ritual_id,
             variant=variant,
-            ciphertext=ciphertext,
-            conditions=conditions,
+            ciphertext_header=threshold_message_kit.ciphertext_header,
+            acp=threshold_message_kit.acp,
             context=context,
         )
         return decryption_request
@@ -715,8 +714,7 @@ class Bob(Character):
     def threshold_decrypt(
         self,
         ritual_id: int,
-        ciphertext: Ciphertext,
-        conditions: Lingo,
+        threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
@@ -745,8 +743,7 @@ class Bob(Character):
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
-            ciphertext=ciphertext,
-            lingo=conditions,
+            threshold_message_kit=threshold_message_kit,
             variant=variant,
             context=context,
         )
@@ -759,14 +756,15 @@ class Bob(Character):
         )
 
         return self.__decrypt(
-            list(decryption_shares.values()), ciphertext, conditions, variant
+            list(decryption_shares.values()),
+            threshold_message_kit,
+            variant,
         )
 
     @staticmethod
     def __decrypt(
         shares: List[Union[DecryptionShareSimple, DecryptionSharePrecomputed]],
-        ciphertext: Ciphertext,
-        conditions: Lingo,
+        threshold_message_kit: ThresholdMessageKit,
         variant: FerveoVariant,
     ):
         """decrypt the ciphertext"""
@@ -776,12 +774,8 @@ class Bob(Character):
             shared_secret = combine_decryption_shares_simple(shares)
         else:
             raise ValueError(f"Invalid variant: {variant}.")
-        conditions = json.dumps(conditions).encode()  # aad
-        cleartext = decrypt_with_shared_secret(
-            ciphertext,
-            conditions,       # aad
-            shared_secret,
-        )
+
+        cleartext = threshold_message_kit.decrypt_with_shared_secret(shared_secret)
         return cleartext
 
 
@@ -1475,11 +1469,26 @@ class Enrico:
         )
         return message_kit
 
-    def encrypt_for_dkg(self, plaintext: bytes, conditions: Lingo) -> Ciphertext:
+    def encrypt_for_dkg(
+        self, plaintext: bytes, conditions: Lingo
+    ) -> ThresholdMessageKit:
         validate_condition_lingo(conditions)
-        conditions_bytes = json.dumps(conditions).encode()
-        ciphertext = encrypt(plaintext, conditions_bytes, self.policy_pubkey)
-        return ciphertext
+        conditions_json = json.dumps(conditions)
+        access_conditions = Conditions(conditions_json)
+
+        ciphertext, auth_data = encrypt_for_dkg(
+            plaintext, self.policy_pubkey, access_conditions
+        )
+
+        # authentication for AllowLogic
+        # TODO Replace with `Signer` to be passed as parameter
+        header_hash = keccak_digest(bytes(ciphertext.header))
+        authorization = self.signing_power.keypair.sign(header_hash).to_be_bytes()
+
+        return ThresholdMessageKit(
+            ciphertext=ciphertext,
+            acp=AccessControlPolicy(auth_data=auth_data, authorization=authorization),
+        )
 
     @classmethod
     def from_alice(cls, alice: Alice, label: bytes):

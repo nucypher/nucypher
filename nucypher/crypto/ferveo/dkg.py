@@ -2,7 +2,7 @@ from typing import List, Tuple, Union
 
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    Ciphertext,
+    CiphertextHeader,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     Dkg,
@@ -78,13 +78,13 @@ def derive_decryption_share(
     nodes: List[Validator],
     aggregated_transcript: AggregatedTranscript,
     keypair: Keypair,
-    ciphertext: Ciphertext,
+    ciphertext_header: CiphertextHeader,
     aad: bytes,
     variant: FerveoVariant,
     *args, **kwargs
 ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
     dkg = _make_dkg(nodes=nodes, *args, **kwargs)
-    if not all((nodes, aggregated_transcript, keypair, ciphertext, aad)):
+    if not all((nodes, aggregated_transcript, keypair, ciphertext_header, aad)):
         raise Exception("missing arguments")  # sanity check
     try:
         derive_share = _VARIANTS[variant]
@@ -94,7 +94,7 @@ def derive_decryption_share(
         # first arg here is intended to be "self" since the method is unbound
         aggregated_transcript,
         dkg,
-        ciphertext,
+        ciphertext_header,
         aad,
         keypair
     )

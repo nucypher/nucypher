@@ -20,6 +20,7 @@ from nucypher_core import (
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
+from nucypher.crypto.utils import keccak_digest
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
@@ -163,6 +164,21 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
         )
 
+        ciphertext_header = decryption_request.ciphertext_header
+
+        # check whether enrico is authorized - AllowLogic
+        authorization = decryption_request.acp.authorization
+        ciphertext_header_hash = keccak_digest(bytes(ciphertext_header))
+        if not this_node.coordinator_agent.is_encryption_authorized(
+            ritual_id=decryption_request.ritual_id,
+            evidence=authorization,
+            digest=ciphertext_header_hash,
+        ):
+            return Response(
+                f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
+                status=HTTPStatus.UNAUTHORIZED,
+            )
+
         # requester-supplied condition eval context
         context = None
         if decryption_request.context:
@@ -172,7 +188,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # obtain condition from request
         condition_lingo = json.loads(
-            str(decryption_request.conditions)
+            str(decryption_request.acp.conditions)
         )  # nucypher_core.Conditions -> str -> Lingo
         if not condition_lingo:
             # this should never happen for CBD - defeats the purpose
@@ -207,8 +223,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         # derive the decryption share
         decryption_share = this_node.derive_decryption_share(
             ritual_id=decryption_request.ritual_id,
-            ciphertext=decryption_request.ciphertext,
-            conditions=decryption_request.conditions,
+            ciphertext_header=decryption_request.ciphertext_header,
+            aad=decryption_request.acp.aad(),
             variant=decryption_request.variant,
         )
 

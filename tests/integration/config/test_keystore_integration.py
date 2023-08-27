@@ -1,17 +1,14 @@
-import json
 from unittest.mock import ANY
 
 import pytest
 from cryptography.hazmat.primitives.serialization import Encoding
 from flask import Flask
 from nucypher_core import (
-    Conditions,
     SessionStaticSecret,
     ThresholdDecryptionRequest,
     ThresholdDecryptionResponse,
 )
 from nucypher_core.umbral import SecretKey, Signer
-from nucypher_core.ferveo import FerveoVariant
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
@@ -191,12 +188,14 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
 
     # encrypt
     enrico = Enrico(encrypting_key=dkg_public_key)
-    ciphertext = enrico.encrypt_for_dkg(plaintext=plaintext, conditions=CONDITIONS)
+    threshold_message_kit = enrico.encrypt_for_dkg(
+        plaintext=plaintext, conditions=CONDITIONS
+    )
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
         variant=FerveoVariant.Simple,
-        ciphertext=ciphertext,
-        conditions=Conditions(json.dumps(CONDITIONS)),
+        ciphertext_header=threshold_message_kit.ciphertext_header,
+        acp=threshold_message_kit.acp,
     )
 
     #

@@ -1,9 +1,9 @@
-import time
 from collections import defaultdict
 from decimal import Decimal
 from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
+import time
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
@@ -15,7 +15,7 @@ from nucypher_core import (
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    Ciphertext,
+    CiphertextHeader,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
@@ -55,7 +55,6 @@ from nucypher.crypto.powers import (
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
-from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -630,9 +629,9 @@ class Ritualist(BaseActor):
     def derive_decryption_share(
         self,
         ritual_id: int,
-        ciphertext: Ciphertext,
-        conditions: ConditionLingo,
-        variant: FerveoVariant
+        ciphertext_header: CiphertextHeader,
+        aad: bytes,
+        variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -646,7 +645,6 @@ class Ritualist(BaseActor):
             )
 
         threshold = (ritual.shares // 2) + 1
-        conditions = str(conditions).encode()
         # TODO: consider the usage of local DKG artifact storage here #3052
         # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
@@ -657,8 +655,8 @@ class Ritualist(BaseActor):
             checksum_address=self.checksum_address,
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
-            ciphertext=ciphertext,
-            conditions=conditions,
+            ciphertext_header=ciphertext_header,
+            aad=aad,
             variant=variant
         )
 

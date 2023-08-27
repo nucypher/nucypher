@@ -36,15 +36,14 @@ def _attempt_decryption(BobClass, plaintext):
         },
     }
 
-    ciphertext = enrico.encrypt_for_dkg(
+    threshold_message_kit = enrico.encrypt_for_dkg(
         plaintext=plaintext,
         conditions=definitely_false_condition,
     )
 
     decrypted_cleartext = bob.threshold_decrypt(
         ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
-        ciphertext=ciphertext,
-        conditions=definitely_false_condition,
+        threshold_message_kit=threshold_message_kit,
     )
 
     return decrypted_cleartext
@@ -56,13 +55,7 @@ def test_user_controls_success():
     assert bytes(result) == bytes(plaintext)
 
 
-def test_user_controls_success():
-    plaintext = b"ever thus to deadbeats"
-    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext)
-    assert bytes(result) == bytes(plaintext)
-
-
 def test_user_controls_failure():
     plaintext = b"ever thus to deadbeats"
-    with pytest.raises(Ursula.NotEnoughUrsulas) as e:
+    with pytest.raises(Ursula.NotEnoughUrsulas):
         _ = _attempt_decryption(ThisBobAlwaysFails, plaintext)

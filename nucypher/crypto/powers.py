@@ -16,7 +16,7 @@ from nucypher_core import (
 )
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    Ciphertext,
+    CiphertextHeader,
     DecryptionSharePrecomputed,
     DecryptionShareSimple,
     DkgPublicKey,
@@ -267,16 +267,16 @@ class RitualisticPower(KeyPairBasedPower):
     provides = ("derive_decryption_share", "generate_transcript")
 
     def derive_decryption_share(
-            self,
-            checksum_address: ChecksumAddress,
-            ritual_id: int,
-            shares: int,
-            threshold: int,
-            nodes: list,
-            aggregated_transcript: AggregatedTranscript,
-            ciphertext: Ciphertext,
-            conditions: bytes,
-            variant: FerveoVariant
+        self,
+        checksum_address: ChecksumAddress,
+        ritual_id: int,
+        shares: int,
+        threshold: int,
+        nodes: list,
+        aggregated_transcript: AggregatedTranscript,
+        ciphertext_header: CiphertextHeader,
+        aad: bytes,
+        variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         decryption_share = dkg.derive_decryption_share(
             ritual_id=ritual_id,
@@ -286,8 +286,8 @@ class RitualisticPower(KeyPairBasedPower):
             nodes=nodes,
             aggregated_transcript=aggregated_transcript,
             keypair=self.keypair._privkey,
-            ciphertext=ciphertext,
-            aad=conditions,
+            ciphertext_header=ciphertext_header,
+            aad=aad,
             variant=variant
         )
         return decryption_share
