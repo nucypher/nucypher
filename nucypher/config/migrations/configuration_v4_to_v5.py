@@ -3,9 +3,10 @@ from typing import Dict
 from nucypher.config.migrations.common import perform_migration
 
 
-def __migration(config: Dict) -> None:
+def __migration(config: Dict) -> Dict:
     del config["federated_only"]  # deprecated
     del config["checksum_address"]
+    return config
 
 
 def configuration_v4_to_v5(filepath) -> None:

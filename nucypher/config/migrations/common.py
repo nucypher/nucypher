@@ -43,11 +43,14 @@ def __finalize_migration(config: Dict, new_version: int, filepath: Path):
 def perform_migration(
     old_version: int, new_version: int, migration: Callable, filepath: str
 ):
-    config, backup_filepath = __prepare_migration(
-        old_version=old_version, filepath=Path(filepath)
-    )
     try:
-        migration(config)
+        config, backup_filepath = __prepare_migration(
+            old_version=old_version, filepath=Path(filepath)
+        )
+    except WrongConfigurationVersion:
+        raise
+    try:
+        config = migration(config)
     except KeyError:
         os.rename(str(backup_filepath), filepath)  # rollback the changes
         raise InvalidMigration(f"Invalid v{old_version} configuration file.")
