@@ -532,10 +532,11 @@ def config(general_config, config_options, config_file, force, action):
                     color="yellow",
                     verbosity=1,
                 )
+                continue  # already migrated
 
             except InvalidMigration as e:
                 emitter.error(f"Migration {old} -> {new} failed: {str(e)}")
-                click.Abort()
+                return click.Abort()
 
         emitter.echo("Done! ✨", color="green", verbosity=1)
         return  # Don't run the rest of the command
