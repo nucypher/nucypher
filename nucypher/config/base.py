@@ -383,6 +383,7 @@ class CharacterConfiguration(BaseConfiguration):
         registry_filepath: Optional[Path] = None,
         policy_registry: Optional[BaseContractRegistry] = None,
         policy_registry_filepath: Optional[Path] = None,
+        condition_providers: Optional[dict] = None,
     ):
 
         self.log = Logger(self.__class__.__name__)
@@ -420,6 +421,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.poa = poa
         self.is_light = light
         self.eth_provider_uri = eth_provider_uri or NO_BLOCKCHAIN_CONNECTION
+        self.condition_providers = condition_providers
         self.signer_uri = signer_uri or None
 
         # Learner
