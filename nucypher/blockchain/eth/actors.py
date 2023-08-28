@@ -1,9 +1,9 @@
+import time
 from collections import defaultdict
 from decimal import Decimal
 from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
-import time
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
