@@ -180,7 +180,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         application_agent = ContractAgency.get_agent(
             PREApplicationAgent,
             registry=self.contract_registry,
-            eth_provider_uri=self.eth_provider_uri,
+            provider_uri=self.eth_provider_uri,
         )
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
