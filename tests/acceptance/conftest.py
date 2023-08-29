@@ -65,6 +65,11 @@ def mock_multichain_configuration(module_mocker, testerchain):
 
 
 @pytest.fixture(scope='session', autouse=True)
+def test_contracts(project):
+    return project.contracts
+
+
+@pytest.fixture(scope="session", autouse=True)
 def nucypher_contracts(project):
     nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
     # simply use first entry - could be from github ('main') or local ('local')
@@ -74,9 +79,11 @@ def nucypher_contracts(project):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def deploy_contracts(nucypher_contracts, accounts):
+def deploy_contracts(nucypher_contracts, test_contracts, accounts):
     deployments = ape_deploy_contracts(
-        nucypher_contracts=nucypher_contracts, accounts=accounts
+        nucypher_contracts=nucypher_contracts,
+        test_contracts=test_contracts,
+        accounts=accounts,
     )
     return deployments
 

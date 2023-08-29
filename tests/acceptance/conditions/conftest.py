@@ -67,11 +67,11 @@ def erc20_evm_condition_balanceof(testerchain, test_registry):
 
 
 @pytest.fixture
-def erc721_contract(accounts, project, test_registry):
+def erc721_contract(accounts, project):
     account = accounts[0]
 
     # deploy contract
-    deployed_contract = account.deploy(project.ConditionNFT)
+    deployed_contract = project.ConditionNFT
 
     # mint nft with token id = 1
     deployed_contract.mint(account.address, 1, sender=account)
