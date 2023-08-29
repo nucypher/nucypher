@@ -38,8 +38,8 @@ from nucypher.blockchain.eth.constants import (
     ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
-    PRE_APPLICATION_CONTRACT_NAME,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
+    TACO_APPLICATION_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -384,7 +384,7 @@ class AdjudicatorAgent(EthereumContractAgent):
 
 class PREApplicationAgent(EthereumContractAgent):
 
-    contract_name: str = PRE_APPLICATION_CONTRACT_NAME
+    contract_name: str = TACO_APPLICATION_CONTRACT_NAME
 
     DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
     DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
@@ -843,7 +843,7 @@ class ContractAgency:
         if name == NUCYPHER_TOKEN_CONTRACT_NAME:
             # TODO: Perhaps rename NucypherTokenAgent
             name = "NucypherToken"
-        if name == PRE_APPLICATION_CONTRACT_NAME:
+        if name == TACO_APPLICATION_CONTRACT_NAME:
             name = "PREApplication"  # TODO not needed once full PRE Application is used
         agent_name = f"{name}Agent"
         return agent_name

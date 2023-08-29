@@ -17,7 +17,11 @@ from nucypher.config.constants import (
 #
 
 
-MOCK_STAKING_CONTRACT_NAME = 'ThresholdStakingForPREApplicationMock'
+MOCK_STAKING_CONTRACT_NAME = "ThresholdStakingForTACoApplicationMock"
+RITUAL_TOKEN = "RitualToken"
+T_TOKEN = "TToken"
+STAKE_INFO = "StakeInfo"
+CONDITION_NFT = "ConditionNFT"
 
 #
 # Ursula
