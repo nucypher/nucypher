@@ -171,7 +171,12 @@ def deploy_contracts(
             contract = getattr(nucypher_contracts, name)
         except AttributeError:
             # this contract is local to this project
-            contract = getattr(project, name)
+            try:
+                contract = getattr(project, name)
+            except AttributeError:
+                raise ValueError(
+                    f"Contract {name} not found in project or in dependencies."
+                )
         deployed_contract = deployer_account.deploy(contract, *params.values())
         deployments[name] = deployed_contract
     return deployments
@@ -182,13 +187,21 @@ def registry_from_ape_deployments(
 ) -> InMemoryContractRegistry:
     """Creates a registry from ape deployments."""
 
-    # Get the raw abi from the cached manifest
-    manifest = json.loads(nucypher_contracts.cached_manifest.json())
-    contract_data = manifest['contractTypes']
+    local_contracts = project.contracts
+
+    # Get the raw abi from the cached dependency manifest
+    dependency_manifest = json.loads(nucypher_contracts.cached_manifest.json())
+    combined_contract_data = dependency_manifest["contractTypes"]
+
+    # Add the local contract ABIs to the data
+    for contract_name, local_contract_data in local_contracts.items():
+        contract_manifest = json.loads(local_contract_data.json())
+        contract_abi = contract_manifest["abi"]
+        combined_contract_data[contract_name] = {"abi": contract_abi}
 
     data = list()
     for contract_name, deployment in deployments.items():
-        abi = contract_data[contract_name]['abi']
+        abi = combined_contract_data[contract_name]["abi"]
         entry = [
             contract_name,
             'v0.0.0',  # TODO: get version from contract
