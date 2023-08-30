@@ -21,7 +21,6 @@ from tests.acceptance.constants import APE_TEST_CHAIN_ID
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MIN_STAKE_FOR_TESTS,
     MOCK_STAKING_CONTRACT_NAME,
     TEST_ETH_PROVIDER_URI,
 )
@@ -106,11 +105,21 @@ def testerchain(project, test_registry) -> TesterBlockchain:
 @pytest.fixture(scope='module')
 def threshold_staking(testerchain, test_registry):
     result = test_registry.search(contract_name=MOCK_STAKING_CONTRACT_NAME)[0]
-    threshold_staking = testerchain.w3.eth.contract(
-        address=result[2],
-        abi=result[3]
+    _threshold_staking = testerchain.w3.eth.contract(address=result[2], abi=result[3])
+
+    # TODO: Relocate this to pre application setup
+    pre_application_agent = ContractAgency.get_agent(
+        PREApplicationAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
-    return threshold_staking
+
+    tx = _threshold_staking.functions.setApplication(
+        pre_application_agent.contract_address
+    ).transact()
+    testerchain.wait_for_receipt(tx)
+
+    return _threshold_staking
 
 
 @pytest.fixture(scope="module")
@@ -121,6 +130,9 @@ def staking_providers(testerchain, test_registry, threshold_staking):
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
     blockchain = pre_application_agent.blockchain
+    minimum_stake = (
+        pre_application_agent.contract.functions.minimumAuthorization().call()
+    )
 
     staking_providers = list()
     for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
@@ -128,18 +140,23 @@ def staking_providers(testerchain, test_registry, threshold_staking):
         provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
         # for a random amount
-        amount = MIN_STAKE_FOR_TESTS + random.randrange(BONUS_TOKENS_FOR_TESTS)
+        amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
-        # initialize threshold stake
+        # initialize threshold stake via threshold staking (permission-less mock)
         tx = threshold_staking.functions.setRoles(provider_address).transact()
         testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
+
+        # TODO: extract this to a fixture
+        tx = threshold_staking.functions.authorizationIncreased(
+            provider_address, 0, amount
+        ).transact()
         testerchain.wait_for_receipt(tx)
 
-        # We assume that the staking provider knows in advance the account of her operator
-        pre_application_agent.bond_operator(staking_provider=provider_address,
-                                            operator=operator_address,
-                                            transacting_power=provider_power)
+        _receipt = pre_application_agent.bond_operator(
+            staking_provider=provider_address,
+            operator=operator_address,
+            transacting_power=provider_power,
+        )
 
         operator_power = TransactingPower(
             account=operator_address, signer=Web3Signer(testerchain.client)
