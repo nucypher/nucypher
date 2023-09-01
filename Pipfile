@@ -27,7 +27,6 @@ aiohttp = "==3.8.2"
 flask = "*"
 requests = "*"
 # Third-Party Ethereum
-eip712-structs = "*"
 eth-tester = "*"   # providers.py still uses this
 py-evm = "*"
 web3 = ">=6.0.0"
