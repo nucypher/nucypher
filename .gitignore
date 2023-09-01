@@ -10,6 +10,7 @@ __pycache__
 tests/acceptance/blockchain/.build/
 __local__.json
 /.cache
+.ruff_cache/
 *.so
 /MANIFEST
 /.tox
