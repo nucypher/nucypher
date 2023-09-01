@@ -2,6 +2,7 @@
 import json
 from typing import List
 
+from prometheus_client import GC_COLLECTOR, PLATFORM_COLLECTOR, PROCESS_COLLECTOR
 from prometheus_client.core import Timestamp
 from prometheus_client.registry import REGISTRY, CollectorRegistry
 from prometheus_client.utils import floatToGoString
@@ -118,6 +119,11 @@ def start_prometheus_exporter(
     from prometheus_client.twisted import MetricsResource
     from twisted.web.resource import Resource
     from twisted.web.server import Site
+
+    # Disabling default collector metrics
+    REGISTRY.unregister(GC_COLLECTOR)
+    REGISTRY.unregister(PLATFORM_COLLECTOR)
+    REGISTRY.unregister(PROCESS_COLLECTOR)
 
     metrics_collectors = create_metrics_collectors(ursula)
     # initialize collectors
