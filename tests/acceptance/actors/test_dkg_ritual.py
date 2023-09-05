@@ -2,12 +2,10 @@ import pytest
 import pytest_twisted
 from twisted.internet.threads import deferToThread
 
-from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.acceptance.constants import APE_TEST_CHAIN_ID
-from tests.constants import TEST_ETH_PROVIDER_URI
 
 # constants
 DKG_SIZE = 4
@@ -28,6 +26,8 @@ CONDITIONS = {
         "chain": APE_TEST_CHAIN_ID,
     },
 }
+DURATION = 48 * 60 * 60
+
 
 
 @pytest.fixture(scope='module')
@@ -38,16 +38,10 @@ def cohort(ursulas):
     return nodes
 
 
-@pytest.fixture(scope='module')
-def coordinator_agent(testerchain, test_registry):
-    """Creates a coordinator agent"""
-    return ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
-    )
-
-
 @pytest_twisted.inlineCallbacks()
-def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
+def test_ursula_ritualist(
+    testerchain, coordinator_agent, global_allow_list, cohort, alice, bob
+):
     """Tests the DKG and the encryption/decryption of a message"""
 
     # Round 0 - Initiate the ritual
@@ -57,6 +51,9 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
         receipt = coordinator_agent.initiate_ritual(
             providers=cohort_staking_provider_addresses,
+            authority=alice.transacting_power.account,
+            duration=DURATION,
+            access_controller=global_allow_list.address,
             transacting_power=alice.transacting_power
         )
         return receipt

@@ -22,6 +22,8 @@ RITUAL_TOKEN = "RitualToken"
 T_TOKEN = "TToken"
 STAKE_INFO = "StakeInfo"
 CONDITION_NFT = "ConditionNFT"
+GLOBAL_ALLOW_LIST = "GlobalAllowList"
+
 
 #
 # Ursula

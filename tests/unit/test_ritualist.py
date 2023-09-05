@@ -32,9 +32,15 @@ def transacting_power(testerchain, alice):
     )
 
 
-def test_initiate_ritual(agent: CoordinatorAgent, cohort, transacting_power):
+def test_initiate_ritual(
+    agent: CoordinatorAgent, cohort, global_allow_list, transacting_power
+):
     receipt = agent.initiate_ritual(
-        providers=cohort, transacting_power=transacting_power
+        providers=cohort,
+        authority=transacting_power.account,
+        duration=100,
+        access_controller=global_allow_list.address,
+        transacting_power=transacting_power,
     )
 
     participants = [

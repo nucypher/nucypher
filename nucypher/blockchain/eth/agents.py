@@ -725,10 +725,15 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def initiate_ritual(
-        self, providers: List[ChecksumAddress], transacting_power: TransactingPower
+        self,
+        providers: List[ChecksumAddress],
+        authority: ChecksumAddress,
+        duration: int,
+        access_controller: ChecksumAddress,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.initiateRitual(
-            providers
+            providers, authority, duration, access_controller
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power

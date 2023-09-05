@@ -5,7 +5,11 @@ import pytest
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Operator, Ritualist
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    CoordinatorAgent,
+    PREApplicationAgent,
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -20,6 +24,7 @@ from nucypher.utilities.logging import Logger
 from tests.acceptance.constants import APE_TEST_CHAIN_ID
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
+    GLOBAL_ALLOW_LIST,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_STAKING_CONTRACT_NAME,
     TEST_ETH_PROVIDER_URI,
@@ -120,6 +125,24 @@ def threshold_staking(testerchain, test_registry):
     testerchain.wait_for_receipt(tx)
 
     return _threshold_staking
+
+
+@pytest.fixture(scope="module", autouse=True)
+def coordinator_agent(testerchain, test_registry):
+    """Creates a coordinator agent"""
+    coordinator = ContractAgency.get_agent(
+        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
+    )
+    tx = coordinator.contract.functions.makeInitiationPublic().transact()
+    testerchain.wait_for_receipt(tx)
+    return coordinator
+
+
+@pytest.fixture(scope="module")
+def global_allow_list(testerchain, test_registry):
+    result = test_registry.search(contract_name=GLOBAL_ALLOW_LIST)[0]
+    _global_allow_list = testerchain.w3.eth.contract(address=result[2], abi=result[3])
+    return _global_allow_list
 
 
 @pytest.fixture(scope="module")

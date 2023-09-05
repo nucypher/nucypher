@@ -20,6 +20,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from tests.constants import (
     CONDITION_NFT,
+    GLOBAL_ALLOW_LIST,
     MOCK_STAKING_CONTRACT_NAME,
     RITUAL_TOKEN,
     STAKE_INFO,
@@ -36,6 +37,7 @@ _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
     PREApplicationAgent.contract_name,
     SubscriptionManagerAgent.contract_name,
     CoordinatorAgent.contract_name,
+    GLOBAL_ALLOW_LIST,
     CONDITION_NFT,
 )
 
