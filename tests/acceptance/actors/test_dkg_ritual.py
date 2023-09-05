@@ -6,7 +6,8 @@ from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
-from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
+from tests.acceptance.constants import APE_TEST_CHAIN_ID
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 # constants
 DKG_SIZE = 4
@@ -24,7 +25,7 @@ CONDITIONS = {
         "conditionType": "time",
         "returnValueTest": {"value": "0", "comparator": ">"},
         "method": "blocktime",
-        "chain": TESTERCHAIN_CHAIN_ID,
+        "chain": APE_TEST_CHAIN_ID,
     },
 }
 

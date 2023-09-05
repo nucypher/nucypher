@@ -11,19 +11,26 @@ from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
+from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
+from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.logging import Logger
+from tests.acceptance.constants import APE_TEST_CHAIN_ID
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_STAKE_FOR_TESTS,
     MOCK_STAKING_CONTRACT_NAME,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.ape import deploy_contracts as ape_deploy_contracts
-from tests.utils.ape import registry_from_ape_deployments
+from tests.utils.ape import (
+    deploy_contracts as ape_deploy_contracts,
+)
+from tests.utils.ape import (
+    registry_from_ape_deployments,
+)
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
@@ -38,15 +45,15 @@ def mock_condition_blockchains(session_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     session_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
-        {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
+        {APE_TEST_CHAIN_ID: "eth-tester/pyevm"},
     )
 
     session_mocker.patch.object(
-        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+        NetworksInventory, "get_polygon_chain_id", return_value=APE_TEST_CHAIN_ID
     )
 
     session_mocker.patch.object(
-        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+        NetworksInventory, "get_ethereum_chain_id", return_value=APE_TEST_CHAIN_ID
     )
 
 
@@ -202,3 +209,56 @@ def multichain_ids(module_mocker):
 def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
     setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
     return ursulas
+
+
+@pytest.fixture
+def time_condition():
+    condition = TimeCondition(
+        chain=APE_TEST_CHAIN_ID, return_value_test=ReturnValueTest(">", 0)
+    )
+    return condition
+
+
+@pytest.fixture
+def compound_blocktime_lingo():
+    return {
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "conditionType": "compound",
+            "operator": "and",
+            "operands": [
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": APE_TEST_CHAIN_ID,
+                },
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {
+                        "value": "99999999999999999",
+                        "comparator": "<",
+                    },
+                    "method": "blocktime",
+                    "chain": APE_TEST_CHAIN_ID,
+                },
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": APE_TEST_CHAIN_ID,
+                },
+            ],
+        },
+    }
+
+
+@pytest.fixture
+def rpc_condition():
+    condition = RPCCondition(
+        method="eth_getBalance",
+        chain=APE_TEST_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", Web3.to_wei(1_000_000, "ether")),
+        parameters=[USER_ADDRESS_CONTEXT],
+    )
+    return condition
