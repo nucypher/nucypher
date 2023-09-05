@@ -133,7 +133,9 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
 @pytest.fixture
 def subscription_manager_is_active_policy_condition(testerchain, test_registry):
     subscription_manager = ContractAgency.get_agent(
-        SubscriptionManagerAgent, registry=test_registry
+        SubscriptionManagerAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
     )
     condition = ContractCondition(
         contract_address=subscription_manager.contract.address,

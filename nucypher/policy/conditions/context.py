@@ -1,9 +1,9 @@
 
 from typing import Any
 
-from eip712_structs import Bytes, EIP712Struct, String, Uint
+import eth_account.messages
 from eth_account.account import Account
-from eth_account.messages import HexBytes, SignableMessage
+from eth_account.messages import HexBytes
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
@@ -16,15 +16,6 @@ from nucypher.policy.conditions.exceptions import (
 USER_ADDRESS_CONTEXT = ":userAddress"
 
 _CONTEXT_PREFIX = ":"
-
-_EIP712_VERSION_BYTE = b"\x01"
-
-
-class UserAddress(EIP712Struct):
-    address = String()
-    blockNumber = Uint()
-    blockHash = Bytes(32)
-    signatureText = String()
 
 
 def _recover_user_address(**context) -> ChecksumAddress:
@@ -44,11 +35,17 @@ def _recover_user_address(**context) -> ChecksumAddress:
         signature = user_address_info["signature"]
         user_address = to_checksum_address(user_address_info["address"])
         eip712_message = user_address_info["typedData"]
-        message, domain = UserAddress.from_message(eip712_message)
-        signable_message = SignableMessage(
-            HexBytes(_EIP712_VERSION_BYTE),
-            header=domain.hash_struct(),
-            body=message.hash_struct(),
+
+        # convert hex data for byte fields - bytes are expected by underlying library
+        # 1. salt
+        salt = eip712_message["domain"]["salt"]
+        eip712_message["domain"]["salt"] = HexBytes(salt)
+        # 2. blockHash
+        blockHash = eip712_message["message"]["blockHash"]
+        eip712_message["message"]["blockHash"] = HexBytes(blockHash)
+
+        signable_message = eth_account.messages.encode_structured_data(
+            primitive=eip712_message
         )
     except Exception as e:
         # data could not be processed
