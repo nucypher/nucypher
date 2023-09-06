@@ -146,7 +146,7 @@ def global_allow_list(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def staking_providers(testerchain, test_registry, threshold_staking):
+def staking_providers(testerchain, test_registry, threshold_staking, coordinator_agent):
     pre_application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
@@ -184,6 +184,7 @@ def staking_providers(testerchain, test_registry, threshold_staking):
         operator_power = TransactingPower(
             account=operator_address, signer=Web3Signer(testerchain.client)
         )
+
         operator = Operator(
             is_me=True,
             operator_address=operator_address,

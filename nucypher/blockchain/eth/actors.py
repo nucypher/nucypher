@@ -324,6 +324,12 @@ class Ritualist(BaseActor):
             condition_provider_uris
         )
 
+        # TODO: check if the ferveo public key is set on the blockchain
+        # onchain_ferveo_public_key = self.coordinator_agent.get_provider_public_key(self.staking_provider_address, 0)
+        self.coordinator_agent.set_provider_public_key(
+            self.ritual_power.public_key(), transacting_power=self.transacting_power
+        )
+
     @staticmethod
     def _is_permitted_condition_chain(chain_id: int) -> bool:
         return int(chain_id) in [int(cid) for cid in _CONDITION_CHAINS.keys()]

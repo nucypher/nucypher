@@ -26,7 +26,12 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
-from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.ferveo import (
+    AggregatedTranscript,
+    DkgPublicKey,
+    FerveoPublicKey,
+    Transcript,
+)
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -622,6 +627,31 @@ class CoordinatorAgent(EthereumContractAgent):
             def __bytes__(self):
                 return self.word0 + self.word1
 
+        class G2Point(NamedTuple):
+            """
+            Coordinator contract representation of Ferveo Participant public key.
+            """
+
+            # TODO validation of these if used directly
+            word0: bytes  # 32 bytes
+            word1: bytes  # 32 bytes
+            word2: bytes  # 32 bytes
+
+            @classmethod
+            def from_public_key(cls, public_key: FerveoPublicKey):
+                return cls.from_bytes(bytes(public_key))
+
+            @classmethod
+            def from_bytes(cls, data: bytes):
+                if len(data) != FerveoPublicKey.serialized_size():
+                    raise ValueError(
+                        f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G1Point"
+                    )
+                return cls(word0=data[:32], word1=data[32:64], word2=data[64:96])
+
+            def __bytes__(self):
+                return self.word0 + self.word1 + self.word2
+
         initiator: ChecksumAddress
         dkg_size: int
         init_timestamp: int
@@ -704,6 +734,15 @@ class CoordinatorAgent(EthereumContractAgent):
         return participants
 
     @contract_api(CONTRACT_CALL)
+    def get_provider_public_key(
+        self, provider: ChecksumAddress, ritual_id: int
+    ) -> Ritual.G1Point:
+        result = self.contract.functions.getProviderPublicKey(
+            provider, ritual_id
+        ).call()
+        return self.Ritual.G1Point(result[0], result[1])
+
+    @contract_api(CONTRACT_CALL)
     def number_of_rituals(self) -> int:
         result = self.contract.functions.numberOfRituals().call()
         return result
@@ -722,6 +761,19 @@ class CoordinatorAgent(EthereumContractAgent):
             decryption_request_static_key=bytes(result[3]),
         )
         return participant
+
+    @contract_api(TRANSACTION)
+    def set_provider_public_key(
+        self, public_key, transacting_power: TransactingPower
+    ) -> TxReceipt:
+        g2_point = self.Ritual.G2Point.from_public_key(public_key)
+        contract_function = self.contract.functions.setProviderPublicKey(
+            g2_point.word0, g2_point.word1, g2_point.word2
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
 
     @contract_api(TRANSACTION)
     def initiate_ritual(
