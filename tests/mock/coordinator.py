@@ -1,11 +1,16 @@
 import time
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, NamedTuple
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
 from nucypher_core import SessionStaticKey
-from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.ferveo import (
+    AggregatedTranscript,
+    DkgPublicKey,
+    FerveoPublicKey,
+    Transcript,
+)
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
@@ -20,6 +25,11 @@ class MockCoordinatorAgent(MockContractAgent):
     Ritual = CoordinatorAgent.Ritual
     RitualStatus = CoordinatorAgent.Ritual.Status
     G1Point = CoordinatorAgent.Ritual.G1Point
+    G2Point = CoordinatorAgent.G2Point
+
+    class ParticipantKey(NamedTuple):
+        lastRitualId: int
+        publicKey: CoordinatorAgent.G2Point
 
     EVENTS = {}
     rituals = []
@@ -35,6 +45,7 @@ class MockCoordinatorAgent(MockContractAgent):
         # Note that the call to super() is not necessary here
 
         self._operator_to_staking_provider = {}
+        self._participant_keys_history = {}
 
     def _add_operator_to_staking_provider_mapping(
         self, mapping: Dict[ChecksumAddress, ChecksumAddress]
@@ -128,7 +139,7 @@ class MockCoordinatorAgent(MockContractAgent):
         participant.aggregated = True
         participant.decryption_request_static_key = bytes(participant_public_key)
 
-        g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
+        g1_point = self.G1Point.from_dkg_public_key(public_key)
         if len(ritual.aggregated_transcript) == 0:
             ritual.aggregated_transcript = bytes(aggregated_transcript)
             ritual.public_key = g1_point
@@ -141,6 +152,29 @@ class MockCoordinatorAgent(MockContractAgent):
             return self.blockchain.FAKE_RECEIPT
 
         ritual.total_aggregations += 1
+        return self.blockchain.FAKE_RECEIPT
+
+    def set_provider_public_key(
+        self, public_key: FerveoPublicKey, transacting_power: TransactingPower
+    ) -> TxReceipt:
+        operator_address = transacting_power.account
+        # either mapping is populated or just assume provider same as operator for testing
+        provider_address = (
+            self._get_staking_provider_from_operator(operator=operator_address)
+            or transacting_power.account
+        )
+
+        participant_keys = self._participant_keys_history.get(provider_address)
+        if not participant_keys:
+            participant_keys = []
+
+        participant_keys.append(
+            self.ParticipantKey(
+                lastRitualId=len(self.rituals),
+                publicKey=self.G2Point.from_public_key(public_key),
+            )
+        )
+
         return self.blockchain.FAKE_RECEIPT
 
     #
@@ -158,12 +192,12 @@ class MockCoordinatorAgent(MockContractAgent):
     ) -> CoordinatorAgent.Ritual:
         return self.rituals[ritual_id]
 
-    def get_participants(self, ritual_id: int) -> List[Ritual.Participant]:
+    def get_participants(self, ritual_id: int) -> List[Participant]:
         return self.rituals[ritual_id].participants
 
     def get_participant_from_provider(
         self, ritual_id: int, provider: ChecksumAddress
-    ) -> Ritual.Participant:
+    ) -> Participant:
         for p in self.rituals[ritual_id].participants:
             if p.provider == provider:
                 return p
@@ -199,6 +233,19 @@ class MockCoordinatorAgent(MockContractAgent):
             return None
 
         return ritual.public_key.to_dkg_public_key()
+
+    def get_provider_public_key(
+        self, provider: ChecksumAddress, ritual_id: int
+    ) -> FerveoPublicKey:
+        participant_keys = self._participant_keys_history.get(provider)
+        for participant_key in reversed(participant_keys):
+            if participant_key.lastRitualId <= ritual_id:
+                g2Point = participant_key.publicKey
+                return g2Point.to_public_key()
+
+        raise ValueError(
+            f"Public key not found for provider {provider} for ritual #{ritual_id}"
+        )
 
     def is_encryption_authorized(
         self, ritual_id: int, evidence: bytes, digest: bytes

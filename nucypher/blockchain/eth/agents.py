@@ -579,6 +579,38 @@ class CoordinatorAgent(EthereumContractAgent):
     contract_name: str = "Coordinator"
     _proxy_name = None
 
+    class G2Point(NamedTuple):
+        """
+        Coordinator contract representation of Ferveo Participant public key.
+        """
+
+        # TODO validation of these if used directly
+        word0: bytes  # 32 bytes
+        word1: bytes  # 32 bytes
+        word2: bytes  # 32 bytes
+
+        @classmethod
+        def from_public_key(cls, public_key: FerveoPublicKey):
+            return cls.from_bytes(bytes(public_key))
+
+        @classmethod
+        def from_bytes(cls, data: bytes):
+            if len(data) != FerveoPublicKey.serialized_size():
+                raise ValueError(
+                    f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G2Point"
+                )
+            return cls(word0=data[:32], word1=data[32:64], word2=data[64:96])
+
+        def to_public_key(self) -> FerveoPublicKey:
+            data = bytes(self)
+            if not data:
+                return None
+
+            return FerveoPublicKey.from_bytes(data)
+
+        def __bytes__(self):
+            return self.word0 + self.word1 + self.word2
+
     @dataclass
     class Ritual:
 
@@ -626,38 +658,6 @@ class CoordinatorAgent(EthereumContractAgent):
 
             def __bytes__(self):
                 return self.word0 + self.word1
-
-        class G2Point(NamedTuple):
-            """
-            Coordinator contract representation of Ferveo Participant public key.
-            """
-
-            # TODO validation of these if used directly
-            word0: bytes  # 32 bytes
-            word1: bytes  # 32 bytes
-            word2: bytes  # 32 bytes
-
-            @classmethod
-            def from_public_key(cls, public_key: FerveoPublicKey):
-                return cls.from_bytes(bytes(public_key))
-
-            @classmethod
-            def from_bytes(cls, data: bytes):
-                if len(data) != FerveoPublicKey.serialized_size():
-                    raise ValueError(
-                        f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G2Point"
-                    )
-                return cls(word0=data[:32], word1=data[32:64], word2=data[64:96])
-
-            def to_public_key(self) -> FerveoPublicKey:
-                data = bytes(self)
-                if not data:
-                    return None
-
-                return FerveoPublicKey.from_bytes(data)
-
-            def __bytes__(self):
-                return self.word0 + self.word1 + self.word2
 
         initiator: ChecksumAddress
         dkg_size: int
@@ -747,7 +747,7 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.getProviderPublicKey(
             provider, ritual_id
         ).call()
-        g2Point = self.Ritual.G2Point(result[0], result[1], result[2])
+        g2Point = self.G2Point(result[0], result[1], result[2])
         return g2Point.to_public_key()
 
     @contract_api(CONTRACT_CALL)
@@ -775,7 +775,7 @@ class CoordinatorAgent(EthereumContractAgent):
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
     ) -> TxReceipt:
         contract_function = self.contract.functions.setProviderPublicKey(
-            self.Ritual.G2Point.from_public_key(public_key)
+            self.G2Point.from_public_key(public_key)
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power
