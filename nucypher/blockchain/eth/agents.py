@@ -404,7 +404,7 @@ class PREApplicationAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
-        result = self.contract.functions.minAuthorization().call()
+        result = self.contract.functions.minimumAuthorization().call()
         return result
 
     @contract_api(CONTRACT_CALL)
