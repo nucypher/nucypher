@@ -31,7 +31,13 @@ def test_mock_coordinator_creation(coordinator):
     assert len(coordinator.rituals) == 0
 
 
-def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinator, random_address):
+def test_mock_coordinator_initiation(
+    mocker,
+    nodes_transacting_powers,
+    coordinator,
+    random_address,
+    get_random_checksum_address,
+):
     assert len(coordinator.rituals) == 0
     mock_transacting_power = mocker.Mock()
     mock_transacting_power.account = random_address
@@ -39,7 +45,7 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
         providers=list(nodes_transacting_powers.keys()),
         authority=mock_transacting_power.account,
         duration=1,
-        access_controller=random_address,
+        access_controller=get_random_checksum_address(),
         transacting_power=mock_transacting_power,
     )
     assert len(coordinator.rituals) == 1

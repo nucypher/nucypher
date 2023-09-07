@@ -84,14 +84,19 @@ class MockCoordinatorAgent(MockContractAgent):
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual_id = len(self.rituals)
+        init_timestamp = int(time.time_ns())
+        end_timestamp = init_timestamp + duration
         ritual = self.Ritual(
-            init_timestamp=int(time.time_ns()),
+            initiator=transacting_power.account,
+            authority=authority,
+            access_controller=access_controller,
+            init_timestamp=init_timestamp,
+            end_timestamp=end_timestamp,
             participants=[
                 self.Participant(provider=provider) for provider in providers
             ],
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),
-            authority=authority,
         )
         self.rituals.append(ritual)
         self.emit_event(
