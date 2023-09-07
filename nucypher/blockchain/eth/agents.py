@@ -645,9 +645,16 @@ class CoordinatorAgent(EthereumContractAgent):
             def from_bytes(cls, data: bytes):
                 if len(data) != FerveoPublicKey.serialized_size():
                     raise ValueError(
-                        f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G1Point"
+                        f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G2Point"
                     )
                 return cls(word0=data[:32], word1=data[32:64], word2=data[64:96])
+
+            def to_public_key(self) -> FerveoPublicKey:
+                data = bytes(self)
+                if not data:
+                    return None
+
+                return FerveoPublicKey.from_bytes(data)
 
             def __bytes__(self):
                 return self.word0 + self.word1 + self.word2
@@ -736,11 +743,12 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
         self, provider: ChecksumAddress, ritual_id: int
-    ) -> Ritual.G1Point:
+    ) -> FerveoPublicKey:
         result = self.contract.functions.getProviderPublicKey(
             provider, ritual_id
         ).call()
-        return self.Ritual.G1Point(result[0], result[1])
+        g2Point = self.Ritual.G2Point(result[0], result[1], result[2])
+        return g2Point.to_public_key()
 
     @contract_api(CONTRACT_CALL)
     def number_of_rituals(self) -> int:
@@ -764,11 +772,10 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def set_provider_public_key(
-        self, public_key, transacting_power: TransactingPower
+        self, public_key: FerveoPublicKey, transacting_power: TransactingPower
     ) -> TxReceipt:
-        g2_point = self.Ritual.G2Point.from_public_key(public_key)
         contract_function = self.contract.functions.setProviderPublicKey(
-            g2_point.word0, g2_point.word1, g2_point.word2
+            self.Ritual.G2Point.from_public_key(public_key)
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power
