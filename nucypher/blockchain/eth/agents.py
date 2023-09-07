@@ -750,8 +750,8 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.getProviderPublicKey(
             provider, ritual_id
         ).call()
-        g2Point = self.G2Point(result[0], result[1], result[2])
-        return g2Point.to_public_key()
+        g2_point = self.G2Point(result[0], result[1], result[2])
+        return g2_point.to_public_key()
 
     @contract_api(CONTRACT_CALL)
     def number_of_rituals(self) -> int:
