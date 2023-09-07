@@ -660,8 +660,11 @@ class CoordinatorAgent(EthereumContractAgent):
                 return self.word0 + self.word1
 
         initiator: ChecksumAddress
+        authority: ChecksumAddress
+        access_controller: ChecksumAddress
         dkg_size: int
         init_timestamp: int
+        end_timestamp: int
         threshold: int
 
         total_transcripts: int = 0
@@ -706,11 +709,14 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual = self.Ritual(
             initiator=ChecksumAddress(result[0]),
             init_timestamp=result[1],
+            end_timestamp=result[2],
             total_transcripts=result[3],
             total_aggregations=result[4],
+            authority=ChecksumAddress(result[5]),
             dkg_size=result[6],
             threshold=result[7],
             aggregation_mismatch=result[8],
+            access_controller=ChecksumAddress(result[9]),
             aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
         )
