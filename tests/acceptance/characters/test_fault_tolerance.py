@@ -112,8 +112,8 @@ def test_invalid_operators_tolerance(
     min_authorization = application_economics.min_authorization
     tx = threshold_staking.functions.setRoles(_staking_provider).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        _staking_provider, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        _staking_provider, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 

@@ -59,7 +59,7 @@ def mock_funded_account_password_keystore(
     tx = threshold_staking.functions.setRoles(provider_address).transact()
     testerchain.wait_for_receipt(tx)
     tx = threshold_staking.functions.setStakes(
-        provider_address, application_economics.min_authorization, 0, 0
+        provider_address, 0, application_economics.min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 

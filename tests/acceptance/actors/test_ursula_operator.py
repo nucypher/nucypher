@@ -48,8 +48,8 @@ def test_ursula_operator_confirmation(
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        staking_provider, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -112,8 +112,8 @@ def test_ursula_operator_confirmation_autopilot(
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider2).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        staking_provider2, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider2, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -212,8 +212,8 @@ def test_work_tracker(
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider3).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        staking_provider3, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider3, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 
