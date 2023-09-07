@@ -21,15 +21,15 @@ deployments:
   ethereum:
     local:
       - contract_type: NuCypherToken
-        address: 0  # account index
+        address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # test account at index 0
         nu_token_supply: 1_000_000_000
       - contract_type: SimplePREApplication
-        address: 0  # account index
+        address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # test account at index 0
         threshold_staking: '::ThresholdStakingForPREApplicationMock.address::'
         pre_min_authorization: 40000000000000000000000
         pre_min_operator_seconds: 86400  # one day in seconds
       - contract_type: Coordinator
-        address: 0  # account index
+        address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # test account at index 0
         app: '::SimplePREApplication.address::'
         ritual_timeout: 3600
         max_dkg_size: 8

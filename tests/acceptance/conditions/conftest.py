@@ -13,7 +13,8 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
-from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
+from tests.acceptance.constants import APE_TEST_CHAIN_ID
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture()
@@ -58,7 +59,7 @@ def erc20_evm_condition_balanceof(testerchain, test_registry):
         contract_address=token.contract.address,
         method="balanceOf",
         standard_contract_type="ERC20",
-        chain=TESTERCHAIN_CHAIN_ID,
+        chain=APE_TEST_CHAIN_ID,
         return_value_test=ReturnValueTest("==", 0),
         parameters=[USER_ADDRESS_CONTEXT],
     )
@@ -83,7 +84,7 @@ def erc721_evm_condition_owner(erc721_contract):
         contract_address=erc721_contract.address,
         method="ownerOf",
         standard_contract_type="ERC721",
-        chain=TESTERCHAIN_CHAIN_ID,
+        chain=APE_TEST_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":userAddress"),
         parameters=[
             ":tokenId",
@@ -98,7 +99,7 @@ def erc721_evm_condition_balanceof(erc721_contract):
         contract_address=erc721_contract.address,
         method="balanceOf",
         standard_contract_type="ERC721",
-        chain=TESTERCHAIN_CHAIN_ID,
+        chain=APE_TEST_CHAIN_ID,
         return_value_test=ReturnValueTest(">", 0),
         parameters=[
             ":userAddress",
@@ -123,7 +124,7 @@ def subscription_manager_get_policy_zeroized_policy_struct_condition(
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=TESTERCHAIN_CHAIN_ID,
+        chain=APE_TEST_CHAIN_ID,
         return_value_test=ReturnValueTest("==", ":expectedPolicyStruct"),
         parameters=[":hrac"],
     )
@@ -143,7 +144,7 @@ def subscription_manager_is_active_policy_condition(testerchain, test_registry):
             "isPolicyActive"
         ).abi,
         method="isPolicyActive",
-        chain=TESTERCHAIN_CHAIN_ID,
+        chain=APE_TEST_CHAIN_ID,
         return_value_test=ReturnValueTest("==", True),
         parameters=[":hrac"],
     )
@@ -163,7 +164,7 @@ def custom_context_variable_erc20_condition(
         contract_address=token.contract.address,
         method="balanceOf",
         standard_contract_type="ERC20",
-        chain=TESTERCHAIN_CHAIN_ID,
+        chain=APE_TEST_CHAIN_ID,
         return_value_test=ReturnValueTest("==", 0),
         parameters=[":addressToUse"],
     )

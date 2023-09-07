@@ -30,7 +30,6 @@ requests = "*"
 eth-tester = "*"   # providers.py still uses this
 py-evm = "*"
 web3 = ">=6.0.0"
-watchdog = "<3.0.0"  # needed for eth-ape to be happy
 eth-utils = "*"
 # CLI / Configuration
 appdirs = "*"
@@ -39,6 +38,8 @@ colorama = "*"
 tabulate = "*"
 # Template
 jinja2 = "<3.1.0"  # because of docs
+# Tools
+eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
 
 [dev-packages]
 # Pytest
@@ -50,6 +51,7 @@ pytest-mock = "*"
 pytest-timeout = "*"
 # Tools
 eth-ape = "*"
+eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
 ape-solidity = ">=0.6.5"
 hypothesis = "*"
 pre-commit = "2.12.1"

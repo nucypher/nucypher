@@ -4,9 +4,8 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 
 from ape import config as ape_config
-from ape.api import DependencyAPI
-from eth_typing import ChecksumAddress
-from eth_utils import is_checksum_address, to_checksum_address
+from ape.api import AccountAPI, DependencyAPI
+from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
@@ -55,30 +54,21 @@ def process_deployment_params(
 
 def get_deployment_params(
     contract_name, config, accounts, deployments
-) -> Tuple[Dict, ChecksumAddress]:
+) -> Tuple[Dict, AccountAPI]:
     """
     Get deployment params for a contract.
     """
     config = deepcopy(config)
     while config:
         params = config.pop()
-        deployer_address = params.pop("address")
+        deployer_address = accounts[params.pop("address")]
         name = params.pop("contract_type")
-        if not is_checksum_address(deployer_address):
-            try:
-                deployer_address = ChecksumAddress(accounts[int(deployer_address)])
-            except IndexError:
-                raise ValueError(f"Invalid deployer account index {deployer_address}")
-            except ValueError:
-                raise ValueError(
-                    f"Invalid configuration value for {name}'s deployment account: {deployer_address}"
-                )
         if name == contract_name:
             params = process_deployment_params(contract_name, params, deployments)
             return params, deployer_address
     else:
-        # there are no deployment params for this contract
-        return dict(), ChecksumAddress(deployer_address)
+        # there are no deployment params for this contract; default to account at index 0
+        return dict(), accounts[0]
 
 
 def deploy_contracts(nucypher_contracts: DependencyAPI, accounts):
