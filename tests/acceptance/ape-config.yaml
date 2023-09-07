@@ -32,7 +32,7 @@ deployments:
       - contract_type: StakeInfo
         address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
         updaters:
-          - <address.0>
+          - '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C' # deployer account at index 0
       - contract_type: TACoApplication
         address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
         t_token: <TToken.address>
@@ -46,13 +46,13 @@ deployments:
         stake_info: <StakeInfo.address>
         ritual_timeout: 3600
         max_dkg_size: 8
-        admin: <address.0>
+        admin: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
         currency: <RitualToken.address>
         fee: 1
       - contract_type: GlobalAllowList
-        address: 0  # deployer account index
+        address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
         coordinator: <Coordinator.address>
-        admin: <address.0>
+        admin: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
 
 test:
   mnemonic: test test test test test test test test test test test junk
