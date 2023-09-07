@@ -464,7 +464,7 @@ class Ritualist(BaseActor):
     def perform_round_1(
         self,
         ritual_id: int,
-        initiator: ChecksumAddress,
+        authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
     ) -> Optional[HexBytes]:
@@ -507,7 +507,9 @@ class Ritualist(BaseActor):
             )
             return None
 
-        self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
+        self.log.debug(
+            f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp} with authority {authority}."
+        )
 
         # gather the cohort
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
@@ -544,7 +546,7 @@ class Ritualist(BaseActor):
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
-            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) initiated by {initiator}"
+            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) with authority {authority}."
         )
         return tx_hash
 
