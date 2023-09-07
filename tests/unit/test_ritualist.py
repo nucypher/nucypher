@@ -33,13 +33,16 @@ def transacting_power(testerchain, alice):
 
 
 def test_initiate_ritual(
-    agent: CoordinatorAgent, cohort, global_allow_list, transacting_power
+    agent: CoordinatorAgent, cohort, transacting_power, get_random_checksum_address
 ):
+    # any value will do
+    global_allow_list = get_random_checksum_address()
+
     receipt = agent.initiate_ritual(
         providers=cohort,
         authority=transacting_power.account,
         duration=100,
-        access_controller=global_allow_list.address,
+        access_controller=global_allow_list,
         transacting_power=transacting_power,
     )
 
