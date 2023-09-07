@@ -28,7 +28,8 @@ def transcripts():
 
 
 @pytest.fixture(scope="module")
-def cohort(testerchain, staking_providers):
+def cohort(testerchain, staking_providers, ursulas):
+    # "ursulas" fixture is needed to set provider public key
     deployer, cohort_provider_1, cohort_provider_2, *everybody_else = staking_providers
     cohort_providers = [cohort_provider_1, cohort_provider_2]
     cohort_providers.sort()  # providers must be sorted
@@ -36,7 +37,7 @@ def cohort(testerchain, staking_providers):
 
 
 @pytest.fixture(scope='module')
-def ursulas(cohort, test_registry):
+def cohort_ursulas(cohort, test_registry):
     ursulas_for_cohort = []
     application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
@@ -51,10 +52,10 @@ def ursulas(cohort, test_registry):
 
 
 @pytest.fixture(scope='module')
-def transacting_powers(testerchain, ursulas):
+def transacting_powers(testerchain, cohort_ursulas):
     return [
         TransactingPower(account=ursula, signer=Web3Signer(testerchain.client))
-        for ursula in ursulas
+        for ursula in cohort_ursulas
     ]
 
 
@@ -65,12 +66,23 @@ def test_coordinator_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
-def test_initiate_ritual(agent, cohort, transacting_powers):
+def test_initiate_ritual(
+    agent,
+    cohort,
+    get_random_checksum_address,
+    global_allow_list,
+    transacting_powers,
+    ursulas,
+):
     number_of_rituals = agent.number_of_rituals()
     assert number_of_rituals == 0
 
     receipt = agent.initiate_ritual(
-        providers=cohort, transacting_power=transacting_powers[0]
+        providers=cohort,
+        authority=get_random_checksum_address(),
+        duration=60 * 60 * 24,
+        access_controller=global_allow_list.address,
+        transacting_power=transacting_powers[0],
     )
     assert receipt['status'] == 1
     start_ritual_event = agent.contract.events.StartRitual().process_receipt(receipt)

@@ -830,7 +830,7 @@ class CoordinatorAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
-            publicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
+            dkgPublicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
             decryptionRequestStaticKey=bytes(participant_public_key),
         )
         receipt = self.blockchain.send_transaction(
