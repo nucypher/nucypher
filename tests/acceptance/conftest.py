@@ -27,6 +27,7 @@ from tests.constants import (
     GLOBAL_ALLOW_LIST,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_STAKING_CONTRACT_NAME,
+    STAKE_INFO,
     TEST_ETH_PROVIDER_URI,
 )
 from tests.utils.ape import (
@@ -108,6 +109,14 @@ def testerchain(project, test_registry) -> TesterBlockchain:
 
 
 @pytest.fixture(scope='module')
+def stake_info(testerchain, test_registry):
+    result = test_registry.search(contract_name=STAKE_INFO)[0]
+    _stake_info = testerchain.w3.eth.contract(address=result[2], abi=result[3])
+
+    return _stake_info
+
+
+@pytest.fixture(scope="module")
 def threshold_staking(testerchain, test_registry):
     result = test_registry.search(contract_name=MOCK_STAKING_CONTRACT_NAME)[0]
     _threshold_staking = testerchain.w3.eth.contract(address=result[2], abi=result[3])
@@ -146,7 +155,9 @@ def global_allow_list(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def staking_providers(testerchain, test_registry, threshold_staking, coordinator_agent):
+def staking_providers(
+    testerchain, test_registry, threshold_staking, stake_info, coordinator_agent
+):
     pre_application_agent = ContractAgency.get_agent(
         PREApplicationAgent,
         registry=test_registry,
@@ -201,6 +212,20 @@ def staking_providers(testerchain, test_registry, threshold_staking, coordinator
             ),
         )
         operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
+
+        # TODO clean this up
+        # update StakeInfo
+        tx = stake_info.functions.updateOperator(
+            provider_address,
+            operator_address,
+        ).transact()
+        testerchain.wait_for_receipt(tx)
+
+        tx = stake_info.functions.updateAmount(
+            provider_address,
+            amount,
+        ).transact()
+        testerchain.wait_for_receipt(tx)
 
         # track
         staking_providers.append(provider_address)
