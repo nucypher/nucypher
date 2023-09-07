@@ -86,13 +86,13 @@ class MockCoordinatorAgent(MockContractAgent):
             ],
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),
-            initiator=transacting_power.account,
+            authority=authority,
         )
         self.rituals.append(ritual)
         self.emit_event(
             signal=self.Events.START_RITUAL,
             ritual_id=ritual_id,
-            initiator=transacting_power.account,
+            authority=authority,
             participants=providers,
         )
         return self.blockchain.FAKE_RECEIPT

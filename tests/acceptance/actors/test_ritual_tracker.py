@@ -167,7 +167,7 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
     start_ritual_event = agent.contract.events.StartRitual()
 
     # create args data
-    args_dict["initiator"] = get_random_checksum_address()
+    args_dict["authority"] = get_random_checksum_address()
     args_dict["participants"] = [
         get_random_checksum_address(),
         get_random_checksum_address(),
@@ -359,7 +359,6 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     end_ritual_event = agent.contract.events.EndRitual()
 
     # create args data
-    args_dict["initiator"] = get_random_checksum_address()
     args_dict["successful"] = True
 
     # ensure that test matches latest event information
@@ -492,7 +491,6 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     end_ritual_event = agent.contract.events.EndRitual()
 
     # create args data
-    args_dict["initiator"] = get_random_checksum_address()
     args_dict["successful"] = True
 
     # ensure that test matches latest event information
@@ -607,7 +605,7 @@ def test_get_participation_state_purge_expired_cache_entries(
     start_ritual_event = agent.contract.events.StartRitual()
     args_dict = {
         "ritualId": ritual_id_1,
-        "initiator": get_random_checksum_address(),
+        "authority": get_random_checksum_address(),
         "participants": [
             get_random_checksum_address(),
             get_random_checksum_address(),

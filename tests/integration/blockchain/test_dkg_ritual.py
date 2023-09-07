@@ -73,7 +73,7 @@ def cohort(ursulas, mock_coordinator_agent):
     return ursulas
 
 
-def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Ursula]):
+def execute_round_1(ritual_id: int, authority: ChecksumAddress, cohort: List[Ursula]):
 
     # check that the ritual is being tracked locally upon initialization for each node
     for ursula in cohort:
@@ -87,7 +87,7 @@ def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Urs
                 args=AttributeDict(
                     {
                         "ritualId": ritual_id,
-                        "initiator": initiator,
+                        "authority": authority,
                         "participants": [u.checksum_address for u in cohort],
                     }
                 ),
@@ -163,7 +163,7 @@ def test_ursula_ritualist(
             )
 
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
-            execute_round_1(ritual_id, ritual.initiator, cohort)
+            execute_round_1(ritual_id, ritual.authority, cohort)
 
         def round_2(_):
             """simulates the passage of time and the execution of the event scanner"""

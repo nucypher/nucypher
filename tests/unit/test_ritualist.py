@@ -54,7 +54,7 @@ def test_initiate_ritual(
     ]
 
     ritual = CoordinatorAgent.Ritual(
-        initiator=transacting_power.account,
+        authority=transacting_power.account,
         dkg_size=4,
         threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(dkg_size=4),
         init_timestamp=123456,
@@ -77,7 +77,7 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
         )
 
     ritual = CoordinatorAgent.Ritual(
-        initiator=random_address,
+        authority=random_address,
         dkg_size=4,
         threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(dkg_size=4),
         init_timestamp=123456,
@@ -101,7 +101,7 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
         tx_hash = ursula.perform_round_1(
-            ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+            ritual_id=0, authority=random_address, participants=cohort, timestamp=0
         )
         assert tx_hash is None  # no execution performed
 
@@ -111,7 +111,7 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
     )
 
     tx_hash = ursula.perform_round_1(
-        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+        ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
     assert tx_hash is not None
 
@@ -120,7 +120,7 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
 
     # try again
     tx_hash = ursula.perform_round_1(
-        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+        ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
     assert tx_hash is None  # no execution since pending tx already present
 
@@ -135,14 +135,14 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
 
     # try submitting again
     tx_hash = ursula.perform_round_1(
-        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+        ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
     assert tx_hash is None  # no execution performed
 
     # participant no longer already posted aggregated transcript
     participant.transcript = bytes()
     tx_hash = ursula.perform_round_1(
-        ritual_id=0, initiator=random_address, participants=cohort, timestamp=0
+        ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
     assert tx_hash is not None  # execution occurs
 
@@ -160,7 +160,7 @@ def test_perform_round_2(
         participants[checksum_address] = participant
 
     ritual = CoordinatorAgent.Ritual(
-        initiator=transacting_power.account,
+        authority=transacting_power.account,
         dkg_size=len(cohort),
         threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(
             dkg_size=len(cohort)
