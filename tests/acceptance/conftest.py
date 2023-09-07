@@ -94,6 +94,11 @@ def deploy_contracts(nucypher_contracts, test_contracts, accounts):
     return deployments
 
 
+@pytest.fixture()
+def deployer_account(accounts):
+    return accounts[0]
+
+
 @pytest.fixture(scope='module', autouse=True)
 def test_registry(nucypher_contracts, deploy_contracts):
     registry = registry_from_ape_deployments(nucypher_contracts, deployments=deploy_contracts)

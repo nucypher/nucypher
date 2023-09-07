@@ -41,11 +41,6 @@ def cohort(ursulas):
 
 
 @pytest.fixture()
-def deployer_account(accounts):
-    return accounts[0]
-
-
-@pytest.fixture()
 def initiator(testerchain, alice, ritual_token, deployer_account):
     """Returns the Initiator, funded with RitualToken"""
     # transfer ritual token to alice
