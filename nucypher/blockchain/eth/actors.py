@@ -325,7 +325,12 @@ class Ritualist(BaseActor):
         )
 
         # TODO: check if the ferveo public key is set on the blockchain
-        # onchain_ferveo_public_key = self.coordinator_agent.get_provider_public_key(self.staking_provider_address, 0)
+        # There is no boolean interface on-chain to determine this.
+        # Here we're assuming there is one global key per node.
+        # onchain_ferveo_public_key = self.coordinator_agent.get_provider_public_key(
+        #     self.staking_provider_address,
+        #     0
+        # )
         self.coordinator_agent.set_provider_public_key(
             self.ritual_power.public_key(), transacting_power=self.transacting_power
         )
