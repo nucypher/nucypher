@@ -662,6 +662,8 @@ class CoordinatorAgent(EthereumContractAgent):
         initiator: ChecksumAddress
         dkg_size: int
         init_timestamp: int
+        threshold: int
+
         total_transcripts: int = 0
         total_aggregations: int = 0
         public_key: G1Point = None
@@ -703,17 +705,18 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = self.Ritual(
             initiator=ChecksumAddress(result[0]),
-            dkg_size=result[1],
-            init_timestamp=result[2],
+            init_timestamp=result[1],
             total_transcripts=result[3],
             total_aggregations=result[4],
-            aggregation_mismatch=result[6],
-            aggregated_transcript=bytes(result[7]),
+            dkg_size=result[6],
+            threshold=result[7],
+            aggregation_mismatch=result[8],
+            aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
         )
 
         # public key
-        ritual.public_key = self.Ritual.G1Point(result[5][0], result[5][1])
+        ritual.public_key = self.Ritual.G1Point(result[10][0], result[10][1])
 
         # participants
         if with_participants:

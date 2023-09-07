@@ -522,7 +522,7 @@ class Ritualist(BaseActor):
         try:
             transcript = self.ritual_power.generate_transcript(
                 nodes=nodes,
-                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
+                threshold=ritual.threshold,
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id
@@ -595,7 +595,7 @@ class Ritualist(BaseActor):
         # Aggregate the transcripts
         try:
             result = self.ritual_power.aggregate_transcripts(
-                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
+                threshold=ritual.threshold,
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id,
@@ -650,13 +650,12 @@ class Ritualist(BaseActor):
                 f"ritual #{ritual_id} is missing transcripts"
             )
 
-        threshold = (ritual.shares // 2) + 1
         # TODO: consider the usage of local DKG artifact storage here #3052
         # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=nodes,
-            threshold=threshold,
+            threshold=ritual.threshold,
             shares=ritual.shares,
             checksum_address=self.checksum_address,
             ritual_id=ritual_id,

@@ -58,6 +58,11 @@ class MockCoordinatorAgent(MockContractAgent):
         except KeyError:
             return None
 
+    @classmethod
+    def get_threshold_for_ritual_size(cls, dkg_size: int):
+        # default is simple (same as Coordinator contract)
+        return dkg_size // 2 + 1
+
     def emit_event(self, ritual_id: int, signal: Events, **kwargs) -> None:
         self.EVENTS[(int(time.time_ns()), ritual_id)] = (signal, {**kwargs, 'ritual_id': ritual_id})
 
@@ -80,6 +85,7 @@ class MockCoordinatorAgent(MockContractAgent):
                 self.Participant(provider=provider) for provider in providers
             ],
             dkg_size=len(providers),
+            threshold=self.get_threshold_for_ritual_size(len(providers)),
             initiator=transacting_power.account,
         )
         self.rituals.append(ritual)

@@ -735,11 +735,6 @@ class Bob(Character):
                 self.remember_node(ursula)
 
         variant = self._default_dkg_variant
-        threshold = (
-            (ritual.shares // 2) + 1
-            if variant == FerveoVariant.Simple
-            else ritual.shares
-        )  # TODO: #3095 get this from the ritual / put it on-chain?
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
@@ -752,7 +747,7 @@ class Bob(Character):
             decryption_request=decryption_request,
             participant_public_keys=participant_public_keys,
             cohort=ursulas,
-            threshold=threshold,
+            threshold=ritual.threshold,
         )
 
         return self.__decrypt(

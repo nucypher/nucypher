@@ -56,6 +56,7 @@ def test_initiate_ritual(
     ritual = CoordinatorAgent.Ritual(
         initiator=transacting_power.account,
         dkg_size=4,
+        threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(dkg_size=4),
         init_timestamp=123456,
         participants=participants,
     )
@@ -78,6 +79,7 @@ def test_perform_round_1(ursula, random_address, cohort, agent, random_transcrip
     ritual = CoordinatorAgent.Ritual(
         initiator=random_address,
         dkg_size=4,
+        threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(dkg_size=4),
         init_timestamp=123456,
         total_transcripts=4,
         participants=list(participants.values()),
@@ -160,6 +162,9 @@ def test_perform_round_2(
     ritual = CoordinatorAgent.Ritual(
         initiator=transacting_power.account,
         dkg_size=len(cohort),
+        threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(
+            dkg_size=len(cohort)
+        ),
         init_timestamp=123456,
         total_transcripts=len(cohort),
         participants=list(participants.values()),
