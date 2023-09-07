@@ -42,7 +42,8 @@ _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
 )
 
 VARIABLE_PREFIX_SYMBOL = "<"
-VARIABLE_SUFIX_SYMBOL = ">"
+VARIABLE_SUFFIX_SYMBOL = ">"
+
 
 def get_ape_project_build_path(project) -> Path:
     build_path = Path(project.path) / '.build'
@@ -53,7 +54,7 @@ def _is_variable(param: Union[str, int, List[Union[str, int]]]) -> bool:
     """Check if param is a ape-config variable"""
     return isinstance(param, str) and (
         param.startswith(VARIABLE_PREFIX_SYMBOL)
-        and param.endswith(VARIABLE_SUFIX_SYMBOL)
+        and param.endswith(VARIABLE_SUFFIX_SYMBOL)
     )
 
 
@@ -65,7 +66,7 @@ def _resolve_variable(
 ) -> Union[ChecksumAddress, str, int]:
     """Resolve a ape-config variable to a literal"""
     dependency_expression = param.strip(VARIABLE_PREFIX_SYMBOL).strip(
-        VARIABLE_SUFIX_SYMBOL
+        VARIABLE_SUFFIX_SYMBOL
     )
     dependency_name, attribute_name = dependency_expression.split(".")
     if dependency_name == "address":
