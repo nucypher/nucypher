@@ -21,8 +21,8 @@ from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.logging import Logger
-from tests.acceptance.constants import APE_TEST_CHAIN_ID
 from tests.constants import (
+    APE_TEST_CHAIN_ID,
     BONUS_TOKENS_FOR_TESTS,
     GLOBAL_ALLOW_LIST,
     INSECURE_DEVELOPMENT_PASSWORD,

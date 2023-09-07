@@ -13,8 +13,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
-from tests.acceptance.constants import APE_TEST_CHAIN_ID
-from tests.constants import TEST_ETH_PROVIDER_URI
+from tests.constants import APE_TEST_CHAIN_ID, TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture()

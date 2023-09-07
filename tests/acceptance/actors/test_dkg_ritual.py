@@ -5,7 +5,7 @@ from twisted.internet.threads import deferToThread
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
-from tests.acceptance.constants import APE_TEST_CHAIN_ID
+from tests.constants import APE_TEST_CHAIN_ID
 
 # constants
 DKG_SIZE = 4

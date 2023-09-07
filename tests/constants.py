@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from random import SystemRandom
 
+from ape.utils import DEFAULT_TEST_CHAIN_ID
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
@@ -24,6 +25,12 @@ STAKE_INFO = "StakeInfo"
 CONDITION_NFT = "ConditionNFT"
 GLOBAL_ALLOW_LIST = "GlobalAllowList"
 
+
+#
+# Ape
+#
+
+APE_TEST_CHAIN_ID = DEFAULT_TEST_CHAIN_ID  # ape uses this chain id
 
 #
 # Ursula
@@ -67,6 +74,8 @@ BONUS_TOKENS_FOR_TESTS = NU(150_000, 'NU').to_units()
 DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().to_wei(100, 'ether'))
 
 NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
+
+TESTERCHAIN_CHAIN_ID = 131277322940537
 
 
 #
@@ -142,7 +151,6 @@ CLI_TEST_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD
 
 CLI_ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
            NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
-TESTERCHAIN_CHAIN_ID = 131277322940537
 
 
 #
