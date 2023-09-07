@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    github: nucypher/nucypher-contracts
-    ref: main
+    github: derekpierre/nucypher-contracts
+    ref: alpha-tweaks
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.8.1
