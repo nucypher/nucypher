@@ -48,7 +48,7 @@ deployments:
         max_dkg_size: 8
         admin: <address.0>
         currency: <RitualToken.address>
-        fee: 0
+        fee: 1
       - contract_type: GlobalAllowList
         address: 0  # deployer account index
         coordinator: <Coordinator.address>

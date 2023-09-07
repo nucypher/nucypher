@@ -26,8 +26,10 @@ CONDITIONS = {
         "chain": APE_TEST_CHAIN_ID,
     },
 }
-DURATION = 48 * 60 * 60
 
+FEE = 1  # TODO: get this from the ape config?
+DURATION = 48 * 60 * 60
+AMOUNT = DKG_SIZE * DURATION * FEE
 
 
 @pytest.fixture(scope='module')
@@ -38,9 +40,32 @@ def cohort(ursulas):
     return nodes
 
 
+@pytest.fixture()
+def deployer_account(accounts):
+    return accounts[0]
+
+
+@pytest.fixture()
+def initiator(testerchain, alice, ritual_token, deployer_account):
+    """Returns the Initiator, funded with RitualToken"""
+    # transfer ritual token to alice
+    tx = ritual_token.functions.transfer(
+        alice.transacting_power.account,
+        AMOUNT,
+    ).transact()
+    testerchain.wait_for_receipt(tx)
+    return alice
+
+
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
-    testerchain, coordinator_agent, global_allow_list, cohort, alice, bob
+    testerchain,
+    coordinator_agent,
+    global_allow_list,
+    cohort,
+    initiator,
+    bob,
+    ritual_token,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
 
@@ -49,12 +74,19 @@ def test_ursula_ritualist(
         """Initiates the ritual"""
         print("==================== INITIALIZING ====================")
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
+
+        # Approve the ritual token for the coordinator agent to spend
+        tx = ritual_token.functions.approve(
+            coordinator_agent.contract_address, AMOUNT
+        ).transact({"from": initiator.transacting_power.account})
+        testerchain.wait_for_receipt(tx)
+
         receipt = coordinator_agent.initiate_ritual(
             providers=cohort_staking_provider_addresses,
-            authority=alice.transacting_power.account,
+            authority=initiator.transacting_power.account,
             duration=DURATION,
             access_controller=global_allow_list.address,
-            transacting_power=alice.transacting_power
+            transacting_power=initiator.transacting_power,
         )
         return receipt
 

@@ -27,6 +27,7 @@ from tests.constants import (
     GLOBAL_ALLOW_LIST,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_STAKING_CONTRACT_NAME,
+    RITUAL_TOKEN,
     STAKE_INFO,
     TEST_ETH_PROVIDER_URI,
 )
@@ -112,8 +113,14 @@ def testerchain(project, test_registry) -> TesterBlockchain:
 def stake_info(testerchain, test_registry):
     result = test_registry.search(contract_name=STAKE_INFO)[0]
     _stake_info = testerchain.w3.eth.contract(address=result[2], abi=result[3])
-
     return _stake_info
+
+
+@pytest.fixture(scope="module")
+def ritual_token(testerchain, test_registry):
+    result = test_registry.search(contract_name=RITUAL_TOKEN)[0]
+    _ritual_token = testerchain.w3.eth.contract(address=result[2], abi=result[3])
+    return _ritual_token
 
 
 @pytest.fixture(scope="module")
