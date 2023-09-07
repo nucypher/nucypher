@@ -3,6 +3,7 @@ import os
 import pytest
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
+from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -27,8 +28,9 @@ def transcripts():
     return [os.urandom(32), os.urandom(32)]
 
 
+@pytest.mark.usefixtures("ursulas")
 @pytest.fixture(scope="module")
-def cohort(testerchain, staking_providers, ursulas):
+def cohort(testerchain, staking_providers):
     # "ursulas" fixture is needed to set provider public key
     deployer, cohort_provider_1, cohort_provider_2, *everybody_else = staking_providers
     cohort_providers = [cohort_provider_1, cohort_provider_2]
@@ -59,6 +61,18 @@ def transacting_powers(testerchain, cohort_ursulas):
     ]
 
 
+@pytest.fixture()
+def initiator(testerchain, alice, ritual_token, deployer_account):
+    """Returns the Initiator, funded with RitualToken"""
+    # transfer ritual token to alice
+    tx = ritual_token.functions.transfer(
+        alice.transacting_power.account,
+        Web3.to_wei(1, "ether"),
+    ).transact({"from": deployer_account.address})
+    testerchain.wait_for_receipt(tx)
+    return alice
+
+
 def test_coordinator_properties(agent):
     assert len(agent.contract_address) == 42
     assert agent.contract.address == agent.contract_address
@@ -66,23 +80,38 @@ def test_coordinator_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
+@pytest.mark.usefixtures("ursulas")
 def test_initiate_ritual(
     agent,
     cohort,
     get_random_checksum_address,
     global_allow_list,
     transacting_powers,
-    ursulas,
+    ritual_token,
+    testerchain,
+    initiator,
 ):
     number_of_rituals = agent.number_of_rituals()
     assert number_of_rituals == 0
 
+    # TODO: Fixturize or read from contract
+    fee_rate = 1
+    duration = 60 * 60 * 24
+    amount = len(cohort) * fee_rate * duration
+
+    # Approve the ritual token for the coordinator agent to spend
+    tx = ritual_token.functions.approve(agent.contract_address, amount).transact(
+        {"from": initiator.transacting_power.account}
+    )
+    testerchain.wait_for_receipt(tx)
+
+    authority = get_random_checksum_address()
     receipt = agent.initiate_ritual(
         providers=cohort,
-        authority=get_random_checksum_address(),
-        duration=60 * 60 * 24,
+        authority=authority,
+        duration=duration,
         access_controller=global_allow_list.address,
-        transacting_power=transacting_powers[0],
+        transacting_power=initiator.transacting_power,
     )
     assert receipt['status'] == 1
     start_ritual_event = agent.contract.events.StartRitual().process_receipt(receipt)
@@ -93,7 +122,7 @@ def test_initiate_ritual(
     ritual_id = number_of_rituals - 1
 
     ritual = agent.get_ritual(ritual_id)
-    assert ritual.initiator == transacting_powers[0].account
+    assert ritual.authority == authority
 
     participants = agent.get_participants(ritual_id)
     assert [p.provider for p in participants] == cohort

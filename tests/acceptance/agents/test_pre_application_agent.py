@@ -1,8 +1,9 @@
 import os
-import pytest
-from eth_utils import to_checksum_address, is_address
 
-from nucypher.blockchain.eth.agents import PREApplicationAgent, ContractAgency
+import pytest
+from eth_utils import is_address, to_checksum_address
+
+from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower

@@ -225,7 +225,7 @@ def staking_providers(
         )
         operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
 
-        # TODO clean this up
+        # TODO clean this up, perhaps with a fixture
         # update StakeInfo
         tx = stake_info.functions.updateOperator(
             provider_address,

@@ -128,6 +128,7 @@ def test_ursula_ritualist(
     ritual_id,
     variant,
     test_registry_source_manager,
+    get_random_checksum_address,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
     cohort = cohort[:dkg_size]
@@ -149,6 +150,9 @@ def test_ursula_ritualist(
             cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
             mock_coordinator_agent.initiate_ritual(
                 providers=cohort_staking_provider_addresses,
+                authority=alice.transacting_power.account,
+                duration=1,
+                access_controller=get_random_checksum_address(),
                 transacting_power=alice.transacting_power,
             )
             assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1

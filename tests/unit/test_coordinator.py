@@ -37,6 +37,9 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
     mock_transacting_power.account = random_address
     coordinator.initiate_ritual(
         providers=list(nodes_transacting_powers.keys()),
+        authority=mock_transacting_power.account,
+        duration=1,
+        access_controller=random_address,
         transacting_power=mock_transacting_power,
     )
     assert len(coordinator.rituals) == 1

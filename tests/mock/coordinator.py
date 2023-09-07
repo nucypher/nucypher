@@ -76,7 +76,12 @@ class MockCoordinatorAgent(MockContractAgent):
     #
 
     def initiate_ritual(
-        self, providers: List[ChecksumAddress], transacting_power: TransactingPower
+        self,
+        providers: List[ChecksumAddress],
+        authority: ChecksumAddress,
+        duration: int,
+        access_controller: ChecksumAddress,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         ritual_id = len(self.rituals)
         ritual = self.Ritual(
