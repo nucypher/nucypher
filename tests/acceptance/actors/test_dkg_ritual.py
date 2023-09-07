@@ -27,9 +27,7 @@ CONDITIONS = {
     },
 }
 
-FEE = 1  # TODO: get this from the ape config?
 DURATION = 48 * 60 * 60
-AMOUNT = DKG_SIZE * DURATION * FEE
 
 
 @pytest.fixture(scope='module')
@@ -38,18 +36,6 @@ def cohort(ursulas):
     nodes = list(sorted(ursulas[:DKG_SIZE], key=lambda x: int(x.checksum_address, 16)))
     assert len(nodes) == DKG_SIZE  # sanity check
     return nodes
-
-
-@pytest.fixture()
-def initiator(testerchain, alice, ritual_token, deployer_account):
-    """Returns the Initiator, funded with RitualToken"""
-    # transfer ritual token to alice
-    tx = ritual_token.functions.transfer(
-        alice.transacting_power.account,
-        AMOUNT,
-    ).transact()
-    testerchain.wait_for_receipt(tx)
-    return alice
 
 
 @pytest_twisted.inlineCallbacks()
@@ -71,8 +57,11 @@ def test_ursula_ritualist(
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
 
         # Approve the ritual token for the coordinator agent to spend
+        amount = coordinator_agent.get_ritual_initiation_cost(
+            providers=cohort_staking_provider_addresses, duration=DURATION
+        )
         tx = ritual_token.functions.approve(
-            coordinator_agent.contract_address, AMOUNT
+            coordinator_agent.contract_address, amount
         ).transact({"from": initiator.transacting_power.account})
         testerchain.wait_for_receipt(tx)
 

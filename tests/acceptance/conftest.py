@@ -94,9 +94,21 @@ def deploy_contracts(nucypher_contracts, test_contracts, accounts):
     return deployments
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def deployer_account(accounts):
     return accounts[0]
+
+
+@pytest.fixture(scope="module")
+def initiator(testerchain, alice, ritual_token, deployer_account):
+    """Returns the Initiator, funded with RitualToken"""
+    # transfer ritual token to alice (initiator)
+    tx = ritual_token.functions.transfer(
+        alice.transacting_power.account,
+        Web3.to_wei(1, "ether"),
+    ).transact({"from": deployer_account.address})
+    testerchain.wait_for_receipt(tx)
+    return alice
 
 
 @pytest.fixture(scope='module', autouse=True)

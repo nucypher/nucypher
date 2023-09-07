@@ -3,7 +3,6 @@ import os
 import pytest
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
-from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -61,18 +60,6 @@ def transacting_powers(testerchain, cohort_ursulas):
     ]
 
 
-@pytest.fixture()
-def initiator(testerchain, alice, ritual_token, deployer_account):
-    """Returns the Initiator, funded with RitualToken"""
-    # transfer ritual token to alice
-    tx = ritual_token.functions.transfer(
-        alice.transacting_power.account,
-        Web3.to_wei(1, "ether"),
-    ).transact({"from": deployer_account.address})
-    testerchain.wait_for_receipt(tx)
-    return alice
-
-
 def test_coordinator_properties(agent):
     assert len(agent.contract_address) == 42
     assert agent.contract.address == agent.contract_address
@@ -95,9 +82,8 @@ def test_initiate_ritual(
     assert number_of_rituals == 0
 
     # TODO: Fixturize or read from contract
-    fee_rate = 1
     duration = 60 * 60 * 24
-    amount = len(cohort) * fee_rate * duration
+    amount = agent.get_ritual_initiation_cost(cohort, duration)
 
     # Approve the ritual token for the coordinator agent to spend
     tx = ritual_token.functions.approve(agent.contract_address, amount).transact(

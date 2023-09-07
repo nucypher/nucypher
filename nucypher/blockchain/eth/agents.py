@@ -849,6 +849,15 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         return receipt
 
+    @contract_api(TRANSACTION)
+    def get_ritual_initiation_cost(
+        self, providers: List[ChecksumAddress], duration: int
+    ) -> Wei:
+        result = self.contract.functions.getRitualInitiationCost(
+            providers, duration
+        ).call()
+        return Wei(result)
+
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
         if self.get_ritual_status(ritual_id=ritual_id) != self.Ritual.Status.FINALIZED:
             # TODO should we raise here instead?
