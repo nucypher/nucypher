@@ -70,7 +70,7 @@ def erc721_contract(accounts, project):
     account = accounts[0]
 
     # deploy contract
-    deployed_contract = project.ConditionNFT
+    deployed_contract = project.ConditionNFT.deploy(sender=account)
 
     # mint nft with token id = 1
     deployed_contract.mint(account.address, 1, sender=account)
