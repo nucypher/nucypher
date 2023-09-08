@@ -1,25 +1,17 @@
 import os
-from typing import List, Optional, Tuple, Union
+from typing import List, Union
 
 import maya
-from ape_test import LocalProvider
 from eth_tester.exceptions import TransactionFailed
-from eth_utils import to_canonical_address
 from hexbytes import HexBytes
 from web3 import Web3
 
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
-    BlockchainInterfaceFactory,
-)
-from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
