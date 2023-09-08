@@ -8,7 +8,7 @@ from nucypher.blockchain.eth.actors import Operator, Ritualist
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -146,14 +146,14 @@ def threshold_staking(testerchain, test_registry):
     _threshold_staking = testerchain.w3.eth.contract(address=result[2], abi=result[3])
 
     # TODO: Relocate this to pre application setup
-    pre_application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+    taco_application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
 
     tx = _threshold_staking.functions.setApplication(
-        pre_application_agent.contract_address
+        taco_application_agent.contract_address
     ).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -182,14 +182,14 @@ def global_allow_list(testerchain, test_registry):
 def staking_providers(
     testerchain, test_registry, threshold_staking, stake_info, coordinator_agent
 ):
-    pre_application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+    taco_application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
-    blockchain = pre_application_agent.blockchain
+    blockchain = taco_application_agent.blockchain
     minimum_stake = (
-        pre_application_agent.contract.functions.minimumAuthorization().call()
+        taco_application_agent.contract.functions.minimumAuthorization().call()
     )
 
     staking_providers = list()
@@ -210,7 +210,7 @@ def staking_providers(
         ).transact()
         testerchain.wait_for_receipt(tx)
 
-        _receipt = pre_application_agent.bond_operator(
+        _receipt = taco_application_agent.bond_operator(
             staking_provider=provider_address,
             operator=operator_address,
             transacting_power=provider_power,

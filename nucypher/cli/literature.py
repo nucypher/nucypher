@@ -177,7 +177,6 @@ WARNING: --etherscan is disabled. If you want to see deployed contracts and TXs 
 """
 
 
-
 #
 # Ursula
 #
@@ -186,7 +185,7 @@ SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metada
 
 
 #
-# PREApplication
+# TACoApplication
 #
 
 STAKING_PROVIDER_UNAUTHORIZED = '{provider} is not authorized.'

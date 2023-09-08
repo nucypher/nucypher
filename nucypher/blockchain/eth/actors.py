@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
     NucypherTokenAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
@@ -204,7 +204,7 @@ class Operator(BaseActor):
         self.__staking_provider_address = None  # set by block_until_ready
         if is_me:
             self.application_agent = ContractAgency.get_agent(
-                PREApplicationAgent,
+                TACoApplicationAgent,
                 provider_uri=eth_provider_uri,
                 registry=self.registry,
             )
@@ -698,7 +698,7 @@ class PolicyAuthor(NucypherTokenActor):
     def __init__(self, eth_provider_uri: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
+            TACoApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
         )
 
     def create_policy(self, *args, **kwargs):

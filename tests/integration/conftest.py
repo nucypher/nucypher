@@ -10,8 +10,8 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
     StakingProvidersReservoir,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
@@ -55,7 +55,7 @@ def mock_sample_reservoir(testerchain, mock_contract_agency):
         }
         return StakingProvidersReservoir(addresses)
 
-    mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
+    mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     mock_agent.get_staking_provider_reservoir = mock_reservoir
 
 
@@ -63,7 +63,7 @@ def mock_sample_reservoir(testerchain, mock_contract_agency):
 def mock_application_agent(
     testerchain, application_economics, mock_contract_agency, mocker
 ):
-    mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
+    mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     # Handle the special case of confirming operator address, which returns a txhash due to the fire_and_forget option
     mock_agent.confirm_operator_address = mocker.Mock(
         return_value=testerchain.FAKE_TX_HASH

@@ -6,7 +6,7 @@ import pytest
 from eth_account import Account
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.main import nucypher_cli
@@ -68,12 +68,12 @@ def mock_funded_account_password_keystore(
     )
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    pre_application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+    taco_application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
-    pre_application_agent.bond_operator(
+    taco_application_agent.bond_operator(
         staking_provider=provider_address,
         operator=account.address,
         transacting_power=provider_power,

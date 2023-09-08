@@ -4,7 +4,7 @@ from nucypher_core import MetadataResponse, MetadataResponsePayload
 from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -91,7 +91,7 @@ def test_invalid_operators_tolerance(
     # Setup
     #
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )

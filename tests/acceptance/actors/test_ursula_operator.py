@@ -11,7 +11,7 @@ from web3.middleware.simulate_unmined_transaction import (
 )
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.pre import WorkTracker, WorkTrackerBase
@@ -36,7 +36,7 @@ def test_ursula_operator_confirmation(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -96,7 +96,7 @@ def test_ursula_operator_confirmation_autopilot(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -170,7 +170,7 @@ def test_work_tracker(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )

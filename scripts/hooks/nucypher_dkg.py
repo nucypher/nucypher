@@ -9,7 +9,7 @@ from web3 import Web3
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import Signer
@@ -145,10 +145,10 @@ def nucypher_dkg(
         network=eth_staking_network
     )
     application_agent = ContractAgency.get_agent(
-        agent_class=PREApplicationAgent,
+        agent_class=TACoApplicationAgent,
         registry=staking_network_registry,
         provider_uri=eth_provider_uri,
-    )  # type: PREApplicationAgent
+    )  # type: TACoApplicationAgent
 
     #
     # Initial Ritual

@@ -4,10 +4,8 @@ from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.types import StakingProviderInfo
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
@@ -86,7 +84,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas, test_registr
     other_ursula._current_teacher_node = vladimir_as_learned
 
     globalLogPublisher.addObserver(warning_trapper)
-    result = other_ursula.learn_from_teacher_node()
+    other_ursula.learn_from_teacher_node()
     globalLogPublisher.removeObserver(warning_trapper)
 
     # Indeed, Ursula noticed that something was up.

@@ -23,10 +23,11 @@ import sys
 
 from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
 
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.agents import (
-    PREApplicationAgent,
-    SubscriptionManagerAgent
+    ContractAgency,
+    NucypherTokenAgent,
+    SubscriptionManagerAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
@@ -62,9 +63,15 @@ blockchain.connect()
 registry = InMemoryContractRegistry.from_latest_publication(network=network)
 emitter.echo(f"NOTICE: Connecting to {network} network", color='yellow')
 
-token_agent = ContractAgency.get_agent(agent_class=NucypherTokenAgent, registry=registry)  # type: NucypherTokenAgent
-application_agent = ContractAgency.get_agent(agent_class=PREApplicationAgent, registry=registry)  # type: PREApplicationAgent
-subscription_agent = ContractAgency.get_agent(agent_class=SubscriptionManagerAgent, registry=registry)  # type: SubscriptionManagerAgent
+token_agent = ContractAgency.get_agent(
+    agent_class=NucypherTokenAgent, registry=registry
+)  # type: NucypherTokenAgent
+application_agent = ContractAgency.get_agent(
+    agent_class=TACoApplicationAgent, registry=registry
+)  # type: TACoApplicationAgent
+subscription_agent = ContractAgency.get_agent(
+    agent_class=SubscriptionManagerAgent, registry=registry
+)  # type: SubscriptionManagerAgent
 
-message = f"NuCypher agents pre-loaded in variables 'token_agent', 'subscription_agent' and 'application_agent'"
+message = "NuCypher agents pre-loaded in variables 'token_agent', 'subscription_agent' and 'application_agent'"
 emitter.echo(message=message, color='green')

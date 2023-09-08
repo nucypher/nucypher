@@ -10,7 +10,7 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     EthereumContractAgent,
     NucypherTokenAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import AVERAGE_BLOCK_TIME_IN_SECONDS
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -41,7 +41,7 @@ STAKING_ESCROW = 'StakingEscrow'
 POLICY_MANAGER = 'PolicyManager'
 
 CONTRACT_NAMES = [
-    PREApplicationAgent.contract_name,
+    TACoApplicationAgent.contract_name,
     NucypherTokenAgent.contract_name,
     STAKING_ESCROW,
     POLICY_MANAGER
@@ -126,9 +126,17 @@ def network(general_config, registry_options):
 @group_general_config
 def staking_providers(general_config, registry_options, staking_provider_address):
     """Show relevant information about staking providers."""
-    emitter, registry, blockchain = registry_options.setup(general_config=general_config)
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
-    staking_providers_list = [staking_provider_address] if staking_provider_address else application_agent.get_staking_providers()
+    emitter, registry, blockchain = registry_options.setup(
+        general_config=general_config
+    )
+    application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent, registry=registry
+    )
+    staking_providers_list = (
+        [staking_provider_address]
+        if staking_provider_address
+        else application_agent.get_staking_providers()
+    )
     emitter.echo(staking_providers_list)  # TODO: staking provider painter
     # paint_stakers(emitter=emitter, stakers=staking_providers_list, registry=registry)
 
@@ -164,8 +172,8 @@ def events(general_config, registry_options, contract_name, from_block, to_block
         if event_name:
             raise click.BadOptionUsage(option_name='--event-name', message=click.style('--event-name requires --contract-name', fg="red"))
         # FIXME should we force a contract name to be specified?
-        # default to PREApplication contract
-        contract_names = [PREApplicationAgent.contract_name]
+        # default to TACoApplication contract
+        contract_names = [TACoApplicationAgent.contract_name]
     else:
         contract_names = [contract_name]
 

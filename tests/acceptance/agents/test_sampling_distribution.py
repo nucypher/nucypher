@@ -8,7 +8,7 @@ import pytest
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    PREApplicationAgent,
+    TACoApplicationAgent,
     WeightedSampler,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -22,7 +22,7 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
 
     # setup
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )

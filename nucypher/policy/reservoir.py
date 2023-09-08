@@ -3,13 +3,13 @@ from typing import Iterable, List, Optional
 from eth_typing import ChecksumAddress
 
 from nucypher.blockchain.eth.agents import (
-    PREApplicationAgent,
     StakingProvidersReservoir,
+    TACoApplicationAgent,
 )
 
 
 def make_staking_provider_reservoir(
-    application_agent: PREApplicationAgent,
+    application_agent: TACoApplicationAgent,
     exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
     include_addresses: Optional[Iterable[ChecksumAddress]] = None,
     pagination_size: Optional[int] = None,
@@ -22,7 +22,7 @@ def make_staking_provider_reservoir(
     without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
         reservoir = application_agent.get_staking_provider_reservoir(without=without_set, pagination_size=pagination_size)
-    except PREApplicationAgent.NotEnoughStakingProviders:
+    except TACoApplicationAgent.NotEnoughStakingProviders:
         # TODO: do that in `get_staking_provider_reservoir()`?
         reservoir = StakingProvidersReservoir({})
 

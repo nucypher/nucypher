@@ -7,7 +7,7 @@ from nucypher_core import SessionStaticSecret
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
@@ -41,7 +41,7 @@ def cohort(testerchain, staking_providers):
 def cohort_ursulas(cohort, test_registry):
     ursulas_for_cohort = []
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -81,7 +81,6 @@ def test_initiate_ritual(
     number_of_rituals = agent.number_of_rituals()
     assert number_of_rituals == 0
 
-    # TODO: Fixturize or read from contract
     duration = 60 * 60 * 24
     amount = agent.get_ritual_initiation_cost(cohort, duration)
 

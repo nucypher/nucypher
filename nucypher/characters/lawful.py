@@ -74,7 +74,7 @@ from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
@@ -1300,7 +1300,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(
-                PREApplicationAgent, provider_uri=provider_uri, registry=registry
+                TACoApplicationAgent, provider_uri=provider_uri, registry=registry
             )
             seednode_stake = application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address

@@ -14,8 +14,8 @@ from eth_utils import to_checksum_address
 from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     NucypherTokenAgent,
-    PREApplicationAgent,
     SubscriptionManagerAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from tests.constants import (
@@ -34,7 +34,7 @@ _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
     NucypherTokenAgent.contract_name,
     STAKE_INFO,
     MOCK_STAKING_CONTRACT_NAME,
-    PREApplicationAgent.contract_name,
+    TACoApplicationAgent.contract_name,
     SubscriptionManagerAgent.contract_name,
     CoordinatorAgent.contract_name,
     GLOBAL_ALLOW_LIST,

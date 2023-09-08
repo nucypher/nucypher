@@ -387,7 +387,7 @@ class AdjudicatorAgent(EthereumContractAgent):
         return staking_parameters
 
 
-class PREApplicationAgent(EthereumContractAgent):
+class TACoApplicationAgent(EthereumContractAgent):
 
     contract_name: str = TACO_APPLICATION_CONTRACT_NAME
 
@@ -925,8 +925,6 @@ class ContractAgency:
         if name == NUCYPHER_TOKEN_CONTRACT_NAME:
             # TODO: Perhaps rename NucypherTokenAgent
             name = "NucypherToken"
-        if name == TACO_APPLICATION_CONTRACT_NAME:
-            name = "PREApplication"  # TODO not needed once full PRE Application is used
         agent_name = f"{name}Agent"
         return agent_name
 
@@ -1012,7 +1010,9 @@ class StakingProvidersReservoir:
 
     def draw(self, quantity):
         if quantity > len(self):
-            raise PREApplicationAgent.NotEnoughStakingProviders(f'Cannot sample {quantity} out of {len(self)} total staking providers')
+            raise TACoApplicationAgent.NotEnoughStakingProviders(
+                f"Cannot sample {quantity} out of {len(self)} total staking providers"
+            )
 
         return self._sampler.sample_no_replacement(self._rng, quantity)
 
