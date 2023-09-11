@@ -1,5 +1,0 @@
-dependencies:
-  - name: nucypher-contracts
-    github: nucypher/nucypher-contracts
-    ref: main
-    contracts_folder: src
