@@ -2,6 +2,7 @@ import pytest
 import pytest_twisted
 from twisted.internet.threads import deferToThread
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
@@ -134,9 +135,12 @@ def test_ursula_ritualist(
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()
 
+        # create Enrico
+        signer = Web3Signer(client=testerchain.client)
+        enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+
         # encrypt
-        # print(f'encrypting for DKG with key {bytes(encrypting_key.to_bytes()).hex()}')
-        enrico = Enrico(encrypting_key=encrypting_key)
+        print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
         threshold_message_kit = enrico.encrypt_for_dkg(
             plaintext=plaintext, conditions=CONDITIONS
         )

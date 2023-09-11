@@ -81,6 +81,7 @@ from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
 )
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.banners import (
     ALICE_BANNER,
@@ -1457,9 +1458,14 @@ class Enrico:
 
     banner = ENRICO_BANNER
 
-    def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
+    def __init__(
+        self,
+        encrypting_key: Union[PublicKey, DkgPublicKey],
+        signer: Optional[Signer] = None,
+    ):
+        self.signer = signer
         self.signing_power = SigningPower()
-        self._policy_pubkey = encrypting_key
+        self._encrypting_key = encrypting_key
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
 
@@ -1477,20 +1483,27 @@ class Enrico:
         return message_kit
 
     def encrypt_for_dkg(
-        self, plaintext: bytes, conditions: Lingo
+        self,
+        plaintext: bytes,
+        conditions: Lingo,
     ) -> ThresholdMessageKit:
+        if not self.signer:
+            raise TypeError("This Enrico doesn't have a signer.")
+
         validate_condition_lingo(conditions)
         conditions_json = json.dumps(conditions)
         access_conditions = Conditions(conditions_json)
 
+        # encrypt for DKG
         ciphertext, auth_data = encrypt_for_dkg(
             plaintext, self.policy_pubkey, access_conditions
         )
 
-        # authentication for AllowLogic
-        # TODO Replace with `Signer` to be passed as parameter
+        # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = self.signing_power.keypair.sign(header_hash).to_be_bytes()
+        authorization = self.signer.sign_message(
+            message=header_hash, account=self.signer.accounts[0]
+        )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
@@ -1509,8 +1522,8 @@ class Enrico:
 
     @property
     def policy_pubkey(self):
-        if not self._policy_pubkey:
+        if not self._encrypting_key:
             raise TypeError(
                 "This Enrico doesn't know which policy encrypting key he used.  Oh well."
             )
-        return self._policy_pubkey
+        return self._encrypting_key

@@ -10,6 +10,7 @@ from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import TESTERCHAIN_CHAIN_ID
@@ -116,6 +117,7 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
         ursula.ritual_tracker._handle_ritual_event(event, get_block_when=lambda x: event)
 
 
+@pytest.mark.usefixtures("mock_sign_message")
 @pytest.mark.parametrize('dkg_size, ritual_id, variant', PARAMS)
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
@@ -195,9 +197,12 @@ def test_ursula_ritualist(
             # prepare message and conditions
             plaintext = PLAINTEXT.encode()
 
+            # create Enrico
+            signer = Web3Signer(client=testerchain.client)
+            enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+
             # encrypt
-            # print(f'encrypting for DKG with key {bytes(encrypting_key.to_bytes()).hex()}')
-            enrico = Enrico(encrypting_key=encrypting_key)
+            print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
             threshold_message_kit = enrico.encrypt_for_dkg(
                 plaintext=plaintext, conditions=CONDITIONS
             )

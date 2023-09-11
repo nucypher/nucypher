@@ -151,6 +151,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
     recreated_ursula.disenchant()
 
 
+@pytest.mark.usefixtures("mock_sign_message")
 def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
@@ -186,11 +187,15 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         },
     }
 
+    # create enrico
+    signer = Web3Signer(client=testerchain.client)
+    enrico = Enrico(encrypting_key=dkg_public_key, signer=signer)
+
     # encrypt
-    enrico = Enrico(encrypting_key=dkg_public_key)
     threshold_message_kit = enrico.encrypt_for_dkg(
         plaintext=plaintext, conditions=CONDITIONS
     )
+
     decryption_request = ThresholdDecryptionRequest(
         ritual_id=ritual_id,
         variant=FerveoVariant.Simple,

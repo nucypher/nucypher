@@ -60,6 +60,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     restored_dict = restored_transaction.as_dict()
     assert to_checksum_address(restored_dict['to']) == transaction_dict['to']
 
+
 def test_transacting_power_sign_message(testerchain):
 
     # Manually create a TransactingPower
