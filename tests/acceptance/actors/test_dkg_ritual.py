@@ -148,7 +148,6 @@ def test_ursula_ritualist(
         # ritual_id, ciphertext, conditions are obtained from the side channel
         bob.start_learning_loop(now=True)
         cleartext = bob.threshold_decrypt(
-            ritual_id=RITUAL_ID,
             threshold_message_kit=threshold_message_kit,
             peering_timeout=0,
         )

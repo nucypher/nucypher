@@ -858,6 +858,12 @@ class CoordinatorAgent(EthereumContractAgent):
         ).call()
         return Wei(result)
 
+    @contract_api(TRANSACTION)
+    def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
+        g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
+        result = self.contract.functions.getRitualIdFromPublicKey(g1_point).call()
+        return result
+
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
         if self.get_ritual_status(ritual_id=ritual_id) != self.Ritual.Status.FINALIZED:
             # TODO should we raise here instead?

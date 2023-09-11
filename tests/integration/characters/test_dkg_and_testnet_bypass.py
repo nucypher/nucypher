@@ -24,8 +24,6 @@ def _attempt_decryption(BobClass, plaintext):
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
 
-    ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
-
     definitely_false_condition = {
         "version": ConditionLingo.VERSION,
         "condition": {
@@ -42,7 +40,6 @@ def _attempt_decryption(BobClass, plaintext):
     )
 
     decrypted_cleartext = bob.threshold_decrypt(
-        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
         threshold_message_kit=threshold_message_kit,
     )
 

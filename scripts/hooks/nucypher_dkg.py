@@ -313,7 +313,6 @@ def nucypher_dkg(
     bob.start_learning_loop(now=True)
 
     cleartext = bob.threshold_decrypt(
-        ritual_id=ritual_id,
         threshold_message_kit=threshold_message_kit,
     )
 

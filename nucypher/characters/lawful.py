@@ -701,25 +701,37 @@ class Bob(Character):
             gathered_shares[provider_address] = decryption_share
         return gathered_shares
 
-    def get_ritual_from_id(self, ritual_id):
-        # blockchain reads: get the DKG parameters and the cohort.
+    def _get_coordinator_agent(self):
         if not self.coordinator_agent:
             raise ValueError(
                 "No coordinator provider URI provided in Bob's constructor."
             )
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
 
+        return self.coordinator_agent
+
+    def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
+        ritual_id = self._get_coordinator_agent().get_ritual_id_from_public_key(
+            public_key
+        )
+        return ritual_id
+
+    def get_ritual_from_id(self, ritual_id) -> CoordinatorAgent.Ritual:
+        ritual = self._get_coordinator_agent().get_ritual(
+            ritual_id, with_participants=True
+        )
         return ritual
 
     def threshold_decrypt(
         self,
-        ritual_id: int,
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
     ) -> bytes:
-        ritual = self.get_ritual_from_id(ritual_id)
+        ritual_id = self.get_ritual_id_from_public_key(
+            public_key=threshold_message_kit.acp.public_key
+        )
+        ritual = self.get_ritual_from_id(ritual_id=ritual_id)
 
         if not ursulas:
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.

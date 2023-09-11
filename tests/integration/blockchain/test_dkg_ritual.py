@@ -215,7 +215,6 @@ def test_ursula_ritualist(
                 new_callable=PropertyMock(return_value=variant),
             ):
                 cleartext = bob.threshold_decrypt(
-                    ritual_id=ritual_id,
                     threshold_message_kit=threshold_message_kit,
                     peering_timeout=0,
                 )

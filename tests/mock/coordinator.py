@@ -239,6 +239,15 @@ class MockCoordinatorAgent(MockContractAgent):
         else:
             raise RuntimeError(f"Ritual {ritual_id} is in an unknown state")  # :-(
 
+    def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
+        for i, ritual in enumerate(self.rituals):
+            if bytes(ritual.public_key) == bytes(public_key):
+                return i
+
+        raise ValueError(
+            f"No ritual id found for public key 0x{bytes(public_key).hex()}"
+        )
+
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
         if self.get_ritual_status(ritual_id=ritual_id) != self.RitualStatus.FINALIZED:
             # TODO should we raise here instead?
