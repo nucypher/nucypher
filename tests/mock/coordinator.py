@@ -170,6 +170,10 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual.total_aggregations += 1
         return self.blockchain.FAKE_RECEIPT
 
+    @staticmethod
+    def is_provider_public_key_set(staking_provider: ChecksumAddress) -> bool:
+        return False
+
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
     ) -> TxReceipt:
