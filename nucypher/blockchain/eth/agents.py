@@ -782,6 +782,30 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         return participant
 
+    @contract_api(CONTRACT_CALL)
+    def is_encryption_authorized(
+            self, ritual_id: int, evidence: bytes, digest: bytes
+    ) -> bool:
+        """
+        This contract read is relayed through coordinator to the access controller
+        contract associated with a given ritual.
+        """
+
+        # look up the access controller address for the ritual
+        ritual = self.get_ritual(ritual_id)
+        access_controller_address = ritual.access_controller
+
+        # instantiate a web3 contract object using the interface ABI
+        access_controller_contract = self.blockchain.w3.eth.contract(
+            address=access_controller_address,
+            abi=ENCRYPTION_AUTHORIZER_ABI
+        )
+
+        # call the isAuthorized function on the access controller contract
+        is_authorized = access_controller_contract.functions.isAuthorized
+        result = is_authorized(ritual_id, evidence, digest).call()
+        return result
+
     @contract_api(TRANSACTION)
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
@@ -877,13 +901,6 @@ class CoordinatorAgent(EthereumContractAgent):
             return None
 
         return ritual.public_key.to_dkg_public_key()
-
-    def is_encryption_authorized(
-        self, ritual_id: int, evidence: bytes, digest: bytes
-    ) -> bool:
-        # TODO: actually call contract.
-        # get ritual -> get access controller -> call isAuthorized(ritualId, evidence, digest)
-        return True
 
 
 class ContractAgency:

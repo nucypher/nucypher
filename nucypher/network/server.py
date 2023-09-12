@@ -166,7 +166,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         ciphertext_header = decryption_request.ciphertext_header
 
-        # check whether enrico is authorized - AllowLogic
+        # check whether enrico is authorized
         authorization = decryption_request.acp.authorization
         ciphertext_header_hash = keccak_digest(bytes(ciphertext_header))
         if not this_node.coordinator_agent.is_encryption_authorized(
