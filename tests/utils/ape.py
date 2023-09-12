@@ -23,8 +23,8 @@ from tests.constants import (
     GLOBAL_ALLOW_LIST,
     MOCK_STAKING_CONTRACT_NAME,
     RITUAL_TOKEN,
-    STAKE_INFO,
     T_TOKEN,
+    TACO_CHILD_APPLICATION,
 )
 
 # order sensitive
@@ -32,9 +32,9 @@ _CONTRACTS_TO_DEPLOY_ON_TESTERCHAIN = (
     RITUAL_TOKEN,
     T_TOKEN,
     NucypherTokenAgent.contract_name,
-    STAKE_INFO,
     MOCK_STAKING_CONTRACT_NAME,
     TACoApplicationAgent.contract_name,
+    TACO_CHILD_APPLICATION,
     SubscriptionManagerAgent.contract_name,
     CoordinatorAgent.contract_name,
     GLOBAL_ALLOW_LIST,

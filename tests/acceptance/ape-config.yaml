@@ -6,7 +6,7 @@ plugins:
 dependencies:
   - name: nucypher-contracts
     github: derekpierre/nucypher-contracts
-    ref: alpha-tweaks
+    ref: alpha-tweaks-13
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.8.1
@@ -29,10 +29,6 @@ deployments:
       - contract_type: NuCypherToken
         address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
         nu_token_supply: 1_000_000_000
-      - contract_type: StakeInfo
-        address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
-        updaters:
-          - '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C' # deployer account at index 0
       - contract_type: TACoApplication
         address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
         t_token: <TToken.address>
@@ -41,9 +37,15 @@ deployments:
         pre_min_operator_seconds: 86400  # one day in seconds
         reward_duration: 604800
         deauthorization_duration: 5184000
+        commitment_duration:
+          - 15724800  # 6 months
+          - 31449600  # 12 months
+      - contract_type: TACoChildApplication
+        address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
+        root_application: <TACoApplication.address>
       - contract_type: Coordinator
         address: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0
-        stake_info: <StakeInfo.address>
+        stake_info: <TACoChildApplication.address>
         ritual_timeout: 3600
         max_dkg_size: 8
         admin: '0x1e59ce931B4CFea3fe4B875411e280e173cB7A9C'  # deployer account at index 0

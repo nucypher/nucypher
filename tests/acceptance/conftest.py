@@ -28,7 +28,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_STAKING_CONTRACT_NAME,
     RITUAL_TOKEN,
-    STAKE_INFO,
+    TACO_CHILD_APPLICATION,
     TEST_ETH_PROVIDER_URI,
 )
 from tests.utils.ape import (
@@ -127,10 +127,12 @@ def testerchain(project, test_registry) -> TesterBlockchain:
 
 
 @pytest.fixture(scope='module')
-def stake_info(testerchain, test_registry):
-    result = test_registry.search(contract_name=STAKE_INFO)[0]
-    _stake_info = testerchain.w3.eth.contract(address=result[2], abi=result[3])
-    return _stake_info
+def taco_child_application(testerchain, test_registry):
+    result = test_registry.search(contract_name=TACO_CHILD_APPLICATION)[0]
+    _taco_child_application = testerchain.w3.eth.contract(
+        address=result[2], abi=result[3]
+    )
+    return _taco_child_application
 
 
 @pytest.fixture(scope="module")
@@ -179,7 +181,12 @@ def global_allow_list(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def staking_providers(testerchain, test_registry, threshold_staking, stake_info):
+def staking_providers(
+    testerchain,
+    test_registry,
+    threshold_staking,
+    taco_child_application,
+):
     taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
@@ -237,13 +244,13 @@ def staking_providers(testerchain, test_registry, threshold_staking, stake_info)
 
         # TODO clean this up, perhaps with a fixture
         # update StakeInfo
-        tx = stake_info.functions.updateOperator(
+        tx = taco_child_application.functions.updateOperator(
             provider_address,
             operator_address,
         ).transact()
         testerchain.wait_for_receipt(tx)
 
-        tx = stake_info.functions.updateAmount(
+        tx = taco_child_application.functions.updateAmount(
             provider_address,
             amount,
         ).transact()

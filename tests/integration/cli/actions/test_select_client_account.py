@@ -167,11 +167,11 @@ def test_select_client_account_with_balance_display(
     show_staking,
     show_eth,
     show_tokens,
-    stake_info,
+    taco_child_application,
 ):
 
     # Setup
-    mock_staking_agent.get_all_stakes.return_value = stake_info
+    mock_staking_agent.get_all_stakes.return_value = taco_child_application
 
     # Missing network kwarg with balance display active
     blockchain_read_required = any((show_staking, show_eth, show_tokens))
@@ -221,7 +221,7 @@ def test_select_client_account_with_balance_display(
             assert str(Web3.from_wei(balance, 'ether')) in captured.out
 
         if show_staking:
-            if len(stake_info) == 0:
+            if len(taco_child_application) == 0:
                 assert "No" in captured.out
             else:
                 assert 'Yes' in captured.out
