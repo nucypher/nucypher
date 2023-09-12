@@ -794,6 +794,11 @@ class CoordinatorAgent(EthereumContractAgent):
         ).call()
         return result
 
+    @contract_api(CONTRACT_CALL)
+    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
+        result = self.contract.functions.isProviderPublicKeySet(staking_provider).call()
+        return result
+
     @contract_api(TRANSACTION)
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
