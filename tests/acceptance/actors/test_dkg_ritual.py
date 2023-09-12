@@ -4,7 +4,7 @@ from twisted.internet.threads import deferToThread
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
-from nucypher.characters.lawful import Enrico
+from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import APE_TEST_CHAIN_ID
 
@@ -50,6 +50,7 @@ def test_ursula_ritualist(
     ritual_token,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
+    signer = Web3Signer(client=testerchain.client)
 
     # Round 0 - Initiate the ritual
     def initialize():
@@ -136,7 +137,6 @@ def test_ursula_ritualist(
         plaintext = PLAINTEXT.encode()
 
         # create Enrico
-        signer = Web3Signer(client=testerchain.client)
         enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
 
         # encrypt
@@ -144,10 +144,30 @@ def test_ursula_ritualist(
         threshold_message_kit = enrico.encrypt_for_dkg(
             plaintext=plaintext, conditions=CONDITIONS
         )
+
+        return threshold_message_kit
+
+    def test_unauthorized_decrypt(threshold_message_kit):
+        """Attempts to decrypt a message before Enrico is authorized to use the ritual"""
+        print("======== DKG DECRYPTION UNAUTHORIZED ENCRYPTION ========")
+        # ritual_id, ciphertext, conditions are obtained from the side channel
+        bob.start_learning_loop(now=True)
+        with pytest.raises(Ursula.NotEnoughUrsulas):
+            _ = bob.threshold_decrypt(
+                threshold_message_kit=threshold_message_kit,
+                peering_timeout=0,
+            )
+
         return threshold_message_kit
 
     def test_decrypt(threshold_message_kit):
         """Decrypts a message and checks that it matches the original plaintext"""
+        # authorize Enrico to encrypt for ritual
+        tx = global_allow_list.functions.authorize(
+            RITUAL_ID, [signer.accounts[0]]
+        ).transact({"from": initiator.transacting_power.account})
+        testerchain.wait_for_receipt(tx)
+
         print("==================== DKG DECRYPTION ====================")
         # ritual_id, ciphertext, conditions are obtained from the side channel
         bob.start_learning_loop(now=True)
@@ -170,6 +190,7 @@ def test_ursula_ritualist(
         block_until_dkg_finalized,
         test_finality,
         test_encrypt,
+        test_unauthorized_decrypt,
         test_decrypt,
     ]
 
