@@ -273,7 +273,7 @@ class MockCoordinatorAgent(MockContractAgent):
         )
 
     def is_encryption_authorized(
-        self, ritual_id: int, evidence: bytes, digest: bytes
+        self, ritual_id: int, evidence: bytes, ciphertext_header: bytes
     ) -> bool:
-        # get ritual -> get access controller -> call isAuthorized(ritualId, evidence, digest)
+        # always allow
         return True

@@ -1,7 +1,9 @@
 import os
 import random
+import sys
 from bisect import bisect_right
 from dataclasses import dataclass, field
+from itertools import accumulate
 from typing import (
     Any,
     Dict,
@@ -15,7 +17,6 @@ from typing import (
     cast,
 )
 
-import sys
 from constant_sorrow.constants import (
     CONTRACT_ATTRIBUTE,  # type: ignore
     CONTRACT_CALL,
@@ -24,7 +25,6 @@ from constant_sorrow.constants import (
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
-from itertools import accumulate
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -50,7 +50,6 @@ from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
-    ENCRYPTION_AUTHORIZER_ABI,
 )
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
@@ -784,26 +783,15 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def is_encryption_authorized(
-            self, ritual_id: int, evidence: bytes, digest: bytes
+        self, ritual_id: int, evidence: bytes, ciphertext_header: bytes
     ) -> bool:
         """
         This contract read is relayed through coordinator to the access controller
         contract associated with a given ritual.
         """
-
-        # look up the access controller address for the ritual
-        ritual = self.get_ritual(ritual_id)
-        access_controller_address = ritual.access_controller
-
-        # instantiate a web3 contract object using the interface ABI
-        access_controller_contract = self.blockchain.w3.eth.contract(
-            address=access_controller_address,
-            abi=ENCRYPTION_AUTHORIZER_ABI
-        )
-
-        # call the isAuthorized function on the access controller contract
-        is_authorized = access_controller_contract.functions.isAuthorized
-        result = is_authorized(ritual_id, evidence, digest).call()
+        result = self.contract.functions.isEncryptionAuthorized(
+            ritual_id, evidence, ciphertext_header
+        ).call()
         return result
 
     @contract_api(TRANSACTION)

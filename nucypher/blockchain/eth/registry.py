@@ -7,18 +7,10 @@ from typing import Dict, Iterator, List, Optional, Union
 
 import requests
 
-import nucypher
-from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE, REGISTRY_INTERFACES_BASE
+from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import Logger
-
-
-__ENCRYPTION_AUTHORIZER_ABI_FILEPATH = (
-    REGISTRY_INTERFACES_BASE / "IEncryptionAuthorizer.json"
-)
-with open(__ENCRYPTION_AUTHORIZER_ABI_FILEPATH) as f:
-    ENCRYPTION_AUTHORIZER_ABI = json.load(f)
 
 
 class CanonicalRegistrySource(ABC):
