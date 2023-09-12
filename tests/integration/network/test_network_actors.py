@@ -41,6 +41,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
         assert ursula in alice.known_nodes
 
 
+@pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
 def test_vladimir_illegal_interface_key_does_not_propagate(ursulas, test_registry_source_manager):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,

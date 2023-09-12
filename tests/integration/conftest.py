@@ -246,12 +246,20 @@ def mock_transacting_power(module_mocker, monkeymodule):
 
 @pytest.fixture(scope="module", autouse=True)
 def staking_providers(testerchain, test_registry, monkeymodule):
-
     def faked(self, *args, **kwargs):
         return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
 
     Operator.get_staking_provider_address = faked
     return testerchain.stake_providers_accounts
+
+
+@pytest.fixture(scope="module")
+def monkeypatch_get_staking_provider_from_operator(monkeymodule):
+    monkeymodule.setattr(
+        Operator,
+        "get_staking_provider_address",
+        lambda self: self.transacting_power.account,
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)
