@@ -678,7 +678,9 @@ class Bob(Character):
         )
 
         if len(successes) < threshold:
-            raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
+            raise Ursula.NotEnoughUrsulas(
+                f"Threshold of Ursulas unable to decrypt: {failures}"
+            )
         self.log.debug("Got enough shares to decrypt.")
 
         if decryption_request.variant == FerveoVariant.Precomputed:
