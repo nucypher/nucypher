@@ -1466,7 +1466,6 @@ class Enrico:
         signer: Optional[Signer] = None,
     ):
         self.signer = signer
-        self.signing_power = SigningPower()
         self._encrypting_key = encrypting_key
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
@@ -1503,8 +1502,10 @@ class Enrico:
 
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = self.signer.sign_message(
-            message=header_hash, account=self.signer.accounts[0]
+        authorization = bytes(
+            self.signer.sign_message(
+                message=header_hash, account=self.signer.accounts[0]
+            )
         )
 
         return ThresholdMessageKit(
