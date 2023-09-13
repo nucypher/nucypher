@@ -9,13 +9,13 @@ dependencies:
     ref: alpha-13-support
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
-    version: 4.8.1
+    version: 4.9.1
 
 solidity:
   version: 0.8.20
   evm_version: paris
   import_remapping:
-    - "@openzeppelin/contracts=openzeppelin/v4.8.1"
+    - "@openzeppelin/contracts=openzeppelin/v4.9.1"
 
 deployments:
   ethereum:
