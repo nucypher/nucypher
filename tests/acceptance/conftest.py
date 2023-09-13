@@ -4,7 +4,7 @@ import pytest
 from ape import project
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Operator, Ritualist
+from nucypher.blockchain.eth.actors import Ritualist
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -13,13 +13,11 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
-from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     APE_TEST_CHAIN_ID,
@@ -167,9 +165,11 @@ def taco_application_proxy(
 
 
 @pytest.fixture(scope="module")
-def taco_child_application(project, taco_application, deployer_account, proxy_admin):
+def taco_child_application(
+    project, taco_application_proxy, deployer_account, proxy_admin
+):
     _taco_child_application = deployer_account.deploy(
-        project.TACoChildApplication, taco_application.address
+        project.TACoChildApplication, taco_application_proxy.address
     )
 
     return _taco_child_application
@@ -255,7 +255,6 @@ def deployed_contracts(
         t_token,
         nu_token,
         threshold_staking,
-        threshold_staking,
         taco_application,
         taco_child_application,
         coordinator,
@@ -284,73 +283,37 @@ def testerchain(project, test_registry) -> TesterBlockchain:
 #
 @pytest.fixture(scope="module")
 def staking_providers(
+    deployer_account,
+    accounts,
     testerchain,
     test_registry,
     threshold_staking,
-    taco_child_application,
-    taco_application_agent,
+    taco_application_proxy,
 ):
-    blockchain = taco_application_agent.blockchain
-    minimum_stake = taco_application_agent.get_min_authorization()
+    minimum_stake = taco_application_proxy.minimumAuthorization()
 
     staking_providers = list()
-    for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
-        provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
+    for provider_address, operator_address in zip(
+        testerchain.stake_providers_accounts, testerchain.ursulas_accounts
+    ):
+        provider_power = TransactingPower(
+            account=provider_address, signer=Web3Signer(testerchain.client)
+        )
         provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
         # for a random amount
         amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
         # initialize threshold stake via threshold staking (permission-less mock)
-        tx = threshold_staking.functions.setRoles(provider_address).transact()
-        testerchain.wait_for_receipt(tx)
+        threshold_staking.setRoles(provider_address, sender=deployer_account)
 
-        # TODO: extract this to a fixture
-        tx = threshold_staking.functions.authorizationIncreased(
-            provider_address, 0, amount
-        ).transact()
-        testerchain.wait_for_receipt(tx)
-
-        taco_application_agent.bond_operator(
-            staking_provider=provider_address,
-            operator=operator_address,
-            transacting_power=provider_power,
+        threshold_staking.authorizationIncreased(
+            provider_address, 0, amount, sender=deployer_account
         )
 
-        operator_power = TransactingPower(
-            account=operator_address, signer=Web3Signer(testerchain.client)
+        taco_application_proxy.bondOperator(
+            provider_address, operator_address, sender=accounts[provider_address]
         )
-
-        operator = Operator(
-            is_me=True,
-            operator_address=operator_address,
-            domain=TEMPORARY_DOMAIN,
-            registry=test_registry,
-            transacting_power=operator_power,
-            eth_provider_uri=testerchain.eth_provider_uri,
-            signer=Web3Signer(testerchain.client),
-            crypto_power=CryptoPower(power_ups=[operator_power]),
-            payment_method=SubscriptionManagerPayment(
-                eth_provider=testerchain.eth_provider_uri,
-                network=TEMPORARY_DOMAIN,
-                registry=test_registry,
-            ),
-        )
-        operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
-
-        # TODO clean this up, perhaps with a fixture
-        # update StakeInfo
-        tx = taco_child_application.functions.updateOperator(
-            provider_address,
-            operator_address,
-        ).transact()
-        testerchain.wait_for_receipt(tx)
-
-        tx = taco_child_application.functions.updateAmount(
-            provider_address,
-            amount,
-        ).transact()
-        testerchain.wait_for_receipt(tx)
 
         # track
         staking_providers.append(provider_address)
