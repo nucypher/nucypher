@@ -247,8 +247,8 @@ def deployed_contracts(
     nu_token,
     threshold_staking,
     proxy_admin,
-    taco_application,
-    taco_child_application,
+    taco_application_proxy,
+    taco_child_application_proxy,
     coordinator,
     global_allow_list,
 ):
@@ -258,8 +258,9 @@ def deployed_contracts(
         t_token,
         nu_token,
         threshold_staking,
-        taco_application,
-        taco_child_application,
+        proxy_admin,
+        taco_application_proxy,  # only proxy contract
+        taco_child_application_proxy,  # only proxy contract
         coordinator,
         global_allow_list,
     ]
