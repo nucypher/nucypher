@@ -199,7 +199,7 @@ def taco_child_application_proxy(
 
 @pytest.fixture(scope="module")
 def coordinator(project, deployer_account, taco_child_application_proxy, ritual_token):
-    contract = deployer_account.deploy(
+    _coordinator = deployer_account.deploy(
         project.Coordinator,
         taco_child_application_proxy.address,
         TIMEOUT,
@@ -208,8 +208,11 @@ def coordinator(project, deployer_account, taco_child_application_proxy, ritual_
         ritual_token.address,
         FEE_RATE,
     )
-    contract.makeInitiationPublic(sender=deployer_account)
-    return contract
+    _coordinator.makeInitiationPublic(sender=deployer_account)
+    taco_child_application_proxy.initialize(
+        _coordinator.address, sender=deployer_account
+    )
+    return _coordinator
 
 
 @pytest.fixture(scope="module")
