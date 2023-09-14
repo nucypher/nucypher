@@ -5,20 +5,14 @@ from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
 
 from nucypher.blockchain.eth.agents import (
-    ContractAgency,
     CoordinatorAgent,
-    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain, test_registry) -> CoordinatorAgent:
-    coordinator_agent = ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
-    )
+def agent(coordinator_agent) -> CoordinatorAgent:
     return coordinator_agent
 
 
@@ -29,7 +23,7 @@ def transcripts():
 
 @pytest.mark.usefixtures("ursulas")
 @pytest.fixture(scope="module")
-def cohort(testerchain, staking_providers):
+def cohort(staking_providers):
     # "ursulas" fixture is needed to set provider public key
     deployer, cohort_provider_1, cohort_provider_2, *everybody_else = staking_providers
     cohort_providers = [cohort_provider_1, cohort_provider_2]
@@ -38,15 +32,10 @@ def cohort(testerchain, staking_providers):
 
 
 @pytest.fixture(scope='module')
-def cohort_ursulas(cohort, test_registry):
+def cohort_ursulas(cohort, taco_application_agent):
     ursulas_for_cohort = []
-    application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
     for provider in cohort:
-        operator = application_agent.get_operator_from_staking_provider(provider)
+        operator = taco_application_agent.get_operator_from_staking_provider(provider)
         ursulas_for_cohort.append(operator)
 
     return ursulas_for_cohort
@@ -69,6 +58,7 @@ def test_coordinator_properties(agent):
 
 @pytest.mark.usefixtures("ursulas")
 def test_initiate_ritual(
+    accounts,
     agent,
     cohort,
     get_random_checksum_address,
@@ -85,10 +75,11 @@ def test_initiate_ritual(
     amount = agent.get_ritual_initiation_cost(cohort, duration)
 
     # Approve the ritual token for the coordinator agent to spend
-    tx = ritual_token.functions.approve(agent.contract_address, amount).transact(
-        {"from": initiator.transacting_power.account}
+    ritual_token.approve(
+        agent.contract_address,
+        amount,
+        sender=accounts[initiator.transacting_power.account],
     )
-    testerchain.wait_for_receipt(tx)
 
     authority = get_random_checksum_address()
     receipt = agent.initiate_ritual(

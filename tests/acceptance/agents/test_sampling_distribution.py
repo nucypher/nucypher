@@ -1,33 +1,28 @@
 import random
 from collections import Counter
 from itertools import permutations
-from unittest.mock import Mock
 
 import pytest
+from nucypher_core.ferveo import Keypair
 
-from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    TACoApplicationAgent,
     WeightedSampler,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import CryptoPower, TransactingPower
-from tests.constants import TEST_ETH_PROVIDER_URI
+from nucypher.crypto.powers import TransactingPower
 
 
-def test_sampling_distribution(testerchain, test_registry, threshold_staking, application_economics):
-
+def test_sampling_distribution(
+    testerchain,
+    taco_application_agent,
+    threshold_staking,
+    coordinator_agent,
+    deployer_account,
+):
     # setup
-    application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
     stake_provider_accounts = testerchain.stake_providers_accounts
-    amount = application_economics.min_authorization
+    amount = taco_application_agent.get_min_authorization()
     all_locked_tokens = len(stake_provider_accounts) * amount
 
     # providers and operators
@@ -35,31 +30,24 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
         operator_address = provider_address
 
         # initialize threshold stake
-        tx = threshold_staking.functions.setRoles(provider_address).transact()
-        testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.authorizationIncreased(
-            provider_address, 0, amount
-        ).transact()
-        testerchain.wait_for_receipt(tx)
+        threshold_staking.setRoles(provider_address, sender=deployer_account)
+        threshold_staking.authorizationIncreased(
+            provider_address, 0, amount, sender=deployer_account
+        )
 
         power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
 
         # We assume that the staking provider knows in advance the account of her operator
-        application_agent.bond_operator(staking_provider=provider_address,
-                                        operator=operator_address,
-                                        transacting_power=power)
-
-        operator = Operator(
-            is_me=True,
-            operator_address=operator_address,
-            domain=TEMPORARY_DOMAIN,
-            registry=test_registry,
-            crypto_power=CryptoPower(),
+        taco_application_agent.bond_operator(
+            staking_provider=provider_address,
+            operator=operator_address,
             transacting_power=power,
-            eth_provider_uri=TEST_ETH_PROVIDER_URI,
-            payment_method=Mock(),
         )
-        operator.confirm_address()
+
+        # set provider public key
+        coordinator_agent.set_provider_public_key(
+            public_key=Keypair.random().public_key(), transacting_power=power
+        )
 
     #
     # Test sampling distribution
@@ -73,10 +61,10 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
     sampled, failed = 0, 0
     while sampled < SAMPLES:
         try:
-            reservoir = application_agent.get_staking_provider_reservoir()
+            reservoir = taco_application_agent.get_staking_provider_reservoir()
             addresses = set(reservoir.draw(quantity))
             addresses.discard(NULL_ADDRESS)
-        except application_agent.NotEnoughStakingProviders:
+        except taco_application_agent.NotEnoughStakingProviders:
             failed += 1
             continue
         else:
