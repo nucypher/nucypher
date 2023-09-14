@@ -1,7 +1,6 @@
 import random
 
 import pytest
-from ape import project
 from web3 import Web3
 
 from nucypher.blockchain.eth.actors import Ritualist
@@ -34,7 +33,6 @@ from tests.utils.ursula import (
 
 test_logger = Logger("acceptance-test-logger")
 
-DEPENDENCY = project.dependencies["openzeppelin"]["4.9.1"]
 
 #
 # ERC-20
@@ -94,9 +92,27 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
 
 
 #
-# Contracts
+# Contracts Dependencies
 #
 
+
+@pytest.fixture(scope="session", autouse=True)
+def nucypher_dependency(project):
+    nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
+    # simply use first entry - could be from github ('main') or local ('local')
+    _, nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
+    return nucypher_dependency
+
+
+@pytest.fixture(scope="session", autouse=True)
+def oz_dependency(project):
+    _oz_dependency = project.dependencies["openzeppelin"]["4.9.1"]
+    return _oz_dependency
+
+
+#
+# Contracts
+#
 
 @pytest.fixture(scope="module")
 def ritual_token(project, deployer_account):
@@ -105,35 +121,37 @@ def ritual_token(project, deployer_account):
 
 
 @pytest.fixture(scope="module")
-def t_token(project, deployer_account):
-    _t_token = deployer_account.deploy(project.TToken, TOTAL_SUPPLY)
+def t_token(nucypher_dependency, deployer_account):
+    _t_token = deployer_account.deploy(nucypher_dependency.TToken, TOTAL_SUPPLY)
     return _t_token
 
 
 @pytest.fixture(scope="module")
-def nu_token(project, deployer_account):
-    _nu_token = deployer_account.deploy(project.NuCypherToken, NU_TOTAL_SUPPLY)
+def nu_token(nucypher_dependency, deployer_account):
+    _nu_token = deployer_account.deploy(
+        nucypher_dependency.NuCypherToken, NU_TOTAL_SUPPLY
+    )
     return _nu_token
 
 
 @pytest.fixture(scope="module")
-def threshold_staking(project, deployer_account):
+def threshold_staking(nucypher_dependency, deployer_account):
     _threshold_staking = deployer_account.deploy(
-        project.ThresholdStakingForTACoApplicationMock
+        nucypher_dependency.ThresholdStakingForTACoApplicationMock
     )
     return _threshold_staking
 
 
 @pytest.fixture(scope="module")
-def proxy_admin(project, deployer_account):
-    _proxy_admin = DEPENDENCY.ProxyAdmin.deploy(sender=deployer_account)
+def proxy_admin(oz_dependency, deployer_account):
+    _proxy_admin = oz_dependency.ProxyAdmin.deploy(sender=deployer_account)
     return _proxy_admin
 
 
 @pytest.fixture(scope="module")
-def taco_application(project, deployer_account, t_token, threshold_staking):
+def taco_application(nucypher_dependency, deployer_account, t_token, threshold_staking):
     _taco_application = deployer_account.deploy(
-        project.TACoApplication,
+        nucypher_dependency.TACoApplication,
         t_token.address,
         threshold_staking.address,
         MIN_AUTHORIZATION,
@@ -148,15 +166,20 @@ def taco_application(project, deployer_account, t_token, threshold_staking):
 
 @pytest.fixture(scope="module")
 def taco_application_proxy(
-    project, deployer_account, proxy_admin, taco_application, threshold_staking
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    proxy_admin,
+    taco_application,
+    threshold_staking,
 ):
-    proxy = DEPENDENCY.TransparentUpgradeableProxy.deploy(
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
         taco_application.address,
         proxy_admin.address,
         b"",
         sender=deployer_account,
     )
-    proxy_contract = project.TACoApplication.at(proxy.address)
+    proxy_contract = nucypher_dependency.TACoApplication.at(proxy.address)
 
     threshold_staking.setApplication(proxy_contract.address, sender=deployer_account)
     proxy_contract.initialize(sender=deployer_account)
@@ -166,10 +189,10 @@ def taco_application_proxy(
 
 @pytest.fixture(scope="module")
 def taco_child_application(
-    project, taco_application_proxy, deployer_account, proxy_admin
+    nucypher_dependency, taco_application_proxy, deployer_account, proxy_admin
 ):
     _taco_child_application = deployer_account.deploy(
-        project.TACoChildApplication, taco_application_proxy.address
+        nucypher_dependency.TACoChildApplication, taco_application_proxy.address
     )
 
     return _taco_child_application
@@ -177,19 +200,20 @@ def taco_child_application(
 
 @pytest.fixture(scope="module")
 def taco_child_application_proxy(
-    project,
+    oz_dependency,
+    nucypher_dependency,
     deployer_account,
     proxy_admin,
     taco_child_application,
     taco_application_proxy,
 ):
-    proxy = DEPENDENCY.TransparentUpgradeableProxy.deploy(
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
         taco_child_application.address,
         proxy_admin.address,
         b"",
         sender=deployer_account,
     )
-    proxy_contract = project.TACoChildApplication.at(proxy.address)
+    proxy_contract = nucypher_dependency.TACoChildApplication.at(proxy.address)
     taco_application_proxy.setChildApplication(
         proxy_contract.address, sender=deployer_account
     )
@@ -198,9 +222,11 @@ def taco_child_application_proxy(
 
 
 @pytest.fixture(scope="module")
-def coordinator(project, deployer_account, taco_child_application_proxy, ritual_token):
+def coordinator(
+    nucypher_dependency, deployer_account, taco_child_application_proxy, ritual_token
+):
     _coordinator = deployer_account.deploy(
-        project.Coordinator,
+        nucypher_dependency.Coordinator,
         taco_child_application_proxy.address,
         TIMEOUT,
         MAX_DKG_SIZE,
@@ -216,9 +242,9 @@ def coordinator(project, deployer_account, taco_child_application_proxy, ritual_
 
 
 @pytest.fixture(scope="module")
-def global_allow_list(project, deployer_account, coordinator):
+def global_allow_list(nucypher_dependency, deployer_account, coordinator):
     contract = deployer_account.deploy(
-        project.GlobalAllowList,
+        nucypher_dependency.GlobalAllowList,
         coordinator.address,
         deployer_account.address,
     )
@@ -227,9 +253,9 @@ def global_allow_list(project, deployer_account, coordinator):
 
 
 @pytest.fixture(scope="module")
-def subscription_manager(project, deployer_account):
+def subscription_manager(nucypher_dependency, deployer_account):
     _subscription_manager = deployer_account.deploy(
-        project.SubscriptionManager,
+        nucypher_dependency.SubscriptionManager,
     )
     return _subscription_manager
 
@@ -238,18 +264,8 @@ def subscription_manager(project, deployer_account):
 # Deployment/Blockchains
 #
 
-@pytest.fixture(scope="session", autouse=True)
-def nucypher_contracts(project):
-    nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
-    # simply use first entry - could be from github ('main') or local ('local')
-    _, nucypher_contracts = list(nucypher_contracts_dependency_api.items())[0]
-    nucypher_contracts.compile()
-    return nucypher_contracts
-
-
 @pytest.fixture(scope='module', autouse=True)
 def deployed_contracts(
-    nucypher_contracts,
     ritual_token,
     t_token,
     nu_token,
@@ -278,7 +294,7 @@ def deployed_contracts(
 
 
 @pytest.fixture(scope='module', autouse=True)
-def test_registry(nucypher_contracts, deployed_contracts):
+def test_registry(deployed_contracts):
     registry = registry_from_ape_deployments(deployments=deployed_contracts)
     return registry
 
