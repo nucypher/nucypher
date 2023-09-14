@@ -226,6 +226,14 @@ def global_allow_list(project, deployer_account, coordinator):
     return contract
 
 
+@pytest.fixture(scope="module")
+def subscription_manager(project, deployer_account):
+    _subscription_manager = deployer_account.deploy(
+        project.SubscriptionManager,
+    )
+    return _subscription_manager
+
+
 #
 # Deployment/Blockchains
 #
@@ -251,6 +259,7 @@ def deployed_contracts(
     taco_child_application_proxy,
     coordinator,
     global_allow_list,
+    subscription_manager,
 ):
     # TODO: can this be improved - eg. get it from the project fixture
     deployments = [
@@ -263,6 +272,7 @@ def deployed_contracts(
         taco_child_application_proxy,  # only proxy contract
         coordinator,
         global_allow_list,
+        subscription_manager,
     ]
     return deployments
 
