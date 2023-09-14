@@ -10,14 +10,12 @@ from web3.middleware.simulate_unmined_transaction import (
     unmined_receipt_simulator_middleware,
 )
 
-from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
+from nucypher.blockchain.eth.actors import Operator, Ritualist
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.pre import WorkTracker, WorkTrackerBase
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
-from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 logger = Logger("test-operator")
@@ -32,57 +30,48 @@ def test_ursula_operator_confirmation(
     ursula_test_config,
     testerchain,
     threshold_staking,
-    application_economics,
+    taco_application_agent,
     test_registry,
+    deployer_account,
 ):
-    application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
-
     staking_provider = testerchain.stake_provider_account(0)
     operator_address = testerchain.ursula_account(0)
-    min_authorization = application_economics.min_authorization
+    min_authorization = taco_application_agent.get_min_authorization()
 
     # make an staking_providers and some stakes
-    tx = threshold_staking.functions.setRoles(staking_provider).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.authorizationIncreased(
-        staking_provider, 0, min_authorization
-    ).transact()
-    testerchain.wait_for_receipt(tx)
+    threshold_staking.setRoles(staking_provider, sender=deployer_account)
+    threshold_staking.authorizationIncreased(
+        staking_provider,
+        0,
+        min_authorization,
+        sender=deployer_account,
+    )
+
+    # not staking provider just yet
+    assert (
+        taco_application_agent.get_staking_provider_from_operator(operator_address)
+        == NULL_ADDRESS
+    )
+    assert not taco_application_agent.is_operator_confirmed(operator_address)
+
+    # bond this operator
+    tpower = TransactingPower(
+        account=staking_provider, signer=Web3Signer(testerchain.client)
+    )
+    taco_application_agent.bond_operator(
+        staking_provider=staking_provider,
+        operator=operator_address,
+        transacting_power=tpower,
+    )
 
     # make an ursula.
     ursula = ursula_test_config.produce(
         operator_address=operator_address, rest_port=select_test_port()
     )
 
-    # it's not confirmed
-    assert ursula.is_confirmed is False
-
-    # it has no staking provider
-    assert ursula.get_staking_provider_address() == NULL_ADDRESS
-
-    # now lets visit stake.nucypher.network and bond this operator
-    tpower = TransactingPower(
-        account=staking_provider, signer=Web3Signer(testerchain.client)
-    )
-    application_agent.bond_operator(
-        staking_provider=staking_provider,
-        operator=operator_address,
-        transacting_power=tpower,
-    )
-
     # now the worker has a staking provider
     assert ursula.get_staking_provider_address() == staking_provider
-    # but it still isn't confirmed
-    assert ursula.is_confirmed is False
-
-    # let's confirm it.  It will probably do this automatically in real life...
-    tx = ursula.confirm_address()
-    testerchain.wait_for_receipt(tx)
-
+    # confirmed on Ursula creation
     assert ursula.is_confirmed is True
 
 
@@ -92,36 +81,31 @@ def test_ursula_operator_confirmation_autopilot(
     ursula_test_config,
     testerchain,
     threshold_staking,
-    application_economics,
+    taco_application_agent,
     test_registry,
+    deployer_account,
 ):
-    application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
     staking_provider2 = testerchain.stake_provider_account(1)
     operator2 = testerchain.ursula_account(1)
-    min_authorization = application_economics.min_authorization
+    min_authorization = taco_application_agent.get_min_authorization()
 
-    confirmation_spy = mocker.spy(Operator, "confirm_address")
+    confirmation_spy = mocker.spy(Ritualist, "set_provider_public_key")
+    # TODO: WorkerTracker may no longer be needed
     replacement_confirmation_spy = mocker.spy(
         WorkTrackerBase, "_WorkTrackerBase__fire_replacement_commitment"
     )
 
     # make an staking_providers and some stakes
-    tx = threshold_staking.functions.setRoles(staking_provider2).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.authorizationIncreased(
-        staking_provider2, 0, min_authorization
-    ).transact()
-    testerchain.wait_for_receipt(tx)
+    threshold_staking.setRoles(staking_provider2, sender=deployer_account)
+    threshold_staking.authorizationIncreased(
+        staking_provider2, 0, min_authorization, sender=deployer_account
+    )
 
     # now lets bond this worker
     tpower = TransactingPower(
         account=staking_provider2, signer=Web3Signer(testerchain.client)
     )
-    application_agent.bond_operator(
+    taco_application_agent.bond_operator(
         staking_provider=staking_provider2, operator=operator2, transacting_power=tpower
     )
 
@@ -149,7 +133,7 @@ def test_ursula_operator_confirmation_autopilot(
         log(f"Verifying worker made {expected_confirmations} commitment so far")
         assert confirmation_spy.call_count == expected_confirmations
         assert replacement_confirmation_spy.call_count == 0  # no replacement txs needed
-        assert application_agent.is_operator_confirmed(operator2)
+        assert taco_application_agent.is_operator_confirmed(operator2)
 
     # Behavioural Test, like a screenplay made of legos
 
@@ -166,18 +150,13 @@ def test_work_tracker(
     ursula_test_config,
     testerchain,
     threshold_staking,
-    application_economics,
+    taco_application_agent,
     test_registry,
+    deployer_account,
 ):
-    application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
-
     staking_provider3 = testerchain.stake_provider_account(2)
     operator3 = testerchain.ursula_account(2)
-    min_authorization = application_economics.min_authorization
+    min_authorization = taco_application_agent.get_min_authorization()
 
     # Mock confirm_operator transaction
     def mock_confirm_operator_tx_hash(*args, **kwargs):
@@ -185,9 +164,11 @@ def test_work_tracker(
         return HexBytes(os.urandom(32))
 
     # Mock return that operator is not confirmed
-    mocker.patch.object(application_agent, "is_operator_confirmed", return_value=False)
     mocker.patch.object(
-        application_agent,
+        taco_application_agent, "is_operator_confirmed", return_value=False
+    )
+    mocker.patch.object(
+        taco_application_agent,
         "confirm_operator_address",
         side_effect=mock_confirm_operator_tx_hash,
     )
@@ -210,18 +191,16 @@ def test_work_tracker(
     WorkTrackerBase.CLOCK = clock
 
     # make an staking_providers and some stakes
-    tx = threshold_staking.functions.setRoles(staking_provider3).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.authorizationIncreased(
-        staking_provider3, 0, min_authorization
-    ).transact()
-    testerchain.wait_for_receipt(tx)
+    threshold_staking.setRoles(staking_provider3, sender=deployer_account)
+    threshold_staking.authorizationIncreased(
+        staking_provider3, 0, min_authorization, sender=deployer_account
+    )
 
     # now lets bond this worker
     tpower = TransactingPower(
         account=staking_provider3, signer=Web3Signer(testerchain.client)
     )
-    application_agent.bond_operator(
+    taco_application_agent.bond_operator(
         staking_provider=staking_provider3, operator=operator3, transacting_power=tpower
     )
 
@@ -267,12 +246,12 @@ def test_work_tracker(
     def verify_confirmed(_):
         # Verify that commitment made on-chain automatically
         log("Verifying operator is confirmed")
-        assert application_agent.is_operator_confirmed(operator3)
+        assert taco_application_agent.is_operator_confirmed(operator3)
 
     def verify_not_yet_confirmed(_):
         # Verify that commitment made on-chain automatically
         log("Verifying operator is not confirmed")
-        assert not application_agent.is_operator_confirmed(operator3)
+        assert not taco_application_agent.is_operator_confirmed(operator3)
 
     # Behavioural Test, like a screenplay made of legos
     # Simulate unmined transactions
@@ -314,7 +293,9 @@ def test_work_tracker(
     yield d
 
     # allow operator to be considered confirmed
-    mocker.patch.object(application_agent, "is_operator_confirmed", return_value=True)
+    mocker.patch.object(
+        taco_application_agent, "is_operator_confirmed", return_value=True
+    )
     d.addCallback(verify_confirmed)
 
     yield d
