@@ -110,6 +110,12 @@ class Vladimir(Ursula):
 
         return vladimir
 
+    def set_provider_public_key(self):
+        # TODO: this is because this function is called duration object creation;
+        #  I don't think it should but should be called via WorkTracker. Remove this stub when
+        #  it is no longer called during initialization.
+        pass
+
     @classmethod
     def attach_transacting_key(cls, blockchain):
         """
