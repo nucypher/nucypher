@@ -62,7 +62,7 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
 
 @pt.inlineCallbacks
 def test_run_lone_default_development_ursula(
-    click_runner, test_registry_source_manager, testerchain, mock_funding_and_bonding
+    click_runner, ursulas, test_registry_source_manager, testerchain
 ):
     deploy_port = select_test_port()
     args = (
@@ -75,7 +75,7 @@ def test_run_lone_default_development_ursula(
         "--dry-run",  # Disable twisted reactor in subprocess
         "--lonely",  # Do not load seednodes,
         "--operator-address",
-        testerchain.etherbase_account,
+        ursulas[0].operator_address,
         "--eth-provider",
         TEST_ETH_PROVIDER_URI,
         "--pre-payment-provider",
@@ -102,10 +102,10 @@ def test_run_lone_default_development_ursula(
 
 
 @pt.inlineCallbacks
-@pytest.mark.skip(reason="This test is failing, possibly related to poor support for --dev?")
-def test_ursula_learns_via_cli(
-    click_runner, ursulas, testerchain, mock_funding_and_bonding
-):
+@pytest.mark.skip(
+    reason="This test is failing, possibly related to poor support for --dev?"
+)
+def test_ursula_learns_via_cli(click_runner, ursulas, testerchain):
     # ERROR: requests.exceptions.ReadTimeout:
     # HTTPSConnectionPool(host='127.0.0.1', port=43043): Read timed out. (read timeout=2)
 
@@ -129,7 +129,7 @@ def test_ursula_learns_via_cli(
             "--dev",  # Run in development mode (ephemeral node)
             "--dry-run",  # Disable twisted reactor
             "--operator-address",
-            testerchain.etherbase_account,
+            ursulas[0].operator_address,
             "--eth-provider",
             TEST_ETH_PROVIDER_URI,
             "--pre-payment-provider",
