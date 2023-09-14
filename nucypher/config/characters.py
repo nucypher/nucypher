@@ -24,7 +24,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_HOST = LOOPBACK_ADDRESS
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
-    DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
     MNEMONIC_KEYSTORE = True
@@ -37,7 +36,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         keystore_path: Optional[Path] = None,
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
-        availability_check: Optional[bool] = None,
         condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         *args,
         **kwargs,
@@ -57,11 +55,6 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host
         self.certificate = certificate
         self.operator_address = operator_address
-        self.availability_check = (
-            availability_check
-            if availability_check is not None
-            else self.DEFAULT_AVAILABILITY_CHECKS
-        )
         super().__init__(
             dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs
         )
@@ -104,7 +97,6 @@ class UrsulaConfiguration(CharacterConfiguration):
             operator_address=self.operator_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
-            availability_check=self.availability_check,
             condition_provider_uris=self.condition_provider_uris,
 
             # PRE Payments

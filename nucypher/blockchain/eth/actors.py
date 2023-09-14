@@ -45,7 +45,7 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
-from nucypher.blockchain.eth.trackers.pre import WorkTracker
+from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -53,7 +53,6 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
-from nucypher.network.trackers import OperatorBondedTracker
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
@@ -168,7 +167,6 @@ class Operator(BaseActor):
         signer: Signer = None,
         crypto_power: CryptoPower = None,
         client_password: str = None,
-        work_tracker: Optional[WorkTracker] = None,
         operator_address: Optional[ChecksumAddress] = None,
         condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         publish_finalization: bool = True,  # TODO: Remove this
@@ -220,7 +218,6 @@ class Operator(BaseActor):
             provider_uri=coordinator_provider_uri,
         )
 
-        self.work_tracker = work_tracker or WorkTracker(worker=self)
         # track active onchain rituals
         self.ritual_tracker = dkg.ActiveRitualTracker(
             operator=self,
@@ -242,15 +239,11 @@ class Operator(BaseActor):
             condition_provider_uris
         )
 
-    def set_provider_public_key(self):
-        # Here we're assuming there is one global key per node.
-        is_provider_key_set = self.coordinator_agent.is_provider_public_key_set(
-            self.staking_provider_address,
+    def set_provider_public_key(self) -> TxReceipt:
+        receipt = self.coordinator_agent.set_provider_public_key(
+            self.ritual_power.public_key(), transacting_power=self.transacting_power
         )
-        if not is_provider_key_set:
-            self.coordinator_agent.set_provider_public_key(
-                self.ritual_power.public_key(), transacting_power=self.transacting_power
-            )
+        return receipt
 
     @staticmethod
     def _is_permitted_condition_chain(chain_id: int) -> bool:
@@ -635,14 +628,6 @@ class Operator(BaseActor):
     def is_confirmed(self):
         return self.application_agent.is_operator_confirmed(self.operator_address)
 
-    def confirm_address(
-        self, fire_and_forget: bool = True
-    ) -> Union[TxReceipt, HexBytes]:
-        txhash_or_receipt = self.application_agent.confirm_operator_address(
-            self.transacting_power, fire_and_forget=fire_and_forget
-        )
-        return txhash_or_receipt
-
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
         emitter = StdoutEmitter()
         client = self.application_agent.blockchain.client
@@ -684,6 +669,18 @@ class Operator(BaseActor):
                 )
 
             time.sleep(poll_rate)
+
+        if not self.is_confirmed:
+            emitter.message(
+                f"! Publishing provider public key for {self.staking_provider_address}",
+                color="yellow",
+            )
+            receipt = self.set_provider_public_key()
+            txhash = receipt["transactionHash"].hex()
+            emitter.message(
+                f"✓ Successfully published provider public key for {self.staking_provider_address} (TX: {txhash})",
+                color="green",
+            )
 
     def get_work_is_needed_check(self):
         def func(self):

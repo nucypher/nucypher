@@ -87,7 +87,6 @@ class UrsulaConfigOptions:
         gas_strategy: str,
         max_gas_price: int,  # gwei
         signer_uri: str,
-        availability_check: bool,
         lonely: bool,
         pre_payment_method: str,
         pre_payment_provider: str,
@@ -107,7 +106,6 @@ class UrsulaConfigOptions:
         self.light = light
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
-        self.availability_check = availability_check
         self.lonely = lonely
         self.pre_payment_method = pre_payment_method
         self.pre_payment_provider = pre_payment_provider
@@ -130,7 +128,6 @@ class UrsulaConfigOptions:
                 operator_address=self.operator_address,
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
-                availability_check=self.availability_check,
                 pre_payment_method=self.pre_payment_method,
                 pre_payment_provider=self.pre_payment_provider,
                 pre_payment_network=self.pre_payment_network,
@@ -155,7 +152,6 @@ class UrsulaConfigOptions:
                     rest_port=self.rest_port,
                     poa=self.poa,
                     light=self.light,
-                    availability_check=self.availability_check,
                     pre_payment_method=self.pre_payment_method,
                     pre_payment_provider=self.pre_payment_provider,
                     pre_payment_network=self.pre_payment_network,
@@ -208,7 +204,6 @@ class UrsulaConfigOptions:
             max_gas_price=self.max_gas_price,
             poa=self.poa,
             light=self.light,
-            availability_check=self.availability_check,
             pre_payment_method=self.pre_payment_method,
             pre_payment_provider=self.pre_payment_provider,
             pre_payment_network=self.pre_payment_network,
@@ -228,7 +223,6 @@ class UrsulaConfigOptions:
             max_gas_price=self.max_gas_price,
             poa=self.poa,
             light=self.light,
-            availability_check=self.availability_check,
             pre_payment_method=self.pre_payment_method,
             pre_payment_provider=self.pre_payment_provider,
             pre_payment_network=self.pre_payment_network,
@@ -266,7 +260,6 @@ group_config_options = group_options(
     poa=option_poa,
     light=option_light,
     dev=option_dev,
-    availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None),
     lonely=option_lonely,
     pre_payment_provider=option_pre_payment_provider,
     pre_payment_network=option_pre_payment_network,

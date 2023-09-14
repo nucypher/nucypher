@@ -104,7 +104,6 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -820,7 +819,6 @@ class Ursula(Teacher, Character, Operator):
         is_me: bool = True,
         certificate: Optional[Certificate] = None,
         certificate_filepath: Optional[Path] = None,
-        availability_check: bool = False,  # TODO: Remove from init
         metadata: Optional[NodeMetadata] = None,
         # Blockchain
         checksum_address: Optional[ChecksumAddress] = None,
@@ -855,10 +853,6 @@ class Ursula(Teacher, Character, Operator):
             if metadata:
                 raise ValueError("A local node must generate its own metadata.")
             self._metadata = None
-
-            # Health Checks
-            self._availability_check = availability_check
-            self._availability_tracker = trackers.AvailabilityTracker(ursula=self)
 
             try:
                 pre_payment_method: ContractPayment
@@ -992,9 +986,7 @@ class Ursula(Teacher, Character, Operator):
         self,
         emitter: StdoutEmitter = None,
         discovery: bool = True,
-        availability: bool = False,
-        worker: bool = True,
-        operator: bool = True,
+        ritual_tracking: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
         prometheus_config: "PrometheusMetricsConfig" = None,
@@ -1029,32 +1021,14 @@ class Ursula(Teacher, Character, Operator):
                     f"✓ Node Discovery ({self.domain.capitalize()})", color="green"
                 )
 
-        if self._availability_check or availability:
-            self._availability_tracker.start(now=eager)
-            if emitter:
-                emitter.message("✓ Availability Checks", color="green")
-
-        if operator:
+        if ritual_tracking:
             self.ritual_tracker.start()
             if emitter:
                 emitter.message("✓ DKG Ritual Tracking", color="green")
 
-        if worker:
-            if block_until_ready:
-                # Sets (staker's) checksum address; Prevent worker startup before bonding
-                self.block_until_ready()
-
-            work_is_needed = self.get_work_is_needed_check()(self)
-            if work_is_needed:
-                message = "✓ Work Tracking"
-                self.work_tracker.start(
-                    commit_now=True,
-                    requirement_func=self.work_tracker.worker.get_work_is_needed_check(),
-                )  # requirement_func=self._availability_tracker.status)  # TODO: #2277
-            else:
-                message = "✓ Operator already confirmed.  Not starting worktracker."
-            if emitter:
-                emitter.message(message, color="green")
+        if block_until_ready:
+            # Sets (staker's) checksum address; Prevent worker startup before bonding
+            self.block_until_ready()
 
         #
         # Non-order dependant services
@@ -1114,9 +1088,7 @@ class Ursula(Teacher, Character, Operator):
         with contextlib.suppress(
             AttributeError
         ):  # TODO: Is this acceptable here, what are alternatives?
-            self._availability_tracker.stop()
             self.stop_learning_loop()
-            self.work_tracker.stop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
         if halt_reactor:

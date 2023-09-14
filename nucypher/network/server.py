@@ -20,7 +20,6 @@ from nucypher_core import (
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
-from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
@@ -343,38 +342,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         """Asks this node: What is my IP address?"""
         requester_ip_address = request.remote_addr
         return Response(requester_ip_address, status=HTTPStatus.OK)
-
-    @rest_app.route("/check_availability", methods=['POST'])
-    def check_availability():
-        """Asks this node: Can you access my public information endpoint?"""
-        try:
-            requesting_ursula = Ursula.from_metadata_bytes(request.data)
-            requesting_ursula.mature()
-        except ValueError:
-            return Response({'error': 'Invalid Ursula'}, status=HTTPStatus.BAD_REQUEST)
-        else:
-            initiator_address, initiator_port = tuple(requesting_ursula.rest_interface)
-
-        # Compare requester and posted Ursula information
-        request_address = request.remote_addr
-        if request_address != initiator_address:
-            message = f'Origin address mismatch: Request origin is {request_address} but metadata claims {initiator_address}.'
-            return Response({'error': message}, status=HTTPStatus.BAD_REQUEST)
-
-        # Make a Sandwich
-        try:
-            requesting_ursula_metadata = this_node.network_middleware.client.node_information(
-                host=initiator_address,
-                port=initiator_port,
-            )
-        except NodeSeemsToBeDown:
-            return Response({'error': 'Unreachable node'}, status=HTTPStatus.BAD_REQUEST)  # ... toasted
-
-        # Compare the results of the outer POST with the inner GET... yum
-        if requesting_ursula_metadata == request.data:
-            return Response(status=HTTPStatus.OK)
-        else:
-            return Response({'error': 'Suspicious node'}, status=HTTPStatus.BAD_REQUEST)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
