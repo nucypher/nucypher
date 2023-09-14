@@ -179,9 +179,7 @@ def global_allow_list(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def staking_providers(
-    testerchain, test_registry, threshold_staking, stake_info, coordinator_agent
-):
+def staking_providers(testerchain, test_registry, threshold_staking, stake_info):
     taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
@@ -210,7 +208,7 @@ def staking_providers(
         ).transact()
         testerchain.wait_for_receipt(tx)
 
-        _receipt = taco_application_agent.bond_operator(
+        taco_application_agent.bond_operator(
             staking_provider=provider_address,
             operator=operator_address,
             transacting_power=provider_power,

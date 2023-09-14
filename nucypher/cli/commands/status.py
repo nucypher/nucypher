@@ -120,7 +120,7 @@ def network(general_config, registry_options):
     paint_contract_status(registry, emitter=emitter)
 
 
-@status.command('pre')
+@status.command("taco")
 @group_registry_options
 @option_staking_provider
 @group_general_config

@@ -704,7 +704,7 @@ class Bob(Character):
             gathered_shares[provider_address] = decryption_share
         return gathered_shares
 
-    def _get_coordinator_agent(self):
+    def _get_coordinator_agent(self) -> CoordinatorAgent:
         if not self.coordinator_agent:
             raise ValueError(
                 "No coordinator provider URI provided in Bob's constructor."
