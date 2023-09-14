@@ -127,7 +127,6 @@ def test_invalid_operators_tolerance(
         preflight=False,
         discovery=False,
         start_reactor=False,
-        worker=True,
         eager=True,
         block_until_ready=True,
     )  # "start" services
