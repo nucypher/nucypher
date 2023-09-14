@@ -4,7 +4,6 @@ from nucypher_core import MetadataResponse, MetadataResponsePayload
 from twisted.logger import LogLevel, globalLogPublisher
 
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -83,18 +82,14 @@ def test_invalid_operators_tolerance(
     test_registry,
     ursulas,
     threshold_staking,
-    application_economics,
+    taco_application_agent,
     ursula_test_config,
     mocker,
+    deployer_account,
 ):
     #
     # Setup
     #
-    application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
     (
         creator,
         _staking_provider,
@@ -105,23 +100,21 @@ def test_invalid_operators_tolerance(
     existing_ursula, other_ursula, *the_others = list(ursulas)
 
     # We start with an ursula with no tokens staked
-    owner, _, _ = threshold_staking.functions.rolesOf(_staking_provider).call()
+    owner, _, _ = threshold_staking.rolesOf(_staking_provider, sender=deployer_account)
     assert owner == NULL_ADDRESS
 
     # make an staking_providers and some stakes
-    min_authorization = application_economics.min_authorization
-    tx = threshold_staking.functions.setRoles(_staking_provider).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.authorizationIncreased(
-        _staking_provider, 0, min_authorization
-    ).transact()
-    testerchain.wait_for_receipt(tx)
+    min_authorization = taco_application_agent.get_min_authorization()
+    threshold_staking.setRoles(_staking_provider, sender=deployer_account)
+    threshold_staking.authorizationIncreased(
+        _staking_provider, 0, min_authorization, sender=deployer_account
+    )
 
     # now lets bond this worker
     tpower = TransactingPower(
         account=_staking_provider, signer=Web3Signer(testerchain.client)
     )
-    application_agent.bond_operator(
+    taco_application_agent.bond_operator(
         staking_provider=_staking_provider,
         operator=operator_address,
         transacting_power=tpower,
@@ -164,7 +157,7 @@ def test_invalid_operators_tolerance(
         return True
 
     mocker.patch.object(
-        application_agent, "is_authorized", side_effect=mock_is_authorized
+        taco_application_agent, "is_authorized", side_effect=mock_is_authorized
     )
 
     # OK...so...the staker is not staking anymore ...
