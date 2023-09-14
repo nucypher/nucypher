@@ -1,15 +1,9 @@
-from pathlib import Path
 from typing import List
 
 from ape.contracts.base import ContractInstance
 from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-
-
-def get_ape_project_build_path(project) -> Path:
-    build_path = Path(project.path) / '.build'
-    return build_path
 
 
 def registry_from_ape_deployments(
