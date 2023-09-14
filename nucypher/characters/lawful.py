@@ -71,6 +71,7 @@ import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth import actors
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -142,7 +143,7 @@ class Alice(Character, actors.PolicyAuthor):
         # Policy Value
         rate: int = None,
         duration: int = None,
-        payment_method: PaymentMethod = None,
+        pre_payment_method: PaymentMethod = None,
         # Policy Storage
         store_policy_credentials: bool = None,
         # Middleware
@@ -200,11 +201,11 @@ class Alice(Character, actors.PolicyAuthor):
         self.log = Logger(self.__class__.__name__)
         if is_me:
             # Policy Payment
-            if not payment_method:
+            if not pre_payment_method:
                 raise ValueError(
-                    "payment_method is a required argument for a local Alice."
+                    "pre_payment_method is a required argument for a local Alice."
                 )
-            self.payment_method = payment_method
+            self.pre_payment_method = pre_payment_method
             self.rate = rate
             self.duration = duration
 
@@ -280,7 +281,7 @@ class Alice(Character, actors.PolicyAuthor):
         expiration: Optional[maya.MayaDT] = None,
         value: Optional[int] = None,
         rate: Optional[int] = None,
-        payment_method: Optional[PaymentMethod] = None,
+        pre_payment_method: Optional[PaymentMethod] = None,
     ) -> dict:
         """Construct policy creation from default parameters or overrides."""
 
@@ -296,10 +297,10 @@ class Alice(Character, actors.PolicyAuthor):
         rate = (
             rate if rate is not None else self.rate
         )  # TODO conflict with CLI default value, see #1709
-        payment_method = payment_method or self.payment_method
+        pre_payment_method = pre_payment_method or self.pre_payment_method
 
         # Calculate Policy Rate, Duration, and Value
-        quote = self.payment_method.quote(
+        quote = self.pre_payment_method.quote(
             shares=shares,
             duration=duration,
             commencement=commencement.epoch if commencement else None,
@@ -309,7 +310,7 @@ class Alice(Character, actors.PolicyAuthor):
         )
 
         params = dict(
-            payment_method=payment_method,
+            pre_payment_method=pre_payment_method,
             threshold=threshold,
             shares=shares,
             duration=quote.duration,
@@ -620,9 +621,9 @@ class Bob(Character):
 
         cohort = list()
         for staking_provider_address, transcript_bytes in ritual.transcripts:
-            remote_ritualist = self.known_nodes[staking_provider_address]
-            remote_ritualist.mature()
-            cohort.append(remote_ritualist)
+            remote_operator = self.known_nodes[staking_provider_address]
+            remote_operator.mature()
+            cohort.append(remote_operator)
 
         return cohort
 
@@ -789,7 +790,7 @@ class Bob(Character):
         return cleartext
 
 
-class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
+class Ursula(Teacher, Character, Operator):
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -825,10 +826,11 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         checksum_address: Optional[ChecksumAddress] = None,
         operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
+        transacting_power: Optional[TransactingPower] = None,
         operator_signature_from_metadata=NOT_SIGNED,
         eth_provider_uri: Optional[str] = None,
         condition_provider_uris: Optional[Dict[int, List[str]]] = None,
-        payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
+        pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
         abort_on_learning_error: bool = False,
         crypto_power=None,
@@ -859,34 +861,26 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
             self._availability_tracker = trackers.AvailabilityTracker(ursula=self)
 
             try:
-                payment_method: ContractPayment
-                actors.Operator.__init__(
+                pre_payment_method: ContractPayment
+                self.__operator_address = operator_address
+                Operator.__init__(
                     self,
-                    is_me=is_me,
                     domain=self.domain,
                     registry=self.registry,
                     signer=self.signer,
                     crypto_power=self._crypto_power,
                     operator_address=operator_address,
                     eth_provider_uri=eth_provider_uri,
-                    payment_method=payment_method,
+                    pre_payment_method=pre_payment_method,
                     client_password=client_password,
-                )
-
-                # DKG Ritualist
-                actors.Ritualist.__init__(
-                    self,
-                    domain=domain,
                     condition_provider_uris=condition_provider_uris,
-                    coordinator_provider_uri=payment_method.provider,
-                    network=payment_method.network,
-                    transacting_power=self.transacting_power,
-                    crypto_power=self._crypto_power,
-                    registry=self.registry,
+                    coordinator_provider_uri=pre_payment_method.provider,
+                    transacting_power=transacting_power,
+                    coordinator_network=pre_payment_method.network,
                 )
 
             except Exception:
-                # TODO: Move this lower to encapsulate the Ritualist init in a try/except block.
+                # TODO: Move this lower to encapsulate the Operator init in a try/except block.
                 # TODO: Do not announce self to "other nodes" until this init is finished.
                 # It's not possible to finish constructing this node.
                 self.stop(halt_reactor=False)
@@ -1000,7 +994,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         discovery: bool = True,
         availability: bool = False,
         worker: bool = True,
-        ritualist: bool = True,
+        operator: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
         prometheus_config: "PrometheusMetricsConfig" = None,
@@ -1040,7 +1034,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
             if emitter:
                 emitter.message("✓ Availability Checks", color="green")
 
-        if ritualist:
+        if operator:
             self.ritual_tracker.start()
             if emitter:
                 emitter.message("✓ DKG Ritual Tracking", color="green")

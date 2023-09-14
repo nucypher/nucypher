@@ -152,33 +152,36 @@ class NucypherTokenActor(BaseActor):
 
 
 class Operator(BaseActor):
-
     READY_TIMEOUT = None  # (None or 0) == indefinite
     READY_POLL_RATE = 10
 
     class OperatorError(BaseActor.ActorError):
-        pass
+        """Operator-specific errors."""
 
     def __init__(
         self,
-        is_me: bool,
         eth_provider_uri: str,
-        payment_method: ContractPayment,
-        work_tracker: Optional[WorkTracker] = None,
-        operator_address: Optional[ChecksumAddress] = None,
+        coordinator_provider_uri: str,
+        coordinator_network: str,
+        pre_payment_method: ContractPayment,
+        transacting_power: TransactingPower,
         signer: Signer = None,
         crypto_power: CryptoPower = None,
         client_password: str = None,
-        transacting_power: TransactingPower = None,
+        work_tracker: Optional[WorkTracker] = None,
+        operator_address: Optional[ChecksumAddress] = None,
+        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        publish_finalization: bool = True,  # TODO: Remove this
         *args,
         **kwargs,
     ):
-
         # Falsy values may be passed down from the superclass
         if not eth_provider_uri:
-            raise ValueError("ETH Provider URI is required to init an operator.")
-        if not payment_method:
-            raise ValueError("Payment method is required to init an operator.")
+            raise ValueError("Ethereum Provider URI is required to init an operator.")
+        if not coordinator_provider_uri:
+            raise ValueError("Polygon Provider URI is required to init an operator.")
+        if not pre_payment_method:
+            raise ValueError("PRE payment method is required to init an operator.")
 
         if not transacting_power:
             transacting_power = TransactingPower(
@@ -193,119 +196,34 @@ class Operator(BaseActor):
         # because, given the need for initialization context, it's far less melodramatic
         # to do it here, and it's still available via the public crypto powers API.
         crypto_power.consume_power_up(transacting_power)
-        self.payment_method = payment_method
+
+        self.pre_payment_method = pre_payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
-        BaseActor.__init__(self, transacting_power=transacting_power, *args, **kwargs)
-
-        self.log = Logger("worker")
-        self.is_me = is_me
-        self.__operator_address = operator_address
-        self.__staking_provider_address = None  # set by block_until_ready
-        if is_me:
-            self.application_agent = ContractAgency.get_agent(
-                TACoApplicationAgent,
-                provider_uri=eth_provider_uri,
-                registry=self.registry,
-            )
-            self.work_tracker = work_tracker or WorkTracker(worker=self)
-
-    def _local_operator_address(self):
-        return self.__operator_address
-
-    @property
-    def wallet_address(self):
-        return self.operator_address
-
-    @property
-    def staking_provider_address(self):
-        if not self.__staking_provider_address:
-            self.__staking_provider_address = self.get_staking_provider_address()
-        return self.__staking_provider_address
-
-    def get_staking_provider_address(self):
-        self.__staking_provider_address = self.application_agent.get_staking_provider_from_operator(self.operator_address)
-        self.checksum_address = self.__staking_provider_address
-        self.nickname = Nickname.from_seed(self.checksum_address)
-        return self.__staking_provider_address
-
-    @property
-    def is_confirmed(self):
-        return self.application_agent.is_operator_confirmed(self.operator_address)
-
-    def confirm_address(self, fire_and_forget: bool = True) -> Union[TxReceipt, HexBytes]:
-        txhash_or_receipt = self.application_agent.confirm_operator_address(self.transacting_power, fire_and_forget=fire_and_forget)
-        return txhash_or_receipt
-
-    def block_until_ready(self, poll_rate: int = None, timeout: int = None):
-        emitter = StdoutEmitter()
-        client = self.application_agent.blockchain.client
-        poll_rate = poll_rate or self.READY_POLL_RATE
-        timeout = timeout or self.READY_TIMEOUT
-        start, funded, bonded = maya.now(), False, False
-        while not (funded and bonded):
-
-            if timeout and ((maya.now() - start).total_seconds() > timeout):
-                message = f"x Operator was not qualified after {timeout} seconds"
-                emitter.message(message, color='red')
-                raise self.ActorError(message)
-
-            if not funded:
-                # check for funds
-                ether_balance = client.get_balance(self.operator_address)
-                if ether_balance:
-                    # funds found
-                    funded, balance = True, Web3.from_wei(ether_balance, 'ether')
-                    emitter.message(f"✓ Operator {self.operator_address} is funded with {balance} ETH", color='green')
-                else:
-                    emitter.message(f"! Operator {self.operator_address} is not funded with ETH", color="yellow")
-
-            if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
-                bonded = True
-                emitter.message(f"✓ Operator {self.operator_address} is bonded to staking provider {self.staking_provider_address}", color='green')
-            else:
-                emitter.message(f"! Operator {self.operator_address } is not bonded to a staking provider", color='yellow')
-
-            time.sleep(poll_rate)
-
-    def get_work_is_needed_check(self):
-        def func(self):
-            # we have not confirmed yet
-            return not self.is_confirmed
-        return func
-
-
-class Ritualist(BaseActor):
-    READY_TIMEOUT = None  # (None or 0) == indefinite
-    READY_POLL_RATE = 10
-
-    class RitualError(BaseActor.ActorError):
-        """ritualist-specific errors"""
-
-    def __init__(
-        self,
-        coordinator_provider_uri: str,
-        network: str,  # this must be the network where the coordinator lives
-        crypto_power: CryptoPower,
-        transacting_power: TransactingPower,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
-        publish_finalization: bool = True,  # TODO: Remove this
-        *args,
-        **kwargs,
-    ):
-        crypto_power.consume_power_up(transacting_power)
         super().__init__(transacting_power=transacting_power, *args, **kwargs)
-        self.log = Logger("ritualist")
+        self.log = Logger("operator")
 
+        self.__staking_provider_address = None  # set by block_until_ready
+
+        self.application_agent = ContractAgency.get_agent(
+            TACoApplicationAgent,
+            provider_uri=eth_provider_uri,
+            registry=self.registry,
+        )
+
+        # TODO: registry usage (and subsequently "network") is inconsistent here
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
-            registry=InMemoryContractRegistry.from_latest_publication(network=network),
+            registry=InMemoryContractRegistry.from_latest_publication(
+                network=coordinator_network
+            ),
             provider_uri=coordinator_provider_uri,
         )
 
+        self.work_tracker = work_tracker or WorkTracker(worker=self)
         # track active onchain rituals
         self.ritual_tracker = dkg.ActiveRitualTracker(
-            ritualist=self,
+            operator=self,
         )
 
         self.publish_finalization = (
@@ -323,8 +241,6 @@ class Ritualist(BaseActor):
         self.condition_providers = self.connect_condition_providers(
             condition_provider_uris
         )
-
-        self.set_provider_public_key()
 
     def set_provider_public_key(self):
         # Here we're assuming there is one global key per node.
@@ -354,17 +270,17 @@ class Ritualist(BaseActor):
         # did not configure any additional condition providers.
         condition_provider_uris = condition_provider_uris or dict()
 
-        # These are the chains that the Ritualist will connect to for conditions evaluation (read-only).
+        # These are the chains that the Operator will connect to for conditions evaluation (read-only).
         condition_providers = defaultdict(set)
 
         # Now, add any additional providers that were passed in.
         for chain_id, condition_provider_uris in condition_provider_uris.items():
             if not self._is_permitted_condition_chain(chain_id):
-                # this is a safety check to prevent the Ritualist from connecting to
+                # this is a safety check to prevent the Operator from connecting to
                 # chains that are not supported by ursulas on the network;
-                # Prevents the Ursula/Ritualist from starting up if this happens.
+                # Prevents the Ursula/Operator from starting up if this happens.
                 raise NotImplementedError(
-                    f"Chain ID {chain_id} is not supported for condition evaluation by the Ritualist."
+                    f"Chain ID {chain_id} is not supported for condition evaluation by this Operator."
                 )
 
             providers = set()
@@ -374,7 +290,7 @@ class Ritualist(BaseActor):
 
             condition_providers[int(chain_id)] = providers
 
-        # Log the chains that the Ritualist is connected to.
+        # Log the chains that the Operator is connected to.
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
         )
@@ -417,11 +333,11 @@ class Ritualist(BaseActor):
             else:
                 # Remote
                 try:
-                    remote_ritualist = self.known_nodes[staking_provider_address]
+                    remote_operator = self.known_nodes[staking_provider_address]
                 except KeyError:
                     raise self.ActorError(f"Unknown node {staking_provider_address}")
-                remote_ritualist.mature()
-                public_key = remote_ritualist.public_keys(RitualisticPower)
+                remote_operator.mature()
+                public_key = remote_operator.public_keys(RitualisticPower)
                 self.log.debug(
                     f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}"
                 )
@@ -691,6 +607,90 @@ class Ritualist(BaseActor):
             decryption_response=decryption_response,
             requester_public_key=requester_public_key,
         )
+
+    def _local_operator_address(self):
+        return self.__operator_address
+
+    @property
+    def wallet_address(self):
+        return self.operator_address
+
+    @property
+    def staking_provider_address(self):
+        if not self.__staking_provider_address:
+            self.__staking_provider_address = self.get_staking_provider_address()
+        return self.__staking_provider_address
+
+    def get_staking_provider_address(self):
+        self.__staking_provider_address = (
+            self.application_agent.get_staking_provider_from_operator(
+                self.operator_address
+            )
+        )
+        self.checksum_address = self.__staking_provider_address
+        self.nickname = Nickname.from_seed(self.checksum_address)
+        return self.__staking_provider_address
+
+    @property
+    def is_confirmed(self):
+        return self.application_agent.is_operator_confirmed(self.operator_address)
+
+    def confirm_address(
+        self, fire_and_forget: bool = True
+    ) -> Union[TxReceipt, HexBytes]:
+        txhash_or_receipt = self.application_agent.confirm_operator_address(
+            self.transacting_power, fire_and_forget=fire_and_forget
+        )
+        return txhash_or_receipt
+
+    def block_until_ready(self, poll_rate: int = None, timeout: int = None):
+        emitter = StdoutEmitter()
+        client = self.application_agent.blockchain.client
+        poll_rate = poll_rate or self.READY_POLL_RATE
+        timeout = timeout or self.READY_TIMEOUT
+        start, funded, bonded = maya.now(), False, False
+        while not (funded and bonded):
+            if timeout and ((maya.now() - start).total_seconds() > timeout):
+                message = f"x Operator was not qualified after {timeout} seconds"
+                emitter.message(message, color="red")
+                raise self.ActorError(message)
+
+            if not funded:
+                # check for funds
+                ether_balance = client.get_balance(self.operator_address)
+                if ether_balance:
+                    # funds found
+                    funded, balance = True, Web3.from_wei(ether_balance, "ether")
+                    emitter.message(
+                        f"✓ Operator {self.operator_address} is funded with {balance} ETH",
+                        color="green",
+                    )
+                else:
+                    emitter.message(
+                        f"! Operator {self.operator_address} is not funded with ETH",
+                        color="yellow",
+                    )
+
+            if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
+                bonded = True
+                emitter.message(
+                    f"✓ Operator {self.operator_address} is bonded to staking provider {self.staking_provider_address}",
+                    color="green",
+                )
+            else:
+                emitter.message(
+                    f"! Operator {self.operator_address } is not bonded to a staking provider",
+                    color="yellow",
+                )
+
+            time.sleep(poll_rate)
+
+    def get_work_is_needed_check(self):
+        def func(self):
+            # we have not confirmed yet
+            return not self.is_confirmed
+
+        return func
 
 
 class PolicyAuthor(NucypherTokenActor):
