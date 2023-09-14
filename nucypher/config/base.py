@@ -304,7 +304,7 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 6  # bump when static payload scheme changes
+    VERSION = 7  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     MNEMONIC_KEYSTORE = False

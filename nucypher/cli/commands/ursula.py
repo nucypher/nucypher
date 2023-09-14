@@ -475,7 +475,7 @@ def config(general_config, config_options, config_file, force, action):
     Sub-Commands
     ~~~~~~~~~~~~~
     ip-address - automatically detect and configure the external IP address.
-
+    migrate    - migrate existing configuration file to the latest version.
     """
     emitter = setup_emitter(general_config, config_options.operator_address)
 
