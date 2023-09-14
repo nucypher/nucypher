@@ -35,7 +35,7 @@ from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
-from nucypher.policy.payment import PAYMENT_METHODS
+from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.logging import Logger
 
 
@@ -321,8 +321,8 @@ class CharacterConfiguration(BaseConfiguration):
     DEFAULT_GAS_STRATEGY = 'fast'
 
     # Payments
-    DEFAULT_PAYMENT_METHOD = 'SubscriptionManager'
-    DEFAULT_PAYMENT_NETWORK = 'polygon'
+    DEFAULT_PRE_PAYMENT_METHOD = "SubscriptionManager"
+    DEFAULT_PRE_PAYMENT_NETWORK = "polygon"
 
     # Fields specified here are *not* passed into the Character's constructor
     # and can be understood as configuration fields only.
@@ -335,8 +335,8 @@ class CharacterConfiguration(BaseConfiguration):
         "max_gas_price",  # gwei
         "signer_uri",
         "keystore_path",
-        "payment_provider",
-        "payment_network",
+        "pre_payment_provider",
+        "pre_payment_network",
     )
 
     def __init__(
@@ -375,9 +375,9 @@ class CharacterConfiguration(BaseConfiguration):
         signer_uri: Optional[str] = None,
         # Payments
         # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
-        payment_method: Optional[str] = None,
-        payment_provider: Optional[str] = None,
-        payment_network: Optional[str] = None,
+        pre_payment_method: Optional[str] = None,
+        pre_payment_provider: Optional[str] = None,
+        pre_payment_network: Optional[str] = None,
         # Registries
         registry: Optional[BaseContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
@@ -463,7 +463,7 @@ class CharacterConfiguration(BaseConfiguration):
         # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
         # for uri in eth_provider_uri (list of uris fom config):
         BlockchainInterfaceFactory.get_or_create_interface(
-            eth_provider_uri=payment_provider,
+            eth_provider_uri=pre_payment_provider,
             poa=self.poa,
             light=self.is_light,
             emitter=emitter,
@@ -495,11 +495,15 @@ class CharacterConfiguration(BaseConfiguration):
         from nucypher.config.characters import BobConfiguration
 
         if not isinstance(self, BobConfiguration):
-            # if not payment_provider:
+            # if not pre_payment_provider:
             #     raise self.ConfigurationError("payment provider is required.")
-            self.payment_method = payment_method or self.DEFAULT_PAYMENT_METHOD
-            self.payment_network = payment_network or self.DEFAULT_PAYMENT_NETWORK
-            self.payment_provider = payment_provider or (
+            self.pre_payment_method = (
+                pre_payment_method or self.DEFAULT_PRE_PAYMENT_METHOD
+            )
+            self.pre_payment_network = (
+                pre_payment_network or self.DEFAULT_PRE_PAYMENT_NETWORK
+            )
+            self.pre_payment_provider = pre_payment_provider or (
                 self.eth_provider_uri or None
             )  # default to L1 payments
 
@@ -509,7 +513,7 @@ class CharacterConfiguration(BaseConfiguration):
                     self.log.info("Fetching latest policy registry from source.")
                     self.policy_registry = (
                         InMemoryContractRegistry.from_latest_publication(
-                            network=self.payment_network
+                            network=self.pre_payment_network
                         )
                     )
                 else:
@@ -834,16 +838,16 @@ class CharacterConfiguration(BaseConfiguration):
         node_storage = storage_class.from_payload(payload=storage_payload)
         return node_storage
 
-    def configure_payment_method(self):
+    def configure_pre_payment_method(self):
         # TODO: finalize config fields
         #
         # Strategy-Based (current implementation, inflexible & hardcoded)
-        # 'payment_strategy': 'SubscriptionManager'
-        # 'payment_network': 'matic'
-        # 'payment_provider': 'https:///matic.infura.io....'
+        # 'pre_payment_strategy': 'SubscriptionManager'
+        # 'pre_payment_network': 'matic'
+        # 'pre_payment_provider': 'https:///matic.infura.io....'
         #
         # Contract-Targeted (alternative implementation, flexible & generic)
-        # 'payment': {
+        # 'pre_payment': {
         #     'contract': '0xdeadbeef'
         #     'abi': '/home/abi/sm.json'
         #     'function': 'isPolicyActive'
@@ -852,15 +856,17 @@ class CharacterConfiguration(BaseConfiguration):
         #
 
         try:
-            payment_class = PAYMENT_METHODS[self.payment_method]
+            pre_payment_class = PRE_PAYMENT_METHODS[self.pre_payment_method]
         except KeyError:
-            raise KeyError(f'Unknown payment method "{self.payment_method}"')
+            raise KeyError(f'Unknown PRE payment method "{self.pre_payment_method}"')
 
-        if payment_class.ONCHAIN:
+        if pre_payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
-            payment_strategy = payment_class(network=self.payment_network,
-                                             eth_provider=self.payment_provider,
-                                             registry=self.policy_registry)
+            pre_payment_strategy = pre_payment_class(
+                network=self.pre_payment_network,
+                eth_provider=self.pre_payment_provider,
+                registry=self.policy_registry,
+            )
         else:
-            payment_strategy = payment_class()
-        return payment_strategy
+            pre_payment_strategy = pre_payment_class()
+        return pre_payment_strategy

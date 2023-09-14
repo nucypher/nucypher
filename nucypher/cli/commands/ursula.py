@@ -26,7 +26,7 @@ from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
     SELECT_OPERATOR_ACCOUNT,
-    SELECT_PAYMENT_NETWORK,
+    SELECT_PRE_PAYMENT_NETWORK,
 )
 from nucypher.cli.options import (
     group_options,
@@ -43,11 +43,11 @@ from nucypher.cli.options import (
     option_max_gas_price,
     option_min_stake,
     option_network,
-    option_payment_method,
-    option_payment_network,
-    option_payment_provider,
     option_poa,
     option_policy_registry_filepath,
+    option_pre_payment_method,
+    option_pre_payment_network,
+    option_pre_payment_provider,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -89,9 +89,9 @@ class UrsulaConfigOptions:
         signer_uri: str,
         availability_check: bool,
         lonely: bool,
-        payment_method: str,
-        payment_provider: str,
-        payment_network: str,
+        pre_payment_method: str,
+        pre_payment_provider: str,
+        pre_payment_network: str,
     ):
 
         self.eth_provider_uri = eth_provider_uri
@@ -109,9 +109,9 @@ class UrsulaConfigOptions:
         self.max_gas_price = max_gas_price
         self.availability_check = availability_check
         self.lonely = lonely
-        self.payment_method = payment_method
-        self.payment_provider = payment_provider
-        self.payment_network = payment_network
+        self.pre_payment_method = pre_payment_method
+        self.pre_payment_provider = pre_payment_provider
+        self.pre_payment_network = pre_payment_network
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -131,9 +131,9 @@ class UrsulaConfigOptions:
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
                 availability_check=self.availability_check,
-                payment_method=self.payment_method,
-                payment_provider=self.payment_provider,
-                payment_network=self.payment_network,
+                pre_payment_method=self.pre_payment_method,
+                pre_payment_provider=self.pre_payment_provider,
+                pre_payment_network=self.pre_payment_network,
             )
         else:
             if not config_file:
@@ -156,9 +156,9 @@ class UrsulaConfigOptions:
                     poa=self.poa,
                     light=self.light,
                     availability_check=self.availability_check,
-                    payment_method=self.payment_method,
-                    payment_provider=self.payment_provider,
-                    payment_network=self.payment_network,
+                    pre_payment_method=self.pre_payment_method,
+                    pre_payment_provider=self.pre_payment_provider,
+                    pre_payment_network=self.pre_payment_network,
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
@@ -209,9 +209,9 @@ class UrsulaConfigOptions:
             poa=self.poa,
             light=self.light,
             availability_check=self.availability_check,
-            payment_method=self.payment_method,
-            payment_provider=self.payment_provider,
-            payment_network=self.payment_network,
+            pre_payment_method=self.pre_payment_method,
+            pre_payment_provider=self.pre_payment_provider,
+            pre_payment_network=self.pre_payment_network,
         )
 
     def get_updates(self) -> dict:
@@ -229,9 +229,9 @@ class UrsulaConfigOptions:
             poa=self.poa,
             light=self.light,
             availability_check=self.availability_check,
-            payment_method=self.payment_method,
-            payment_provider=self.payment_provider,
-            payment_network=self.payment_network,
+            pre_payment_method=self.pre_payment_method,
+            pre_payment_provider=self.pre_payment_provider,
+            pre_payment_network=self.pre_payment_network,
         )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
@@ -268,9 +268,9 @@ group_config_options = group_options(
     dev=option_dev,
     availability_check=click.option('--availability-check/--disable-availability-check', help="Enable or disable self-health checks while running", is_flag=True, default=None),
     lonely=option_lonely,
-    payment_provider=option_payment_provider,
-    payment_network=option_payment_network,
-    payment_method=option_payment_method,
+    pre_payment_provider=option_pre_payment_provider,
+    pre_payment_network=option_pre_payment_network,
+    pre_payment_method=option_pre_payment_method,
 )
 
 
@@ -347,11 +347,12 @@ def init(general_config, config_options, force, config_root, key_material):
                 "--eth-provider is required to initialize a new ursula.", fg="red"
             ),
         )
-    if not config_options.payment_provider:
+    if not config_options.pre_payment_provider:
         raise click.BadOptionUsage(
-            "--payment-provider",
+            "--pre-payment-provider",
             message=click.style(
-                "--payment-provider is required to initialize a new ursula.", fg="red"
+                "--pre-payment-provider is required to initialize a new ursula.",
+                fg="red",
             ),
         )
     if not config_options.domain:
@@ -360,10 +361,10 @@ def init(general_config, config_options, force, config_root, key_material):
             message="Select Staking Network",
             network_type=NetworksInventory.ETH,
         )
-    if not config_options.payment_network:
-        config_options.payment_network = select_network(
+    if not config_options.pre_payment_network:
+        config_options.pre_payment_network = select_network(
             emitter,
-            message=SELECT_PAYMENT_NETWORK,
+            message=SELECT_PRE_PAYMENT_NETWORK,
             network_type=NetworksInventory.POLYGON,
         )
     ursula_config = config_options.generate_config(

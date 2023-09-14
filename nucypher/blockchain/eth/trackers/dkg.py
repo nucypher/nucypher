@@ -89,13 +89,13 @@ class ActiveRitualTracker:
 
     def __init__(
         self,
-        ritualist: "actors.Ritualist",
+        operator: "actors.Operator",
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         self.log = Logger("RitualTracker")
 
-        self.ritualist = ritualist
-        self.coordinator_agent = ritualist.coordinator_agent
+        self.operator = operator
+        self.coordinator_agent = operator.coordinator_agent
 
         # Restore/create persistent event scanner state
         self.persistent = persistent
@@ -104,8 +104,8 @@ class ActiveRitualTracker:
 
         # Map events to handlers
         self.actions = {
-            self.contract.events.StartRitual: self.ritualist.perform_round_1,
-            self.contract.events.StartAggregationRound: self.ritualist.perform_round_2,
+            self.contract.events.StartRitual: self.operator.perform_round_1,
+            self.contract.events.StartAggregationRound: self.operator.perform_round_2,
         }
 
         self.events = [
@@ -241,7 +241,7 @@ class ActiveRitualTracker:
         """
         participants = self.coordinator_agent.get_participants(ritual_id=ritual_id)
         for p in participants:
-            if p.provider == self.ritualist.checksum_address:
+            if p.provider == self.operator.checksum_address:
                 return p
 
         return None
@@ -277,7 +277,7 @@ class ActiveRitualTracker:
 
     def _get_participation_state(self, event: AttributeDict) -> ParticipationState:
         """
-        Returns the current participation state of the Ritualist as it pertains to
+        Returns the current participation state of the Operator as it pertains to
         the ritual associated with the provided event.
         """
         self._purge_expired_participation_states_as_needed()
@@ -304,7 +304,7 @@ class ActiveRitualTracker:
             # need to determine if participating in this ritual or not
             if event_type == self.contract.events.StartRitual:
                 participation_state = self.ParticipationState(
-                    participating=(self.ritualist.checksum_address in args.participants)
+                    participating=(self.operator.checksum_address in args.participants)
                 )
                 self._participation_states[ritual_id] = participation_state
                 return participation_state
@@ -429,5 +429,5 @@ class ActiveRitualTracker:
 
         end_block = self.scanner.get_suggested_scan_end_block()
         self.__scan(
-            suggested_start_block, end_block, self.ritualist.transacting_power.account
+            suggested_start_block, end_block, self.operator.transacting_power.account
         )

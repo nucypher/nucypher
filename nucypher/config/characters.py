@@ -72,8 +72,10 @@ class UrsulaConfiguration(CharacterConfiguration):
         """Configure default condition provider URIs for mainnet and polygon network."""
 
         # Polygon
-        polygon_chain_id = NetworksInventory.get_polygon_chain_id(self.payment_network)
-        self.condition_provider_uris[polygon_chain_id] = [self.payment_provider]
+        polygon_chain_id = NetworksInventory.get_polygon_chain_id(
+            self.pre_payment_network
+        )
+        self.condition_provider_uris[polygon_chain_id] = [self.pre_payment_provider]
 
         # Ethereum
         staking_chain_id = NetworksInventory.get_ethereum_chain_id(self.domain)
@@ -107,9 +109,9 @@ class UrsulaConfiguration(CharacterConfiguration):
 
             # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
-            payment_method=self.payment_method,
-            payment_provider=self.payment_provider,
-            payment_network=self.payment_network,
+            pre_payment_method=self.pre_payment_method,
+            pre_payment_provider=self.pre_payment_provider,
+            pre_payment_network=self.pre_payment_network,
         )
         return {**super().static_payload(), **payload}
 
@@ -118,7 +120,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         payload = dict(
             network_middleware=self.network_middleware,
             certificate=self.certificate,
-            payment_method=self.configure_payment_method()
+            pre_payment_method=self.configure_pre_payment_method(),
         )
         return {**super().dynamic_payload, **payload}
 
@@ -170,9 +172,9 @@ class AliceConfiguration(CharacterConfiguration):
         payload = dict(
             threshold=self.threshold,
             shares=self.shares,
-            payment_network=self.payment_network,
-            payment_provider=self.payment_provider,
-            payment_method=self.payment_method,
+            pre_payment_network=self.pre_payment_network,
+            pre_payment_provider=self.pre_payment_provider,
+            pre_payment_method=self.pre_payment_method,
             rate=self.rate,
             duration=self.duration,
         )
@@ -180,7 +182,7 @@ class AliceConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        payload = dict(payment_method=self.configure_payment_method())
+        payload = dict(pre_payment_method=self.configure_pre_payment_method())
         return {**super().dynamic_payload, **payload}
 
 

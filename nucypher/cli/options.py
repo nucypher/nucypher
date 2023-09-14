@@ -12,7 +12,7 @@ from nucypher.cli.types import (
     GWEI,
     MIN_AUTHORIZATION,
     NETWORK_PORT,
-    PAYMENT_METHOD_CHOICES,
+    PRE_PAYMENT_METHOD_CHOICES,
     STAKED_TOKENS_RANGE,
     NuCypherNetworkName,
 )
@@ -20,32 +20,116 @@ from nucypher.utilities.logging import Logger
 
 # Alphabetical
 
-option_config_file = click.option('--config-file', help="Path to configuration file", type=EXISTING_READABLE_FILE)
-option_config_root = click.option('--config-root', help="Custom configuration directory", type=click.Path(path_type=Path))
-option_dev = click.option('--dev', '-d', help="Enable development mode", is_flag=True)
-option_dry_run = click.option('--dry-run', '-x', help="Execute normally without actually starting the node", is_flag=True)
-option_etherscan = click.option('--etherscan/--no-etherscan', help="Enable/disable viewing TX in Etherscan")
-option_event_name = click.option('--event-name', help="Specify an event by name", type=click.STRING)
-option_force = click.option('--force', help="Don't ask for confirmation", is_flag=True)
-option_gas_strategy = click.option('--gas-strategy', help="Operate with a specified gas price strategy", type=click.STRING)  # TODO: GAS_STRATEGY_CHOICES
-option_key_material = click.option('--key-material', help="A pre-secured hex-encoded secret to use for private key derivations", type=click.STRING)
-option_max_gas_price = click.option('--max-gas-price', help="Maximum acceptable gas price (in GWEI)", type=GWEI)
-option_hw_wallet = click.option('--hw-wallet/--no-hw-wallet')
-option_light = click.option('--light', help="Indicate that node is light", is_flag=True, default=None)
-option_lonely = click.option('--lonely', help="Do not connect to seednodes", is_flag=True)
-option_min_stake = click.option('--min-stake', help="The minimum stake the teacher must have to be locally accepted.", type=STAKED_TOKENS_RANGE, default=MIN_AUTHORIZATION)
-option_operator_address = click.option('--operator-address', help="Address to bond as an operator", type=EIP55_CHECKSUM_ADDRESS, required=True)
-option_parameters = click.option('--parameters', help="Filepath to a JSON file containing additional parameters", type=EXISTING_READABLE_FILE)
-option_payment_provider = click.option('--payment-provider', 'payment_provider', help="Connection URL for payment method", type=click.STRING, required=False)
-option_payment_network = click.option('--payment-network', help="Payment network name", type=click.STRING, required=False)  # TODO: Choices
-option_payment_method = click.option('--payment-method', help="Payment method name", type=PAYMENT_METHOD_CHOICES, required=False)
-option_poa = click.option('--poa/--disable-poa', help="Inject POA middleware", is_flag=True, default=None)
-option_registry_filepath = click.option('--registry-filepath', help="Custom contract registry filepath", type=EXISTING_READABLE_FILE)
-option_policy_registry_filepath = click.option('--policy-registry-filepath', help="Custom contract registry filepath for policies", type=EXISTING_READABLE_FILE)
-option_signer_uri = click.option('--signer', 'signer_uri', '-S', default=None, type=str)
-option_staking_provider = click.option('--staking-provider', help="Staking provider ethereum address", type=EIP55_CHECKSUM_ADDRESS, required=True)
-option_teacher_uri = click.option('--teacher', 'teacher_uri', help="An Ursula URI to start learning from (seednode)", type=click.STRING)
-_option_middleware = click.option('-Z', '--mock-networking', help="Use in-memory transport instead of networking", count=True)
+option_config_file = click.option(
+    "--config-file", help="Path to configuration file", type=EXISTING_READABLE_FILE
+)
+option_config_root = click.option(
+    "--config-root",
+    help="Custom configuration directory",
+    type=click.Path(path_type=Path),
+)
+option_dev = click.option("--dev", "-d", help="Enable development mode", is_flag=True)
+option_dry_run = click.option(
+    "--dry-run",
+    "-x",
+    help="Execute normally without actually starting the node",
+    is_flag=True,
+)
+option_etherscan = click.option(
+    "--etherscan/--no-etherscan", help="Enable/disable viewing TX in Etherscan"
+)
+option_event_name = click.option(
+    "--event-name", help="Specify an event by name", type=click.STRING
+)
+option_force = click.option("--force", help="Don't ask for confirmation", is_flag=True)
+option_gas_strategy = click.option(
+    "--gas-strategy",
+    help="Operate with a specified gas price strategy",
+    type=click.STRING,
+)  # TODO: GAS_STRATEGY_CHOICES
+option_key_material = click.option(
+    "--key-material",
+    help="A pre-secured hex-encoded secret to use for private key derivations",
+    type=click.STRING,
+)
+option_max_gas_price = click.option(
+    "--max-gas-price", help="Maximum acceptable gas price (in GWEI)", type=GWEI
+)
+option_hw_wallet = click.option("--hw-wallet/--no-hw-wallet")
+option_light = click.option(
+    "--light", help="Indicate that node is light", is_flag=True, default=None
+)
+option_lonely = click.option(
+    "--lonely", help="Do not connect to seednodes", is_flag=True
+)
+option_min_stake = click.option(
+    "--min-stake",
+    help="The minimum stake the teacher must have to be locally accepted.",
+    type=STAKED_TOKENS_RANGE,
+    default=MIN_AUTHORIZATION,
+)
+option_operator_address = click.option(
+    "--operator-address",
+    help="Address to bond as an operator",
+    type=EIP55_CHECKSUM_ADDRESS,
+    required=True,
+)
+option_parameters = click.option(
+    "--parameters",
+    help="Filepath to a JSON file containing additional parameters",
+    type=EXISTING_READABLE_FILE,
+)
+option_pre_payment_provider = click.option(
+    "--pre-payment-provider",
+    "pre_payment_provider",
+    help="Connection URL for PRE payment method",
+    type=click.STRING,
+    required=False,
+)
+option_pre_payment_network = click.option(
+    "--pre-payment-network",
+    help="PRE payment network name",
+    type=click.STRING,
+    required=False,
+)  # TODO: Choices
+option_pre_payment_method = click.option(
+    "--pre-payment-method",
+    help="PRE payment method name",
+    type=PRE_PAYMENT_METHOD_CHOICES,
+    required=False,
+)
+option_poa = click.option(
+    "--poa/--disable-poa", help="Inject POA middleware", is_flag=True, default=None
+)
+option_registry_filepath = click.option(
+    "--registry-filepath",
+    help="Custom contract registry filepath",
+    type=EXISTING_READABLE_FILE,
+)
+option_policy_registry_filepath = click.option(
+    "--policy-registry-filepath",
+    help="Custom contract registry filepath for policies",
+    type=EXISTING_READABLE_FILE,
+)
+option_signer_uri = click.option("--signer", "signer_uri", "-S", default=None, type=str)
+option_staking_provider = click.option(
+    "--staking-provider",
+    help="Staking provider ethereum address",
+    type=EIP55_CHECKSUM_ADDRESS,
+    required=True,
+)
+option_teacher_uri = click.option(
+    "--teacher",
+    "teacher_uri",
+    help="An Ursula URI to start learning from (seednode)",
+    type=click.STRING,
+)
+_option_middleware = click.option(
+    "-Z",
+    "--mock-networking",
+    help="Use in-memory transport instead of networking",
+    count=True,
+)
 
 #
 # Alphabetical

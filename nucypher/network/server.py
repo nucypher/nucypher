@@ -304,7 +304,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(message, status=HTTPStatus.BAD_REQUEST)
 
         # Enforce Subscription Manager Payment
-        paid = this_node.payment_method.verify(payee=this_node.checksum_address, request=reenc_request)
+        paid = this_node.pre_payment_method.verify(
+            payee=this_node.checksum_address, request=reenc_request
+        )
         if not paid:
             message = f"{bob_identity_message} Policy {bytes(hrac)} is unpaid."
             return Response(message, status=HTTPStatus.PAYMENT_REQUIRED)
