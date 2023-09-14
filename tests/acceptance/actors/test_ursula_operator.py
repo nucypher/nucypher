@@ -59,5 +59,8 @@ def test_ursula_operator_confirmation(
 
     # now the worker has a staking provider
     assert ursula.get_staking_provider_address() == staking_provider
-    # confirmed on Ursula creation
+
+    # confirmed once ursula has set provider public key
+    ursula.set_provider_public_key()
+
     assert ursula.is_confirmed is True
