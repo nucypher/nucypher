@@ -37,6 +37,7 @@ all_configurations = tuple(
 )
 
 
+@pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_development_character_configurations(
     character, configuration, test_registry_source_manager, mocker, testerchain

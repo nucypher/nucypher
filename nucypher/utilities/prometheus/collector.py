@@ -19,7 +19,7 @@ from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     EthereumContractAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -178,7 +178,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
 
     def _collect_internal(self) -> None:
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent,
+            TACoApplicationAgent,
             registry=self.contract_registry,
             provider_uri=self.eth_provider_uri,
         )

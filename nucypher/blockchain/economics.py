@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from web3 import Web3
 from web3.types import Wei
 
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.registry import BaseContractRegistry
 from nucypher.blockchain.eth.token import TToken
 
@@ -61,7 +61,7 @@ class Economics:
         self.fee_rate = fee_rate
 
     @property
-    def pre_application_deployment_parameters(self) -> Tuple[int, ...]:
+    def taco_application_deployment_parameters(self) -> Tuple[int, ...]:
         """Cast coefficient attributes to uint256 compatible type for solidity+EVM"""
         deploy_parameters = (  # note: order-sensitive
             self.min_authorization,
@@ -103,10 +103,10 @@ class EconomicsFactory:
 
         # Agents
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, registry=registry, provider_uri=eth_provider_uri
+            TACoApplicationAgent, registry=registry, provider_uri=eth_provider_uri
         )
 
-        # PRE Application
+        # TACo Application
         min_authorization = application_agent.get_min_authorization()
         min_operator_seconds = application_agent.get_min_operator_seconds()
 

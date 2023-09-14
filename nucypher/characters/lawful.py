@@ -74,13 +74,14 @@ from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
 )
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.banners import (
     ALICE_BANNER,
@@ -677,7 +678,9 @@ class Bob(Character):
         )
 
         if len(successes) < threshold:
-            raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
+            raise Ursula.NotEnoughUrsulas(
+                f"Threshold of Ursulas unable to decrypt: {failures}"
+            )
         self.log.debug("Got enough shares to decrypt.")
 
         if decryption_request.variant == FerveoVariant.Precomputed:
@@ -701,25 +704,37 @@ class Bob(Character):
             gathered_shares[provider_address] = decryption_share
         return gathered_shares
 
-    def get_ritual_from_id(self, ritual_id):
-        # blockchain reads: get the DKG parameters and the cohort.
+    def _get_coordinator_agent(self) -> CoordinatorAgent:
         if not self.coordinator_agent:
             raise ValueError(
                 "No coordinator provider URI provided in Bob's constructor."
             )
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
 
+        return self.coordinator_agent
+
+    def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
+        ritual_id = self._get_coordinator_agent().get_ritual_id_from_public_key(
+            public_key
+        )
+        return ritual_id
+
+    def get_ritual_from_id(self, ritual_id) -> CoordinatorAgent.Ritual:
+        ritual = self._get_coordinator_agent().get_ritual(
+            ritual_id, with_participants=True
+        )
         return ritual
 
     def threshold_decrypt(
         self,
-        ritual_id: int,
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
     ) -> bytes:
-        ritual = self.get_ritual_from_id(ritual_id)
+        ritual_id = self.get_ritual_id_from_public_key(
+            public_key=threshold_message_kit.acp.public_key
+        )
+        ritual = self.get_ritual_from_id(ritual_id=ritual_id)
 
         if not ursulas:
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
@@ -735,11 +750,6 @@ class Bob(Character):
                 self.remember_node(ursula)
 
         variant = self._default_dkg_variant
-        threshold = (
-            (ritual.shares // 2) + 1
-            if variant == FerveoVariant.Simple
-            else ritual.shares
-        )  # TODO: #3095 get this from the ritual / put it on-chain?
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
@@ -752,7 +762,7 @@ class Bob(Character):
             decryption_request=decryption_request,
             participant_public_keys=participant_public_keys,
             cohort=ursulas,
-            threshold=threshold,
+            threshold=ritual.threshold,
         )
 
         return self.__decrypt(
@@ -1305,7 +1315,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(
-                PREApplicationAgent, provider_uri=provider_uri, registry=registry
+                TACoApplicationAgent, provider_uri=provider_uri, registry=registry
             )
             seednode_stake = application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address
@@ -1450,9 +1460,13 @@ class Enrico:
 
     banner = ENRICO_BANNER
 
-    def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
-        self.signing_power = SigningPower()
-        self._policy_pubkey = encrypting_key
+    def __init__(
+        self,
+        encrypting_key: Union[PublicKey, DkgPublicKey],
+        signer: Optional[Signer] = None,
+    ):
+        self.signer = signer
+        self._encrypting_key = encrypting_key
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
 
@@ -1470,20 +1484,29 @@ class Enrico:
         return message_kit
 
     def encrypt_for_dkg(
-        self, plaintext: bytes, conditions: Lingo
+        self,
+        plaintext: bytes,
+        conditions: Lingo,
     ) -> ThresholdMessageKit:
+        if not self.signer:
+            raise TypeError("This Enrico doesn't have a signer.")
+
         validate_condition_lingo(conditions)
         conditions_json = json.dumps(conditions)
         access_conditions = Conditions(conditions_json)
 
+        # encrypt for DKG
         ciphertext, auth_data = encrypt_for_dkg(
             plaintext, self.policy_pubkey, access_conditions
         )
 
-        # authentication for AllowLogic
-        # TODO Replace with `Signer` to be passed as parameter
+        # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = self.signing_power.keypair.sign(header_hash).to_be_bytes()
+        authorization = bytes(
+            self.signer.sign_message(
+                message=header_hash, account=self.signer.accounts[0]
+            )
+        )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
@@ -1502,8 +1525,8 @@ class Enrico:
 
     @property
     def policy_pubkey(self):
-        if not self._policy_pubkey:
+        if not self._encrypting_key:
             raise TypeError(
                 "This Enrico doesn't know which policy encrypting key he used.  Oh well."
             )
-        return self._policy_pubkey
+        return self._encrypting_key

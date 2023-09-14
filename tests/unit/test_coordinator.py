@@ -31,12 +31,21 @@ def test_mock_coordinator_creation(coordinator):
     assert len(coordinator.rituals) == 0
 
 
-def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinator, random_address):
+def test_mock_coordinator_initiation(
+    mocker,
+    nodes_transacting_powers,
+    coordinator,
+    random_address,
+    get_random_checksum_address,
+):
     assert len(coordinator.rituals) == 0
     mock_transacting_power = mocker.Mock()
     mock_transacting_power.account = random_address
     coordinator.initiate_ritual(
         providers=list(nodes_transacting_powers.keys()),
+        authority=mock_transacting_power.account,
+        duration=1,
+        access_controller=get_random_checksum_address(),
         transacting_power=mock_transacting_power,
     )
     assert len(coordinator.rituals) == 1
@@ -54,7 +63,7 @@ def test_mock_coordinator_initiation(mocker, nodes_transacting_powers, coordinat
     signal_type, signal_data = signal
     assert signal_type == MockCoordinatorAgent.Events.START_RITUAL
     assert signal_data["ritual_id"] == 0
-    assert signal_data["initiator"] == mock_transacting_power.account
+    assert signal_data["authority"] == mock_transacting_power.account
     assert set(signal_data["participants"]) == nodes_transacting_powers.keys()
 
 

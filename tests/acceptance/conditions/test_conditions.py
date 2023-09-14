@@ -25,8 +25,8 @@ from nucypher.policy.conditions.exceptions import (
     RPCExecutionFailed,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
-from tests.acceptance.constants import APE_TEST_CHAIN_ID
 from tests.constants import (
+    APE_TEST_CHAIN_ID,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
 )

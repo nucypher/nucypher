@@ -84,9 +84,9 @@ conditions = {
 }
 
 message = "hello world".encode()
-ciphertext = enrico.encrypt_for_dkg(plaintext=message, conditions=conditions)
+threshold_message_kit = enrico.encrypt_for_dkg(plaintext=message, conditions=conditions)
 
-print(f"Encrypted message: {bytes(ciphertext).hex()}")
+print(f"Encrypted message: {bytes(threshold_message_kit).hex()}")
 
 ###############
 # Bob
@@ -103,10 +103,6 @@ bob = Bob(
 
 bob.start_learning_loop(now=True)
 
-cleartext = bob.threshold_decrypt(
-    ritual_id=ritual_id,
-    ciphertext=ciphertext,
-    conditions=conditions,
-)
+cleartext = bob.threshold_decrypt(threshold_message_kit=threshold_message_kit)
 
 print(bytes(cleartext).decode())

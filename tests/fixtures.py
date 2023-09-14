@@ -19,6 +19,7 @@ from web3 import Web3
 
 import tests
 from nucypher.blockchain.economics import Economics
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
@@ -341,6 +342,11 @@ def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mo
     payment_method = SubscriptionManagerPayment(
         eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
     )
+
+    mocker.patch.object(
+        Operator, "get_staking_provider_address", return_value=random_account.address
+    )
+
     ursula = Ursula(
         rest_host=LOOPBACK_ADDRESS,
         rest_port=select_test_port(),

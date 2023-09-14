@@ -1,16 +1,20 @@
-from collections import Counter
-
-import pytest
 import random
+from collections import Counter
 from itertools import permutations
 from unittest.mock import Mock
 
+import pytest
+
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import WeightedSampler, ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    TACoApplicationAgent,
+    WeightedSampler,
+)
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import TransactingPower, CryptoPower
+from nucypher.crypto.powers import CryptoPower, TransactingPower
 from tests.constants import TEST_ETH_PROVIDER_URI
 
 
@@ -18,7 +22,7 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
 
     # setup
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -33,7 +37,9 @@ def test_sampling_distribution(testerchain, test_registry, threshold_staking, ap
         # initialize threshold stake
         tx = threshold_staking.functions.setRoles(provider_address).transact()
         testerchain.wait_for_receipt(tx)
-        tx = threshold_staking.functions.setStakes(provider_address, amount, 0, 0).transact()
+        tx = threshold_staking.functions.authorizationIncreased(
+            provider_address, 0, amount
+        ).transact()
         testerchain.wait_for_receipt(tx)
 
         power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))

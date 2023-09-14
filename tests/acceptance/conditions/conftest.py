@@ -13,8 +13,7 @@ from nucypher.policy.conditions.lingo import (
     OrCompoundCondition,
     ReturnValueTest,
 )
-from tests.acceptance.constants import APE_TEST_CHAIN_ID
-from tests.constants import TEST_ETH_PROVIDER_URI
+from tests.constants import APE_TEST_CHAIN_ID, TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture()
@@ -67,11 +66,11 @@ def erc20_evm_condition_balanceof(testerchain, test_registry):
 
 
 @pytest.fixture
-def erc721_contract(accounts, project, test_registry):
+def erc721_contract(accounts, project):
     account = accounts[0]
 
     # deploy contract
-    deployed_contract = account.deploy(project.ConditionNFT)
+    deployed_contract = project.ConditionNFT.deploy(sender=account)
 
     # mint nft with token id = 1
     deployed_contract.mint(account.address, 1, sender=account)

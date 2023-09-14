@@ -26,7 +26,12 @@ from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
-from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Transcript
+from nucypher_core.ferveo import (
+    AggregatedTranscript,
+    DkgPublicKey,
+    FerveoPublicKey,
+    Transcript,
+)
 from web3.contract.contract import Contract, ContractFunction
 from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
@@ -38,12 +43,14 @@ from nucypher.blockchain.eth.constants import (
     ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
-    PRE_APPLICATION_CONTRACT_NAME,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
+    TACO_APPLICATION_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import (
+    BaseContractRegistry,
+)
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
@@ -382,9 +389,9 @@ class AdjudicatorAgent(EthereumContractAgent):
         return staking_parameters
 
 
-class PREApplicationAgent(EthereumContractAgent):
+class TACoApplicationAgent(EthereumContractAgent):
 
-    contract_name: str = PRE_APPLICATION_CONTRACT_NAME
+    contract_name: str = TACO_APPLICATION_CONTRACT_NAME
 
     DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
     DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
@@ -399,7 +406,7 @@ class PREApplicationAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
-        result = self.contract.functions.minAuthorization().call()
+        result = self.contract.functions.minimumAuthorization().call()
         return result
 
     @contract_api(CONTRACT_CALL)
@@ -574,6 +581,38 @@ class CoordinatorAgent(EthereumContractAgent):
     contract_name: str = "Coordinator"
     _proxy_name = None
 
+    class G2Point(NamedTuple):
+        """
+        Coordinator contract representation of Ferveo Participant public key.
+        """
+
+        # TODO validation of these if used directly
+        word0: bytes  # 32 bytes
+        word1: bytes  # 32 bytes
+        word2: bytes  # 32 bytes
+
+        @classmethod
+        def from_public_key(cls, public_key: FerveoPublicKey):
+            return cls.from_bytes(bytes(public_key))
+
+        @classmethod
+        def from_bytes(cls, data: bytes):
+            if len(data) != FerveoPublicKey.serialized_size():
+                raise ValueError(
+                    f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G2Point"
+                )
+            return cls(word0=data[:32], word1=data[32:64], word2=data[64:96])
+
+        def to_public_key(self) -> FerveoPublicKey:
+            data = bytes(self)
+            if not data:
+                return None
+
+            return FerveoPublicKey.from_bytes(data)
+
+        def __bytes__(self):
+            return self.word0 + self.word1 + self.word2
+
     @dataclass
     class Ritual:
 
@@ -623,8 +662,13 @@ class CoordinatorAgent(EthereumContractAgent):
                 return self.word0 + self.word1
 
         initiator: ChecksumAddress
+        authority: ChecksumAddress
+        access_controller: ChecksumAddress
         dkg_size: int
         init_timestamp: int
+        end_timestamp: int
+        threshold: int
+
         total_transcripts: int = 0
         total_aggregations: int = 0
         public_key: G1Point = None
@@ -666,17 +710,21 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = self.Ritual(
             initiator=ChecksumAddress(result[0]),
-            dkg_size=result[1],
-            init_timestamp=result[2],
+            init_timestamp=result[1],
+            end_timestamp=result[2],
             total_transcripts=result[3],
             total_aggregations=result[4],
-            aggregation_mismatch=result[6],
-            aggregated_transcript=bytes(result[7]),
+            authority=ChecksumAddress(result[5]),
+            dkg_size=result[6],
+            threshold=result[7],
+            aggregation_mismatch=result[8],
+            access_controller=ChecksumAddress(result[9]),
+            aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
         )
 
         # public key
-        ritual.public_key = self.Ritual.G1Point(result[5][0], result[5][1])
+        ritual.public_key = self.Ritual.G1Point(result[10][0], result[10][1])
 
         # participants
         if with_participants:
@@ -704,6 +752,16 @@ class CoordinatorAgent(EthereumContractAgent):
         return participants
 
     @contract_api(CONTRACT_CALL)
+    def get_provider_public_key(
+        self, provider: ChecksumAddress, ritual_id: int
+    ) -> FerveoPublicKey:
+        result = self.contract.functions.getProviderPublicKey(
+            provider, ritual_id
+        ).call()
+        g2_point = self.G2Point(result[0], result[1], result[2])
+        return g2_point.to_public_key()
+
+    @contract_api(CONTRACT_CALL)
     def number_of_rituals(self) -> int:
         result = self.contract.functions.numberOfRituals().call()
         return result
@@ -723,12 +781,47 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         return participant
 
+    @contract_api(CONTRACT_CALL)
+    def is_encryption_authorized(
+        self, ritual_id: int, evidence: bytes, ciphertext_header: bytes
+    ) -> bool:
+        """
+        This contract read is relayed through coordinator to the access controller
+        contract associated with a given ritual.
+        """
+        result = self.contract.functions.isEncryptionAuthorized(
+            ritual_id, evidence, ciphertext_header
+        ).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
+        result = self.contract.functions.isProviderPublicKeySet(staking_provider).call()
+        return result
+
+    @contract_api(TRANSACTION)
+    def set_provider_public_key(
+        self, public_key: FerveoPublicKey, transacting_power: TransactingPower
+    ) -> TxReceipt:
+        contract_function = self.contract.functions.setProviderPublicKey(
+            self.G2Point.from_public_key(public_key)
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
+        return receipt
+
     @contract_api(TRANSACTION)
     def initiate_ritual(
-        self, providers: List[ChecksumAddress], transacting_power: TransactingPower
+        self,
+        providers: List[ChecksumAddress],
+        authority: ChecksumAddress,
+        duration: int,
+        access_controller: ChecksumAddress,
+        transacting_power: TransactingPower,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.initiateRitual(
-            providers
+            providers, authority, duration, access_controller
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power
@@ -766,7 +859,7 @@ class CoordinatorAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
-            publicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
+            dkgPublicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
             decryptionRequestStaticKey=bytes(participant_public_key),
         )
         receipt = self.blockchain.send_transaction(
@@ -775,6 +868,21 @@ class CoordinatorAgent(EthereumContractAgent):
             fire_and_forget=fire_and_forget,
         )
         return receipt
+
+    @contract_api(TRANSACTION)
+    def get_ritual_initiation_cost(
+        self, providers: List[ChecksumAddress], duration: int
+    ) -> Wei:
+        result = self.contract.functions.getRitualInitiationCost(
+            providers, duration
+        ).call()
+        return Wei(result)
+
+    @contract_api(TRANSACTION)
+    def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
+        g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
+        result = self.contract.functions.getRitualIdFromPublicKey(g1_point).call()
+        return result
 
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
         if self.get_ritual_status(ritual_id=ritual_id) != self.Ritual.Status.FINALIZED:
@@ -786,13 +894,6 @@ class CoordinatorAgent(EthereumContractAgent):
             return None
 
         return ritual.public_key.to_dkg_public_key()
-
-    def is_encryption_authorized(
-        self, ritual_id: int, evidence: bytes, digest: bytes
-    ) -> bool:
-        # TODO: actually call contract.
-        # get ritual -> get access controller -> call isAuthorized(ritualId, evidence, digest)
-        return True
 
 
 class ContractAgency:
@@ -843,8 +944,6 @@ class ContractAgency:
         if name == NUCYPHER_TOKEN_CONTRACT_NAME:
             # TODO: Perhaps rename NucypherTokenAgent
             name = "NucypherToken"
-        if name == PRE_APPLICATION_CONTRACT_NAME:
-            name = "PREApplication"  # TODO not needed once full PRE Application is used
         agent_name = f"{name}Agent"
         return agent_name
 
@@ -930,7 +1029,9 @@ class StakingProvidersReservoir:
 
     def draw(self, quantity):
         if quantity > len(self):
-            raise PREApplicationAgent.NotEnoughStakingProviders(f'Cannot sample {quantity} out of {len(self)} total staking providers')
+            raise TACoApplicationAgent.NotEnoughStakingProviders(
+                f"Cannot sample {quantity} out of {len(self)} total staking providers"
+            )
 
         return self._sampler.sample_no_replacement(self._rng, quantity)
 

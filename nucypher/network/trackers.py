@@ -9,7 +9,7 @@ from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
 from nucypher import characters
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -31,7 +31,7 @@ class OperatorBondedTracker(SimpleTask):
 
     def run(self) -> None:
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent,
+            TACoApplicationAgent,
             registry=self._ursula.registry,
             provider_uri=self._ursula.eth_provider_uri,
         )

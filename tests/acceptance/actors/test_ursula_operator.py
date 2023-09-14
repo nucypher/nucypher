@@ -11,7 +11,7 @@ from web3.middleware.simulate_unmined_transaction import (
 )
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.pre import WorkTracker, WorkTrackerBase
@@ -36,7 +36,7 @@ def test_ursula_operator_confirmation(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -48,8 +48,8 @@ def test_ursula_operator_confirmation(
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        staking_provider, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -96,7 +96,7 @@ def test_ursula_operator_confirmation_autopilot(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -112,8 +112,8 @@ def test_ursula_operator_confirmation_autopilot(
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider2).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        staking_provider2, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider2, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 
@@ -170,7 +170,7 @@ def test_work_tracker(
     test_registry,
 ):
     application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
@@ -212,8 +212,8 @@ def test_work_tracker(
     # make an staking_providers and some stakes
     tx = threshold_staking.functions.setRoles(staking_provider3).transact()
     testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        staking_provider3, min_authorization, 0, 0
+    tx = threshold_staking.functions.authorizationIncreased(
+        staking_provider3, 0, min_authorization
     ).transact()
     testerchain.wait_for_receipt(tx)
 

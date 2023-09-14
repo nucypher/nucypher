@@ -33,7 +33,7 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
     NucypherTokenAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
@@ -204,7 +204,7 @@ class Operator(BaseActor):
         self.__staking_provider_address = None  # set by block_until_ready
         if is_me:
             self.application_agent = ContractAgency.get_agent(
-                PREApplicationAgent,
+                TACoApplicationAgent,
                 provider_uri=eth_provider_uri,
                 registry=self.registry,
             )
@@ -323,6 +323,18 @@ class Ritualist(BaseActor):
         self.condition_providers = self.connect_condition_providers(
             condition_provider_uris
         )
+
+        self.set_provider_public_key()
+
+    def set_provider_public_key(self):
+        # Here we're assuming there is one global key per node.
+        is_provider_key_set = self.coordinator_agent.is_provider_public_key_set(
+            self.staking_provider_address,
+        )
+        if not is_provider_key_set:
+            self.coordinator_agent.set_provider_public_key(
+                self.ritual_power.public_key(), transacting_power=self.transacting_power
+            )
 
     @staticmethod
     def _is_permitted_condition_chain(chain_id: int) -> bool:
@@ -458,7 +470,7 @@ class Ritualist(BaseActor):
     def perform_round_1(
         self,
         ritual_id: int,
-        initiator: ChecksumAddress,
+        authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
     ) -> Optional[HexBytes]:
@@ -501,7 +513,9 @@ class Ritualist(BaseActor):
             )
             return None
 
-        self.log.debug(f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp}")
+        self.log.debug(
+            f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp} with authority {authority}."
+        )
 
         # gather the cohort
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
@@ -516,7 +530,7 @@ class Ritualist(BaseActor):
         try:
             transcript = self.ritual_power.generate_transcript(
                 nodes=nodes,
-                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
+                threshold=ritual.threshold,
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id
@@ -538,7 +552,7 @@ class Ritualist(BaseActor):
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
-            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) initiated by {initiator}"
+            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) with authority {authority}."
         )
         return tx_hash
 
@@ -589,7 +603,7 @@ class Ritualist(BaseActor):
         # Aggregate the transcripts
         try:
             result = self.ritual_power.aggregate_transcripts(
-                threshold=(ritual.shares // 2) + 1,  # TODO: #3095 This is a constant or needs to be stored somewhere else
+                threshold=ritual.threshold,
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id,
@@ -644,13 +658,12 @@ class Ritualist(BaseActor):
                 f"ritual #{ritual_id} is missing transcripts"
             )
 
-        threshold = (ritual.shares // 2) + 1
         # TODO: consider the usage of local DKG artifact storage here #3052
         # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=nodes,
-            threshold=threshold,
+            threshold=ritual.threshold,
             shares=ritual.shares,
             checksum_address=self.checksum_address,
             ritual_id=ritual_id,
@@ -686,7 +699,7 @@ class PolicyAuthor(NucypherTokenActor):
     def __init__(self, eth_provider_uri: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
+            TACoApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
         )
 
     def create_policy(self, *args, **kwargs):

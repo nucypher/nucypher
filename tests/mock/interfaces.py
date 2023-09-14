@@ -7,7 +7,7 @@ from typing import Union
 
 from hexbytes import HexBytes
 
-from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.clients import EthereumTesterClient
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -82,7 +82,7 @@ class MockBlockchain(TesterBlockchain):
         return self.FAKE_RECEIPT
 
 
-class MockEthereumClient(EthereumClient):
+class MockEthereumClient(EthereumTesterClient):
 
     def __init__(self, w3):
         super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)

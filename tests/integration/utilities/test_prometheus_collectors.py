@@ -4,7 +4,7 @@ from typing import List
 
 import pytest
 
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.types import StakingProviderInfo
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
@@ -107,8 +107,8 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers, mo
     collector.initialize(metrics_prefix=prefix, registry=collector_registry)
     collector.collect()
 
-    pre_application_agent = ContractAgency.get_agent(
-        PREApplicationAgent, registry=test_registry
+    taco_application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent, registry=test_registry
     )
 
     active_stake = collector_registry.get_sample_value(
@@ -117,13 +117,13 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers, mo
     # only floats can be stored
     assert active_stake == float(
         int(
-            pre_application_agent.get_authorized_stake(
+            taco_application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address
             )
         )
     )
 
-    staking_provider_info = pre_application_agent.get_staking_provider_info(
+    staking_provider_info = taco_application_agent.get_staking_provider_info(
         staking_provider=staking_provider_address
     )
 

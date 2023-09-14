@@ -26,7 +26,6 @@ threshold_message_kit = enrico.encrypt_for_dkg(
 )
 
 cleartext_from_ciphertext = bob.threshold_decrypt(
-    ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID,
     threshold_message_kit=threshold_message_kit,
 )
 
