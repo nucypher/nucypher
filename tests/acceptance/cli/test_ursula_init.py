@@ -31,8 +31,9 @@ def mock_funded_account_password_keystore(
     tmp_path_factory,
     testerchain,
     threshold_staking,
-    application_economics,
+    taco_application_agent,
     test_registry,
+    deployer_account,
 ):
     """
     Generate a random keypair & password and create a local keystore. Then prepare a staking provider
@@ -56,12 +57,13 @@ def mock_funded_account_password_keystore(
 
     # initialize threshold stake
     provider_address = testerchain.unassigned_accounts[0]
-    tx = threshold_staking.functions.setRoles(provider_address).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        provider_address, 0, application_economics.min_authorization
-    ).transact()
-    testerchain.wait_for_receipt(tx)
+    threshold_staking.setRoles(provider_address, sender=deployer_account)
+    threshold_staking.setStakes(
+        provider_address,
+        0,
+        taco_application_agent.get_min_authorization(),
+        sender=deployer_account,
+    )
 
     provider_power = TransactingPower(
         account=provider_address, signer=Web3Signer(testerchain.client)
@@ -87,7 +89,6 @@ def test_ursula_and_local_keystore_signer_integration(
     click_runner,
     tmp_path,
     staking_providers,
-    application_economics,
     mocker,
     mock_funded_account_password_keystore,
     testerchain,

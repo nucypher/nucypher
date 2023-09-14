@@ -114,6 +114,7 @@ def oz_dependency(project):
 # Contracts
 #
 
+
 @pytest.fixture(scope="module")
 def ritual_token(project, deployer_account):
     _ritual_token = deployer_account.deploy(project.RitualToken, TOTAL_SUPPLY)

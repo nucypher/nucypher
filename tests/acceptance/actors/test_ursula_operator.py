@@ -52,7 +52,7 @@ def test_ursula_operator_confirmation(
         taco_application_agent.get_staking_provider_from_operator(operator_address)
         == NULL_ADDRESS
     )
-    assert not taco_application_agent.is_operator_confirmed(operator_address)
+    assert taco_application_agent.is_operator_confirmed(operator_address) is False
 
     # bond this operator
     tpower = TransactingPower(
@@ -133,7 +133,7 @@ def test_ursula_operator_confirmation_autopilot(
         log(f"Verifying worker made {expected_confirmations} commitment so far")
         assert confirmation_spy.call_count == expected_confirmations
         assert replacement_confirmation_spy.call_count == 0  # no replacement txs needed
-        assert taco_application_agent.is_operator_confirmed(operator2)
+        assert taco_application_agent.is_operator_confirmed(operator2) is True
 
     # Behavioural Test, like a screenplay made of legos
 
@@ -246,12 +246,12 @@ def test_work_tracker(
     def verify_confirmed(_):
         # Verify that commitment made on-chain automatically
         log("Verifying operator is confirmed")
-        assert taco_application_agent.is_operator_confirmed(operator3)
+        assert taco_application_agent.is_operator_confirmed(operator3) is True
 
     def verify_not_yet_confirmed(_):
         # Verify that commitment made on-chain automatically
         log("Verifying operator is not confirmed")
-        assert not taco_application_agent.is_operator_confirmed(operator3)
+        assert taco_application_agent.is_operator_confirmed(operator3) is False
 
     # Behavioural Test, like a screenplay made of legos
     # Simulate unmined transactions
