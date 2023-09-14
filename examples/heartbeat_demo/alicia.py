@@ -77,8 +77,8 @@ wallet = Signer.from_signer_uri(SIGNER_URI)
 password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): ")
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
-# This is Alice's payment method.
-payment_method = SubscriptionManagerPayment(
+# This is Alice's PRE payment method.
+pre_payment_method = SubscriptionManagerPayment(
     network=L2_NETWORK,
     eth_provider=L2_PROVIDER
 )
@@ -89,7 +89,7 @@ alicia = Alice(
     signer=wallet,
     domain=L1_NETWORK,
     eth_provider_uri=L1_PROVIDER,
-    payment_method=payment_method
+    pre_payment_method=pre_payment_method,
 )
 
 # Alice puts her public key somewhere for Bob to find later...
@@ -119,7 +119,7 @@ print(
 # that **don't exist yet**.
 # In this example, we create a local file with encrypted data, containing
 # heart rate measurements from a heart monitor
-import heart_monitor
+import heart_monitor  # ruff:noqa:F402
 
 heart_monitor.generate_heart_rate_samples(policy_pubkey,
                                           samples=50,
@@ -129,7 +129,7 @@ heart_monitor.generate_heart_rate_samples(policy_pubkey,
 # Alicia now wants to share data associated with this label.
 # To do so, she needs the public key of the recipient.
 # In this example, we generate it on the fly (for demonstration purposes)
-from doctor_keys import get_doctor_pubkeys
+from doctor_keys import get_doctor_pubkeys  # ruff:noqa:F402
 
 doctor_pubkeys = get_doctor_pubkeys()
 

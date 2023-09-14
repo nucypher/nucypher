@@ -3,7 +3,7 @@ import random
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -480,5 +480,5 @@ def mock_condition_blockchains(session_mocker):
 @pytest.fixture(scope="module", autouse=True)
 def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
-        Ritualist, "_make_condition_provider", return_value=testerchain.provider
+        Operator, "_make_condition_provider", return_value=testerchain.provider
     )

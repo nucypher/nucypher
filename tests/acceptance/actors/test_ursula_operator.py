@@ -10,7 +10,7 @@ from web3.middleware.simulate_unmined_transaction import (
     unmined_receipt_simulator_middleware,
 )
 
-from nucypher.blockchain.eth.actors import Operator, Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.pre import WorkTracker, WorkTrackerBase
@@ -89,7 +89,7 @@ def test_ursula_operator_confirmation_autopilot(
     operator2 = testerchain.ursula_account(1)
     min_authorization = taco_application_agent.get_min_authorization()
 
-    confirmation_spy = mocker.spy(Ritualist, "set_provider_public_key")
+    confirmation_spy = mocker.spy(Operator, "set_provider_public_key")
     # TODO: WorkerTracker may no longer be needed
     replacement_confirmation_spy = mocker.spy(
         WorkTrackerBase, "_WorkTrackerBase__fire_replacement_commitment"

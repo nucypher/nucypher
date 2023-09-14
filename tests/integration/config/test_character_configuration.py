@@ -43,7 +43,7 @@ def test_development_character_configurations(
     character, configuration, test_registry_source_manager, mocker, testerchain
 ):
     mocker.patch.object(
-        CharacterConfiguration, "DEFAULT_PAYMENT_NETWORK", TEMPORARY_DOMAIN
+        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
     )
     params = dict(
         dev_mode=True,
@@ -127,9 +127,9 @@ def test_default_character_configuration_preservation(
             eth_provider_uri=MOCK_ETH_PROVIDER_URI,
             domain=network,
             rest_host=MOCK_IP_ADDRESS,
-            payment_provider=MOCK_ETH_PROVIDER_URI,
+            pre_payment_provider=MOCK_ETH_PROVIDER_URI,
             policy_registry=test_registry,
-            payment_network=TEMPORARY_DOMAIN,
+            pre_payment_network=TEMPORARY_DOMAIN,
             keystore=keystore,
         )
 
@@ -138,7 +138,7 @@ def test_default_character_configuration_preservation(
             checksum_address=fake_address,
             eth_provider_uri=MOCK_ETH_PROVIDER_URI,
             domain=network,
-            payment_network=TEMPORARY_DOMAIN,
+            pre_payment_network=TEMPORARY_DOMAIN,
             policy_registry=test_registry,
         )
 
@@ -176,7 +176,7 @@ def test_ursula_development_configuration(test_registry_source_manager, testerch
         checksum_address=testerchain.unassigned_accounts[0],
         operator_address=testerchain.unassigned_accounts[1],
         domain=TEMPORARY_DOMAIN,
-        payment_network=TEMPORARY_DOMAIN,
+        pre_payment_network=TEMPORARY_DOMAIN,
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
     assert config.is_me is True

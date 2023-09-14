@@ -72,7 +72,8 @@ SAMPLE_RATE: int = 15  # seconds
 GAS_STRATEGY: str = 'fast'
 MAX_GAS_PRICE: int = 200  # gwei
 LABEL_PREFIX = 'random-metrics-label-'
-LABEL_SUFFIXER = lambda: os.urandom(16).hex()
+def LABEL_SUFFIXER():
+    return os.urandom(16).hex()
 HANDPICKED_URSULA_URIS: List[str] = [
     # DEFAULT_SEEDNODE_URIS[0],  # uncomment to use the seednode for granting
 ]
@@ -151,8 +152,8 @@ def collect(alice: Alice,
 def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     """Initializes a new 'persistent alice configuration' for grant metrics collection."""
 
-    # This is Alice's payment method.
-    payment_method = SubscriptionManagerPayment(
+    # This is Alice's PRE payment method.
+    pre_payment_method = SubscriptionManagerPayment(
         network='polygon',
         eth_provider=POLYGON_PROVIDER_URI
     )
@@ -175,7 +176,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
     alice_config.initialize(password=INSECURE_PASSWORD)
     alice_config.keystore.unlock(password=INSECURE_PASSWORD)
-    alice = alice_config.produce(payment_method=payment_method, signer=wallet)
+    alice = alice_config.produce(pre_payment_method=pre_payment_method, signer=wallet)
     alice.start_learning_loop(now=True)
     return alice
 

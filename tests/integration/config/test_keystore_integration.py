@@ -74,7 +74,7 @@ def test_characters_use_keystore(
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    payment_method = SubscriptionManagerPayment(
+    pre_payment_method = SubscriptionManagerPayment(
         eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
     )
 
@@ -84,7 +84,7 @@ def test_characters_use_keystore(
         domain=TEMPORARY_DOMAIN,
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
-        payment_method=payment_method,
+        pre_payment_method=pre_payment_method,
     )
     Bob(
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
@@ -99,7 +99,7 @@ def test_characters_use_keystore(
         rest_host=LOOPBACK_ADDRESS,
         rest_port=12345,
         domain=TEMPORARY_DOMAIN,
-        payment_method=payment_method,
+        pre_payment_method=pre_payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
     )
@@ -158,7 +158,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    payment_method = SubscriptionManagerPayment(
+    pre_payment_method = SubscriptionManagerPayment(
         eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
     )
 
@@ -168,7 +168,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         rest_host=LOOPBACK_ADDRESS,
         rest_port=12345,
         domain=TEMPORARY_DOMAIN,
-        payment_method=payment_method,
+        pre_payment_method=pre_payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,

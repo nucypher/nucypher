@@ -10,7 +10,6 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
-from tests.constants import MOCK_IP_ADDRESS
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import select_test_port
 
@@ -47,28 +46,31 @@ def assemble(checksum_address: str = None,
 def make_ursula_test_configuration(
     operator_address: ChecksumAddress,
     rest_port: int = select_test_port(),
-    payment_provider: str = None,
+    pre_payment_provider: str = None,
     **assemble_kwargs
 ) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
     ursula_config = UrsulaConfiguration(
         **test_params,
         rest_port=rest_port,
-        payment_provider=payment_provider,
-        payment_network=TEMPORARY_DOMAIN,
+        pre_payment_provider=pre_payment_provider,
+        pre_payment_network=TEMPORARY_DOMAIN,
         operator_address=operator_address,
         policy_registry=test_params["registry"]
     )
     return ursula_config
 
 
-def make_alice_test_configuration(payment_provider: str = None,
-                                  **assemble_kwargs) -> AliceConfiguration:
+def make_alice_test_configuration(
+    pre_payment_provider: str = None, **assemble_kwargs
+) -> AliceConfiguration:
     test_params = assemble(**assemble_kwargs)
-    config = AliceConfiguration(**test_params,
-                                payment_provider=payment_provider,
-                                payment_network=TEMPORARY_DOMAIN,
-                                policy_registry=test_params['registry'])
+    config = AliceConfiguration(
+        **test_params,
+        pre_payment_provider=pre_payment_provider,
+        pre_payment_network=TEMPORARY_DOMAIN,
+        policy_registry=test_params["registry"]
+    )
     return config
 
 
