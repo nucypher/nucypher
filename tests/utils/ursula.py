@@ -84,9 +84,7 @@ def make_ursulas(
             **ursula_overrides
         )
 
-        # TODO: Confirm operator here?
-        # if commit_now:
-        #     ursula.confirm_operator_address()
+        ursula.set_provider_public_key()
 
         ursulas.append(ursula)
 
