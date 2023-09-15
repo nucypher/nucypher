@@ -240,12 +240,16 @@ class Operator(BaseActor):
             condition_provider_uris
         )
 
-    def set_provider_public_key(self) -> TxReceipt:
+    def set_provider_public_key(self) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
-        receipt = self.coordinator_agent.set_provider_public_key(
-            self.ritual_power.public_key(), transacting_power=self.transacting_power
+        node_global_ferveo_key_set = self.coordinator_agent.is_provider_public_key_set(
+            self.staking_provider_address
         )
-        return receipt
+        if not node_global_ferveo_key_set:
+            receipt = self.coordinator_agent.set_provider_public_key(
+                self.ritual_power.public_key(), transacting_power=self.transacting_power
+            )
+            return receipt
 
     @staticmethod
     def _is_permitted_condition_chain(chain_id: int) -> bool:
@@ -672,23 +676,27 @@ class Operator(BaseActor):
 
             time.sleep(poll_rate)
 
-        node_global_ferveo_key_set = self.coordinator_agent.is_provider_public_key_set(
-            self.staking_provider_address
+        pretty_chain_name = PUBLIC_CHAINS.get(
+            client.chain_id, f"chain ID #{client.chain_id}"
         )
-        if not node_global_ferveo_key_set:
-            pretty_chain_name = PUBLIC_CHAINS.get(
-                client.chain_id, f"chain ID #{client.chain_id}"
-            )
-            emitter.message(
-                f"! Publishing provider public key for {self.staking_provider_address} "
-                f"to {pretty_chain_name}",
-                color="yellow",
-            )
-            receipt = self.set_provider_public_key()
+        coordinator_address = self.coordinator_agent.contract_address
+        emitter.message(
+            f"! Checking provider's DKG participation public key for {self.staking_provider_address} "
+            f"on {pretty_chain_name} at Coordinator {coordinator_address}",
+            color="yellow",
+        )
+        receipt = self.set_provider_public_key()  # returns None if key already set
+        if receipt:
             txhash = receipt["transactionHash"].hex()
             emitter.message(
-                f"✓ Successfully published provider public key for {self.staking_provider_address} "
-                f"({pretty_chain_name} | TX: {txhash})",
+                f"✓ Successfully published provider's DKG participation public key"
+                f" for {self.staking_provider_address} on {pretty_chain_name} with txhash {txhash})",
+                color="green",
+            )
+        else:
+            emitter.message(
+                f"✓ Provider's DKG participation public key already set for "
+                f"{self.staking_provider_address} on {pretty_chain_name} at Coordinator {coordinator_address}",
                 color="green",
             )
 
