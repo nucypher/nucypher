@@ -671,7 +671,10 @@ class Operator(BaseActor):
 
             time.sleep(poll_rate)
 
-        if not self.is_confirmed:
+        node_global_ferveo_key_set = self.coordinator_agent.is_provider_public_key_set(
+            self.staking_provider_address
+        )
+        if not node_global_ferveo_key_set:
             pretty_chain_name = PUBLIC_CHAINS.get(
                 client.chain_id, f"chain ID #{client.chain_id}"
             )
