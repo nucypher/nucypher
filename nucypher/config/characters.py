@@ -36,7 +36,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         keystore_path: Optional[Path] = None,
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        condition_provider_uris: Optional[Dict[str, List[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -58,7 +58,14 @@ class UrsulaConfiguration(CharacterConfiguration):
         super().__init__(
             dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs
         )
-        self.condition_provider_uris = condition_provider_uris or dict()
+
+        # json configurations don't allow for integer keyed dictionaries
+        # so convert string chain id to integer
+        self.condition_provider_uris = dict()
+        if condition_provider_uris:
+            for chain, providers in condition_provider_uris.items():
+                # convert chain from string key (for json) to integer
+                self.condition_provider_uris[int(chain)] = providers
         self.configure_condition_provider_uris()
 
     def configure_condition_provider_uris(self) -> None:
@@ -68,11 +75,21 @@ class UrsulaConfiguration(CharacterConfiguration):
         polygon_chain_id = NetworksInventory.get_polygon_chain_id(
             self.pre_payment_network
         )
-        self.condition_provider_uris[polygon_chain_id] = [self.pre_payment_provider]
+        polygon_provider_uris = self.condition_provider_uris.get(polygon_chain_id, [])
+        if not polygon_provider_uris:
+            self.condition_provider_uris[polygon_chain_id] = polygon_provider_uris
+
+        if self.pre_payment_provider not in polygon_provider_uris:
+            polygon_provider_uris.append(self.pre_payment_provider)
 
         # Ethereum
         staking_chain_id = NetworksInventory.get_ethereum_chain_id(self.domain)
-        self.condition_provider_uris[staking_chain_id] = [self.eth_provider_uri]
+        staking_provider_uris = self.condition_provider_uris.get(staking_chain_id, [])
+        if not staking_provider_uris:
+            self.condition_provider_uris[staking_chain_id] = staking_provider_uris
+
+        if self.eth_provider_uri not in staking_provider_uris:
+            staking_provider_uris.append(self.eth_provider_uri)
 
     @classmethod
     def address_from_filepath(cls, filepath: Path) -> str:
