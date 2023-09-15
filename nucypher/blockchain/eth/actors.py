@@ -241,6 +241,7 @@ class Operator(BaseActor):
         )
 
     def set_provider_public_key(self) -> TxReceipt:
+        # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
         receipt = self.coordinator_agent.set_provider_public_key(
             self.ritual_power.public_key(), transacting_power=self.transacting_power
         )
