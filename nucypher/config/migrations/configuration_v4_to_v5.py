@@ -4,8 +4,10 @@ from nucypher.config.migrations.common import perform_migration
 
 
 def __migration(config: Dict) -> Dict:
-    del config["federated_only"]  # deprecated
+    # deprecated
+    del config["federated_only"]
     del config["checksum_address"]
+    del config["db_filepath"]
     return config
 
 
