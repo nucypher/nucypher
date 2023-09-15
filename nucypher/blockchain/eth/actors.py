@@ -35,6 +35,7 @@ from nucypher.blockchain.eth.agents import (
     NucypherTokenAgent,
     TACoApplicationAgent,
 )
+from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -647,12 +648,12 @@ class Operator(BaseActor):
                     # funds found
                     funded, balance = True, Web3.from_wei(ether_balance, "ether")
                     emitter.message(
-                        f"✓ Operator {self.operator_address} is funded with {balance} ETH",
+                        f"✓ Operator {self.operator_address} is funded with {balance} MATIC",
                         color="green",
                     )
                 else:
                     emitter.message(
-                        f"! Operator {self.operator_address} is not funded with ETH",
+                        f"! Operator {self.operator_address} is not funded with MATIC",
                         color="yellow",
                     )
 
@@ -671,14 +672,19 @@ class Operator(BaseActor):
             time.sleep(poll_rate)
 
         if not self.is_confirmed:
+            pretty_chain_name = PUBLIC_CHAINS.get(
+                client.chain_id, f"chain ID #{client.chain_id}"
+            )
             emitter.message(
-                f"! Publishing provider public key for {self.staking_provider_address}",
+                f"! Publishing provider public key for {self.staking_provider_address} "
+                f"to {pretty_chain_name}",
                 color="yellow",
             )
             receipt = self.set_provider_public_key()
             txhash = receipt["transactionHash"].hex()
             emitter.message(
-                f"✓ Successfully published provider public key for {self.staking_provider_address} (TX: {txhash})",
+                f"✓ Successfully published provider public key for {self.staking_provider_address} "
+                f"({pretty_chain_name} | TX: {txhash})",
                 color="green",
             )
 
