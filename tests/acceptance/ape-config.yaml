@@ -6,7 +6,7 @@ plugins:
 dependencies:
   - name: nucypher-contracts
     github: nucypher/nucypher-contracts
-    ref: alpha-13-support
+    ref: main
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 4.9.1
