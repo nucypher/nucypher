@@ -34,9 +34,7 @@ from tests.utils.ursula import (
 test_logger = Logger("acceptance-test-logger")
 
 
-#
 # ERC-20
-#
 TOTAL_SUPPLY = Web3.to_wei(10_000_000_000, "ether")
 NU_TOTAL_SUPPLY = Web3.to_wei(
     1_000_000_000, "ether"
@@ -62,6 +60,8 @@ FEE_RATE = 1
 #
 # General
 #
+
+
 @pytest.fixture(scope="module")
 def monkeymodule():
     from _pytest.monkeypatch import MonkeyPatch
@@ -74,6 +74,8 @@ def monkeymodule():
 #
 # Accounts
 #
+
+
 @pytest.fixture(scope="module")
 def deployer_account(accounts):
     return accounts[0]
@@ -190,7 +192,7 @@ def taco_application_proxy(
 
 @pytest.fixture(scope="module")
 def taco_child_application(
-    nucypher_dependency, taco_application_proxy, deployer_account, proxy_admin
+    nucypher_dependency, taco_application_proxy, deployer_account
 ):
     _taco_child_application = deployer_account.deploy(
         nucypher_dependency.TACoChildApplication, taco_application_proxy.address
@@ -265,7 +267,8 @@ def subscription_manager(nucypher_dependency, deployer_account):
 # Deployment/Blockchains
 #
 
-@pytest.fixture(scope='module', autouse=True)
+
+@pytest.fixture(scope="module", autouse=True)
 def deployed_contracts(
     ritual_token,
     t_token,
@@ -294,14 +297,15 @@ def deployed_contracts(
     return deployments
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def test_registry(deployed_contracts):
     registry = registry_from_ape_deployments(deployments=deployed_contracts)
     return registry
 
 
-@pytest.fixture(scope='module')
-def testerchain(project, test_registry) -> TesterBlockchain:
+@pytest.mark.usefixtures("test_registry")
+@pytest.fixture(scope="module")
+def testerchain(project) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
     testerchain = TesterBlockchain(eth_provider=provider)
@@ -312,12 +316,14 @@ def testerchain(project, test_registry) -> TesterBlockchain:
 #
 # Staking
 #
+
+
+@pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
 def staking_providers(
     deployer_account,
     accounts,
     testerchain,
-    test_registry,
     threshold_staking,
     taco_application_proxy,
 ):
@@ -367,7 +373,7 @@ def coordinator_agent(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def taco_application_agent(testerchain, test_registry):
+def taco_application_agent(test_registry):
     _taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
@@ -380,7 +386,6 @@ def taco_application_agent(testerchain, test_registry):
 #
 # Conditions
 #
-
 
 @pytest.fixture(scope="module")
 def mock_rpc_condition(module_mocker, testerchain, monkeymodule):
