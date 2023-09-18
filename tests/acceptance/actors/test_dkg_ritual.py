@@ -6,7 +6,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo
-from tests.constants import APE_TEST_CHAIN_ID
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 # constants
 DKG_SIZE = 4
@@ -24,7 +24,7 @@ CONDITIONS = {
         "conditionType": "time",
         "returnValueTest": {"value": "0", "comparator": ">"},
         "method": "blocktime",
-        "chain": APE_TEST_CHAIN_ID,
+        "chain": TESTERCHAIN_CHAIN_ID,
     },
 }
 

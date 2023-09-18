@@ -4,7 +4,6 @@ from datetime import datetime
 from pathlib import Path
 from random import SystemRandom
 
-from ape.utils import DEFAULT_TEST_CHAIN_ID
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
@@ -25,12 +24,6 @@ TACO_CHILD_APPLICATION = "TACoChildApplication"
 CONDITION_NFT = "ConditionNFT"
 GLOBAL_ALLOW_LIST = "GlobalAllowList"
 
-
-#
-# Ape
-#
-
-APE_TEST_CHAIN_ID = DEFAULT_TEST_CHAIN_ID  # ape uses this chain id
 
 #
 # Ursula
