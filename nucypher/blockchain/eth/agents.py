@@ -45,6 +45,7 @@ from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
     TACO_APPLICATION_CONTRACT_NAME,
+    TACO_CHILD_APPLICATION_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -387,6 +388,38 @@ class AdjudicatorAgent(EthereumContractAgent):
 
         staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
         return staking_parameters
+
+
+class TacoChildApplicationAgent(EthereumContractAgent):
+    contract_name: str = TACO_CHILD_APPLICATION_CONTRACT_NAME
+
+    class StakingProviderInfo(NamedTuple):
+        """
+        struct StakingProviderInfo {
+            address operator;
+            bool operatorConfirmed;
+            uint96 authorized;
+        }
+        """
+
+        operator: ChecksumAddress
+        operator_confirmed: bool
+        authorized: int
+
+    @contract_api(CONTRACT_CALL)
+    def staking_provider_from_operator(
+        self, operator_address: ChecksumAddress
+    ) -> ChecksumAddress:
+        result = self.contract.functions.stakingProviderFromOperator(
+            operator_address
+        ).call()
+        return result
+
+    def staking_provider_info(
+        self, staking_provider: ChecksumAddress
+    ) -> StakingProviderInfo:
+        result = self.contract.functions.stakingProviderInfo(staking_provider).call()
+        return types.StakingProviderInfo(*result)
 
 
 class TACoApplicationAgent(EthereumContractAgent):
