@@ -421,6 +421,15 @@ class TACoChildApplicationAgent(EthereumContractAgent):
         result = self.contract.functions.stakingProviderInfo(staking_provider).call()
         return types.StakingProviderInfo(*result)
 
+    def is_operator_confirmed(self, operator_address: ChecksumAddress) -> bool:
+        staking_provider = self.staking_provider_from_operator(operator_address)
+        if staking_provider == NULL_ADDRESS:
+            # TODO is this right?
+            return False
+
+        staking_provider_info = self.staking_provider_info(staking_provider)
+        return staking_provider_info.operator_confirmed
+
 
 class TACoApplicationAgent(EthereumContractAgent):
 
