@@ -432,7 +432,6 @@ class TACoChildApplicationAgent(EthereumContractAgent):
 
 
 class TACoApplicationAgent(EthereumContractAgent):
-
     contract_name: str = TACO_APPLICATION_CONTRACT_NAME
 
     DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
