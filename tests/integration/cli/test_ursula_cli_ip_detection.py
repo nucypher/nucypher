@@ -35,7 +35,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_ma
         TEMPORARY_DOMAIN,
         "--eth-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,
         "--force",
     )
@@ -54,7 +54,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_ma
         "--force",
         "--eth-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,
     )
     result = click_runner.invoke(
@@ -72,7 +72,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_ma
         "--force",
         "--eth-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,
     )
     result = click_runner.invoke(

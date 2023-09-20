@@ -133,7 +133,7 @@ def random_address(random_account):
 def ursula_test_config(test_registry, temp_dir_path, testerchain):
     config = make_ursula_test_configuration(
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        payment_provider=TEST_ETH_PROVIDER_URI,
+        pre_payment_provider=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
         operator_address=testerchain.ursulas_accounts.pop(),
@@ -148,7 +148,7 @@ def ursula_test_config(test_registry, temp_dir_path, testerchain):
 def alice_test_config(ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        payment_provider=TEST_ETH_PROVIDER_URI,
+        pre_payment_provider=TEST_ETH_PROVIDER_URI,
         known_nodes=ursulas,
         checksum_address=testerchain.alice_account,
         test_registry=test_registry,
@@ -177,7 +177,7 @@ def idle_policy(testerchain, alice, bob, application_economics):
     random_label = generate_random_label()
     expiration = maya.now() + timedelta(days=1)
     threshold, shares = 3, 5
-    price = alice.payment_method.quote(
+    price = alice.pre_payment_method.quote(
         expiration=expiration.epoch, shares=shares
     ).value  # TODO: use default quote option
     policy = alice.create_policy(
@@ -339,7 +339,7 @@ def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mo
     mocker.patch.object(
         KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
     )
-    payment_method = SubscriptionManagerPayment(
+    pre_payment_method = SubscriptionManagerPayment(
         eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
     )
 
@@ -351,7 +351,7 @@ def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mo
         rest_host=LOOPBACK_ADDRESS,
         rest_port=select_test_port(),
         domain=TEMPORARY_DOMAIN,
-        payment_method=payment_method,
+        pre_payment_method=pre_payment_method,
         checksum_address=random_account.address,
         operator_address=random_account.address,
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
@@ -447,8 +447,15 @@ def fleet_of_highperf_mocked_ursulas(
 
 
 @pytest.fixture(scope="module")
-def highperf_mocked_alice(fleet_of_highperf_mocked_ursulas, test_registry_source_manager, monkeymodule, testerchain):
-    monkeymodule.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
+def highperf_mocked_alice(
+    fleet_of_highperf_mocked_ursulas,
+    test_registry_source_manager,
+    monkeymodule,
+    testerchain,
+):
+    monkeymodule.setattr(
+        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
+    )
 
     config = AliceConfiguration(
         dev_mode=True,
@@ -522,7 +529,7 @@ def click_runner():
 def nominal_configuration_fields(test_registry_source_manager):
     config = UrsulaConfiguration(
         dev_mode=True,
-        payment_network=TEMPORARY_DOMAIN,
+        pre_payment_network=TEMPORARY_DOMAIN,
         domain=TEMPORARY_DOMAIN,
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )

@@ -1,8 +1,8 @@
 import pytest
 from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
+from nucypher_core.ferveo import Keypair
 
-from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -119,13 +119,12 @@ def test_transacting_power_sign_transaction(testerchain):
         power.sign_transaction(transaction_dict=transaction_dict)
 
 
-def test_transacting_power_sign_agent_transaction(testerchain, test_registry):
-    agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+def test_transacting_power_sign_agent_transaction(testerchain, coordinator_agent):
+    public_key = Keypair.random().public_key()
+    g2_point = coordinator_agent.G2Point.from_public_key(public_key)
+    contract_function = coordinator_agent.contract.functions.setProviderPublicKey(
+        g2_point
     )
-    contract_function = agent.contract.functions.confirmOperatorAddress()
 
     payload = {'chainId': int(testerchain.client.chain_id),
                'nonce': testerchain.client.w3.eth.get_transaction_count(testerchain.etherbase_account),

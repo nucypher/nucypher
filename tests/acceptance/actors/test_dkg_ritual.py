@@ -48,6 +48,7 @@ def test_ursula_ritualist(
     initiator,
     bob,
     ritual_token,
+    accounts,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
     signer = Web3Signer(client=testerchain.client)
@@ -62,10 +63,11 @@ def test_ursula_ritualist(
         amount = coordinator_agent.get_ritual_initiation_cost(
             providers=cohort_staking_provider_addresses, duration=DURATION
         )
-        tx = ritual_token.functions.approve(
-            coordinator_agent.contract_address, amount
-        ).transact({"from": initiator.transacting_power.account})
-        testerchain.wait_for_receipt(tx)
+        ritual_token.approve(
+            coordinator_agent.contract_address,
+            amount,
+            sender=accounts[initiator.transacting_power.account],
+        )
 
         receipt = coordinator_agent.initiate_ritual(
             providers=cohort_staking_provider_addresses,
@@ -163,10 +165,11 @@ def test_ursula_ritualist(
     def test_decrypt(threshold_message_kit):
         """Decrypts a message and checks that it matches the original plaintext"""
         # authorize Enrico to encrypt for ritual
-        tx = global_allow_list.functions.authorize(
-            RITUAL_ID, [signer.accounts[0]]
-        ).transact({"from": initiator.transacting_power.account})
-        testerchain.wait_for_receipt(tx)
+        global_allow_list.authorize(
+            RITUAL_ID,
+            [signer.accounts[0]],
+            sender=accounts[initiator.transacting_power.account],
+        )
 
         print("==================== DKG DECRYPTION ====================")
         # ritual_id, ciphertext, conditions are obtained from the side channel

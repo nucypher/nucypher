@@ -1,5 +1,3 @@
-
-
 import datetime
 
 import maya
@@ -22,7 +20,7 @@ def test_alices_powers_are_persistent(
         config_root=config_root,
         network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
         domain=TEMPORARY_DOMAIN,
-        payment_network=TEMPORARY_DOMAIN,
+        pre_payment_network=TEMPORARY_DOMAIN,
         checksum_address=testerchain.alice_account,
         start_learning_now=False,
         save_metadata=False,

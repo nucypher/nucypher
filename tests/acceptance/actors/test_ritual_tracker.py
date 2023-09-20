@@ -10,7 +10,7 @@ from eth_typing import ChecksumAddress
 from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
 
-from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
@@ -26,7 +26,7 @@ def cohort(ursulas):
 def test_action_required_not_participating(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     participation_state = ActiveRitualTracker.ParticipationState(
         participating=False,  # not participating
@@ -59,7 +59,7 @@ def test_action_required_not_participating(cohort):
 def test_action_required_only_for_events_with_corresponding_actions(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     participation_state = ActiveRitualTracker.ParticipationState(
         participating=True,  # participating
@@ -97,7 +97,7 @@ def test_action_required_only_for_events_with_corresponding_actions(cohort):
 def test_action_required_depending_on_participation_state(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     participation_state = ActiveRitualTracker.ParticipationState(
         participating=True,
@@ -161,7 +161,7 @@ def test_get_participation_state_start_ritual(cohort, get_random_checksum_addres
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     # StartRitual
     start_ritual_event = agent.contract.events.StartRitual()
@@ -220,7 +220,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     start_aggregation_round_event = agent.contract.events.StartAggregationRound()
 
@@ -286,7 +286,7 @@ def test_get_participation_state_start_aggregation_round_participation_already_t
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     start_aggregation_round_event = agent.contract.events.StartAggregationRound()
 
@@ -354,7 +354,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     end_ritual_event = agent.contract.events.EndRitual()
 
@@ -486,7 +486,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
     args_dict = {"ritualId": ritual_id}
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     end_ritual_event = agent.contract.events.EndRitual()
 
@@ -539,7 +539,7 @@ def test_get_participation_state_end_ritual_participation_already_tracked(
 def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     # TimeoutChanged
     timeout_changed_event = agent.contract.events.TimeoutChanged()
@@ -563,7 +563,7 @@ def test_get_participation_state_unexpected_event_without_ritual_id_arg(cohort):
 def test_get_participation_state_unexpected_event_with_ritual_id_arg(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+    active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     # create args data - faked to include ritual id arg
     args_dict = {"ritualId": 0, "oldTimeout": 1, "newTimeout": 2}
@@ -598,7 +598,7 @@ def test_get_participation_state_purge_expired_cache_entries(
 
     with patch.object(agent, "get_timeout", return_value=faked_ritual_timeout):
         # fake timeout only needed for initialization
-        active_ritual_tracker = ActiveRitualTracker(ritualist=ursula)
+        active_ritual_tracker = ActiveRitualTracker(operator=ursula)
 
     now = maya.now()
 
@@ -727,11 +727,11 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
 
     ursula = cohort[0]
 
-    ritualist = Mock(spec=Ritualist)
-    ritualist.checksum_address = ursula.checksum_address
-    ritualist.coordinator_agent = ursula.coordinator_agent
+    operator = Mock(spec=Operator)
+    operator.checksum_address = ursula.checksum_address
+    operator.coordinator_agent = ursula.coordinator_agent
 
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+    active_ritual_tracker = ActiveRitualTracker(operator=operator)
 
     block_number = 17692417  # random block number - value doesn't matter
 
@@ -776,17 +776,15 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
         assert len(active_ritual_tracker._participation_states) == (i + 1)
         participation_state = active_ritual_tracker._participation_states[r_id]
         if r_id != ritual_id_4:
-            ritualist.perform_round_1.assert_called_with(
+            operator.perform_round_1.assert_called_with(
                 ritual_id=r_id, initiator=ANY, participants=ANY, timestamp=ANY
             )
             check_participation_state(participation_state, expected_participating=True)
         else:
             check_participation_state(participation_state, expected_participating=False)
 
-    assert (
-        ritualist.perform_round_1.call_count == 3
-    )  # participation and action required
-    assert ritualist.perform_round_2.call_count == 0  # nothing to do here
+    assert operator.perform_round_1.call_count == 3  # participation and action required
+    assert operator.perform_round_2.call_count == 0  # nothing to do here
     assert len(active_ritual_tracker._participation_states) == 4
 
     #
@@ -806,9 +804,9 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
     yield d
 
-    assert ritualist.perform_round_1.call_count == 3  # same count as before
-    assert ritualist.perform_round_2.call_count == 1  # nothing to do here
-    ritualist.perform_round_2.assert_called_with(ritual_id=ritual_id_2, timestamp=ANY)
+    assert operator.perform_round_1.call_count == 3  # same count as before
+    assert operator.perform_round_2.call_count == 1  # nothing to do here
+    operator.perform_round_2.assert_called_with(ritual_id=ritual_id_2, timestamp=ANY)
 
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
@@ -842,8 +840,8 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
     yield d
 
-    assert ritualist.perform_round_1.call_count == 3  # same as before
-    assert ritualist.perform_round_2.call_count == 1  # same as before
+    assert operator.perform_round_1.call_count == 3  # same as before
+    assert operator.perform_round_2.call_count == 1  # same as before
 
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],
@@ -882,8 +880,8 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
     yield d
 
-    assert ritualist.perform_round_1.call_count == 3  # same as before
-    assert ritualist.perform_round_2.call_count == 1  # same as before
+    assert operator.perform_round_1.call_count == 3  # same as before
+    assert operator.perform_round_2.call_count == 1  # same as before
 
     assert len(active_ritual_tracker._participation_states) == 4
 
@@ -924,8 +922,8 @@ def test_handle_event_multiple_concurrent_rituals(cohort, get_random_checksum_ad
     d = active_ritual_tracker._handle_ritual_event(event_data, get_block_when)
     yield d
 
-    assert ritualist.perform_round_1.call_count == 3  # same as before
-    assert ritualist.perform_round_2.call_count == 1  # same as before
+    assert operator.perform_round_1.call_count == 3  # same as before
+    assert operator.perform_round_2.call_count == 1  # same as before
 
     check_participation_state(
         active_ritual_tracker._participation_states[ritual_id_1],

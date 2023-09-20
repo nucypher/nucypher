@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import maya
 import pytest
 
-from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
@@ -17,7 +17,7 @@ class BlockInfo(NamedTuple):
 
 
 @pytest.fixture(scope="function")
-def ritualist(ursulas, mock_coordinator_agent) -> Ritualist:
+def ritualist(ursulas, mock_coordinator_agent) -> Operator:
     ursula = ursulas[0]
     mocked_agent = Mock(spec=CoordinatorAgent)
     mocked_agent.contract = mock_coordinator_agent.contract
@@ -33,7 +33,7 @@ def ritualist(ursulas, mock_coordinator_agent) -> Ritualist:
 
 def test_first_scan_start_block_number_simple(ritualist):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
     now = maya.now()
 
     # latest block is 0 - return it
@@ -64,7 +64,7 @@ def test_first_scan_start_block_number_simple(ritualist):
 
 def test_first_scan_start_block_calc_is_perfect(ritualist):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
     now = maya.now()
 
     #
@@ -130,7 +130,7 @@ def test_first_scan_start_block_calc_is_perfect(ritualist):
 
 def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualist):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
     now = maya.now()
 
     #
@@ -244,7 +244,7 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
 
 def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
 
     participants = []
     # random participants
@@ -255,17 +255,17 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
         participants.append(participant)
     mocked_agent.get_participants.return_value = participants
 
-    # ritualist not in participants list
+    # operator not in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
     assert participant_info is None
 
-    # add ritualist to participants list
+    # add operator to participants list
     participant = CoordinatorAgent.Ritual.Participant(
         provider=ritualist.checksum_address
     )
     participants.append(participant)
 
-    # ritualist in participants list
+    # operator in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
     assert participant_info
     assert participant_info.provider == ritualist.checksum_address
@@ -275,7 +275,7 @@ def test_get_participation_state_values_from_contract(
     ritualist, get_random_checksum_address
 ):
     mocked_agent = ritualist.coordinator_agent
-    active_ritual_tracker = ActiveRitualTracker(ritualist=ritualist)
+    active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
 
     participants = []
     # random participants
@@ -297,7 +297,7 @@ def test_get_participation_state_values_from_contract(
     assert not posted_transcript
     assert not posted_aggregate
 
-    # add ritualist to participants list
+    # add operator to participants list
     ritual_participant = CoordinatorAgent.Ritual.Participant(
         provider=ritualist.checksum_address
     )

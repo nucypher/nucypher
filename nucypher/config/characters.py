@@ -24,7 +24,6 @@ class UrsulaConfiguration(CharacterConfiguration):
     DEFAULT_REST_PORT = 9151
     DEFAULT_DEVELOPMENT_REST_HOST = LOOPBACK_ADDRESS
     DEFAULT_DEVELOPMENT_REST_PORT = 10151
-    DEFAULT_AVAILABILITY_CHECKS = False
     LOCAL_SIGNERS_ALLOWED = True
     SIGNER_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
     MNEMONIC_KEYSTORE = True
@@ -37,8 +36,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         keystore_path: Optional[Path] = None,
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
-        availability_check: Optional[bool] = None,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        condition_provider_uris: Optional[Dict[str, List[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -57,27 +55,41 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.rest_host = rest_host
         self.certificate = certificate
         self.operator_address = operator_address
-        self.availability_check = (
-            availability_check
-            if availability_check is not None
-            else self.DEFAULT_AVAILABILITY_CHECKS
-        )
         super().__init__(
             dev_mode=dev_mode, keystore_path=keystore_path, *args, **kwargs
         )
-        self.condition_provider_uris = condition_provider_uris or dict()
+
+        # json configurations don't allow for integer keyed dictionaries
+        # so convert string chain id to integer
+        self.condition_provider_uris = dict()
+        if condition_provider_uris:
+            for chain, providers in condition_provider_uris.items():
+                # convert chain from string key (for json) to integer
+                self.condition_provider_uris[int(chain)] = providers
         self.configure_condition_provider_uris()
 
     def configure_condition_provider_uris(self) -> None:
         """Configure default condition provider URIs for mainnet and polygon network."""
 
         # Polygon
-        polygon_chain_id = NetworksInventory.get_polygon_chain_id(self.payment_network)
-        self.condition_provider_uris[polygon_chain_id] = [self.payment_provider]
+        polygon_chain_id = NetworksInventory.get_polygon_chain_id(
+            self.pre_payment_network
+        )
+        polygon_provider_uris = self.condition_provider_uris.get(polygon_chain_id, [])
+        if not polygon_provider_uris:
+            self.condition_provider_uris[polygon_chain_id] = polygon_provider_uris
+
+        if self.pre_payment_provider not in polygon_provider_uris:
+            polygon_provider_uris.append(self.pre_payment_provider)
 
         # Ethereum
         staking_chain_id = NetworksInventory.get_ethereum_chain_id(self.domain)
-        self.condition_provider_uris[staking_chain_id] = [self.eth_provider_uri]
+        staking_provider_uris = self.condition_provider_uris.get(staking_chain_id, [])
+        if not staking_provider_uris:
+            self.condition_provider_uris[staking_chain_id] = staking_provider_uris
+
+        if self.eth_provider_uri not in staking_provider_uris:
+            staking_provider_uris.append(self.eth_provider_uri)
 
     @classmethod
     def address_from_filepath(cls, filepath: Path) -> str:
@@ -102,14 +114,13 @@ class UrsulaConfiguration(CharacterConfiguration):
             operator_address=self.operator_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
-            availability_check=self.availability_check,
             condition_provider_uris=self.condition_provider_uris,
 
             # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
-            payment_method=self.payment_method,
-            payment_provider=self.payment_provider,
-            payment_network=self.payment_network,
+            pre_payment_method=self.pre_payment_method,
+            pre_payment_provider=self.pre_payment_provider,
+            pre_payment_network=self.pre_payment_network,
         )
         return {**super().static_payload(), **payload}
 
@@ -118,7 +129,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         payload = dict(
             network_middleware=self.network_middleware,
             certificate=self.certificate,
-            payment_method=self.configure_payment_method()
+            pre_payment_method=self.configure_pre_payment_method(),
         )
         return {**super().dynamic_payload, **payload}
 
@@ -170,9 +181,9 @@ class AliceConfiguration(CharacterConfiguration):
         payload = dict(
             threshold=self.threshold,
             shares=self.shares,
-            payment_network=self.payment_network,
-            payment_provider=self.payment_provider,
-            payment_method=self.payment_method,
+            pre_payment_network=self.pre_payment_network,
+            pre_payment_provider=self.pre_payment_provider,
+            pre_payment_method=self.pre_payment_method,
             rate=self.rate,
             duration=self.duration,
         )
@@ -180,7 +191,7 @@ class AliceConfiguration(CharacterConfiguration):
 
     @property
     def dynamic_payload(self) -> dict:
-        payload = dict(payment_method=self.configure_payment_method())
+        payload = dict(pre_payment_method=self.configure_pre_payment_method())
         return {**super().dynamic_payload, **payload}
 
 

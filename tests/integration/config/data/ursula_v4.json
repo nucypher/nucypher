@@ -1,0 +1,29 @@
+{
+  "federated_only": null,
+  "checksum_address": null,
+  "keystore_path": null,
+  "domain": ":temporary-domain:",
+  "learn_on_same_thread": false,
+  "abort_on_learning_error": false,
+  "start_learning_now": false,
+  "save_metadata": false,
+  "node_storage": {
+    "storage_type": ":memory:"
+  },
+  "lonely": false,
+  "eth_provider_uri": "tester://pyevm",
+  "poa": null,
+  "light": false,
+  "signer_uri": "tester://pyevm",
+  "gas_strategy": "fast",
+  "max_gas_price": null,
+  "operator_address": "0xd45B37d42C0A9e4c6072fcD5A94ee11697275012",
+  "rest_host": "127.0.0.1",
+  "rest_port": 51941,
+  "db_filepath": "/root/.local/share/nucypher/ursula.db",
+  "availability_check": false,
+  "payment_method": "SubscriptionManager",
+  "payment_provider": "tester://pyevm",
+  "payment_network": ":temporary-domain:",
+  "version": 4
+}

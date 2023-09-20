@@ -281,3 +281,8 @@ class MockCoordinatorAgent(MockContractAgent):
     ) -> bool:
         # always allow
         return True
+
+    def get_ritual_initiation_cost(
+        self, providers: List[ChecksumAddress], duration: int
+    ):
+        return len(providers) * duration

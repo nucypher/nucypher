@@ -6,7 +6,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import MOCK_ETH_PROVIDER_URI, MOCK_IP_ADDRESS
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.ursula import select_test_port
 
 ADDITIONAL_NODES_TO_LEARN_ABOUT = 10
@@ -34,19 +34,23 @@ class BaseTestNodeStorageBackends:
         node_from_storage = node_storage.get(stamp=ursula.stamp)
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
-        payment_method = SubscriptionManagerPayment(eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN)
+        pre_payment_method = SubscriptionManagerPayment(
+            eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        )
 
         # Save more nodes
         all_known_nodes = set()
         for i in range(ADDITIONAL_NODES_TO_LEARN_ABOUT):
-            node = Ursula(rest_host=LOOPBACK_ADDRESS,
-                          rest_port=select_test_port(),
-                          domain=TEMPORARY_DOMAIN,
-                          signer=signer,
-                          eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-                          checksum_address=operator_addresses[i],
-                          operator_address=operator_addresses[i],
-                          payment_method=payment_method)
+            node = Ursula(
+                rest_host=LOOPBACK_ADDRESS,
+                rest_port=select_test_port(),
+                domain=TEMPORARY_DOMAIN,
+                signer=signer,
+                eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+                checksum_address=operator_addresses[i],
+                operator_address=operator_addresses[i],
+                pre_payment_method=pre_payment_method,
+            )
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)
 

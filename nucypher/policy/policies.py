@@ -44,7 +44,7 @@ class Policy:
         value: int,
         rate: int,
         duration: int,
-        payment_method: "payment.PaymentMethod",
+        pre_payment_method: "payment.PaymentMethod",
     ):
         self.threshold = threshold
         self.shares = len(kfrags)
@@ -63,8 +63,10 @@ class Policy:
         self.hrac = HRAC(publisher_verifying_key=self.publisher.stamp.as_umbral_pubkey(),
                          bob_verifying_key=self.bob.stamp.as_umbral_pubkey(),
                          label=self.label)
-        self.payment_method = payment_method
-        self.payment_method.validate_price(shares=self.shares, value=value, duration=duration)
+        self.pre_payment_method = pre_payment_method
+        self.pre_payment_method.validate_price(
+            shares=self.shares, value=value, duration=duration
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}:{bytes(self.hrac).hex()[:6]}"
@@ -79,7 +81,7 @@ class Policy:
 
     def _publish(self, ursulas: List["characters.lawful.Ursula"]) -> Dict:
         self.nodes = [ursula.checksum_address for ursula in ursulas]
-        receipt = self.payment_method.pay(policy=self)
+        receipt = self.pre_payment_method.pay(policy=self)
         return receipt
 
     def _ping_node(

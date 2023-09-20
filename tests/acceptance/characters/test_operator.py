@@ -3,7 +3,6 @@ import datetime
 import maya
 import pytest
 from eth_account._utils.signing import to_standard_signature_bytes
-from web3 import Web3
 
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.characters.unlawful import Vladimir
@@ -11,18 +10,6 @@ from nucypher.crypto.utils import verify_eip_191
 from nucypher.policy.policies import Policy
 from tests.constants import MOCK_ETH_PROVIDER_URI, TEST_ETH_PROVIDER_URI
 from tests.utils.middleware import NodeIsDownMiddleware
-
-
-@pytest.fixture(scope="module")
-def vladimir_needs_eth(testerchain):
-    # transfer some ETH to Vladimir who needs it to set provider public key
-    tx = {
-        "to": Vladimir.fraud_address,
-        "from": testerchain.etherbase_account,
-        "value": Web3.to_wei("1", "ether"),
-    }
-    txhash = testerchain.w3.eth.send_transaction(tx)
-    _ = testerchain.wait_for_receipt(txhash)
 
 
 def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
@@ -61,7 +48,6 @@ def remote_vladimir(**kwds):
     return remote_vladimir
 
 
-@pytest.mark.usefixtures("vladimir_needs_eth")
 def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(
     testerchain, ursulas, test_registry_source_manager
 ):
@@ -89,7 +75,6 @@ def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(
         vladimir.validate_metadata()
 
 
-@pytest.mark.usefixtures("vladimir_needs_eth")
 def test_vladimir_uses_his_own_signing_key(alice, ursulas, test_registry):
     """
     Similar to the attack above, but this time Vladimir makes his own interface signature
@@ -125,7 +110,6 @@ def test_vladimir_uses_his_own_signing_key(alice, ursulas, test_registry):
         )
 
 
-@pytest.mark.usefixtures("vladimir_needs_eth")
 def test_vladimir_invalidity_without_stake(testerchain, ursulas, alice):
     his_target = list(ursulas)[4]
 

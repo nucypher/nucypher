@@ -1,10 +1,9 @@
-import os
 import random
 
 import pytest
 from web3 import Web3
 
-from nucypher.blockchain.eth.actors import Operator, Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -13,30 +12,19 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.config.constants import TEMPORARY_DOMAIN
-from nucypher.crypto.powers import CryptoPower, TransactingPower
+from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from nucypher.policy.conditions.time import TimeCondition
-from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     APE_TEST_CHAIN_ID,
     BONUS_TOKENS_FOR_TESTS,
-    GLOBAL_ALLOW_LIST,
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_STAKING_CONTRACT_NAME,
-    RITUAL_TOKEN,
-    STAKE_INFO,
     TEST_ETH_PROVIDER_URI,
 )
-from tests.utils.ape import (
-    deploy_contracts as ape_deploy_contracts,
-)
-from tests.utils.ape import (
-    registry_from_ape_deployments,
-)
+from tests.utils.ape import registry_from_ape_deployments
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
@@ -46,52 +34,46 @@ from tests.utils.ursula import (
 test_logger = Logger("acceptance-test-logger")
 
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_condition_blockchains(session_mocker):
-    """adds testerchain's chain ID to permitted conditional chains"""
-    session_mocker.patch.dict(
-        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
-        {APE_TEST_CHAIN_ID: "eth-tester/pyevm"},
-    )
+# ERC-20
+TOTAL_SUPPLY = Web3.to_wei(10_000_000_000, "ether")
+NU_TOTAL_SUPPLY = Web3.to_wei(
+    1_000_000_000, "ether"
+)  # TODO NU(1_000_000_000, 'NU').to_units()
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_polygon_chain_id", return_value=APE_TEST_CHAIN_ID
-    )
+# TACo Application
+MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_ethereum_chain_id", return_value=APE_TEST_CHAIN_ID
-    )
+MIN_OPERATOR_SECONDS = 24 * 60 * 60
 
+REWARD_DURATION = 60 * 60 * 24 * 7  # one week in seconds
+DEAUTHORIZATION_DURATION = 60 * 60 * 24 * 60  # 60 days in seconds
 
-@pytest.fixture(scope="module", autouse=True)
-def mock_multichain_configuration(module_mocker, testerchain):
-    module_mocker.patch.object(
-        Ritualist, "_make_condition_provider", return_value=testerchain.provider
-    )
+COMMITMENT_DURATION_1 = 182 * 60 * 24 * 60  # 182 days in seconds
+COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
 
-
-@pytest.fixture(scope='session', autouse=True)
-def test_contracts(project):
-    return project.contracts
+# Coordinator
+TIMEOUT = 3600
+MAX_DKG_SIZE = 8
+FEE_RATE = 1
 
 
-@pytest.fixture(scope="session", autouse=True)
-def nucypher_contracts(project):
-    nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
-    # simply use first entry - could be from github ('main') or local ('local')
-    _, nucypher_contracts = list(nucypher_contracts_dependency_api.items())[0]
-    nucypher_contracts.compile()
-    return nucypher_contracts
+#
+# General
+#
 
 
-@pytest.fixture(scope='module', autouse=True)
-def deploy_contracts(nucypher_contracts, test_contracts, accounts):
-    deployments = ape_deploy_contracts(
-        nucypher_contracts=nucypher_contracts,
-        test_contracts=test_contracts,
-        accounts=accounts,
-    )
-    return deployments
+@pytest.fixture(scope="module")
+def monkeymodule():
+    from _pytest.monkeypatch import MonkeyPatch
+
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
+#
+# Accounts
+#
 
 
 @pytest.fixture(scope="module")
@@ -103,22 +85,227 @@ def deployer_account(accounts):
 def initiator(testerchain, alice, ritual_token, deployer_account):
     """Returns the Initiator, funded with RitualToken"""
     # transfer ritual token to alice (initiator)
-    tx = ritual_token.functions.transfer(
+    ritual_token.transfer(
         alice.transacting_power.account,
         Web3.to_wei(1, "ether"),
-    ).transact({"from": deployer_account.address})
-    testerchain.wait_for_receipt(tx)
+        sender=deployer_account,
+    )
     return alice
 
 
-@pytest.fixture(scope='module', autouse=True)
-def test_registry(nucypher_contracts, deploy_contracts):
-    registry = registry_from_ape_deployments(nucypher_contracts, deployments=deploy_contracts)
+#
+# Contracts Dependencies
+#
+
+
+@pytest.fixture(scope="session", autouse=True)
+def nucypher_dependency(project):
+    nucypher_contracts_dependency_api = project.dependencies["nucypher-contracts"]
+    # simply use first entry - could be from github ('main') or local ('local')
+    _, nucypher_dependency = list(nucypher_contracts_dependency_api.items())[0]
+    return nucypher_dependency
+
+
+@pytest.fixture(scope="session", autouse=True)
+def oz_dependency(project):
+    _oz_dependency = project.dependencies["openzeppelin"]["4.9.1"]
+    return _oz_dependency
+
+
+#
+# Contracts
+#
+
+
+@pytest.fixture(scope="module")
+def ritual_token(project, deployer_account):
+    _ritual_token = deployer_account.deploy(project.RitualToken, TOTAL_SUPPLY)
+    return _ritual_token
+
+
+@pytest.fixture(scope="module")
+def t_token(nucypher_dependency, deployer_account):
+    _t_token = deployer_account.deploy(nucypher_dependency.TToken, TOTAL_SUPPLY)
+    return _t_token
+
+
+@pytest.fixture(scope="module")
+def nu_token(nucypher_dependency, deployer_account):
+    _nu_token = deployer_account.deploy(
+        nucypher_dependency.NuCypherToken, NU_TOTAL_SUPPLY
+    )
+    return _nu_token
+
+
+@pytest.fixture(scope="module")
+def threshold_staking(nucypher_dependency, deployer_account):
+    _threshold_staking = deployer_account.deploy(
+        nucypher_dependency.ThresholdStakingForTACoApplicationMock
+    )
+    return _threshold_staking
+
+
+@pytest.fixture(scope="module")
+def proxy_admin(oz_dependency, deployer_account):
+    _proxy_admin = oz_dependency.ProxyAdmin.deploy(sender=deployer_account)
+    return _proxy_admin
+
+
+@pytest.fixture(scope="module")
+def taco_application(nucypher_dependency, deployer_account, t_token, threshold_staking):
+    _taco_application = deployer_account.deploy(
+        nucypher_dependency.TACoApplication,
+        t_token.address,
+        threshold_staking.address,
+        MIN_AUTHORIZATION,
+        MIN_OPERATOR_SECONDS,
+        REWARD_DURATION,
+        DEAUTHORIZATION_DURATION,
+        [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
+    )
+
+    return _taco_application
+
+
+@pytest.fixture(scope="module")
+def taco_application_proxy(
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    proxy_admin,
+    taco_application,
+    threshold_staking,
+):
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        taco_application.address,
+        proxy_admin.address,
+        b"",
+        sender=deployer_account,
+    )
+    proxy_contract = nucypher_dependency.TACoApplication.at(proxy.address)
+
+    threshold_staking.setApplication(proxy_contract.address, sender=deployer_account)
+    proxy_contract.initialize(sender=deployer_account)
+
+    return proxy_contract
+
+
+@pytest.fixture(scope="module")
+def taco_child_application(
+    nucypher_dependency, taco_application_proxy, deployer_account
+):
+    _taco_child_application = deployer_account.deploy(
+        nucypher_dependency.TACoChildApplication, taco_application_proxy.address
+    )
+
+    return _taco_child_application
+
+
+@pytest.fixture(scope="module")
+def taco_child_application_proxy(
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    proxy_admin,
+    taco_child_application,
+    taco_application_proxy,
+):
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        taco_child_application.address,
+        proxy_admin.address,
+        b"",
+        sender=deployer_account,
+    )
+    proxy_contract = nucypher_dependency.TACoChildApplication.at(proxy.address)
+    taco_application_proxy.setChildApplication(
+        proxy_contract.address, sender=deployer_account
+    )
+
+    return proxy_contract
+
+
+@pytest.fixture(scope="module")
+def coordinator(
+    nucypher_dependency, deployer_account, taco_child_application_proxy, ritual_token
+):
+    _coordinator = deployer_account.deploy(
+        nucypher_dependency.Coordinator,
+        taco_child_application_proxy.address,
+        TIMEOUT,
+        MAX_DKG_SIZE,
+        deployer_account.address,
+        ritual_token.address,
+        FEE_RATE,
+    )
+    _coordinator.makeInitiationPublic(sender=deployer_account)
+    taco_child_application_proxy.initialize(
+        _coordinator.address, sender=deployer_account
+    )
+    return _coordinator
+
+
+@pytest.fixture(scope="module")
+def global_allow_list(nucypher_dependency, deployer_account, coordinator):
+    contract = deployer_account.deploy(
+        nucypher_dependency.GlobalAllowList,
+        coordinator.address,
+        deployer_account.address,
+    )
+
+    return contract
+
+
+@pytest.fixture(scope="module")
+def subscription_manager(nucypher_dependency, deployer_account):
+    _subscription_manager = deployer_account.deploy(
+        nucypher_dependency.SubscriptionManager,
+    )
+    return _subscription_manager
+
+
+#
+# Deployment/Blockchains
+#
+
+
+@pytest.fixture(scope="module", autouse=True)
+def deployed_contracts(
+    ritual_token,
+    t_token,
+    nu_token,
+    threshold_staking,
+    proxy_admin,
+    taco_application_proxy,
+    taco_child_application_proxy,
+    coordinator,
+    global_allow_list,
+    subscription_manager,
+):
+    # TODO: can this be improved - eg. get it from the project fixture
+    deployments = [
+        ritual_token,
+        t_token,
+        nu_token,
+        threshold_staking,
+        proxy_admin,
+        taco_application_proxy,  # only proxy contract
+        taco_child_application_proxy,  # only proxy contract
+        coordinator,
+        global_allow_list,
+        subscription_manager,
+    ]
+    return deployments
+
+
+@pytest.fixture(scope="module", autouse=True)
+def test_registry(deployed_contracts):
+    registry = registry_from_ape_deployments(deployments=deployed_contracts)
     return registry
 
 
-@pytest.fixture(scope='module')
-def testerchain(project, test_registry) -> TesterBlockchain:
+@pytest.mark.usefixtures("test_registry")
+@pytest.fixture(scope="module")
+def testerchain(project) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
     testerchain = TesterBlockchain(eth_provider=provider)
@@ -126,38 +313,54 @@ def testerchain(project, test_registry) -> TesterBlockchain:
     yield testerchain
 
 
-@pytest.fixture(scope='module')
-def stake_info(testerchain, test_registry):
-    result = test_registry.search(contract_name=STAKE_INFO)[0]
-    _stake_info = testerchain.w3.eth.contract(address=result[2], abi=result[3])
-    return _stake_info
+#
+# Staking
+#
 
 
+@pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
-def ritual_token(testerchain, test_registry):
-    result = test_registry.search(contract_name=RITUAL_TOKEN)[0]
-    _ritual_token = testerchain.w3.eth.contract(address=result[2], abi=result[3])
-    return _ritual_token
+def staking_providers(
+    deployer_account,
+    accounts,
+    testerchain,
+    threshold_staking,
+    taco_application_proxy,
+):
+    minimum_stake = taco_application_proxy.minimumAuthorization()
+
+    staking_providers = list()
+    for provider_address, operator_address in zip(
+        testerchain.stake_providers_accounts, testerchain.ursulas_accounts
+    ):
+        provider_power = TransactingPower(
+            account=provider_address, signer=Web3Signer(testerchain.client)
+        )
+        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
+        # for a random amount
+        amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
+
+        # initialize threshold stake via threshold staking (permission-less mock)
+        threshold_staking.setRoles(provider_address, sender=deployer_account)
+
+        threshold_staking.authorizationIncreased(
+            provider_address, 0, amount, sender=deployer_account
+        )
+
+        taco_application_proxy.bondOperator(
+            provider_address, operator_address, sender=accounts[provider_address]
+        )
+
+        # track
+        staking_providers.append(provider_address)
+
+    yield staking_providers
 
 
-@pytest.fixture(scope="module")
-def threshold_staking(testerchain, test_registry):
-    result = test_registry.search(contract_name=MOCK_STAKING_CONTRACT_NAME)[0]
-    _threshold_staking = testerchain.w3.eth.contract(address=result[2], abi=result[3])
-
-    # TODO: Relocate this to pre application setup
-    taco_application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
-
-    tx = _threshold_staking.functions.setApplication(
-        taco_application_agent.contract_address
-    ).transact()
-    testerchain.wait_for_receipt(tx)
-
-    return _threshold_staking
+#
+# Agents
+#
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -166,120 +369,23 @@ def coordinator_agent(testerchain, test_registry):
     coordinator = ContractAgency.get_agent(
         CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
     )
-    tx = coordinator.contract.functions.makeInitiationPublic().transact()
-    testerchain.wait_for_receipt(tx)
     return coordinator
 
 
-@pytest.fixture(scope="module")
-def global_allow_list(testerchain, test_registry):
-    result = test_registry.search(contract_name=GLOBAL_ALLOW_LIST)[0]
-    _global_allow_list = testerchain.w3.eth.contract(address=result[2], abi=result[3])
-    return _global_allow_list
-
-
-@pytest.fixture(scope="module")
-def staking_providers(testerchain, test_registry, threshold_staking, stake_info):
-    taco_application_agent = ContractAgency.get_agent(
+@pytest.fixture(scope="module", autouse=True)
+def taco_application_agent(test_registry):
+    _taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
-    blockchain = taco_application_agent.blockchain
-    minimum_stake = (
-        taco_application_agent.contract.functions.minimumAuthorization().call()
-    )
 
-    staking_providers = list()
-    for provider_address, operator_address in zip(blockchain.stake_providers_accounts, blockchain.ursulas_accounts):
-        provider_power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
-        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-
-        # for a random amount
-        amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
-
-        # initialize threshold stake via threshold staking (permission-less mock)
-        tx = threshold_staking.functions.setRoles(provider_address).transact()
-        testerchain.wait_for_receipt(tx)
-
-        # TODO: extract this to a fixture
-        tx = threshold_staking.functions.authorizationIncreased(
-            provider_address, 0, amount
-        ).transact()
-        testerchain.wait_for_receipt(tx)
-
-        taco_application_agent.bond_operator(
-            staking_provider=provider_address,
-            operator=operator_address,
-            transacting_power=provider_power,
-        )
-
-        operator_power = TransactingPower(
-            account=operator_address, signer=Web3Signer(testerchain.client)
-        )
-
-        operator = Operator(
-            is_me=True,
-            operator_address=operator_address,
-            domain=TEMPORARY_DOMAIN,
-            registry=test_registry,
-            transacting_power=operator_power,
-            eth_provider_uri=testerchain.eth_provider_uri,
-            signer=Web3Signer(testerchain.client),
-            crypto_power=CryptoPower(power_ups=[operator_power]),
-            payment_method=SubscriptionManagerPayment(
-                eth_provider=testerchain.eth_provider_uri,
-                network=TEMPORARY_DOMAIN,
-                registry=test_registry,
-            ),
-        )
-        operator.confirm_address()  # assume we always need a "pre-confirmed" operator for now.
-
-        # TODO clean this up, perhaps with a fixture
-        # update StakeInfo
-        tx = stake_info.functions.updateOperator(
-            provider_address,
-            operator_address,
-        ).transact()
-        testerchain.wait_for_receipt(tx)
-
-        tx = stake_info.functions.updateAmount(
-            provider_address,
-            amount,
-        ).transact()
-        testerchain.wait_for_receipt(tx)
-
-        # track
-        staking_providers.append(provider_address)
-
-    yield staking_providers
+    return _taco_application_agent
 
 
-@pytest.fixture(scope='module')
-def manual_operator(testerchain):
-    worker_private_key = os.urandom(32).hex()
-    address = testerchain.provider.ethereum_tester.add_account(
-        worker_private_key,
-        password=INSECURE_DEVELOPMENT_PASSWORD
-    )
-
-    tx = {'to': address,
-          'from': testerchain.etherbase_account,
-          'value': Web3.to_wei('1', 'ether')}
-
-    txhash = testerchain.client.w3.eth.send_transaction(tx)
-    _receipt = testerchain.wait_for_receipt(txhash)
-    yield address
-
-
-@pytest.fixture(scope="module")
-def monkeymodule():
-    from _pytest.monkeypatch import MonkeyPatch
-
-    mpatch = MonkeyPatch()
-    yield mpatch
-    mpatch.undo()
-
+#
+# Conditions
+#
 
 @pytest.fixture(scope="module")
 def mock_rpc_condition(module_mocker, testerchain, monkeymodule):
@@ -357,3 +463,27 @@ def rpc_condition():
         parameters=[USER_ADDRESS_CONTEXT],
     )
     return condition
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_condition_blockchains(session_mocker):
+    """adds testerchain's chain ID to permitted conditional chains"""
+    session_mocker.patch.dict(
+        "nucypher.policy.conditions.evm._CONDITION_CHAINS",
+        {APE_TEST_CHAIN_ID: "eth-tester/pyevm"},
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_polygon_chain_id", return_value=APE_TEST_CHAIN_ID
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_ethereum_chain_id", return_value=APE_TEST_CHAIN_ID
+    )
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_multichain_configuration(module_mocker, testerchain):
+    module_mocker.patch.object(
+        Operator, "_make_condition_provider", return_value=testerchain.provider
+    )

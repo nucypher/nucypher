@@ -13,7 +13,7 @@ from nucypher_core.umbral import PublicKey
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import TToken
-from nucypher.policy.payment import PAYMENT_METHODS
+from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 
 
@@ -141,4 +141,4 @@ NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
 IPV4_ADDRESS = IPv4Address()
 OPERATOR_IP = OperatorIPAddress()
 
-PAYMENT_METHOD_CHOICES = click.Choice(list(PAYMENT_METHODS))
+PRE_PAYMENT_METHOD_CHOICES = click.Choice(list(PRE_PAYMENT_METHODS))
