@@ -1,0 +1,3 @@
+Update Ursula configuration version from 6 to 7.
+Check operator for MATIC funding instead of ETH on startup.
+Handle separation between mainnet root application contract and l2 child application contract.

@@ -1,0 +1,2 @@
+Implement functionality related to Encryptor authorization for specific ritual.
+Obtain ritual threshold from Coordinator contract.
