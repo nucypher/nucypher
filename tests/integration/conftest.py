@@ -72,14 +72,14 @@ def mock_sign_message(mocker):
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_root_application_agent(testerchain, mock_contract_agency):
+def mock_taco_application_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_child_application_agent(testerchain, mock_contract_agency):
+def mock_taco_child_application_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(TACoChildApplicationAgent)
     yield mock_agent
     mock_agent.reset()
@@ -176,17 +176,17 @@ def agency(mock_contract_agency):
 
 @pytest.fixture(scope="function")
 def mock_funding_and_bonding(
-    testerchain, mocker, mock_root_application_agent, mock_child_application_agent
+    testerchain, mocker, mock_taco_application_agent, mock_taco_child_application_agent
 ):
     # funding
     mocker.patch.object(EthereumClient, "get_balance", return_value=1)
 
     # bonding
     staking_provider = testerchain.stake_providers_accounts[0]
-    mock_root_application_agent.get_staking_provider_from_operator.return_value = (
+    mock_taco_application_agent.get_staking_provider_from_operator.return_value = (
         staking_provider
     )
-    mock_child_application_agent.staking_provider_from_operator.return_value = (
+    mock_taco_child_application_agent.staking_provider_from_operator.return_value = (
         staking_provider
     )
 
