@@ -1,0 +1,1 @@
+Properly detect operator bonding status by using both ``TACoChildApplicationAgent`` and ``TACoApplicationAgent`` to ensure consistency.
