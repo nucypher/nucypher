@@ -15,7 +15,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.7'
-      - uses: akaihola/darker@1.6.1
+          python-version: '3.8'
+      - uses: akaihola/darker@1.7.2
         with:
-          version: "1.6.1"
+          version: "1.7.2"
