@@ -415,17 +415,16 @@ class TACoChildApplicationAgent(EthereumContractAgent):
         ).call()
         return result
 
+    @contract_api(CONTRACT_CALL)
     def staking_provider_info(
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
         result = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        # TODO should this return None if not found? (same for TACoApplicationAgent)
         return TACoChildApplicationAgent.StakingProviderInfo(*result)
 
     def is_operator_confirmed(self, operator_address: ChecksumAddress) -> bool:
         staking_provider = self.staking_provider_from_operator(operator_address)
         if staking_provider == NULL_ADDRESS:
-            # TODO is this right?
             return False
 
         staking_provider_info = self.staking_provider_info(staking_provider)

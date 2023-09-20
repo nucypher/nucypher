@@ -15,6 +15,7 @@ def test_staking_provider_info(
     taco_child_application_agent,
     ursulas,
     taco_application_proxy,
+    get_random_checksum_address,
 ):
     for ursula in ursulas:
         provider_info = taco_child_application_agent.staking_provider_info(
@@ -25,7 +26,14 @@ def test_staking_provider_info(
         assert provider_info.authorized >= taco_application_proxy.minimumAuthorization()
 
     # non-existing staking provider
-    # TODO add test for non-existing staking provider - TODO added in agent code for this scenario
+    # TODO is this right? Technically this is what the contract returns
+    #  Should returned info be "None"; although we don't really expect this situation
+    provider_info = taco_child_application_agent.staking_provider_info(
+        get_random_checksum_address()
+    )
+    assert provider_info.operator_confirmed is False
+    assert provider_info.operator == NULL_ADDRESS
+    assert provider_info.authorized == 0
 
 
 def test_is_operator_confirmed(
