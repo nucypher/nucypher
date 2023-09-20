@@ -8,6 +8,7 @@ from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
     TACoApplicationAgent,
+    TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
@@ -378,6 +379,17 @@ def taco_application_agent(test_registry):
     )
 
     return _taco_application_agent
+
+
+@pytest.fixture(scope="module", autouse=True)
+def taco_child_application_agent(testerchain, test_registry):
+    _taco_child_application_agent = ContractAgency.get_agent(
+        TACoChildApplicationAgent,
+        registry=test_registry,
+        provider_uri=TEST_ETH_PROVIDER_URI,
+    )
+
+    return _taco_child_application_agent
 
 
 #

@@ -419,7 +419,8 @@ class TACoChildApplicationAgent(EthereumContractAgent):
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
         result = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return types.StakingProviderInfo(*result)
+        # TODO should this return None if not found? (same for TACoApplicationAgent)
+        return TACoChildApplicationAgent.StakingProviderInfo(*result)
 
     def is_operator_confirmed(self, operator_address: ChecksumAddress) -> bool:
         staking_provider = self.staking_provider_from_operator(operator_address)
