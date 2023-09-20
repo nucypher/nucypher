@@ -665,10 +665,10 @@ class Operator(BaseActor):
 
             if not funded:
                 # check for funds
-                ether_balance = taco_child_client.get_balance(self.operator_address)
-                if ether_balance:
+                matic_balance = taco_child_client.get_balance(self.operator_address)
+                if matic_balance:
                     # funds found
-                    funded, balance = True, Web3.from_wei(ether_balance, "ether")
+                    funded, balance = True, Web3.from_wei(matic_balance, "ether")
                     emitter.message(
                         f"✓ Operator {self.operator_address} is funded with {balance} MATIC",
                         color="green",
