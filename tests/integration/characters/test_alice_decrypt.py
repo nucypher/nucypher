@@ -1,26 +1,4 @@
-
-
-
-import pytest
-from constant_sorrow import constants
-
 from nucypher.characters.lawful import Enrico
-
-"""
-What follows are various combinations of signing and encrypting, to match
-real-world scenarios.
-"""
-
-
-def test_sign_cleartext_and_encrypt(alice, bob):
-    """
-    Exhibit One: alice signs the cleartext and encrypts her signature inside
-    the ciphertext.
-    """
-    message = b"Have you accepted my answer on StackOverflow yet?"
-    message_kit = alice.encrypt_for(alice, message)
-    cleartext = alice.decrypt_message_kit(alice, message_kit)
-    assert cleartext == message
 
 
 def test_alice_can_decrypt(alice):

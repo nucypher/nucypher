@@ -1,6 +1,3 @@
-
-
-
 import datetime
 
 import maya
