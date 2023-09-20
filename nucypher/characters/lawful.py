@@ -71,16 +71,18 @@ import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth import actors
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
     InMemoryContractRegistry,
 )
+from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.banners import (
     ALICE_BANNER,
@@ -102,7 +104,6 @@ from nucypher.crypto.powers import (
     TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
-from nucypher.network import trackers
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
@@ -141,7 +142,7 @@ class Alice(Character, actors.PolicyAuthor):
         # Policy Value
         rate: int = None,
         duration: int = None,
-        payment_method: PaymentMethod = None,
+        pre_payment_method: PaymentMethod = None,
         # Policy Storage
         store_policy_credentials: bool = None,
         # Middleware
@@ -199,11 +200,11 @@ class Alice(Character, actors.PolicyAuthor):
         self.log = Logger(self.__class__.__name__)
         if is_me:
             # Policy Payment
-            if not payment_method:
+            if not pre_payment_method:
                 raise ValueError(
-                    "payment_method is a required argument for a local Alice."
+                    "pre_payment_method is a required argument for a local Alice."
                 )
-            self.payment_method = payment_method
+            self.pre_payment_method = pre_payment_method
             self.rate = rate
             self.duration = duration
 
@@ -279,7 +280,7 @@ class Alice(Character, actors.PolicyAuthor):
         expiration: Optional[maya.MayaDT] = None,
         value: Optional[int] = None,
         rate: Optional[int] = None,
-        payment_method: Optional[PaymentMethod] = None,
+        pre_payment_method: Optional[PaymentMethod] = None,
     ) -> dict:
         """Construct policy creation from default parameters or overrides."""
 
@@ -295,10 +296,10 @@ class Alice(Character, actors.PolicyAuthor):
         rate = (
             rate if rate is not None else self.rate
         )  # TODO conflict with CLI default value, see #1709
-        payment_method = payment_method or self.payment_method
+        pre_payment_method = pre_payment_method or self.pre_payment_method
 
         # Calculate Policy Rate, Duration, and Value
-        quote = self.payment_method.quote(
+        quote = self.pre_payment_method.quote(
             shares=shares,
             duration=duration,
             commencement=commencement.epoch if commencement else None,
@@ -308,7 +309,7 @@ class Alice(Character, actors.PolicyAuthor):
         )
 
         params = dict(
-            payment_method=payment_method,
+            pre_payment_method=pre_payment_method,
             threshold=threshold,
             shares=shares,
             duration=quote.duration,
@@ -619,9 +620,9 @@ class Bob(Character):
 
         cohort = list()
         for staking_provider_address, transcript_bytes in ritual.transcripts:
-            remote_ritualist = self.known_nodes[staking_provider_address]
-            remote_ritualist.mature()
-            cohort.append(remote_ritualist)
+            remote_operator = self.known_nodes[staking_provider_address]
+            remote_operator.mature()
+            cohort.append(remote_operator)
 
         return cohort
 
@@ -677,7 +678,9 @@ class Bob(Character):
         )
 
         if len(successes) < threshold:
-            raise Ursula.NotEnoughUrsulas(f"Not enough Ursulas to decrypt: {failures}")
+            raise Ursula.NotEnoughUrsulas(
+                f"Threshold of Ursulas unable to decrypt: {failures}"
+            )
         self.log.debug("Got enough shares to decrypt.")
 
         if decryption_request.variant == FerveoVariant.Precomputed:
@@ -701,25 +704,37 @@ class Bob(Character):
             gathered_shares[provider_address] = decryption_share
         return gathered_shares
 
-    def get_ritual_from_id(self, ritual_id):
-        # blockchain reads: get the DKG parameters and the cohort.
+    def _get_coordinator_agent(self) -> CoordinatorAgent:
         if not self.coordinator_agent:
             raise ValueError(
                 "No coordinator provider URI provided in Bob's constructor."
             )
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
 
+        return self.coordinator_agent
+
+    def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
+        ritual_id = self._get_coordinator_agent().get_ritual_id_from_public_key(
+            public_key
+        )
+        return ritual_id
+
+    def get_ritual_from_id(self, ritual_id) -> CoordinatorAgent.Ritual:
+        ritual = self._get_coordinator_agent().get_ritual(
+            ritual_id, with_participants=True
+        )
         return ritual
 
     def threshold_decrypt(
         self,
-        ritual_id: int,
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
     ) -> bytes:
-        ritual = self.get_ritual_from_id(ritual_id)
+        ritual_id = self.get_ritual_id_from_public_key(
+            public_key=threshold_message_kit.acp.public_key
+        )
+        ritual = self.get_ritual_from_id(ritual_id=ritual_id)
 
         if not ursulas:
             # P2P: if the Ursulas are not provided, we need to resolve them from published records.
@@ -735,11 +750,6 @@ class Bob(Character):
                 self.remember_node(ursula)
 
         variant = self._default_dkg_variant
-        threshold = (
-            (ritual.shares // 2) + 1
-            if variant == FerveoVariant.Simple
-            else ritual.shares
-        )  # TODO: #3095 get this from the ritual / put it on-chain?
 
         decryption_request = self.__make_decryption_request(
             ritual_id=ritual_id,
@@ -752,7 +762,7 @@ class Bob(Character):
             decryption_request=decryption_request,
             participant_public_keys=participant_public_keys,
             cohort=ursulas,
-            threshold=threshold,
+            threshold=ritual.threshold,
         )
 
         return self.__decrypt(
@@ -779,7 +789,7 @@ class Bob(Character):
         return cleartext
 
 
-class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
+class Ursula(Teacher, Character, Operator):
     banner = URSULA_BANNER
     _alice_class = Alice
 
@@ -809,16 +819,16 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         is_me: bool = True,
         certificate: Optional[Certificate] = None,
         certificate_filepath: Optional[Path] = None,
-        availability_check: bool = False,  # TODO: Remove from init
         metadata: Optional[NodeMetadata] = None,
         # Blockchain
         checksum_address: Optional[ChecksumAddress] = None,
         operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
+        transacting_power: Optional[TransactingPower] = None,
         operator_signature_from_metadata=NOT_SIGNED,
         eth_provider_uri: Optional[str] = None,
         condition_provider_uris: Optional[Dict[int, List[str]]] = None,
-        payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
+        pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
         abort_on_learning_error: bool = False,
         crypto_power=None,
@@ -844,39 +854,27 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
                 raise ValueError("A local node must generate its own metadata.")
             self._metadata = None
 
-            # Health Checks
-            self._availability_check = availability_check
-            self._availability_tracker = trackers.AvailabilityTracker(ursula=self)
-
             try:
-                payment_method: ContractPayment
-                actors.Operator.__init__(
+                pre_payment_method: ContractPayment
+                self.__operator_address = operator_address
+                Operator.__init__(
                     self,
-                    is_me=is_me,
                     domain=self.domain,
                     registry=self.registry,
                     signer=self.signer,
                     crypto_power=self._crypto_power,
                     operator_address=operator_address,
                     eth_provider_uri=eth_provider_uri,
-                    payment_method=payment_method,
+                    pre_payment_method=pre_payment_method,
                     client_password=client_password,
-                )
-
-                # DKG Ritualist
-                actors.Ritualist.__init__(
-                    self,
-                    domain=domain,
                     condition_provider_uris=condition_provider_uris,
-                    coordinator_provider_uri=payment_method.provider,
-                    network=payment_method.network,
-                    transacting_power=self.transacting_power,
-                    crypto_power=self._crypto_power,
-                    registry=self.registry,
+                    coordinator_provider_uri=pre_payment_method.provider,
+                    transacting_power=transacting_power,
+                    coordinator_network=pre_payment_method.network,
                 )
 
             except Exception:
-                # TODO: Move this lower to encapsulate the Ritualist init in a try/except block.
+                # TODO: Move this lower to encapsulate the Operator init in a try/except block.
                 # TODO: Do not announce self to "other nodes" until this init is finished.
                 # It's not possible to finish constructing this node.
                 self.stop(halt_reactor=False)
@@ -988,9 +986,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         self,
         emitter: StdoutEmitter = None,
         discovery: bool = True,
-        availability: bool = False,
-        worker: bool = True,
-        ritualist: bool = True,
+        ritual_tracking: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
         prometheus_config: "PrometheusMetricsConfig" = None,
@@ -1025,32 +1021,14 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
                     f"✓ Node Discovery ({self.domain.capitalize()})", color="green"
                 )
 
-        if self._availability_check or availability:
-            self._availability_tracker.start(now=eager)
-            if emitter:
-                emitter.message("✓ Availability Checks", color="green")
-
-        if ritualist:
+        if ritual_tracking:
             self.ritual_tracker.start()
             if emitter:
                 emitter.message("✓ DKG Ritual Tracking", color="green")
 
-        if worker:
-            if block_until_ready:
-                # Sets (staker's) checksum address; Prevent worker startup before bonding
-                self.block_until_ready()
-
-            work_is_needed = self.get_work_is_needed_check()(self)
-            if work_is_needed:
-                message = "✓ Work Tracking"
-                self.work_tracker.start(
-                    commit_now=True,
-                    requirement_func=self.work_tracker.worker.get_work_is_needed_check(),
-                )  # requirement_func=self._availability_tracker.status)  # TODO: #2277
-            else:
-                message = "✓ Operator already confirmed.  Not starting worktracker."
-            if emitter:
-                emitter.message(message, color="green")
+        if block_until_ready:
+            # Sets (staker's) checksum address; Prevent worker startup before bonding
+            self.block_until_ready()
 
         #
         # Non-order dependant services
@@ -1110,9 +1088,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         with contextlib.suppress(
             AttributeError
         ):  # TODO: Is this acceptable here, what are alternatives?
-            self._availability_tracker.stop()
             self.stop_learning_loop()
-            self.work_tracker.stop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
         if halt_reactor:
@@ -1305,7 +1281,7 @@ class Ursula(Teacher, Character, actors.Operator, actors.Ritualist):
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(
-                PREApplicationAgent, provider_uri=provider_uri, registry=registry
+                TACoApplicationAgent, provider_uri=provider_uri, registry=registry
             )
             seednode_stake = application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address
@@ -1450,9 +1426,13 @@ class Enrico:
 
     banner = ENRICO_BANNER
 
-    def __init__(self, encrypting_key: Union[PublicKey, DkgPublicKey]):
-        self.signing_power = SigningPower()
-        self._policy_pubkey = encrypting_key
+    def __init__(
+        self,
+        encrypting_key: Union[PublicKey, DkgPublicKey],
+        signer: Optional[Signer] = None,
+    ):
+        self.signer = signer
+        self._encrypting_key = encrypting_key
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
 
@@ -1470,20 +1450,29 @@ class Enrico:
         return message_kit
 
     def encrypt_for_dkg(
-        self, plaintext: bytes, conditions: Lingo
+        self,
+        plaintext: bytes,
+        conditions: Lingo,
     ) -> ThresholdMessageKit:
+        if not self.signer:
+            raise TypeError("This Enrico doesn't have a signer.")
+
         validate_condition_lingo(conditions)
         conditions_json = json.dumps(conditions)
         access_conditions = Conditions(conditions_json)
 
+        # encrypt for DKG
         ciphertext, auth_data = encrypt_for_dkg(
             plaintext, self.policy_pubkey, access_conditions
         )
 
-        # authentication for AllowLogic
-        # TODO Replace with `Signer` to be passed as parameter
+        # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
-        authorization = self.signing_power.keypair.sign(header_hash).to_be_bytes()
+        authorization = bytes(
+            self.signer.sign_message(
+                message=header_hash, account=self.signer.accounts[0]
+            )
+        )
 
         return ThresholdMessageKit(
             ciphertext=ciphertext,
@@ -1502,8 +1491,8 @@ class Enrico:
 
     @property
     def policy_pubkey(self):
-        if not self._policy_pubkey:
+        if not self._encrypting_key:
             raise TypeError(
                 "This Enrico doesn't know which policy encrypting key he used.  Oh well."
             )
-        return self._policy_pubkey
+        return self._encrypting_key

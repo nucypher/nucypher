@@ -26,7 +26,7 @@ from twisted.internet.defer import Deferred
 from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import BaseContractRegistry
@@ -1048,8 +1048,8 @@ class Teacher:
         the case that the "staking provider" isn't "staking" (e.g., all her tokens have been slashed).
         """
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, provider_uri=provider_uri, registry=registry
-        )  # type: PREApplicationAgent
+            TACoApplicationAgent, provider_uri=provider_uri, registry=registry
+        )  # type: TACoApplicationAgent
         staking_provider_address = application_agent.get_staking_provider_from_operator(operator_address=self.operator_address)
         if staking_provider_address == NULL_ADDRESS:
             raise self.UnbondedOperator(f"Operator {self.operator_address} is not bonded")
@@ -1061,8 +1061,8 @@ class Teacher:
         As a follow-up, this checks that the staking provider is, indeed, staking.
         """
         application_agent = ContractAgency.get_agent(
-            PREApplicationAgent, registry=registry, provider_uri=eth_provider_uri
-        )  # type: PREApplicationAgent
+            TACoApplicationAgent, registry=registry, provider_uri=eth_provider_uri
+        )  # type: TACoApplicationAgent
         is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
         return is_staking
 

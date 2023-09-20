@@ -76,8 +76,8 @@ wallet = Signer.from_signer_uri(SIGNER_URI)
 password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): ")
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
-# This is Alice's payment method.
-payment_method = SubscriptionManagerPayment(
+# This is Alice's PRE payment method.
+pre_payment_method = SubscriptionManagerPayment(
     network=L2_NETWORK,
     eth_provider=L2_PROVIDER
 )
@@ -88,7 +88,7 @@ alice = Alice(
     signer=wallet,
     domain=L1_NETWORK,
     eth_provider_uri=L1_PROVIDER,
-    payment_method=payment_method
+    pre_payment_method=pre_payment_method,
 )
 
 # Alice puts her public key somewhere for Bob to find later...
@@ -113,7 +113,7 @@ remote_bob = Bob.from_public_keys(
 # These are the policy details.
 expiration = maya.now() + datetime.timedelta(days=1)
 threshold, shares = 2, 3
-price = alice.payment_method.quote(expiration=expiration.epoch, shares=shares).value
+price = alice.pre_payment_method.quote(expiration=expiration.epoch, shares=shares).value
 
 # Alice grants access to Bob...
 policy = alice.grant(

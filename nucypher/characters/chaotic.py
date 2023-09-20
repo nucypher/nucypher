@@ -259,6 +259,9 @@ class _UpAndDownInTheWater(Bob, DKGOmniscient):
     def __init__(self, session_seed=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def get_ritual_id_from_public_key(self, public_key) -> int:
+        return 55  # any ritual id can be returned here
+
     def get_ritual_from_id(self, ritual_id):
         return self._dkg_insight.fake_ritual
 

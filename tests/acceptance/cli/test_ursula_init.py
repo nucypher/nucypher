@@ -6,7 +6,7 @@ import pytest
 from eth_account import Account
 from web3 import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, PREApplicationAgent
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.main import nucypher_cli
@@ -31,8 +31,9 @@ def mock_funded_account_password_keystore(
     tmp_path_factory,
     testerchain,
     threshold_staking,
-    application_economics,
+    taco_application_agent,
     test_registry,
+    deployer_account,
 ):
     """
     Generate a random keypair & password and create a local keystore. Then prepare a staking provider
@@ -56,24 +57,25 @@ def mock_funded_account_password_keystore(
 
     # initialize threshold stake
     provider_address = testerchain.unassigned_accounts[0]
-    tx = threshold_staking.functions.setRoles(provider_address).transact()
-    testerchain.wait_for_receipt(tx)
-    tx = threshold_staking.functions.setStakes(
-        provider_address, application_economics.min_authorization, 0, 0
-    ).transact()
-    testerchain.wait_for_receipt(tx)
+    threshold_staking.setRoles(provider_address, sender=deployer_account)
+    threshold_staking.setStakes(
+        provider_address,
+        0,
+        taco_application_agent.get_min_authorization(),
+        sender=deployer_account,
+    )
 
     provider_power = TransactingPower(
         account=provider_address, signer=Web3Signer(testerchain.client)
     )
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
-    pre_application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
+    taco_application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent,
         registry=test_registry,
         provider_uri=TEST_ETH_PROVIDER_URI,
     )
-    pre_application_agent.bond_operator(
+    taco_application_agent.bond_operator(
         staking_provider=provider_address,
         operator=account.address,
         transacting_power=provider_power,
@@ -87,7 +89,6 @@ def test_ursula_and_local_keystore_signer_integration(
     click_runner,
     tmp_path,
     staking_providers,
-    application_economics,
     mocker,
     mock_funded_account_password_keystore,
     testerchain,
@@ -125,7 +126,7 @@ def test_ursula_and_local_keystore_signer_integration(
         "init",
         "--network",
         TEMPORARY_DOMAIN,
-        "--payment-network",
+        "--pre-payment-network",
         TEMPORARY_DOMAIN,
         "--operator-address",
         worker_account.address,
@@ -133,7 +134,7 @@ def test_ursula_and_local_keystore_signer_integration(
         str(config_root_path.absolute()),
         "--eth-provider",
         TEST_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,
         "--rest-host",
         MOCK_IP_ADDRESS,

@@ -5,20 +5,14 @@ from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
 
 from nucypher.blockchain.eth.agents import (
-    ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture(scope='module')
-def agent(testerchain, test_registry) -> CoordinatorAgent:
-    coordinator_agent = ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
-    )
+def agent(coordinator_agent) -> CoordinatorAgent:
     return coordinator_agent
 
 
@@ -27,8 +21,10 @@ def transcripts():
     return [os.urandom(32), os.urandom(32)]
 
 
+@pytest.mark.usefixtures("ursulas")
 @pytest.fixture(scope="module")
-def cohort(testerchain, staking_providers):
+def cohort(staking_providers):
+    # "ursulas" fixture is needed to set provider public key
     deployer, cohort_provider_1, cohort_provider_2, *everybody_else = staking_providers
     cohort_providers = [cohort_provider_1, cohort_provider_2]
     cohort_providers.sort()  # providers must be sorted
@@ -36,25 +32,20 @@ def cohort(testerchain, staking_providers):
 
 
 @pytest.fixture(scope='module')
-def ursulas(cohort, test_registry):
+def cohort_ursulas(cohort, taco_application_agent):
     ursulas_for_cohort = []
-    application_agent = ContractAgency.get_agent(
-        PREApplicationAgent,
-        registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
-    )
     for provider in cohort:
-        operator = application_agent.get_operator_from_staking_provider(provider)
+        operator = taco_application_agent.get_operator_from_staking_provider(provider)
         ursulas_for_cohort.append(operator)
 
     return ursulas_for_cohort
 
 
 @pytest.fixture(scope='module')
-def transacting_powers(testerchain, ursulas):
+def transacting_powers(testerchain, cohort_ursulas):
     return [
         TransactingPower(account=ursula, signer=Web3Signer(testerchain.client))
-        for ursula in ursulas
+        for ursula in cohort_ursulas
     ]
 
 
@@ -65,12 +56,38 @@ def test_coordinator_properties(agent):
     assert not agent._proxy_name  # not upgradeable
 
 
-def test_initiate_ritual(agent, cohort, transacting_powers):
+@pytest.mark.usefixtures("ursulas")
+def test_initiate_ritual(
+    accounts,
+    agent,
+    cohort,
+    get_random_checksum_address,
+    global_allow_list,
+    transacting_powers,
+    ritual_token,
+    testerchain,
+    initiator,
+):
     number_of_rituals = agent.number_of_rituals()
     assert number_of_rituals == 0
 
+    duration = 60 * 60 * 24
+    amount = agent.get_ritual_initiation_cost(cohort, duration)
+
+    # Approve the ritual token for the coordinator agent to spend
+    ritual_token.approve(
+        agent.contract_address,
+        amount,
+        sender=accounts[initiator.transacting_power.account],
+    )
+
+    authority = get_random_checksum_address()
     receipt = agent.initiate_ritual(
-        providers=cohort, transacting_power=transacting_powers[0]
+        providers=cohort,
+        authority=authority,
+        duration=duration,
+        access_controller=global_allow_list.address,
+        transacting_power=initiator.transacting_power,
     )
     assert receipt['status'] == 1
     start_ritual_event = agent.contract.events.StartRitual().process_receipt(receipt)
@@ -81,7 +98,7 @@ def test_initiate_ritual(agent, cohort, transacting_powers):
     ritual_id = number_of_rituals - 1
 
     ritual = agent.get_ritual(ritual_id)
-    assert ritual.initiator == transacting_powers[0].account
+    assert ritual.authority == authority
 
     participants = agent.get_participants(ritual_id)
     assert [p.provider for p in participants] == cohort

@@ -4,7 +4,7 @@ from twisted.internet import threads
 
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.network.trackers import OperatorBondedTracker
+from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 
 
 @pytest_twisted.inlineCallbacks

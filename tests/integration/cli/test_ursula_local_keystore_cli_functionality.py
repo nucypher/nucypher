@@ -1,5 +1,3 @@
-
-
 import json
 import secrets
 from pathlib import Path
@@ -30,7 +28,9 @@ def mock_account_password_keystore(tmp_path_factory):
     return account, password, keystore
 
 
-@pytest.mark.usefixtures("test_registry_source_manager")
+@pytest.mark.usefixtures(
+    "test_registry_source_manager", "monkeypatch_get_staking_provider_from_operator"
+)
 def test_ursula_init_with_local_keystore_signer(
     click_runner, temp_dir_path, mocker, testerchain, mock_account_password_keystore
 ):
@@ -53,9 +53,9 @@ def test_ursula_init_with_local_keystore_signer(
         "--eth-provider",
         testerchain.eth_provider_uri,
         # Layer 2
-        "--payment-network",
+        "--pre-payment-network",
         TEMPORARY_DOMAIN,
-        "--payment-provider",
+        "--pre-payment-provider",
         testerchain.eth_provider_uri,
         "--rest-host",
         MOCK_IP_ADDRESS,

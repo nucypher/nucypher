@@ -3,20 +3,16 @@ from collections import defaultdict
 import pytest
 from eth_utils.crypto import keccak
 
-from nucypher.blockchain.eth.actors import Ritualist
+from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
-from nucypher.network.trackers import AvailabilityTracker
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import MOCK_IP_ADDRESS, TESTERCHAIN_CHAIN_ID
 
 # Don't re-lock accounts in the background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
 TransactingPower.lock_account = lambda *a, **k: True
-
-# Prevent halting the reactor via health checks during tests
-AvailabilityTracker._halt_reactor = lambda *a, **kw: True
 
 # Global test character cache
 global_mutable_where_everybody = defaultdict(list)
@@ -92,7 +88,6 @@ def check_character_state_after_test(request):
     from nucypher.network.nodes import Learner
     yield
     if Learner._DEBUG_MODE:
-        gmwe = global_mutable_where_everybody
         module_name = request.module.__name__
 
         test_learners = global_mutable_where_everybody.get(module_name, [])
@@ -159,5 +154,5 @@ def mock_condition_blockchains(session_mocker):
 @pytest.fixture(scope="module", autouse=True)
 def mock_multichain_configuration(module_mocker, testerchain):
     module_mocker.patch.object(
-        Ritualist, "_make_condition_provider", return_value=testerchain.provider
+        Operator, "_make_condition_provider", return_value=testerchain.provider
     )

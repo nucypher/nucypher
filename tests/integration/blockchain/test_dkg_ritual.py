@@ -5,13 +5,13 @@ from unittest.mock import PropertyMock, patch
 import pytest
 import pytest_twisted
 from eth_typing import ChecksumAddress
+from nucypher_core.ferveo import FerveoVariant
 from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
-from nucypher_core.ferveo import FerveoVariant
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.policy.conditions.lingo import ConditionLingo
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -74,7 +74,7 @@ def cohort(ursulas, mock_coordinator_agent):
     return ursulas
 
 
-def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Ursula]):
+def execute_round_1(ritual_id: int, authority: ChecksumAddress, cohort: List[Ursula]):
 
     # check that the ritual is being tracked locally upon initialization for each node
     for ursula in cohort:
@@ -88,7 +88,7 @@ def execute_round_1(ritual_id: int, initiator: ChecksumAddress, cohort: List[Urs
                 args=AttributeDict(
                     {
                         "ritualId": ritual_id,
-                        "initiator": initiator,
+                        "authority": authority,
                         "participants": [u.checksum_address for u in cohort],
                     }
                 ),
@@ -117,6 +117,7 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
         ursula.ritual_tracker._handle_ritual_event(event, get_block_when=lambda x: event)
 
 
+@pytest.mark.usefixtures("mock_sign_message")
 @pytest.mark.parametrize('dkg_size, ritual_id, variant', PARAMS)
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
@@ -129,96 +130,119 @@ def test_ursula_ritualist(
     ritual_id,
     variant,
     test_registry_source_manager,
+    get_random_checksum_address,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
     cohort = cohort[:dkg_size]
 
-    def initialize():
-        """Initiates the ritual"""
-        print("==================== INITIALIZING ====================")
-        cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
-        mock_coordinator_agent.initiate_ritual(
-            providers=cohort_staking_provider_addresses,
-            transacting_power=alice.transacting_power
-        )
-        assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1
+    # adjust threshold since we are testing with pre-computed (simple is the default)
+    threshold = mock_coordinator_agent.get_threshold_for_ritual_size(
+        dkg_size
+    )  # default is simple
+    if variant == FerveoVariant.Precomputed:
+        threshold = dkg_size
 
-    def round_1(_):
-        """Checks the initialization of the ritual"""
-        print("==================== CHECKING INITIALIZATION ====================")
-        # verify that the ritual is in the correct state
-        assert mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id) == \
-               mock_coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
+    with patch.object(
+        mock_coordinator_agent, "get_threshold_for_ritual_size", return_value=threshold
+    ):
 
-        ritual = mock_coordinator_agent.get_ritual(ritual_id)
-        execute_round_1(ritual_id, ritual.initiator, cohort)
-
-    def round_2(_):
-        """simulates the passage of time and the execution of the event scanner"""
-        print("==================== BLOCKING UNTIL DKG FINALIZED ====================")
-        execute_round_2(ritual_id, cohort)
-
-    def finality(_):
-        """Checks the finality of the DKG"""
-        print("==================== CHECKING DKG FINALITY ====================")
-
-        status = mock_coordinator_agent.get_ritual_status(ritual_id)
-        assert status == mock_coordinator_agent.Ritual.Status.FINALIZED
-        for ursula in cohort:
-            assert ursula.dkg_storage.get_transcript(ritual_id) is not None
-
-    def encrypt(_):
-        """Encrypts a message and returns the ciphertext and conditions"""
-        print("==================== DKG ENCRYPTION ====================")
-        encrypting_key = mock_coordinator_agent.get_ritual_public_key(
-            ritual_id=ritual_id
-        )
-
-        # prepare message and conditions
-        plaintext = PLAINTEXT.encode()
-
-        # encrypt
-        # print(f'encrypting for DKG with key {bytes(encrypting_key.to_bytes()).hex()}')
-        enrico = Enrico(encrypting_key=encrypting_key)
-        threshold_message_kit = enrico.encrypt_for_dkg(
-            plaintext=plaintext, conditions=CONDITIONS
-        )
-        return threshold_message_kit
-
-    def decrypt(threshold_message_kit):
-        """Decrypts a message and checks that it matches the original plaintext"""
-        print("==================== DKG DECRYPTION ====================")
-        bob.start_learning_loop(now=True)
-
-        # mock the use of non-default variants since it can no longer be specified
-        with patch.object(
-            bob, "_default_dkg_variant", new_callable=PropertyMock(return_value=variant)
-        ):
-            cleartext = bob.threshold_decrypt(
-                ritual_id=ritual_id,
-                threshold_message_kit=threshold_message_kit,
-                peering_timeout=0,
+        def initialize():
+            """Initiates the ritual"""
+            print("==================== INITIALIZING ====================")
+            cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
+            mock_coordinator_agent.initiate_ritual(
+                providers=cohort_staking_provider_addresses,
+                authority=alice.transacting_power.account,
+                duration=1,
+                access_controller=get_random_checksum_address(),
+                transacting_power=alice.transacting_power,
             )
-            assert bytes(cleartext) == PLAINTEXT.encode()
+            assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1
 
-        print("==================== DECRYPTION SUCCESSFUL ====================")
+        def round_1(_):
+            """Checks the initialization of the ritual"""
+            print("==================== CHECKING INITIALIZATION ====================")
+            # verify that the ritual is in the correct state
+            assert (
+                mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+                == mock_coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
+            )
 
-    def error_handler(e):
-        """Prints the error and raises it"""
-        print("==================== ERROR ====================")
-        print(e.getTraceback())
-        raise e
+            ritual = mock_coordinator_agent.get_ritual(ritual_id)
+            execute_round_1(ritual_id, ritual.authority, cohort)
 
-    # order matters
-    d = deferToThread(initialize)
-    callbacks = [
-        round_1,
-        round_2,
-        finality,
-        encrypt,
-        decrypt,
-    ]
-    for callback in callbacks:
-        d.addCallback(callback)
-        d.addErrback(error_handler)
-    yield d
+        def round_2(_):
+            """simulates the passage of time and the execution of the event scanner"""
+            print(
+                "==================== BLOCKING UNTIL DKG FINALIZED ===================="
+            )
+            execute_round_2(ritual_id, cohort)
+
+        def finality(_):
+            """Checks the finality of the DKG"""
+            print("==================== CHECKING DKG FINALITY ====================")
+
+            status = mock_coordinator_agent.get_ritual_status(ritual_id)
+            assert status == mock_coordinator_agent.Ritual.Status.FINALIZED
+            for ursula in cohort:
+                assert ursula.dkg_storage.get_transcript(ritual_id) is not None
+
+        def encrypt(_):
+            """Encrypts a message and returns the ciphertext and conditions"""
+            print("==================== DKG ENCRYPTION ====================")
+            encrypting_key = mock_coordinator_agent.get_ritual_public_key(
+                ritual_id=ritual_id
+            )
+
+            # prepare message and conditions
+            plaintext = PLAINTEXT.encode()
+
+            # create Enrico
+            signer = Web3Signer(client=testerchain.client)
+            enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+
+            # encrypt
+            print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
+            threshold_message_kit = enrico.encrypt_for_dkg(
+                plaintext=plaintext, conditions=CONDITIONS
+            )
+            return threshold_message_kit
+
+        def decrypt(threshold_message_kit):
+            """Decrypts a message and checks that it matches the original plaintext"""
+            print("==================== DKG DECRYPTION ====================")
+            bob.start_learning_loop(now=True)
+
+            # mock the use of non-default variants since it can no longer be specified
+            with patch.object(
+                bob,
+                "_default_dkg_variant",
+                new_callable=PropertyMock(return_value=variant),
+            ):
+                cleartext = bob.threshold_decrypt(
+                    threshold_message_kit=threshold_message_kit,
+                    peering_timeout=0,
+                )
+                assert bytes(cleartext) == PLAINTEXT.encode()
+
+            print("==================== DECRYPTION SUCCESSFUL ====================")
+
+        def error_handler(e):
+            """Prints the error and raises it"""
+            print("==================== ERROR ====================")
+            print(e.getTraceback())
+            raise e
+
+        # order matters
+        d = deferToThread(initialize)
+        callbacks = [
+            round_1,
+            round_2,
+            finality,
+            encrypt,
+            decrypt,
+        ]
+        for callback in callbacks:
+            d.addCallback(callback)
+            d.addErrback(error_handler)
+        yield d

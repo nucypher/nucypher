@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -10,8 +11,8 @@ from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
     CoordinatorAgent,
-    PREApplicationAgent,
     StakingProvidersReservoir,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
@@ -20,6 +21,7 @@ from nucypher.blockchain.eth.interfaces import (
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
 from nucypher.blockchain.eth.signers import KeystoreSigner
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
@@ -55,15 +57,23 @@ def mock_sample_reservoir(testerchain, mock_contract_agency):
         }
         return StakingProvidersReservoir(addresses)
 
-    mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
+    mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     mock_agent.get_staking_provider_reservoir = mock_reservoir
+
+
+@pytest.fixture(scope="function")
+def mock_sign_message(mocker):
+    mocked_sign_message = mocker.patch.object(
+        Web3Signer, "sign_message", return_value=os.urandom(32)
+    )
+    return mocked_sign_message
 
 
 @pytest.fixture(scope="function", autouse=True)
 def mock_application_agent(
     testerchain, application_economics, mock_contract_agency, mocker
 ):
-    mock_agent = mock_contract_agency.get_agent(PREApplicationAgent)
+    mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     # Handle the special case of confirming operator address, which returns a txhash due to the fire_and_forget option
     mock_agent.confirm_operator_address = mocker.Mock(
         return_value=testerchain.FAKE_TX_HASH
@@ -236,12 +246,20 @@ def mock_transacting_power(module_mocker, monkeymodule):
 
 @pytest.fixture(scope="module", autouse=True)
 def staking_providers(testerchain, test_registry, monkeymodule):
-
     def faked(self, *args, **kwargs):
         return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
 
     Operator.get_staking_provider_address = faked
     return testerchain.stake_providers_accounts
+
+
+@pytest.fixture(scope="module")
+def monkeypatch_get_staking_provider_from_operator(monkeymodule):
+    monkeymodule.setattr(
+        Operator,
+        "get_staking_provider_address",
+        lambda self: self.transacting_power.account,
+    )
 
 
 @pytest.fixture(scope="session", autouse=True)

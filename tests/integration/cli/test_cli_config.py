@@ -44,7 +44,7 @@ def test_initialize_via_cli(
         TEMPORARY_DOMAIN,
         "--eth-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         TEST_ETH_PROVIDER_URI,
         "--config-root",
         str(custom_filepath.absolute()),
@@ -77,8 +77,13 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
 
     def fake_get_latest_registry(*args, **kwargs):
         return test_registry
-    monkeypatch.setattr(InMemoryContractRegistry, 'from_latest_publication', fake_get_latest_registry)
-    monkeypatch.setattr(CharacterConfiguration, 'DEFAULT_PAYMENT_NETWORK', TEMPORARY_DOMAIN)
+
+    monkeypatch.setattr(
+        InMemoryContractRegistry, "from_latest_publication", fake_get_latest_registry
+    )
+    monkeypatch.setattr(
+        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
+    )
 
     custom_config_filepath = custom_filepath / config_class.generate_filename()
 

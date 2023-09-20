@@ -4,14 +4,16 @@ from web3.main import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    PREApplicationAgent,
+    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
 
 def paint_contract_status(registry, emitter):
     blockchain = BlockchainInterfaceFactory.get_interface()
-    application_agent = ContractAgency.get_agent(PREApplicationAgent, registry=registry)
+    application_agent = ContractAgency.get_agent(
+        TACoApplicationAgent, registry=registry
+    )
     contracts = f"""
 | Contract Deployments |
 {application_agent.contract_name} .............. {application_agent.contract_address}
@@ -25,7 +27,7 @@ Registry ................. {registry.filepath}
     """
 
     staking = f"""
-| PREApplication |
+| TACoApplication |
 Staking Provider Population ....... {application_agent.get_staking_providers_population()}
     """
 

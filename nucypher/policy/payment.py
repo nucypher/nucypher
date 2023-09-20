@@ -32,7 +32,7 @@ class PaymentMethod(ABC):
     @property
     @abstractmethod
     def rate(self) -> int:
-        """The cost of this payment method per unit."""
+        """The cost of this PRE payment method per unit."""
         raise NotImplementedError
 
     @abstractmethod
@@ -44,7 +44,7 @@ class PaymentMethod(ABC):
               value: Optional[int] = None,
               rate: Optional[int] = None
               ) -> Quote:
-        """Generates a valid quote for this payment method using pricing details."""
+        """Generates a valid quote for this PRE payment method using pricing details."""
         raise NotImplementedError
 
     @abstractmethod
@@ -204,7 +204,7 @@ class FreeReencryptions(PaymentMethod):
         return True
 
 
-PAYMENT_METHODS = {
+PRE_PAYMENT_METHODS = {
     SubscriptionManagerPayment.NAME: SubscriptionManagerPayment,
     FreeReencryptions.NAME: FreeReencryptions
 }

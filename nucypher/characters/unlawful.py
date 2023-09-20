@@ -11,7 +11,6 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.payment import FreeReencryptions
-from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 
 class Vladimir(Ursula):
@@ -40,38 +39,45 @@ class Vladimir(Ursula):
         try:
             from tests.utils.middleware import EvilMiddleWare
         except ImportError:
-            raise DevelopmentInstallationRequired(importable_name='tests.utils.middleware.EvilMiddleWare')
-        cls.network_middleware = EvilMiddleWare(eth_provider_uri=TEST_ETH_PROVIDER_URI)
+            raise DevelopmentInstallationRequired(
+                importable_name="tests.utils.middleware.EvilMiddleWare"
+            )
+        blockchain = target_ursula.application_agent.blockchain
+        cls.network_middleware = EvilMiddleWare(
+            eth_provider_uri=blockchain.eth_provider_uri
+        )
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
-        blockchain = target_ursula.application_agent.blockchain
         cls.attach_transacting_key(blockchain=blockchain)
 
         # Vladimir does not care about payment.
-        bogus_payment_method = FreeReencryptions()
-        bogus_payment_method.provider = Mock()
-        bogus_payment_method.agent = Mock()
-        bogus_payment_method.network = TEMPORARY_DOMAIN
-        bogus_payment_method.agent.blockchain.client.chain_id = TESTERCHAIN_CHAIN_ID
+        bogus_pre_payment_method = FreeReencryptions()
+        bogus_pre_payment_method.provider = Mock()
+        bogus_pre_payment_method.agent = Mock()
+        bogus_pre_payment_method.network = TEMPORARY_DOMAIN
+        bogus_pre_payment_method.agent.blockchain.client.chain_id = (
+            blockchain.client.chain_id
+        )
         mock.patch(
             "mock.interfaces.MockBlockchain.client.chain_id",
-            new_callable=mock.PropertyMock(return_value=TESTERCHAIN_CHAIN_ID),
+            new_callable=mock.PropertyMock(return_value=blockchain.client.chain_id),
         )
 
-        vladimir = cls(is_me=True,
-                       crypto_power=crypto_power,
-                       domain=TEMPORARY_DOMAIN,
-                       rest_host=target_ursula.rest_interface.host,
-                       rest_port=target_ursula.rest_interface.port,
-                       certificate=target_ursula.certificate,
-                       network_middleware=cls.network_middleware,
-                       checksum_address=cls.fraud_address,
-                       operator_address=cls.fraud_address,
-                       signer=Web3Signer(blockchain.client),
-                       eth_provider_uri=blockchain.eth_provider_uri,
-                       payment_method=bogus_payment_method,
-                       )
+        vladimir = cls(
+            is_me=True,
+            crypto_power=crypto_power,
+            domain=TEMPORARY_DOMAIN,
+            rest_host=target_ursula.rest_interface.host,
+            rest_port=target_ursula.rest_interface.port,
+            certificate=target_ursula.certificate,
+            network_middleware=cls.network_middleware,
+            checksum_address=cls.fraud_address,
+            operator_address=cls.fraud_address,
+            signer=Web3Signer(blockchain.client),
+            eth_provider_uri=blockchain.eth_provider_uri,
+            pre_payment_method=bogus_pre_payment_method,
+        )
 
         # Let's use the target's public info, and try to make some changes.
 

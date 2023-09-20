@@ -2,12 +2,11 @@ import pytest
 import pytest_twisted
 from twisted.internet.threads import deferToThread
 
-from nucypher.blockchain.eth.agents import ContractAgency, CoordinatorAgent
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
-from nucypher.characters.lawful import Enrico
+from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo
-from tests.acceptance.constants import APE_TEST_CHAIN_ID
-from tests.constants import TEST_ETH_PROVIDER_URI
+from tests.constants import APE_TEST_CHAIN_ID
 
 # constants
 DKG_SIZE = 4
@@ -29,6 +28,8 @@ CONDITIONS = {
     },
 }
 
+DURATION = 48 * 60 * 60
+
 
 @pytest.fixture(scope='module')
 def cohort(ursulas):
@@ -38,26 +39,42 @@ def cohort(ursulas):
     return nodes
 
 
-@pytest.fixture(scope='module')
-def coordinator_agent(testerchain, test_registry):
-    """Creates a coordinator agent"""
-    return ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
-    )
-
-
 @pytest_twisted.inlineCallbacks()
-def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
+def test_ursula_ritualist(
+    testerchain,
+    coordinator_agent,
+    global_allow_list,
+    cohort,
+    initiator,
+    bob,
+    ritual_token,
+    accounts,
+):
     """Tests the DKG and the encryption/decryption of a message"""
+    signer = Web3Signer(client=testerchain.client)
 
     # Round 0 - Initiate the ritual
     def initialize():
         """Initiates the ritual"""
         print("==================== INITIALIZING ====================")
         cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
+
+        # Approve the ritual token for the coordinator agent to spend
+        amount = coordinator_agent.get_ritual_initiation_cost(
+            providers=cohort_staking_provider_addresses, duration=DURATION
+        )
+        ritual_token.approve(
+            coordinator_agent.contract_address,
+            amount,
+            sender=accounts[initiator.transacting_power.account],
+        )
+
         receipt = coordinator_agent.initiate_ritual(
             providers=cohort_staking_provider_addresses,
-            transacting_power=alice.transacting_power
+            authority=initiator.transacting_power.account,
+            duration=DURATION,
+            access_controller=global_allow_list.address,
+            transacting_power=initiator.transacting_power,
         )
         return receipt
 
@@ -121,21 +138,43 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         # prepare message and conditions
         plaintext = PLAINTEXT.encode()
 
+        # create Enrico
+        enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+
         # encrypt
-        # print(f'encrypting for DKG with key {bytes(encrypting_key.to_bytes()).hex()}')
-        enrico = Enrico(encrypting_key=encrypting_key)
+        print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
         threshold_message_kit = enrico.encrypt_for_dkg(
             plaintext=plaintext, conditions=CONDITIONS
         )
+
+        return threshold_message_kit
+
+    def test_unauthorized_decrypt(threshold_message_kit):
+        """Attempts to decrypt a message before Enrico is authorized to use the ritual"""
+        print("======== DKG DECRYPTION UNAUTHORIZED ENCRYPTION ========")
+        # ritual_id, ciphertext, conditions are obtained from the side channel
+        bob.start_learning_loop(now=True)
+        with pytest.raises(Ursula.NotEnoughUrsulas):
+            _ = bob.threshold_decrypt(
+                threshold_message_kit=threshold_message_kit,
+                peering_timeout=0,
+            )
+
         return threshold_message_kit
 
     def test_decrypt(threshold_message_kit):
         """Decrypts a message and checks that it matches the original plaintext"""
+        # authorize Enrico to encrypt for ritual
+        global_allow_list.authorize(
+            RITUAL_ID,
+            [signer.accounts[0]],
+            sender=accounts[initiator.transacting_power.account],
+        )
+
         print("==================== DKG DECRYPTION ====================")
         # ritual_id, ciphertext, conditions are obtained from the side channel
         bob.start_learning_loop(now=True)
         cleartext = bob.threshold_decrypt(
-            ritual_id=RITUAL_ID,
             threshold_message_kit=threshold_message_kit,
             peering_timeout=0,
         )
@@ -154,6 +193,7 @@ def test_ursula_ritualist(testerchain, coordinator_agent, cohort, alice, bob):
         block_until_dkg_finalized,
         test_finality,
         test_encrypt,
+        test_unauthorized_decrypt,
         test_decrypt,
     ]
 

@@ -45,7 +45,7 @@ nucypher {init_command}
 
 SELECT_NETWORK = "Select Network"
 
-SELECT_PAYMENT_NETWORK = "Select Payment Network"
+SELECT_PRE_PAYMENT_NETWORK = "Select PRE Payment Network"
 
 NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found. Run 'nucypher {command} init' then try again."
 
@@ -177,7 +177,6 @@ WARNING: --etherscan is disabled. If you want to see deployed contracts and TXs 
 """
 
 
-
 #
 # Ursula
 #
@@ -186,7 +185,7 @@ SUCCESSFUL_MANUALLY_SAVE_METADATA = "Successfully saved node metadata to {metada
 
 
 #
-# PREApplication
+# TACoApplication
 #
 
 STAKING_PROVIDER_UNAUTHORIZED = '{provider} is not authorized.'

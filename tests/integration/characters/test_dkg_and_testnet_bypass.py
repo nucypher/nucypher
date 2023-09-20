@@ -1,5 +1,6 @@
 import pytest
 
+from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.chaotic import (
     NiceGuyEddie,
     ThisBobAlwaysDecrypts,
@@ -14,17 +15,16 @@ from tests.constants import (
 )
 
 
-def _attempt_decryption(BobClass, plaintext):
+def _attempt_decryption(BobClass, plaintext, testerchain):
     trinket = 80  # Doens't matter.
 
-    enrico = NiceGuyEddie(encrypting_key=trinket)
+    signer = Web3Signer(client=testerchain.client)
+    enrico = NiceGuyEddie(encrypting_key=trinket, signer=signer)
     bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
         domain="lynx",
         eth_provider_uri=MOCK_ETH_PROVIDER_URI,
     )
-
-    ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA = 55
 
     definitely_false_condition = {
         "version": ConditionLingo.VERSION,
@@ -42,20 +42,21 @@ def _attempt_decryption(BobClass, plaintext):
     )
 
     decrypted_cleartext = bob.threshold_decrypt(
-        ritual_id=ANYTHING_CAN_BE_PASSED_AS_RITUAL_DATA,
         threshold_message_kit=threshold_message_kit,
     )
 
     return decrypted_cleartext
 
 
-def test_user_controls_success():
+@pytest.mark.usefixtures("mock_sign_message")
+def test_user_controls_success(testerchain):
     plaintext = b"ever thus to deadbeats"
-    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext)
+    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, testerchain)
     assert bytes(result) == bytes(plaintext)
 
 
-def test_user_controls_failure():
+@pytest.mark.usefixtures("mock_sign_message")
+def test_user_controls_failure(testerchain):
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas):
-        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext)
+        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext, testerchain)

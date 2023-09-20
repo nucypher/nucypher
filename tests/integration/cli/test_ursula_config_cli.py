@@ -5,15 +5,13 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-import nucypher
-from nucypher.blockchain.eth.actors import Ritualist
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
     CONFIRM_IPV4_ADDRESS_QUESTION,
     REPEAT_FOR_CONFIRMATION,
     SELECT_OPERATOR_ACCOUNT,
-    SELECT_PAYMENT_NETWORK,
+    SELECT_PRE_PAYMENT_NETWORK,
     SUCCESSFUL_DESTRUCTION,
 )
 from nucypher.cli.main import nucypher_cli
@@ -33,7 +31,6 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
     YES_ENTER,
-    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.ursula import select_test_port
 
@@ -64,7 +61,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_regist
         TEMPORARY_DOMAIN,
         "--eth-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         MOCK_ETH_PROVIDER_URI,
     )
 
@@ -73,7 +70,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_regist
     assert result.exit_code == 0, result.output
 
     # Select network
-    assert SELECT_PAYMENT_NETWORK in result.output
+    assert SELECT_PRE_PAYMENT_NETWORK in result.output
 
     # Select account
     assert SELECT_OPERATOR_ACCOUNT in result.output
@@ -103,9 +100,9 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
         deploy_port,
         "--eth-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-provider",
+        "--pre-payment-provider",
         MOCK_ETH_PROVIDER_URI,
-        "--payment-network",
+        "--pre-payment-network",
         TEMPORARY_DOMAIN,
         "--operator-address",
         testerchain.ursulas_accounts[0],
@@ -217,11 +214,19 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
     # Run the destroy command
-    destruction_args = ('ursula', 'destroy', '--config-file', str(custom_config_filepath.absolute()))
-    result = click_runner.invoke(nucypher_cli, destruction_args,
-                                 input='Y\n'.format(INSECURE_DEVELOPMENT_PASSWORD),
-                                 catch_exceptions=False,
-                                 env={NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD})
+    destruction_args = (
+        "ursula",
+        "destroy",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+    )
+    result = click_runner.invoke(
+        nucypher_cli,
+        destruction_args,
+        input="Y\n".format(),
+        catch_exceptions=False,
+        env={NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD},
+    )
 
     # CLI Output
     assert not custom_config_filepath.is_file(), 'Configuration file still exists'
