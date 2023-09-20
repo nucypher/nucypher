@@ -30,19 +30,15 @@ except ImportError:
 from web3.types import Timestamp
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_application_agent(mocker, random_address, mock_application_agent):
-    mocker.patch.object(mock_application_agent, 'is_operator_confirmed', return_value=True)
+@pytest.fixture(scope="function")
+def mock_operator_confirmation(random_address, mock_taco_application_agent):
+    mock_taco_application_agent.is_operator_confirmed.return_value = True
     info = StakingProviderInfo(
         operator=random_address,
         operator_confirmed=True,
         operator_start_timestamp=Timestamp(int(time.time()))
     )
-    mocker.patch.object(
-        mock_application_agent,
-        'get_staking_provider_info',
-        return_value=info
-    )
+    mock_taco_application_agent.get_staking_provider_info.return_value = info
 
 
 @pytest.mark.skipif(
@@ -94,7 +90,8 @@ def test_blockchain_metrics_collector(testerchain):
 
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
-def test_staking_provider_metrics_collector(test_registry, staking_providers, mocker, mock_application_agent, random_address):
+@pytest.mark.usefixtures("mock_operator_confirmation")
+def test_staking_provider_metrics_collector(test_registry, staking_providers):
 
     staking_provider_address = random.choice(staking_providers)
     collector = StakingProviderMetricsCollector(
@@ -157,6 +154,7 @@ def test_operator_metrics_collector(test_registry, ursulas):
 
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
+@pytest.mark.usefixtures("mock_operator_confirmation")
 def test_all_metrics_collectors_sanity_collect(ursulas):
     ursula = random.choice(ursulas)
 
