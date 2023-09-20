@@ -438,6 +438,11 @@ class TACoApplicationAgent(EthereumContractAgent):
     DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
     DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
 
+    class StakingProviderInfo(NamedTuple):
+        operator: ChecksumAddress
+        operator_confirmed: bool
+        operator_start_timestamp: int
+
     class NotEnoughStakingProviders(Exception):
         pass
 
@@ -479,10 +484,10 @@ class TACoApplicationAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_staking_provider_info(
         self, staking_provider: ChecksumAddress
-    ) -> types.StakingProviderInfo:
+    ) -> StakingProviderInfo:
         # remove reserved fields
         info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return types.StakingProviderInfo(*info[0:3])
+        return TACoApplicationAgent.StakingProviderInfo(*info[0:3])
 
     @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:

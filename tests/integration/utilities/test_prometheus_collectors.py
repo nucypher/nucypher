@@ -5,7 +5,6 @@ from typing import List
 import pytest
 
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
-from nucypher.types import StakingProviderInfo
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
 try:
@@ -33,7 +32,7 @@ from web3.types import Timestamp
 @pytest.fixture(scope="function")
 def mock_operator_confirmation(random_address, mock_taco_application_agent):
     mock_taco_application_agent.is_operator_confirmed.return_value = True
-    info = StakingProviderInfo(
+    info = TACoApplicationAgent.StakingProviderInfo(
         operator=random_address,
         operator_confirmed=True,
         operator_start_timestamp=Timestamp(int(time.time()))

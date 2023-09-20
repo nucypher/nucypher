@@ -7,7 +7,6 @@ from nucypher.blockchain.eth.agents import TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from nucypher.types import StakingProviderInfo
 
 
 def test_get_min_authorization(taco_application_agent, taco_application_proxy):
@@ -132,8 +131,10 @@ def test_sample_staking_providers(taco_application_agent):
 
 def test_get_staking_provider_info(testerchain, taco_application_agent):
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
-    info: StakingProviderInfo = taco_application_agent.get_staking_provider_info(
-        staking_provider=staking_provider_account
+    info: TACoApplicationAgent.StakingProviderInfo = (
+        taco_application_agent.get_staking_provider_info(
+            staking_provider=staking_provider_account
+        )
     )
     assert info.operator_start_timestamp > 0
     assert info.operator == operator_account
