@@ -390,7 +390,7 @@ class AdjudicatorAgent(EthereumContractAgent):
         return staking_parameters
 
 
-class TacoChildApplicationAgent(EthereumContractAgent):
+class TACoChildApplicationAgent(EthereumContractAgent):
     contract_name: str = TACO_CHILD_APPLICATION_CONTRACT_NAME
 
     class StakingProviderInfo(NamedTuple):
