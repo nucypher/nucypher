@@ -26,9 +26,9 @@ from nucypher.policy.conditions.exceptions import (
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
 from tests.constants import (
-    APE_TEST_CHAIN_ID,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.policy import make_message_kits
 
@@ -148,7 +148,7 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
     # we have balance stored, use for rpc condition with context variable
     rpc_condition = RPCCondition(
         method="eth_getBalance",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(
             "==", ":balanceContextVar"
         ),  # user-defined context var
@@ -356,7 +356,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="==", value=sponsor, index=0),
         parameters=[":hrac"],
     )
@@ -370,7 +370,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="!=", value=sponsor, index=0),
         parameters=[":hrac"],
     )
@@ -384,7 +384,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="==", value=start, index=1),
         parameters=[":hrac"],
     )
@@ -398,7 +398,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="!=", value=start, index=1),
         parameters=[":hrac"],
     )
@@ -412,7 +412,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="==", value=end, index=2),
         parameters=[":hrac"],
     )
@@ -426,7 +426,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="==", value=size, index=3),
         parameters=[":hrac"],
     )
@@ -440,7 +440,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(comparator="==", value=NULL_ADDRESS, index=4),
         parameters=[":hrac"],
     )
@@ -474,7 +474,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
             "getPolicy"
         ).abi,
         method="getPolicy",
-        chain=APE_TEST_CHAIN_ID,
+        chain=TESTERCHAIN_CHAIN_ID,
         return_value_test=ReturnValueTest(
             comparator="!=",
             value=":sponsor",  # use sponsor sponsor context var
@@ -530,11 +530,11 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
                     "conditionType": "time",
                     "returnValueTest": {"value": "0", "comparator": ">"},
                     "method": "blocktime",
-                    "chain": APE_TEST_CHAIN_ID,
+                    "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
                     "conditionType": "rpc",
-                    "chain": APE_TEST_CHAIN_ID,
+                    "chain": TESTERCHAIN_CHAIN_ID,
                     "method": "eth_getBalance",
                     "parameters": [bob.checksum_address, "latest"],
                     "returnValueTest": {"comparator": ">=", "value": "10000000000000"},
