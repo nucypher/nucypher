@@ -180,10 +180,8 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
 
-def test_run_ursula_from_config_file(
-    custom_filepath: Path, click_runner, mock_funding_and_bonding, mocker
-):
-
+@pytest.mark.usefixtures("mock_funding_and_bonding")
+def test_run_ursula_from_config_file(custom_filepath: Path, click_runner):
     # Ensure the configuration file still exists
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'

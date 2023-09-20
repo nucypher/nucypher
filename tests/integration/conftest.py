@@ -13,7 +13,9 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     StakingProvidersReservoir,
     TACoApplicationAgent,
+    TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
@@ -70,27 +72,28 @@ def mock_sign_message(mocker):
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_application_agent(
-    testerchain, application_economics, mock_contract_agency, mocker
-):
+def mock_root_application_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
-    # Handle the special case of confirming operator address, which returns a txhash due to the fire_and_forget option
-    mock_agent.confirm_operator_address = mocker.Mock(
-        return_value=testerchain.FAKE_TX_HASH
-    )
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_adjudicator_agent(testerchain, application_economics, mock_contract_agency):
+def mock_child_application_agent(testerchain, mock_contract_agency):
+    mock_agent = mock_contract_agency.get_agent(TACoChildApplicationAgent)
+    yield mock_agent
+    mock_agent.reset()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def mock_adjudicator_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
     yield mock_agent
     mock_agent.reset()
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
+def mock_coordinator_agent(testerchain, mock_contract_agency):
     from tests.mock.coordinator import MockCoordinatorAgent
 
     mock_agent = MockCoordinatorAgent(blockchain=testerchain)
@@ -169,6 +172,23 @@ def mock_contract_agency(module_mocker, application_economics):
 @pytest.fixture(scope='module')
 def agency(mock_contract_agency):
     yield mock_contract_agency
+
+
+@pytest.fixture(scope="function")
+def mock_funding_and_bonding(
+    testerchain, mocker, mock_root_application_agent, mock_child_application_agent
+):
+    # funding
+    mocker.patch.object(EthereumClient, "get_balance", return_value=1)
+
+    # bonding
+    staking_provider = testerchain.stake_providers_accounts[0]
+    mock_root_application_agent.get_staking_provider_from_operator.return_value = (
+        staking_provider
+    )
+    mock_child_application_agent.staking_provider_from_operator.return_value = (
+        staking_provider
+    )
 
 
 @pytest.fixture(scope="module")
