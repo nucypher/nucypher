@@ -159,6 +159,7 @@ def test_ursula_ritualist(
                 threshold_message_kit=threshold_message_kit,
                 peering_timeout=0,
             )
+        print("========= UNAUTHORIZED DECRYPTION UNSUCCESSFUL =========")
 
         return threshold_message_kit
 
