@@ -592,16 +592,6 @@ class TACoApplicationAgent(EthereumContractAgent):
     #
 
     @contract_api(TRANSACTION)
-    def confirm_operator_address(self, transacting_power: TransactingPower, fire_and_forget: bool = True) -> TxReceipt:
-        """Confirm the sender's account as a operator"""
-        contract_function: ContractFunction = self.contract.functions.confirmOperatorAddress()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   fire_and_forget=fire_and_forget
-                                                   )
-        return receipt
-
-    @contract_api(TRANSACTION)
     def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
         """For use by threshold operator accounts only."""
         contract_function: ContractFunction = self.contract.functions.bondOperator(staking_provider, operator)
