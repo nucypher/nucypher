@@ -45,6 +45,7 @@ from nucypher.blockchain.eth.constants import (
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
     TACO_APPLICATION_CONTRACT_NAME,
+    TACO_CHILD_APPLICATION_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -389,12 +390,51 @@ class AdjudicatorAgent(EthereumContractAgent):
         return staking_parameters
 
 
-class TACoApplicationAgent(EthereumContractAgent):
+class TACoChildApplicationAgent(EthereumContractAgent):
+    contract_name: str = TACO_CHILD_APPLICATION_CONTRACT_NAME
 
+    class StakingProviderInfo(NamedTuple):
+        """Matching StakingProviderInfo struct from TACoChildApplication contract."""
+
+        operator: ChecksumAddress
+        operator_confirmed: bool
+        authorized: int
+
+    @contract_api(CONTRACT_CALL)
+    def staking_provider_from_operator(
+        self, operator_address: ChecksumAddress
+    ) -> ChecksumAddress:
+        result = self.contract.functions.stakingProviderFromOperator(
+            operator_address
+        ).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def staking_provider_info(
+        self, staking_provider: ChecksumAddress
+    ) -> StakingProviderInfo:
+        result = self.contract.functions.stakingProviderInfo(staking_provider).call()
+        return TACoChildApplicationAgent.StakingProviderInfo(*result)
+
+    def is_operator_confirmed(self, operator_address: ChecksumAddress) -> bool:
+        staking_provider = self.staking_provider_from_operator(operator_address)
+        if staking_provider == NULL_ADDRESS:
+            return False
+
+        staking_provider_info = self.staking_provider_info(staking_provider)
+        return staking_provider_info.operator_confirmed
+
+
+class TACoApplicationAgent(EthereumContractAgent):
     contract_name: str = TACO_APPLICATION_CONTRACT_NAME
 
     DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE, default=30))
     DEFAULT_PROVIDERS_PAGINATION_SIZE = int(os.environ.get(NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE, default=1000))
+
+    class StakingProviderInfo(NamedTuple):
+        operator: ChecksumAddress
+        operator_confirmed: bool
+        operator_start_timestamp: int
 
     class NotEnoughStakingProviders(Exception):
         pass
@@ -437,10 +477,10 @@ class TACoApplicationAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_staking_provider_info(
         self, staking_provider: ChecksumAddress
-    ) -> types.StakingProviderInfo:
+    ) -> StakingProviderInfo:
         # remove reserved fields
         info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return types.StakingProviderInfo(*info[0:3])
+        return TACoApplicationAgent.StakingProviderInfo(*info[0:3])
 
     @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
@@ -557,16 +597,6 @@ class TACoApplicationAgent(EthereumContractAgent):
     #
     # Transactions
     #
-
-    @contract_api(TRANSACTION)
-    def confirm_operator_address(self, transacting_power: TransactingPower, fire_and_forget: bool = True) -> TxReceipt:
-        """Confirm the sender's account as a operator"""
-        contract_function: ContractFunction = self.contract.functions.confirmOperatorAddress()
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   fire_and_forget=fire_and_forget
-                                                   )
-        return receipt
 
     @contract_api(TRANSACTION)
     def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:

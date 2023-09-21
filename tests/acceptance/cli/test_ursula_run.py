@@ -61,9 +61,8 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
 
 
 @pt.inlineCallbacks
-def test_run_lone_default_development_ursula(
-    click_runner, ursulas, test_registry_source_manager, testerchain
-):
+@pytest.mark.usefixtures("test_registry_source_manager")
+def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain):
     deploy_port = select_test_port()
     args = (
         "ursula",

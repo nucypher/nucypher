@@ -7,37 +7,33 @@ from nucypher.blockchain.eth.agents import TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
-from nucypher.types import StakingProviderInfo
-
-MIN_AUTHORIZATION = 1
-MIN_SECONDS = 1
 
 
-def test_get_min_authorization(taco_application_agent, application_economics):
+def test_get_min_authorization(taco_application_agent, taco_application_proxy):
     result = taco_application_agent.get_min_authorization()
-    assert result == application_economics.min_authorization
+    assert result == taco_application_proxy.minimumAuthorization()
 
 
-def test_get_min_seconds(taco_application_agent, application_economics):
+def test_get_min_seconds(taco_application_agent, taco_application_proxy):
     result = taco_application_agent.get_min_operator_seconds()
-    assert result == application_economics.min_operator_seconds
+    assert result == taco_application_proxy.minOperatorSeconds()
 
 
 def test_authorized_tokens(
-    testerchain, application_economics, taco_application_agent, staking_providers
+    testerchain, taco_application_proxy, taco_application_agent, staking_providers
 ):
     provider_account = staking_providers[0]
     authorized_amount = taco_application_agent.get_authorized_stake(
         staking_provider=provider_account
     )
-    assert authorized_amount >= application_economics.min_authorization
+    assert authorized_amount >= taco_application_proxy.minimumAuthorization()
 
 
 def test_staking_providers_and_operators_relationships(
     testerchain,
     taco_application_agent,
     threshold_staking,
-    application_economics,
+    taco_application_proxy,
     deployer_account,
 ):
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
@@ -45,7 +41,7 @@ def test_staking_providers_and_operators_relationships(
     threshold_staking.authorizationIncreased(
         staking_provider_account,
         0,
-        application_economics.min_authorization,
+        taco_application_proxy.minimumAuthorization(),
         sender=deployer_account,
     )
 
@@ -81,9 +77,6 @@ def test_staking_providers_and_operators_relationships(
     random_address = to_checksum_address(os.urandom(20))
     assert NULL_ADDRESS == taco_application_agent.get_operator_from_staking_provider(
         staking_provider=random_address
-    )
-    assert NULL_ADDRESS == taco_application_agent.get_staking_provider_from_operator(
-        operator_address=random_address
     )
 
 
@@ -135,8 +128,10 @@ def test_sample_staking_providers(taco_application_agent):
 
 def test_get_staking_provider_info(testerchain, taco_application_agent):
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
-    info: StakingProviderInfo = taco_application_agent.get_staking_provider_info(
-        staking_provider=staking_provider_account
+    info: TACoApplicationAgent.StakingProviderInfo = (
+        taco_application_agent.get_staking_provider_info(
+            staking_provider=staking_provider_account
+        )
     )
     assert info.operator_start_timestamp > 0
     assert info.operator == operator_account

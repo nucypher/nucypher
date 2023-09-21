@@ -20,7 +20,6 @@ from web3 import Web3
 import tests
 from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
@@ -501,15 +500,6 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
 #
 # CLI
 #
-
-@pytest.fixture(scope="function")
-def mock_funding_and_bonding(testerchain, mocker):
-    mocker.patch(
-        "nucypher.blockchain.eth.actors.Operator.get_staking_provider_address",
-        return_value=testerchain.stake_providers_accounts[0],
-    )
-    mocker.patch.object(EthereumClient, "get_balance", return_value=1)
-
 
 @pytest.fixture(scope='function')
 def test_emitter(mocker):

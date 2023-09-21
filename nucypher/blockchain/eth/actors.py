@@ -34,6 +34,7 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     NucypherTokenAgent,
     TACoApplicationAgent,
+    TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -47,6 +48,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
+from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -211,11 +213,18 @@ class Operator(BaseActor):
         )
 
         # TODO: registry usage (and subsequently "network") is inconsistent here
+        coordinator_network_registry = InMemoryContractRegistry.from_latest_publication(
+            network=coordinator_network
+        )
+        self.child_application_agent = ContractAgency.get_agent(
+            TACoChildApplicationAgent,
+            registry=coordinator_network_registry,
+            provider_uri=coordinator_provider_uri,
+        )
+
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
-            registry=InMemoryContractRegistry.from_latest_publication(
-                network=coordinator_network
-            ),
+            registry=coordinator_network_registry,
             provider_uri=coordinator_provider_uri,
         )
 
@@ -615,14 +624,14 @@ class Operator(BaseActor):
         return self.operator_address
 
     @property
-    def staking_provider_address(self):
+    def staking_provider_address(self) -> ChecksumAddress:
         if not self.__staking_provider_address:
             self.__staking_provider_address = self.get_staking_provider_address()
         return self.__staking_provider_address
 
-    def get_staking_provider_address(self):
+    def get_staking_provider_address(self) -> ChecksumAddress:
         self.__staking_provider_address = (
-            self.application_agent.get_staking_provider_from_operator(
+            self.child_application_agent.staking_provider_from_operator(
                 self.operator_address
             )
         )
@@ -631,15 +640,24 @@ class Operator(BaseActor):
         return self.__staking_provider_address
 
     @property
-    def is_confirmed(self):
-        return self.application_agent.is_operator_confirmed(self.operator_address)
+    def is_confirmed(self) -> bool:
+        return self.child_application_agent.is_operator_confirmed(self.operator_address)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
         emitter = StdoutEmitter()
-        client = self.application_agent.blockchain.client
         poll_rate = poll_rate or self.READY_POLL_RATE
         timeout = timeout or self.READY_TIMEOUT
         start, funded, bonded = maya.now(), False, False
+
+        taco_child_client = self.child_application_agent.blockchain.client
+        taco_child_pretty_chain_name = PUBLIC_CHAINS.get(
+            taco_child_client.chain_id, f"chain ID #{taco_child_client.chain_id}"
+        )
+
+        taco_root_chain_id = self.application_agent.blockchain.client.chain_id
+        taco_root_pretty_chain_name = PUBLIC_CHAINS.get(
+            taco_root_chain_id, f"chain ID #{taco_root_chain_id}"
+        )
         while not (funded and bonded):
             if timeout and ((maya.now() - start).total_seconds() > timeout):
                 message = f"x Operator was not qualified after {timeout} seconds"
@@ -648,10 +666,10 @@ class Operator(BaseActor):
 
             if not funded:
                 # check for funds
-                ether_balance = client.get_balance(self.operator_address)
-                if ether_balance:
+                matic_balance = taco_child_client.get_balance(self.operator_address)
+                if matic_balance:
                     # funds found
-                    funded, balance = True, Web3.from_wei(ether_balance, "ether")
+                    funded, balance = True, Web3.from_wei(matic_balance, "ether")
                     emitter.message(
                         f"✓ Operator {self.operator_address} is funded with {balance} MATIC",
                         color="green",
@@ -662,27 +680,44 @@ class Operator(BaseActor):
                         color="yellow",
                     )
 
-            if (not bonded) and (self.get_staking_provider_address() != NULL_ADDRESS):
-                bonded = True
-                emitter.message(
-                    f"✓ Operator {self.operator_address} is bonded to staking provider {self.staking_provider_address}",
-                    color="green",
+            if not bonded:
+                # check root
+                taco_root_bonded_address = (
+                    self.application_agent.get_staking_provider_from_operator(
+                        self.operator_address
+                    )
                 )
-            else:
-                emitter.message(
-                    f"! Operator {self.operator_address } is not bonded to a staking provider",
-                    color="yellow",
-                )
+                if taco_root_bonded_address == NULL_ADDRESS:
+                    emitter.message(
+                        f"! Operator {self.operator_address} is not bonded to a staking provider",
+                        color="yellow",
+                    )
+                else:
+                    # check child
+                    taco_child_bonded_address = self.get_staking_provider_address()
+                    if taco_child_bonded_address == taco_root_bonded_address:
+                        bonded = True
+                        emitter.message(
+                            f"✓ Operator {self.operator_address} is bonded to staking provider {self.staking_provider_address}",
+                            color="green",
+                        )
+                    else:
+                        child_bonded_address_info = (
+                            f"({truncate_checksum_address(taco_child_bonded_address)})"
+                            if taco_child_bonded_address != NULL_ADDRESS
+                            else ""
+                        )
+                        emitter.message(
+                            f"! Bonded staking provider address {truncate_checksum_address(taco_root_bonded_address)} on {taco_root_pretty_chain_name} not yet synced to child application on {taco_child_pretty_chain_name} {child_bonded_address_info}; waiting for sync",
+                            color="yellow",
+                        )
 
             time.sleep(poll_rate)
 
-        pretty_chain_name = PUBLIC_CHAINS.get(
-            client.chain_id, f"chain ID #{client.chain_id}"
-        )
         coordinator_address = self.coordinator_agent.contract_address
         emitter.message(
             f"! Checking provider's DKG participation public key for {self.staking_provider_address} "
-            f"on {pretty_chain_name} at Coordinator {coordinator_address}",
+            f"on {taco_child_pretty_chain_name} at Coordinator {coordinator_address}",
             color="yellow",
         )
         receipt = self.set_provider_public_key()  # returns None if key already set
@@ -690,13 +725,13 @@ class Operator(BaseActor):
             txhash = receipt["transactionHash"].hex()
             emitter.message(
                 f"✓ Successfully published provider's DKG participation public key"
-                f" for {self.staking_provider_address} on {pretty_chain_name} with txhash {txhash})",
+                f" for {self.staking_provider_address} on {taco_child_pretty_chain_name} with txhash {txhash})",
                 color="green",
             )
         else:
             emitter.message(
                 f"✓ Provider's DKG participation public key already set for "
-                f"{self.staking_provider_address} on {pretty_chain_name} at Coordinator {coordinator_address}",
+                f"{self.staking_provider_address} on {taco_child_pretty_chain_name} at Coordinator {coordinator_address}",
                 color="green",
             )
 

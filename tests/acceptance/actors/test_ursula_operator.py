@@ -8,6 +8,7 @@ from tests.utils.ursula import select_test_port
 
 logger = Logger("test-operator")
 
+
 def log(message):
     logger.debug(message)
     print(message)
@@ -19,6 +20,7 @@ def test_ursula_operator_confirmation(
     testerchain,
     threshold_staking,
     taco_application_agent,
+    taco_child_application_agent,
     test_registry,
     deployer_account,
 ):
@@ -40,7 +42,12 @@ def test_ursula_operator_confirmation(
         taco_application_agent.get_staking_provider_from_operator(operator_address)
         == NULL_ADDRESS
     )
+    assert (
+        taco_child_application_agent.staking_provider_from_operator(operator_address)
+        == NULL_ADDRESS
+    )
     assert taco_application_agent.is_operator_confirmed(operator_address) is False
+    assert taco_child_application_agent.is_operator_confirmed(operator_address) is False
 
     # bond this operator
     tpower = TransactingPower(
@@ -64,3 +71,6 @@ def test_ursula_operator_confirmation(
     ursula.set_provider_public_key()
 
     assert ursula.is_confirmed is True
+
+    assert taco_application_agent.is_operator_confirmed(operator_address) is True
+    assert taco_child_application_agent.is_operator_confirmed(operator_address) is True
