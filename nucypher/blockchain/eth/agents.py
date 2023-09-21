@@ -64,8 +64,6 @@ class EthereumContractAgent:
     """
 
     contract_name: str = NotImplemented
-    _forward_address: bool = True
-    _proxy_name: Optional[str] = None
     _excluded_interfaces: Tuple[str, ...]
 
     # TODO - #842: Gas Management
@@ -102,8 +100,6 @@ class EthereumContractAgent:
                 registry=registry,
                 contract_name=self.contract_name,
                 contract_version=contract_version,
-                proxy_name=self._proxy_name,
-                use_proxy_address=self._forward_address
             )
 
         self.__contract = contract
@@ -138,9 +134,6 @@ class EthereumContractAgent:
     @property  # type: ignore
     @contract_api(CONTRACT_ATTRIBUTE)
     def owner(self) -> Optional[ChecksumAddress]:
-        if not self._proxy_name:
-            # Only upgradeable + ownable contracts can implement ownership transference.
-            return None
         return self.contract.functions.owner().call()
 
 
@@ -532,7 +525,6 @@ class TACoApplicationAgent(EthereumContractAgent):
 
 class CoordinatorAgent(EthereumContractAgent):
     contract_name: str = "Coordinator"
-    _proxy_name = None
 
     class G2Point(NamedTuple):
         """
