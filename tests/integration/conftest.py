@@ -7,7 +7,6 @@ from eth_account.account import Account
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
-    AdjudicatorAgent,
     ContractAgency,
     CoordinatorAgent,
     StakingProvidersReservoir,
@@ -80,13 +79,6 @@ def mock_taco_application_agent(testerchain, mock_contract_agency):
 @pytest.fixture(scope="function", autouse=True)
 def mock_taco_child_application_agent(testerchain, mock_contract_agency):
     mock_agent = mock_contract_agency.get_agent(TACoChildApplicationAgent)
-    yield mock_agent
-    mock_agent.reset()
-
-
-@pytest.fixture(scope="function", autouse=True)
-def mock_adjudicator_agent(testerchain, mock_contract_agency):
-    mock_agent = mock_contract_agency.get_agent(AdjudicatorAgent)
     yield mock_agent
     mock_agent.reset()
 

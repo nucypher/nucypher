@@ -28,7 +28,6 @@ from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
-    AdjudicatorAgent,
     ContractAgency,
     CoordinatorAgent,
     NucypherTokenAgent,
@@ -37,7 +36,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.decorators import save_receipt, validate_checksum_address
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     BaseContractRegistry,
@@ -756,24 +755,3 @@ class PolicyAuthor(NucypherTokenActor):
 
         blockchain_policy = Policy(publisher=self, *args, **kwargs)
         return blockchain_policy
-
-
-class Investigator(NucypherTokenActor):
-    """
-    Actor that reports incorrect CFrags to the Adjudicator contract.
-    In most cases, Bob will act as investigator, but the actor is generic enough than
-    anyone can report CFrags.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.adjudicator_agent = ContractAgency.get_agent(AdjudicatorAgent, registry=self.registry)
-
-    @save_receipt
-    def request_evaluation(self, evidence) -> dict:
-        receipt = self.adjudicator_agent.evaluate_cfrag(evidence=evidence, transacting_power=self.transacting_power)
-        return receipt
-
-    def was_this_evidence_evaluated(self, evidence) -> bool:
-        result = self.adjudicator_agent.was_this_evidence_evaluated(evidence=evidence)
-        return result

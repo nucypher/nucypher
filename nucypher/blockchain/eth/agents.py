@@ -38,8 +38,6 @@ from web3.types import Timestamp, TxParams, TxReceipt, Wei
 from nucypher import types
 from nucypher.blockchain.eth import events
 from nucypher.blockchain.eth.constants import (
-    ADJUDICATOR_CONTRACT_NAME,
-    DISPATCHER_CONTRACT_NAME,
     ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
@@ -57,7 +55,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
 from nucypher.crypto.powers import TransactingPower
-from nucypher.crypto.utils import sha256_digest
 from nucypher.utilities.logging import Logger  # type: ignore
 
 
@@ -252,8 +249,6 @@ class NucypherTokenAgent(EthereumContractAgent):
 class SubscriptionManagerAgent(EthereumContractAgent):
 
     contract_name: str = SUBSCRIPTION_MANAGER_CONTRACT_NAME
-    # TODO: A future deployment of SubscriptionManager may have a proxy.
-    #  _proxy_name: str = DISPATCHER_CONTRACT_NAME
 
     class PolicyInfo(NamedTuple):
         sponsor: ChecksumAddress
@@ -316,78 +311,6 @@ class SubscriptionManagerAgent(EthereumContractAgent):
             transacting_power=transacting_power
         )
         return receipt
-
-
-class AdjudicatorAgent(EthereumContractAgent):
-
-    contract_name: str = ADJUDICATOR_CONTRACT_NAME
-    _proxy_name: str = DISPATCHER_CONTRACT_NAME
-
-    @contract_api(TRANSACTION)
-    def evaluate_cfrag(self, evidence, transacting_power: TransactingPower) -> TxReceipt:
-        """Submits proof that a worker created wrong CFrag"""
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO TransactionFails unless gas is provided.
-        contract_function: ContractFunction = self.contract.functions.evaluateCFrag(*evidence.evaluation_arguments())
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power,
-                                                   payload=payload)
-        return receipt
-
-    @contract_api(CONTRACT_CALL)
-    def was_this_evidence_evaluated(self, evidence) -> bool:
-        data_hash: bytes = sha256_digest(evidence.task.capsule, evidence.task.cfrag)
-        result: bool = self.contract.functions.evaluatedCFrags(data_hash).call()
-        return result
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def staking_escrow_contract(self) -> ChecksumAddress:
-        return self.contract.functions.escrow().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def hash_algorithm(self) -> int:
-        return self.contract.functions.hashAlgorithm().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def base_penalty(self) -> int:
-        return self.contract.functions.basePenalty().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def penalty_history_coefficient(self) -> int:
-        return self.contract.functions.penaltyHistoryCoefficient().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def percentage_penalty_coefficient(self) -> int:
-        return self.contract.functions.percentagePenaltyCoefficient().call()
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def reward_coefficient(self) -> int:
-        return self.contract.functions.rewardCoefficient().call()
-
-    @contract_api(CONTRACT_CALL)
-    def penalty_history(self, staker_address: str) -> int:
-        return self.contract.functions.penaltyHistory(staker_address).call()
-
-    @contract_api(CONTRACT_CALL)
-    def slashing_parameters(self) -> Tuple[int, ...]:
-        parameter_signatures = (
-            'hashAlgorithm',                    # Hashing algorithm
-            'basePenalty',                      # Base for the penalty calculation
-            'penaltyHistoryCoefficient',        # Coefficient for calculating the penalty depending on the history
-            'percentagePenaltyCoefficient',     # Coefficient for calculating the percentage penalty
-            'rewardCoefficient',                # Coefficient for calculating the reward
-        )
-
-        def _call_function_by_name(name: str) -> int:
-            return getattr(self.contract.functions, name)().call()
-
-        staking_parameters = tuple(map(_call_function_by_name, parameter_signatures))
-        return staking_parameters
 
 
 class TACoChildApplicationAgent(EthereumContractAgent):
