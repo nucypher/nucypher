@@ -24,22 +24,26 @@ class AllAtOnceFactory:
             return self.values
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def join_worker_pool(request):
     """
     Makes sure the pool is properly joined at the end of the test,
     so that one doesn't have to wrap the whole test in a try-finally block.
     """
     pool_to_join = None
+
     def register(pool):
         nonlocal pool_to_join
         pool_to_join = pool
+
     yield register
     pool_to_join.join()
 
 
 class OperatorRule:
-    def __init__(self, fails: bool = False, timeout_min: float = 0, timeout_max: float = 0):
+    def __init__(
+        self, fails: bool = False, timeout_min: float = 0, timeout_max: float = 0
+    ):
         self.fails = fails
         self.timeout_min = timeout_min
         self.timeout_max = timeout_max
@@ -87,10 +91,13 @@ def test_wait_for_successes(join_worker_pool):
             (OperatorRule(timeout_min=0.5, timeout_max=1.5), 10),
             (OperatorRule(fails=True, timeout_min=1, timeout_max=3), 20),
         ],
-        seed=123)
+        seed=123,
+    )
 
     factory = AllAtOnceFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=30)
+    pool = WorkerPool(
+        worker, factory, target_successes=10, timeout=10, threadpool_size=30
+    )
     join_worker_pool(pool)
 
     t_start = time.monotonic()
@@ -123,16 +130,19 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
             (OperatorRule(timeout_min=0.5, timeout_max=1.5), 9),
             (OperatorRule(fails=True, timeout_min=0.5, timeout_max=1.5), 20),
         ],
-        seed=123)
+        seed=123,
+    )
 
     factory = AllAtOnceFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=15)
+    pool = WorkerPool(
+        worker, factory, target_successes=10, timeout=10, threadpool_size=15
+    )
     join_worker_pool(pool)
 
     t_start = time.monotonic()
     pool.start()
     with pytest.raises(WorkerPool.OutOfValues) as exc_info:
-        successes = pool.block_until_target_successes()
+        pool.block_until_target_successes()
     t_end = time.monotonic()
 
     # We have roughly 2 workers per thread, so it shouldn't take longer than 1.5s (max timeout) * 2
@@ -140,7 +150,9 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
 
     message = str(exc_info.value)
 
-    assert "Execution stopped before completion - not enough available values" in message
+    assert (
+        "Execution stopped before completion - not enough available values" in message
+    )
 
     # We had 20 workers set up to fail
     num_expected_failures = 20
@@ -151,7 +163,7 @@ def test_wait_for_successes_out_of_values(join_worker_pool):
     assert len(tracebacks) == num_expected_failures
     for value, traceback in tracebacks.items():
         assert 'raise Exception(f"Operator for {value} failed")' in traceback
-        assert f'Operator for {value} failed' in traceback
+        assert f"Operator for {value} failed" in traceback
 
 
 def test_wait_for_successes_timed_out(join_worker_pool):
@@ -165,17 +177,20 @@ def test_wait_for_successes_timed_out(join_worker_pool):
             (OperatorRule(timeout_min=1.5, timeout_max=2.5), 1),
             (OperatorRule(fails=True, timeout_min=1.5, timeout_max=2.5), 20),
         ],
-        seed=123)
+        seed=123,
+    )
 
     factory = AllAtOnceFactory(list(outcomes))
     timeout = 1
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=timeout, threadpool_size=30)
+    pool = WorkerPool(
+        worker, factory, target_successes=10, timeout=timeout, threadpool_size=30
+    )
     join_worker_pool(pool)
 
     t_start = time.monotonic()
     pool.start()
     with pytest.raises(WorkerPool.TimedOut) as exc_info:
-        successes = pool.block_until_target_successes()
+        pool.block_until_target_successes()
     t_end = time.monotonic()
 
     # Even though timeout is 1, there are long-running workers which we can't interupt.
@@ -197,10 +212,13 @@ def test_join(join_worker_pool):
             (OperatorRule(timeout_min=0.5, timeout_max=1.5), 9),
             (OperatorRule(fails=True, timeout_min=0.5, timeout_max=1.5), 20),
         ],
-        seed=123)
+        seed=123,
+    )
 
     factory = AllAtOnceFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=1, threadpool_size=30)
+    pool = WorkerPool(
+        worker, factory, target_successes=10, timeout=1, threadpool_size=30
+    )
     join_worker_pool(pool)
 
     t_start = time.monotonic()
@@ -208,14 +226,13 @@ def test_join(join_worker_pool):
     pool.join()
     t_end = time.monotonic()
 
-    pool.join() # should work the second time too
+    pool.join()  # should work the second time too
 
     # Even though timeout is 1, there are long-running workers which we can't interupt.
     assert t_end - t_start < 3
 
 
 class TestBatchValueFactory(BatchValueFactory):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.batch_sizes = []
@@ -238,10 +255,18 @@ def test_batched_value_generation(join_worker_pool):
             (OperatorRule(timeout_min=0.5, timeout_max=1.5), 80),
             (OperatorRule(fails=True, timeout_min=0.5, timeout_max=1.5), 80),
         ],
-        seed=123)
+        seed=123,
+    )
 
     factory = TestBatchValueFactory(values=list(outcomes), required_successes=10)
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=0.5)
+    pool = WorkerPool(
+        worker,
+        factory,
+        target_successes=10,
+        timeout=10,
+        threadpool_size=10,
+        stagger_timeout=0.5,
+    )
     join_worker_pool(pool)
 
     t_start = time.monotonic()
@@ -255,14 +280,16 @@ def test_batched_value_generation(join_worker_pool):
 
     # Check that batch sizes in the factory were getting progressively smaller
     # as the number of successes grew.
-    assert all(factory.batch_sizes[i] >= factory.batch_sizes[i+1]
-               for i in range(len(factory.batch_sizes) - 1))
+    assert all(
+        factory.batch_sizes[i] >= factory.batch_sizes[i + 1]
+        for i in range(len(factory.batch_sizes) - 1)
+    )
 
     # Since we canceled the pool, no more workers will be started and we will finish faster
     assert t_end - t_start < 4
 
     successes_copy = pool.get_successes()
-    failures_copy = pool.get_failures()
+    pool.get_failures()
 
     assert all(value in successes_copy for value in successes)
 
@@ -278,10 +305,13 @@ def test_cancel_waiting_workers(join_worker_pool):
         [
             (OperatorRule(timeout_min=1, timeout_max=1), 100),
         ],
-        seed=123)
+        seed=123,
+    )
 
     factory = AllAtOnceFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10)
+    pool = WorkerPool(
+        worker, factory, target_successes=10, timeout=10, threadpool_size=10
+    )
     join_worker_pool(pool)
 
     t_start = time.monotonic()
@@ -299,7 +329,6 @@ def test_cancel_waiting_workers(join_worker_pool):
 
 
 class BuggyFactory:
-
     def __init__(self, values):
         self.values = values
 
@@ -319,8 +348,8 @@ def test_buggy_factory_raises_on_block():
     """
 
     outcomes, worker = generate_workers(
-        [(OperatorRule(timeout_min=1, timeout_max=1), 100)],
-        seed=123)
+        [(OperatorRule(timeout_min=1, timeout_max=1), 100)], seed=123
+    )
 
     factory = BuggyFactory(list(outcomes))
 
@@ -329,10 +358,17 @@ def test_buggy_factory_raises_on_block():
     # since BuggyFactory only fails if you do a subsequent batch
     # Once the subsequent batch is requested, the BuggyFactory returns an error
     # causing WorkerPool to fail
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10, stagger_timeout=0.75)
+    pool = WorkerPool(
+        worker,
+        factory,
+        target_successes=10,
+        timeout=10,
+        threadpool_size=10,
+        stagger_timeout=0.75,
+    )
 
     pool.start()
-    time.sleep(2) # wait for the stagger timeout to finish
+    time.sleep(2)  # wait for the stagger timeout to finish
     with pytest.raises(Exception, match="Buggy factory"):
         pool.block_until_target_successes()
     # Further calls to `block_until_target_successes()` or `join()` don't throw the error.
@@ -351,11 +387,13 @@ def test_buggy_factory_raises_on_join():
     """
 
     outcomes, worker = generate_workers(
-        [(OperatorRule(timeout_min=1, timeout_max=1), 100)],
-        seed=123)
+        [(OperatorRule(timeout_min=1, timeout_max=1), 100)], seed=123
+    )
 
     factory = BuggyFactory(list(outcomes))
-    pool = WorkerPool(worker, factory, target_successes=10, timeout=10, threadpool_size=10)
+    pool = WorkerPool(
+        worker, factory, target_successes=10, timeout=10, threadpool_size=10
+    )
 
     pool.start()
     pool.cancel()
