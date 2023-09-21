@@ -394,13 +394,7 @@ class TACoChildApplicationAgent(EthereumContractAgent):
     contract_name: str = TACO_CHILD_APPLICATION_CONTRACT_NAME
 
     class StakingProviderInfo(NamedTuple):
-        """
-        struct StakingProviderInfo {
-            address operator;
-            bool operatorConfirmed;
-            uint96 authorized;
-        }
-        """
+        """Matching StakingProviderInfo struct from TACoChildApplication contract."""
 
         operator: ChecksumAddress
         operator_confirmed: bool
