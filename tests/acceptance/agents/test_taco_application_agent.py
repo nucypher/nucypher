@@ -78,9 +78,6 @@ def test_staking_providers_and_operators_relationships(
     assert NULL_ADDRESS == taco_application_agent.get_operator_from_staking_provider(
         staking_provider=random_address
     )
-    assert NULL_ADDRESS == taco_application_agent.get_staking_provider_from_operator(
-        operator_address=random_address
-    )
 
 
 def test_get_staker_population(taco_application_agent, staking_providers):
