@@ -10,7 +10,6 @@ from cryptography.exceptions import InternalError
 from eth_utils import to_checksum_address
 from nucypher_core.umbral import PublicKey
 
-from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.token import TToken
 from nucypher.policy.payment import PRE_PAYMENT_METHODS
@@ -128,7 +127,8 @@ EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 GWEI = DecimalRange(min=0)
 
-__min_authorization = TToken.from_units(Economics._default_min_authorization).to_tokens()
+
+__min_authorization = TToken(40_000, "T").to_tokens()  # TODO right spot for this?
 MIN_AUTHORIZATION = Decimal(__min_authorization)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_authorization)
 

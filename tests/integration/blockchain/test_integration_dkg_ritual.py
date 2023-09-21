@@ -53,7 +53,7 @@ COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 
 
 @pytest.fixture(scope="function", autouse=True)
-def mock_coordinator_agent(testerchain, application_economics, mock_contract_agency):
+def mock_coordinator_agent(testerchain, mock_contract_agency):
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = COORDINATOR
 
     yield COORDINATOR

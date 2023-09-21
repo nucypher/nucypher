@@ -27,7 +27,6 @@ from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
     ContractAgency,
@@ -71,13 +70,13 @@ class BaseActor:
         pass
 
     @validate_checksum_address
-    def __init__(self,
-                 domain: Optional[str],
-                 registry: BaseContractRegistry,
-                 transacting_power: Optional[TransactingPower] = None,
-                 checksum_address: Optional[ChecksumAddress] = None,
-                 economics: Optional[Economics] = None):
-
+    def __init__(
+        self,
+        domain: Optional[str],
+        registry: BaseContractRegistry,
+        transacting_power: Optional[TransactingPower] = None,
+        checksum_address: Optional[ChecksumAddress] = None,
+    ):
         if not (bool(checksum_address) ^ bool(transacting_power)):
             error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
             raise ValueError(error)
@@ -94,7 +93,6 @@ class BaseActor:
             else:
                 self.checksum_address = checksum_address
 
-        self.economics = economics or Economics()
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain

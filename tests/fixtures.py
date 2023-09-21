@@ -18,7 +18,6 @@ from twisted.internet.task import Clock
 from web3 import Web3
 
 import tests
-from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import LocalContractRegistry
@@ -171,7 +170,7 @@ def bob_test_config(testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def idle_policy(testerchain, alice, bob, application_economics):
+def idle_policy(testerchain, alice, bob):
     """Creates a Policy, in a manner typical of how Alice might do it, with a unique label"""
     random_label = generate_random_label()
     expiration = maya.now() + timedelta(days=1)
@@ -305,12 +304,6 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 
 
 @pytest.fixture(scope='module')
-def application_economics():
-    economics = Economics()
-    return economics
-
-
-@pytest.fixture(scope='module')
 def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
     testerchain = MockBlockchain()
@@ -366,8 +359,10 @@ def policy_rate():
 
 
 @pytest.fixture(scope='module')
-def policy_value(application_economics, policy_rate):
-    value = policy_rate * application_economics.min_operator_seconds
+def policy_value(policy_rate):
+    # TODO constant?
+    min_operator_seconds = 60 * 60 * 24  # one day in seconds
+    value = policy_rate * min_operator_seconds
     return value
 
 

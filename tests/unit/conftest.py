@@ -1,7 +1,6 @@
 import pytest
 from nucypher_core.ferveo import Keypair, Validator
 
-from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -34,11 +33,7 @@ def mock_transacting_power(module_mocker):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_contract_agency(module_mocker, application_economics):
-
-    # Patch
-    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
-
+def mock_contract_agency():
     from tests.mock.agents import MockContractAgency
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?

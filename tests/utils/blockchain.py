@@ -6,7 +6,6 @@ from eth_tester.exceptions import TransactionFailed
 from hexbytes import HexBytes
 from web3 import Web3
 
-from nucypher.blockchain.economics import Economics
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
 )
@@ -73,9 +72,6 @@ class TesterBlockchain(BlockchainInterface):
     __STAKING_PROVIDERS_RANGE = range(NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS)
     __OPERATORS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
     __ACCOUNT_CACHE = list()
-
-    # Defaults
-    DEFAULT_ECONOMICS = Economics()
 
     def __init__(self,
                  test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
