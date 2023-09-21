@@ -17,7 +17,7 @@ click==8.1.7
 colorama==0.4.6
 constant-sorrow==0.1.0a9
 constantly==15.1.0
-cryptography==41.0.3
+cryptography==41.0.4
 cytoolz==0.12.2 ; implementation_name == 'cpython'
 dateparser==1.1.8 ; python_version >= '3.7'
 eth-abi==4.2.0 ; python_version < '4' and python_full_version >= '3.7.2'
