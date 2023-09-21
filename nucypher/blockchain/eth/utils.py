@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Union
 
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
+from eth_typing import ChecksumAddress
 from eth_utils import is_address, is_hex, to_checksum_address
 from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
@@ -74,3 +75,7 @@ def get_transaction_name(contract_function: Union[ContractFunction, ContractCons
     except AttributeError:
         transaction_name = 'DEPLOY' if deployment else 'UNKNOWN'
     return transaction_name
+
+
+def truncate_checksum_address(checksum_address: ChecksumAddress) -> str:
+    return f"{checksum_address[:8]}...{checksum_address[-8:]}"

@@ -48,6 +48,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
+from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -623,12 +624,12 @@ class Operator(BaseActor):
         return self.operator_address
 
     @property
-    def staking_provider_address(self):
+    def staking_provider_address(self) -> ChecksumAddress:
         if not self.__staking_provider_address:
             self.__staking_provider_address = self.get_staking_provider_address()
         return self.__staking_provider_address
 
-    def get_staking_provider_address(self):
+    def get_staking_provider_address(self) -> ChecksumAddress:
         self.__staking_provider_address = (
             self.child_application_agent.staking_provider_from_operator(
                 self.operator_address
@@ -639,7 +640,7 @@ class Operator(BaseActor):
         return self.__staking_provider_address
 
     @property
-    def is_confirmed(self):
+    def is_confirmed(self) -> bool:
         return self.child_application_agent.is_operator_confirmed(self.operator_address)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
@@ -694,19 +695,21 @@ class Operator(BaseActor):
                 else:
                     # check child
                     taco_child_bonded_address = self.get_staking_provider_address()
-                    if (
-                        taco_child_bonded_address == NULL_ADDRESS
-                        or taco_child_bonded_address != taco_root_bonded_address
-                    ):
-                        emitter.message(
-                            f"! Bonded staking provider address {taco_root_bonded_address} on {taco_root_pretty_chain_name} not yet synced to child application on {taco_child_pretty_chain_name} ({taco_child_bonded_address}; waiting for chains to sync",
-                            color="yellow",
-                        )
-                    else:
+                    if taco_child_bonded_address == taco_root_bonded_address:
                         bonded = True
                         emitter.message(
                             f"✓ Operator {self.operator_address} is bonded to staking provider {self.staking_provider_address}",
                             color="green",
+                        )
+                    else:
+                        child_bonded_address_info = (
+                            f"({truncate_checksum_address(taco_child_bonded_address)})"
+                            if taco_child_bonded_address != NULL_ADDRESS
+                            else ""
+                        )
+                        emitter.message(
+                            f"! Bonded staking provider address {truncate_checksum_address(taco_root_bonded_address)} on {taco_root_pretty_chain_name} not yet synced to child application on {taco_child_pretty_chain_name} {child_bonded_address_info}; waiting for sync",
+                            color="yellow",
                         )
 
             time.sleep(poll_rate)
