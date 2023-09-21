@@ -18,7 +18,7 @@ from typing import (
 )
 
 from constant_sorrow.constants import (
-    CONTRACT_ATTRIBUTE,  # type: ignore
+    # type: ignore
     CONTRACT_CALL,
     TRANSACTION,
 )
@@ -130,11 +130,6 @@ class EthereumContractAgent:
     @property  # type: ignore
     def contract_address(self) -> ChecksumAddress:
         return self.__contract.address
-
-    @property  # type: ignore
-    @contract_api(CONTRACT_ATTRIBUTE)
-    def owner(self) -> Optional[ChecksumAddress]:
-        return self.contract.functions.owner().call()
 
 
 class NucypherTokenAgent(EthereumContractAgent):
