@@ -60,7 +60,7 @@ def mock_coordinator_agent(testerchain, application_economics, mock_contract_age
     COORDINATOR.reset()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def cohort(ursulas, mock_coordinator_agent):
     """Creates a cohort of Ursulas"""
     for u in ursulas:
@@ -75,7 +75,6 @@ def cohort(ursulas, mock_coordinator_agent):
 
 
 def execute_round_1(ritual_id: int, authority: ChecksumAddress, cohort: List[Ursula]):
-
     # check that the ritual is being tracked locally upon initialization for each node
     for ursula in cohort:
         # this is a testing hack to make the event scanner work
@@ -114,11 +113,13 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
             )
         )
 
-        ursula.ritual_tracker._handle_ritual_event(event, get_block_when=lambda x: event)
+        ursula.ritual_tracker._handle_ritual_event(
+            event, get_block_when=lambda x: event
+        )
 
 
 @pytest.mark.usefixtures("mock_sign_message")
-@pytest.mark.parametrize('dkg_size, ritual_id, variant', PARAMS)
+@pytest.mark.parametrize("dkg_size, ritual_id, variant", PARAMS)
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
     testerchain,
