@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 from queue import Queue
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -120,9 +119,10 @@ from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
-
-if TYPE_CHECKING:
-    from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+from nucypher.utilities.prometheus.metrics import (
+    PrometheusMetricsConfig,
+    start_prometheus_exporter,
+)
 
 
 class Alice(Character, actors.PolicyAuthor):
@@ -962,7 +962,7 @@ class Ursula(Teacher, Character, Operator):
         ritual_tracking: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
-        prometheus_config: "PrometheusMetricsConfig" = None,
+        prometheus_config: PrometheusMetricsConfig = None,
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,
@@ -1009,9 +1009,6 @@ class Ursula(Teacher, Character, Operator):
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
 
         if prometheus_config:
-            # Locally scoped to prevent import without prometheus explicitly installed
-            from nucypher.utilities.prometheus.metrics import start_prometheus_exporter
-
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
                 emitter.message("✓ Prometheus Exporter", color="green")
