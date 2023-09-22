@@ -53,7 +53,6 @@ def test_coordinator_properties(agent):
     assert len(agent.contract_address) == 42
     assert agent.contract.address == agent.contract_address
     assert agent.contract_name == CoordinatorAgent.contract_name
-    assert not agent._proxy_name  # not upgradeable
 
 
 @pytest.mark.usefixtures("ursulas")

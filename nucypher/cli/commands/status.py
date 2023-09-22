@@ -8,7 +8,6 @@ import click
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    EthereumContractAgent,
     NucypherTokenAgent,
     TACoApplicationAgent,
 )
@@ -46,13 +45,6 @@ CONTRACT_NAMES = [
     STAKING_ESCROW,
     POLICY_MANAGER
 ]
-
-# The default contract version to use with the --legacy flag
-LEGACY_CONTRACT_VERSIONS = {
-    STAKING_ESCROW: 'v5.7.1',
-    POLICY_MANAGER: 'v6.2.1'
-}
-
 
 class RegistryOptions:
 
@@ -151,8 +143,17 @@ def staking_providers(general_config, registry_options, staking_provider_address
 @option_csv
 @option_csv_file
 @option_event_filters
-@click.option('--legacy', help="Events related to the NuCypher Network prior to the merge to Threshold Network", is_flag=True)
-def events(general_config, registry_options, contract_name, from_block, to_block, event_name, csv, csv_file, event_filters, legacy):
+def events(
+    general_config,
+    registry_options,
+    contract_name,
+    from_block,
+    to_block,
+    event_name,
+    csv,
+    csv_file,
+    event_filters,
+):
     """Show events associated with NuCypher contracts."""
 
     if csv or csv_file:
@@ -204,27 +205,10 @@ def events(general_config, registry_options, contract_name, from_block, to_block
 
     emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
 
-    contract_version = None
-    if legacy and contract_name in LEGACY_CONTRACT_VERSIONS:
-        contract_version = LEGACY_CONTRACT_VERSIONS[contract_name]
-
     for contract_name in contract_names:
-        if legacy:
-            versioned_contract = blockchain.get_contract_by_name(
-                registry=registry,
-                contract_name=contract_name,
-                contract_version=contract_version,
-                proxy_name='Dispatcher',
-                use_proxy_address=True
-               )
-            agent = EthereumContractAgent(contract=versioned_contract)
-            agent.contract_name = contract_name
-        else:
-            agent = ContractAgency.get_agent_by_contract_name(
-                contract_name=contract_name,
-                contract_version=contract_version,
-                registry=registry
-            )
+        agent = ContractAgency.get_agent_by_contract_name(
+            contract_name=contract_name, registry=registry
+        )
 
         if event_name and event_name not in agent.events.names:
             raise click.BadOptionUsage(option_name='--event-name, --contract_name',

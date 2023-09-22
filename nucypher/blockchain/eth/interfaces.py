@@ -12,8 +12,12 @@ from constant_sorrow.constants import (
 )
 from eth.typing import TransactionDict
 from eth_tester import EthereumTester
-from eth_tester.exceptions import TransactionFailed as TestTransactionFailed
-from eth_tester.exceptions import ValidationError
+from eth_tester.exceptions import (
+    TransactionFailed as TestTransactionFailed,
+)
+from eth_tester.exceptions import (
+    ValidationError,
+)
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
@@ -644,8 +648,6 @@ class BlockchainInterface:
                              contract_name: str,
                              contract_version: str = None,
                              enrollment_version: Union[int, str] = None,
-                             proxy_name: str = None,
-                             use_proxy_address: bool = True
                              ) -> VersionedContract:
         """
         Instantiate a deployed contract from registry data,
@@ -661,82 +663,40 @@ class BlockchainInterface:
             raise self.InterfaceError(f"Registry is potentially corrupt - multiple {contract_name} "
                                       f"contract records with the same version {contract_version}")
 
-        if proxy_name:
-            if contract_version:
-                # contract version was specified - need more information related to proxy
-                target_all_contract_records = registry.search(contract_name=contract_name)
-            else:
-                # we don't need a separate copy of original result
-                target_all_contract_records = target_contract_records
-
-            # Lookup proxies; Search for a published proxy that targets this contract record
-            proxy_records = registry.search(contract_name=proxy_name)
-            results = list()
-
-            for proxy_name, proxy_version, proxy_address, proxy_abi in proxy_records:
-                proxy_contract = self.client.w3.eth.contract(abi=proxy_abi,
-                                                             address=proxy_address,
-                                                             version=proxy_version,
-                                                             ContractFactoryClass=self._CONTRACT_FACTORY)
-                # Read this dispatcher's current target address from the blockchain
-                proxy_live_target_address = proxy_contract.functions.target().call()
-
-                # either proxy is targeting latest version of contract
-                # or
-                # use older version of the same contract
-                for target_name, target_version, target_address, target_abi in target_all_contract_records:
-                    if target_address == proxy_live_target_address:
-                        if contract_version:
-                            # contract_version specified - use specific contract
-                            target_version = target_contract_records[0][1]
-                            target_abi = target_contract_records[0][3]
-
-                        if use_proxy_address:
-                            triplet = (proxy_address, target_version, target_abi)
-                        else:
-                            triplet = (target_address, target_version, target_abi)
-                    else:
-                        continue
-
-                    results.append(triplet)
-
-            if len(results) > 1:
-                address, _version, _abi = results[0]
-                message = "Multiple {} deployments are targeting {}".format(proxy_name, address)
-                raise self.InterfaceError(message.format(contract_name))
-            else:
-                try:
-                    selected_address, selected_version, selected_abi = results[0]
-                except IndexError:
-                    raise self.UnknownContract(
-                        f"There are no Dispatcher records targeting '{contract_name}':{contract_version}")
-
+        # NOTE: 0 must be allowed as a valid version number
+        if len(target_contract_records) != 1:
+            if enrollment_version is None:
+                m = (
+                    f"{len(target_contract_records)} records enrolled "
+                    f"for contract {contract_name}:{contract_version} "
+                    f"and no version index was supplied."
+                )
+                raise self.InterfaceError(m)
+            enrollment_version = self.__get_enrollment_version_index(
+                name=contract_name,
+                contract_version=contract_version,
+                version_index=enrollment_version,
+                enrollments=len(target_contract_records),
+            )
         else:
-            # TODO: use_proxy_address doesnt' work in this case. Should we raise if used?
-            # NOTE: 0 must be allowed as a valid version number
-            if len(target_contract_records) != 1:
-                if enrollment_version is None:
-                    m = f"{len(target_contract_records)} records enrolled " \
-                        f"for contract {contract_name}:{contract_version} " \
-                        f"and no version index was supplied."
-                    raise self.InterfaceError(m)
-                enrollment_version = self.__get_enrollment_version_index(name=contract_name,
-                                                                         contract_version=contract_version,
-                                                                         version_index=enrollment_version,
-                                                                         enrollments=len(target_contract_records))
+            enrollment_version = -1  # default
 
-            else:
-                enrollment_version = -1  # default
-
-            _contract_name, selected_version, selected_address, selected_abi = target_contract_records[enrollment_version]
+        (
+            _contract_name,
+            selected_version,
+            selected_address,
+            selected_abi,
+        ) = target_contract_records[enrollment_version]
 
         # Create the contract from selected sources
-        unified_contract = self.client.w3.eth.contract(abi=selected_abi,
-                                                       address=selected_address,
-                                                       version=selected_version,
-                                                       ContractFactoryClass=self._CONTRACT_FACTORY)
+        contract = self.client.w3.eth.contract(
+            abi=selected_abi,
+            address=selected_address,
+            version=selected_version,
+            ContractFactoryClass=self._CONTRACT_FACTORY,
+        )
 
-        return unified_contract
+        return contract
 
     @staticmethod
     def __get_enrollment_version_index(version_index: Union[int, str],

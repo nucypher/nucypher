@@ -1,0 +1,1 @@
+Remove ``AdjudicatorAgent`` and custom ``Dispatcher`` proxy logic.
