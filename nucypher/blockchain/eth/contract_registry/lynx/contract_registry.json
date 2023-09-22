@@ -1,341 +1,154 @@
 [
   [
-    "SimplePREApplication",
+    "TACoApplication",
     "v0.0.0",
-    "0x685b8Fd02aB87d8FfFff7346cB101A5cE4185bf3",
+    "0xe9e6C183fadD057b8972E12471B212288b1ca6E6",
     [
       {
-        "inputs": [
-          {
-            "internalType": "contract IStaking",
-            "name": "_tStaking",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256",
-            "name": "_minAuthorization",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "_minOperatorSeconds",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "stakingProvider",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "operator",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "startTimestamp",
-            "type": "uint256"
-          }
-        ],
-        "name": "OperatorBonded",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "stakingProvider",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "operator",
-            "type": "address"
-          }
-        ],
+        "type": "event",
         "name": "OperatorConfirmed",
-        "type": "event"
-      },
-      {
         "inputs": [
           {
+            "name": "stakingProvider",
+            "type": "address",
             "internalType": "address",
-            "name": "_stakingProvider",
-            "type": "address"
-          }
-        ],
-        "name": "authorizedStake",
-        "outputs": [
-          {
-            "internalType": "uint96",
-            "name": "",
-            "type": "uint96"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_stakingProvider",
-            "type": "address"
+            "indexed": true
           },
           {
-            "internalType": "address",
-            "name": "_operator",
-            "type": "address"
-          }
-        ],
-        "name": "bondOperator",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "confirmOperatorAddress",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "_startIndex",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "_maxStakingProviders",
-            "type": "uint256"
-          }
-        ],
-        "name": "getActiveStakingProviders",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "allAuthorizedTokens",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256[2][]",
-            "name": "activeStakingProviders",
-            "type": "uint256[2][]"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_stakingProvider",
-            "type": "address"
-          }
-        ],
-        "name": "getBeneficiary",
-        "outputs": [
-          {
-            "internalType": "address payable",
-            "name": "beneficiary",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_stakingProvider",
-            "type": "address"
-          }
-        ],
-        "name": "getOperatorFromStakingProvider",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "getStakingProvidersLength",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_stakingProvider",
-            "type": "address"
-          }
-        ],
-        "name": "isAuthorized",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_operator",
-            "type": "address"
-          }
-        ],
-        "name": "isOperatorConfirmed",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "minAuthorization",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "minOperatorSeconds",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_operator",
-            "type": "address"
-          }
-        ],
-        "name": "stakingProviderFromOperator",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "name": "stakingProviderInfo",
-        "outputs": [
-          {
-            "internalType": "address",
             "name": "operator",
-            "type": "address"
-          },
-          {
-            "internalType": "bool",
-            "name": "operatorConfirmed",
-            "type": "bool"
-          },
-          {
-            "internalType": "uint256",
-            "name": "operatorStartTimestamp",
-            "type": "uint256"
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
           }
         ],
-        "stateMutability": "view",
-        "type": "function"
+        "anonymous": false
       },
       {
+        "type": "event",
+        "name": "OwnershipTransferred",
         "inputs": [
           {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "name": "stakingProviders",
-        "outputs": [
-          {
+            "name": "previousOwner",
+            "type": "address",
             "internalType": "address",
-            "name": "",
-            "type": "address"
+            "indexed": true
+          },
+          {
+            "name": "newOwner",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
           }
         ],
-        "stateMutability": "view",
-        "type": "function"
+        "anonymous": false
       },
       {
+        "type": "function",
+        "name": "childApplication",
+        "stateMutability": "view",
         "inputs": [],
-        "name": "tStaking",
         "outputs": [
           {
-            "internalType": "contract IStaking",
             "name": "",
-            "type": "address"
+            "type": "address",
+            "internalType": "contract ITACoRootToChild"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "confirmOperatorAddress",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_operator",
+            "type": "address",
+            "internalType": "address"
           }
         ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "owner",
         "stateMutability": "view",
-        "type": "function"
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "renounceOwnership",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setChildApplication",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_childApplication",
+            "type": "address",
+            "internalType": "contract ITACoRootToChild"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "transferOwnership",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newOwner",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "updateAuthorization",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "_amount",
+            "type": "uint96",
+            "internalType": "uint96"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "updateOperator",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "_operator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
       }
     ]
   ]
