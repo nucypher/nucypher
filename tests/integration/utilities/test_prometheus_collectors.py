@@ -3,30 +3,21 @@ import time
 from typing import List
 
 import pytest
+from prometheus_client import CollectorRegistry
+from web3.types import Timestamp
 
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
+
+# include dependencies that have sub-dependencies on prometheus
+from nucypher.utilities.prometheus.collector import (
+    BlockchainMetricsCollector,
+    MetricsCollector,
+    OperatorMetricsCollector,
+    StakingProviderMetricsCollector,
+    UrsulaInfoMetricsCollector,
+)
+from nucypher.utilities.prometheus.metrics import create_metrics_collectors
 from tests.constants import MOCK_ETH_PROVIDER_URI
-
-try:
-    # all prometheus related imports
-    from prometheus_client import CollectorRegistry
-
-    # include dependencies that have sub-dependencies on prometheus
-    from nucypher.utilities.prometheus.collector import (
-        BlockchainMetricsCollector,
-        MetricsCollector,
-        OperatorMetricsCollector,
-        StakingProviderMetricsCollector,
-        UrsulaInfoMetricsCollector,
-    )
-    from nucypher.utilities.prometheus.metrics import create_metrics_collectors
-
-    # flag to skip tests
-    PROMETHEUS_INSTALLED = True
-except ImportError:
-    PROMETHEUS_INSTALLED = False
-
-from web3.types import Timestamp
 
 
 @pytest.fixture(scope="function")
@@ -40,10 +31,6 @@ def mock_operator_confirmation(random_address, mock_taco_application_agent):
     mock_taco_application_agent.get_staking_provider_info.return_value = info
 
 
-@pytest.mark.skipif(
-    condition=(not PROMETHEUS_INSTALLED),
-    reason="prometheus_client is required for test",
-)
 def test_ursula_info_metrics_collector(test_registry, ursulas):
     ursula = random.choice(ursulas)
     collector = UrsulaInfoMetricsCollector(ursula=ursula)
@@ -68,7 +55,6 @@ def test_ursula_info_metrics_collector(test_registry, ursulas):
     assert reencryption_requests == 0
 
 
-@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_blockchain_metrics_collector(testerchain):
     collector = BlockchainMetricsCollector(eth_endpoint=MOCK_ETH_PROVIDER_URI)
 
@@ -88,7 +74,6 @@ def test_blockchain_metrics_collector(testerchain):
     assert block_number == testerchain.get_block_number()
 
 
-@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 @pytest.mark.usefixtures("mock_operator_confirmation")
 def test_staking_provider_metrics_collector(test_registry, staking_providers):
 
@@ -134,7 +119,6 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
     assert operator_start == staking_provider_info.operator_start_timestamp
 
 
-@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_operator_metrics_collector(test_registry, ursulas):
     ursula = random.choice(ursulas)
     collector = OperatorMetricsCollector(
@@ -152,7 +136,6 @@ def test_operator_metrics_collector(test_registry, ursulas):
     assert operator_eth == float(ursula.eth_balance)
 
 
-@pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 @pytest.mark.usefixtures("mock_operator_confirmation")
 def test_all_metrics_collectors_sanity_collect(ursulas):
     ursula = random.choice(ursulas)

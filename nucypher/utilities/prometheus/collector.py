@@ -1,18 +1,9 @@
-
-
-
-from nucypher.blockchain.eth.events import ContractEventsThrottler
-
-try:
-    from prometheus_client import Enum, Gauge, Info
-    from prometheus_client.registry import CollectorRegistry
-except ImportError:
-    raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
-
 from abc import ABC, abstractmethod
 from typing import Dict, Type
 
 from eth_typing.evm import ChecksumAddress
+from prometheus_client import Enum, Gauge, Info
+from prometheus_client.registry import CollectorRegistry
 
 import nucypher
 from nucypher.blockchain.eth import actors
@@ -21,6 +12,7 @@ from nucypher.blockchain.eth.agents import (
     EthereumContractAgent,
     TACoApplicationAgent,
 )
+from nucypher.blockchain.eth.events import ContractEventsThrottler
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters import lawful
