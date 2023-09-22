@@ -1,27 +1,13 @@
 
 
-import pytest
 from decimal import Decimal, InvalidOperation
+
+import pytest
 
 from nucypher.blockchain.eth.token import NU
 
 
-def test_NU(application_economics):
-
-    # Starting Small
-    min_allowed_locked = NU(application_economics.min_authorization, 'NuNit')
-    assert application_economics.min_authorization == int(min_allowed_locked.to_units())
-
-    min_NU_locked = int(str(application_economics.min_authorization)[0:-18])
-    expected = NU(min_NU_locked, 'NU')
-    assert min_allowed_locked == expected
-
-    # TODO: Use minimums for T staking
-    # Starting Big
-    # min_allowed_locked = NU(min_NU_locked, 'NU')
-    # assert token_economics.min_authorization == int(min_allowed_locked)
-    # assert token_economics.min_authorization == int(min_allowed_locked.to_units())
-    # assert str(min_allowed_locked) == '40000 NU'
+def test_NU():
 
     # Alternate construction
     assert NU(1, 'NU') == NU('1.0', 'NU') == NU(1.0, 'NU')

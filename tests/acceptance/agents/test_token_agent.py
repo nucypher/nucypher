@@ -4,14 +4,17 @@
 import pytest
 from eth_tester.exceptions import TransactionFailed
 
-from nucypher.blockchain.eth.agents import NucypherTokenAgent, ContractAgency
+from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
+from tests.constants import TEST_ETH_PROVIDER_URI
 
 
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry) -> NucypherTokenAgent:
-    token_agent = ContractAgency.get_agent(NucypherTokenAgent, registry=test_registry)
+    token_agent = ContractAgency.get_agent(
+        NucypherTokenAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
+    )
     return token_agent
 
 
@@ -38,50 +41,54 @@ def test_token_properties(agent):
 
 
 @pytest.mark.skip()
-def test_get_balance(agent, application_economics):
+def test_get_balance(agent):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
     balance = agent.get_balance(address=someone)
     assert balance == 0
     balance = agent.get_balance(address=deployer)
-    assert balance == application_economics.erc20_total_supply
+    assert balance > 0
 
 
 @pytest.mark.skip()
-def test_approve_transfer(agent, application_economics):
+def test_approve_transfer(agent, taco_application_agent):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
     tpower = TransactingPower(account=someone, signer=Web3Signer(testerchain.client))
 
     # Approve
-    receipt = agent.approve_transfer(amount=application_economics.min_authorization,
-                                     spender_address=agent.contract_address,
-                                     transacting_power=tpower)
+    receipt = agent.approve_transfer(
+        amount=taco_application_agent.get_min_authorization(),
+        spender_address=agent.contract_address,
+        transacting_power=tpower,
+    )
 
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
 
 @pytest.mark.skip()
-def test_transfer(agent, application_economics):
+def test_transfer(agent, taco_application_agent):
     testerchain = agent.blockchain
     origin, someone, *everybody_else = testerchain.client.accounts
     tpower = TransactingPower(account=origin, signer=Web3Signer(testerchain.client))
 
     old_balance = agent.get_balance(someone)
-    receipt = agent.transfer(amount=application_economics.min_authorization,
-                             target_address=someone,
-                             transacting_power=tpower)
+    receipt = agent.transfer(
+        amount=taco_application_agent.get_min_authorization(),
+        target_address=someone,
+        transacting_power=tpower,
+    )
 
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     new_balance = agent.get_balance(someone)
-    assert new_balance == old_balance + application_economics.min_authorization
+    assert new_balance == old_balance + taco_application_agent.get_min_authorization()
 
 
 @pytest.mark.skip()
-def test_approve_and_call(agent, application_economics, deploy_contract):
+def test_approve_and_call(agent, taco_application_agent, deploy_contract):
     testerchain = agent.blockchain
     deployer, someone, *everybody_else = testerchain.client.accounts
 
@@ -90,14 +97,19 @@ def test_approve_and_call(agent, application_economics, deploy_contract):
     # Approve and call
     tpower = TransactingPower(account=someone, signer=Web3Signer(testerchain.client))
     call_data = b"Good morning, that's a nice tnetennba."
-    receipt = agent.approve_and_call(amount=application_economics.min_authorization,
-                                     target_address=mock_target.address,
-                                     transacting_power=tpower,
-                                     call_data=call_data)
+    receipt = agent.approve_and_call(
+        amount=taco_application_agent.get_min_authorization(),
+        target_address=mock_target.address,
+        transacting_power=tpower,
+        call_data=call_data,
+    )
 
     assert receipt['status'] == 1, "Transaction Rejected"
     assert receipt['logs'][0]['address'] == agent.contract_address
 
     assert mock_target.functions.extraData().call() == call_data
     assert mock_target.functions.sender().call() == someone
-    assert mock_target.functions.value().call() == application_economics.min_authorization
+    assert (
+        mock_target.functions.value().call()
+        == taco_application_agent.get_min_authorization()
+    )

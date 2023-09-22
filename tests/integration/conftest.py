@@ -5,7 +5,6 @@ from typing import Iterable, Optional
 import pytest
 from eth_account.account import Account
 
-from nucypher.blockchain.economics import EconomicsFactory
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     AdjudicatorAgent,
@@ -149,10 +148,8 @@ def test_registry_source_manager(testerchain, test_registry):
 
 
 @pytest.fixture(scope='module', autouse=True)
-def mock_contract_agency(module_mocker, application_economics):
+def mock_contract_agency():
     # Patch
-    module_mocker.patch.object(EconomicsFactory, 'get_economics', return_value=application_economics)
-
     from tests.mock.agents import MockContractAgency
 
     # Monkeypatch # TODO: Use better tooling for this monkeypatch?

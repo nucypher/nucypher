@@ -19,6 +19,7 @@ from nucypher.utilities.logging import Logger
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     INSECURE_DEVELOPMENT_PASSWORD,
+    MIN_OPERATOR_SECONDS,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
@@ -40,8 +41,6 @@ NU_TOTAL_SUPPLY = Web3.to_wei(
 
 # TACo Application
 MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
-
-MIN_OPERATOR_SECONDS = 24 * 60 * 60
 
 REWARD_DURATION = 60 * 60 * 24 * 7  # one week in seconds
 DEAUTHORIZATION_DURATION = 60 * 60 * 24 * 60  # 60 days in seconds

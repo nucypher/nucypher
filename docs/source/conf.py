@@ -29,9 +29,8 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import doctest
 import os
-import subprocess
-
 import sys
 from pathlib import Path
 
@@ -249,7 +248,6 @@ def run_apidoc(_):
         "tests",
         "scripts",
         Path("nucypher", "utilities"),
-        Path("nucypher", "blockchain", "economics.py"),
         Path("nucypher", "cli"),
     ]
     for exclusion_item in exclusion_items:
@@ -270,8 +268,6 @@ autodoc_member_order = "bysource"
 
 
 # -- Doctest configuration ----------------------------------------
-
-import doctest
 
 doctest_default_flags = (0
     | doctest.DONT_ACCEPT_TRUE_FOR_1
