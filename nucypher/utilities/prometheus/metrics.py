@@ -1,16 +1,10 @@
 
-from nucypher.exceptions import DevelopmentInstallationRequired
-
-try:
-    from prometheus_client.core import Timestamp
-    from prometheus_client.registry import REGISTRY, CollectorRegistry
-    from prometheus_client.utils import floatToGoString
-except ImportError:
-    raise DevelopmentInstallationRequired(importable_name='prometheus_client')
-
 import json
 from typing import List
 
+from prometheus_client.core import Timestamp
+from prometheus_client.registry import REGISTRY, CollectorRegistry
+from prometheus_client.utils import floatToGoString
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
 
