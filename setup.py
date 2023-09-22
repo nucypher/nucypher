@@ -131,7 +131,7 @@ DEPLOY_REQUIRES = [
     'wheel'
 ]
 
-URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
+URSULA_REQUIRES = ["sentry-sdk"]
 
 EXTRAS = {
 
