@@ -118,6 +118,12 @@ MOCK_IP_ADDRESS_2 = '203.0.113.20'
 
 FEE_RATE_RANGE = (5, 10, 15)
 
+#
+# Configuration
+#
+
+MIN_OPERATOR_SECONDS = 60 * 60 * 24  # one day in seconds
+
 
 #
 # Gas

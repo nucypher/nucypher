@@ -43,6 +43,7 @@ from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
+    MIN_OPERATOR_SECONDS,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
@@ -360,9 +361,7 @@ def policy_rate():
 
 @pytest.fixture(scope='module')
 def policy_value(policy_rate):
-    # TODO constant?
-    min_operator_seconds = 60 * 60 * 24  # one day in seconds
-    value = policy_rate * min_operator_seconds
+    value = policy_rate * MIN_OPERATOR_SECONDS
     return value
 
 
