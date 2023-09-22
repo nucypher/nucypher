@@ -1,5 +1,2709 @@
 [
   [
+    "TACoApplication",
+    "v0.0.0",
+    "0xe9e6C183fadD057b8972E12471B212288b1ca6E6",
+    [
+      {
+        "type": "event",
+        "name": "OperatorConfirmed",
+        "inputs": [
+          {
+            "name": "stakingProvider",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "operator",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "OwnershipTransferred",
+        "inputs": [
+          {
+            "name": "previousOwner",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "newOwner",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "function",
+        "name": "childApplication",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "contract ITACoRootToChild"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "confirmOperatorAddress",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_operator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "owner",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "renounceOwnership",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setChildApplication",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_childApplication",
+            "type": "address",
+            "internalType": "contract ITACoRootToChild"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "transferOwnership",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newOwner",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "updateAuthorization",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "_amount",
+            "type": "uint96",
+            "internalType": "uint96"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "updateOperator",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "_operator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      }
+    ]
+  ],
+  [
+    "TACoChildApplication",
+    "v0.0.0",
+    "0x099a6128710F7e30Ed8740644F40EE6d3e6673D1",
+    [
+      {
+        "type": "constructor",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_rootApplication",
+            "type": "address",
+            "internalType": "contract ITACoChildToRoot"
+          }
+        ]
+      },
+      {
+        "type": "event",
+        "name": "AuthorizationUpdated",
+        "inputs": [
+          {
+            "name": "stakingProvider",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "amount",
+            "type": "uint96",
+            "internalType": "uint96",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "Initialized",
+        "inputs": [
+          {
+            "name": "version",
+            "type": "uint8",
+            "internalType": "uint8",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "OperatorConfirmed",
+        "inputs": [
+          {
+            "name": "stakingProvider",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "operator",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "OperatorUpdated",
+        "inputs": [
+          {
+            "name": "stakingProvider",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "operator",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "OwnershipTransferred",
+        "inputs": [
+          {
+            "name": "previousOwner",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "newOwner",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "function",
+        "name": "authorizedStake",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "_stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint96",
+            "internalType": "uint96"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "confirmOperatorAddress",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_operator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "coordinator",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "initialize",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_coordinator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "owner",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "renounceOwnership",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "rootApplication",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "contract ITACoChildToRoot"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "setCoordinator",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_coordinator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "stakingProviderFromOperator",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "stakingProviderInfo",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "operator",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "operatorConfirmed",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "authorized",
+            "type": "uint96",
+            "internalType": "uint96"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "transferOwnership",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newOwner",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "updateAuthorization",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint96",
+            "internalType": "uint96"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "updateOperator",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "stakingProvider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "operator",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      }
+    ]
+  ],
+  [
+    "LynxRitualToken",
+    "v0.0.0",
+    "0x871EbA00295fF9c329dbCF2Cd329cd89FD926192",
+    [
+      {
+        "type": "constructor",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_totalSupplyOfTokens",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "event",
+        "name": "Approval",
+        "inputs": [
+          {
+            "name": "owner",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "spender",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "value",
+            "type": "uint256",
+            "internalType": "uint256",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "Transfer",
+        "inputs": [
+          {
+            "name": "from",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "to",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "value",
+            "type": "uint256",
+            "internalType": "uint256",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "function",
+        "name": "allowance",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "owner",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "spender",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "approve",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "spender",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "balanceOf",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "decimals",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint8",
+            "internalType": "uint8"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "decreaseAllowance",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "spender",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "subtractedValue",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "increaseAllowance",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "spender",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "addedValue",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "name",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "symbol",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "string",
+            "internalType": "string"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "totalSupply",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "transfer",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "to",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "transferFrom",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "from",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "to",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ]
+  ],
+  [
+    "Coordinator",
+    "v0.0.0",
+    "0x7c8EA2d03fA65088fA85B889da365035555e4394",
+    [
+      {
+        "type": "constructor",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_application",
+            "type": "address",
+            "internalType": "contract ITACoChildApplication"
+          },
+          {
+            "name": "_timeout",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "_maxDkgSize",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "_admin",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "_currency",
+            "type": "address",
+            "internalType": "contract IERC20"
+          },
+          {
+            "name": "_feeRatePerSecond",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "event",
+        "name": "AggregationPosted",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": true
+          },
+          {
+            "name": "node",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "aggregatedTranscriptDigest",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminDelayChangeCanceled",
+        "inputs": [],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminDelayChangeScheduled",
+        "inputs": [
+          {
+            "name": "newDelay",
+            "type": "uint48",
+            "internalType": "uint48",
+            "indexed": false
+          },
+          {
+            "name": "effectSchedule",
+            "type": "uint48",
+            "internalType": "uint48",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminTransferCanceled",
+        "inputs": [],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminTransferScheduled",
+        "inputs": [
+          {
+            "name": "newAdmin",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "acceptSchedule",
+            "type": "uint48",
+            "internalType": "uint48",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "EndRitual",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": true
+          },
+          {
+            "name": "successful",
+            "type": "bool",
+            "internalType": "bool",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "MaxDkgSizeChanged",
+        "inputs": [
+          {
+            "name": "oldSize",
+            "type": "uint16",
+            "internalType": "uint16",
+            "indexed": false
+          },
+          {
+            "name": "newSize",
+            "type": "uint16",
+            "internalType": "uint16",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "ParticipantPublicKeySet",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": true
+          },
+          {
+            "name": "participant",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "publicKey",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word2",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              }
+            ],
+            "internalType": "struct BLS12381.G2Point",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "RoleAdminChanged",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "previousAdminRole",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "newAdminRole",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "RoleGranted",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "sender",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "RoleRevoked",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "sender",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "StartAggregationRound",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "StartRitual",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": true
+          },
+          {
+            "name": "authority",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "participants",
+            "type": "address[]",
+            "internalType": "address[]",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "TimeoutChanged",
+        "inputs": [
+          {
+            "name": "oldTimeout",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": false
+          },
+          {
+            "name": "newTimeout",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "TranscriptPosted",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32",
+            "indexed": true
+          },
+          {
+            "name": "node",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "transcriptDigest",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "function",
+        "name": "DEFAULT_ADMIN_ROLE",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "INITIATOR_ROLE",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "TREASURY_ROLE",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "acceptDefaultAdminTransfer",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "application",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "contract ITACoChildApplication"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "beginDefaultAdminTransfer",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newAdmin",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "cancelDefaultAdminTransfer",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "changeDefaultAdminDelay",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newDelay",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "cohortFingerprint",
+        "stateMutability": "pure",
+        "inputs": [
+          {
+            "name": "nodes",
+            "type": "address[]",
+            "internalType": "address[]"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "currency",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "contract IERC20"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "defaultAdmin",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "defaultAdminDelay",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "defaultAdminDelayIncreaseWait",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "feeRatePerSecond",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getAuthority",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getParticipantFromProvider",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "provider",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "provider",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "aggregated",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "transcript",
+                "type": "bytes",
+                "internalType": "bytes"
+              },
+              {
+                "name": "decryptionRequestStaticKey",
+                "type": "bytes",
+                "internalType": "bytes"
+              }
+            ],
+            "internalType": "struct Coordinator.Participant"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getParticipants",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "tuple[]",
+            "components": [
+              {
+                "name": "provider",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "aggregated",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "transcript",
+                "type": "bytes",
+                "internalType": "bytes"
+              },
+              {
+                "name": "decryptionRequestStaticKey",
+                "type": "bytes",
+                "internalType": "bytes"
+              }
+            ],
+            "internalType": "struct Coordinator.Participant[]"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getProviderPublicKey",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "_provider",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "_ritualId",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word2",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              }
+            ],
+            "internalType": "struct BLS12381.G2Point"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getPublicKeyFromRitualId",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "dkgPublicKey",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes16",
+                "internalType": "bytes16"
+              }
+            ],
+            "internalType": "struct BLS12381.G1Point"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getRitualIdFromPublicKey",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "dkgPublicKey",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes16",
+                "internalType": "bytes16"
+              }
+            ],
+            "internalType": "struct BLS12381.G1Point"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getRitualInitiationCost",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "providers",
+            "type": "address[]",
+            "internalType": "address[]"
+          },
+          {
+            "name": "duration",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getRitualState",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint8",
+            "internalType": "enum Coordinator.RitualState"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getRoleAdmin",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getThresholdForRitualSize",
+        "stateMutability": "pure",
+        "inputs": [
+          {
+            "name": "size",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "grantRole",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "hasRole",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "initiateRitual",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "providers",
+            "type": "address[]",
+            "internalType": "address[]"
+          },
+          {
+            "name": "authority",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "duration",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "accessController",
+            "type": "address",
+            "internalType": "contract IEncryptionAuthorizer"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "isEncryptionAuthorized",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "evidence",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "ciphertextHeader",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "isInitiationPublic",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "isProviderPublicKeySet",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "_provider",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "isRitualFinalized",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "makeInitiationPublic",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "maxDkgSize",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "numberOfRituals",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "owner",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "pendingDefaultAdmin",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "newAdmin",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "schedule",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "pendingDefaultAdminDelay",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "newDelay",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "schedule",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "pendingFees",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "postAggregation",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "aggregatedTranscript",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "dkgPublicKey",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes16",
+                "internalType": "bytes16"
+              }
+            ],
+            "internalType": "struct BLS12381.G1Point"
+          },
+          {
+            "name": "decryptionRequestStaticKey",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "postTranscript",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "transcript",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "processPendingFee",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "renounceRole",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "revokeRole",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "rituals",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "initiator",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "initTimestamp",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "endTimestamp",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "totalTranscripts",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "totalAggregations",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "authority",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "dkgSize",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "threshold",
+            "type": "uint16",
+            "internalType": "uint16"
+          },
+          {
+            "name": "aggregationMismatch",
+            "type": "bool",
+            "internalType": "bool"
+          },
+          {
+            "name": "accessController",
+            "type": "address",
+            "internalType": "contract IEncryptionAuthorizer"
+          },
+          {
+            "name": "publicKey",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes16",
+                "internalType": "bytes16"
+              }
+            ],
+            "internalType": "struct BLS12381.G1Point"
+          },
+          {
+            "name": "aggregatedTranscript",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "rollbackDefaultAdminDelay",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setMaxDkgSize",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newSize",
+            "type": "uint16",
+            "internalType": "uint16"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setProviderPublicKey",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_publicKey",
+            "type": "tuple",
+            "components": [
+              {
+                "name": "word0",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word1",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "word2",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              }
+            ],
+            "internalType": "struct BLS12381.G2Point"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setReimbursementPool",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "pool",
+            "type": "address",
+            "internalType": "contract IReimbursementPool"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setRitualAuthority",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "authority",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setTimeout",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newTimeout",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "supportsInterface",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "interfaceId",
+            "type": "bytes4",
+            "internalType": "bytes4"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "timeout",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint32",
+            "internalType": "uint32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "totalPendingFees",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "withdrawTokens",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "token",
+            "type": "address",
+            "internalType": "contract IERC20"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ],
+        "outputs": []
+      }
+    ]
+  ],
+  [
+    "GlobalAllowList",
+    "v0.0.0",
+    "0xa7aF704855EA2a2513C56212D45b86287205520E",
+    [
+      {
+        "type": "constructor",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_coordinator",
+            "type": "address",
+            "internalType": "contract Coordinator"
+          },
+          {
+            "name": "_admin",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminDelayChangeCanceled",
+        "inputs": [],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminDelayChangeScheduled",
+        "inputs": [
+          {
+            "name": "newDelay",
+            "type": "uint48",
+            "internalType": "uint48",
+            "indexed": false
+          },
+          {
+            "name": "effectSchedule",
+            "type": "uint48",
+            "internalType": "uint48",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminTransferCanceled",
+        "inputs": [],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "DefaultAdminTransferScheduled",
+        "inputs": [
+          {
+            "name": "newAdmin",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "acceptSchedule",
+            "type": "uint48",
+            "internalType": "uint48",
+            "indexed": false
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "RoleAdminChanged",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "previousAdminRole",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "newAdminRole",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "RoleGranted",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "sender",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "event",
+        "name": "RoleRevoked",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32",
+            "indexed": true
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          },
+          {
+            "name": "sender",
+            "type": "address",
+            "internalType": "address",
+            "indexed": true
+          }
+        ],
+        "anonymous": false
+      },
+      {
+        "type": "function",
+        "name": "DEFAULT_ADMIN_ROLE",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "acceptDefaultAdminTransfer",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "authorize",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "addresses",
+            "type": "address[]",
+            "internalType": "address[]"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "beginDefaultAdminTransfer",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newAdmin",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "cancelDefaultAdminTransfer",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "changeDefaultAdminDelay",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "newDelay",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "coordinator",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "contract Coordinator"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "deauthorize",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "addresses",
+            "type": "address[]",
+            "internalType": "address[]"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "defaultAdmin",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "defaultAdminDelay",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "defaultAdminDelayIncreaseWait",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "getRoleAdmin",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "grantRole",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "hasRole",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "isAddressAuthorized",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "encryptor",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "isAuthorized",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "ritualId",
+            "type": "uint32",
+            "internalType": "uint32"
+          },
+          {
+            "name": "evidence",
+            "type": "bytes",
+            "internalType": "bytes"
+          },
+          {
+            "name": "ciphertextHeader",
+            "type": "bytes",
+            "internalType": "bytes"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "owner",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "pendingDefaultAdmin",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "newAdmin",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "schedule",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "pendingDefaultAdminDelay",
+        "stateMutability": "view",
+        "inputs": [],
+        "outputs": [
+          {
+            "name": "newDelay",
+            "type": "uint48",
+            "internalType": "uint48"
+          },
+          {
+            "name": "schedule",
+            "type": "uint48",
+            "internalType": "uint48"
+          }
+        ]
+      },
+      {
+        "type": "function",
+        "name": "renounceRole",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "revokeRole",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          },
+          {
+            "name": "account",
+            "type": "address",
+            "internalType": "address"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "rollbackDefaultAdminDelay",
+        "stateMutability": "nonpayable",
+        "inputs": [],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "setCoordinator",
+        "stateMutability": "nonpayable",
+        "inputs": [
+          {
+            "name": "_coordinator",
+            "type": "address",
+            "internalType": "contract Coordinator"
+          }
+        ],
+        "outputs": []
+      },
+      {
+        "type": "function",
+        "name": "supportsInterface",
+        "stateMutability": "view",
+        "inputs": [
+          {
+            "name": "interfaceId",
+            "type": "bytes4",
+            "internalType": "bytes4"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "",
+            "type": "bool",
+            "internalType": "bool"
+          }
+        ]
+      }
+    ]
+  ],
+  [
     "SubscriptionManager",
     "v0.0.0",
     "0xb9015d7B35Ce7c81ddE38eF7136Baa3B1044f313",
@@ -477,986 +3181,6 @@
           }
         ],
         "name": "sweep",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      }
-    ]
-  ],
-  [
-    "StakeInfo",
-    "v0.0.0",
-    "0xC1379866Fb0c100DCBFAb7b470009C4827D47DD8",
-    [
-      {
-        "inputs": [
-          {
-            "internalType": "address[]",
-            "name": "updaters",
-            "type": "address[]"
-          }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "previousAdminRole",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "newAdminRole",
-            "type": "bytes32"
-          }
-        ],
-        "name": "RoleAdminChanged",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "sender",
-            "type": "address"
-          }
-        ],
-        "name": "RoleGranted",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "sender",
-            "type": "address"
-          }
-        ],
-        "name": "RoleRevoked",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "stakingProvider",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint96",
-            "name": "amount",
-            "type": "uint96"
-          }
-        ],
-        "name": "UpdatedStakeAmount",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "stakingProvider",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "operator",
-            "type": "address"
-          }
-        ],
-        "name": "UpdatedStakeOperator",
-        "type": "event"
-      },
-      {
-        "inputs": [],
-        "name": "DEFAULT_ADMIN_ROLE",
-        "outputs": [
-          {
-            "internalType": "bytes32",
-            "name": "",
-            "type": "bytes32"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "UPDATE_ROLE",
-        "outputs": [
-          {
-            "internalType": "bytes32",
-            "name": "",
-            "type": "bytes32"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_stakingProvider",
-            "type": "address"
-          }
-        ],
-        "name": "authorizedStake",
-        "outputs": [
-          {
-            "internalType": "uint96",
-            "name": "",
-            "type": "uint96"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32[]",
-            "name": "updateInfo",
-            "type": "bytes32[]"
-          }
-        ],
-        "name": "batchUpdate",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          }
-        ],
-        "name": "getRoleAdmin",
-        "outputs": [
-          {
-            "internalType": "bytes32",
-            "name": "",
-            "type": "bytes32"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          }
-        ],
-        "name": "grantRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          }
-        ],
-        "name": "hasRole",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "name": "operatorToProvider",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          }
-        ],
-        "name": "renounceRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes32",
-            "name": "role",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "account",
-            "type": "address"
-          }
-        ],
-        "name": "revokeRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "name": "stakes",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "operator",
-            "type": "address"
-          },
-          {
-            "internalType": "uint96",
-            "name": "amount",
-            "type": "uint96"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_operator",
-            "type": "address"
-          }
-        ],
-        "name": "stakingProviderFromOperator",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bytes4",
-            "name": "interfaceId",
-            "type": "bytes4"
-          }
-        ],
-        "name": "supportsInterface",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "stakingProvider",
-            "type": "address"
-          },
-          {
-            "internalType": "uint96",
-            "name": "amount",
-            "type": "uint96"
-          }
-        ],
-        "name": "updateAmount",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "stakingProvider",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "operator",
-            "type": "address"
-          }
-        ],
-        "name": "updateOperator",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      }
-    ]
-  ],
-  [
-    "Coordinator",
-    "v0.0.0",
-    "0x0f019Ade1D34399D946CF2f161386362655Dd1A4",
-    [
-      {
-        "inputs": [
-          {
-            "internalType": "contract IAccessControlApplication",
-            "name": "app",
-            "type": "address"
-          },
-          {
-            "internalType": "uint32",
-            "name": "_timeout",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint32",
-            "name": "_maxDkgSize",
-            "type": "uint32"
-          }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "node",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "bytes32",
-            "name": "aggregatedTranscriptDigest",
-            "type": "bytes32"
-          }
-        ],
-        "name": "AggregationPosted",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "initiator",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "bool",
-            "name": "successful",
-            "type": "bool"
-          }
-        ],
-        "name": "EndRitual",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": false,
-            "internalType": "uint32",
-            "name": "oldSize",
-            "type": "uint32"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint32",
-            "name": "newSize",
-            "type": "uint32"
-          }
-        ],
-        "name": "MaxDkgSizeChanged",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "previousOwner",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "newOwner",
-            "type": "address"
-          }
-        ],
-        "name": "OwnershipTransferred",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          }
-        ],
-        "name": "StartAggregationRound",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "initiator",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "address[]",
-            "name": "participants",
-            "type": "address[]"
-          }
-        ],
-        "name": "StartRitual",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": false,
-            "internalType": "uint32",
-            "name": "oldTimeout",
-            "type": "uint32"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint32",
-            "name": "newTimeout",
-            "type": "uint32"
-          }
-        ],
-        "name": "TimeoutChanged",
-        "type": "event"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "node",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "bytes32",
-            "name": "transcriptDigest",
-            "type": "bytes32"
-          }
-        ],
-        "name": "TranscriptPosted",
-        "type": "event"
-      },
-      {
-        "inputs": [],
-        "name": "application",
-        "outputs": [
-          {
-            "internalType": "contract IAccessControlApplication",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address[]",
-            "name": "nodes",
-            "type": "address[]"
-          }
-        ],
-        "name": "cohortFingerprint",
-        "outputs": [
-          {
-            "internalType": "bytes32",
-            "name": "",
-            "type": "bytes32"
-          }
-        ],
-        "stateMutability": "pure",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "ritualID",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "provider",
-            "type": "address"
-          }
-        ],
-        "name": "getParticipantFromProvider",
-        "outputs": [
-          {
-            "components": [
-              {
-                "internalType": "address",
-                "name": "provider",
-                "type": "address"
-              },
-              {
-                "internalType": "bool",
-                "name": "aggregated",
-                "type": "bool"
-              },
-              {
-                "internalType": "bytes",
-                "name": "transcript",
-                "type": "bytes"
-              },
-              {
-                "internalType": "bytes",
-                "name": "decryptionRequestStaticKey",
-                "type": "bytes"
-              }
-            ],
-            "internalType": "struct Coordinator.Participant",
-            "name": "",
-            "type": "tuple"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          }
-        ],
-        "name": "getParticipants",
-        "outputs": [
-          {
-            "components": [
-              {
-                "internalType": "address",
-                "name": "provider",
-                "type": "address"
-              },
-              {
-                "internalType": "bool",
-                "name": "aggregated",
-                "type": "bool"
-              },
-              {
-                "internalType": "bytes",
-                "name": "transcript",
-                "type": "bytes"
-              },
-              {
-                "internalType": "bytes",
-                "name": "decryptionRequestStaticKey",
-                "type": "bytes"
-              }
-            ],
-            "internalType": "struct Coordinator.Participant[]",
-            "name": "",
-            "type": "tuple[]"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "ritualId",
-            "type": "uint256"
-          }
-        ],
-        "name": "getRitualState",
-        "outputs": [
-          {
-            "internalType": "enum Coordinator.RitualState",
-            "name": "",
-            "type": "uint8"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address[]",
-            "name": "providers",
-            "type": "address[]"
-          }
-        ],
-        "name": "initiateRitual",
-        "outputs": [
-          {
-            "internalType": "uint32",
-            "name": "",
-            "type": "uint32"
-          }
-        ],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "maxDkgSize",
-        "outputs": [
-          {
-            "internalType": "uint32",
-            "name": "",
-            "type": "uint32"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "numberOfRituals",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "owner",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          },
-          {
-            "internalType": "bytes",
-            "name": "aggregatedTranscript",
-            "type": "bytes"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bytes32",
-                "name": "word0",
-                "type": "bytes32"
-              },
-              {
-                "internalType": "bytes16",
-                "name": "word1",
-                "type": "bytes16"
-              }
-            ],
-            "internalType": "struct BLS12381.G1Point",
-            "name": "publicKey",
-            "type": "tuple"
-          },
-          {
-            "internalType": "bytes",
-            "name": "decryptionRequestStaticKey",
-            "type": "bytes"
-          }
-        ],
-        "name": "postAggregation",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint32",
-            "name": "ritualId",
-            "type": "uint32"
-          },
-          {
-            "internalType": "bytes",
-            "name": "transcript",
-            "type": "bytes"
-          }
-        ],
-        "name": "postTranscript",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "renounceOwnership",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "name": "rituals",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "initiator",
-            "type": "address"
-          },
-          {
-            "internalType": "uint32",
-            "name": "dkgSize",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint32",
-            "name": "initTimestamp",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint32",
-            "name": "totalTranscripts",
-            "type": "uint32"
-          },
-          {
-            "internalType": "uint32",
-            "name": "totalAggregations",
-            "type": "uint32"
-          },
-          {
-            "components": [
-              {
-                "internalType": "bytes32",
-                "name": "word0",
-                "type": "bytes32"
-              },
-              {
-                "internalType": "bytes16",
-                "name": "word1",
-                "type": "bytes16"
-              }
-            ],
-            "internalType": "struct BLS12381.G1Point",
-            "name": "publicKey",
-            "type": "tuple"
-          },
-          {
-            "internalType": "bool",
-            "name": "aggregationMismatch",
-            "type": "bool"
-          },
-          {
-            "internalType": "bytes",
-            "name": "aggregatedTranscript",
-            "type": "bytes"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint32",
-            "name": "newSize",
-            "type": "uint32"
-          }
-        ],
-        "name": "setMaxDkgSize",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "uint32",
-            "name": "newTimeout",
-            "type": "uint32"
-          }
-        ],
-        "name": "setTimeout",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "timeout",
-        "outputs": [
-          {
-            "internalType": "uint32",
-            "name": "",
-            "type": "uint32"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "newOwner",
-            "type": "address"
-          }
-        ],
-        "name": "transferOwnership",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
