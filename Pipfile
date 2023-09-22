@@ -12,6 +12,7 @@ constant-sorrow = ">=0.1.0a9"
 bytestring-splitter = ">=2.4.0"
 hendrix = ">=4.0"
 nucypher-core = "==0.12.0"
+prometheus-client = ">=0.17.0"
 # Cryptography
 cryptography = ">=3.2"
 mnemonic = "*"
@@ -26,6 +27,7 @@ msgpack = "*"
 aiohttp = "==3.8.2"
 flask = "*"
 requests = "*"
+urllib3 = ">=1.26.16,<2"  # because of eth-ape
 # Third-Party Ethereum
 eth-tester = "*"   # providers.py still uses this
 py-evm = "*"

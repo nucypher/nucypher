@@ -21,12 +21,11 @@ along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 
 
 import os
-import subprocess
+import sys
 from pathlib import Path
 from typing import Dict
 from urllib.parse import urlparse
 
-import sys
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
@@ -132,7 +131,7 @@ DEPLOY_REQUIRES = [
     'wheel'
 ]
 
-URSULA_REQUIRES = ['prometheus_client', 'sentry-sdk']  # TODO: Consider renaming to 'monitor', etc.
+URSULA_REQUIRES = ["sentry-sdk"]
 
 EXTRAS = {
 
