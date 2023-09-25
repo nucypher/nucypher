@@ -388,14 +388,45 @@ def forget(general_config, config_options, config_file):
 @option_dry_run
 @option_force
 @group_general_config
-@click.option('--prometheus', help="Run the ursula prometheus exporter", is_flag=True, default=False)
-@click.option('--metrics-port', help="Run a Prometheus metrics exporter on specified HTTP port", type=NETWORK_PORT)
-@click.option("--metrics-listen-address", help="Run a prometheus metrics exporter on specified IP address", default='')
-@click.option("--metrics-prefix", help="Create metrics params with specified prefix", default="ursula")
-@click.option("--metrics-interval", help="The frequency of metrics collection", type=click.INT, default=90)
-@click.option("--ip-checkup/--no-ip-checkup", help="Verify external IP matches configuration", default=True)
-def run(general_config, character_options, config_file, dry_run, prometheus, metrics_port,
-        metrics_listen_address, metrics_prefix, metrics_interval, force, ip_checkup):
+@click.option(
+    "--prometheus",
+    help="Run the ursula prometheus exporter",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--metrics-port",
+    help="Run a Prometheus metrics exporter on specified HTTP port",
+    type=NETWORK_PORT,
+)
+@click.option(
+    "--metrics-listen-address",
+    help="Run a prometheus metrics exporter on specified IP address",
+    default="",
+)
+@click.option(
+    "--metrics-interval",
+    help="The frequency of metrics collection",
+    type=click.INT,
+    default=90,
+)
+@click.option(
+    "--ip-checkup/--no-ip-checkup",
+    help="Verify external IP matches configuration",
+    default=True,
+)
+def run(
+    general_config,
+    character_options,
+    config_file,
+    dry_run,
+    prometheus,
+    metrics_port,
+    metrics_listen_address,
+    metrics_interval,
+    force,
+    ip_checkup,
+):
     """Run an "Ursula" node."""
 
     emitter = setup_emitter(general_config)
@@ -416,7 +447,6 @@ def run(general_config, character_options, config_file, dry_run, prometheus, met
 
         prometheus_config = PrometheusMetricsConfig(
             port=metrics_port,
-            metrics_prefix=metrics_prefix,
             listen_address=metrics_listen_address,
             collection_interval=metrics_interval,
         )
