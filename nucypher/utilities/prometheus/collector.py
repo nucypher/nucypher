@@ -27,7 +27,7 @@ class MetricsCollector(ABC):
         """Raised when the Collector was not initialized before being used."""
 
     @abstractmethod
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+    def initialize(self, registry: CollectorRegistry) -> None:
         """Initialize metrics collector."""
         return NotImplemented
 
@@ -71,24 +71,22 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         super().__init__()
         self.ursula = ursula
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+    def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "host_info": Info(
-                f"{metrics_prefix}_host", "Ursula info", registry=registry
-            ),
+            "host_info": Info("host", "Ursula info", registry=registry),
             "learning_status": Enum(
-                f"{metrics_prefix}_node_discovery",
+                "node_discovery",
                 "Learning loop status",
                 states=["starting", "running", "stopped"],
                 registry=registry,
             ),
             "known_nodes_gauge": Gauge(
-                f"{metrics_prefix}_known_nodes",
+                "known_nodes",
                 "Number of currently known nodes",
                 registry=registry,
             ),
             "reencryption_requests_gauge": Gauge(
-                f"{metrics_prefix}_reencryption_requests",
+                "reencryption_requests",
                 "Number of accepted work orders",
                 registry=registry,
             ),
@@ -118,13 +116,13 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
         super().__init__()
         self.eth_endpoint = eth_endpoint
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+    def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "eth_chain_id": Gauge(
-                f"{metrics_prefix}_eth_chain_id", "Ethereum Chain ID", registry=registry
+                "eth_chain_id", "Ethereum Chain ID", registry=registry
             ),
             "eth_current_block_number": Gauge(
-                f"{metrics_prefix}_eth_block_number",
+                "eth_block_number",
                 "Current Ethereum block",
                 registry=registry,
             ),
@@ -152,20 +150,20 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         self.contract_registry = contract_registry
         self.eth_endpoint = eth_endpoint
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+    def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "active_stake_gauge": Gauge(
-                f"{metrics_prefix}_associated_active_stake",
+                "associated_active_stake",
                 "Total amount of T staked (adapted NU/KEEP and liquid T)",
                 registry=registry,
             ),
             "operator_confirmed_gauge": Gauge(
-                f"{metrics_prefix}_operator_confirmed",
+                "operator_confirmed",
                 "Operator already confirmed",
                 registry=registry,
             ),
             "operator_start_gauge": Gauge(
-                f"{metrics_prefix}_operator_start_timestamp",
+                "operator_start_timestamp",
                 "Operator start timestamp",
                 registry=registry,
             ),
@@ -207,10 +205,10 @@ class OperatorMetricsCollector(BaseMetricsCollector):
         self.operator_address = operator_address
         self.contract_registry = contract_registry
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+    def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "operator_eth_balance_gauge": Gauge(
-                f"{metrics_prefix}_operator_eth_balance",
+                "operator_eth_balance",
                 "Operator Ethereum balance",
                 registry=registry,
             ),
@@ -249,7 +247,7 @@ class EventMetricsCollector(BaseMetricsCollector):
         self.filter_arguments = argument_filters
         self.event_args_config = event_args_config
 
-    def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+    def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = dict()
         for arg_name in self.event_args_config:
             metric_class, metric_name, metric_doc = self.event_args_config[arg_name]
