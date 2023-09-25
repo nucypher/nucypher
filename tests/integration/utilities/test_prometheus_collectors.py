@@ -7,8 +7,6 @@ from prometheus_client import CollectorRegistry
 from web3.types import Timestamp
 
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
-
-# include dependencies that have sub-dependencies on prometheus
 from nucypher.utilities.prometheus.collector import (
     BlockchainMetricsCollector,
     MetricsCollector,
@@ -31,27 +29,24 @@ def mock_operator_confirmation(random_address, mock_taco_application_agent):
     mock_taco_application_agent.get_staking_provider_info.return_value = info
 
 
-def test_ursula_info_metrics_collector(test_registry, ursulas):
+def test_ursula_info_metrics_collector(ursulas):
     ursula = random.choice(ursulas)
     collector = UrsulaInfoMetricsCollector(ursula=ursula)
 
     collector_registry = CollectorRegistry()
-    prefix = 'test_ursula_info_metrics_collector'
-    collector.initialize(metrics_prefix=prefix, registry=collector_registry)
+    collector.initialize(registry=collector_registry)
     collector.collect()
 
     mode = "running" if ursula._learning_task.running else "stopped"
     learning_mode = collector_registry.get_sample_value(
-        f"{prefix}_node_discovery", labels={f"{prefix}_node_discovery": f"{mode}"}
+        "node_discovery", labels={"node_discovery": f"{mode}"}
     )
     assert learning_mode == 1
 
-    known_nodes = collector_registry.get_sample_value(f"{prefix}_known_nodes")
+    known_nodes = collector_registry.get_sample_value("known_nodes")
     assert known_nodes == len(ursula.known_nodes)
 
-    reencryption_requests = collector_registry.get_sample_value(
-        f"{prefix}_reencryption_requests"
-    )
+    reencryption_requests = collector_registry.get_sample_value("reencryption_requests")
     assert reencryption_requests == 0
 
 
@@ -59,16 +54,15 @@ def test_blockchain_metrics_collector(testerchain):
     collector = BlockchainMetricsCollector(eth_endpoint=MOCK_ETH_PROVIDER_URI)
 
     collector_registry = CollectorRegistry()
-    prefix = 'test_blockchain_metrics_collector'
-    collector.initialize(metrics_prefix=prefix, registry=collector_registry)
+    collector.initialize(registry=collector_registry)
     collector.collect()
 
-    metric_name = f"{prefix}_eth_chain_id"
+    metric_name = "eth_chain_id"
     assert metric_name in collector_registry._names_to_collectors.keys()
-    chain_id = collector_registry.get_sample_value(f"{prefix}_eth_chain_id")
+    chain_id = collector_registry.get_sample_value("eth_chain_id")
     assert chain_id == testerchain.client.chain_id
 
-    metric_name = f"{prefix}_eth_block_number"
+    metric_name = "eth_block_number"
     assert metric_name in collector_registry._names_to_collectors.keys()
     block_number = collector_registry.get_sample_value(metric_name)
     assert block_number == testerchain.get_block_number()
@@ -84,17 +78,14 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     collector_registry = CollectorRegistry()
-    prefix = "test_staking_provider_metrics_collector"
-    collector.initialize(metrics_prefix=prefix, registry=collector_registry)
+    collector.initialize(registry=collector_registry)
     collector.collect()
 
     taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent, registry=test_registry
     )
 
-    active_stake = collector_registry.get_sample_value(
-        f"{prefix}_associated_active_stake"
-    )
+    active_stake = collector_registry.get_sample_value("associated_active_stake")
     # only floats can be stored
     assert active_stake == float(
         int(
@@ -108,14 +99,10 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
         staking_provider=staking_provider_address
     )
 
-    operator_confirmed = collector_registry.get_sample_value(
-        f"{prefix}_operator_confirmed"
-    )
+    operator_confirmed = collector_registry.get_sample_value("operator_confirmed")
     assert operator_confirmed == staking_provider_info.operator_confirmed
 
-    operator_start = collector_registry.get_sample_value(
-        f"{prefix}_operator_start_timestamp"
-    )
+    operator_start = collector_registry.get_sample_value("operator_start_timestamp")
     assert operator_start == staking_provider_info.operator_start_timestamp
 
 
@@ -127,11 +114,10 @@ def test_operator_metrics_collector(test_registry, ursulas):
         contract_registry=test_registry,
     )
     collector_registry = CollectorRegistry()
-    prefix = 'test_worker_metrics_collector'
-    collector.initialize(metrics_prefix=prefix, registry=collector_registry)
+    collector.initialize(registry=collector_registry)
     collector.collect()
 
-    operator_eth = collector_registry.get_sample_value(f"{prefix}_operator_eth_balance")
+    operator_eth = collector_registry.get_sample_value("operator_eth_balance")
     # only floats can be stored
     assert operator_eth == float(ursula.eth_balance)
 
@@ -141,19 +127,19 @@ def test_all_metrics_collectors_sanity_collect(ursulas):
     ursula = random.choice(ursulas)
 
     collector_registry = CollectorRegistry()
-    prefix = 'test_all_metrics_collectors'
 
     metrics_collectors = create_metrics_collectors(ursula=ursula)
-    initialize_collectors(metrics_collectors=metrics_collectors,
-                          collector_registry=collector_registry,
-                          prefix=prefix)
+    initialize_collectors(
+        metrics_collectors=metrics_collectors, collector_registry=collector_registry
+    )
 
     for collector in metrics_collectors:
         collector.collect()
 
 
-def initialize_collectors(metrics_collectors: List['MetricsCollector'],
-                          collector_registry: 'CollectorRegistry',
-                          prefix: str) -> None:
+def initialize_collectors(
+    metrics_collectors: List["MetricsCollector"],
+    collector_registry: "CollectorRegistry",
+) -> None:
     for collector in metrics_collectors:
-        collector.initialize(metrics_prefix=prefix, registry=collector_registry)
+        collector.initialize(registry=collector_registry)
