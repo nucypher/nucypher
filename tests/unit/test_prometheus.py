@@ -1,5 +1,3 @@
-
-
 from __future__ import unicode_literals
 
 import json
@@ -30,24 +28,17 @@ from nucypher.utilities.prometheus.metrics import (
     PrometheusMetricsConfig,
 )
 
-TEST_PREFIX = 'test_prefix'
 
 def test_prometheus_metrics_config():
     port = 2020
 
     # no port
     with pytest.raises(ValueError):
-        PrometheusMetricsConfig(port=None, metrics_prefix=TEST_PREFIX)
+        PrometheusMetricsConfig(port=None)
 
-    # no prefix
-    with pytest.raises(ValueError):
-        PrometheusMetricsConfig(port=port, metrics_prefix=None)
-
-    prometheus_config = PrometheusMetricsConfig(port=port,
-                                                metrics_prefix=TEST_PREFIX)
+    prometheus_config = PrometheusMetricsConfig(port=port)
 
     assert prometheus_config.port == 2020
-    assert prometheus_config.metrics_prefix == TEST_PREFIX
     assert prometheus_config.listen_address == ''
 
     # defaults
@@ -59,7 +50,6 @@ def test_prometheus_metrics_config():
     collection_interval = 5
     listen_address = '111.111.111.111'
     prometheus_config = PrometheusMetricsConfig(port=port,
-                                                metrics_prefix=TEST_PREFIX,
                                                 listen_address=listen_address,
                                                 collection_interval=collection_interval,
                                                 start_now=True)
@@ -69,18 +59,18 @@ def test_prometheus_metrics_config():
 
 
 def test_base_metrics_collector():
-    class TestBastMetricsCollector(BaseMetricsCollector):
+    class TestBaseMetricsCollector(BaseMetricsCollector):
         def __init__(self):
             self.collect_internal_run = False
             super().__init__()
 
-        def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
+        def initialize(self, registry: CollectorRegistry) -> None:
             self.metrics = {'testmetric': 'gauge'}
 
         def _collect_internal(self):
             self.collect_internal_run = True
 
-    collector = TestBastMetricsCollector()
+    collector = TestBaseMetricsCollector()
 
     # try to collect before initialization
     with pytest.raises(MetricsCollector.CollectorNotInitialized):
@@ -88,7 +78,7 @@ def test_base_metrics_collector():
 
     # initialize and then try to collect
     registry = Mock()
-    collector.initialize('None', registry)
+    collector.initialize(registry)
     collector.collect()
     assert collector.collect_internal_run
 
