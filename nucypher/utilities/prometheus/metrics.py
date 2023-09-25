@@ -22,18 +22,14 @@ class PrometheusMetricsConfig:
     """Prometheus configuration."""
     def __init__(self,
                  port: int,
-                 metrics_prefix: str,
                  listen_address: str = '',  # default to localhost ip
                  collection_interval: int = 90,  # every 1.5 minutes
                  start_now: bool = False):
 
         if not port:
             raise ValueError('port must be provided')
-        if not metrics_prefix:
-            raise ValueError('metrics prefix must be provided')
 
         self.port = port
-        self.metrics_prefix = metrics_prefix
         self.listen_address = listen_address
         self.collection_interval = collection_interval
         self.start_now = start_now
@@ -126,7 +122,7 @@ def start_prometheus_exporter(
     metrics_collectors = create_metrics_collectors(ursula)
     # initialize collectors
     for collector in metrics_collectors:
-        collector.initialize(metrics_prefix=prometheus_config.metrics_prefix, registry=registry)
+        collector.initialize(registry=registry)
 
     # TODO: was never used
     # "requests_counter": Counter(f'{metrics_prefix}_http_failures', 'HTTP Failures', ['method', 'endpoint']),
