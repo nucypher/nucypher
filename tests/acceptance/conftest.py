@@ -137,7 +137,7 @@ def nu_token(nucypher_dependency, deployer_account):
 @pytest.fixture(scope="module")
 def threshold_staking(nucypher_dependency, deployer_account):
     _threshold_staking = deployer_account.deploy(
-        nucypher_dependency.ThresholdStakingForTACoApplicationMock
+        nucypher_dependency.TestnetThresholdStaking
     )
     return _threshold_staking
 
