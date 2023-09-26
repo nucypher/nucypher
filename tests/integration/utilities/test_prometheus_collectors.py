@@ -39,7 +39,7 @@ def test_ursula_info_metrics_collector(ursulas):
 
     mode = "running" if ursula._learning_task.running else "stopped"
     learning_mode = collector_registry.get_sample_value(
-        "node_discovery", labels={"node_discovery": f"{mode}"}
+        "node_discovery_status", labels={"node_discovery_status": f"{mode}"}
     )
     assert learning_mode == 1
 
