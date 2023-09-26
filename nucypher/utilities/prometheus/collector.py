@@ -73,9 +73,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "host_info": Info("host", "Ursula info", registry=registry),
+            "client_info": Info("client", "TACo node client info", registry=registry),
             "learning_status": Enum(
-                "node_discovery",
+                "node_discovery_status",
                 "Learning loop status",
                 states=["starting", "running", "stopped"],
                 registry=registry,
@@ -95,6 +95,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
     def _collect_internal(self) -> None:
         # info
         payload = {
+            "app": "TACo",
             "app_version": nucypher.__version__,
             "host": str(self.ursula.rest_interface),
             "domain": str(self.ursula.domain),
@@ -106,7 +107,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
-        self.metrics["host_info"].info(payload)
+        self.metrics["client_info"].info(payload)
 
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
