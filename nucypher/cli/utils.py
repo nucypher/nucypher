@@ -242,7 +242,9 @@ def retrieve_events(emitter: StdoutEmitter,
             emitter.echo(f'No {agent.contract_name}::{event_name} events found', color='yellow')
     else:
         event = agent.contract.events[event_name]
-        emitter.echo(f"{event_name}:", bold=True, color='yellow')
-        entries = event.getLogs(fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters)
+        emitter.echo(f"{event_name}:", bold=True, color="yellow")
+        entries = event.get_logs(
+            fromBlock=from_block, toBlock=to_block, argument_filters=argument_filters
+        )
         for event_record in entries:
             emitter.echo(f"  - {EventRecord(event_record)}")
