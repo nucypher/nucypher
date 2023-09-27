@@ -12,12 +12,13 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
+from tests.constants import GLOBAL_ALLOW_LIST
 
 GlobalLoggerSettings.start_console_logging()
 
@@ -105,11 +106,6 @@ def nucypher_dkg(
                     fg="red",
                 ),
             )
-        if dkg_size <= 1 or dkg_size % 2 != 0:
-            raise click.BadOptionUsage(
-                option_name="--dkg-size",
-                message=click.style("DKG size must be > 1 and a power of 2", fg="red"),
-            )
         if num_rituals < 1:
             raise click.BadOptionUsage(
                 option_name="--num-rituals",
@@ -151,23 +147,29 @@ def nucypher_dkg(
     )  # type: TACoApplicationAgent
 
     #
-    # Initial Ritual
+    # Get deployer account
+    #
+    signer = Signer.from_signer_uri(uri=signer_uri)
+    account_address = signer.accounts[0]
+    emitter.echo(
+        f"Using account {account_address} to initiate DKG Ritual", color="green"
+    )
+
+    password = click.prompt(
+        "Enter your keystore password", confirmation_prompt=False, hide_input=True
+    )
+    signer.unlock_account(account=account_address, password=password)
+    transacting_power = TransactingPower(signer=signer, account=account_address)
+
+    # Get GlobalAllowList contract
+    blockchain = application_agent.blockchain
+    allow_list = blockchain.get_contract_by_name(GLOBAL_ALLOW_LIST)
+
+    #
+    # Initiate Ritual(s)
     #
     if ritual_id < 0:
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
-        # create account from keystore file
-        signer = Signer.from_signer_uri(uri=signer_uri)
-        account_address = signer.accounts[0]
-        emitter.echo(
-            f"Using account {account_address} to initiate DKG Ritual", color="green"
-        )
-
-        password = click.prompt(
-            "Enter your keystore password", confirmation_prompt=False, hide_input=True
-        )
-        signer.unlock_account(account=account_address, password=password)
-        transacting_power = TransactingPower(signer=signer, account=account_address)
-
         emitter.echo(
             f"Commencing DKG Ritual(s) on {coordinator_network} using {account_address}",
             color="green",
@@ -192,7 +194,10 @@ def nucypher_dkg(
             dkg_staking_providers.sort()
             emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
             receipt = coordinator_agent.initiate_ritual(
-                dkg_staking_providers, transacting_power
+                providers=dkg_staking_providers,
+                authority=account_address,
+                access_controller=allow_list.address,
+                transacting_power=transacting_power,
             )
             start_ritual_event = (
                 coordinator_agent.contract.events.StartRitual().process_receipt(receipt)
@@ -292,12 +297,24 @@ def nucypher_dkg(
         bytes(coordinator_agent.get_ritual(ritual_id).public_key)
     )
 
-    enrico = Enrico(encrypting_key=encrypting_key)
+    enrico_signer = InMemorySigner()
+    enrico_account = enrico_signer.accounts[0]
+    emitter.echo(f"Using account {enrico_account} to sign data")
+
+    enrico = Enrico(encrypting_key=encrypting_key, signer=enrico_signer)
     threshold_message_kit = enrico.encrypt_for_dkg(
         plaintext=PLAINTEXT.encode(), conditions=CONDITIONS
     )
-
     emitter.echo("-- Data encrypted --", color="green")
+
+    #
+    # Authorize Enrico to use the ritual
+    #
+    contract_function = allow_list.functions.authorize(ritual_id, [enrico_account])
+    blockchain.send_transaction(
+        contract_function=contract_function, transacting_power=transacting_power
+    )
+    emitter.echo(f"Enrico authorized to use DKG Ritual #{ritual_id}", color="green")
 
     #
     # Get Data Decrypted
