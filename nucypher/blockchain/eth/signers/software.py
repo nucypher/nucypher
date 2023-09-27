@@ -264,3 +264,71 @@ class KeystoreSigner(Signer):
         signer = self.__get_signer(account=account)
         signature = signer.sign_message(signable_message=encode_defunct(primitive=message)).signature
         return HexBytes(signature)
+
+
+class InMemorySigner(Signer):
+    """Local signer implementation for in-memory-only keys"""
+
+    def __init__(self):
+        super().__init__()
+        account = Account.create()
+        self.__keys = {account.address: account.key.hex()}
+        self.__signers = {account.address: account}
+
+    @classmethod
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> "Signer":
+        """Return an in-memory signer from URI string i.e. memory://"""
+        decoded_uri = urlparse(uri)
+        if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
+            raise cls.InvalidSignerURI(uri)
+        return cls()
+
+    @classmethod
+    def uri_scheme(cls) -> str:
+        return "memory"
+
+    def lock_account(self, account: str) -> bool:
+        return True
+
+    @property
+    def accounts(self) -> List[str]:
+        """Return a list of known in-memory accounts read from"""
+        return list(self.__keys.keys())
+
+    @validate_checksum_address
+    def is_device(self, account: str) -> bool:
+        return False  # In-memory accounts are never devices.
+
+    @validate_checksum_address
+    def unlock_account(self, account: str, password: str, duration: int = None) -> bool:
+        return True
+
+    @validate_checksum_address
+    def __get_signer(self, account: str) -> LocalAccount:
+        """Lookup a known keystore account by its checksum address or raise an error"""
+        try:
+            return self.__signers[account]
+        except KeyError:
+            if account not in self.__keys:
+                raise self.UnknownAccount(account=account)
+            else:
+                raise self.AccountLocked(account=account)
+
+    @validate_checksum_address
+    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+        sender = transaction_dict["from"]
+        signer = self.__get_signer(account=sender)
+        if not transaction_dict["to"]:
+            transaction_dict = dissoc(transaction_dict, "to")
+        raw_transaction = signer.sign_transaction(
+            transaction_dict=transaction_dict
+        ).rawTransaction
+        return raw_transaction
+
+    @validate_checksum_address
+    def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
+        signer = self.__get_signer(account=account)
+        signature = signer.sign_message(
+            signable_message=encode_defunct(primitive=message)
+        ).signature
+        return HexBytes(signature)
