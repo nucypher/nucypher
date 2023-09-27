@@ -3,7 +3,7 @@
 import json
 from json.decoder import JSONDecodeError
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 from cytoolz.dicttoolz import dissoc
@@ -11,7 +11,7 @@ from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
 from eth_utils.address import is_address, to_checksum_address
-from hexbytes.main import HexBytes
+from hexbytes.main import BytesLike, HexBytes
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.signers.base import Signer
@@ -269,9 +269,12 @@ class KeystoreSigner(Signer):
 class InMemorySigner(Signer):
     """Local signer implementation for in-memory-only keys"""
 
-    def __init__(self):
+    def __init__(self, private_key: Optional[BytesLike] = None):
         super().__init__()
-        account = Account.create()
+        if private_key:
+            account = Account.from_key(private_key)
+        else:
+            account = Account.create()
         self.__keys = {account.address: account.key.hex()}
         self.__signers = {account.address: account}
 
