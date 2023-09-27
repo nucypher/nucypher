@@ -31,6 +31,22 @@ DEFAULT_ENRICO_PRIVATE_KEY = HexBytes(
 )
 
 
+def get_transacting_power(signer: Signer):
+    account_address = signer.accounts[0]
+    emitter.echo(
+        f"Using {account_address} for initiation/authorization for DKG Ritual",
+        color="green",
+    )
+
+    password = click.prompt(
+        "Enter your keystore password", confirmation_prompt=False, hide_input=True
+    )
+    signer.unlock_account(account=account_address, password=password)
+    transacting_power = TransactingPower(signer=signer, account=account_address)
+
+    return transacting_power
+
+
 @click.command()
 @click.option(
     "--eth-provider",
@@ -172,18 +188,8 @@ def nucypher_dkg(
     #
     # Get deployer account
     #
-    signer = Signer.from_signer_uri(uri=signer_uri)
-    account_address = signer.accounts[0]
-    emitter.echo(
-        f"Using authorizer {account_address} for initiation/authorization for DKG Ritual",
-        color="green",
-    )
-
-    password = click.prompt(
-        "Enter your keystore password", confirmation_prompt=False, hide_input=True
-    )
-    signer.unlock_account(account=account_address, password=password)
-    transacting_power = TransactingPower(signer=signer, account=account_address)
+    signer = None
+    transacting_power = None
 
     # Get GlobalAllowList contract
     blockchain = coordinator_agent.blockchain
@@ -195,6 +201,11 @@ def nucypher_dkg(
     # Initiate Ritual(s)
     #
     if ritual_id < 0:
+        # Obtain transacting power
+        signer = Signer.from_signer_uri(uri=signer_uri)
+        account_address = signer.accounts[0]
+        transacting_power = get_transacting_power(signer=signer)
+
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
             f"Commencing DKG Ritual(s) on {coordinator_network} using {account_address}",
@@ -349,6 +360,20 @@ def nucypher_dkg(
         )
     else:
         if click.confirm(f"Do you want to authorize Enrico ('{enrico_account}')?"):
+            # Obtain transacting power
+            if not signer_uri:
+                emitter.echo(
+                    "--signer must be provided to initiate rituals", color="red"
+                )
+                return click.Abort()
+
+            if not signer:
+                signer = Signer.from_signer_uri(uri=signer_uri)
+
+            if not transacting_power:
+                transacting_power = get_transacting_power(signer)
+
+            # Authorize Enrico
             contract_function = allow_list.functions.authorize(
                 ritual_id, [enrico_account]
             )
