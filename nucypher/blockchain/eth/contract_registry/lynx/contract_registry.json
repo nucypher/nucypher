@@ -2007,9 +2007,9 @@
         ]
     ],
     [
-        "LynxMockTACoChildApplication",
+        "MockPolygonRoot",
         "v0.0.0",
-        "0xb5841C2707De89e6F64c1a8b9F4c2fe4d399a51a",
+        "0x49e3973596522DD789d8D8dc9DA62e8580701e37",
         [
             {
                 "type": "constructor",
@@ -2024,7 +2024,45 @@
             },
             {
                 "type": "event",
+                "name": "AuthorizationUpdated",
+                "inputs": [
+                    {
+                        "name": "stakingProvider",
+                        "type": "address",
+                        "internalType": "address",
+                        "indexed": true
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint96",
+                        "internalType": "uint96",
+                        "indexed": false
+                    }
+                ],
+                "anonymous": false
+            },
+            {
+                "type": "event",
                 "name": "OperatorConfirmed",
+                "inputs": [
+                    {
+                        "name": "stakingProvider",
+                        "type": "address",
+                        "internalType": "address",
+                        "indexed": true
+                    },
+                    {
+                        "name": "operator",
+                        "type": "address",
+                        "internalType": "address",
+                        "indexed": true
+                    }
+                ],
+                "anonymous": false
+            },
+            {
+                "type": "event",
+                "name": "OperatorUpdated",
                 "inputs": [
                     {
                         "name": "stakingProvider",
@@ -2108,11 +2146,60 @@
             },
             {
                 "type": "function",
+                "name": "setRootApplication",
+                "stateMutability": "nonpayable",
+                "inputs": [
+                    {
+                        "name": "application",
+                        "type": "address",
+                        "internalType": "contract ITACoChildToRoot"
+                    }
+                ],
+                "outputs": []
+            },
+            {
+                "type": "function",
                 "name": "transferOwnership",
                 "stateMutability": "nonpayable",
                 "inputs": [
                     {
                         "name": "newOwner",
+                        "type": "address",
+                        "internalType": "address"
+                    }
+                ],
+                "outputs": []
+            },
+            {
+                "type": "function",
+                "name": "updateAuthorization",
+                "stateMutability": "nonpayable",
+                "inputs": [
+                    {
+                        "name": "stakingProvider",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "amount",
+                        "type": "uint96",
+                        "internalType": "uint96"
+                    }
+                ],
+                "outputs": []
+            },
+            {
+                "type": "function",
+                "name": "updateOperator",
+                "stateMutability": "nonpayable",
+                "inputs": [
+                    {
+                        "name": "stakingProvider",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "operator",
                         "type": "address",
                         "internalType": "address"
                     }
