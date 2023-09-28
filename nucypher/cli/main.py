@@ -1,6 +1,6 @@
 import click
 
-from nucypher.cli.commands import ursula
+from nucypher.cli.commands import status, ursula
 from nucypher.cli.painting.help import (
     echo_config_root_path,
     echo_logging_root_path,
@@ -25,6 +25,7 @@ def nucypher_cli():
 
 ENTRY_POINTS = (
     ursula.ursula,
+    status.status,
     # add more entry points here
 )
 
