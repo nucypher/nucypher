@@ -41,12 +41,12 @@ except KeyError:
 
 print("\n************** Setup **************\n")
 
-####################
-# NuCypher Network #
-####################
+###########
+# Network #
+###########
 
-L1_NETWORK = 'mainnet'  # or 'tapir'
-L2_NETWORK = 'polygon'  # or 'mumbai'
+L1_NETWORK = "lynx"
+L2_NETWORK = "mumbai"
 
 #####################
 # Bob the BUIDLer  ##
@@ -54,7 +54,10 @@ L2_NETWORK = 'polygon'  # or 'mumbai'
 
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
-bob = Bob(domain=L1_NETWORK)
+bob = Bob(
+    domain=L1_NETWORK,
+    eth_provider_uri=L1_PROVIDER,
+)
 
 # Bob puts his public keys somewhere alice can find them.
 verifying_key = bob.public_keys(SigningPower)
@@ -108,6 +111,7 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 remote_bob = Bob.from_public_keys(
     encrypting_key=encrypting_key,
     verifying_key=verifying_key,
+    eth_provider_uri=L1_PROVIDER,
 )
 
 # These are the policy details.
@@ -155,7 +159,6 @@ for counter, plaintext in enumerate(finnegans_wake):
     # The matter of whether encryption makes the passage more or less readable
     # is left to the reader to determine.
     message_kit = enrico.encrypt_for_pre(plaintext)
-    enrico_public_key = bytes(enrico.stamp)
     del enrico
 
     ###############
