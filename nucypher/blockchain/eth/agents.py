@@ -888,19 +888,20 @@ class ContractAgency:
         return agent_name
 
     @classmethod
-    def get_agent_by_contract_name(cls,
-                                   contract_name: str,
-                                   registry: BaseContractRegistry,
-                                   eth_provider_uri: Optional[str] = None,
-                                   contract_version: Optional[str] = None
-                                   ) -> EthereumContractAgent:
+    def get_agent_by_contract_name(
+        cls,
+        contract_name: str,
+        registry: BaseContractRegistry,
+        provider_uri: str,
+        contract_version: Optional[str] = None,
+    ) -> EthereumContractAgent:
         agent_name: str = cls._contract_name_to_agent_name(name=contract_name)
         agents_module = sys.modules[__name__]
         agent_class: Type[EthereumContractAgent] = getattr(agents_module, agent_name)
         agent: EthereumContractAgent = cls.get_agent(
             agent_class=agent_class,
             registry=registry,
-            provider_uri=eth_provider_uri,
+            provider_uri=provider_uri,
             contract_version=contract_version
         )
         return agent

@@ -5,7 +5,7 @@ from typing import Sequence
 
 import click
 
-from nucypher.blockchain.eth.constants import NUCYPHER_CONTRACT_NAMES
+from nucypher.blockchain.eth.constants import TACO_CONTRACT_NAMES
 from nucypher.cli.types import (
     EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
@@ -144,8 +144,9 @@ def option_alice_verifying_key(required: bool = False):
         required=required)
 
 
-def option_contract_name(required: bool = False,
-                         valid_options: Sequence[str] = NUCYPHER_CONTRACT_NAMES):
+def option_contract_name(
+    required: bool = False, valid_options: Sequence[str] = TACO_CONTRACT_NAMES
+):
     return click.option(
         '--contract-name',
         help="Specify a single contract by name",

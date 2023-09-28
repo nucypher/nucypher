@@ -1,41 +1,27 @@
-
-
-from web3.main import Web3
-
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     TACoApplicationAgent,
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
 
-def paint_contract_status(registry, emitter):
-    blockchain = BlockchainInterfaceFactory.get_interface()
+def paint_application_contract_status(emitter, registry, provider_uri):
     application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent, registry=registry
+        TACoApplicationAgent, registry=registry, provider_uri=provider_uri
     )
-    contracts = f"""
-| Contract Deployments |
-{application_agent.contract_name} .............. {application_agent.contract_address}
-    """
+    blockchain = application_agent.blockchain
 
-    blockchain = f"""
-| '{blockchain.client.chain_name}' Blockchain Network |
-Gas Price ................ {Web3.from_wei(blockchain.client.gas_price, 'gwei')} Gwei
-ETH Provider URI ......... {blockchain.eth_provider_uri}
-Registry ................. {registry.filepath}
+    contracts = f"""
+Contract Deployment
+===================
+Blockchain ........................ {blockchain.client.chain_name}
+TACoApplication Contract........... {application_agent.contract_address}
     """
 
     staking = f"""
-| TACoApplication |
+TACoApplication
+================
 Staking Provider Population ....... {application_agent.get_staking_providers_population()}
     """
 
-    sep = '-' * 45
-    emitter.echo(sep)
     emitter.echo(contracts)
-    emitter.echo(sep)
-    emitter.echo(blockchain)
-    emitter.echo(sep)
     emitter.echo(staking)
-    emitter.echo(sep)
