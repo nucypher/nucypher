@@ -3,6 +3,7 @@ import time
 
 import click
 import maya
+from hexbytes import HexBytes
 from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
@@ -12,16 +13,38 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
+from tests.constants import GLOBAL_ALLOW_LIST
 
 GlobalLoggerSettings.start_console_logging()
 
 emitter = StdoutEmitter(verbosity=2)
+
+# private key for wallet address '0x070a85eD1Ddb44ecD07e746235bE0B959ff5b30A'
+DEFAULT_ENRICO_PRIVATE_KEY = HexBytes(
+    "0x900edb9e8214b2353f82aa195e915128f419a92cfb8bbc0f4784f10ef4112b86"
+)
+
+
+def get_transacting_power(signer: Signer):
+    account_address = signer.accounts[0]
+    emitter.echo(
+        f"Using {account_address} for initiation/authorization for DKG Ritual",
+        color="green",
+    )
+
+    password = click.prompt(
+        "Enter your keystore password", confirmation_prompt=False, hide_input=True
+    )
+    signer.unlock_account(account=account_address, password=password)
+    transacting_power = TransactingPower(signer=signer, account=account_address)
+
+    return transacting_power
 
 
 @click.command()
@@ -85,6 +108,20 @@ emitter = StdoutEmitter(verbosity=2)
     type=click.INT,
     default=1,
 )
+@click.option(
+    "--ritual-duration",
+    "ritual_duration",
+    help="The duration (in seconds) for initialized ritual(s)",
+    type=click.INT,
+    default=60 * 60 * 24,  # 24 hours
+)
+@click.option(
+    "--use-random-enrico",
+    "use_random_enrico",
+    help="Use a random Enrico signing account vs using a known default Enrico signing account (default)",
+    is_flag=True,
+    default=False,
+)
 def nucypher_dkg(
     eth_provider_uri,
     eth_staking_network,
@@ -94,6 +131,8 @@ def nucypher_dkg(
     signer_uri,
     dkg_size,
     num_rituals,
+    ritual_duration,
+    use_random_enrico,
 ):
     if ritual_id < 0:
         # if creating ritual(s)
@@ -104,11 +143,6 @@ def nucypher_dkg(
                     "--signer must be provided to create new ritual when --ritual-id is not provided",
                     fg="red",
                 ),
-            )
-        if dkg_size <= 1 or dkg_size % 2 != 0:
-            raise click.BadOptionUsage(
-                option_name="--dkg-size",
-                message=click.style("DKG size must be > 1 and a power of 2", fg="red"),
             )
         if num_rituals < 1:
             raise click.BadOptionUsage(
@@ -133,11 +167,12 @@ def nucypher_dkg(
                 ),
             )
 
+    coordinator_network_registry = InMemoryContractRegistry.from_latest_publication(
+        network=coordinator_network
+    )
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
-        registry=InMemoryContractRegistry.from_latest_publication(
-            network=coordinator_network
-        ),
+        registry=coordinator_network_registry,
         provider_uri=coordinator_provider_uri,
     )  # type: CoordinatorAgent
 
@@ -151,23 +186,27 @@ def nucypher_dkg(
     )  # type: TACoApplicationAgent
 
     #
-    # Initial Ritual
+    # Get deployer account
+    #
+    signer = None
+    transacting_power = None
+
+    # Get GlobalAllowList contract
+    blockchain = coordinator_agent.blockchain
+    allow_list = blockchain.get_contract_by_name(
+        registry=coordinator_network_registry, contract_name=GLOBAL_ALLOW_LIST
+    )
+
+    #
+    # Initiate Ritual(s)
     #
     if ritual_id < 0:
-        emitter.echo("--------- Initiating Ritual ---------", color="yellow")
-        # create account from keystore file
+        # Obtain transacting power
         signer = Signer.from_signer_uri(uri=signer_uri)
         account_address = signer.accounts[0]
-        emitter.echo(
-            f"Using account {account_address} to initiate DKG Ritual", color="green"
-        )
+        transacting_power = get_transacting_power(signer=signer)
 
-        password = click.prompt(
-            "Enter your keystore password", confirmation_prompt=False, hide_input=True
-        )
-        signer.unlock_account(account=account_address, password=password)
-        transacting_power = TransactingPower(signer=signer, account=account_address)
-
+        emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
             f"Commencing DKG Ritual(s) on {coordinator_network} using {account_address}",
             color="green",
@@ -182,17 +221,16 @@ def nucypher_dkg(
             ) = application_agent.get_all_active_staking_providers()
             staking_providers = list(staking_providers_dict.keys())
 
-            if eth_staking_network == "lynx":
-                staking_providers.remove(
-                    "0x7AFDa7e47055CDc597872CA34f9FE75bD083D0Fe"
-                )  # TODO skip Bogdan's node; remove at some point
-
             # sample then sort
             dkg_staking_providers = random.sample(staking_providers, dkg_size)
             dkg_staking_providers.sort()
             emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
             receipt = coordinator_agent.initiate_ritual(
-                dkg_staking_providers, transacting_power
+                providers=dkg_staking_providers,
+                authority=account_address,
+                duration=ritual_duration,
+                access_controller=allow_list.address,
+                transacting_power=transacting_power,
             )
             start_ritual_event = (
                 coordinator_agent.contract.events.StartRitual().process_receipt(receipt)
@@ -205,7 +243,7 @@ def nucypher_dkg(
 
             initiated_rituals.append(ritual_id)
             emitter.echo(
-                f"DKG Ritual #{ritual_id} initiated: {Web3.to_hex(receipt['transactionHash'])}",
+                f"DKG Ritual #{ritual_id} initiated; tx: {Web3.to_hex(receipt['transactionHash'])}",
                 color="green",
             )
 
@@ -282,6 +320,7 @@ def nucypher_dkg(
     CONDITIONS = {
         "version": ConditionLingo.VERSION,
         "condition": {
+            "conditionType": "time",
             "returnValueTest": {"value": "0", "comparator": ">"},
             "method": "blocktime",
             "chain": application_agent.blockchain.client.chain_id,
@@ -292,12 +331,64 @@ def nucypher_dkg(
         bytes(coordinator_agent.get_ritual(ritual_id).public_key)
     )
 
-    enrico = Enrico(encrypting_key=encrypting_key)
+    private_key = None
+    if not use_random_enrico:
+        # use known enrico address
+        print("Using default Enrico signing account")
+        private_key = DEFAULT_ENRICO_PRIVATE_KEY
+
+    enrico_signer = InMemorySigner(private_key)
+    enrico_account = enrico_signer.accounts[0]
+    emitter.echo(f"Using account {enrico_account} to sign data")
+
+    enrico = Enrico(encrypting_key=encrypting_key, signer=enrico_signer)
     threshold_message_kit = enrico.encrypt_for_dkg(
         plaintext=PLAINTEXT.encode(), conditions=CONDITIONS
     )
-
     emitter.echo("-- Data encrypted --", color="green")
+
+    #
+    # Authorize Enrico to use the ritual
+    #
+    is_enrico_already_authorized = allow_list.functions.isAddressAuthorized(
+        ritual_id, enrico_account
+    ).call()
+    if is_enrico_already_authorized:
+        emitter.echo(
+            f"Enrico {enrico_account} already authorized for DKG Ritual #{ritual_id}",
+            color="green",
+        )
+    else:
+        if click.confirm(f"Do you want to authorize Enrico ('{enrico_account}')?"):
+            # Obtain transacting power
+            if not signer_uri:
+                emitter.echo(
+                    "--signer must be provided to initiate rituals", color="red"
+                )
+                return click.Abort()
+
+            if not signer:
+                signer = Signer.from_signer_uri(uri=signer_uri)
+
+            if not transacting_power:
+                transacting_power = get_transacting_power(signer)
+
+            # Authorize Enrico
+            contract_function = allow_list.functions.authorize(
+                ritual_id, [enrico_account]
+            )
+            blockchain.send_transaction(
+                contract_function=contract_function, transacting_power=transacting_power
+            )
+            emitter.echo(
+                f"Enrico {enrico_account} authorized to use DKG Ritual #{ritual_id}",
+                color="green",
+            )
+        else:
+            emitter.echo(
+                f"Enrico {enrico_account} not authorized to use DKG Ritual #{ritual_id} - expect decryption to fail",
+                color="yellow",
+            )
 
     #
     # Get Data Decrypted
