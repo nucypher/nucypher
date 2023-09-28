@@ -53,6 +53,7 @@ PUBLIC_CHAINS = {
     77: "Sokol",
     100: "xDai",
     137: "Polygon/Mainnet",
+    11155111: "Sepolia",
     80001: "Polygon/Mumbai"
 }
 
