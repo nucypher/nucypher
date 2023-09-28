@@ -18,7 +18,7 @@ class NetworksInventory:  # TODO: See #1564
         MAINNET: 1,  # Ethereum Mainnet
         IBEX: 5,  # this is required for configuration file migrations (backwards compatibility)
         LYNX: 5,  # Goerli
-        TAPIR: 5,
+        TAPIR: 11155111,  # Sepolia
         ORYX: 5
     }
     __to_chain_id_polygon = {
