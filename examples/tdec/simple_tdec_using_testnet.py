@@ -4,9 +4,11 @@ from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import GlobalLoggerSettings
+from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
 ######################
 # Boring setup stuff #
@@ -36,7 +38,12 @@ coordinator_agent = CoordinatorAgent(
 )
 ritual_id = 1  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
-enrico = Enrico(encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)))
+
+# known already authorized signer for ritual 1
+signer = InMemorySigner(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY)
+enrico = Enrico(
+    encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)), signer=signer
+)
 
 print(
     f"Fetched DKG public key {bytes(enrico.policy_pubkey).hex()} "
@@ -60,7 +67,7 @@ threshold_message_kit = enrico.encrypt_for_dkg(
     plaintext=message, conditions=eth_balance_condition
 )
 
-print(f"Encrypted message: {bytes(threshold_message_kit.payload).hex()}")
+print(f"\nEncrypted message:\n{bytes(threshold_message_kit).hex()}")
 
 ###############
 # Bob
@@ -81,4 +88,4 @@ cleartext = bob.threshold_decrypt(
     threshold_message_kit=threshold_message_kit,
 )
 
-print(bytes(cleartext).decode())
+print(f"\nCleartext:\n{bytes(cleartext).decode()}")
