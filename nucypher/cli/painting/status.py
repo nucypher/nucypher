@@ -1,21 +1,19 @@
-
-
 from web3.main import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     TACoApplicationAgent,
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
 
-def paint_contract_status(registry, emitter):
-    blockchain = BlockchainInterfaceFactory.get_interface()
+def paint_application_contract_status(emitter, registry, provider_uri):
     application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent, registry=registry
+        TACoApplicationAgent, registry=registry, provider_uri=provider_uri
     )
+    blockchain = application_agent.blockchain
+
     contracts = f"""
-| Contract Deployments |
+| Contract Deployment |
 {application_agent.contract_name} .............. {application_agent.contract_address}
     """
 
