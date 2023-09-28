@@ -88,4 +88,4 @@ cleartext = bob.threshold_decrypt(
     threshold_message_kit=threshold_message_kit,
 )
 
-print(f"\nCleartext:\n{bytes(cleartext).decode()}")
+print(f"\nCleartext:{bytes(cleartext).decode()}")
