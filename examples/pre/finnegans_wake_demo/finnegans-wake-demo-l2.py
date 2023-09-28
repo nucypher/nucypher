@@ -17,27 +17,26 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 # Boring setup stuff #
 ######################
 
-LOG_LEVEL = 'info'
+LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
-BOOK_PATH = Path('finnegans-wake-excerpt.txt')
+BOOK_PATH = Path("finnegans-wake-excerpt.txt")
 
 try:
-
     # Replace with ethereum RPC endpoint
-    L1_PROVIDER = os.environ['DEMO_L1_PROVIDER_URI']
-    L2_PROVIDER = os.environ['DEMO_L2_PROVIDER_URI']
+    L1_PROVIDER = os.environ["DEMO_L1_PROVIDER_URI"]
+    L2_PROVIDER = os.environ["DEMO_L2_PROVIDER_URI"]
 
     # Replace with wallet filepath.
-    WALLET_FILEPATH = os.environ['DEMO_L2_WALLET_FILEPATH']
-    SIGNER_URI = f'keystore://{WALLET_FILEPATH}'
+    WALLET_FILEPATH = os.environ["DEMO_L2_WALLET_FILEPATH"]
+    SIGNER_URI = f"keystore://{WALLET_FILEPATH}"
 
     # Replace with alice's ethereum address
-    ALICE_ADDRESS = os.environ['DEMO_ALICE_ADDRESS']
+    ALICE_ADDRESS = os.environ["DEMO_ALICE_ADDRESS"]
 
 except KeyError:
-    raise RuntimeError('Missing environment variables to run demo.')
+    raise RuntimeError("Missing environment variables to run demo.")
 
 print("\n************** Setup **************\n")
 
@@ -76,13 +75,14 @@ connect_web3_provider(eth_provider_uri=L2_PROVIDER)
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
 # Do not use mainnet keys, create a dedicated software wallet to use for this demo.
 wallet = Signer.from_signer_uri(SIGNER_URI)
-password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): ")
+password = os.environ.get("DEMO_ALICE_PASSWORD") or getpass(
+    f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): "
+)
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
-    network=L2_NETWORK,
-    eth_provider=L2_PROVIDER
+    network=L2_NETWORK, eth_provider=L2_PROVIDER
 )
 
 # This is Alice.
@@ -121,7 +121,8 @@ price = alice.pre_payment_method.quote(expiration=expiration.epoch, shares=share
 
 # Alice grants access to Bob...
 policy = alice.grant(
-    remote_bob, label,
+    remote_bob,
+    label,
     threshold=threshold,
     shares=shares,
     value=price,
@@ -142,13 +143,12 @@ del alice
 
 # Now that Bob has access to the policy, let's show how Enrico the Encryptor
 # can share data with the members of this Policy and then how Bob retrieves it.
-with open(BOOK_PATH, 'rb') as file:
+with open(BOOK_PATH, "rb") as file:
     finnegans_wake = file.readlines()
 
 print("\n************** Encrypt and Retrieve **************\n")
 
 for counter, plaintext in enumerate(finnegans_wake):
-
     # Enrico knows the policy's public key from a side-channel.
     # In this demo a new enrico is being constructed for each line of text.
     # This demonstrates how many individual encryptors may encrypt for a single policy.
@@ -166,9 +166,11 @@ for counter, plaintext in enumerate(finnegans_wake):
     ###############
 
     # Now Bob can retrieve the original message by requesting re-encryption from nodes.
-    cleartexts = bob.retrieve_and_decrypt([message_kit],
-                                          alice_verifying_key=alice_verifying_key,
-                                          encrypted_treasure_map=policy.treasure_map)
+    cleartexts = bob.retrieve_and_decrypt(
+        [message_kit],
+        alice_verifying_key=alice_verifying_key,
+        encrypted_treasure_map=policy.treasure_map,
+    )
 
     # We show that indeed this is the passage originally encrypted by Enrico.
     assert plaintext == cleartexts[0]

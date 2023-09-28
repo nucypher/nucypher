@@ -34,29 +34,28 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 # Boring setup stuff #
 ######################
 
-LOG_LEVEL = 'info'
+LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
-TEMP_ALICE_DIR = Path('/', 'tmp', 'heartbeat-demo-alice')
+TEMP_ALICE_DIR = Path("/", "tmp", "heartbeat-demo-alice")
 POLICY_FILENAME = "policy-metadata.json"
 shutil.rmtree(TEMP_ALICE_DIR, ignore_errors=True)
 
 try:
-
     # Replace with ethereum RPC endpoint
-    L1_PROVIDER = os.environ['DEMO_L1_PROVIDER_URI']
-    L2_PROVIDER = os.environ['DEMO_L2_PROVIDER_URI']
+    L1_PROVIDER = os.environ["DEMO_L1_PROVIDER_URI"]
+    L2_PROVIDER = os.environ["DEMO_L2_PROVIDER_URI"]
 
     # Replace with wallet filepath.
-    WALLET_FILEPATH = os.environ['DEMO_L2_WALLET_FILEPATH']
-    SIGNER_URI = f'keystore://{WALLET_FILEPATH}'
+    WALLET_FILEPATH = os.environ["DEMO_L2_WALLET_FILEPATH"]
+    SIGNER_URI = f"keystore://{WALLET_FILEPATH}"
 
     # Replace with alice's ethereum address
-    ALICE_ADDRESS = os.environ['DEMO_ALICE_ADDRESS']
+    ALICE_ADDRESS = os.environ["DEMO_ALICE_ADDRESS"]
 
 except KeyError:
-    raise RuntimeError('Missing environment variables to run demo.')
+    raise RuntimeError("Missing environment variables to run demo.")
 
 L1_NETWORK = "lynx"
 L2_NETWORK = "mumbai"
@@ -74,13 +73,14 @@ connect_web3_provider(eth_provider_uri=L2_PROVIDER)  # Connect to the layer 2 pr
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
 # Do not use mainnet keys, create a dedicated software wallet to use for this demo.
 wallet = Signer.from_signer_uri(SIGNER_URI)
-password = os.environ.get('DEMO_ALICE_PASSWORD') or getpass(f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): ")
+password = os.environ.get("DEMO_ALICE_PASSWORD") or getpass(
+    f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): "
+)
 wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
-    network=L2_NETWORK,
-    eth_provider=L2_PROVIDER
+    network=L2_NETWORK, eth_provider=L2_PROVIDER
 )
 
 # This is Alicia.
@@ -101,7 +101,7 @@ alicia.start_learning_loop(now=True)
 # At this point, Alicia is fully operational and can create policies.
 # The Policy Label is a bytestring that categorizes the data that Alicia wants to share.
 # Note: we add some random chars to create different policies, only for demonstration purposes
-label = "heart-data-❤️-"+os.urandom(4).hex()
+label = "heart-data-❤️-" + os.urandom(4).hex()
 label = label.encode()
 
 # Alicia can create the public key associated to the policy label,
@@ -121,9 +121,7 @@ print(
 # heart rate measurements from a heart monitor
 import heart_monitor  # noqa: E402
 
-heart_monitor.generate_heart_rate_samples(policy_pubkey,
-                                          samples=50,
-                                          save_as_file=True)
+heart_monitor.generate_heart_rate_samples(policy_pubkey, samples=50, save_as_file=True)
 
 
 # Alicia now wants to share data associated with this label.
@@ -149,11 +147,13 @@ threshold, shares = 2, 3
 # With this information, Alicia creates a policy granting access to Bob.
 # The policy is sent to the TACo Application on the Threshold Network.
 print("Creating access policy for the Doctor...")
-policy = alicia.grant(bob=doctor_strange,
-                      label=label,
-                      threshold=threshold,
-                      shares=shares,
-                      expiration=policy_end_datetime)
+policy = alicia.grant(
+    bob=doctor_strange,
+    label=label,
+    threshold=threshold,
+    shares=shares,
+    expiration=policy_end_datetime,
+)
 print("Done!")
 
 # For the demo, we need a way to share with Bob some additional info
@@ -162,9 +162,9 @@ policy_info = {
     "policy_pubkey": policy.public_key.to_compressed_bytes().hex(),
     "alice_sig_pubkey": bytes(alicia.stamp).hex(),
     "label": label.decode("utf-8"),
-    "treasure_map": base64.b64encode(bytes(policy.treasure_map)).decode()
+    "treasure_map": base64.b64encode(bytes(policy.treasure_map)).decode(),
 }
 
 filename = POLICY_FILENAME
-with open(filename, 'w') as f:
+with open(filename, "w") as f:
     json.dump(policy_info, f)

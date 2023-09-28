@@ -3,8 +3,8 @@ from pathlib import Path
 
 from nucypher_core.umbral import PublicKey, SecretKey
 
-DOCTOR_PUBLIC_JSON = Path('doctor.public.json')
-DOCTOR_PRIVATE_JSON = Path('doctor.private.json')
+DOCTOR_PUBLIC_JSON = Path("doctor.public.json")
+DOCTOR_PRIVATE_JSON = Path("doctor.private.json")
 
 
 def generate_doctor_keys():
@@ -16,7 +16,7 @@ def generate_doctor_keys():
         "sig": sig_privkey.to_be_bytes().hex(),
     }
 
-    with open(DOCTOR_PRIVATE_JSON, 'w') as f:
+    with open(DOCTOR_PRIVATE_JSON, "w") as f:
         json.dump(doctor_privkeys, f)
 
     enc_pubkey = enc_privkey.public_key()
@@ -25,7 +25,7 @@ def generate_doctor_keys():
         "enc": enc_pubkey.to_compressed_bytes().hex(),
         "sig": sig_pubkey.to_compressed_bytes().hex(),
     }
-    with open(DOCTOR_PUBLIC_JSON, 'w') as f:
+    with open(DOCTOR_PUBLIC_JSON, "w") as f:
         json.dump(doctor_pubkeys, f)
 
 
