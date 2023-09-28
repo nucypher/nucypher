@@ -14,64 +14,117 @@
  You should have received a copy of the GNU Affero General Public License
  along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
+import code
+import readline
+import rlcompleter
 
-# Get an interactive Python session with all the NuCypher agents loaded by running:
-#    python -i scripts/hooks/nucypher_agents.py <NETWORK> <ETH_PROVIDER_URI>
-
-import os
-import sys
-
-from constant_sorrow.constants import NO_BLOCKCHAIN_CONNECTION
+import click
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    NucypherTokenAgent,
+    CoordinatorAgent,
     SubscriptionManagerAgent,
     TACoApplicationAgent,
+    TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import InMemoryContractRegistry
-from nucypher.config.constants import NUCYPHER_ENVVAR_ETH_PROVIDER_URI
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
-NO_BLOCKCHAIN_CONNECTION.bool_value(False)  # FIXME
+# Get an interactive Python session with all the NuCypher agents loaded by running:
+#    python scripts/hooks/nucypher_agents.py [OPTIONS]
 
 GlobalLoggerSettings.start_console_logging()
 
 emitter = StdoutEmitter(verbosity=2)
 
-try:
-    eth_provider_uri = sys.argv[2]
-except IndexError:
-    eth_provider_uri = os.getenv(NUCYPHER_ENVVAR_ETH_PROVIDER_URI)
-    if not eth_provider_uri:
-        emitter.message("You have to pass a provider URI", color='red')
-        sys.exit(-1)
 
-try:
-    network = sys.argv[1]
-except IndexError:
-    network = "tapir"
+@click.command()
+@click.option(
+    "--eth-provider",
+    "eth_provider_uri",
+    help="ETH staking network provider URI",
+    type=click.STRING,
+    required=True,
+)
+@click.option(
+    "--eth-staking-network",
+    "eth_staking_network",
+    help="ETH staking network",
+    type=click.Choice(NetworksInventory.ETH_NETWORKS),
+    default="lynx",
+)
+@click.option(
+    "--coordinator-provider",
+    "coordinator_provider_uri",
+    help="Coordinator network provider URI",
+    type=click.STRING,
+    required=True,
+)
+@click.option(
+    "--coordinator-network",
+    "coordinator_network",
+    help="Coordinator network",
+    type=click.Choice(NetworksInventory.POLY_NETWORKS),
+    default="mumbai",
+)
+def nucypher_agents(
+    eth_provider_uri,
+    eth_staking_network,
+    coordinator_provider_uri,
+    coordinator_network,
+):
+    staking_registry = InMemoryContractRegistry.from_latest_publication(
+        network=eth_staking_network
+    )
+    emitter.echo(f"NOTICE: Connecting to {eth_staking_network} network", color="yellow")
 
-BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri, light=False, emitter=emitter)
-blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+    taco_application_agent = ContractAgency.get_agent(
+        agent_class=TACoApplicationAgent,
+        registry=staking_registry,
+        provider_uri=eth_provider_uri,
+    )  # type: TACoApplicationAgent
 
-emitter.echo(message="Reading Latest Chaindata...")
-blockchain.connect()
+    coordinator_network_registry = InMemoryContractRegistry.from_latest_publication(
+        network=coordinator_network
+    )
+    emitter.echo(f"NOTICE: Connecting to {coordinator_network} network", color="yellow")
 
-registry = InMemoryContractRegistry.from_latest_publication(network=network)
-emitter.echo(f"NOTICE: Connecting to {network} network", color='yellow')
+    taco_child_application_agent = ContractAgency.get_agent(
+        agent_class=TACoChildApplicationAgent,
+        registry=coordinator_network_registry,
+        provider_uri=coordinator_provider_uri,
+    )  # type: TACoChildApplicationAgent
 
-token_agent = ContractAgency.get_agent(
-    agent_class=NucypherTokenAgent, registry=registry
-)  # type: NucypherTokenAgent
-application_agent = ContractAgency.get_agent(
-    agent_class=TACoApplicationAgent, registry=registry
-)  # type: TACoApplicationAgent
-subscription_agent = ContractAgency.get_agent(
-    agent_class=SubscriptionManagerAgent, registry=registry
-)  # type: SubscriptionManagerAgent
+    coordinator_agent = ContractAgency.get_agent(
+        agent_class=CoordinatorAgent,
+        registry=coordinator_network_registry,
+        provider_uri=coordinator_provider_uri,
+    )  # type: CoordinatorAgent
 
-message = "NuCypher agents pre-loaded in variables 'token_agent', 'subscription_agent' and 'application_agent'"
-emitter.echo(message=message, color='green')
+    subscription_manager_agent = ContractAgency.get_agent(
+        agent_class=SubscriptionManagerAgent,
+        registry=coordinator_network_registry,
+        provider_uri=coordinator_provider_uri,
+    )  # type: SubscriptionManagerAgent
+
+    message = (
+        "TACo agents pre-loaded in variables:\n"
+        "\t'taco_application_agent'\n"
+        "\t'taco_child_application_agent'\n"
+        "\t'coordinator_agent'\n"
+        "\t'subscription_manager_agent'"
+    )
+    emitter.echo(message=message, color="green")
+
+    # set up auto-completion
+    readline.set_completer(rlcompleter.Completer(locals()).complete)
+    readline.parse_and_bind("tab: complete")
+
+    # start interactive shell
+    code.interact(local=locals())
+
+
+if __name__ == "__main__":
+    nucypher_agents()
