@@ -48,8 +48,7 @@ option_network = click.option(
 
 
 class RegistryOptions:
-
-    __option_name__ = 'registry_options'
+    __option_name__ = "registry_options"
 
     def __init__(self, provider_uri, poa, registry_filepath, light, network):
         self.provider_uri = provider_uri
@@ -60,7 +59,9 @@ class RegistryOptions:
 
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
-        registry = get_registry(network=self.network, registry_filepath=self.registry_filepath)
+        registry = get_registry(
+            network=self.network, registry_filepath=self.registry_filepath
+        )
         return emitter, registry, self.provider_uri
 
 
@@ -73,18 +74,26 @@ group_registry_options = group_options(
     provider_uri=option_provider_uri,
 )
 
-option_csv = click.option('--csv',
-                          help="Write event data to a CSV file using a default filename in the current directory",
-                          default=False,
-                          is_flag=True)
-option_csv_file = click.option('--csv-file',
-                               help="Write event data to the CSV file at specified filepath",
-                               type=click.Path(dir_okay=False, path_type=Path))
-option_event_filters = click.option('--event-filter', '-f', 'event_filters',
-                                    help="Event filter of the form <name>=<value>",
-                                    multiple=True,
-                                    type=click.STRING,
-                                    default=[])
+option_csv = click.option(
+    "--csv",
+    help="Write event data to a CSV file using a default filename in the current directory",
+    default=False,
+    is_flag=True,
+)
+option_csv_file = click.option(
+    "--csv-file",
+    help="Write event data to the CSV file at specified filepath",
+    type=click.Path(dir_okay=False, path_type=Path),
+)
+option_event_filters = click.option(
+    "--event-filter",
+    "-f",
+    "event_filters",
+    help="Event filter of the form <name>=<value>",
+    multiple=True,
+    type=click.STRING,
+    default=[],
+)
 
 option_from_block = click.option(
     "--from-block",
@@ -99,15 +108,15 @@ option_to_block = click.option(
 
 
 @click.group()
-def status():
-    """Echo a snapshot of live NuCypher Network metadata."""
+def taco():
+    """Provide snapshot information about the TACo Application on Threshold Network."""
 
 
-@status.command()
+@taco.command()
 @group_registry_options
 @group_general_config
-def taco_application(general_config, registry_options):
-    """Overall information of the TACoApplication."""
+def application_info(general_config, registry_options):
+    """Overall information for the TACo Application."""
     emitter, registry, provider_uri = registry_options.setup(
         general_config=general_config
     )
@@ -116,11 +125,11 @@ def taco_application(general_config, registry_options):
     )
 
 
-@status.command()
+@taco.command()
 @group_registry_options
 @group_general_config
-def active_staking_providers(general_config, registry_options):
-    """Show list of active staking providers."""
+def active_providers(general_config, registry_options):
+    """List of active stakers for the TACo Application"""
     emitter, registry, provider_uri = registry_options.setup(
         general_config=general_config
     )
@@ -139,7 +148,7 @@ def active_staking_providers(general_config, registry_options):
         emitter.echo(f"\t{provider} ..... {Web3.from_wei(staked, 'ether'):,}")
 
 
-@status.command()
+@taco.command()
 @group_registry_options
 @group_general_config
 @option_contract_name(required=True, valid_options=TACO_CONTRACT_NAMES)
@@ -160,21 +169,30 @@ def events(
     csv_file,
     event_filters,
 ):
-    """Show events associated with NuCypher contracts."""
+    """Show events associated with TACo Application contracts."""
 
     if csv or csv_file:
         if csv and csv_file:
-            raise click.BadOptionUsage(option_name='--event-filter',
-                                       message=click.style('Pass either --csv or --csv-file, not both.', fg="red"))
+            raise click.BadOptionUsage(
+                option_name="--event-filter",
+                message=click.style(
+                    "Pass either --csv or --csv-file, not both.", fg="red"
+                ),
+            )
 
         # ensure that event name is specified - different events would have different columns in the csv file
         if csv_file and not all((event_name, contract_name)):
             # TODO consider a single csv that just gets appended to for each event
             #  - each appended event adds their column names first
             #  - single report-type functionality, see #2561
-            raise click.BadOptionUsage(option_name='--csv-file, --event-name, --contract_name',
-                                       message=click.style('--event-name and --contract-name must be specified when outputting to '
-                                               'specific file using --csv-file; alternatively use --csv', fg="red"))
+            raise click.BadOptionUsage(
+                option_name="--csv-file, --event-name, --contract_name",
+                message=click.style(
+                    "--event-name and --contract-name must be specified when outputting to "
+                    "specific file using --csv-file; alternatively use --csv",
+                    fg="red",
+                ),
+            )
 
     emitter, registry, provider_uri = registry_options.setup(
         general_config=general_config
@@ -191,13 +209,18 @@ def events(
             contract_agent.blockchain.client.block_number - blocks_since_yesterday_kinda
         )
     if to_block is None:
-        to_block = 'latest'
+        to_block = "latest"
     else:
         # validate block range
         if from_block > to_block:
-            raise click.BadOptionUsage(option_name='--to-block, --from-block',
-                                       message=click.style(f'Invalid block range provided, '
-                                               f'from-block ({from_block}) > to-block ({to_block})', fg="red"))
+            raise click.BadOptionUsage(
+                option_name="--to-block, --from-block",
+                message=click.style(
+                    f"Invalid block range provided, "
+                    f"from-block ({from_block}) > to-block ({to_block})",
+                    fg="red",
+                ),
+            )
 
     # event argument filters
     argument_filters = None
@@ -205,9 +228,14 @@ def events(
         try:
             argument_filters = parse_event_filters_into_argument_filters(event_filters)
         except ValueError as e:
-            raise click.BadOptionUsage(option_name='--event-filter',
-                                       message=click.style(f'Event filter must be specified as name-value pairs of '
-                                               f'the form `<name>=<value>` - {str(e)}', fg="red"))
+            raise click.BadOptionUsage(
+                option_name="--event-filter",
+                message=click.style(
+                    f"Event filter must be specified as name-value pairs of "
+                    f"the form `<name>=<value>` - {str(e)}",
+                    fg="red",
+                ),
+            )
 
     emitter.echo(f"Retrieving events from block {from_block} to {to_block}")
 
