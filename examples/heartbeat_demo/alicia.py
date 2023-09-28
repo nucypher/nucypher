@@ -58,8 +58,8 @@ try:
 except KeyError:
     raise RuntimeError('Missing environment variables to run demo.')
 
-L1_NETWORK = 'mainnet'  # 'tapir'
-L2_NETWORK = 'polygon'  # 'mumbai'
+L1_NETWORK = "lynx"
+L2_NETWORK = "mumbai"
 
 
 #######################################
@@ -119,7 +119,7 @@ print(
 # that **don't exist yet**.
 # In this example, we create a local file with encrypted data, containing
 # heart rate measurements from a heart monitor
-import heart_monitor  # ruff:noqa:F402
+import heart_monitor  # noqa: E402
 
 heart_monitor.generate_heart_rate_samples(policy_pubkey,
                                           samples=50,
@@ -129,7 +129,7 @@ heart_monitor.generate_heart_rate_samples(policy_pubkey,
 # Alicia now wants to share data associated with this label.
 # To do so, she needs the public key of the recipient.
 # In this example, we generate it on the fly (for demonstration purposes)
-from doctor_keys import get_doctor_pubkeys  # ruff:noqa:F402
+from doctor_keys import get_doctor_pubkeys  # noqa: E402
 
 doctor_pubkeys = get_doctor_pubkeys()
 

@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import shutil
 from timeit import default_timer as timer
 
@@ -11,7 +12,6 @@ from nucypher_core.umbral import PublicKey
 from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.powers import DecryptingPower, SigningPower
-from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 ######################
@@ -20,10 +20,17 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 
 GlobalLoggerSettings.start_console_logging()
 
-L1_NETWORK = 'mainnet'  # 'tapir'
+try:
+    # Replace with ethereum RPC endpoint
+    L1_PROVIDER = os.environ["DEMO_L1_PROVIDER_URI"]
+except KeyError:
+    raise RuntimeError("Missing environment variables to run demo.")
+
+
+L1_NETWORK = "lynx"
 
 # To create a Bob, we need the doctor's private keys previously generated.
-from doctor_keys import get_doctor_privkeys
+from doctor_keys import get_doctor_privkeys  # noqa: E402
 
 doctor_keys = get_doctor_privkeys()
 
@@ -38,7 +45,7 @@ print("Creating the Doctor ...")
 doctor = Bob(
     domain=L1_NETWORK,
     crypto_power_ups=power_ups,
-    network_middleware=RestMiddleware(),
+    eth_provider_uri=L1_PROVIDER,
 )
 
 print("Doctor = ", doctor)

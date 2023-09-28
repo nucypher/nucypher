@@ -13,8 +13,6 @@ def generate_heart_rate_samples(policy_pubkey,
                                 save_as_file: bool = False):
     data_source = Enrico(encrypting_key=policy_pubkey)
 
-    data_source_public_key = bytes(data_source.stamp)
-
     heart_rate = 80
     now = time.time()
 
@@ -38,7 +36,6 @@ def generate_heart_rate_samples(policy_pubkey,
         kits.append(kit_bytes)
 
     data = {
-        'data_source': data_source_public_key,
         'kits': kits,
     }
 
