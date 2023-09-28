@@ -3,7 +3,6 @@ import time
 
 import click
 import maya
-from hexbytes import HexBytes
 from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
@@ -19,16 +18,11 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import GLOBAL_ALLOW_LIST
+from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY, GLOBAL_ALLOW_LIST
 
 GlobalLoggerSettings.start_console_logging()
 
 emitter = StdoutEmitter(verbosity=2)
-
-# private key for wallet address '0x070a85eD1Ddb44ecD07e746235bE0B959ff5b30A'
-DEFAULT_ENRICO_PRIVATE_KEY = HexBytes(
-    "0x900edb9e8214b2353f82aa195e915128f419a92cfb8bbc0f4784f10ef4112b86"
-)
 
 
 def get_transacting_power(signer: Signer):
@@ -335,7 +329,7 @@ def nucypher_dkg(
     if not use_random_enrico:
         # use known enrico address
         print("Using default Enrico signing account")
-        private_key = DEFAULT_ENRICO_PRIVATE_KEY
+        private_key = DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
     enrico_signer = InMemorySigner(private_key)
     enrico_account = enrico_signer.accounts[0]

@@ -1,3 +1,4 @@
+from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo
@@ -5,7 +6,8 @@ from nucypher.policy.conditions.lingo import ConditionLingo
 plaintext = b"paz al amanecer"
 THIS_IS_NOT_A_TRINKET = 55  # sometimes called "public key"
 
-enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET)
+signer = InMemorySigner()
+enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET, signer=signer)
 bob = ThisBobAlwaysDecrypts(domain="lynx", eth_provider_uri="Nowhere")
 
 ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55

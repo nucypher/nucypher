@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from random import SystemRandom
 
+from hexbytes import HexBytes
 from web3 import Web3
 
 from nucypher.blockchain.eth.token import NU
@@ -78,6 +79,15 @@ TESTERCHAIN_CHAIN_ID = 131277322940537
 __valid_password_chars = string.ascii_uppercase + string.ascii_lowercase + string.digits
 
 INSECURE_DEVELOPMENT_PASSWORD = ''.join(SystemRandom().choice(__valid_password_chars) for _ in range(32))
+
+#
+# Known Enrico signer
+#
+
+# private key for wallet address '0x070a85eD1Ddb44ecD07e746235bE0B959ff5b30A'
+DEFAULT_TEST_ENRICO_PRIVATE_KEY = HexBytes(
+    "0x900edb9e8214b2353f82aa195e915128f419a92cfb8bbc0f4784f10ef4112b86"
+)
 
 #
 # Temporary Directories and Files
