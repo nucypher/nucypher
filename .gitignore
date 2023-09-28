@@ -27,10 +27,10 @@ chains
 .ethash
 nucypher_cli/examples/examples-runtime-cruft/*
 nucypher_cli/examples/finnegans-wake.txt
-examples/heartbeat_demo/*.json
-examples/heartbeat_demo/*.msgpack
-examples/heartbeat_demo/doctor-files/
-examples/heartbeat_demo/alicia-files/
+examples/pre/heartbeat_demo/*.json
+examples/pre/heartbeat_demo/*.msgpack
+examples/pre/heartbeat_demo/doctor-files/
+examples/pre/heartbeat_demo/alicia-files/
 mypy_reports/
 reports/
 test-*
