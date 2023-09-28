@@ -70,7 +70,8 @@ treasure_map = EncryptedTreasureMap.from_bytes(base64.b64decode(policy_data["tre
 data = msgpack.load(open("heart_data.msgpack", "rb"), raw=False)
 message_kits = (MessageKit.from_bytes(k) for k in data['kits'])
 
-# Now he can ask the NuCypher network to get a re-encrypted version of each MessageKit.
+# Now he can ask the TACo nodes on the Threshold Network
+# to get a re-encrypted version of each MessageKit.
 for message_kit in message_kits:
     start = timer()
     retrieved_plaintexts = doctor.retrieve_and_decrypt(

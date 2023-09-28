@@ -1,27 +1,27 @@
-# NuCypher's Heartbeat Demo
+# NuCypher's PRE Heartbeat Demo
 
 ![Heartbeat Demo](./heart_monitor.png)
 
 Alicia has a Heart Monitor device that measures her heart rate and outputs this data in encrypted form.
 Since she thinks that she may want to share this data in the future,
-she uses NuCypher to create a _policy public key_ for the Heart Monitor to use,
+she uses TACo's proxy re-encryption (PRE) on the Threshold Network to create a _policy public key_ for the Heart Monitor to use,
 so she can read and delegate access to the encrypted data as she sees fit.
 The Heart Monitor uses this public key to produce a file with some amount of encrypted heart rate measurements;
 this file is uploaded to some storage service (e.g., IPFS, S3, whatever). 
 
 At some moment, she wants to share this information with other people, such as her Doctor.
-Once she obtains her Doctor's public keys, she can create a policy in the NuCypher network granting access to him.
+Once she obtains her Doctor's public keys, she can create a policy in the TACo Application on the Threshold Network granting access to him.
 After this, her Doctor can read the file with encrypted data (which was uploaded by the Heart Monitor)
 and request a re-encrypted ciphertext for each measurement, which can be opened with the Doctor's private key.
 
-This simple use case showcases many interesting and distinctive aspects of NuCypher:
+This simple use case showcases many interesting and distinctive aspects of TACo:
   - Alicia can create policy public keys **before knowing** who will be the potential consumers.
   - Alicia, or anyone knowing the policy public key (e.g., the Heart Monitor),
   can produce encrypted data that belongs to the policy. Again, this can happen before granting access to any consumer.
   - As a consequence of the previous point, Data Sources, like the Heart Monitor,
   are completely unaware of the recipients. In their mind, they are producing data **for Alicia**.
   - Alicia never interacts with the Doctor: she only needs the Doctor's public key.
-  - Alicia only interacts with the NuCypher network for granting access to the Doctor.
+  - Alicia only interacts with the Threshold Network for granting access to the Doctor.
   After this, she can even disappear from the face of the Earth.
   - The Doctor never interacts with Alicia or the Heart Monitor:
   he only needs the encrypted data and some policy metadata.
@@ -65,8 +65,8 @@ What's left is running the `doctor.py` script:
 ```sh
 (nucypher)$ python doctor.py
 ```
-This script will read the data generated in the previous step and retrieve re-encrypted ciphertexts via the NuCypher
-network. The result is printed in the console:
+This script will read the data generated in the previous step and retrieve re-encrypted ciphertexts via the TACo on the
+Threshold Network . The result is printed in the console:
 
 ```
 Creating the Doctor ...

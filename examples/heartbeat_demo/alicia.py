@@ -95,7 +95,7 @@ alicia = Alice(
 # Alice puts her public key somewhere for Bob to find later...
 alice_verifying_key = alicia.stamp.as_umbral_pubkey()
 
-# Let's get to learn about the NuCypher network
+# Let's get to learn about the TACo nodes on the Threshold Network
 alicia.start_learning_loop(now=True)
 
 # At this point, Alicia is fully operational and can create policies.
@@ -147,7 +147,7 @@ threshold, shares = 2, 3
 
 
 # With this information, Alicia creates a policy granting access to Bob.
-# The policy is sent to the NuCypher network.
+# The policy is sent to the TACo Application on the Threshold Network.
 print("Creating access policy for the Doctor...")
 policy = alicia.grant(bob=doctor_strange,
                       label=label,
