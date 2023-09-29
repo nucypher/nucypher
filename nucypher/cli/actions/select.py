@@ -1,5 +1,3 @@
-
-
 import os
 from pathlib import Path
 from typing import Optional, Type
@@ -70,7 +68,7 @@ def select_client_account(
     blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
 
     if signer_uri and not signer:
-        testnet = network != NetworksInventory.MAINNET
+        testnet = network != NetworksInventory.MAINNET.name
         signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
     # Display accounts info
@@ -120,15 +118,10 @@ def select_client_account(
     return chosen_account
 
 
-def select_network(emitter: StdoutEmitter, network_type: str, message: Optional[str] = None) -> str:
+def select_network(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
     """Interactively select a network from nucypher networks inventory list"""
     emitter.message(message=message or str(), color="yellow")
-    if network_type == NetworksInventory.ETH:
-        network_list = NetworksInventory.ETH_NETWORKS
-    elif network_type == NetworksInventory.POLYGON:
-        network_list = NetworksInventory.POLY_NETWORKS
-    else:
-        raise(ValueError("Network type must be either 'eth' or 'polygon'"))
+    network_list = NetworksInventory.SUPPORTED_NETWORK_NAMES
     rows = [[n] for n in network_list]
     emitter.echo(tabulate(rows, showindex="always"))
     choice = click.prompt(
