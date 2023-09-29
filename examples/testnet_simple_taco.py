@@ -89,4 +89,6 @@ cleartext = bob.threshold_decrypt(
     threshold_message_kit=threshold_message_kit,
 )
 
-print(f"\nCleartext:{bytes(cleartext).decode()}")
+cleartext = bytes(cleartext)
+print(f"\nCleartext: {cleartext.decode()}")
+assert message == cleartext
