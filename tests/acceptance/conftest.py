@@ -12,7 +12,12 @@ from nucypher.blockchain.eth.agents import (
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.networks import (
+    EthNetwork,
+    NetworksInventory,
+    PolyNetwork,
+    TACoNetwork,
+)
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -434,12 +439,16 @@ def mock_condition_blockchains(session_mocker):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    testing_network = TACoNetwork(
+        TEMPORARY_DOMAIN, EthNetwork.TESTERCHAIN, PolyNetwork.TESTERCHAIN
     )
 
     session_mocker.patch.object(
-        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+        NetworksInventory, "get_network_names", return_value=[TEMPORARY_DOMAIN]
+    )
+
+    session_mocker.patch.object(
+        NetworksInventory, "get_network", return_value=testing_network
     )
 
 
