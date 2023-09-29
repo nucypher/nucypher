@@ -1,0 +1,56 @@
+name: '🔎 Lynx Testnet Example'
+
+on:
+  schedule:
+    - cron: "0/20 * * * *"  # Every 20 minutes
+  pull_request:
+    branches:
+      - main
+      - development
+      - epic-*
+  workflow_dispatch:
+
+jobs:
+  python-tests:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.10" ]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install latest Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - id: setup_python
+        name: Set up Python ${{ matrix.python-version }} Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - id: python_cache
+        name: Retrieve Cached Python Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.pythonLocation }}
+          key: ${{ runner.os }}-pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('dev-requirements.txt', 'requirements.txt') }}
+
+      - name: Install Dependencies
+        if: steps.python_cache.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[dev]
+
+      - name: Check CLI Entrypoint
+        run: nucypher --help
+
+      - name: Check Python Entrypoint
+        run: python -c "import nucypher; print(nucypher.__version__)"
+
+      # Lynx testnet script
+      - name: Lynx
+        run: python examples/testnet_simple_taco.py
+# export WEB3_INFURA_PROJECT_ID=${{ secrets.WEB3_INFURA_PROJECT_ID }}
