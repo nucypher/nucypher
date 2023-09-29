@@ -42,7 +42,7 @@ option_network = click.option(
     "--network",
     help="TACo Network",
     type=click.STRING,
-    default=click.Choice(NetworksInventory.NETWORKS),
+    default=click.Choice(NetworksInventory.SUPPORTED_NETWORK_NAMES),
     required=True,
 )
 

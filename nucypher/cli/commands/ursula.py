@@ -2,7 +2,6 @@ from pathlib import Path
 
 import click
 
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,
@@ -15,7 +14,9 @@ from nucypher.cli.actions.configure import (
     handle_missing_configuration_file,
     perform_startup_ip_check,
 )
-from nucypher.cli.actions.configure import forget as forget_nodes
+from nucypher.cli.actions.configure import (
+    forget as forget_nodes,
+)
 from nucypher.cli.actions.select import (
     select_client_account,
     select_config_file,
@@ -26,7 +27,6 @@ from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
     SELECT_OPERATOR_ACCOUNT,
-    SELECT_PRE_PAYMENT_NETWORK,
 )
 from nucypher.cli.options import (
     group_options,
@@ -351,14 +351,7 @@ def init(general_config, config_options, force, config_root, key_material):
     if not config_options.domain:
         config_options.domain = select_network(
             emitter,
-            message="Select Staking Network",
-            network_type=NetworksInventory.ETH,
-        )
-    if not config_options.pre_payment_network:
-        config_options.pre_payment_network = select_network(
-            emitter,
-            message=SELECT_PRE_PAYMENT_NETWORK,
-            network_type=NetworksInventory.POLYGON,
+            message="Select TACo Network",
         )
     ursula_config = config_options.generate_config(
         emitter=emitter, config_root=config_root, force=force, key_material=key_material

@@ -69,12 +69,11 @@ class UrsulaConfiguration(CharacterConfiguration):
         self.configure_condition_provider_uris()
 
     def configure_condition_provider_uris(self) -> None:
-        """Configure default condition provider URIs for mainnet and polygon network."""
+        """Configure default condition provider URIs for eth and polygon network."""
+        taco_network = NetworksInventory.get_network(self.domain)
 
         # Polygon
-        polygon_chain_id = NetworksInventory.get_polygon_chain_id(
-            self.pre_payment_network
-        )
+        polygon_chain_id = taco_network.poly_network.value
         polygon_provider_uris = self.condition_provider_uris.get(polygon_chain_id, [])
         if not polygon_provider_uris:
             self.condition_provider_uris[polygon_chain_id] = polygon_provider_uris
@@ -83,7 +82,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             polygon_provider_uris.append(self.pre_payment_provider)
 
         # Ethereum
-        staking_chain_id = NetworksInventory.get_ethereum_chain_id(self.domain)
+        staking_chain_id = taco_network.eth_network.value
         staking_provider_uris = self.condition_provider_uris.get(staking_chain_id, [])
         if not staking_provider_uris:
             self.condition_provider_uris[staking_chain_id] = staking_provider_uris
