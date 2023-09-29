@@ -73,7 +73,7 @@ print(f"\nEncrypted message:\n{bytes(threshold_message_kit).hex()}")
 print("--------- Threshold Decryption ---------")
 
 bob = Bob(
-    eth_provider_uri=staking_provider_uri,
+    eth_endpoint=staking_provider_uri,
     domain=network,
     coordinator_provider_uri=coordinator_provider_uri,
     coordinator_network=coordinator_network,

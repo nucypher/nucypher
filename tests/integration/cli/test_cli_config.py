@@ -42,7 +42,7 @@ def test_initialize_via_cli(
         "init",
         "--network",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_ETH_PROVIDER_URI,
@@ -103,13 +103,18 @@ def test_reconfigure_via_cli(
 
     # Read pre-edit state
     config = config_class.from_configuration_file(custom_config_filepath)
-    assert config.eth_provider_uri != TEST_ETH_PROVIDER_URI
+    assert config.eth_endpoint != TEST_ETH_PROVIDER_URI
     del config
 
     # Write
-    view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
-                 '--config-file', str(custom_config_filepath.absolute()),
-                 '--eth-provider', TEST_ETH_PROVIDER_URI)
+    view_args = (
+        config_class.CHARACTER_CLASS.__name__.lower(),
+        "config",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+        "--eth-endpoint",
+        TEST_ETH_PROVIDER_URI,
+    )
     result = click_runner.invoke(nucypher_cli, view_args, env=ENV)
     assert result.exit_code == 0
 
@@ -121,4 +126,4 @@ def test_reconfigure_via_cli(
     assert str(custom_filepath) in result.output
 
     # After editing the fields have been updated
-    assert config.eth_provider_uri == TEST_ETH_PROVIDER_URI
+    assert config.eth_endpoint == TEST_ETH_PROVIDER_URI

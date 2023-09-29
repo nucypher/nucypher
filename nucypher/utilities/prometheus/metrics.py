@@ -157,16 +157,14 @@ def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]
 
     # Blockchain prometheus
     # TODO possible include information about payment
-    collectors.append(
-        BlockchainMetricsCollector(eth_provider_uri=ursula.eth_provider_uri)
-    )
+    collectors.append(BlockchainMetricsCollector(eth_provider_uri=ursula.eth_endpoint))
 
     # Staking Provider prometheus
     collectors.append(
         StakingProviderMetricsCollector(
             staking_provider_address=ursula.checksum_address,
             contract_registry=ursula.registry,
-            eth_provider_uri=ursula.eth_provider_uri,
+            eth_provider_uri=ursula.eth_endpoint,
         )
     )
 

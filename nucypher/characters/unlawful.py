@@ -75,7 +75,7 @@ class Vladimir(Ursula):
             checksum_address=cls.fraud_address,
             operator_address=cls.fraud_address,
             signer=Web3Signer(blockchain.client),
-            eth_provider_uri=blockchain.eth_provider_uri,
+            eth_endpoint=blockchain.eth_provider_uri,
             pre_payment_method=bogus_pre_payment_method,
         )
 

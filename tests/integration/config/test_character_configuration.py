@@ -52,7 +52,7 @@ def test_development_character_configurations(
         lonely=True,
         domain=TEMPORARY_DOMAIN,
         checksum_address=testerchain.unassigned_accounts[0],
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     if character is Ursula:
         params.update(dict(operator_address=testerchain.unassigned_accounts[0]))
@@ -125,7 +125,7 @@ def test_default_character_configuration_preservation(
         keystore.signing_public_key = SecretKey.random().public_key()
         character_config = configuration_class(
             checksum_address=fake_address,
-            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+            eth_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=network,
             rest_host=MOCK_IP_ADDRESS,
             pre_payment_provider=MOCK_ETH_PROVIDER_URI,
@@ -137,7 +137,7 @@ def test_default_character_configuration_preservation(
     else:
         character_config = configuration_class(
             checksum_address=fake_address,
-            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+            eth_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=network,
             pre_payment_network=TEMPORARY_DOMAIN,
             policy_registry=test_registry,
@@ -178,7 +178,7 @@ def test_ursula_development_configuration(testerchain):
         operator_address=testerchain.unassigned_accounts[1],
         domain=TEMPORARY_DOMAIN,
         pre_payment_network=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert config.is_me is True
     assert config.dev_mode is True

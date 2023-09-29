@@ -62,7 +62,7 @@ def test_corrupted_configuration(
     init_args = (
         "ursula",
         "init",
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,
@@ -109,7 +109,7 @@ def test_corrupted_configuration(
         TEMPORARY_DOMAIN,
         "--pre-payment-network",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,

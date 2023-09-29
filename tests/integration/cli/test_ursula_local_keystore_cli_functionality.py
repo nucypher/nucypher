@@ -50,7 +50,7 @@ def test_ursula_init_with_local_keystore_signer(
         # Layer 1
         "--network",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         testerchain.eth_provider_uri,
         # Layer 2
         "--pre-payment-network",

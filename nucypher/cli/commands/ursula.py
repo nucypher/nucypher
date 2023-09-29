@@ -34,7 +34,7 @@ from nucypher.cli.options import (
     option_config_root,
     option_dev,
     option_dry_run,
-    option_eth_provider_uri,
+    option_eth_endpoint,
     option_force,
     option_gas_strategy,
     option_key_material,
@@ -74,7 +74,7 @@ class UrsulaConfigOptions:
 
     def __init__(
         self,
-        eth_provider_uri: str,
+        eth_endpoint: str,
         operator_address: str,
         rest_host: str,
         rest_port: int,
@@ -93,7 +93,7 @@ class UrsulaConfigOptions:
         pre_payment_network: str,
     ):
 
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
         self.signer_uri = signer_uri
         self.operator_address = operator_address
         self.rest_host = rest_host
@@ -121,7 +121,7 @@ class UrsulaConfigOptions:
                 light=self.light,
                 registry_filepath=self.registry_filepath,
                 policy_registry_filepath=self.policy_registry_filepath,
-                eth_provider_uri=self.eth_provider_uri,
+                eth_endpoint=self.eth_endpoint,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
@@ -144,7 +144,7 @@ class UrsulaConfigOptions:
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
                     policy_registry_filepath=self.policy_registry_filepath,
-                    eth_provider_uri=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -175,7 +175,7 @@ class UrsulaConfigOptions:
             self.operator_address = select_client_account(
                 emitter=emitter,
                 prompt=prompt,
-                eth_provider_uri=self.eth_provider_uri,
+                eth_provider_uri=self.eth_endpoint,
                 signer_uri=self.signer_uri,
             )
 
@@ -185,7 +185,7 @@ class UrsulaConfigOptions:
                 emitter,
                 network=self.domain,
                 force=force,
-                provider_uri=self.eth_provider_uri,
+                provider_uri=self.eth_endpoint,
             )
 
         return UrsulaConfiguration.generate(
@@ -198,7 +198,7 @@ class UrsulaConfigOptions:
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             policy_registry_filepath=self.policy_registry_filepath,
-            eth_provider_uri=self.eth_provider_uri,
+            eth_provider_uri=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
@@ -217,7 +217,7 @@ class UrsulaConfigOptions:
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             policy_registry_filepath=self.policy_registry_filepath,
-            eth_provider_uri=self.eth_provider_uri,
+            eth_provider_uri=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
@@ -235,7 +235,7 @@ class UrsulaConfigOptions:
 group_config_options = group_options(
     # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
     UrsulaConfigOptions,
-    eth_provider_uri=option_eth_provider_uri(),
+    eth_endpoint=option_eth_endpoint(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
@@ -290,7 +290,7 @@ class UrsulaCharacterOptions:
             URSULA = make_cli_character(
                 character_config=ursula_config,
                 emitter=emitter,
-                provider_uri=ursula_config.eth_provider_uri,
+                provider_uri=ursula_config.eth_endpoint,
                 min_stake=self.min_stake,
                 teacher_uri=self.teacher_uri,
                 unlock_keystore=not self.config_options.dev,
@@ -333,11 +333,11 @@ def init(general_config, config_options, force, config_root, key_material):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
-    if not config_options.eth_provider_uri:
+    if not config_options.eth_endpoint:
         raise click.BadOptionUsage(
-            "--eth-provider",
+            "--eth-endpoint",
             message=click.style(
-                "--eth-provider is required to initialize a new ursula.", fg="red"
+                "--eth-endpoint is required to initialize a new ursula.", fg="red"
             ),
         )
     if not config_options.pre_payment_provider:
@@ -491,7 +491,7 @@ def config(general_config, config_options, config_file, force, action):
             emitter=emitter,
             network=config_options.domain,
             force=force,
-            provider_uri=config_options.eth_provider_uri,
+            provider_uri=config_options.eth_endpoint,
         )
         config_options.rest_host = rest_host
     if action == "migrate":

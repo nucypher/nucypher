@@ -199,9 +199,10 @@ def option_policy_encrypting_key(required: bool = False):
         required=required)
 
 
-def option_eth_provider_uri(default=None, required: bool = False):
+def option_eth_endpoint(default=None, required: bool = False):
     return click.option(
-        '--eth-provider', 'eth_provider_uri',
+        "--eth-endpoint",
+        "eth_endpoint",
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
         type=click.STRING,
         required=required,

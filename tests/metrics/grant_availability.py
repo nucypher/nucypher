@@ -162,7 +162,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     wallet.unlock_account(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
 
     alice_config = AliceConfiguration(
-        eth_provider_uri=ETHEREUM_PROVIDER_URI,
+        eth_endpoint=ETHEREUM_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
         config_root=TEMP_ALICE_DIR,

@@ -158,7 +158,7 @@ class Operator(BaseActor):
 
     def __init__(
         self,
-        eth_provider_uri: str,
+        eth_endpoint: str,
         coordinator_provider_uri: str,
         coordinator_network: str,
         pre_payment_method: ContractPayment,
@@ -173,7 +173,7 @@ class Operator(BaseActor):
         **kwargs,
     ):
         # Falsy values may be passed down from the superclass
-        if not eth_provider_uri:
+        if not eth_endpoint:
             raise ValueError("Ethereum Provider URI is required to init an operator.")
         if not coordinator_provider_uri:
             raise ValueError("Polygon Provider URI is required to init an operator.")
@@ -204,7 +204,7 @@ class Operator(BaseActor):
 
         self.application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
-            provider_uri=eth_provider_uri,
+            provider_uri=eth_endpoint,
             registry=self.registry,
         )
 
@@ -742,10 +742,10 @@ class Operator(BaseActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, eth_provider_uri: str, *args, **kwargs):
+    def __init__(self, eth_endpoint: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.application_agent = ContractAgency.get_agent(
-            TACoApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
+            TACoApplicationAgent, registry=self.registry, provider_uri=eth_endpoint
         )
 
     def create_policy(self, *args, **kwargs):

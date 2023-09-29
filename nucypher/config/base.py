@@ -368,7 +368,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Blockchain
         poa: Optional[bool] = None,
         light: bool = False,
-        eth_provider_uri: Optional[str] = None,
+        eth_endpoint: Optional[str] = None,
         gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
         max_gas_price: Optional[int] = None,
         signer_uri: Optional[str] = None,
@@ -418,7 +418,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Blockchain
         self.poa = poa
         self.is_light = light
-        self.eth_provider_uri = eth_provider_uri or NO_BLOCKCHAIN_CONNECTION
+        self.eth_endpoint = eth_endpoint or NO_BLOCKCHAIN_CONNECTION
         self.signer_uri = signer_uri or None
 
         # Learner
@@ -443,11 +443,11 @@ class CharacterConfiguration(BaseConfiguration):
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
         is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_provider_uri
+            eth_provider_uri=self.eth_endpoint
         )
-        if not is_initialized and eth_provider_uri:
+        if not is_initialized and eth_endpoint:
             BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_provider_uri,
+                eth_provider_uri=self.eth_endpoint,
                 poa=self.poa,
                 light=self.is_light,
                 emitter=emitter,
@@ -456,7 +456,7 @@ class CharacterConfiguration(BaseConfiguration):
             )
         else:
             self.log.warn(
-                f"Using existing blockchain interface connection ({self.eth_provider_uri})."
+                f"Using existing blockchain interface connection ({self.eth_endpoint})."
             )
 
         # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
@@ -533,7 +533,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Network
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(
-            registry=self.registry, eth_provider_uri=self.eth_provider_uri
+            registry=self.registry, eth_provider_uri=self.eth_endpoint
         )
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
@@ -703,12 +703,12 @@ class CharacterConfiguration(BaseConfiguration):
         )
 
         # Optional values (mode)
-        if self.eth_provider_uri:
+        if self.eth_endpoint:
             if not self.signer_uri:
-                self.signer_uri = self.eth_provider_uri
+                self.signer_uri = self.eth_endpoint
             payload.update(
                 dict(
-                    eth_provider_uri=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                     poa=self.poa,
                     light=self.is_light,
                     signer_uri=self.signer_uri,

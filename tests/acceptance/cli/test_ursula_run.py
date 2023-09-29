@@ -45,7 +45,7 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
         "--dry-run",  # Disable twisted reactor in subprocess
         "--lonely",  # Do not load seednodes
         "--prometheus",  # Specify collection of prometheus metrics
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,
@@ -74,7 +74,7 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         "--lonely",  # Do not load seednodes,
         "--operator-address",
         ursulas[0].operator_address,
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_ETH_PROVIDER_URI,
@@ -128,7 +128,7 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain):
             "--dry-run",  # Disable twisted reactor
             "--operator-address",
             ursulas[0].operator_address,
-            "--eth-provider",
+            "--eth-endpoint",
             TEST_ETH_PROVIDER_URI,
             "--pre-payment-provider",
             TEST_ETH_PROVIDER_URI,
@@ -180,7 +180,7 @@ def test_persistent_node_storage_integration(
     init_args = (
         "ursula",
         "init",
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,

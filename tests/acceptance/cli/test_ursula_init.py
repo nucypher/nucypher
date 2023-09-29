@@ -131,7 +131,7 @@ def test_ursula_and_local_keystore_signer_integration(
         worker_account.address,
         "--config-root",
         str(config_root_path.absolute()),
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--pre-payment-provider",
         TEST_POLYGON_PROVIDER_URI,

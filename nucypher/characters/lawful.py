@@ -131,7 +131,7 @@ class Alice(Character, actors.PolicyAuthor):
         self,
         # Mode
         is_me: bool = True,
-        eth_provider_uri: str = None,
+        eth_endpoint: str = None,
         signer=None,
         # Ownership
         checksum_address: Optional[ChecksumAddress] = None,
@@ -170,7 +170,7 @@ class Alice(Character, actors.PolicyAuthor):
             self,
             known_node_class=Ursula,
             is_me=is_me,
-            eth_provider_uri=eth_provider_uri,
+            eth_endpoint=eth_endpoint,
             checksum_address=checksum_address,
             network_middleware=network_middleware,
             *args,
@@ -179,7 +179,7 @@ class Alice(Character, actors.PolicyAuthor):
 
         if is_me:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(
-                eth_provider_uri=self.eth_provider_uri
+                eth_provider_uri=self.eth_endpoint
             )
             signer = signer or Web3Signer(
                 blockchain.client
@@ -193,7 +193,7 @@ class Alice(Character, actors.PolicyAuthor):
                 domain=self.domain,
                 transacting_power=self.transacting_power,
                 registry=self.registry,
-                eth_provider_uri=eth_provider_uri,
+                eth_endpoint=eth_endpoint,
             )
 
         self.log = Logger(self.__class__.__name__)
@@ -458,7 +458,7 @@ class Bob(Character):
         self,
         is_me: bool = True,
         verify_node_bonding: bool = False,
-        eth_provider_uri: str = None,
+        eth_endpoint: str = None,
         coordinator_provider_uri: str = None,  # TODO: Move to a higher level and formalize
         coordinator_network: str = None,  # TODO: Move to a higher level and formalize
         *args,
@@ -469,7 +469,7 @@ class Bob(Character):
             is_me=is_me,
             known_node_class=Ursula,
             verify_node_bonding=verify_node_bonding,
-            eth_provider_uri=eth_provider_uri,
+            eth_endpoint=eth_endpoint,
             *args,
             **kwargs,
         )
@@ -825,7 +825,7 @@ class Ursula(Teacher, Character, Operator):
         client_password: Optional[str] = None,
         transacting_power: Optional[TransactingPower] = None,
         operator_signature_from_metadata=NOT_SIGNED,
-        eth_provider_uri: Optional[str] = None,
+        eth_endpoint: Optional[str] = None,
         condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
@@ -844,7 +844,7 @@ class Ursula(Teacher, Character, Operator):
             domain=domain,
             known_node_class=Ursula,
             include_self_in_the_state=True,
-            eth_provider_uri=eth_provider_uri,
+            eth_endpoint=eth_endpoint,
             **character_kwargs,
         )
 
@@ -863,7 +863,7 @@ class Ursula(Teacher, Character, Operator):
                     signer=self.signer,
                     crypto_power=self._crypto_power,
                     operator_address=operator_address,
-                    eth_provider_uri=eth_provider_uri,
+                    eth_endpoint=eth_endpoint,
                     pre_payment_method=pre_payment_method,
                     client_password=client_password,
                     condition_provider_uris=condition_provider_uris,
@@ -997,10 +997,10 @@ class Ursula(Teacher, Character, Operator):
 
         # Connect to Provider
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_provider_uri
+            eth_provider_uri=self.eth_endpoint
         ):
             BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_provider_uri
+                eth_provider_uri=self.eth_endpoint
             )
 
         if preflight:

@@ -87,8 +87,8 @@ class UrsulaConfiguration(CharacterConfiguration):
         if not staking_provider_uris:
             self.condition_provider_uris[staking_chain_id] = staking_provider_uris
 
-        if self.eth_provider_uri not in staking_provider_uris:
-            staking_provider_uris.append(self.eth_provider_uri)
+        if self.eth_endpoint not in staking_provider_uris:
+            staking_provider_uris.append(self.eth_endpoint)
 
     @classmethod
     def address_from_filepath(cls, filepath: Path) -> str:

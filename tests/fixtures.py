@@ -130,8 +130,8 @@ def random_address(random_account):
 @pytest.fixture(scope="module")
 def ursula_test_config(test_registry, temp_dir_path, testerchain):
     config = make_ursula_test_configuration(
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        pre_payment_provider=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
+        polygon_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
         operator_address=testerchain.ursulas_accounts.pop(),
@@ -145,8 +145,8 @@ def ursula_test_config(test_registry, temp_dir_path, testerchain):
 @pytest.fixture(scope="module")
 def alice_test_config(ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        pre_payment_provider=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
+        polygon_endpoint=TEST_ETH_PROVIDER_URI,
         known_nodes=ursulas,
         checksum_address=testerchain.alice_account,
         test_registry=test_registry,
@@ -157,9 +157,11 @@ def alice_test_config(ursulas, testerchain, test_registry):
 
 @pytest.fixture(scope="module")
 def bob_test_config(testerchain, test_registry):
-    config = make_bob_test_configuration(eth_provider_uri=TEST_ETH_PROVIDER_URI,
-                                         test_registry=test_registry,
-                                         checksum_address=testerchain.bob_account)
+    config = make_bob_test_configuration(
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
+        test_registry=test_registry,
+        checksum_address=testerchain.bob_account,
+    )
     yield config
     config.cleanup()
 
@@ -338,7 +340,7 @@ def light_ursula(temp_dir_path, random_account, mocker):
         pre_payment_method=pre_payment_method,
         checksum_address=random_account.address,
         operator_address=random_account.address,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
         signer=KeystoreSigner(path=temp_dir_path),
     )
     return ursula
@@ -462,7 +464,7 @@ def highperf_mocked_alice(
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(
         dev_mode=True,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
         domain=TEMPORARY_DOMAIN,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
             eth_provider_uri=TEST_ETH_PROVIDER_URI

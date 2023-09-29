@@ -55,7 +55,7 @@ L2_NETWORK = "mumbai"
 # rest of the network from the seednode.
 bob = Bob(
     domain=L1_NETWORK,
-    eth_provider_uri=L1_PROVIDER,
+    eth_endpoint=L1_PROVIDER,
 )
 
 # Bob puts his public keys somewhere alice can find them.
@@ -90,7 +90,7 @@ alice = Alice(
     checksum_address=ALICE_ADDRESS,
     signer=wallet,
     domain=L1_NETWORK,
-    eth_provider_uri=L1_PROVIDER,
+    eth_endpoint=L1_PROVIDER,
     pre_payment_method=pre_payment_method,
 )
 

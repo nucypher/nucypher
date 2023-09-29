@@ -16,7 +16,7 @@ def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
     assert len(ursulas) == len(staking_providers)
     for ursula in ursulas:
         ursula.validate_operator(
-            registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+            registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
         )
         assert ursula.verified_operator
 
@@ -106,7 +106,7 @@ def test_vladimir_uses_his_own_signing_key(alice, ursulas, test_registry):
     message = f"Operator {vladimir.operator_address} is not bonded"
     with pytest.raises(vladimir.UnbondedOperator, match=message):
         vladimir.validate_metadata(
-            registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+            registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
         )
 
 

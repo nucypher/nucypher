@@ -159,7 +159,7 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
         external_ip = determine_external_ip_address(
             network=ursula.domain,
             known_nodes=ursula.known_nodes,
-            provider_uri=ursula.eth_provider_uri,
+            provider_uri=ursula.eth_endpoint,
         )
     except UnknownIPAddress:
         message = 'Cannot automatically determine external IP address'

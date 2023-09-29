@@ -49,7 +49,7 @@ def test_bob_retrieves(alice, ursulas, certificates_tempdir):
     bob = Bob(
         domain=TEMPORARY_DOMAIN,
         start_learning_now=True,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
         network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
         abort_on_learning_error=True,
         known_nodes=a_couple_of_ursulas,

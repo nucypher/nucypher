@@ -5,10 +5,11 @@ from nucypher.config.migrations.common import perform_migration
 
 
 def __migration(config: Dict) -> Dict:
+    taco_network = NetworksInventory.get_network(config["domain"])
     eth_provider = config["eth_provider_uri"]
-    eth_chain_id = NetworksInventory.get_ethereum_chain_id(config["domain"])
+    eth_chain_id = taco_network.eth_network.value
     polygon_provider = config["payment_provider"]
-    polygon_chain_id = NetworksInventory.get_polygon_chain_id(config["payment_network"])
+    polygon_chain_id = taco_network.poly_network.value
     if "condition_provider_uris" in config:
         return config
     config["condition_provider_uris"] = {

@@ -45,7 +45,7 @@ print("Creating the Doctor ...")
 doctor = Bob(
     domain=L1_NETWORK,
     crypto_power_ups=power_ups,
-    eth_provider_uri=L1_PROVIDER,
+    eth_endpoint=L1_PROVIDER,
 )
 
 print("Doctor = ", doctor)
