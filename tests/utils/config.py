@@ -47,14 +47,14 @@ def assemble(
 def make_ursula_test_configuration(
     operator_address: ChecksumAddress,
     rest_port: int = select_test_port(),
-    pre_payment_provider: str = None,
+    polygon_endpoint: str = None,
     **assemble_kwargs
 ) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
     ursula_config = UrsulaConfiguration(
         **test_params,
         rest_port=rest_port,
-        pre_payment_provider=pre_payment_provider,
+        polygon_endpoint=polygon_endpoint,
         pre_payment_network=TEMPORARY_DOMAIN,
         operator_address=operator_address,
         policy_registry=test_params["registry"]
@@ -63,12 +63,12 @@ def make_ursula_test_configuration(
 
 
 def make_alice_test_configuration(
-    pre_payment_provider: str = None, **assemble_kwargs
+    polygon_endpoint: str = None, **assemble_kwargs
 ) -> AliceConfiguration:
     test_params = assemble(**assemble_kwargs)
     config = AliceConfiguration(
         **test_params,
-        pre_payment_provider=pre_payment_provider,
+        polygon_endpoint=polygon_endpoint,
         pre_payment_network=TEMPORARY_DOMAIN,
         policy_registry=test_params["registry"]
     )

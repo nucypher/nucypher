@@ -44,7 +44,7 @@ def test_initialize_via_cli(
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--config-root",
         str(custom_filepath.absolute()),

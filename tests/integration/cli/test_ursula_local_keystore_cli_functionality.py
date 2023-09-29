@@ -55,7 +55,7 @@ def test_ursula_init_with_local_keystore_signer(
         # Layer 2
         "--pre-payment-network",
         TEMPORARY_DOMAIN,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         testerchain.eth_provider_uri,
         "--rest-host",
         MOCK_IP_ADDRESS,

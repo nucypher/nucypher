@@ -128,7 +128,7 @@ def test_default_character_configuration_preservation(
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=network,
             rest_host=MOCK_IP_ADDRESS,
-            pre_payment_provider=MOCK_ETH_PROVIDER_URI,
+            polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             policy_registry=test_registry,
             pre_payment_network=TEMPORARY_DOMAIN,
             keystore=keystore,

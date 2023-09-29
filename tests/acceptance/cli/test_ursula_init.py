@@ -133,7 +133,7 @@ def test_ursula_and_local_keystore_signer_integration(
         str(config_root_path.absolute()),
         "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
         "--rest-host",
         MOCK_IP_ADDRESS,

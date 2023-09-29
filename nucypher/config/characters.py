@@ -78,8 +78,8 @@ class UrsulaConfiguration(CharacterConfiguration):
         if not polygon_provider_uris:
             self.condition_provider_uris[polygon_chain_id] = polygon_provider_uris
 
-        if self.pre_payment_provider not in polygon_provider_uris:
-            polygon_provider_uris.append(self.pre_payment_provider)
+        if self.polygon_endpoint not in polygon_provider_uris:
+            polygon_provider_uris.append(self.polygon_endpoint)
 
         # Ethereum
         staking_chain_id = taco_network.eth_network.value
@@ -118,7 +118,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)
             pre_payment_method=self.pre_payment_method,
-            pre_payment_provider=self.pre_payment_provider,
+            polygon_endpoint=self.polygon_endpoint,
             pre_payment_network=self.pre_payment_network,
         )
         return {**super().static_payload(), **payload}
@@ -181,7 +181,7 @@ class AliceConfiguration(CharacterConfiguration):
             threshold=self.threshold,
             shares=self.shares,
             pre_payment_network=self.pre_payment_network,
-            pre_payment_provider=self.pre_payment_provider,
+            polygon_endpoint=self.polygon_endpoint,
             pre_payment_method=self.pre_payment_method,
             rate=self.rate,
             duration=self.duration,

@@ -79,9 +79,9 @@ option_parameters = click.option(
     help="Filepath to a JSON file containing additional parameters",
     type=EXISTING_READABLE_FILE,
 )
-option_pre_payment_provider = click.option(
-    "--pre-payment-provider",
-    "pre_payment_provider",
+option_polygon_endpoint = click.option(
+    "--polygon-endpoint",
+    "polygon_endpoint",
     help="Connection URL for PRE payment method",
     type=click.STRING,
     required=False,

@@ -45,9 +45,9 @@ from nucypher.cli.options import (
     option_network,
     option_poa,
     option_policy_registry_filepath,
+    option_polygon_endpoint,
     option_pre_payment_method,
     option_pre_payment_network,
-    option_pre_payment_provider,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -89,7 +89,7 @@ class UrsulaConfigOptions:
         signer_uri: str,
         lonely: bool,
         pre_payment_method: str,
-        pre_payment_provider: str,
+        polygon_endpoint: str,
         pre_payment_network: str,
     ):
 
@@ -108,7 +108,7 @@ class UrsulaConfigOptions:
         self.max_gas_price = max_gas_price
         self.lonely = lonely
         self.pre_payment_method = pre_payment_method
-        self.pre_payment_provider = pre_payment_provider
+        self.polygon_endpoint = polygon_endpoint
         self.pre_payment_network = pre_payment_network
 
     def create_config(self, emitter, config_file):
@@ -129,7 +129,7 @@ class UrsulaConfigOptions:
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
                 pre_payment_method=self.pre_payment_method,
-                pre_payment_provider=self.pre_payment_provider,
+                polygon_endpoint=self.polygon_endpoint,
                 pre_payment_network=self.pre_payment_network,
             )
         else:
@@ -153,7 +153,7 @@ class UrsulaConfigOptions:
                     poa=self.poa,
                     light=self.light,
                     pre_payment_method=self.pre_payment_method,
-                    pre_payment_provider=self.pre_payment_provider,
+                    polygon_endpoint=self.polygon_endpoint,
                     pre_payment_network=self.pre_payment_network,
                 )
             except FileNotFoundError:
@@ -205,7 +205,7 @@ class UrsulaConfigOptions:
             poa=self.poa,
             light=self.light,
             pre_payment_method=self.pre_payment_method,
-            pre_payment_provider=self.pre_payment_provider,
+            polygon_endpoint=self.polygon_endpoint,
             pre_payment_network=self.pre_payment_network,
         )
 
@@ -224,7 +224,7 @@ class UrsulaConfigOptions:
             poa=self.poa,
             light=self.light,
             pre_payment_method=self.pre_payment_method,
-            pre_payment_provider=self.pre_payment_provider,
+            polygon_endpoint=self.polygon_endpoint,
             pre_payment_network=self.pre_payment_network,
         )
         # Depends on defaults being set on Configuration classes, filtrates None values
@@ -261,7 +261,7 @@ group_config_options = group_options(
     light=option_light,
     dev=option_dev,
     lonely=option_lonely,
-    pre_payment_provider=option_pre_payment_provider,
+    polygon_endpoint=option_polygon_endpoint,
     pre_payment_network=option_pre_payment_network,
     pre_payment_method=option_pre_payment_method,
 )
@@ -340,11 +340,11 @@ def init(general_config, config_options, force, config_root, key_material):
                 "--eth-endpoint is required to initialize a new ursula.", fg="red"
             ),
         )
-    if not config_options.pre_payment_provider:
+    if not config_options.polygon_endpoint:
         raise click.BadOptionUsage(
-            "--pre-payment-provider",
+            "--polygon-endpoint",
             message=click.style(
-                "--pre-payment-provider is required to initialize a new ursula.",
+                "--polygon-endpoint is required to initialize a new ursula.",
                 fg="red",
             ),
         )

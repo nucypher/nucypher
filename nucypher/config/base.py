@@ -334,7 +334,7 @@ class CharacterConfiguration(BaseConfiguration):
         "max_gas_price",  # gwei
         "signer_uri",
         "keystore_path",
-        "pre_payment_provider",
+        "polygon_endpoint",
         "pre_payment_network",
     )
 
@@ -375,7 +375,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Payments
         # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
         pre_payment_method: Optional[str] = None,
-        pre_payment_provider: Optional[str] = None,
+        polygon_endpoint: Optional[str] = None,
         pre_payment_network: Optional[str] = None,
         # Registries
         registry: Optional[ContractRegistry] = None,
@@ -462,7 +462,7 @@ class CharacterConfiguration(BaseConfiguration):
         # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
         # for uri in eth_provider_uri (list of uris fom config):
         BlockchainInterfaceFactory.get_or_create_interface(
-            eth_provider_uri=pre_payment_provider,
+            eth_provider_uri=polygon_endpoint,
             poa=self.poa,
             light=self.is_light,
             emitter=emitter,
@@ -494,7 +494,7 @@ class CharacterConfiguration(BaseConfiguration):
         from nucypher.config.characters import BobConfiguration
 
         if not isinstance(self, BobConfiguration):
-            # if not pre_payment_provider:
+            # if not polygon_endpoint:
             #     raise self.ConfigurationError("payment provider is required.")
             self.pre_payment_method = (
                 pre_payment_method or self.DEFAULT_PRE_PAYMENT_METHOD
@@ -502,8 +502,8 @@ class CharacterConfiguration(BaseConfiguration):
             self.pre_payment_network = (
                 pre_payment_network or self.DEFAULT_PRE_PAYMENT_NETWORK
             )
-            self.pre_payment_provider = pre_payment_provider or (
-                self.eth_provider_uri or None
+            self.polygon_endpoint = polygon_endpoint or (
+                self.eth_endpoint or None
             )  # default to L1 payments
 
             # TODO: Dedupe
@@ -841,7 +841,7 @@ class CharacterConfiguration(BaseConfiguration):
         # Strategy-Based (current implementation, inflexible & hardcoded)
         # 'pre_payment_strategy': 'SubscriptionManager'
         # 'pre_payment_network': 'matic'
-        # 'pre_payment_provider': 'https:///matic.infura.io....'
+        # 'polygon_endpoint': 'https:///matic.infura.io....'
         #
         # Contract-Targeted (alternative implementation, flexible & generic)
         # 'pre_payment': {
@@ -861,7 +861,7 @@ class CharacterConfiguration(BaseConfiguration):
             # on-chain payment strategies require a blockchain connection
             pre_payment_strategy = pre_payment_class(
                 network=self.pre_payment_network,
-                eth_provider=self.pre_payment_provider,
+                eth_provider=self.polygon_endpoint,
                 registry=self.policy_registry,
             )
         else:

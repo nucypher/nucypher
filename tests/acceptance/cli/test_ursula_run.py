@@ -47,7 +47,7 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
         "--prometheus",  # Specify collection of prometheus metrics
         "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
     )
 
@@ -76,7 +76,7 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         ursulas[0].operator_address,
         "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--pre-payment-network",
         TEMPORARY_DOMAIN,
@@ -130,7 +130,7 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain):
             ursulas[0].operator_address,
             "--eth-endpoint",
             TEST_ETH_PROVIDER_URI,
-            "--pre-payment-provider",
+            "--polygon-endpoint",
             TEST_ETH_PROVIDER_URI,
             "--pre-payment-network",
             TEMPORARY_DOMAIN,
@@ -182,7 +182,7 @@ def test_persistent_node_storage_integration(
         "init",
         "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
         "--operator-address",
         another_ursula,

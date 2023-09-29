@@ -62,7 +62,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
     )
 
@@ -102,7 +102,7 @@ def test_initialize_custom_configuration_root(
         deploy_port,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--pre-payment-network",
         TEMPORARY_DOMAIN,
