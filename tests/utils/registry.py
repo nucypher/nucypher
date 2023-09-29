@@ -5,7 +5,7 @@ from typing import List
 from ape.contracts import ContractInstance
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.networks import EthNetwork, NetworksInventory, PolyNetwork, TACoNetwork
 from nucypher.blockchain.eth.registry import (
     RegistryData,
     RegistrySource,
@@ -17,24 +17,24 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 @contextmanager
 def mock_registry_sources():
     # capture the real values
-    real_networks = NetworksInventory.NETWORKS
-    real_eth_networks = NetworksInventory.ETH_NETWORKS
-    real_poly_networks = NetworksInventory.POLY_NETWORKS
+    real_network_names = NetworksInventory.SUPPORTED_NETWORK_NAMES
+    real_networks = NetworksInventory.SUPPORTED_NETWORKS
     real_registry_sources = RegistrySourceManager._FALLBACK_CHAIN
 
     # set the mock values
+    NetworksInventory.SUPPORTED_NETWORK_NAMES = {TEMPORARY_DOMAIN}
+    testing_network = TACoNetwork(
+        TEMPORARY_DOMAIN, EthNetwork.TESTERCHAIN, PolyNetwork.TESTERCHAIN
+    )
+    NetworksInventory.SUPPORTED_NETWORKS = [testing_network]
     RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
-    NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
-    NetworksInventory.ETH_NETWORKS = (TEMPORARY_DOMAIN,)
-    NetworksInventory.POLY_NETWORKS = (TEMPORARY_DOMAIN,)
 
     yield  # run the test
 
     # restore the real values
+    NetworksInventory.SUPPORTED_NETWORK_NAMES = real_network_names
+    NetworksInventory.SUPPORTED_NETWORKS = real_networks
     RegistrySourceManager._FALLBACK_CHAIN = real_registry_sources
-    NetworksInventory.NETWORKS = real_networks
-    NetworksInventory.ETH_NETWORKS = real_eth_networks
-    NetworksInventory.POLY_NETWORKS = real_poly_networks
 
 
 class MockRegistrySource(RegistrySource):
