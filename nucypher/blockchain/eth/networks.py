@@ -1,57 +1,65 @@
-class NetworksInventory:  # TODO: See #1564
+from enum import Enum
+from typing import List, NamedTuple
 
-    MAINNET = "mainnet"
-    LYNX = "lynx"
-    IBEX = "ibex"  # this is required for configuration file migrations (backwards compatibility)
-    ETH = "ethereum"
-    TAPIR = "tapir"
-    ORYX = "oryx"
 
-    # TODO: Use naming scheme to preserve multiple compatibility with multiple deployments to a single network?
-    POLYGON = 'polygon'
-    MUMBAI = 'mumbai'
+class EthNetwork(Enum):
+    MAINNET = 1
+    GOERLI = 5
+    SEPOLIA = 11155111
+    # testing
+    TESTERCHAIN = 131277322940537
 
-    UNKNOWN = 'unknown'  # TODO: Is there a better way to signal an unknown network?
-    DEFAULT = MAINNET
 
-    __to_chain_id_eth = {
-        MAINNET: 1,  # Ethereum Mainnet
-        IBEX: 5,  # this is required for configuration file migrations (backwards compatibility)
-        LYNX: 5,  # Goerli
-        TAPIR: 11155111,  # Sepolia
-        ORYX: 5,  # Goerli
-    }
-    __to_chain_id_polygon = {
-        # TODO: Use naming scheme?
-        POLYGON: 137,    # Polygon Mainnet
-        MUMBAI: 80001,   # Polygon Testnet (Mumbai)
-    }
+class PolyNetwork(Enum):
+    POLYGON = 137
+    MUMBAI = 80001
+    # testing
+    TESTERCHAIN = 131277322940537
 
-    ETH_NETWORKS = tuple(__to_chain_id_eth.keys())
-    POLY_NETWORKS = tuple(__to_chain_id_polygon.keys())
 
-    NETWORKS = ETH_NETWORKS + POLY_NETWORKS
+class TACoNetwork(NamedTuple):
+    name: str
+    eth_network: EthNetwork
+    poly_network: PolyNetwork
 
-    class UnrecognizedNetwork(RuntimeError):
-        pass
+
+class UnrecognizedNetwork(RuntimeError):
+    """Raised when a provided network name is not recognized."""
+    pass
+
+
+class NetworksInventory:
+    MAINNET = TACoNetwork("mainnet", EthNetwork.MAINNET, PolyNetwork.POLYGON)
+    # Testnets
+    ORYX = TACoNetwork("oryx", EthNetwork.GOERLI, PolyNetwork.POLYGON)
+    LYNX = TACoNetwork("lynx", EthNetwork.GOERLI, PolyNetwork.MUMBAI)
+    TAPIR = TACoNetwork("tapir", EthNetwork.SEPOLIA, PolyNetwork.MUMBAI)
+    # TODO did Ibex even use a PolyNetwork?
+    IBEX = TACoNetwork(
+        "ibex", EthNetwork.GOERLI, PolyNetwork.MUMBAI
+    )  # this is required for configuration file migrations (backwards compatibility)
+
+    SUPPORTED_NETWORKS = [
+        MAINNET,
+        ORYX,
+        LYNX,
+        TAPIR,
+        IBEX,
+    ]
+
+    SUPPORTED_NETWORK_NAMES = {network.name for network in SUPPORTED_NETWORKS}
+
+    DEFAULT: str = MAINNET.name
 
     @classmethod
-    def get_ethereum_chain_id(cls, network):
-        try:
-            return cls.__to_chain_id_eth[network]
-        except KeyError:
-            raise cls.UnrecognizedNetwork(network)
+    def get_network(cls, network_name: str) -> TACoNetwork:
+        for network in cls.SUPPORTED_NETWORKS:
+            if network.name == network_name:
+                return network
+
+        raise UnrecognizedNetwork(f"{network_name} is not a recognized network.")
 
     @classmethod
-    def get_polygon_chain_id(cls, network):
-        try:
-            return cls.__to_chain_id_polygon[network]
-        except KeyError:
-            raise cls.UnrecognizedNetwork(network)
-
-    @classmethod
-    def validate_network_name(cls, network_name: str):
-        if network_name not in cls.NETWORKS:
-            raise cls.UnrecognizedNetwork(
-                f"{network_name} is not a recognized network."
-            )
+    def get_network_names(cls) -> List[str]:
+        networks = [network.name for network in cls.SUPPORTED_NETWORKS]
+        return networks
