@@ -3,13 +3,12 @@ import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Union
+from typing import Optional, Union, Tuple, Type, List, NamedTuple, Dict
 
 import requests
 
 from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.logging import Logger
 
 
@@ -20,18 +19,22 @@ class CanonicalRegistrySource(ABC):
     name = NotImplementedError
     is_primary = NotImplementedError
 
-    def __init__(self, network: str, registry_name: str, *args, **kwargs):
+    def __init__(self, network: str, *args, **kwargs):
         if network not in NetworksInventory.NETWORKS:
             raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
                              f"Valid options are: {list(NetworksInventory.NETWORKS)}")
         self.network = network
-        self.registry_name = registry_name
 
     class RegistrySourceError(Exception):
         pass
 
     class RegistrySourceUnavailable(RegistrySourceError):
         pass
+
+    @property
+    def registry_name(self) -> str:
+        filename = f"{self.network}.json"
+        return filename
 
     @abstractmethod
     def get_publication_endpoint(self) -> str:
@@ -54,7 +57,7 @@ class GithubRegistrySource(CanonicalRegistrySource):
     is_primary = True
 
     def get_publication_endpoint(self) -> str:
-        url = f"{self._BASE_URL}/development/nucypher/blockchain/eth/contract_registry/{self.network}/{self.registry_name}"
+        url = f"{self._BASE_URL}/development/nucypher/blockchain/eth/contract_registry/{self.filename}/"
         return url
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
@@ -81,7 +84,7 @@ class EmbeddedRegistrySource(CanonicalRegistrySource):
     is_primary = False
 
     def get_publication_endpoint(self) -> Path:
-        filepath = Path(CONTRACT_REGISTRY_BASE / self.network / self.registry_name).absolute()
+        filepath = Path(CONTRACT_REGISTRY_BASE / self.filename).absolute()
         return filepath
 
     def fetch_latest_publication(self) -> Union[str, bytes]:
