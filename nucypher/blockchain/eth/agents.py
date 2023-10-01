@@ -85,7 +85,6 @@ class EthereumContractAgent:
         registry: BaseContractRegistry,
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
-        contract_version: Optional[str] = None,
     ):
 
         self.log = Logger(self.__class__.__name__)
@@ -99,7 +98,6 @@ class EthereumContractAgent:
             contract = self.blockchain.get_contract_by_name(
                 registry=registry,
                 contract_name=self.contract_name,
-                contract_version=contract_version,
             )
 
         self.__contract = contract
@@ -872,7 +870,6 @@ class ContractAgency:
                 agent_class(
                     registry=registry,
                     provider_uri=provider_uri,
-                    contract_version=contract_version,
                 ),
             )
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())

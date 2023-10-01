@@ -37,7 +37,7 @@ from nucypher.blockchain.eth.providers import (
     _get_pyevm_test_provider,
     _get_websocket_provider,
 )
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
@@ -49,10 +49,6 @@ from nucypher.utilities.gas_strategies import (
 from nucypher.utilities.logging import Logger
 
 Web3Providers = Union[IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester]  # TODO: Move to types.py
-
-
-class VersionedContract(Contract):
-    version = None
 
 
 class BlockchainInterface:
@@ -68,7 +64,7 @@ class BlockchainInterface:
 
     Web3 = Web3  # TODO: This is name-shadowing the actual Web3. Is this intentional?
 
-    _CONTRACT_FACTORY = VersionedContract
+    _CONTRACT_FACTORY = Contract
 
     class InterfaceError(Exception):
         pass
@@ -643,81 +639,20 @@ class BlockchainInterface:
                                                                 fire_and_forget=fire_and_forget)
         return txhash_or_receipt
 
-    def get_contract_by_name(self,
-                             registry: BaseContractRegistry,
-                             contract_name: str,
-                             contract_version: str = None,
-                             enrollment_version: Union[int, str] = None,
-                             ) -> VersionedContract:
-        """
-        Instantiate a deployed contract from registry data,
-        and assimilate it with its proxy if it is upgradeable.
-        """
-
-        target_contract_records = registry.search(contract_name=contract_name, contract_version=contract_version)
-        if not target_contract_records:
-            raise self.UnknownContract(f"No such contract records with name {contract_name}:{contract_version}.")
-
-        if contract_version and len(target_contract_records) != 1:
-            # Assert single contract record returned
-            raise self.InterfaceError(f"Registry is potentially corrupt - multiple {contract_name} "
-                                      f"contract records with the same version {contract_version}")
-
-        # NOTE: 0 must be allowed as a valid version number
-        if len(target_contract_records) != 1:
-            if enrollment_version is None:
-                m = (
-                    f"{len(target_contract_records)} records enrolled "
-                    f"for contract {contract_name}:{contract_version} "
-                    f"and no version index was supplied."
-                )
-                raise self.InterfaceError(m)
-            enrollment_version = self.__get_enrollment_version_index(
-                name=contract_name,
-                contract_version=contract_version,
-                version_index=enrollment_version,
-                enrollments=len(target_contract_records),
-            )
-        else:
-            enrollment_version = -1  # default
-
-        (
-            _contract_name,
-            selected_version,
-            selected_address,
-            selected_abi,
-        ) = target_contract_records[enrollment_version]
-
-        # Create the contract from selected sources
+    def get_contract_by_name(
+        self,
+        registry: ContractRegistry,
+        contract_name: str,
+    ):
+        record = registry.search(
+            chain_id=self.client.chain_id, contract_name=contract_name
+        )
         contract = self.client.w3.eth.contract(
-            abi=selected_abi,
-            address=selected_address,
-            version=selected_version,
+            abi=record.abi,
+            address=record.address,
             ContractFactoryClass=self._CONTRACT_FACTORY,
         )
-
         return contract
-
-    @staticmethod
-    def __get_enrollment_version_index(version_index: Union[int, str],
-                                       enrollments: int,
-                                       name: str,
-                                       contract_version: str):
-        version_names = {'latest': -1, 'earliest': 0}
-        try:
-            version = version_names[version_index]
-        except KeyError:
-            try:
-                version = int(version_index)
-            except ValueError:
-                what_is_this = version_index
-                raise ValueError(f"'{what_is_this}' is not a valid enrollment version number")
-            else:
-                if version > enrollments - 1:
-                    message = f"Version index '{version}' is larger than the number of enrollments " \
-                              f"for {name}:{contract_version}."
-                    raise ValueError(message)
-        return version
 
 
 Interfaces = Union[BlockchainInterface]
