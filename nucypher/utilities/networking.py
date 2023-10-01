@@ -9,7 +9,7 @@ import requests
 from requests.exceptions import HTTPError, RequestException
 
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
@@ -102,7 +102,7 @@ def _request_from_node(
 def get_external_ip_from_default_teacher(
     network: str,
     provider_uri: str,
-    registry: Optional[BaseContractRegistry] = None,
+    registry: Optional[ContractRegistry] = None,
     log: Logger = IP_DETECTION_LOGGER,
 ) -> Union[str, None]:
     # Prevents circular imports

@@ -3,7 +3,7 @@ import os
 from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
@@ -32,8 +32,8 @@ print("--------- Threshold Encryption ---------")
 
 coordinator_agent = CoordinatorAgent(
     provider_uri=coordinator_provider_uri,
-    registry=InMemoryContractRegistry.from_latest_publication(
-        network=coordinator_network
+    registry=ContractRegistry.from_latest_publication(
+        domain=coordinator_network
     ),
 )
 ritual_id = 1  # got this from a side channel
@@ -102,7 +102,7 @@ bob = Bob(
     domain=network,
     coordinator_provider_uri=coordinator_provider_uri,
     coordinator_network=coordinator_network,
-    registry=InMemoryContractRegistry.from_latest_publication(network=network),
+    registry=ContractRegistry.from_latest_publication(domain=network),
 )
 
 bob.start_learning_loop(now=True)
