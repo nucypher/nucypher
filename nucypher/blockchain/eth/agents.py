@@ -1,7 +1,9 @@
 import os
 import random
+import sys
 from bisect import bisect_right
 from dataclasses import dataclass, field
+from itertools import accumulate
 from typing import (
     Any,
     Dict,
@@ -15,7 +17,6 @@ from typing import (
     cast,
 )
 
-import sys
 from constant_sorrow.constants import (
     # type: ignore
     CONTRACT_CALL,
@@ -24,7 +25,6 @@ from constant_sorrow.constants import (
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
-from itertools import accumulate
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -48,7 +48,7 @@ from nucypher.blockchain.eth.constants import (
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
+    ContractRegistry,
 )
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
@@ -82,7 +82,7 @@ class EthereumContractAgent:
     def __init__(
         self,
         provider_uri: str,
-        registry: BaseContractRegistry,
+        registry: ContractRegistry,
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
     ):
@@ -844,7 +844,7 @@ class ContractAgency:
     def get_agent(
         cls,
         agent_class: Type[types.Agent],
-        registry: Optional[BaseContractRegistry],
+        registry: Optional[ContractRegistry],
         provider_uri: Optional[str],
         contract_version: Optional[str] = None,
     ) -> types.Agent:
@@ -888,7 +888,7 @@ class ContractAgency:
     def get_agent_by_contract_name(
         cls,
         contract_name: str,
-        registry: BaseContractRegistry,
+        registry: ContractRegistry,
         provider_uri: str,
         contract_version: Optional[str] = None,
     ) -> EthereumContractAgent:

@@ -13,7 +13,7 @@ from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
 from requests.exceptions import SSLError
 
 from nucypher import characters
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.utilities.logging import Logger
@@ -29,7 +29,7 @@ class NucypherMiddlewareClient:
     def __init__(
         self,
         eth_provider_uri: Optional[str],
-        registry: Optional[BaseContractRegistry] = None,
+        registry: Optional[ContractRegistry] = None,
         storage: Optional[NodeStorage] = None,
         *args,
         **kwargs,

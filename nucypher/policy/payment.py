@@ -6,10 +6,7 @@ from nucypher_core import ReencryptionRequest
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
-from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
-)
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.policy import policies
 
 
@@ -65,16 +62,19 @@ class ContractPayment(PaymentMethod, ABC):
         rate: Wei
         value: Wei
 
-    def __init__(self,
-                 eth_provider: str,
-                 network: str,
-                 registry: Optional[BaseContractRegistry] = None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        eth_provider: str,
+        network: str,
+        registry: Optional[ContractRegistry] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.provider = eth_provider
         self.network = network
         if not registry:
-            registry = InMemoryContractRegistry.from_latest_publication(network=network)
+            registry = ContractRegistry.from_latest_publication(domain=network)
         self.registry = registry
         self.__agent = None  # delay blockchain/registry reads until later
 

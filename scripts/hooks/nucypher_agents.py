@@ -28,7 +28,7 @@ from nucypher.blockchain.eth.agents import (
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 
@@ -75,8 +75,8 @@ def nucypher_agents(
     coordinator_provider_uri,
     coordinator_network,
 ):
-    staking_registry = InMemoryContractRegistry.from_latest_publication(
-        network=eth_staking_network
+    staking_registry = ContractRegistry.from_latest_publication(
+        domain=eth_staking_network
     )
     emitter.echo(f"NOTICE: Connecting to {eth_staking_network} network", color="yellow")
 
@@ -86,8 +86,8 @@ def nucypher_agents(
         provider_uri=eth_provider_uri,
     )  # type: TACoApplicationAgent
 
-    coordinator_network_registry = InMemoryContractRegistry.from_latest_publication(
-        network=coordinator_network
+    coordinator_network_registry = ContractRegistry.from_latest_publication(
+        domain=coordinator_network
     )
     emitter.echo(f"NOTICE: Connecting to {coordinator_network} network", color="yellow")
 

@@ -19,9 +19,8 @@ from eth_utils.address import is_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
-    LocalContractRegistry,
+    ContractRegistry,
+    LocalRegistrySource,
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
@@ -379,9 +378,9 @@ class CharacterConfiguration(BaseConfiguration):
         pre_payment_provider: Optional[str] = None,
         pre_payment_network: Optional[str] = None,
         # Registries
-        registry: Optional[BaseContractRegistry] = None,
+        registry: Optional[ContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
-        policy_registry: Optional[BaseContractRegistry] = None,
+        policy_registry: Optional[ContractRegistry] = None,
         policy_registry_filepath: Optional[Path] = None,
     ):
 
@@ -472,16 +471,16 @@ class CharacterConfiguration(BaseConfiguration):
         )
 
         if not self.registry:
-            # TODO: These two code blocks are untested.
-            if (
-                not self.registry_filepath
-            ):  # TODO: Registry URI  (goerli://speedynet.json) :-)
+            if not self.registry_filepath:
                 self.log.info("Fetching latest registry from source.")
-                self.registry = InMemoryContractRegistry.from_latest_publication(
-                    network=self.domain
+                self.registry = ContractRegistry.from_latest_publication(
+                    domain=self.domain
                 )
             else:
-                self.registry = LocalContractRegistry(filepath=self.registry_filepath)
+                source = LocalRegistrySource(
+                    domain=self.domain, filepath=self.registry_filepath
+                )
+                self.registry = ContractRegistry(source=source)
                 self.log.info(f"Using local registry ({self.registry}).")
 
         self.testnet = self.domain != NetworksInventory.MAINNET
@@ -511,13 +510,11 @@ class CharacterConfiguration(BaseConfiguration):
             if not self.policy_registry:
                 if not self.policy_registry_filepath:
                     self.log.info("Fetching latest policy registry from source.")
-                    self.policy_registry = (
-                        InMemoryContractRegistry.from_latest_publication(
-                            network=self.pre_payment_network
-                        )
+                    self.policy_registry = ContractRegistry.from_latest_publication(
+                        domain=self.pre_payment_network
                     )
                 else:
-                    self.policy_registry = LocalContractRegistry(
+                    self.policy_registry = ContractRegistry(
                         filepath=self.policy_registry_filepath
                     )
                     self.log.info(

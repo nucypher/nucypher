@@ -22,7 +22,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters import lawful
 
 
@@ -149,7 +149,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
     def __init__(
         self,
         staking_provider_address: ChecksumAddress,
-        contract_registry: BaseContractRegistry,
+        contract_registry: ContractRegistry,
         eth_provider_uri: str,
     ):
         super().__init__()
@@ -200,7 +200,13 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
 
 class OperatorMetricsCollector(BaseMetricsCollector):
     """Collector for Operator specific metrics."""
-    def __init__(self, domain: str, operator_address: ChecksumAddress, contract_registry: BaseContractRegistry):
+
+    def __init__(
+        self,
+        domain: str,
+        operator_address: ChecksumAddress,
+        contract_registry: ContractRegistry,
+    ):
         super().__init__()
         self.domain = domain
         self.operator_address = operator_address
@@ -228,12 +234,15 @@ class OperatorMetricsCollector(BaseMetricsCollector):
 
 class EventMetricsCollector(BaseMetricsCollector):
     """General collector for emitted events."""
-    def __init__(self,
-                 event_name: str,
-                 event_args_config: Dict[str, tuple],
-                 argument_filters: Dict[str, str],
-                 contract_agent_class: Type[EthereumContractAgent],
-                 contract_registry: BaseContractRegistry):
+
+    def __init__(
+        self,
+        event_name: str,
+        event_args_config: Dict[str, tuple],
+        argument_filters: Dict[str, str],
+        contract_agent_class: Type[EthereumContractAgent],
+        contract_registry: ContractRegistry,
+    ):
         super().__init__()
         self.event_name = event_name
         self.contract_agent_class = contract_agent_class

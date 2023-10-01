@@ -1,7 +1,6 @@
 
 
 import os
-import shutil
 from distutils.util import strtobool
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -16,9 +15,7 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
-    LocalContractRegistry,
+    ContractRegistry,
 )
 from nucypher.characters.base import Character
 from nucypher.cli.actions.auth import (
@@ -31,9 +28,7 @@ from nucypher.cli.literature import (
     CONNECTING_TO_BLOCKCHAIN,
     ETHERSCAN_FLAG_DISABLED_WARNING,
     ETHERSCAN_FLAG_ENABLED_WARNING,
-    LOCAL_REGISTRY_ADVISORY,
     NO_HARDWARE_WALLET_WARNING,
-    PRODUCTION_REGISTRY_ADVISORY,
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.emitters import StdoutEmitter
@@ -106,11 +101,13 @@ def make_cli_character(
     return CHARACTER
 
 
-def get_registry(network: str, registry_filepath: Optional[Path] = None) -> BaseContractRegistry:
+def get_registry(
+    network: str, registry_filepath: Optional[Path] = None
+) -> ContractRegistry:
     if registry_filepath:
-        registry = LocalContractRegistry(filepath=registry_filepath)
+        registry = ContractRegistry(filepath=registry_filepath)
     else:
-        registry = InMemoryContractRegistry.from_latest_publication(network=network)
+        registry = ContractRegistry.from_latest_publication(domain=network)
     return registry
 
 

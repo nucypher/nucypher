@@ -39,8 +39,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
+    ContractRegistry,
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.token import NU
@@ -72,7 +71,7 @@ class BaseActor:
     def __init__(
         self,
         domain: Optional[str],
-        registry: BaseContractRegistry,
+        registry: ContractRegistry,
         transacting_power: Optional[TransactingPower] = None,
         checksum_address: Optional[ChecksumAddress] = None,
     ):
@@ -127,7 +126,7 @@ class NucypherTokenActor(BaseActor):
     Actor to interface with the NuCypherToken contract
     """
 
-    def __init__(self, registry: BaseContractRegistry, **kwargs):
+    def __init__(self, registry: ContractRegistry, **kwargs):
         super().__init__(registry=registry, **kwargs)
         self.__token_agent = None
 
@@ -210,8 +209,8 @@ class Operator(BaseActor):
         )
 
         # TODO: registry usage (and subsequently "network") is inconsistent here
-        coordinator_network_registry = InMemoryContractRegistry.from_latest_publication(
-            network=coordinator_network
+        coordinator_network_registry = ContractRegistry.from_latest_publication(
+            domain=coordinator_network
         )
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,

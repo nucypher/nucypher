@@ -29,7 +29,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.powers import (
@@ -1040,7 +1040,7 @@ class Teacher:
         return bytes(response)
 
     def _operator_is_bonded(
-        self, provider_uri: str, registry: BaseContractRegistry
+        self, provider_uri: str, registry: ContractRegistry
     ) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
@@ -1055,7 +1055,9 @@ class Teacher:
             raise self.UnbondedOperator(f"Operator {self.operator_address} is not bonded")
         return staking_provider_address == self.checksum_address
 
-    def _staking_provider_is_really_staking(self, registry: BaseContractRegistry, eth_provider_uri: Optional[str] = None) -> bool:
+    def _staking_provider_is_really_staking(
+        self, registry: ContractRegistry, eth_provider_uri: Optional[str] = None
+    ) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the staking provider is, indeed, staking.
@@ -1068,7 +1070,7 @@ class Teacher:
 
     def validate_operator(
         self,
-        registry: BaseContractRegistry = None,
+        registry: ContractRegistry = None,
         eth_provider_uri: Optional[str] = None,
     ) -> None:
         # TODO: restore this enforcement
@@ -1112,8 +1114,9 @@ class Teacher:
         else:
             raise self.InvalidNode("Metadata signature is invalid")
 
-    def validate_metadata(self, registry: BaseContractRegistry = None, eth_provider_uri: Optional[str] = None):
-
+    def validate_metadata(
+        self, registry: ContractRegistry = None, eth_provider_uri: Optional[str] = None
+    ):
         # Verify the metadata signature
         if not self.verified_metadata:
             self.validate_metadata_signature()
@@ -1125,13 +1128,14 @@ class Teacher:
         # Offline check of valid stamp signature by worker
         self.validate_operator(registry=registry, eth_provider_uri=eth_provider_uri)
 
-    def verify_node(self,
-                    network_middleware_client,
-                    registry: BaseContractRegistry = None,
-                    eth_provider_uri: Optional[str] = None,
-                    certificate_filepath: Optional[Path] = None,
-                    force: bool = False
-                    ) -> bool:
+    def verify_node(
+        self,
+        network_middleware_client,
+        registry: ContractRegistry = None,
+        eth_provider_uri: Optional[str] = None,
+        certificate_filepath: Optional[Path] = None,
+        force: bool = False,
+    ) -> bool:
         """
         Three things happening here:
 
