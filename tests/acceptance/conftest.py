@@ -3,6 +3,7 @@ import random
 import pytest
 from web3 import Web3
 
+import tests
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -12,7 +13,9 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
@@ -23,8 +26,8 @@ from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.ape import registry_from_ape_deployments
 from tests.utils.blockchain import TesterBlockchain
+from tests.utils.registry import ApeRegistrySource
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
     setup_multichain_ursulas,
@@ -291,13 +294,17 @@ def deployed_contracts(
         global_allow_list,
         subscription_manager,
     ]
+    ApeRegistrySource.set_deployments(deployments)
     return deployments
 
 
 @pytest.fixture(scope="module", autouse=True)
 def test_registry(deployed_contracts):
-    registry = registry_from_ape_deployments(deployments=deployed_contracts)
-    return registry
+    with tests.utils.registry.mock_registry_sources():
+        RegistrySourceManager._FALLBACK_CHAIN = (ApeRegistrySource,)
+        source = ApeRegistrySource(domain=TEMPORARY_DOMAIN)
+        registry = ContractRegistry(source=source)
+        yield registry
 
 
 @pytest.mark.usefixtures("test_registry")
@@ -315,7 +322,6 @@ def testerchain(project) -> TesterBlockchain:
 #
 
 
-@pytest.mark.usefixtures("test_registry")
 @pytest.fixture(scope="module")
 def staking_providers(
     deployer_account,

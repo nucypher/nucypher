@@ -19,12 +19,15 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.networks import NetworksInventory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import (
+    ContractRegistry,
+)
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.constants import (
@@ -33,8 +36,9 @@ from tests.constants import (
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
+from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
+from tests.utils.registry import MockRegistrySource, mock_registry_sources
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
     setup_multichain_ursulas,
@@ -129,14 +133,10 @@ def mock_interface(module_mocker):
 
 @pytest.fixture(scope='module')
 def test_registry():
-    registry = InMemoryContractRegistry()
-    return registry
-
-
-@pytest.fixture(scope='module')
-def test_registry_source_manager(testerchain, test_registry):
-    with mock_registry_source_manager(test_registry=test_registry) as real_inventory:
-        yield real_inventory
+    with mock_registry_sources():
+        mock_source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
+        registry = ContractRegistry(source=mock_source)
+        yield registry
 
 
 @pytest.fixture(scope='module', autouse=True)

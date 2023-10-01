@@ -32,9 +32,7 @@ print("--------- Threshold Encryption ---------")
 
 coordinator_agent = CoordinatorAgent(
     provider_uri=coordinator_provider_uri,
-    registry=ContractRegistry.from_latest_publication(
-        domain=coordinator_network
-    ),
+    registry=ContractRegistry.from_latest_publication(domain=coordinator_network),
 )
 ritual_id = 1  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)

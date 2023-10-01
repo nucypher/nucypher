@@ -20,7 +20,6 @@ from web3 import Web3
 import tests
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
@@ -47,11 +46,10 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
-    MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
+from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,
     mock_cert_loading,
@@ -78,6 +76,7 @@ from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, make_ursulas, select_te
 test_logger = Logger("test-logger")
 
 # defer.setDebugging(True)
+
 
 #
 # Temporary
@@ -304,6 +303,12 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 #
 
 
+@pytest.fixture(scope="module")
+def mock_registry_sources():
+    with tests.utils.registry.mock_registry_sources():
+        yield
+
+
 @pytest.fixture(scope='module')
 def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
@@ -312,28 +317,14 @@ def mock_testerchain() -> MockBlockchain:
     yield testerchain
 
 
-@pytest.fixture(scope='module')
-def test_registry_source_manager(test_registry):
-    with mock_registry_source_manager(test_registry=test_registry):
-        yield
-
-
-@pytest.fixture(scope='module')
-def agency_local_registry(testerchain, test_registry):
-    registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
-    registry.write(test_registry.read())
-    yield registry
-    if MOCK_REGISTRY_FILEPATH.exists():
-        MOCK_REGISTRY_FILEPATH.unlink()
-
-
 @pytest.fixture()
-def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mocker):
+def light_ursula(temp_dir_path, random_account, mocker):
     mocker.patch.object(
         KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
     )
     pre_payment_method = SubscriptionManagerPayment(
-        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        eth_provider=MOCK_ETH_PROVIDER_URI,
+        network=TEMPORARY_DOMAIN,
     )
 
     mocker.patch.object(
@@ -391,9 +382,7 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope="module")
-def fleet_of_highperf_mocked_ursulas(
-    ursula_test_config, request, testerchain, test_registry_source_manager
-):
+def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
     mocks = (
         mock_cert_storage,
         mock_cert_loading,
@@ -442,7 +431,6 @@ def fleet_of_highperf_mocked_ursulas(
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(
     fleet_of_highperf_mocked_ursulas,
-    test_registry_source_manager,
     monkeymodule,
     testerchain,
 ):
@@ -510,7 +498,7 @@ def click_runner():
 
 
 @pytest.fixture(scope='module')
-def nominal_configuration_fields(test_registry_source_manager):
+def nominal_configuration_fields():
     config = UrsulaConfiguration(
         dev_mode=True,
         pre_payment_network=TEMPORARY_DOMAIN,
@@ -698,9 +686,7 @@ def control_time():
 
 
 @pytest.fixture(scope="module")
-def ursulas(
-    testerchain, staking_providers, ursula_test_config, test_registry_source_manager
-):
+def ursulas(testerchain, ursula_test_config, staking_providers):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")

@@ -1,3 +1,5 @@
+import pytest
+
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.commands import ursula
@@ -15,7 +17,8 @@ from tests.constants import (
 )
 
 
-def test_ursula_startup_ip_checkup(click_runner, mocker, test_registry_source_manager):
+@pytest.mark.usefixtures("mock_registry_sources")
+def test_ursula_startup_ip_checkup(click_runner, mocker):
     target = "nucypher.cli.actions.configure.determine_external_ip_address"
 
     # Patch the get_external_ip call

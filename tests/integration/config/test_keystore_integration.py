@@ -65,9 +65,8 @@ def test_generate_alice_keystore(temp_dir_path):
     assert delegating_pubkey == another_delegating_pubkey
 
 
-def test_characters_use_keystore(
-    temp_dir_path, test_registry_source_manager, testerchain
-):
+@pytest.mark.usefixtures("mock_registry_sources")
+def test_characters_use_keystore(temp_dir_path, testerchain):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path

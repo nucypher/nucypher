@@ -37,10 +37,12 @@ all_configurations = tuple(
 )
 
 
-@pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
+@pytest.mark.usefixtures(
+    "mock_registry_sources", "monkeypatch_get_staking_provider_from_operator"
+)
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_development_character_configurations(
-    character, configuration, test_registry_source_manager, mocker, testerchain
+    character, configuration, mocker, testerchain
 ):
     mocker.patch.object(
         CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
@@ -96,7 +98,6 @@ def test_development_character_configurations(
 def test_default_character_configuration_preservation(
     configuration_class,
     testerchain,
-    test_registry_source_manager,
     tmpdir,
     test_registry,
 ):
@@ -170,7 +171,7 @@ def test_default_character_configuration_preservation(
             expected_filepath.unlink()
 
 
-def test_ursula_development_configuration(test_registry_source_manager, testerchain):
+def test_ursula_development_configuration(testerchain):
     config = UrsulaConfiguration(
         dev_mode=True,
         checksum_address=testerchain.unassigned_accounts[0],
