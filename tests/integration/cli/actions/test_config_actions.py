@@ -78,7 +78,7 @@ def test_forget_cli_action(alice_test_config, test_emitter, mock_stdin, mocker, 
     assert SUCCESSFUL_FORGET_NODES in captured.out
 
 
-def test_update_configuration_cli_action(config, test_emitter, test_registry_source_manager, capsys):
+def test_update_configuration_cli_action(config, test_emitter, capsys):
     config_class, config_file = config.__class__, config.filepath
     updates = dict(domain=TEMPORARY_DOMAIN)
     get_or_update_configuration(emitter=test_emitter, config_class=config_class, filepath=config_file, updates=updates)
@@ -91,7 +91,6 @@ def test_update_configuration_cli_action(config, test_emitter, test_registry_sou
 
 def test_handle_update_missing_configuration_file_cli_action(config,
                                                              test_emitter,
-                                                             test_registry_source_manager,
                                                              mocker):
     config_class, config_file = config.__class__, config.filepath
     mocker.patch.object(config_class, '_read_configuration_file', side_effect=FileNotFoundError)
@@ -108,7 +107,6 @@ def test_handle_update_missing_configuration_file_cli_action(config,
 
 def test_handle_update_invalid_configuration_file_cli_action(config,
                                                              test_emitter,
-                                                             test_registry_source_manager,
                                                              mocker,
                                                              capsys):
     config_class = config.__class__

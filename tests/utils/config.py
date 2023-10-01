@@ -2,7 +2,7 @@ from typing import List
 
 from eth_typing import ChecksumAddress
 
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -23,11 +23,12 @@ TEST_CHARACTER_CONFIG_BASE_PARAMS = dict(
 )
 
 
-def assemble(checksum_address: str = None,
-             eth_provider_uri: str = None,
-             test_registry: BaseContractRegistry = None,
-             known_nodes: List[Ursula] = None) -> dict:
-
+def assemble(
+    checksum_address: str = None,
+    eth_provider_uri: str = None,
+    test_registry: ContractRegistry = None,
+    known_nodes: List[Ursula] = None,
+) -> dict:
     """Assemble a dictionary of keyword arguments to use when constructing a test configuration."""
     # Generate runtime config params
     runtime_params = dict(

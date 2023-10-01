@@ -12,7 +12,7 @@ Chapter 1: SIGNING
 """
 
 
-def test_actor_without_signing_power_cannot_sign(test_registry_source_manager):
+def test_actor_without_signing_power_cannot_sign():
     """
     We can create a Character with no real CryptoPower to speak of.
     This Character can't even sign a message.

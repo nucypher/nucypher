@@ -28,7 +28,7 @@ def check(policy, bob, ursulas):
             # TODO: try to decrypt?
 
 
-def test_grant_subscription_manager(alice, bob, ursulas, test_registry_source_manager):
+def test_grant_subscription_manager(alice, bob, ursulas):
     pre_payment_method = SubscriptionManagerPayment(
         eth_provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
     )

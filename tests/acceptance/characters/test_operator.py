@@ -49,7 +49,7 @@ def remote_vladimir(**kwds):
 
 
 def test_vladimir_cannot_verify_interface_with_ursulas_signing_key(
-    testerchain, ursulas, test_registry_source_manager
+    testerchain, ursulas
 ):
     his_target = list(ursulas)[4]
 

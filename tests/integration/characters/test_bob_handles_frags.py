@@ -14,7 +14,6 @@ def _policy_info_kwargs(enacted_policy):
         alice_verifying_key=enacted_policy.publisher_verifying_key,
         )
 
-
 def test_retrieval_kit(enacted_policy, ursulas):
     messages, message_kits = make_message_kits(enacted_policy.public_key)
 

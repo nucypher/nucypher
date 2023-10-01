@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from nucypher.blockchain.eth.registry import LocalRegistrySource
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -40,12 +41,9 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
     assert not custom_filepath.exists()
 
 
-def test_corrupted_configuration(click_runner,
-                                 custom_filepath,
-                                 testerchain,
-                                 agency_local_registry,
-                                 test_registry_source_manager):
-
+def test_corrupted_configuration(
+    click_runner, custom_filepath, testerchain, test_registry, mocker
+):
     #
     # Setup
     #
@@ -99,6 +97,10 @@ def test_corrupted_configuration(click_runner,
     path = custom_filepath / known_nodes
     assert not path.exists()
 
+    mocker.patch.object(LocalRegistrySource, "get", return_value=dict())
+    mock_registry_filepath = custom_filepath / "mock_registry.json"
+    mock_registry_filepath.touch()
+
     # Attempt installation again, with full args
     init_args = (
         "ursula",
@@ -116,14 +118,14 @@ def test_corrupted_configuration(click_runner,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--registry-filepath",
-        str(agency_local_registry.filepath.absolute()),
+        mock_registry_filepath,
         "--config-root",
         str(custom_filepath.absolute()),
     )
 
     envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
 
     default_filename = UrsulaConfiguration.generate_filename()
 
@@ -141,7 +143,7 @@ def test_corrupted_configuration(click_runner,
         assert field in top_level_config_root
 
     # "Corrupt" the configuration by removing the contract registry
-    agency_local_registry.filepath.unlink()
+    mock_registry_filepath.unlink()
 
     # Attempt destruction with invalid configuration (missing registry)
     ursula_file_location = custom_filepath / default_filename
