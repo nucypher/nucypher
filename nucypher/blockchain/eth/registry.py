@@ -3,52 +3,61 @@ import json
 from abc import ABC, abstractmethod
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Optional, Union, Tuple, Type, List, NamedTuple, Dict
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 import requests
+from requests import Response
+from web3.types import ABI
 
-from nucypher.blockchain.eth import CONTRACT_REGISTRY_BASE
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.utilities.logging import Logger
 
+RegistryArtifact = Dict[str, Union[str, ABI]]
+RegistryEntry = Dict[str, RegistryArtifact]
+RegistryData = Dict[int, RegistryEntry]
 
-class CanonicalRegistrySource(ABC):
+
+class RegistrySource(ABC):
 
     logger = Logger('RegistrySource')
 
     name = NotImplementedError
     is_primary = NotImplementedError
 
-    def __init__(self, network: str, *args, **kwargs):
-        if network not in NetworksInventory.NETWORKS:
-            raise ValueError(f"{self.__class__.__name__} not available for network '{network}'. "
-                             f"Valid options are: {list(NetworksInventory.NETWORKS)}")
-        self.network = network
-
     class RegistrySourceError(Exception):
-        pass
+        """Base class for registry source errors"""
 
-    class RegistrySourceUnavailable(RegistrySourceError):
-        pass
+    class Invalid(RegistrySourceError):
+        """Raised when invalid data is encountered in the registry"""
 
-    @property
-    def registry_name(self) -> str:
-        filename = f"{self.network}.json"
-        return filename
+    class Unavailable(RegistrySourceError):
+        """Raised when there are no available registry sources"""
+
+    def __init__(self, domain: str, *args, **kwargs):
+        if domain not in NetworksInventory.NETWORKS:
+            raise ValueError(
+                f"{self.__class__.__name__} not available for domain '{domain}'. "
+                f"Valid options are: {', '.join(list(NetworksInventory.NETWORKS))}"
+            )
+        self.domain = domain
+        self.data = self.get()
+
+    def __repr__(self) -> str:
+        endpoint = self.get_publication_endpoint()
+        return f"{self.__class__.__name__}(endpoint={endpoint})"
 
     @abstractmethod
     def get_publication_endpoint(self) -> str:
+        """Get the endpoint for the registry publication."""
         raise NotImplementedError
 
     @abstractmethod
-    def fetch_latest_publication(self) -> Union[str, bytes]:
+    def get(self) -> RegistryData:
+        """Get the contract registry data from the registry source."""
         raise NotImplementedError
 
-    def __repr__(self):
-        return str(self.get_publication_endpoint())
 
-
-class GithubRegistrySource(CanonicalRegistrySource):
+class GithubRegistrySource(RegistrySource):
 
     _PUBLICATION_REPO = "nucypher/nucypher"
     _BASE_URL = f'https://raw.githubusercontent.com/{_PUBLICATION_REPO}'
@@ -56,115 +65,189 @@ class GithubRegistrySource(CanonicalRegistrySource):
     name = "GitHub Registry Source"
     is_primary = True
 
+    @property
+    def registry_name(self) -> str:
+        """Get the name of the registry file."""
+        name = f"{self.domain}.json"
+        return name
+
     def get_publication_endpoint(self) -> str:
-        url = f"{self._BASE_URL}/development/nucypher/blockchain/eth/contract_registry/{self.filename}/"
+        """Get the GitHub endpoint for the registry publication."""
+        url = f"{self._BASE_URL}/development/nucypher/blockchain/eth/contract_registry/{self.registry_name}/"
         return url
 
-    def fetch_latest_publication(self) -> Union[str, bytes]:
-        # Setup
-        publication_endpoint = self.get_publication_endpoint()
-        self.logger.debug(f"Downloading contract registry from {publication_endpoint}")
+    def decode(self, response: Response, endpoint: str) -> RegistryData:
+        """JSON Decode the registry data."""
         try:
-            # Fetch
+            data = response.json()
+        except JSONDecodeError:
+            raise self.Invalid(f"Invalid registry JSON at '{endpoint}'.")
+        return data
+
+    def get(self) -> RegistryData:
+        publication_endpoint = self.get_publication_endpoint()
+        try:
+            self.logger.debug(
+                f"Downloading contract registry from {publication_endpoint}"
+            )
             response = requests.get(publication_endpoint)
         except requests.exceptions.ConnectionError as e:
             error = f"Failed to fetch registry from {publication_endpoint}: {str(e)}"
-            raise self.RegistrySourceUnavailable(error)
-
+            raise self.Unavailable(error)
         if response.status_code != 200:
             error = f"Failed to fetch registry from {publication_endpoint} with status code {response.status_code}"
-            raise self.RegistrySourceUnavailable(error)
+            raise self.Unavailable(error)
+        data = self.decode(response=response, endpoint=publication_endpoint)
+        return data
 
-        registry_data = response.content
-        return registry_data
 
+class LocalRegistrySource(RegistrySource):
+    """A local contract registry source."""
 
-class EmbeddedRegistrySource(CanonicalRegistrySource):
-    name = "Embedded Registry Source"
+    name = "Local Registry Source"
     is_primary = False
 
+    def __init__(self, filepath: Path, *args, **kwargs):
+        self.filepath = filepath
+        super().__init__(*args, **kwargs)
+
+    @property
+    def registry_name(self) -> str:
+        """Get the name of the registry file."""
+        return self.filepath.name
+
     def get_publication_endpoint(self) -> Path:
-        filepath = Path(CONTRACT_REGISTRY_BASE / self.filename).absolute()
+        """Get the path to the local contract registry."""
+        filepath = Path(self.filepath).absolute()
         return filepath
 
-    def fetch_latest_publication(self) -> Union[str, bytes]:
+    def decode(self, data: str, endpoint: str) -> RegistryData:
+        """JSON Decode the registry data."""
+        try:
+            data = json.loads(data)
+        except JSONDecodeError:
+            raise self.Invalid(f"Invalid registry JSON at '{endpoint}'.")
+        return data
+
+    def get(self) -> RegistryData:
+        """Get the latest contract registry available from the local filesystem."""
         filepath = self.get_publication_endpoint()
-        self.logger.debug(f"Reading registry at {filepath.absolute()}")
+        self.logger.debug(f"Reading registry at {filepath}")
         try:
             with open(filepath, "r") as f:
-                registry_data = f.read()
-            return registry_data
+                data = f.read()
         except IOError as e:
             error = f"Failed to read registry at {filepath.absolute()}: {str(e)}"
             raise self.RegistrySourceError(error)
+        if not data:
+            raise self.RegistrySourceError(
+                f"Registry file '{filepath}' has no content."
+            )
+        data = self.decode(data=data, endpoint=str(filepath))
+        return data
+
+
+class EmbeddedRegistrySource(LocalRegistrySource):
+    name = "Embedded Registry Source"
+    is_primary = False
+
+    _CONTRACT_REGISTRY_BASE = Path(__file__).parent / "contract_registry"
+
+    def __init__(self, domain: str, *args, **kwargs):
+        self.domain = domain
+        filepath = self.get_publication_endpoint()
+        super().__init__(domain=domain, filepath=filepath, *args, **kwargs)
+
+    @property
+    def registry_name(self) -> str:
+        return f"{self.domain}.json"
+
+    def get_publication_endpoint(self) -> Path:
+        """Get the path to the embedded contract registry."""
+        filepath = Path(self._CONTRACT_REGISTRY_BASE / self.registry_name).absolute()
+        return filepath
 
 
 class RegistrySourceManager:
+    """A chain of registry sources."""
+
     logger = Logger('RegistrySource')
 
-    _REMOTE_SOURCES = (
+    _FALLBACK_CHAIN: Tuple[Type[RegistrySource]] = (
         GithubRegistrySource,
-        # TODO: Mirror/fallback for contract registry: moar remote sources - #1454
-        # NucypherServersRegistrySource,
-        # IPFSRegistrySource,
-    )  # type: Tuple[Type[CanonicalRegistrySource]]
-
-    _LOCAL_SOURCES = (
+        # ...,
         EmbeddedRegistrySource,
-    )  # type: Tuple[Type[CanonicalRegistrySource]]
-
-    _FALLBACK_CHAIN = _REMOTE_SOURCES + _LOCAL_SOURCES
+    )
 
     class NoSourcesAvailable(Exception):
-        pass
+        """Raised when there are no available registry sources"""
 
-    def __init__(self, sources=None, only_primary: bool = False):
+    def __init__(
+        self,
+        domain: str,
+        sources: Optional[RegistrySource] = None,
+        only_primary: bool = False,
+    ):
         if only_primary and sources:
             raise ValueError("Either use 'only_primary' or 'sources', but not both.")
         elif only_primary:
             self.sources = self.get_primary_sources()
         else:
             self.sources = list(sources or self._FALLBACK_CHAIN)
-
-    def __getitem__(self, index):
-        return self.sources
+        self.domain = domain
 
     @classmethod
-    def get_primary_sources(cls):
+    def get_primary_sources(cls) -> List[Type[RegistrySource]]:
+        """Get the primary registry sources."""
         return [source for source in cls._FALLBACK_CHAIN if source.is_primary]
 
-    def fetch_latest_publication(self, registry_class, network: str):
-        """
-        Get the latest contract registry data available from a registry source chain.
-        """
-
-        for registry_source_class in self.sources:
-            if isinstance(registry_source_class, CanonicalRegistrySource):  # i.e., it's not a class, but an instance
-                registry_source = registry_source_class
-                expected = registry_class.REGISTRY_NAME, network
-                actual = registry_source.registry_name, registry_source.network
-                if actual != expected:
-                    raise ValueError(f"(registry_name, network) should be {expected} but got {actual}")
-            else:
-                registry_source = registry_source_class(network=network, registry_name=registry_class.REGISTRY_NAME)
-
+    def fetch_latest_publication(self) -> RegistrySource:
+        """Get the latest contract registry data available from a registry source chain."""
+        for source_class in self.sources:
             try:
-                if not registry_source.is_primary:
-                    message = f"Warning: Registry at {registry_source} is not a primary source."
-                    self.logger.warn(message)
-                registry_data_bytes = registry_source.fetch_latest_publication()
-            except registry_source.RegistrySourceUnavailable:
-                message = f"Fetching registry from {registry_source} failed."
-                self.logger.warn(message)
+                source = source_class(domain=self.domain)
+            except RegistrySource.Unavailable:
+                self.logger.warn(f"Fetching registry from {source_class} failed.")
                 continue
             else:
-                return registry_data_bytes, registry_source
-        else:
-            self.logger.warn("All known registry sources failed.")
-            raise self.NoSourcesAvailable
+                if not source.is_primary:
+                    message = f"Warning: {source_class} is not a primary source."
+                    self.logger.warn(message)
+                return source
+        self.logger.warn("All known registry sources failed.")
+        raise self.NoSourcesAvailable
 
 
-class BaseContractRegistry(ABC):
+class ContractRegistry:
+    """
+    A registry of contract artifacts.
+    The registry is a JSON file that maps chain IDs -> contract names -> addresses and ABIs.
+
+    ```json
+    {
+        1: {
+            "ContractName": {
+                "address": "0xdeadbeef",
+                "abi": [...]
+            }
+        },
+        5: {
+            "AnotherContractName": {
+                "address": "0xdeadbeef",
+                 "abi": [...]
+            }
+        }
+    }
+    ```
+    """
+
+    class RegistryEntry(NamedTuple):
+        """A single contract registry entry."""
+
+        name: str
+        address: str
+        chain_id: int
+        abi: ABI
 
     logger = Logger('ContractRegistry')
 
@@ -177,9 +260,18 @@ class BaseContractRegistry(ABC):
     class InvalidRegistry(RegistryError):
         """Raised when invalid data is encountered in the registry"""
 
-    def __init__(self, source=None, *args, **kwargs):
-        self.__source = source
+    class AmbiguousSearchTerms(RegistryError):
+        """Raised when there are multiple results for a given registry search"""
+
+    def __init__(self, source: RegistrySource):
         self.log = Logger("registry")
+        if not source.data:
+            data = source.get()
+        else:
+            data = source.data
+        self._source = source
+        self._domain = source.domain
+        self._data = data
         self._id = None
 
     def __eq__(self, other) -> bool:
@@ -191,127 +283,64 @@ class BaseContractRegistry(ABC):
 
     @property
     def id(self) -> str:
-        if not self._id:
-            blake = hashlib.blake2b()
-            blake.update(json.dumps(self.read()).encode())
-            self._id = blake.digest().hex()
+        """A unique identifier for this registry."""
+        if self._id:
+            return self._id
+        blake = hashlib.blake2b()
+        blake.update(json.dumps(self._data).encode())
+        self._id = blake.digest().hex()
         return self._id
 
     @property
-    def source(self) -> 'CanonicalRegistrySource':
-        return self.__source
-
-    @abstractmethod
-    def read(self) -> Union[list, dict]:
-        raise NotImplementedError
+    def source_endpoint(self) -> str:
+        """Get the endpoint this registry was sourced from."""
+        if not self._source:
+            raise self.RegistryError("No registry source available.")
+        return self._source.get_publication_endpoint()
 
     @classmethod
-    def from_latest_publication(cls,
-                                *args,
-                                source_manager: Optional[RegistrySourceManager] = None,
-                                network: str = NetworksInventory.DEFAULT,
-                                **kwargs) -> 'BaseContractRegistry':
-        """
-        Get the latest contract registry available from a registry source chain.
-        """
-        if not source_manager:
-            source_manager = RegistrySourceManager()
+    def from_latest_publication(
+        cls,
+        domain: str,
+        source_manager: Optional[RegistrySourceManager] = None,
+    ) -> "ContractRegistry":
+        """Get the latest contract registry available from a registry source chain."""
+        source_manager = source_manager or RegistrySourceManager(domain=domain)
+        source = source_manager.fetch_latest_publication()
+        registry = cls(source=source)
+        return registry
 
-        registry_data, source = source_manager.fetch_latest_publication(registry_class=cls, network=network)
-
-        registry_instance = cls(*args, source=source, **kwargs)
-        registry_instance.write(registry_data=json.loads(registry_data))
-        return registry_instance
-
-    def search(self, contract_name: str = None, contract_version: str = None, contract_address: str = None) -> tuple:
-        """
-        Searches the registry for a contract with the provided name or address
-        and returns the contracts component data.
-        """
+    def search(
+        self,
+        chain_id: int,
+        contract_name: Optional[str] = None,
+        contract_address: Optional[str] = None,
+    ) -> RegistryEntry:
+        """Search the registry for a contract by name or address."""
         if not (bool(contract_name) ^ bool(contract_address)):
             raise ValueError("Pass contract_name or contract_address, not both.")
-        if bool(contract_version) and not bool(contract_name):
-            raise ValueError("Pass contract_version together with contract_name.")
-
-        contracts = list()
-        registry_data = self.read()
-
-        try:
-            for contract in registry_data:
-                name, version, address, abi = contract
-                if contract_address == address or \
-                        contract_name == name and (contract_version is None or version == contract_version):
-                    contracts.append(contract)
-        except ValueError:
-            message = "Missing or corrupted registry data"
-            self.log.critical(message)
-            raise self.InvalidRegistry(message)
-
-        if not contracts:
-            raise self.UnknownContract(contract_name)
-
-        if contract_address and len(contracts) > 1:
-            m = f"Multiple records returned for address {contract_address}"
-            self.log.critical(m)
-            raise self.InvalidRegistry(m)
-
-        result = tuple(contracts) if contract_name else contracts[0]
+        registry_data, results = self._data, list()
+        for registry_chain_id, contracts in registry_data.items():
+            if int(registry_chain_id) != int(chain_id):
+                continue
+            for registry_contract_name, artifacts in contracts.items():
+                name_match = registry_contract_name == contract_name
+                address_match = contract_address == artifacts["address"]
+                if name_match or address_match:
+                    record = self.RegistryEntry(
+                        name=registry_contract_name,
+                        chain_id=registry_chain_id,
+                        address=artifacts["address"],
+                        abi=artifacts["abi"],
+                    )
+                    results.append(record)
+        if not results:
+            raise self.UnknownContract(contract_name or contract_address)
+        elif len(results) > 1:
+            search_term = "address" if contract_address else "name"
+            result_term = contract_name or contract_address
+            raise self.AmbiguousSearchTerms(
+                f"Multiple contracts with {search_term} '{result_term}' found."
+            )
+        result = results[0]
         return result
-
-
-class LocalContractRegistry(BaseContractRegistry):
-
-    def __init__(self, filepath: Path, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__filepath = filepath
-        self.log.info(f"Using contract registry {filepath}")
-
-    def __repr__(self):
-        r = f"{self.__class__.__name__}(filepath={self.filepath})"
-        return r
-
-    @property
-    def filepath(self) -> Path:
-        return self.__filepath
-
-    def read(self) -> Union[list, dict]:
-        """
-        Reads the registry file and parses the JSON and returns a list.
-        If the file is empty it will return an empty list.
-        If you are modifying or updating the registry file, you _must_ call
-        this function first to get the current state to append to the dict or
-        modify it because _write_registry_file overwrites the file.
-        """
-        try:
-            with open(self.filepath, 'r') as registry_file:
-                self.log.debug("Reading from registry: filepath {}".format(self.filepath))
-                registry_file.seek(0)
-                file_data = registry_file.read()
-                if file_data:
-                    try:
-                        registry_data = json.loads(file_data)
-                    except JSONDecodeError:
-                        raise self.InvalidRegistry(f"Registry contains invalid JSON at '{self.__filepath}'")
-        except FileNotFoundError:
-            raise FileNotFoundError("No registry at filepath: {}".format(self.filepath))
-        except JSONDecodeError:
-            raise
-        return registry_data
-
-
-class InMemoryContractRegistry(BaseContractRegistry):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__registry_data = None
-        self.filepath = "::memory::"
-
-    def read(self) -> list:
-        try:
-            registry_data = json.loads(self.__registry_data)
-        except TypeError:
-            if self.__registry_data is None:
-                registry_data = dict()
-            else:
-                raise
-        return registry_data
