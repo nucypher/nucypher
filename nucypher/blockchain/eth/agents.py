@@ -1,9 +1,7 @@
 import os
 import random
-import sys
 from bisect import bisect_right
 from dataclasses import dataclass, field
-from itertools import accumulate
 from typing import (
     Any,
     Dict,
@@ -17,6 +15,7 @@ from typing import (
     cast,
 )
 
+import sys
 from constant_sorrow.constants import (
     # type: ignore
     CONTRACT_CALL,
@@ -25,6 +24,7 @@ from constant_sorrow.constants import (
 from eth_typing.evm import ChecksumAddress
 from eth_utils.address import to_checksum_address
 from hexbytes import HexBytes
+from itertools import accumulate
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -55,7 +55,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.logging import Logger  # type: ignore
+from nucypher.utilities.logging import Logger
 
 
 class EthereumContractAgent:

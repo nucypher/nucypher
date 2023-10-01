@@ -19,7 +19,7 @@ class NetworksInventory:  # TODO: See #1564
         IBEX: 5,  # this is required for configuration file migrations (backwards compatibility)
         LYNX: 5,  # Goerli
         TAPIR: 11155111,  # Sepolia
-        ORYX: 5
+        ORYX: 5  # Goerli
     }
     __to_chain_id_polygon = {
         # TODO: Use naming scheme?
