@@ -8,10 +8,8 @@ include docs-requirements.txt
 recursive-exclude * __pycache__
 global-exclude *.py[cod]
 
-recursive-include nucypher/blockchain/eth/contract_registry *.json *.md
+recursive-include nucypher/blockchain/eth/contract_registry *.json
 recursive-include nucypher/policy/conditions *.json
-prune nucypher/blockchain/eth/contract_registry/historical
 recursive-include nucypher/network/templates *.html *.mako
 recursive-include nucypher/utilities/templates *.html *.mako
-recursive-include deploy/ansible/worker *.yml
 recursive-include nucypher/acumen/ *json
