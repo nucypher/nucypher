@@ -44,8 +44,7 @@ print("\n************** Setup **************\n")
 # Network #
 ###########
 
-L1_NETWORK = "lynx"
-L2_NETWORK = "mumbai"
+TACO_NETWORK = "lynx"
 
 #####################
 # Bob the BUIDLer  ##
@@ -54,7 +53,7 @@ L2_NETWORK = "mumbai"
 # Then, there was bob. Bob learns about the
 # rest of the network from the seednode.
 bob = Bob(
-    domain=L1_NETWORK,
+    domain=TACO_NETWORK,
     eth_endpoint=L1_PROVIDER,
 )
 
@@ -82,15 +81,16 @@ wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
-    network=L2_NETWORK, eth_provider=L2_PROVIDER
+    network=TACO_NETWORK, blockchain_endpoint=L2_PROVIDER
 )
 
 # This is Alice.
 alice = Alice(
     checksum_address=ALICE_ADDRESS,
     signer=wallet,
-    domain=L1_NETWORK,
+    domain=TACO_NETWORK,
     eth_endpoint=L1_PROVIDER,
+    polygon_endpoint=L2_PROVIDER,
     pre_payment_method=pre_payment_method,
 )
 

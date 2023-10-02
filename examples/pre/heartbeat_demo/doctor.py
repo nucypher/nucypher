@@ -27,7 +27,7 @@ except KeyError:
     raise RuntimeError("Missing environment variables to run demo.")
 
 
-L1_NETWORK = "lynx"
+TACO_NETWORK = "lynx"
 
 # To create a Bob, we need the doctor's private keys previously generated.
 from doctor_keys import get_doctor_privkeys  # noqa: E402
@@ -43,7 +43,7 @@ power_ups = [enc_power, sig_power]
 print("Creating the Doctor ...")
 
 doctor = Bob(
-    domain=L1_NETWORK,
+    domain=TACO_NETWORK,
     crypto_power_ups=power_ups,
     eth_endpoint=L1_PROVIDER,
 )
