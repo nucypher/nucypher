@@ -55,7 +55,6 @@ def make_ursula_test_configuration(
         **test_params,
         rest_port=rest_port,
         polygon_endpoint=polygon_endpoint,
-        pre_payment_network=TEMPORARY_DOMAIN,
         operator_address=operator_address,
         policy_registry=test_params["registry"]
     )
@@ -69,7 +68,6 @@ def make_alice_test_configuration(
     config = AliceConfiguration(
         **test_params,
         polygon_endpoint=polygon_endpoint,
-        pre_payment_network=TEMPORARY_DOMAIN,
         policy_registry=test_params["registry"]
     )
     return config

@@ -35,6 +35,7 @@ class Character(Learner):
         self,
         domain: str,
         eth_endpoint: str = None,
+        polygon_endpoint: str = None,
         known_node_class: object = None,
         is_me: bool = True,
         checksum_address: str = None,
@@ -114,6 +115,8 @@ class Character(Learner):
                 self._stamp = NO_SIGNING_POWER
 
             self.eth_endpoint = eth_endpoint
+            self.polygon_endpoint = polygon_endpoint
+
             self.registry = (
                 registry
                 or ContractRegistry.from_latest_publication(domain=domain)

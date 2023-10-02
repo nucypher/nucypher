@@ -86,12 +86,6 @@ option_polygon_endpoint = click.option(
     type=click.STRING,
     required=False,
 )
-option_pre_payment_network = click.option(
-    "--pre-payment-network",
-    help="PRE payment network name",
-    type=click.STRING,
-    required=False,
-)  # TODO: Choices
 option_pre_payment_method = click.option(
     "--pre-payment-method",
     help="PRE payment method name",

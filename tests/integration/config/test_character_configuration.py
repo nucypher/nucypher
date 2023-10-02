@@ -44,15 +44,13 @@ all_configurations = tuple(
 def test_development_character_configurations(
     character, configuration, mocker, testerchain
 ):
-    mocker.patch.object(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
-    )
     params = dict(
         dev_mode=True,
         lonely=True,
         domain=TEMPORARY_DOMAIN,
         checksum_address=testerchain.unassigned_accounts[0],
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     if character is Ursula:
         params.update(dict(operator_address=testerchain.unassigned_accounts[0]))
@@ -130,7 +128,6 @@ def test_default_character_configuration_preservation(
             rest_host=MOCK_IP_ADDRESS,
             polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             policy_registry=test_registry,
-            pre_payment_network=TEMPORARY_DOMAIN,
             keystore=keystore,
         )
 
@@ -139,7 +136,6 @@ def test_default_character_configuration_preservation(
             checksum_address=fake_address,
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=network,
-            pre_payment_network=TEMPORARY_DOMAIN,
             policy_registry=test_registry,
         )
 
@@ -177,8 +173,8 @@ def test_ursula_development_configuration(testerchain):
         checksum_address=testerchain.unassigned_accounts[0],
         operator_address=testerchain.unassigned_accounts[1],
         domain=TEMPORARY_DOMAIN,
-        pre_payment_network=TEMPORARY_DOMAIN,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert config.is_me is True
     assert config.dev_mode is True

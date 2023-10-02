@@ -23,7 +23,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
@@ -264,8 +263,7 @@ def alice(alice_test_config, ursulas, testerchain):
 @pytest.fixture(scope="module")
 def bob(bob_test_config, testerchain):
     bob = bob_test_config.produce(
-        coordinator_provider_uri=MOCK_ETH_PROVIDER_URI,
-        coordinator_network=TEMPORARY_DOMAIN,
+        polygon_endpoint=TEST_ETH_PROVIDER_URI,
     )
     yield bob
     bob.disenchant()
@@ -341,6 +339,7 @@ def light_ursula(temp_dir_path, random_account, mocker):
         checksum_address=random_account.address,
         operator_address=random_account.address,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         signer=KeystoreSigner(path=temp_dir_path),
     )
     return ursula
@@ -436,10 +435,6 @@ def highperf_mocked_alice(
     monkeymodule,
     testerchain,
 ):
-    monkeymodule.setattr(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
-    )
-
     config = AliceConfiguration(
         dev_mode=True,
         domain=TEMPORARY_DOMAIN,
@@ -503,7 +498,6 @@ def click_runner():
 def nominal_configuration_fields():
     config = UrsulaConfiguration(
         dev_mode=True,
-        pre_payment_network=TEMPORARY_DOMAIN,
         domain=TEMPORARY_DOMAIN,
         eth_provider_uri=TEST_ETH_PROVIDER_URI,
     )

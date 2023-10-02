@@ -125,8 +125,6 @@ def test_ursula_and_local_keystore_signer_integration(
         "init",
         "--network",
         TEMPORARY_DOMAIN,
-        "--pre-payment-network",
-        TEMPORARY_DOMAIN,
         "--operator-address",
         worker_account.address,
         "--config-root",

@@ -7,9 +7,9 @@ from nucypher.config.migrations.common import perform_migration
 def __migration(config: Dict) -> Dict:
     taco_network = NetworksInventory.get_network(config["domain"])
     eth_provider = config["eth_provider_uri"]
-    eth_chain_id = taco_network.eth_network.value
+    eth_chain_id = taco_network.eth_network.chain_id
     polygon_provider = config["payment_provider"]
-    polygon_chain_id = taco_network.poly_network.value
+    polygon_chain_id = taco_network.poly_network.chain_id
     if "condition_provider_uris" in config:
         return config
     config["condition_provider_uris"] = {

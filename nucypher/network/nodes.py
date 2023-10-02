@@ -271,6 +271,7 @@ class Learner:
 
         self.learning_deferred = Deferred()
         self.domain = domain
+        self.taco_network = NetworksInventory.get_network(self.domain)
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
             registry=self.registry, eth_provider_uri=self.eth_endpoint
         )

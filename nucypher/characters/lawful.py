@@ -459,8 +459,7 @@ class Bob(Character):
         is_me: bool = True,
         verify_node_bonding: bool = False,
         eth_endpoint: str = None,
-        coordinator_provider_uri: str = None,  # TODO: Move to a higher level and formalize
-        coordinator_network: str = None,  # TODO: Move to a higher level and formalize
+        polygon_endpoint: str = None,  # TODO: Move to a higher level and formalize
         *args,
         **kwargs,
     ) -> None:
@@ -475,20 +474,15 @@ class Bob(Character):
         )
 
         coordinator_agent = None
-        if coordinator_provider_uri:
-            if not coordinator_network:
-                raise ValueError(
-                    "If coordinator_provider_uri is set, coordinator_network must also be set"
-                )
+        if polygon_endpoint:
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
-                provider_uri=coordinator_provider_uri,
+                provider_uri=polygon_endpoint,
                 registry=ContractRegistry.from_latest_publication(
-                    domain=coordinator_network
+                    domain=self.domain,
                 ),
             )
         self.coordinator_agent = coordinator_agent
-        self.coordinator_network = coordinator_network
 
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[int, TreasureMap] = {}
@@ -705,9 +699,7 @@ class Bob(Character):
 
     def _get_coordinator_agent(self) -> CoordinatorAgent:
         if not self.coordinator_agent:
-            raise ValueError(
-                "No coordinator provider URI provided in Bob's constructor."
-            )
+            raise ValueError("No polygon endpoint URI provided in Bob's constructor.")
 
         return self.coordinator_agent
 
@@ -824,8 +816,8 @@ class Ursula(Teacher, Character, Operator):
         operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
         transacting_power: Optional[TransactingPower] = None,
-        operator_signature_from_metadata=NOT_SIGNED,
         eth_endpoint: Optional[str] = None,
+        polygon_endpoint: Optional[str] = None,
         condition_provider_uris: Optional[Dict[int, List[str]]] = None,
         pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
@@ -845,6 +837,7 @@ class Ursula(Teacher, Character, Operator):
             known_node_class=Ursula,
             include_self_in_the_state=True,
             eth_endpoint=eth_endpoint,
+            polygon_endpoint=polygon_endpoint,
             **character_kwargs,
         )
 
@@ -864,12 +857,11 @@ class Ursula(Teacher, Character, Operator):
                     crypto_power=self._crypto_power,
                     operator_address=operator_address,
                     eth_endpoint=eth_endpoint,
+                    polygon_endpoint=polygon_endpoint,
                     pre_payment_method=pre_payment_method,
                     client_password=client_password,
                     condition_provider_uris=condition_provider_uris,
-                    coordinator_provider_uri=pre_payment_method.provider,
                     transacting_power=transacting_power,
-                    coordinator_network=pre_payment_method.network,
                 )
 
             except Exception:

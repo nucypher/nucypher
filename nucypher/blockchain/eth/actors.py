@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -70,7 +71,7 @@ class BaseActor:
     @validate_checksum_address
     def __init__(
         self,
-        domain: Optional[str],
+        domain: str,
         registry: ContractRegistry,
         transacting_power: Optional[TransactingPower] = None,
         checksum_address: Optional[ChecksumAddress] = None,
@@ -94,6 +95,7 @@ class BaseActor:
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
+        self.taco_network = NetworksInventory.get_network(self.network)
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -159,8 +161,7 @@ class Operator(BaseActor):
     def __init__(
         self,
         eth_endpoint: str,
-        coordinator_provider_uri: str,
-        coordinator_network: str,
+        polygon_endpoint: str,
         pre_payment_method: ContractPayment,
         transacting_power: TransactingPower,
         signer: Signer = None,
@@ -174,9 +175,9 @@ class Operator(BaseActor):
     ):
         # Falsy values may be passed down from the superclass
         if not eth_endpoint:
-            raise ValueError("Ethereum Provider URI is required to init an operator.")
-        if not coordinator_provider_uri:
-            raise ValueError("Polygon Provider URI is required to init an operator.")
+            raise ValueError("Ethereum endpoint URI is required to init an operator.")
+        if not polygon_endpoint:
+            raise ValueError("Polygon endpoint URI is required to init an operator.")
         if not pre_payment_method:
             raise ValueError("PRE payment method is required to init an operator.")
 
@@ -209,19 +210,19 @@ class Operator(BaseActor):
         )
 
         # TODO: registry usage (and subsequently "network") is inconsistent here
-        coordinator_network_registry = ContractRegistry.from_latest_publication(
-            domain=coordinator_network
+        registry = ContractRegistry.from_latest_publication(
+            network=self.network
         )
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,
-            registry=coordinator_network_registry,
-            provider_uri=coordinator_provider_uri,
+            registry=registry,
+            provider_uri=polygon_endpoint,
         )
 
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
-            registry=coordinator_network_registry,
-            provider_uri=coordinator_provider_uri,
+            registry=registry,
+            provider_uri=polygon_endpoint,
         )
 
         # track active onchain rituals

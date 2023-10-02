@@ -5,7 +5,7 @@ import pytest
 
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import CharacterConfiguration, UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
@@ -81,9 +81,6 @@ def test_reconfigure_via_cli(
 
     monkeypatch.setattr(
         ContractRegistry, "from_latest_publication", fake_get_latest_registry
-    )
-    monkeypatch.setattr(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
     )
 
     custom_config_filepath = custom_filepath / config_class.generate_filename()

@@ -82,6 +82,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         keystore=keystore,
         domain=TEMPORARY_DOMAIN,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
         pre_payment_method=pre_payment_method,
     )
@@ -93,6 +94,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
     )
     Ursula(
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
@@ -171,6 +173,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     ritual_id = 23

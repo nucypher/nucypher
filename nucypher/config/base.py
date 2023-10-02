@@ -321,7 +321,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     # Payments
     DEFAULT_PRE_PAYMENT_METHOD = "SubscriptionManager"
-    DEFAULT_PRE_PAYMENT_NETWORK = "polygon"
 
     # Fields specified here are *not* passed into the Character's constructor
     # and can be understood as configuration fields only.
@@ -334,8 +333,6 @@ class CharacterConfiguration(BaseConfiguration):
         "max_gas_price",  # gwei
         "signer_uri",
         "keystore_path",
-        "polygon_endpoint",
-        "pre_payment_network",
     )
 
     def __init__(
@@ -369,14 +366,13 @@ class CharacterConfiguration(BaseConfiguration):
         poa: Optional[bool] = None,
         light: bool = False,
         eth_endpoint: Optional[str] = None,
+        polygon_endpoint: Optional[str] = None,
         gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
         max_gas_price: Optional[int] = None,
         signer_uri: Optional[str] = None,
         # Payments
         # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
         pre_payment_method: Optional[str] = None,
-        polygon_endpoint: Optional[str] = None,
-        pre_payment_network: Optional[str] = None,
         # Registries
         registry: Optional[ContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
@@ -419,10 +415,12 @@ class CharacterConfiguration(BaseConfiguration):
         self.poa = poa
         self.is_light = light
         self.eth_endpoint = eth_endpoint or NO_BLOCKCHAIN_CONNECTION
+        self.polygon_endpoint = polygon_endpoint or NO_BLOCKCHAIN_CONNECTION
         self.signer_uri = signer_uri or None
 
         # Learner
         self.domain = domain
+        self.taco_network = NetworksInventory.get_network(self.domain)
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
@@ -439,6 +437,8 @@ class CharacterConfiguration(BaseConfiguration):
         #
         # Decentralized
         #
+
+        # TODO should this be an iteration on [eth_endpoint, polygon_endpoint]?
 
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
@@ -483,8 +483,9 @@ class CharacterConfiguration(BaseConfiguration):
                 self.registry = ContractRegistry(source=source)
                 self.log.info(f"Using local registry ({self.registry}).")
 
-        self.testnet = self.domain != NetworksInventory.MAINNET
-        self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
+        self.signer = Signer.from_signer_uri(
+            self.signer_uri, testnet=self.taco_network.is_testnet()
+        )
 
         #
         # Onchain Payments & Policies
@@ -494,24 +495,16 @@ class CharacterConfiguration(BaseConfiguration):
         from nucypher.config.characters import BobConfiguration
 
         if not isinstance(self, BobConfiguration):
-            # if not polygon_endpoint:
-            #     raise self.ConfigurationError("payment provider is required.")
             self.pre_payment_method = (
                 pre_payment_method or self.DEFAULT_PRE_PAYMENT_METHOD
             )
-            self.pre_payment_network = (
-                pre_payment_network or self.DEFAULT_PRE_PAYMENT_NETWORK
-            )
-            self.polygon_endpoint = polygon_endpoint or (
-                self.eth_endpoint or None
-            )  # default to L1 payments
 
             # TODO: Dedupe
             if not self.policy_registry:
                 if not self.policy_registry_filepath:
                     self.log.info("Fetching latest policy registry from source.")
                     self.policy_registry = ContractRegistry.from_latest_publication(
-                        domain=self.pre_payment_network
+                        domain=self.taco_network.name
                     )
                 else:
                     self.policy_registry = ContractRegistry(
@@ -717,6 +710,11 @@ class CharacterConfiguration(BaseConfiguration):
         if self.registry_filepath:
             payload.update(dict(registry_filepath=self.registry_filepath))
 
+        if self.polygon_endpoint:
+            payload.update(
+                polygon_endpoint=self.polygon_endpoint,
+            )
+
         # Gas Price
         __max_price = str(self.max_gas_price) if self.max_gas_price else None
         payload.update(dict(gas_strategy=self.gas_strategy, max_gas_price=__max_price))
@@ -840,8 +838,8 @@ class CharacterConfiguration(BaseConfiguration):
         #
         # Strategy-Based (current implementation, inflexible & hardcoded)
         # 'pre_payment_strategy': 'SubscriptionManager'
-        # 'pre_payment_network': 'matic'
-        # 'polygon_endpoint': 'https:///matic.infura.io....'
+        # 'network': 'polygon'
+        # 'blockchain_endpoint': 'https:///polygon.infura.io....'
         #
         # Contract-Targeted (alternative implementation, flexible & generic)
         # 'pre_payment': {
@@ -860,8 +858,8 @@ class CharacterConfiguration(BaseConfiguration):
         if pre_payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
             pre_payment_strategy = pre_payment_class(
-                network=self.pre_payment_network,
-                eth_provider=self.polygon_endpoint,
+                network=self.taco_network.name,
+                blockchain_endpoint=self.polygon_endpoint,
                 registry=self.policy_registry,
             )
         else:

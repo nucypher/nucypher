@@ -47,7 +47,6 @@ from nucypher.cli.options import (
     option_policy_registry_filepath,
     option_polygon_endpoint,
     option_pre_payment_method,
-    option_pre_payment_network,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -88,9 +87,8 @@ class UrsulaConfigOptions:
         max_gas_price: int,  # gwei
         signer_uri: str,
         lonely: bool,
-        pre_payment_method: str,
         polygon_endpoint: str,
-        pre_payment_network: str,
+        pre_payment_method: str,
     ):
 
         self.eth_endpoint = eth_endpoint
@@ -109,7 +107,6 @@ class UrsulaConfigOptions:
         self.lonely = lonely
         self.pre_payment_method = pre_payment_method
         self.polygon_endpoint = polygon_endpoint
-        self.pre_payment_network = pre_payment_network
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -130,7 +127,6 @@ class UrsulaConfigOptions:
                 rest_port=self.rest_port,
                 pre_payment_method=self.pre_payment_method,
                 polygon_endpoint=self.polygon_endpoint,
-                pre_payment_network=self.pre_payment_network,
             )
         else:
             if not config_file:
@@ -154,7 +150,6 @@ class UrsulaConfigOptions:
                     light=self.light,
                     pre_payment_method=self.pre_payment_method,
                     polygon_endpoint=self.polygon_endpoint,
-                    pre_payment_network=self.pre_payment_network,
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
@@ -206,7 +201,6 @@ class UrsulaConfigOptions:
             light=self.light,
             pre_payment_method=self.pre_payment_method,
             polygon_endpoint=self.polygon_endpoint,
-            pre_payment_network=self.pre_payment_network,
         )
 
     def get_updates(self) -> dict:
@@ -225,7 +219,6 @@ class UrsulaConfigOptions:
             light=self.light,
             pre_payment_method=self.pre_payment_method,
             polygon_endpoint=self.polygon_endpoint,
-            pre_payment_network=self.pre_payment_network,
         )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
@@ -262,7 +255,6 @@ group_config_options = group_options(
     dev=option_dev,
     lonely=option_lonely,
     polygon_endpoint=option_polygon_endpoint,
-    pre_payment_network=option_pre_payment_network,
     pre_payment_method=option_pre_payment_method,
 )
 

@@ -47,6 +47,7 @@ class BaseTestNodeStorageBackends:
                 domain=TEMPORARY_DOMAIN,
                 signer=signer,
                 eth_endpoint=MOCK_ETH_PROVIDER_URI,
+                polygon_endpoint=MOCK_ETH_PROVIDER_URI,
                 checksum_address=operator_addresses[i],
                 operator_address=operator_addresses[i],
                 pre_payment_method=pre_payment_method,

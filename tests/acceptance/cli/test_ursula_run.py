@@ -78,8 +78,6 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         TEST_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-network",
-        TEMPORARY_DOMAIN,
     )
 
     result = yield threads.deferToThread(
@@ -132,8 +130,6 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain):
             TEST_ETH_PROVIDER_URI,
             "--polygon-endpoint",
             TEST_ETH_PROVIDER_URI,
-            "--pre-payment-network",
-            TEMPORARY_DOMAIN,
         )
 
         return threads.deferToThread(
@@ -187,8 +183,6 @@ def test_persistent_node_storage_integration(
         "--operator-address",
         another_ursula,
         "--network",
-        TEMPORARY_DOMAIN,
-        "--pre-payment-network",
         TEMPORARY_DOMAIN,
         "--rest-host",
         MOCK_IP_ADDRESS,

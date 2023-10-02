@@ -43,9 +43,7 @@ nucypher {init_command}
 """
 
 
-SELECT_NETWORK = "Select Network"
-
-SELECT_PRE_PAYMENT_NETWORK = "Select PRE Payment Network"
+SELECT_NETWORK = "Select TACo Network"
 
 NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found. Run 'nucypher {command} init' then try again."
 
