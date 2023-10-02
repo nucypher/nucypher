@@ -384,7 +384,7 @@ class Learner:
                 seed_node = self.node_class.from_seednode_metadata(
                     seednode_metadata=seednode_metadata,
                     network_middleware=self.network_middleware,
-                    provider_uri=self.eth_endpoint,
+                    eth_endpoint=self.eth_endpoint,
                 )
             except Exception as e:
                 # TODO: log traceback here?
@@ -759,7 +759,7 @@ class Learner:
             try:
                 node_on_the_other_end = self.node_class.from_seednode_metadata(
                     stranger.seed_node_metadata(),
-                    provider_uri=self.provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                     network_middleware=self.network_middleware,
                 )
                 if node_on_the_other_end != stranger:
