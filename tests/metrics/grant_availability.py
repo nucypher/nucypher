@@ -22,6 +22,7 @@ from nucypher_core.umbral import SecretKey
 from web3 import Web3
 from web3.types import Wei
 
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
@@ -53,9 +54,9 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-DOMAIN: str = 'mainnet'  # tapir
+TACO_NETWORK: str = NetworksInventory.LYNX.name  # mainnet
 DEFAULT_SEEDNODE_URIS: List[str] = [
-    *TEACHER_NODES[DOMAIN],
+    *TEACHER_NODES[TACO_NETWORK],
 ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
@@ -154,8 +155,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
     # This is Alice's PRE payment method.
     pre_payment_method = SubscriptionManagerPayment(
-        network='polygon',
-        eth_provider=POLYGON_PROVIDER_URI
+        network=TACO_NETWORK, blockchain_endpoint=POLYGON_PROVIDER_URI
     )
 
     wallet = Signer.from_signer_uri(f'keystore://{SIGNER_URI}')
@@ -163,10 +163,11 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
     alice_config = AliceConfiguration(
         eth_endpoint=ETHEREUM_PROVIDER_URI,
+        polygon_endpoint=POLYGON_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
         config_root=TEMP_ALICE_DIR,
-        domain=DOMAIN,
+        domain=TACO_NETWORK,
         known_nodes=known_nodes,
         start_learning_now=False,
         learn_on_same_thread=True,
