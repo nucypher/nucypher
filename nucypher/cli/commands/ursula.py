@@ -170,7 +170,7 @@ class UrsulaConfigOptions:
             self.operator_address = select_client_account(
                 emitter=emitter,
                 prompt=prompt,
-                eth_endpoint=self.eth_endpoint,
+                polygon_endpoint=self.polygon_endpoint,
                 signer_uri=self.signer_uri,
             )
 

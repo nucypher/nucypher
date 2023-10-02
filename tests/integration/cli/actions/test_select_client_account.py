@@ -12,9 +12,8 @@ from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.select import select_client_account
-from nucypher.cli.literature import GENERIC_SELECT_ACCOUNT, NO_ETH_ACCOUNTS
+from nucypher.cli.literature import GENERIC_SELECT_ACCOUNT, NO_ACCOUNTS
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
@@ -33,7 +32,7 @@ def test_select_client_account(
     selected_account = select_client_account(
         emitter=test_emitter,
         signer=Web3Signer(testerchain.client),
-        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert selected_account, "Account selection returned Falsy instead of an address"
     assert isinstance(selected_account, str), "Selection is not a str"
@@ -56,10 +55,10 @@ def test_select_client_account_with_no_accounts(
         select_client_account(
             emitter=test_emitter,
             signer=Web3Signer(testerchain.client),
-            eth_endpoint=MOCK_ETH_PROVIDER_URI,
+            polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         )
     captured = capsys.readouterr()
-    assert NO_ETH_ACCOUNTS in captured.out
+    assert NO_ACCOUNTS in captured.out
 
 
 def test_select_client_account_ambiguous_source(
@@ -121,7 +120,7 @@ def test_select_client_account_valid_sources(
     mock_stdin.line(str(selection))
     expected_account = testerchain.client.accounts[selection]
     selected_account = select_client_account(
-        emitter=test_emitter, eth_endpoint=MOCK_ETH_PROVIDER_URI
+        emitter=test_emitter, polygon_endpoint=MOCK_ETH_PROVIDER_URI
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
@@ -138,7 +137,7 @@ def test_select_client_account_valid_sources(
         BlockchainInterfaceFactory, "get_interface", return_value=testerchain
     )
     selected_account = select_client_account(
-        emitter=test_emitter, eth_endpoint=MOCK_ETH_PROVIDER_URI
+        emitter=test_emitter, polygon_endpoint=MOCK_ETH_PROVIDER_URI
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
@@ -146,15 +145,17 @@ def test_select_client_account_valid_sources(
     assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
 
 
-@pytest.mark.skip('fix me')
-@pytest.mark.parametrize('selection,show_staking,show_eth,show_tokens,stake_info', (
-        (0,  True, True, True, []),
-        (1, True, True, True, []),
-        (5, True, True, True, []),
-        (NUMBER_OF_ETH_TEST_ACCOUNTS-1, True, True, True, []),
-        (0, False, True, True, []),
-        (0, False, False, True, []),
-        (0, False, False, False, []),
+@pytest.mark.skip("fix me")
+@pytest.mark.parametrize(
+    "selection,show_staking,show_matic,stake_info",
+    (
+        (0, True, True, []),
+        (1, True, True, []),
+        (5, True, True, []),
+        (NUMBER_OF_ETH_TEST_ACCOUNTS - 1, True, True, []),
+        (0, False, True, []),
+        (0, False, False, []),
+        (0, False, False, []),
     ),
 )
 def test_select_client_account_with_balance_display(
@@ -166,8 +167,7 @@ def test_select_client_account_with_balance_display(
     mock_token_agent,
     selection,
     show_staking,
-    show_eth,
-    show_tokens,
+    show_matic,
     stake_info,
 ):
 
@@ -175,17 +175,16 @@ def test_select_client_account_with_balance_display(
     mock_staking_agent.get_all_stakes.return_value = stake_info
 
     # Missing network kwarg with balance display active
-    blockchain_read_required = any((show_staking, show_eth, show_tokens))
+    blockchain_read_required = any((show_staking, show_matic))
     if blockchain_read_required:
         with pytest.raises(
             ValueError, match="Pass network name or registry; Got neither."
         ):
             select_client_account(
                 emitter=test_emitter,
-                show_eth_balance=show_eth,
-                show_nu_balance=show_tokens,
+                show_matic_balance=show_matic,
                 show_staking=show_staking,
-                eth_endpoint=MOCK_ETH_PROVIDER_URI,
+                polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             )
 
     # Good selection
@@ -193,10 +192,9 @@ def test_select_client_account_with_balance_display(
     selected_account = select_client_account(
         emitter=test_emitter,
         network=TEMPORARY_DOMAIN,
-        show_eth_balance=show_eth,
-        show_nu_balance=show_tokens,
+        show_matic_balance=show_matic,
         show_staking=show_staking,
-        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     # check for accurate selection consistency with client index
@@ -207,10 +205,8 @@ def test_select_client_account_with_balance_display(
     headers = ['Account']
     if show_staking:
         headers.append('Staking')
-    if show_eth:
-        headers.append('ETH')
-    if show_tokens:
-        headers.append('NU')
+    if show_matic:
+        headers.append("MATIC")
 
     captured = capsys.readouterr()
     for column_name in headers:
@@ -219,11 +215,7 @@ def test_select_client_account_with_balance_display(
     for account in testerchain.client.accounts:
         assert account in captured.out
 
-        if show_tokens:
-            balance = mock_token_agent.get_balance(address=account)
-            assert str(NU.from_units(balance)) in captured.out
-
-        if show_eth:
+        if show_matic:
             balance = testerchain.client.get_balance(account=account)
             assert str(Web3.from_wei(balance, 'ether')) in captured.out
 
