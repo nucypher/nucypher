@@ -1,6 +1,3 @@
-
-
-
 from typing import Union
 
 from hexbytes import HexBytes
