@@ -37,7 +37,7 @@ def test_goerli_and_mumbai_as_conditions_providers(lonely_ursula_maker):
         _ursula_who_tries_to_connect_to_an_invalid_chain = lonely_ursula_maker(
             quantity=1,
             domain="useless_domain",
-            condition_provider_uris={
+            condition_blockchain_endpoints={
                 INVALID_CHAIN_ID: "this is a provider URI, but it doesn't matter what we pass here because the chain_id is invalid."
             },
         )

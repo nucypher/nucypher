@@ -166,7 +166,7 @@ class Operator(BaseActor):
         crypto_power: CryptoPower = None,
         client_password: str = None,
         operator_address: Optional[ChecksumAddress] = None,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
         publish_finalization: bool = True,  # TODO: Remove this
         *args,
         **kwargs,
@@ -241,7 +241,7 @@ class Operator(BaseActor):
         )  # used for secure decryption request channel
 
         self.condition_providers = self.connect_condition_providers(
-            condition_provider_uris
+            condition_blockchain_endpoints
         )
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
@@ -265,19 +265,22 @@ class Operator(BaseActor):
         return provider
 
     def connect_condition_providers(
-        self, condition_provider_uris: Optional[Dict[int, List[str]]] = None
+        self, condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None
     ) -> DefaultDict[int, Set[HTTPProvider]]:
         """Multi-provider support"""
 
-        # If condition_provider_uris is None the node operator
+        # If condition_blockchain_endpoints is None the node operator
         # did not configure any additional condition providers.
-        condition_provider_uris = condition_provider_uris or dict()
+        condition_blockchain_endpoints = condition_blockchain_endpoints or dict()
 
         # These are the chains that the Operator will connect to for conditions evaluation (read-only).
         condition_providers = defaultdict(set)
 
         # Now, add any additional providers that were passed in.
-        for chain_id, condition_provider_uris in condition_provider_uris.items():
+        for (
+            chain_id,
+            condition_blockchain_endpoints,
+        ) in condition_blockchain_endpoints.items():
             if not self._is_permitted_condition_chain(chain_id):
                 # this is a safety check to prevent the Operator from connecting to
                 # chains that are not supported by ursulas on the network;
@@ -287,7 +290,7 @@ class Operator(BaseActor):
                 )
 
             providers = set()
-            for uri in condition_provider_uris:
+            for uri in condition_blockchain_endpoints:
                 provider = self._make_condition_provider(uri)
                 providers.add(provider)
 

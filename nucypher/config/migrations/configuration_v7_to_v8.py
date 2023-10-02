@@ -15,6 +15,10 @@ def __migration(config: Dict) -> Dict:
     config["polygon_endpoint"] = config["pre_payment_provider"]
     del config["pre_payment_provider"]
 
+    # condition_provider_uris -> condition_blockchain_endpoints
+    config["condition_blockchain_endpoints"] = config["condition_provider_uris"]
+    del config["condition_provider_uris"]
+
     return config
 
 

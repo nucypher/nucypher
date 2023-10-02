@@ -36,7 +36,7 @@ class UrsulaConfiguration(CharacterConfiguration):
         keystore_path: Optional[Path] = None,
         rest_port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
-        condition_provider_uris: Optional[Dict[str, List[str]]] = None,
+        condition_blockchain_endpoints: Optional[Dict[str, List[str]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -61,31 +61,37 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         # json configurations don't allow for integer keyed dictionaries
         # so convert string chain id to integer
-        self.condition_provider_uris = dict()
-        if condition_provider_uris:
-            for chain, providers in condition_provider_uris.items():
+        self.condition_blockchain_endpoints = dict()
+        if condition_blockchain_endpoints:
+            for chain, blockchain_endpoint in condition_blockchain_endpoints.items():
                 # convert chain from string key (for json) to integer
-                self.condition_provider_uris[int(chain)] = providers
-        self.configure_condition_provider_uris()
+                self.condition_blockchain_endpoints[int(chain)] = blockchain_endpoint
+        self.configure_condition_blockchain_endpoints()
 
-    def configure_condition_provider_uris(self) -> None:
+    def configure_condition_blockchain_endpoints(self) -> None:
         """Configure default condition provider URIs for eth and polygon network."""
         taco_network = NetworksInventory.get_network(self.domain)
 
         # Polygon
         polygon_chain_id = taco_network.polygon_chain.id
-        polygon_endpoints = self.condition_provider_uris.get(polygon_chain_id, [])
+        polygon_endpoints = self.condition_blockchain_endpoints.get(
+            polygon_chain_id, []
+        )
         if not polygon_endpoints:
-            self.condition_provider_uris[polygon_chain_id] = polygon_endpoints
+            self.condition_blockchain_endpoints[polygon_chain_id] = polygon_endpoints
 
         if self.polygon_endpoint not in polygon_endpoints:
             polygon_endpoints.append(self.polygon_endpoint)
 
         # Ethereum
         staking_chain_id = taco_network.eth_chain.id
-        staking_chain_endpoints = self.condition_provider_uris.get(staking_chain_id, [])
+        staking_chain_endpoints = self.condition_blockchain_endpoints.get(
+            staking_chain_id, []
+        )
         if not staking_chain_endpoints:
-            self.condition_provider_uris[staking_chain_id] = staking_chain_endpoints
+            self.condition_blockchain_endpoints[
+                staking_chain_id
+            ] = staking_chain_endpoints
 
         if self.eth_endpoint not in staking_chain_endpoints:
             staking_chain_endpoints.append(self.eth_endpoint)
@@ -113,7 +119,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             operator_address=self.operator_address,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
-            condition_provider_uris=self.condition_provider_uris,
+            condition_blockchain_endpoints=self.condition_blockchain_endpoints,
 
             # PRE Payments
             # TODO: Resolve variable prefixing below (uses nested configuration fields?)

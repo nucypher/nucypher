@@ -819,7 +819,7 @@ class Ursula(Teacher, Character, Operator):
         transacting_power: Optional[TransactingPower] = None,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
         pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
         abort_on_learning_error: bool = False,
@@ -861,7 +861,7 @@ class Ursula(Teacher, Character, Operator):
                     polygon_endpoint=polygon_endpoint,
                     pre_payment_method=pre_payment_method,
                     client_password=client_password,
-                    condition_provider_uris=condition_provider_uris,
+                    condition_blockchain_endpoints=condition_blockchain_endpoints,
                     transacting_power=transacting_power,
                 )
 
