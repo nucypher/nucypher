@@ -1,0 +1,1 @@
+Deprecate configuration config/parameters ``pre-payment-network``, ``coordinator_uri`` since the L2 network is implied based on TACo network used.
