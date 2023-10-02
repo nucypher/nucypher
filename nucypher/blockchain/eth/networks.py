@@ -64,6 +64,9 @@ class NetworksInventory:
 
     SUPPORTED_NETWORK_NAMES = [network.name for network in SUPPORTED_NETWORKS]
 
+    # TODO not needed once merged with registry changes
+    POLY_NETWORKS = [network.poly_network.chain_name for network in SUPPORTED_NETWORKS]
+
     DEFAULT_NETWORK_NAME: str = MAINNET.name
 
     @classmethod
