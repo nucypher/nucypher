@@ -89,7 +89,7 @@ def make_cli_character(
     CHARACTER = character_config(
         known_nodes=sage_nodes,
         network_middleware=character_config.network_middleware,
-        eth_provider_uri=provider_uri,
+        eth_endpoint=provider_uri,
         **config_args,
     )
 

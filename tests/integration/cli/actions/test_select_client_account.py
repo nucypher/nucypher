@@ -33,7 +33,7 @@ def test_select_client_account(
     selected_account = select_client_account(
         emitter=test_emitter,
         signer=Web3Signer(testerchain.client),
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert selected_account, "Account selection returned Falsy instead of an address"
     assert isinstance(selected_account, str), "Selection is not a str"
@@ -56,7 +56,7 @@ def test_select_client_account_with_no_accounts(
         select_client_account(
             emitter=test_emitter,
             signer=Web3Signer(testerchain.client),
-            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+            eth_endpoint=MOCK_ETH_PROVIDER_URI,
         )
     captured = capsys.readouterr()
     assert NO_ETH_ACCOUNTS in captured.out
@@ -120,7 +120,9 @@ def test_select_client_account_valid_sources(
     # From pre-initialized Provider
     mock_stdin.line(str(selection))
     expected_account = testerchain.client.accounts[selection]
-    selected_account = select_client_account(emitter=test_emitter, eth_provider_uri=MOCK_ETH_PROVIDER_URI)
+    selected_account = select_client_account(
+        emitter=test_emitter, eth_endpoint=MOCK_ETH_PROVIDER_URI
+    )
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()
@@ -136,7 +138,7 @@ def test_select_client_account_valid_sources(
         BlockchainInterfaceFactory, "get_interface", return_value=testerchain
     )
     selected_account = select_client_account(
-        emitter=test_emitter, eth_provider_uri=MOCK_ETH_PROVIDER_URI
+        emitter=test_emitter, eth_endpoint=MOCK_ETH_PROVIDER_URI
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
@@ -175,21 +177,27 @@ def test_select_client_account_with_balance_display(
     # Missing network kwarg with balance display active
     blockchain_read_required = any((show_staking, show_eth, show_tokens))
     if blockchain_read_required:
-        with pytest.raises(ValueError, match='Pass network name or registry; Got neither.'):
-            select_client_account(emitter=test_emitter,
-                                  show_eth_balance=show_eth,
-                                  show_nu_balance=show_tokens,
-                                  show_staking=show_staking,
-                                  eth_provider_uri=MOCK_ETH_PROVIDER_URI)
+        with pytest.raises(
+            ValueError, match="Pass network name or registry; Got neither."
+        ):
+            select_client_account(
+                emitter=test_emitter,
+                show_eth_balance=show_eth,
+                show_nu_balance=show_tokens,
+                show_staking=show_staking,
+                eth_endpoint=MOCK_ETH_PROVIDER_URI,
+            )
 
     # Good selection
     mock_stdin.line(str(selection))
-    selected_account = select_client_account(emitter=test_emitter,
-                                             network=TEMPORARY_DOMAIN,
-                                             show_eth_balance=show_eth,
-                                             show_nu_balance=show_tokens,
-                                             show_staking=show_staking,
-                                             eth_provider_uri=MOCK_ETH_PROVIDER_URI)
+    selected_account = select_client_account(
+        emitter=test_emitter,
+        network=TEMPORARY_DOMAIN,
+        show_eth_balance=show_eth,
+        show_nu_balance=show_tokens,
+        show_staking=show_staking,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+    )
 
     # check for accurate selection consistency with client index
     assert selected_account == testerchain.client.accounts[selection]

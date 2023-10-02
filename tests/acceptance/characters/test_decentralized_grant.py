@@ -30,7 +30,7 @@ def check(policy, bob, ursulas):
 
 def test_grant_subscription_manager(alice, bob, ursulas):
     pre_payment_method = SubscriptionManagerPayment(
-        eth_provider=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
     )
     alice.pre_payment_method = pre_payment_method
     policy = alice.grant(

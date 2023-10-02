@@ -14,7 +14,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
     # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
         config_root=config_root,
         network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
         domain=TEMPORARY_DOMAIN,

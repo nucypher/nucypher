@@ -34,7 +34,7 @@ from nucypher.utilities.emitters import StdoutEmitter
 
 def select_client_account(
     emitter,
-    eth_provider_uri: str = None,
+    eth_endpoint: str = None,
     signer: Signer = None,
     signer_uri: str = None,
     prompt: str = None,
@@ -55,17 +55,21 @@ def select_client_account(
     if signer and signer_uri:
         raise ValueError('Pass either signer or signer_uri but not both.')
 
-    if not any((eth_provider_uri, signer_uri, signer)):
+    if not any((eth_endpoint, signer_uri, signer)):
         raise ValueError("At least a provider URI, signer URI or signer must be provided to select an account")
 
-    if eth_provider_uri:
+    if eth_endpoint:
         # Connect to the blockchain in order to select an account
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri, poa=poa, emitter=emitter)
+        if not BlockchainInterfaceFactory.is_interface_initialized(
+            eth_provider_uri=eth_endpoint
+        ):
+            BlockchainInterfaceFactory.initialize_interface(
+                eth_provider_uri=eth_endpoint, poa=poa, emitter=emitter
+            )
         if not signer_uri:
-            signer_uri = eth_provider_uri
+            signer_uri = eth_endpoint
 
-    blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+    blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_endpoint)
 
     if signer_uri and not signer:
         testnet = network != NetworksInventory.MAINNET.name
@@ -101,7 +105,7 @@ def select_client_account(
             row.append(f'{ether_balance} ETH')
         if show_nu_balance:
             token_agent = ContractAgency.get_agent(
-                NucypherTokenAgent, registry=registry, provider_uri=eth_provider_uri
+                NucypherTokenAgent, registry=registry, provider_uri=eth_endpoint
             )
             token_balance = NU.from_units(token_agent.get_balance(account, registry))
             row.append(token_balance)

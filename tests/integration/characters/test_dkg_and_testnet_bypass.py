@@ -23,7 +23,7 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
     bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
         domain="lynx",
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     definitely_false_condition = {

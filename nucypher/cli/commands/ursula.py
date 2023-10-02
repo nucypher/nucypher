@@ -170,7 +170,7 @@ class UrsulaConfigOptions:
             self.operator_address = select_client_account(
                 emitter=emitter,
                 prompt=prompt,
-                eth_provider_uri=self.eth_endpoint,
+                eth_endpoint=self.eth_endpoint,
                 signer_uri=self.signer_uri,
             )
 
@@ -193,7 +193,7 @@ class UrsulaConfigOptions:
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             policy_registry_filepath=self.policy_registry_filepath,
-            eth_provider_uri=self.eth_endpoint,
+            eth_endpoint=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
@@ -211,7 +211,7 @@ class UrsulaConfigOptions:
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             policy_registry_filepath=self.policy_registry_filepath,
-            eth_provider_uri=self.eth_endpoint,
+            eth_endpoint=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,

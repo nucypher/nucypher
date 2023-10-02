@@ -6,6 +6,7 @@ from nucypher_core import ReencryptionRequest
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.policy import policies
 
@@ -64,15 +65,15 @@ class ContractPayment(PaymentMethod, ABC):
 
     def __init__(
         self,
-        eth_provider: str,
+        blockchain_endpoint: str,
         network: str,
         registry: Optional[ContractRegistry] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.provider = eth_provider
-        self.network = network
+        self.provider = blockchain_endpoint
+        self.taco_network = NetworksInventory.get_network(network)
         if not registry:
             registry = ContractRegistry.from_latest_publication(domain=network)
         self.registry = registry
