@@ -42,71 +42,60 @@ emitter = StdoutEmitter(verbosity=2)
 
 @click.command()
 @click.option(
-    "--eth-provider",
-    "eth_provider_uri",
+    "--network",
+    "network",
+    help="TACo network",
+    type=click.Choice(NetworksInventory.SUPPORTED_NETWORK_NAMES),
+    default="lynx",
+)
+@click.option(
+    "--eth-endpoint",
+    "eth_endpoint",
     help="ETH staking network provider URI",
     type=click.STRING,
     required=True,
 )
 @click.option(
-    "--eth-staking-network",
-    "eth_staking_network",
-    help="ETH staking network",
-    type=click.Choice(NetworksInventory.ETH_NETWORKS),
-    default="lynx",
-)
-@click.option(
-    "--coordinator-provider",
-    "coordinator_provider_uri",
-    help="Coordinator network provider URI",
+    "--polygon-endpoint",
+    "polygon_endpoint",
+    help="Polygon network provider URI",
     type=click.STRING,
     required=True,
 )
-@click.option(
-    "--coordinator-network",
-    "coordinator_network",
-    help="Coordinator network",
-    type=click.Choice(NetworksInventory.POLY_NETWORKS),
-    default="mumbai",
-)
 def nucypher_agents(
-    eth_provider_uri,
-    eth_staking_network,
-    coordinator_provider_uri,
-    coordinator_network,
+    network,
+    eth_endpoint,
+    polygon_endpoint,
 ):
-    staking_registry = ContractRegistry.from_latest_publication(
-        domain=eth_staking_network
-    )
-    emitter.echo(f"NOTICE: Connecting to {eth_staking_network} network", color="yellow")
+    staking_registry = ContractRegistry.from_latest_publication(domain=network)
+    emitter.echo(f"NOTICE: Connecting to {network} network", color="yellow")
 
     taco_application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,
         registry=staking_registry,
-        provider_uri=eth_provider_uri,
+        provider_uri=eth_endpoint,
     )  # type: TACoApplicationAgent
 
-    coordinator_network_registry = ContractRegistry.from_latest_publication(
-        domain=coordinator_network
+    registry = ContractRegistry.from_latest_publication(
+        domain=network
     )
-    emitter.echo(f"NOTICE: Connecting to {coordinator_network} network", color="yellow")
 
     taco_child_application_agent = ContractAgency.get_agent(
         agent_class=TACoChildApplicationAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        provider_uri=polygon_endpoint,
     )  # type: TACoChildApplicationAgent
 
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        provider_uri=polygon_endpoint,
     )  # type: CoordinatorAgent
 
     subscription_manager_agent = ContractAgency.get_agent(
         agent_class=SubscriptionManagerAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        provider_uri=polygon_endpoint,
     )  # type: SubscriptionManagerAgent
 
     message = (
