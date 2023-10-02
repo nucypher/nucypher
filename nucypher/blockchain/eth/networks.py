@@ -5,27 +5,20 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 class ChainInfo(NamedTuple):
-    chain_id: int
-    chain_name: str
-
-    # Override eventual Enum name. TODO: better way?
-    @property
-    def name(self) -> str:
-        return self.chain_name
+    id: int
+    name: str
 
 
 class EthNetwork(ChainInfo, Enum):
     MAINNET = ChainInfo(1, "mainnet")
     GOERLI = ChainInfo(5, "goerli")
     SEPOLIA = ChainInfo(11155111, "sepolia")
-    # testing
     TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
 
 
 class PolyNetwork(ChainInfo, Enum):
     POLYGON = ChainInfo(137, "polygon")
     MUMBAI = ChainInfo(80001, "mumbai")
-    # testing
     TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
 
 
@@ -40,7 +33,6 @@ class TACoNetwork(NamedTuple):
 
 class UnrecognizedNetwork(RuntimeError):
     """Raised when a provided network name is not recognized."""
-    pass
 
 
 class NetworksInventory:
@@ -65,7 +57,7 @@ class NetworksInventory:
     SUPPORTED_NETWORK_NAMES = [network.name for network in SUPPORTED_NETWORKS]
 
     # TODO not needed once merged with registry changes
-    POLY_NETWORKS = [network.poly_network.chain_name for network in SUPPORTED_NETWORKS]
+    POLY_NETWORKS = [network.poly_network.name for network in SUPPORTED_NETWORKS]
 
     DEFAULT_NETWORK_NAME: str = MAINNET.name
 

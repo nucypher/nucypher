@@ -211,7 +211,7 @@ class Operator(BaseActor):
 
         # TODO: registry usage (and subsequently "network") is inconsistent here
         registry = ContractRegistry.from_latest_publication(
-            network=self.network
+            domain=self.network
         )
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,

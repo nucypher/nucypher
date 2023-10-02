@@ -193,7 +193,7 @@ def nucypher_dkg(
 
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
-            f"Commencing DKG Ritual(s) on {taco_network.poly_network.chain_name} using {account_address}",
+            f"Commencing DKG Ritual(s) on {taco_network.poly_network.name} using {account_address}",
             color="green",
         )
 
