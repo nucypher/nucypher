@@ -307,7 +307,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     MNEMONIC_KEYSTORE = False
-    DEFAULT_DOMAIN = NetworksInventory.DEFAULT
+    DEFAULT_DOMAIN = NetworksInventory.DEFAULT_NETWORK_NAME
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     SIGNER_ENVVAR = None

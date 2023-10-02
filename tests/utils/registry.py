@@ -17,12 +17,12 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 @contextmanager
 def mock_registry_sources():
     # capture the real values
-    real_network_names = NetworksInventory.SUPPORTED_NETWORK_NAMES
     real_networks = NetworksInventory.SUPPORTED_NETWORKS
+    real_network_names = NetworksInventory.SUPPORTED_NETWORK_NAMES
     real_registry_sources = RegistrySourceManager._FALLBACK_CHAIN
 
     # set the mock values
-    NetworksInventory.SUPPORTED_NETWORK_NAMES = {TEMPORARY_DOMAIN}
+    NetworksInventory.SUPPORTED_NETWORK_NAMES = [TEMPORARY_DOMAIN]
     testing_network = TACoNetwork(
         TEMPORARY_DOMAIN, EthNetwork.TESTERCHAIN, PolyNetwork.TESTERCHAIN
     )
@@ -32,8 +32,8 @@ def mock_registry_sources():
     yield  # run the test
 
     # restore the real values
-    NetworksInventory.SUPPORTED_NETWORK_NAMES = real_network_names
     NetworksInventory.SUPPORTED_NETWORKS = real_networks
+    NetworksInventory.SUPPORTED_NETWORK_NAMES = real_network_names
     RegistrySourceManager._FALLBACK_CHAIN = real_registry_sources
 
 

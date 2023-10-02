@@ -1,26 +1,41 @@
 from enum import Enum
 from typing import List, NamedTuple
 
+from nucypher.config.constants import TEMPORARY_DOMAIN
 
-class EthNetwork(Enum):
-    MAINNET = 1
-    GOERLI = 5
-    SEPOLIA = 11155111
+
+class ChainInfo(NamedTuple):
+    chain_id: int
+    chain_name: str
+
+    # Override eventual Enum name. TODO: better way?
+    @property
+    def name(self) -> str:
+        return self.chain_name
+
+
+class EthNetwork(ChainInfo, Enum):
+    MAINNET = ChainInfo(1, "mainnet")
+    GOERLI = ChainInfo(5, "goerli")
+    SEPOLIA = ChainInfo(11155111, "sepolia")
     # testing
-    TESTERCHAIN = 131277322940537
+    TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
 
 
-class PolyNetwork(Enum):
-    POLYGON = 137
-    MUMBAI = 80001
+class PolyNetwork(ChainInfo, Enum):
+    POLYGON = ChainInfo(137, "polygon")
+    MUMBAI = ChainInfo(80001, "mumbai")
     # testing
-    TESTERCHAIN = 131277322940537
+    TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
 
 
 class TACoNetwork(NamedTuple):
     name: str
     eth_network: EthNetwork
     poly_network: PolyNetwork
+
+    def is_testnet(self) -> bool:
+        return self.eth_network != EthNetwork.MAINNET
 
 
 class UnrecognizedNetwork(RuntimeError):
@@ -47,9 +62,9 @@ class NetworksInventory:
         IBEX,
     ]
 
-    SUPPORTED_NETWORK_NAMES = {network.name for network in SUPPORTED_NETWORKS}
+    SUPPORTED_NETWORK_NAMES = [network.name for network in SUPPORTED_NETWORKS]
 
-    DEFAULT: str = MAINNET.name
+    DEFAULT_NETWORK_NAME: str = MAINNET.name
 
     @classmethod
     def get_network(cls, network_name: str) -> TACoNetwork:
