@@ -5,7 +5,12 @@ from typing import List
 from ape.contracts import ContractInstance
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.networks import EthNetwork, NetworksInventory, PolyNetwork, TACoNetwork
+from nucypher.blockchain.eth.networks import (
+    EthChain,
+    NetworksInventory,
+    PolygonChain,
+    TACoNetwork,
+)
 from nucypher.blockchain.eth.registry import (
     RegistryData,
     RegistrySource,
@@ -24,7 +29,7 @@ def mock_registry_sources():
     # set the mock values
     NetworksInventory.SUPPORTED_NETWORK_NAMES = [TEMPORARY_DOMAIN]
     testing_network = TACoNetwork(
-        TEMPORARY_DOMAIN, EthNetwork.TESTERCHAIN, PolyNetwork.TESTERCHAIN
+        TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
     NetworksInventory.SUPPORTED_NETWORKS = [testing_network]
     RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)

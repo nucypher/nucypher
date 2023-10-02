@@ -5,9 +5,9 @@ from eth_utils.crypto import keccak
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.networks import (
-    EthNetwork,
+    EthChain,
     NetworksInventory,
-    PolyNetwork,
+    PolygonChain,
     TACoNetwork,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -148,7 +148,7 @@ def mock_condition_blockchains(session_mocker):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
     testing_network = TACoNetwork(
-        TEMPORARY_DOMAIN, EthNetwork.TESTERCHAIN, PolyNetwork.TESTERCHAIN
+        TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
     session_mocker.patch.object(
