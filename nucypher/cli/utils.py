@@ -111,19 +111,24 @@ def get_registry(
     return registry
 
 
-def connect_to_blockchain(emitter: StdoutEmitter,
-                          eth_provider_uri: str,
-                          debug: bool = False,
-                          light: bool = False
-                          ) -> BlockchainInterface:
+def connect_to_blockchain(
+    emitter: StdoutEmitter,
+    blockchain_endpoint: str,
+    debug: bool = False,
+    light: bool = False,
+) -> BlockchainInterface:
     try:
         # Note: Conditional for test compatibility.
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri,
-                                                            light=light,
-                                                            emitter=emitter)
+        if not BlockchainInterfaceFactory.is_interface_initialized(
+            blockchain_endpoint=blockchain_endpoint
+        ):
+            BlockchainInterfaceFactory.initialize_interface(
+                blockchain_endpoint=blockchain_endpoint, light=light, emitter=emitter
+            )
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
-        blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface(
+            blockchain_endpoint=blockchain_endpoint
+        )
         return blockchain
     except Exception as e:
         if debug:

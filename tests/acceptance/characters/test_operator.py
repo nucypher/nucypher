@@ -159,9 +159,7 @@ def test_ursulas_reencrypt(ursulas, alice, bob, policy_value):
     assert plaintexts == [message]
 
     # Let's consider also that a node may be down when granting
-    alice.network_middleware = NodeIsDownMiddleware(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI
-    )
+    alice.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     alice.network_middleware.node_is_down(ursulas[0])
 
     with pytest.raises(Policy.NotEnoughUrsulas):

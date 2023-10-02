@@ -83,9 +83,7 @@ def test_use_external_cache(enacted_policy, bob, ursulas):
     ursulas = list(ursulas)
 
     # All Ursulas are down except for two
-    bob.network_middleware = NodeIsDownMiddleware(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI
-    )
+    bob.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     for ursula in ursulas[2:]:
         bob.network_middleware.node_is_down(ursula)
 

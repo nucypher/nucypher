@@ -179,7 +179,7 @@ class Alice(Character, actors.PolicyAuthor):
 
         if is_me:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(
-                eth_provider_uri=self.eth_endpoint
+                blockchain_endpoint=self.eth_endpoint
             )
             signer = signer or Web3Signer(
                 blockchain.client
@@ -990,10 +990,10 @@ class Ursula(Teacher, Character, Operator):
 
         # Connect to Provider
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_endpoint
+            blockchain_endpoint=self.eth_endpoint
         ):
             BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_endpoint
+                blockchain_endpoint=self.eth_endpoint
             )
 
         if preflight:
@@ -1244,7 +1244,7 @@ class Ursula(Teacher, Character, Operator):
     ) -> Union["Ursula", "NodeSprout"]:
         if network_middleware is None:
             network_middleware = RestMiddleware(
-                registry=registry, eth_provider_uri=provider_uri
+                registry=registry, eth_endpoint=provider_uri
             )
 
         # Parse node URI

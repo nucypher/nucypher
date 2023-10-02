@@ -28,19 +28,17 @@ class NucypherMiddlewareClient:
 
     def __init__(
         self,
-        eth_provider_uri: Optional[str],
+        eth_endpoint: Optional[str],
         registry: Optional[ContractRegistry] = None,
         storage: Optional[NodeStorage] = None,
         *args,
         **kwargs,
     ):
-        if not eth_provider_uri:
-            raise ValueError(
-                "eth_provider_uri is required for NucypherMiddlewareClient"
-            )
+        if not eth_endpoint:
+            raise ValueError("eth_endpoint is required for NucypherMiddlewareClient")
 
         self.registry = registry
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
         self.storage = storage or ForgetfulNodeStorage()  # for certificate storage
 
     def get_certificate(self,
@@ -91,7 +89,7 @@ class NucypherMiddlewareClient:
                 node.verify_node(
                     network_middleware_client=self,
                     registry=self.registry,
-                    eth_endpoint=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                 )
         return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
@@ -253,8 +251,8 @@ class RestMiddleware:
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
-    def __init__(self, eth_provider_uri: str, registry=None):
-        self.client = self._client_class(registry=registry, eth_provider_uri=eth_provider_uri)
+    def __init__(self, eth_endpoint: str, registry=None):
+        self.client = self._client_class(registry=registry, eth_endpoint=eth_endpoint)
 
     def request_revocation(self, ursula, revocation):
         # TODO: Implement offchain revocation #2787

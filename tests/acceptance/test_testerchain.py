@@ -1,14 +1,12 @@
 import pytest
 
-from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
     DEVELOPMENT_ETH_AIRDROP_AMOUNT,
     NUMBER_OF_ETH_TEST_ACCOUNTS,
     NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS,
     NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS,
 )
+
 # Prevents TesterBlockchain to be picked up by py.test as a test class
 from tests.utils.blockchain import TesterBlockchain as _TesterBlockchain
 
@@ -28,7 +26,7 @@ def test_testerchain_creation(testerchain, another_testerchain):
     for chain in chains:
 
         # Ensure we are testing on the correct network...
-        assert 'tester' in chain.eth_provider_uri
+        assert "tester" in chain.blockchain_endpoint
 
         # ... and that there are already some blocks mined
         chain.w3.eth.w3.testing.mine(1)

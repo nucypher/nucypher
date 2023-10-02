@@ -58,16 +58,16 @@ def select_client_account(
     if polygon_endpoint:
         # Connect to the blockchain in order to select an account
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=polygon_endpoint
+            blockchain_endpoint=polygon_endpoint
         ):
             BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=polygon_endpoint, poa=poa, emitter=emitter
+                blockchain_endpoint=polygon_endpoint, poa=poa, emitter=emitter
             )
         if not signer_uri:
             signer_uri = polygon_endpoint
 
     blockchain = BlockchainInterfaceFactory.get_interface(
-        eth_provider_uri=polygon_endpoint
+        blockchain_endpoint=polygon_endpoint
     )
 
     if signer_uri and not signer:

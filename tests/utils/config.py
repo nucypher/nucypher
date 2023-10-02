@@ -34,7 +34,7 @@ def assemble(
     runtime_params = dict(
         eth_endpoint=eth_endpoint,
         registry=test_registry,
-        network_middleware=MockRestMiddleware(eth_provider_uri=eth_endpoint),
+        network_middleware=MockRestMiddleware(eth_endpoint=eth_endpoint),
         known_nodes=known_nodes,
         checksum_address=checksum_address,
     )

@@ -66,9 +66,9 @@ encrypting_key = bob.public_keys(DecryptingPower)
 ######################################
 
 # Connect to the ethereum provider.
-connect_web3_provider(eth_provider_uri=L1_PROVIDER)
+connect_web3_provider(blockchain_endpoint=L1_PROVIDER)
 # Connect to the layer 2 provider.
-connect_web3_provider(eth_provider_uri=L2_PROVIDER)
+connect_web3_provider(blockchain_endpoint=L2_PROVIDER)
 
 # Setup and unlock alice's ethereum wallet.
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
@@ -111,7 +111,7 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 remote_bob = Bob.from_public_keys(
     encrypting_key=encrypting_key,
     verifying_key=verifying_key,
-    eth_provider_uri=L1_PROVIDER,
+    eth_endpoint=L1_PROVIDER,
 )
 
 # These are the policy details.

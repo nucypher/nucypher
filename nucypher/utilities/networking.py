@@ -75,7 +75,7 @@ def _request_from_node(
     log: Logger = IP_DETECTION_LOGGER,
 ) -> Union[str, None]:
     if not client:
-        client = NucypherMiddlewareClient(eth_provider_uri=provider_uri)
+        client = NucypherMiddlewareClient(eth_endpoint=provider_uri)
     try:
         response = client.get(
             node_or_sprout=teacher, path="ping", timeout=timeout
@@ -154,7 +154,7 @@ def get_external_ip_from_known_nodes(
     if len(known_nodes) < sample_size:
         return  # There are too few known nodes
     sample = random.sample(list(known_nodes), sample_size)
-    client = NucypherMiddlewareClient(eth_provider_uri=provider_uri)
+    client = NucypherMiddlewareClient(eth_endpoint=provider_uri)
     for node in sample:
         ip = _request_from_node(teacher=node, client=client, provider_uri=provider_uri)
         if ip:

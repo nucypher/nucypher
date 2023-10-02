@@ -73,18 +73,23 @@ class TesterBlockchain(BlockchainInterface):
     __OPERATORS_RANGE = range(NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS)
     __ACCOUNT_CACHE = list()
 
-    def __init__(self,
-                 test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
-                 poa: bool = True,
-                 light: bool = False,
-                 eth_airdrop: bool = False,
-                 *args, **kwargs):
-
-        EXPECTED_CONFIRMATION_TIME_IN_SECONDS['free'] = 5  # Just some upper-limit
-        super().__init__(eth_provider_uri=self.ETH_PROVIDER_URI,
-                         poa=poa,
-                         light=light,
-                         *args, **kwargs)
+    def __init__(
+        self,
+        test_accounts: int = NUMBER_OF_ETH_TEST_ACCOUNTS,
+        poa: bool = True,
+        light: bool = False,
+        eth_airdrop: bool = False,
+        *args,
+        **kwargs,
+    ):
+        EXPECTED_CONFIRMATION_TIME_IN_SECONDS["free"] = 5  # Just some upper-limit
+        super().__init__(
+            blockchain_endpoint=self.ETH_PROVIDER_URI,
+            poa=poa,
+            light=light,
+            *args,
+            **kwargs,
+        )
         self.log = Logger("test-blockchain")
         self.connect()
 

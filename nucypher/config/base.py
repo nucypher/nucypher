@@ -443,11 +443,11 @@ class CharacterConfiguration(BaseConfiguration):
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
         is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_endpoint
+            blockchain_endpoint=self.eth_endpoint
         )
         if not is_initialized and eth_endpoint:
             BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_endpoint,
+                blockchain_endpoint=self.eth_endpoint,
                 poa=self.poa,
                 light=self.is_light,
                 emitter=emitter,
@@ -462,7 +462,7 @@ class CharacterConfiguration(BaseConfiguration):
         # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
         # for uri in eth_provider_uri (list of uris fom config):
         BlockchainInterfaceFactory.get_or_create_interface(
-            eth_provider_uri=polygon_endpoint,
+            blockchain_endpoint=polygon_endpoint,
             poa=self.poa,
             light=self.is_light,
             emitter=emitter,
@@ -526,7 +526,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Network
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(
-            registry=self.registry, eth_provider_uri=self.eth_endpoint
+            registry=self.registry, eth_endpoint=self.eth_endpoint
         )
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)

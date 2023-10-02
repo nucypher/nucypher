@@ -198,7 +198,7 @@ def enacted_policy(idle_policy, ursulas):
     # cannot set them again
     # deposit = NON_PAYMENT(b"0000000")
     # contract_end_datetime = maya.now() + datetime.timedelta(days=5)
-    network_middleware = MockRestMiddleware(eth_provider_uri=TEST_ETH_PROVIDER_URI)
+    network_middleware = MockRestMiddleware(eth_endpoint=TEST_ETH_PROVIDER_URI)
 
     # REST call happens here, as does population of TreasureMap.
     enacted_policy = idle_policy.enact(
@@ -440,7 +440,7 @@ def highperf_mocked_alice(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
-            eth_provider_uri=TEST_ETH_PROVIDER_URI
+            eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
         abort_on_learning_error=True,
         save_metadata=False,
@@ -461,7 +461,7 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         domain=TEMPORARY_DOMAIN,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
-            eth_provider_uri=TEST_ETH_PROVIDER_URI
+            eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
         abort_on_learning_error=True,
         save_metadata=False,
@@ -560,7 +560,7 @@ def basic_auth_file(temp_dir_path):
 
 @pytest.fixture(scope='module')
 def mock_rest_middleware():
-    return MockRestMiddleware(eth_provider_uri=TEST_ETH_PROVIDER_URI)
+    return MockRestMiddleware(eth_endpoint=TEST_ETH_PROVIDER_URI)
 
 
 #

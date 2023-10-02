@@ -273,7 +273,7 @@ class Learner:
         self.domain = domain
         self.taco_network = NetworksInventory.get_network(self.domain)
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
-            registry=self.registry, eth_provider_uri=self.eth_endpoint
+            registry=self.registry, eth_endpoint=self.eth_endpoint
         )
         self.network_middleware = network_middleware or default_middleware
         self.save_metadata = save_metadata

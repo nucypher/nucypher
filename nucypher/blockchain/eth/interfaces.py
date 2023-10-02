@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 import requests
 from constant_sorrow.constants import (
-    INSUFFICIENT_ETH,
+    INSUFFICIENT_FUNDS,
     NO_BLOCKCHAIN_CONNECTION,
     UNKNOWN_TX_STATUS,
 )
@@ -82,7 +82,7 @@ class BlockchainInterface:
         pass
 
     REASONS = {
-        INSUFFICIENT_ETH: 'insufficient funds for gas * price + value',
+        INSUFFICIENT_FUNDS: "insufficient funds for gas * price + value",
     }
 
     class TransactionFailed(InterfaceError):
@@ -100,7 +100,7 @@ class BlockchainInterface:
             self.payload = transaction_dict
             self.contract_function = contract_function
             self.failures = {
-                BlockchainInterface.REASONS[INSUFFICIENT_ETH]: self.insufficient_eth
+                BlockchainInterface.REASONS[INSUFFICIENT_FUNDS]: self.insufficient_funds
             }
             self.message = self.failures.get(self.base_message, self.default)
             super().__init__(self.message, *args)
@@ -120,7 +120,7 @@ class BlockchainInterface:
             return balance
 
         @property
-        def insufficient_eth(self) -> str:
+        def insufficient_funds(self) -> str:
             try:
                 transaction_fee = self.payload['gas'] * self.payload['gasPrice']
             except KeyError:
@@ -132,15 +132,16 @@ class BlockchainInterface:
                           f'but sender only has {prettify_eth_amount(self.get_balance())}.'
             return message
 
-    def __init__(self,
-                 emitter=None,  # TODO # 1754
-                 poa: bool = None,
-                 light: bool = False,
-                 eth_provider_uri: str = NO_BLOCKCHAIN_CONNECTION,
-                 eth_provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
-                 gas_strategy: Optional[Union[str, Callable]] = None,
-                 max_gas_price: Optional[int] = None):
-
+    def __init__(
+        self,
+        emitter=None,  # TODO # 1754
+        poa: bool = None,
+        light: bool = False,
+        blockchain_endpoint: str = NO_BLOCKCHAIN_CONNECTION,
+        blockchain_provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
+        gas_strategy: Optional[Union[str, Callable]] = None,
+        max_gas_price: Optional[int] = None,
+    ):
         """
         TODO: #1502 - Move to API docs.
 
@@ -206,8 +207,8 @@ class BlockchainInterface:
 
         self.log = Logger('Blockchain')
         self.poa = poa
-        self.eth_provider_uri = eth_provider_uri
-        self._eth_provider = eth_provider
+        self.blockchain_endpoint = blockchain_endpoint
+        self._blockchain_provider = blockchain_provider
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
@@ -219,7 +220,9 @@ class BlockchainInterface:
         self.max_gas_price = max_gas_price
 
     def __repr__(self):
-        r = '{name}({uri})'.format(name=self.__class__.__name__, uri=self.eth_provider_uri)
+        r = "{name}({uri})".format(
+            name=self.__class__.__name__, uri=self.blockchain_endpoint
+        )
         return r
 
     def get_blocktime(self):
@@ -292,23 +295,30 @@ class BlockchainInterface:
 
     def connect(self):
 
-        eth_provider_uri = self.eth_provider_uri
-        self.log.info(f"Using external Web3 Provider '{self.eth_provider_uri}'")
+        blockchain_endpoint = self.blockchain_endpoint
+        self.log.info(f"Using external Web3 Provider '{self.blockchain_endpoint}'")
 
         # Attach Provider
-        self._attach_eth_provider(eth_provider=self._eth_provider, eth_provider_uri=eth_provider_uri)
-        self.log.info("Connecting to {}".format(self.eth_provider_uri))
-        if self._eth_provider is NO_BLOCKCHAIN_CONNECTION:
+        self._attach_blockchain_provider(
+            blockchain_provider=self._blockchain_provider,
+            blockchain_endpoint=blockchain_endpoint,
+        )
+        self.log.info("Connecting to {}".format(self.blockchain_endpoint))
+        if self._blockchain_provider is NO_BLOCKCHAIN_CONNECTION:
             raise self.NoProvider("There are no configured blockchain providers")
 
         # Connect if not connected
         try:
-            self.w3 = self.Web3(provider=self._eth_provider)
+            self.w3 = self.Web3(provider=self._blockchain_provider)
             self.client = EthereumClient.from_w3(w3=self.w3)
         except requests.ConnectionError:  # RPC
-            raise self.ConnectionFailed(f'Connection Failed - {str(self.eth_provider_uri)} - is RPC enabled?')
-        except FileNotFoundError:         # IPC File Protocol
-            raise self.ConnectionFailed(f'Connection Failed - {str(self.eth_provider_uri)} - is IPC enabled?')
+            raise self.ConnectionFailed(
+                f"Connection Failed - {str(self.blockchain_endpoint)} - is RPC enabled?"
+            )
+        except FileNotFoundError:  # IPC File Protocol
+            raise self.ConnectionFailed(
+                f"Connection Failed - {str(self.blockchain_endpoint)} - is IPC enabled?"
+            )
         else:
             self.attach_middleware()
 
@@ -316,20 +326,22 @@ class BlockchainInterface:
 
     @property
     def provider(self) -> BaseProvider:
-        return self._eth_provider
+        return self._blockchain_provider
 
-    def _attach_eth_provider(self,
-                             eth_provider: Optional[BaseProvider] = None,
-                             eth_provider_uri: str = None) -> None:
+    def _attach_blockchain_provider(
+        self,
+        blockchain_provider: Optional[BaseProvider] = None,
+        blockchain_endpoint: str = None,
+    ) -> None:
         """
         https://web3py.readthedocs.io/en/latest/providers.html#providers
         """
 
-        if not eth_provider_uri and not eth_provider:
+        if not blockchain_endpoint and not blockchain_provider:
             raise self.NoProvider("No URI or provider instances supplied.")
 
-        if eth_provider_uri and not eth_provider:
-            uri_breakdown = urlparse(eth_provider_uri)
+        if blockchain_endpoint and not blockchain_provider:
+            uri_breakdown = urlparse(blockchain_endpoint)
 
             if uri_breakdown.scheme == 'tester':
                 providers = {
@@ -352,19 +364,27 @@ class BlockchainInterface:
 
             # auto-detect for file based ipc
             if not provider_scheme:
-                if Path(eth_provider_uri).is_file():
+                if Path(blockchain_endpoint).is_file():
                     # file is available - assume ipc/file scheme
-                    provider_scheme = 'file'
-                    self.log.info(f"Auto-detected provider scheme as 'file://' for provider {eth_provider_uri}")
+                    provider_scheme = "file"
+                    self.log.info(
+                        f"Auto-detected provider scheme as 'file://' for provider {blockchain_endpoint}"
+                    )
 
             try:
-                self._eth_provider = providers[provider_scheme](eth_provider_uri)
+                self._blockchain_provider = providers[provider_scheme](
+                    blockchain_endpoint
+                )
             except KeyError:
-                raise self.UnsupportedProvider(f"{eth_provider_uri} is an invalid or unsupported blockchain provider URI")
+                raise self.UnsupportedProvider(
+                    f"{blockchain_endpoint} is an invalid or unsupported blockchain provider URI"
+                )
             else:
-                self.eth_provider_uri = eth_provider_uri or NO_BLOCKCHAIN_CONNECTION
+                self.blockchain_endpoint = (
+                    blockchain_endpoint or NO_BLOCKCHAIN_CONNECTION
+                )
         else:
-            self._eth_provider = eth_provider
+            self._blockchain_provider = blockchain_provider
 
     @classmethod
     def _handle_failed_transaction(cls,
@@ -689,11 +709,11 @@ class BlockchainInterfaceFactory:
         return cls._instance
 
     @classmethod
-    def is_interface_initialized(cls, eth_provider_uri: str) -> bool:
+    def is_interface_initialized(cls, blockchain_endpoint: str) -> bool:
         """
-        Returns True if there is an existing connection with an equal eth_provider_uri.
+        Returns True if there is an existing connection with an equal blockchain_endpoint.
         """
-        return bool(cls._interfaces.get(eth_provider_uri, False))
+        return bool(cls._interfaces.get(blockchain_endpoint, False))
 
     @classmethod
     def register_interface(cls,
@@ -702,48 +722,59 @@ class BlockchainInterfaceFactory:
                            force: bool = False
                            ) -> None:
 
-        eth_provider_uri = interface.eth_provider_uri
-        if (eth_provider_uri in cls._interfaces) and not force:
-            raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {eth_provider_uri}. "
-                                                  "Use .get_interface instead.")
+        blockchain_endpoint = interface.blockchain_endpoint
+        if (blockchain_endpoint in cls._interfaces) and not force:
+            raise cls.InterfaceAlreadyInitialized(
+                f"A connection already exists for {blockchain_endpoint}. "
+                "Use .get_interface instead."
+            )
         cached = cls.CachedInterface(interface=interface, emitter=emitter)
-        cls._interfaces[eth_provider_uri] = cached
+        cls._interfaces[blockchain_endpoint] = cached
 
     @classmethod
-    def initialize_interface(cls,
-                             eth_provider_uri: str,
-                             emitter=None,
-                             interface_class: Interfaces = None,
-                             *interface_args,
-                             **interface_kwargs
-                             ) -> None:
-        if not eth_provider_uri:
+    def initialize_interface(
+        cls,
+        blockchain_endpoint: str,
+        emitter=None,
+        interface_class: Interfaces = None,
+        *interface_args,
+        **interface_kwargs,
+    ) -> None:
+        if not blockchain_endpoint:
             # Prevent empty strings and Falsy
-            raise BlockchainInterface.UnsupportedProvider(f"'{eth_provider_uri}' is not a valid provider URI")
+            raise BlockchainInterface.UnsupportedProvider(
+                f"'{blockchain_endpoint}' is not a valid provider URI"
+            )
 
-        if eth_provider_uri in cls._interfaces:
-            raise cls.InterfaceAlreadyInitialized(f"A connection already exists for {eth_provider_uri}.  "
-                                                  f"Use .get_interface instead.")
+        if blockchain_endpoint in cls._interfaces:
+            raise cls.InterfaceAlreadyInitialized(
+                f"A connection already exists for {blockchain_endpoint}.  "
+                f"Use .get_interface instead."
+            )
 
         # Interface does not exist, initialize a new one.
         if not interface_class:
             interface_class = cls._default_interface_class
-        interface = interface_class(eth_provider_uri=eth_provider_uri,
-                                    *interface_args,
-                                    **interface_kwargs)
+        interface = interface_class(
+            blockchain_endpoint=blockchain_endpoint, *interface_args, **interface_kwargs
+        )
         interface.connect()
-        cls._interfaces[eth_provider_uri] = cls.CachedInterface(interface=interface, emitter=emitter)
+        cls._interfaces[blockchain_endpoint] = cls.CachedInterface(
+            interface=interface, emitter=emitter
+        )
 
     @classmethod
-    def get_interface(cls, eth_provider_uri: str = None) -> Interfaces:
+    def get_interface(cls, blockchain_endpoint: str = None) -> Interfaces:
 
         # Try to get an existing cached interface.
-        if eth_provider_uri:
+        if blockchain_endpoint:
             try:
-                cached_interface = cls._interfaces[eth_provider_uri]
+                cached_interface = cls._interfaces[blockchain_endpoint]
             except KeyError:
-                raise cls.InterfaceNotInitialized(f"There is no connection for {eth_provider_uri}. "
-                                                  f"Call .initialize_connection, then try again.")
+                raise cls.InterfaceNotInitialized(
+                    f"There is no connection for {blockchain_endpoint}. "
+                    f"Call .initialize_connection, then try again."
+                )
 
         # Try to use the most recently created interface by default.
         else:
@@ -761,14 +792,16 @@ class BlockchainInterfaceFactory:
         return interface
 
     @classmethod
-    def get_or_create_interface(cls,
-                                eth_provider_uri: str,
-                                *interface_args,
-                                **interface_kwargs
-                                ) -> BlockchainInterface:
+    def get_or_create_interface(
+        cls, blockchain_endpoint: str, *interface_args, **interface_kwargs
+    ) -> BlockchainInterface:
         try:
-            interface = cls.get_interface(eth_provider_uri=eth_provider_uri)
+            interface = cls.get_interface(blockchain_endpoint=blockchain_endpoint)
         except (cls.InterfaceNotInitialized, cls.NoRegisteredInterfaces):
-            cls.initialize_interface(eth_provider_uri=eth_provider_uri, *interface_args, **interface_kwargs)
-            interface = cls.get_interface(eth_provider_uri=eth_provider_uri)
+            cls.initialize_interface(
+                blockchain_endpoint=blockchain_endpoint,
+                *interface_args,
+                **interface_kwargs,
+            )
+            interface = cls.get_interface(blockchain_endpoint=blockchain_endpoint)
         return interface

@@ -64,8 +64,12 @@ TACO_NETWORK = "lynx"
 # Alicia, the Authority of the Policy #
 #######################################
 
-connect_web3_provider(eth_provider_uri=L1_PROVIDER)  # Connect to the ethereum provider.
-connect_web3_provider(eth_provider_uri=L2_PROVIDER)  # Connect to the layer 2 provider.
+connect_web3_provider(
+    blockchain_endpoint=L1_PROVIDER
+)  # Connect to the ethereum provider.
+connect_web3_provider(
+    blockchain_endpoint=L2_PROVIDER
+)  # Connect to the layer 2 provider.
 
 
 # Setup and unlock alice's ethereum wallet.

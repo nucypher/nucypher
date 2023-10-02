@@ -70,7 +70,7 @@ def test_ursula_info_metrics_collector(test_registry, ursulas):
 
 @pytest.mark.skipif(condition=(not PROMETHEUS_INSTALLED), reason="prometheus_client is required for test")
 def test_blockchain_metrics_collector(testerchain):
-    collector = BlockchainMetricsCollector(eth_provider_uri=MOCK_ETH_PROVIDER_URI)
+    collector = BlockchainMetricsCollector(eth_endpoint=MOCK_ETH_PROVIDER_URI)
 
     collector_registry = CollectorRegistry()
     prefix = 'test_blockchain_metrics_collector'
@@ -96,7 +96,7 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
     collector = StakingProviderMetricsCollector(
         staking_provider_address=staking_provider_address,
         contract_registry=test_registry,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     collector_registry = CollectorRegistry()
     prefix = "test_staking_provider_metrics_collector"

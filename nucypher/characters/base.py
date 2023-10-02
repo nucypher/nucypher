@@ -124,7 +124,7 @@ class Character(Learner):
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(
-                registry=self.registry, eth_provider_uri=eth_endpoint
+                registry=self.registry, eth_endpoint=eth_endpoint
             )
 
             # Learner

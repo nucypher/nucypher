@@ -51,10 +51,10 @@ def test_ursula_init_with_local_keystore_signer(
         "--network",
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
-        testerchain.eth_provider_uri,
+        testerchain.blockchain_endpoint,
         # Layer 2
         "--polygon-endpoint",
-        testerchain.eth_provider_uri,
+        testerchain.blockchain_endpoint,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--rest-port",

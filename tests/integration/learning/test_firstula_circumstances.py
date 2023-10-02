@@ -33,7 +33,7 @@ def test_get_cert_from_running_seed_node(lonely_ursula_maker):
     firstula_as_seed_node = firstula.seed_node_metadata()
     any_other_ursula = lonely_ursula_maker(
         seed_nodes=[firstula_as_seed_node],
-        network_middleware=RestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        network_middleware=RestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
     ).pop()
     assert not any_other_ursula.known_nodes
 

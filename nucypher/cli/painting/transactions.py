@@ -5,9 +5,15 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.utils import etherscan_url
 
 
-def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_type=None, eth_provider_uri: str = None):
-    tx_hash = receipt['transactionHash'].hex()
-    emitter.echo("OK", color='green', nl=False, bold=True)
+def paint_receipt_summary(
+    emitter,
+    receipt,
+    chain_name: str = None,
+    transaction_type=None,
+    blockchain_endpoint: str = None,
+):
+    tx_hash = receipt["transactionHash"].hex()
+    emitter.echo("OK", color="green", nl=False, bold=True)
     if transaction_type:
         emitter.echo(f" | {transaction_type} | {tx_hash}", color='yellow', nl=False)
     else:
@@ -16,7 +22,9 @@ def paint_receipt_summary(emitter, receipt, chain_name: str = None, transaction_
     emitter.echo(f"Block #{receipt['blockNumber']} | {receipt['blockHash'].hex()}")
 
     if not chain_name:
-        blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface(
+            blockchain_endpoint=blockchain_endpoint
+        )
         chain_name = blockchain.client.chain_name
     try:
         url = etherscan_url(item=tx_hash, network=chain_name)

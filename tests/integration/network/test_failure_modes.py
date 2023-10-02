@@ -20,9 +20,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(
     label = b"this_is_the_path_to_which_access_is_being_granted"
     alice.known_nodes.current_state._nodes = {}
 
-    alice.network_middleware = NodeIsDownMiddleware(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI
-    )
+    alice.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
 
     # OK, her first and only node is down.
     down_node = list(ursulas)[0]
@@ -78,9 +76,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(
 
 def test_node_has_changed_cert(alice, ursulas):
     alice.known_nodes.current_state._nodes = {}
-    alice.network_middleware = NodeIsDownMiddleware(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI
-    )
+    alice.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     alice.network_middleware.client.certs_are_broken = True
 
     firstula = list(ursulas)[0]

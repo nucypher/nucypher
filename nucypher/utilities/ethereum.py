@@ -22,15 +22,21 @@ def encode_constructor_arguments(web3: Web3,
     return data
 
 
-def connect_web3_provider(eth_provider_uri: str) -> None:
+def connect_web3_provider(blockchain_endpoint: str) -> None:
     """
-    Convenience function for connecting to an ethereum provider now.
+    Convenience function for connecting to a blockchain provider now.
     This may be used to optimize the startup time of some applications by
     establishing the connection eagerly.
     """
     from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
-    if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-        BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri)
-    interface = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+    if not BlockchainInterfaceFactory.is_interface_initialized(
+        blockchain_endpoint=blockchain_endpoint
+    ):
+        BlockchainInterfaceFactory.initialize_interface(
+            blockchain_endpoint=blockchain_endpoint
+        )
+    interface = BlockchainInterfaceFactory.get_interface(
+        blockchain_endpoint=blockchain_endpoint
+    )
     interface.connect()

@@ -121,9 +121,10 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
     """Collector for Blockchain specific metrics."""
-    def __init__(self, eth_provider_uri: str):
+
+    def __init__(self, eth_endpoint: str):
         super().__init__()
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
@@ -138,7 +139,9 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
         }
 
     def _collect_internal(self) -> None:
-        blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=self.eth_provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_or_create_interface(
+            blockchain_endpoint=self.eth_endpoint
+        )
         self.metrics["eth_chain_id"].set(blockchain.client.chain_id)
         self.metrics["eth_current_block_number"].set(blockchain.client.block_number)
 
@@ -150,12 +153,12 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         self,
         staking_provider_address: ChecksumAddress,
         contract_registry: ContractRegistry,
-        eth_provider_uri: str,
+        eth_endpoint: str,
     ):
         super().__init__()
         self.staking_provider_address = staking_provider_address
         self.contract_registry = contract_registry
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
@@ -180,7 +183,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
             registry=self.contract_registry,
-            provider_uri=self.eth_provider_uri,
+            provider_uri=self.eth_endpoint,
         )
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
