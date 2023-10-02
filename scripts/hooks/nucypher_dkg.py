@@ -11,6 +11,7 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     TACoApplicationAgent,
 )
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
@@ -43,32 +44,25 @@ def get_transacting_power(signer: Signer):
 
 @click.command()
 @click.option(
-    "--eth-provider",
-    "eth_provider_uri",
+    "--network",
+    "network",
+    help="TACo Network",
+    type=click.Choice(["tapir", "lynx"]),
+    default="lynx",
+)
+@click.option(
+    "--eth-endpoint",
+    "eth_endpoint",
     help="ETH staking network provider URI",
     type=click.STRING,
     required=True,
 )
 @click.option(
-    "--eth-staking-network",
-    "eth_staking_network",
-    help="ETH staking network",
-    type=click.Choice(["tapir", "lynx"]),
-    default="lynx",
-)
-@click.option(
-    "--coordinator-provider",
-    "coordinator_provider_uri",
-    help="Coordinator network provider URI",
+    "--polygon-endpoint",
+    "polygon_endpoint",
+    help="Polygon network provider URI",
     type=click.STRING,
     required=True,
-)
-@click.option(
-    "--coordinator-network",
-    "coordinator_network",
-    help="Coordinator network",
-    type=click.Choice(["mumbai"]),
-    default="mumbai",
 )
 @click.option(
     "--ritual-id",
@@ -117,10 +111,9 @@ def get_transacting_power(signer: Signer):
     default=False,
 )
 def nucypher_dkg(
-    eth_provider_uri,
-    eth_staking_network,
-    coordinator_provider_uri,
-    coordinator_network,
+    network,
+    eth_endpoint,
+    polygon_endpoint,
     ritual_id,
     signer_uri,
     dkg_size,
@@ -161,22 +154,20 @@ def nucypher_dkg(
                 ),
             )
 
-    coordinator_network_registry = ContractRegistry.from_latest_publication(
-        domain=coordinator_network
+    taco_network = NetworksInventory.get_network(network)
+    registry = ContractRegistry.from_latest_publication(
+        domain=network
     )
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        provider_uri=polygon_endpoint,
     )  # type: CoordinatorAgent
 
-    staking_network_registry = ContractRegistry.from_latest_publication(
-        domain=eth_staking_network
-    )
     application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,
-        registry=staking_network_registry,
-        provider_uri=eth_provider_uri,
+        registry=registry,
+        provider_uri=eth_endpoint,
     )  # type: TACoApplicationAgent
 
     #
@@ -188,7 +179,7 @@ def nucypher_dkg(
     # Get GlobalAllowList contract
     blockchain = coordinator_agent.blockchain
     allow_list = blockchain.get_contract_by_name(
-        registry=coordinator_network_registry, contract_name=GLOBAL_ALLOW_LIST
+        registry=registry, contract_name=GLOBAL_ALLOW_LIST
     )
 
     #
@@ -202,7 +193,7 @@ def nucypher_dkg(
 
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
-            f"Commencing DKG Ritual(s) on {coordinator_network} using {account_address}",
+            f"Commencing DKG Ritual(s) on {taco_network.poly_network.chain_name} using {account_address}",
             color="green",
         )
 
@@ -389,11 +380,10 @@ def nucypher_dkg(
     #
     emitter.echo("--------- Threshold Decryption ---------")
     bob = Bob(
-        eth_provider_uri=eth_provider_uri,
-        domain=eth_staking_network,
-        registry=staking_network_registry,
-        coordinator_network=coordinator_network,
-        coordinator_provider_uri=coordinator_provider_uri,
+        domain=network,
+        eth_endpoint=eth_endpoint,
+        polygon_endpoint=polygon_endpoint,
+        registry=registry,
     )
     bob.start_learning_loop(now=True)
 
