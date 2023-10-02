@@ -20,7 +20,7 @@ class OperatorBondedTracker(SimpleTask):
         application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
             registry=self._ursula.registry,
-            provider_uri=self._ursula.eth_endpoint,
+            blockchain_endpoint=self._ursula.eth_endpoint,
         )
         # use TACo root since unbonding happens at root and not child (more immediate this way)
         staking_provider_address = application_agent.get_staking_provider_from_operator(

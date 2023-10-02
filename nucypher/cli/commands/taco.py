@@ -134,7 +134,7 @@ def active_providers(general_config, registry_options):
         general_config=general_config
     )
     application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent, registry=registry, provider_uri=provider_uri
+        TACoApplicationAgent, registry=registry, blockchain_endpoint=provider_uri
     )
     (
         total_staked,

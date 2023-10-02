@@ -161,13 +161,13 @@ def nucypher_dkg(
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
         registry=registry,
-        provider_uri=polygon_endpoint,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: CoordinatorAgent
 
     application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,
         registry=registry,
-        provider_uri=eth_endpoint,
+        blockchain_endpoint=eth_endpoint,
     )  # type: TACoApplicationAgent
 
     #

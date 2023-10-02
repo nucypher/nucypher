@@ -138,7 +138,7 @@ class NucypherTokenActor(BaseActor):
             return self.__token_agent
         self.__token_agent = ContractAgency.get_agent(
             NucypherTokenAgent,
-            provider_uri=self.eth_provider_uri,
+            blockchain_endpoint=self.eth_provider_uri,
             registry=self.registry,
         )
         return self.__token_agent
@@ -205,7 +205,7 @@ class Operator(BaseActor):
 
         self.application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
-            provider_uri=eth_endpoint,
+            blockchain_endpoint=eth_endpoint,
             registry=self.registry,
         )
 
@@ -216,13 +216,13 @@ class Operator(BaseActor):
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,
             registry=registry,
-            provider_uri=polygon_endpoint,
+            blockchain_endpoint=polygon_endpoint,
         )
 
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
             registry=registry,
-            provider_uri=polygon_endpoint,
+            blockchain_endpoint=polygon_endpoint,
         )
 
         # track active onchain rituals
@@ -746,7 +746,9 @@ class PolicyAuthor(NucypherTokenActor):
     def __init__(self, eth_endpoint: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.application_agent = ContractAgency.get_agent(
-            TACoApplicationAgent, registry=self.registry, provider_uri=eth_endpoint
+            TACoApplicationAgent,
+            registry=self.registry,
+            blockchain_endpoint=eth_endpoint,
         )
 
     def create_policy(self, *args, **kwargs):

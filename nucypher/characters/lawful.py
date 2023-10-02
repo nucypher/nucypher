@@ -478,7 +478,7 @@ class Bob(Character):
         if polygon_endpoint:
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
-                provider_uri=polygon_endpoint,
+                blockchain_endpoint=polygon_endpoint,
                 registry=ContractRegistry.from_latest_publication(
                     domain=self.domain,
                 ),
@@ -1182,7 +1182,7 @@ class Ursula(Teacher, Character, Operator):
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
-    def seednode_for_network(cls, network: str, provider_uri: str) -> "Ursula":
+    def seednode_for_network(cls, network: str, eth_endpoint: str) -> "Ursula":
         """Returns a default seednode ursula for a given network."""
         try:
             url = TEACHER_NODES[network][0]
@@ -1190,7 +1190,7 @@ class Ursula(Teacher, Character, Operator):
             raise ValueError(f'"{network}" is not a known network.')
         except IndexError:
             raise ValueError(f'No default seednodes available for "{network}".')
-        ursula = cls.from_seed_and_stake_info(seed_uri=url, provider_uri=provider_uri)
+        ursula = cls.from_seed_and_stake_info(seed_uri=url, eth_endpoint=eth_endpoint)
         return ursula
 
     @classmethod
@@ -1213,7 +1213,7 @@ class Ursula(Teacher, Character, Operator):
             try:
                 teacher = cls.from_seed_and_stake_info(
                     seed_uri=teacher_uri,
-                    provider_uri=provider_uri,
+                    eth_endpoint=provider_uri,
                     minimum_stake=min_stake,
                     network_middleware=network_middleware,
                     registry=registry,
@@ -1237,14 +1237,14 @@ class Ursula(Teacher, Character, Operator):
     def from_seed_and_stake_info(
         cls,
         seed_uri: str,
-        provider_uri: str,
+        eth_endpoint: str,
         registry: ContractRegistry = None,
         minimum_stake: int = 0,
         network_middleware: RestMiddleware = None,
     ) -> Union["Ursula", "NodeSprout"]:
         if network_middleware is None:
             network_middleware = RestMiddleware(
-                registry=registry, eth_endpoint=provider_uri
+                registry=registry, eth_endpoint=eth_endpoint
             )
 
         # Parse node URI
@@ -1273,7 +1273,9 @@ class Ursula(Teacher, Character, Operator):
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(
-                TACoApplicationAgent, provider_uri=provider_uri, registry=registry
+                TACoApplicationAgent,
+                blockchain_endpoint=eth_endpoint,
+                registry=registry,
             )
             seednode_stake = application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address

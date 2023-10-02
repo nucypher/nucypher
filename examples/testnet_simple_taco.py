@@ -35,7 +35,7 @@ registry = ContractRegistry.from_latest_publication(
 )
 
 coordinator_agent = CoordinatorAgent(
-    provider_uri=polygon_endpoint,
+    blockchain_endpoint=polygon_endpoint,
     registry=registry,
 )
 ritual_id = 1  # got this from a side channel

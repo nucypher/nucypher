@@ -10,7 +10,7 @@ from tests.mock.coordinator import MockCoordinatorAgent
 @pytest.fixture(scope="module")
 def agent(mock_contract_agency) -> MockCoordinatorAgent:
     coordinator_agent: CoordinatorAgent = mock_contract_agency.get_agent(
-        CoordinatorAgent, registry=None, provider_uri=MOCK_ETH_PROVIDER_URI
+        CoordinatorAgent, registry=None, blockchain_endpoint=MOCK_ETH_PROVIDER_URI
     )
     return coordinator_agent
 

@@ -183,7 +183,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
             registry=self.contract_registry,
-            provider_uri=self.eth_endpoint,
+            blockchain_endpoint=self.eth_endpoint,
         )
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address

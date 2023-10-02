@@ -375,7 +375,9 @@ def staking_providers(
 def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
     coordinator = ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
+        CoordinatorAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     return coordinator
 
@@ -385,7 +387,7 @@ def taco_application_agent(test_registry):
     _taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
 
     return _taco_application_agent
@@ -396,7 +398,7 @@ def taco_child_application_agent(testerchain, test_registry):
     _taco_child_application_agent = ContractAgency.get_agent(
         TACoChildApplicationAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
 
     return _taco_child_application_agent

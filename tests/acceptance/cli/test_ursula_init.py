@@ -73,7 +73,7 @@ def mock_funded_account_password_keystore(
     taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     taco_application_agent.bond_operator(
         staking_provider=provider_address,

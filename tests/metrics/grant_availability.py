@@ -197,7 +197,7 @@ def aggregate_nodes(provider_uri: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     if DEFAULT_SEEDNODE_URIS:
         for uri in DEFAULT_SEEDNODE_URIS:
             ursula = Ursula.from_seed_and_stake_info(
-                seed_uri=uri, provider_uri=provider_uri
+                seed_uri=uri, eth_endpoint=provider_uri
             )
             seednodes.add(ursula)
 
@@ -205,7 +205,7 @@ def aggregate_nodes(provider_uri: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
             ursula = Ursula.from_seed_and_stake_info(
-                seed_uri=uri, provider_uri=provider_uri
+                seed_uri=uri, eth_endpoint=provider_uri
             )
             ursulas.add(ursula)
 

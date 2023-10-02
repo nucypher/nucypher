@@ -73,7 +73,7 @@ def nucypher_agents(
     taco_application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,
         registry=staking_registry,
-        provider_uri=eth_endpoint,
+        blockchain_endpoint=eth_endpoint,
     )  # type: TACoApplicationAgent
 
     registry = ContractRegistry.from_latest_publication(
@@ -83,19 +83,19 @@ def nucypher_agents(
     taco_child_application_agent = ContractAgency.get_agent(
         agent_class=TACoChildApplicationAgent,
         registry=registry,
-        provider_uri=polygon_endpoint,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: TACoChildApplicationAgent
 
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
         registry=registry,
-        provider_uri=polygon_endpoint,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: CoordinatorAgent
 
     subscription_manager_agent = ContractAgency.get_agent(
         agent_class=SubscriptionManagerAgent,
         registry=registry,
-        provider_uri=polygon_endpoint,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: SubscriptionManagerAgent
 
     message = (

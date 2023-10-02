@@ -346,7 +346,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
 
     # test "sponsor" key (owner is the same as sponsor for this policy)
@@ -464,7 +464,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent,
         registry=test_registry,
-        provider_uri=TEST_POLYGON_PROVIDER_URI,
+        blockchain_endpoint=TEST_POLYGON_PROVIDER_URI,
     )
 
     # test "sponsor" index not equal to correct value

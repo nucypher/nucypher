@@ -85,7 +85,9 @@ class ContractPayment(PaymentMethod, ABC):
         if self.__agent:
             return self.__agent  # get cache
         agent = ContractAgency.get_agent(
-            agent_class=self._AGENT, provider_uri=self.provider, registry=self.registry
+            agent_class=self._AGENT,
+            blockchain_endpoint=self.provider,
+            registry=self.registry,
         )
         self.__agent = agent
         return self.__agent  # set cache
