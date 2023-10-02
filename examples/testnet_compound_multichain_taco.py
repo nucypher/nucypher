@@ -3,6 +3,7 @@ import os
 from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
@@ -18,11 +19,10 @@ LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
-staking_provider_uri = os.environ["DEMO_L1_PROVIDER_URI"]
-network = "lynx"
+eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
+taco_network = NetworksInventory.get_network("lynx")
 
-coordinator_provider_uri = os.environ["DEMO_L2_PROVIDER_URI"]
-coordinator_network = "mumbai"
+polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 
 ###############
 # Enrico
@@ -30,9 +30,13 @@ coordinator_network = "mumbai"
 
 print("--------- Threshold Encryption ---------")
 
+registry = ContractRegistry.from_latest_publication(
+    domain=taco_network.name,
+)
+
 coordinator_agent = CoordinatorAgent(
-    provider_uri=coordinator_provider_uri,
-    registry=ContractRegistry.from_latest_publication(domain=coordinator_network),
+    provider_uri=polygon_endpoint,
+    registry=registry,
 )
 ritual_id = 1  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
@@ -96,11 +100,10 @@ print(f"\nEncrypted message:\n{bytes(threshold_message_kit).hex()}")
 print("--------- Threshold Decryption ---------")
 
 bob = Bob(
-    eth_endpoint=staking_provider_uri,
-    domain=network,
-    coordinator_provider_uri=coordinator_provider_uri,
-    coordinator_network=coordinator_network,
-    registry=ContractRegistry.from_latest_publication(domain=network),
+    domain=taco_network.name,
+    eth_endpoint=eth_endpoint,
+    polygon_endpoint=polygon_endpoint,
+    registry=registry,
 )
 
 bob.start_learning_loop(now=True)
