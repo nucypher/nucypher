@@ -459,7 +459,7 @@ class Bob(Character):
         is_me: bool = True,
         verify_node_bonding: bool = False,
         eth_endpoint: str = None,
-        polygon_endpoint: str = None,  # TODO: Move to a higher level and formalize
+        polygon_endpoint: str = None,
         *args,
         **kwargs,
     ) -> None:
@@ -469,6 +469,7 @@ class Bob(Character):
             known_node_class=Ursula,
             verify_node_bonding=verify_node_bonding,
             eth_endpoint=eth_endpoint,
+            polygon_endpoint=polygon_endpoint,
             *args,
             **kwargs,
         )
