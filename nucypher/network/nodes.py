@@ -46,14 +46,14 @@ from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
-    NetworksInventory.MAINNET: (
+    NetworksInventory.MAINNET.name: (
         'https://closest-seed.nucypher.network:9151',
         'https://seeds.nucypher.network',
         'https://mainnet.nucypher.network:9151',
     ),
-    NetworksInventory.LYNX: ("https://lynx.nucypher.network:9151",),
-    NetworksInventory.TAPIR: ("https://tapir.nucypher.network:9151",),
-    NetworksInventory.ORYX: ("https://oryx.nucypher.network:9151",),
+    NetworksInventory.LYNX.name: ("https://lynx.nucypher.network:9151",),
+    NetworksInventory.TAPIR.name: ("https://tapir.nucypher.network:9151",),
+    NetworksInventory.ORYX.name: ("https://oryx.nucypher.network:9151",),
 }
 
 
