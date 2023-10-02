@@ -30,7 +30,6 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    NucypherTokenAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
@@ -43,7 +42,6 @@ from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import truncate_checksum_address
@@ -132,23 +130,23 @@ class NucypherTokenActor(BaseActor):
         super().__init__(registry=registry, **kwargs)
         self.__token_agent = None
 
-    @property
-    def token_agent(self):
-        if self.__token_agent:
-            return self.__token_agent
-        self.__token_agent = ContractAgency.get_agent(
-            NucypherTokenAgent,
-            blockchain_endpoint=self.eth_provider_uri,
-            registry=self.registry,
-        )
-        return self.__token_agent
-
-    @property
-    def token_balance(self) -> NU:
-        """Return this actor's current token balance"""
-        balance = int(self.token_agent.get_balance(address=self.checksum_address))
-        nu_balance = NU(balance, 'NuNit')
-        return nu_balance
+    # @property
+    # def token_agent(self):
+    #     if self.__token_agent:
+    #         return self.__token_agent
+    #     self.__token_agent = ContractAgency.get_agent(
+    #         NucypherTokenAgent,
+    #         blockchain_endpoint=self.eth_provider_uri,    # TODO this is fishy - and doesn't seem needed?
+    #         registry=self.registry,
+    #     )
+    #     return self.__token_agent
+    #
+    # @property
+    # def token_balance(self) -> NU:
+    #     """Return this actor's current token balance"""
+    #     balance = int(self.token_agent.get_balance(address=self.checksum_address))
+    #     nu_balance = NU(balance, 'NuNit')
+    #     return nu_balance
 
 
 class Operator(BaseActor):

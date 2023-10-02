@@ -45,7 +45,7 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
 def make_cli_character(
     character_config,
     emitter,
-    provider_uri: str,
+    eth_endpoint: str,
     unlock_keystore: bool = True,
     unlock_signer: bool = True,
     teacher_uri: str = None,
@@ -82,14 +82,14 @@ def make_cli_character(
             min_stake=min_stake,
             network_middleware=character_config.network_middleware,
             registry=character_config.registry,
-            provider_uri=provider_uri,
+            eth_endpoint=eth_endpoint,
         )
         sage_nodes.append(maybe_sage_node)
 
     CHARACTER = character_config(
         known_nodes=sage_nodes,
         network_middleware=character_config.network_middleware,
-        eth_endpoint=provider_uri,
+        eth_endpoint=eth_endpoint,
         **config_args,
     )
 

@@ -360,7 +360,7 @@ class Learner:
                     maybe_sage_node = self.node_class.from_teacher_uri(
                         teacher_uri=uri,
                         min_stake=0,
-                        provider_uri=self.eth_endpoint,
+                        eth_endpoint=self.eth_endpoint,
                         network_middleware=self.network_middleware,
                         registry=self.registry,
                     )
@@ -1041,7 +1041,7 @@ class Teacher:
         return bytes(response)
 
     def _operator_is_bonded(
-        self, provider_uri: str, registry: ContractRegistry
+        self, eth_endpoint: str, registry: ContractRegistry
     ) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
@@ -1049,7 +1049,7 @@ class Teacher:
         the case that the "staking provider" isn't "staking" (e.g., all her tokens have been slashed).
         """
         application_agent = ContractAgency.get_agent(
-            TACoApplicationAgent, blockchain_endpoint=provider_uri, registry=registry
+            TACoApplicationAgent, blockchain_endpoint=eth_endpoint, registry=registry
         )  # type: TACoApplicationAgent
         staking_provider_address = application_agent.get_staking_provider_from_operator(operator_address=self.operator_address)
         if staking_provider_address == NULL_ADDRESS:
@@ -1089,7 +1089,7 @@ class Teacher:
         # On-chain staking check, if registry is present
         if registry:
             if not self._operator_is_bonded(
-                registry=registry, provider_uri=eth_endpoint
+                registry=registry, eth_endpoint=eth_endpoint
             ):  # <-- Blockchain CALL
                 message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
                 self.log.debug(message)

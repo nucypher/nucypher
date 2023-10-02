@@ -74,21 +74,21 @@ class UrsulaConfiguration(CharacterConfiguration):
 
         # Polygon
         polygon_chain_id = taco_network.polygon_chain.id
-        polygon_provider_uris = self.condition_provider_uris.get(polygon_chain_id, [])
-        if not polygon_provider_uris:
-            self.condition_provider_uris[polygon_chain_id] = polygon_provider_uris
+        polygon_endpoints = self.condition_provider_uris.get(polygon_chain_id, [])
+        if not polygon_endpoints:
+            self.condition_provider_uris[polygon_chain_id] = polygon_endpoints
 
-        if self.polygon_endpoint not in polygon_provider_uris:
-            polygon_provider_uris.append(self.polygon_endpoint)
+        if self.polygon_endpoint not in polygon_endpoints:
+            polygon_endpoints.append(self.polygon_endpoint)
 
         # Ethereum
         staking_chain_id = taco_network.eth_chain.id
-        staking_provider_uris = self.condition_provider_uris.get(staking_chain_id, [])
-        if not staking_provider_uris:
-            self.condition_provider_uris[staking_chain_id] = staking_provider_uris
+        staking_chain_endpoints = self.condition_provider_uris.get(staking_chain_id, [])
+        if not staking_chain_endpoints:
+            self.condition_provider_uris[staking_chain_id] = staking_chain_endpoints
 
-        if self.eth_endpoint not in staking_provider_uris:
-            staking_provider_uris.append(self.eth_endpoint)
+        if self.eth_endpoint not in staking_chain_endpoints:
+            staking_chain_endpoints.append(self.eth_endpoint)
 
     @classmethod
     def address_from_filepath(cls, filepath: Path) -> str:

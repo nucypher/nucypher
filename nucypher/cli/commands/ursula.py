@@ -180,7 +180,7 @@ class UrsulaConfigOptions:
                 emitter,
                 network=self.domain,
                 force=force,
-                provider_uri=self.eth_endpoint,
+                eth_endpoint=self.eth_endpoint,
             )
 
         return UrsulaConfiguration.generate(
@@ -282,7 +282,7 @@ class UrsulaCharacterOptions:
             URSULA = make_cli_character(
                 character_config=ursula_config,
                 emitter=emitter,
-                provider_uri=ursula_config.eth_endpoint,
+                eth_endpoint=ursula_config.eth_endpoint,
                 min_stake=self.min_stake,
                 teacher_uri=self.teacher_uri,
                 unlock_keystore=not self.config_options.dev,
@@ -483,7 +483,7 @@ def config(general_config, config_options, config_file, force, action):
             emitter=emitter,
             network=config_options.domain,
             force=force,
-            provider_uri=config_options.eth_endpoint,
+            eth_endpoint=config_options.eth_endpoint,
         )
         config_options.rest_host = rest_host
     if action == "migrate":

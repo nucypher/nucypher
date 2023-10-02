@@ -1198,7 +1198,7 @@ class Ursula(Teacher, Character, Operator):
         cls,
         teacher_uri: str,
         min_stake: int,
-        provider_uri: str,
+        eth_endpoint: str,
         registry: ContractRegistry = None,
         network_middleware: RestMiddleware = None,
         retry_attempts: int = 2,
@@ -1213,7 +1213,7 @@ class Ursula(Teacher, Character, Operator):
             try:
                 teacher = cls.from_seed_and_stake_info(
                     seed_uri=teacher_uri,
-                    eth_endpoint=provider_uri,
+                    eth_endpoint=eth_endpoint,
                     minimum_stake=min_stake,
                     network_middleware=network_middleware,
                     registry=registry,

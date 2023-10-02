@@ -4,9 +4,9 @@ from nucypher.blockchain.eth.agents import (
 )
 
 
-def paint_application_contract_status(emitter, registry, provider_uri):
+def paint_application_contract_status(emitter, registry, eth_endpoint):
     application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent, registry=registry, blockchain_endpoint=provider_uri
+        TACoApplicationAgent, registry=registry, blockchain_endpoint=eth_endpoint
     )
     blockchain = application_agent.blockchain
 

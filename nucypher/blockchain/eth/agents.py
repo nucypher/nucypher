@@ -891,7 +891,7 @@ class ContractAgency:
         cls,
         contract_name: str,
         registry: ContractRegistry,
-        provider_uri: str,
+        blockchain_endpoint: str,
         contract_version: Optional[str] = None,
     ) -> EthereumContractAgent:
         agent_name: str = cls._contract_name_to_agent_name(name=contract_name)
@@ -900,7 +900,7 @@ class ContractAgency:
         agent: EthereumContractAgent = cls.get_agent(
             agent_class=agent_class,
             registry=registry,
-            blockchain_endpoint=provider_uri,
+            blockchain_endpoint=blockchain_endpoint,
             contract_version=contract_version
         )
         return agent

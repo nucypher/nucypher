@@ -133,13 +133,15 @@ def mock_permitted_multichain_connections(mocker) -> List[int]:
 def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> None:
     base_uri = "tester://multichain.{}"
     base_fallback_uri = "tester://multichain.fallback.{}"
-    provider_uris = [base_uri.format(i) for i in range(len(chain_ids))]
-    fallback_provider_uris = [
+    blockchain_endpoints = [base_uri.format(i) for i in range(len(chain_ids))]
+    fallback_blockchain_endpoints = [
         base_fallback_uri.format(i) for i in range(len(chain_ids))
     ]
     mocked_condition_providers = {
         cid: {HTTPProvider(uri), HTTPProvider(furi)}
-        for cid, uri, furi in zip(chain_ids, provider_uris, fallback_provider_uris)
+        for cid, uri, furi in zip(
+            chain_ids, blockchain_endpoints, fallback_blockchain_endpoints
+        )
     }
     for ursula in ursulas:
         ursula.condition_providers = mocked_condition_providers

@@ -30,9 +30,9 @@ from nucypher.cli.utils import (
 )
 from nucypher.utilities.events import generate_events_csv_filepath
 
-option_provider_uri = click.option(
-    "--provider-uri",
-    "provider_uri",
+option_blockchain_endpoint = click.option(
+    "--blockchain-endpoint",
+    "blockchain_endpoint",
     help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
     type=click.STRING,
     required=True,
@@ -50,8 +50,8 @@ option_network = click.option(
 class RegistryOptions:
     __option_name__ = "registry_options"
 
-    def __init__(self, provider_uri, poa, registry_filepath, light, network):
-        self.provider_uri = provider_uri
+    def __init__(self, blockchain_endpoint, poa, registry_filepath, light, network):
+        self.blockchain_endpoint = blockchain_endpoint
         self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
@@ -62,7 +62,7 @@ class RegistryOptions:
         registry = get_registry(
             network=self.network, registry_filepath=self.registry_filepath
         )
-        return emitter, registry, self.provider_uri
+        return emitter, registry, self.blockchain_endpoint
 
 
 group_registry_options = group_options(
@@ -71,7 +71,7 @@ group_registry_options = group_options(
     light=option_light,
     registry_filepath=option_registry_filepath,
     network=option_network,
-    provider_uri=option_provider_uri,
+    blockchain_endpoint=option_blockchain_endpoint,
 )
 
 option_csv = click.option(
@@ -117,11 +117,11 @@ def taco():
 @group_general_config
 def application_info(general_config, registry_options):
     """Overall information for the TACo Application."""
-    emitter, registry, provider_uri = registry_options.setup(
+    emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
     paint_application_contract_status(
-        emitter=emitter, registry=registry, provider_uri=provider_uri
+        emitter=emitter, registry=registry, eth_endpoint=blockchain_endpoint
     )
 
 
@@ -130,11 +130,11 @@ def application_info(general_config, registry_options):
 @group_general_config
 def active_providers(general_config, registry_options):
     """List of active stakers for the TACo Application"""
-    emitter, registry, provider_uri = registry_options.setup(
+    emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
     application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent, registry=registry, blockchain_endpoint=provider_uri
+        TACoApplicationAgent, registry=registry, blockchain_endpoint=blockchain_endpoint
     )
     (
         total_staked,
@@ -194,12 +194,14 @@ def events(
                 ),
             )
 
-    emitter, registry, provider_uri = registry_options.setup(
+    emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
 
     contract_agent = ContractAgency.get_agent_by_contract_name(
-        contract_name=contract_name, registry=registry, provider_uri=provider_uri
+        contract_name=contract_name,
+        registry=registry,
+        blockchain_endpoint=blockchain_endpoint,
     )
 
     if from_block is None:
