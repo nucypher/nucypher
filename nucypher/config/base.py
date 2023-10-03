@@ -438,36 +438,11 @@ class CharacterConfiguration(BaseConfiguration):
         # Decentralized
         #
 
-        # TODO should this be an iteration on [eth_endpoint, polygon_endpoint]?
-
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
-        is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
-            blockchain_endpoint=self.eth_endpoint
-        )
-        if not is_initialized and eth_endpoint:
-            BlockchainInterfaceFactory.initialize_interface(
-                blockchain_endpoint=self.eth_endpoint,
-                poa=self.poa,
-                light=self.is_light,
-                emitter=emitter,
-                gas_strategy=self.gas_strategy,
-                max_gas_price=self.max_gas_price,
-            )
-        else:
-            self.log.warn(
-                f"Using existing blockchain interface connection ({self.eth_endpoint})."
-            )
 
-        # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
-        # for uri in eth_provider_uri (list of uris fom config):
-        BlockchainInterfaceFactory.get_or_create_interface(
-            blockchain_endpoint=polygon_endpoint,
-            poa=self.poa,
-            light=self.is_light,
-            emitter=emitter,
-            gas_strategy=self.gas_strategy,
-            max_gas_price=self.max_gas_price,
+        self._connect_to_endpoints(
+            emitter=emitter, endpoints=[self.eth_endpoint, self.polygon_endpoint]
         )
 
         if not self.registry:
@@ -530,6 +505,27 @@ class CharacterConfiguration(BaseConfiguration):
         )
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
+
+    def _connect_to_endpoints(self, emitter, endpoints: List[str]) -> None:
+        for endpoint in endpoints:
+            if endpoint and endpoint != NO_BLOCKCHAIN_CONNECTION:
+                is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
+                    blockchain_endpoint=endpoint
+                )
+
+                if not is_initialized:
+                    BlockchainInterfaceFactory.initialize_interface(
+                        blockchain_endpoint=endpoint,
+                        poa=self.poa,
+                        light=self.is_light,
+                        emitter=emitter,
+                        gas_strategy=self.gas_strategy,
+                        max_gas_price=self.max_gas_price,
+                    )
+                else:
+                    self.log.warn(
+                        f"Using existing blockchain interface connection ({endpoint})."
+                    )
 
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
