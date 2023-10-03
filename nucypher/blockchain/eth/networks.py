@@ -41,9 +41,8 @@ class NetworksInventory:
     ORYX = TACoDomain("oryx", EthChain.GOERLI, PolygonChain.POLYGON)
     LYNX = TACoDomain("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
     TAPIR = TACoDomain("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
-    # TODO did Ibex even use a PolyNetwork?
     IBEX = TACoDomain(
-        "ibex", EthChain.GOERLI, PolygonChain.MUMBAI
+        "ibex", EthChain.GOERLI, None
     )  # this is required for configuration file migrations (backwards compatibility)
 
     SUPPORTED_DOMAINS = [
@@ -51,7 +50,6 @@ class NetworksInventory:
         ORYX,
         LYNX,
         TAPIR,
-        IBEX,
     ]
 
     SUPPORTED_DOMAIN_NAMES = [network.name for network in SUPPORTED_DOMAINS]
