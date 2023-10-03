@@ -11,13 +11,12 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import (
+from nucypher.blockchain.eth.domains import (
     EthChain,
-    NetworksInventory,
     PolygonChain,
     TACoDomain,
 )
+from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -304,8 +303,8 @@ def deployed_contracts(
 
 
 @pytest.fixture(scope="module", autouse=True)
-def test_registry(deployed_contracts):
-    with tests.utils.registry.mock_registry_sources():
+def test_registry(deployed_contracts, module_mocker):
+    with tests.utils.registry.mock_registry_sources(mocker=module_mocker):
         RegistrySourceManager._FALLBACK_CHAIN = (ApeRegistrySource,)
         source = ApeRegistrySource(domain=TEMPORARY_DOMAIN)
         registry = ContractRegistry(source=source)
@@ -445,8 +444,8 @@ def mock_condition_blockchains(session_mocker):
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "from_domain_name", return_value=test_domain
+    session_mocker.patch(
+        "nucypher.blockchain.eth.domains.from_domain_name", return_value=test_domain
     )
 
 

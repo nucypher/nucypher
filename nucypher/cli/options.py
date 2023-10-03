@@ -176,7 +176,7 @@ def option_message_kit(required: bool = False, multiple: bool = False):
 
 def option_domain(
     required: bool = False,
-    default: str = None,  # NetworksInventory.DEFAULT is not a good global default (2214)
+    default: str = None,  # nucypher.blockchain.eth.domains.DEFAULT.name is not a good global default (#2214)
     validate: bool = False,
 ):
     return click.option(

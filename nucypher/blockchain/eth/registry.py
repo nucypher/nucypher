@@ -9,7 +9,7 @@ import requests
 from requests import Response
 from web3.types import ABI
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth import domains
 from nucypher.utilities.logging import Logger
 
 RegistryArtifact = Dict[str, Union[str, ABI]]
@@ -34,10 +34,10 @@ class RegistrySource(ABC):
         """Raised when there are no available registry sources"""
 
     def __init__(self, domain: str, *args, **kwargs):
-        if domain not in NetworksInventory.SUPPORTED_DOMAIN_NAMES:
+        if domain not in domains.SUPPORTED_DOMAIN_NAMES:
             raise ValueError(
                 f"{self.__class__.__name__} not available for domain '{domain}'. "
-                f"Valid options are: {', '.join(list(NetworksInventory.SUPPORTED_DOMAIN_NAMES))}"
+                f"Valid options are: {', '.join(list(domains.SUPPORTED_DOMAIN_NAMES))}"
             )
         self.domain = domain
         self.data = self.get()

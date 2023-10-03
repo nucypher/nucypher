@@ -1,9 +1,9 @@
 import pytest
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth import domains
 from nucypher.cli.actions.select import select_domain
 
-__DOMAINS = NetworksInventory.SUPPORTED_DOMAIN_NAMES
+__DOMAINS = domains.SUPPORTED_DOMAIN_NAMES
 
 
 @pytest.mark.parametrize("user_input", range(0, len(__DOMAINS) - 1))

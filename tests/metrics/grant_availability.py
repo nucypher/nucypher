@@ -22,7 +22,7 @@ from nucypher_core.umbral import SecretKey
 from web3 import Web3
 from web3.types import Wei
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.domains import LYNX
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
@@ -54,7 +54,7 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-TACO_DOMAIN: str = NetworksInventory.LYNX.name  # mainnet
+TACO_DOMAIN: str = LYNX.name  # mainnet
 DEFAULT_SEEDNODE_URIS: List[str] = [
     *TEACHER_NODES[TACO_DOMAIN],
 ]

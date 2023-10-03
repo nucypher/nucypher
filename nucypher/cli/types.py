@@ -10,7 +10,7 @@ from cryptography.exceptions import InternalError
 from eth_utils import to_checksum_address
 from nucypher_core.umbral import PublicKey
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.token import TToken
 from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
@@ -97,9 +97,9 @@ class NuCypherDomainName(click.ParamType):
     def convert(self, value, param, ctx):
         if self.validate:
             domain = str(value).lower()
-            if domain not in NetworksInventory.SUPPORTED_DOMAIN_NAMES:
+            if domain not in domains.SUPPORTED_DOMAIN_NAMES:
                 self.fail(
-                    f"'{value}' is not a recognized domain. Valid options are: {list(NetworksInventory.SUPPORTED_DOMAIN_NAMES)}"
+                    f"'{value}' is not a recognized domain. Valid options are: {list(domains.SUPPORTED_DOMAIN_NAMES)}"
                 )
             else:
                 return domain

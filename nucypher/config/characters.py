@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth import domains
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_ALICE_ETH_PASSWORD,
@@ -70,7 +70,7 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def configure_condition_blockchain_endpoints(self) -> None:
         """Configure default condition provider URIs for eth and polygon network."""
-        taco_domain = NetworksInventory.from_domain_name(self.domain)
+        taco_domain = domains.from_domain_name(self.domain)
 
         # Polygon
         polygon_chain_id = taco_domain.polygon_chain.id

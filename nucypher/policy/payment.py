@@ -5,8 +5,8 @@ import maya
 from nucypher_core import ReencryptionRequest
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.policy import policies
 
@@ -73,7 +73,7 @@ class ContractPayment(PaymentMethod, ABC):
     ):
         super().__init__(*args, **kwargs)
         self.blockchain_endpoint = blockchain_endpoint
-        self.taco_domain = NetworksInventory.from_domain_name(domain)
+        self.taco_domain = domains.from_domain_name(domain)
         if not registry:
             registry = ContractRegistry.from_latest_publication(domain=domain)
         self.registry = registry

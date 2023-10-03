@@ -1,6 +1,6 @@
 import pytest
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth import domains
 from nucypher.network.nodes import TEACHER_NODES
 
 
@@ -11,6 +11,6 @@ def mock_teacher_nodes(mocker):
 
 
 def test_default_teacher_seednodes_defined():
-    for domain in NetworksInventory.SUPPORTED_DOMAIN_NAMES:
+    for domain in domains.SUPPORTED_DOMAIN_NAMES:
         teacher_nodes = TEACHER_NODES[domain]
         assert len(teacher_nodes) > 0

@@ -14,15 +14,14 @@ from nucypher.blockchain.eth.agents import (
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.domains import (
+    EthChain,
+    PolygonChain,
+    TACoDomain,
+)
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
-)
-from nucypher.blockchain.eth.networks import (
-    EthChain,
-    NetworksInventory,
-    PolygonChain,
-    TACoDomain,
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -137,8 +136,8 @@ def mock_interface(module_mocker):
 
 
 @pytest.fixture(scope='module')
-def test_registry():
-    with mock_registry_sources():
+def test_registry(module_mocker):
+    with mock_registry_sources(mocker=module_mocker):
         mock_source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
         registry = ContractRegistry(source=mock_source)
         yield registry
@@ -295,8 +294,8 @@ def mock_condition_blockchains(session_mocker):
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "from_domain_name", return_value=test_domain
+    session_mocker.patch(
+        "nucypher.blockchain.eth.domains.from_domain_name", return_value=test_domain
     )
 
 

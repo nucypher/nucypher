@@ -1,11 +1,11 @@
 from typing import Dict
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth import domains
 from nucypher.config.migrations.common import perform_migration
 
 
 def __migration(config: Dict) -> Dict:
-    taco_domain = NetworksInventory.from_domain_name(config["domain"])
+    taco_domain = domains.from_domain_name(config["domain"])
     eth_provider = config["eth_provider_uri"]
     eth_chain_id = taco_domain.eth_chain.id
     polygon_provider = config["payment_provider"]

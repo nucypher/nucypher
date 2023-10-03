@@ -6,12 +6,12 @@ import maya
 from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
     TACoApplicationAgent,
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
@@ -154,7 +154,7 @@ def nucypher_dkg(
                 ),
             )
 
-    taco_domain = NetworksInventory.from_domain_name(domain)
+    taco_domain = domains.from_domain_name(domain)
     registry = ContractRegistry.from_latest_publication(
         domain=domain
     )

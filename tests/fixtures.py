@@ -304,8 +304,8 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 
 
 @pytest.fixture(scope="module")
-def mock_registry_sources():
-    with tests.utils.registry.mock_registry_sources():
+def mock_registry_sources(module_mocker):
+    with tests.utils.registry.mock_registry_sources(module_mocker):
         yield
 
 

@@ -27,6 +27,7 @@ from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -37,7 +38,6 @@ from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -93,7 +93,7 @@ class BaseActor:
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
-        self.taco_domain = NetworksInventory.from_domain_name(self.network)
+        self.taco_domain = domains.from_domain_name(self.network)
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):

@@ -4,9 +4,8 @@ import pytest
 from eth_utils.crypto import keccak
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.networks import (
+from nucypher.blockchain.eth.domains import (
     EthChain,
-    NetworksInventory,
     PolygonChain,
     TACoDomain,
 )
@@ -151,8 +150,8 @@ def mock_condition_blockchains(session_mocker):
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "from_domain_name", return_value=test_domain
+    session_mocker.patch(
+        "nucypher.blockchain.eth.domains.from_domain_name", return_value=test_domain
     )
 
 

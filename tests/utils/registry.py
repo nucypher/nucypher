@@ -5,9 +5,9 @@ from typing import List
 from ape.contracts import ContractInstance
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.networks import (
+from nucypher.blockchain.eth import domains
+from nucypher.blockchain.eth.domains import (
     EthChain,
-    NetworksInventory,
     PolygonChain,
     TACoDomain,
 )
@@ -20,26 +20,15 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @contextmanager
-def mock_registry_sources():
-    # capture the real values
-    real_domains = NetworksInventory.SUPPORTED_DOMAINS
-    real_domain_names = NetworksInventory.SUPPORTED_DOMAIN_NAMES
-    real_registry_sources = RegistrySourceManager._FALLBACK_CHAIN
-
-    # set the mock values
-    NetworksInventory.SUPPORTED_DOMAIN_NAMES = [TEMPORARY_DOMAIN]
+def mock_registry_sources(mocker):
     test_domain = TACoDomain(
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
-    NetworksInventory.SUPPORTED_DOMAINS = [test_domain]
-    RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
 
-    yield  # run the test
+    mocker.patch.object(domains, "SUPPORTED_DOMAINS", [test_domain])
+    mocker.patch.object(domains, "SUPPORTED_DOMAIN_NAMES", [TEMPORARY_DOMAIN])
 
-    # restore the real values
-    NetworksInventory.SUPPORTED_DOMAINS = real_domains
-    NetworksInventory.SUPPORTED_DOMAIN_NAMES = real_domain_names
-    RegistrySourceManager._FALLBACK_CHAIN = real_registry_sources
+    mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
 
 
 class MockRegistrySource(RegistrySource):
