@@ -22,7 +22,7 @@ from nucypher.blockchain.eth.networks import (
     EthChain,
     NetworksInventory,
     PolygonChain,
-    TACoNetwork,
+    TACoDomain,
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -291,16 +291,12 @@ def mock_condition_blockchains(session_mocker):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    testing_network = TACoNetwork(
+    testing_network = TACoDomain(
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
     session_mocker.patch.object(
-        NetworksInventory, "get_network_names", return_value=[TEMPORARY_DOMAIN]
-    )
-
-    session_mocker.patch.object(
-        NetworksInventory, "get_network", return_value=testing_network
+        NetworksInventory, "from_domain_name", return_value=testing_network
     )
 
 

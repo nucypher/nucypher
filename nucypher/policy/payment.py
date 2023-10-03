@@ -66,16 +66,16 @@ class ContractPayment(PaymentMethod, ABC):
     def __init__(
         self,
         blockchain_endpoint: str,
-        network: str,
+        domain: str,
         registry: Optional[ContractRegistry] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.provider = blockchain_endpoint
-        self.taco_network = NetworksInventory.get_network(network)
+        self.blockchain_endpoint = blockchain_endpoint
+        self.taco_domain = NetworksInventory.from_domain_name(domain)
         if not registry:
-            registry = ContractRegistry.from_latest_publication(domain=network)
+            registry = ContractRegistry.from_latest_publication(domain=domain)
         self.registry = registry
         self.__agent = None  # delay blockchain/registry reads until later
 
@@ -86,7 +86,7 @@ class ContractPayment(PaymentMethod, ABC):
             return self.__agent  # get cache
         agent = ContractAgency.get_agent(
             agent_class=self._AGENT,
-            blockchain_endpoint=self.provider,
+            blockchain_endpoint=self.blockchain_endpoint,
             registry=self.registry,
         )
         self.__agent = agent

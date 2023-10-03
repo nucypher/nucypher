@@ -19,7 +19,7 @@ from nucypher.cli.literature import (
     IGNORE_OLD_CONFIGURATION,
     NO_ACCOUNTS,
     NO_CONFIGURATIONS_ON_DISK,
-    SELECT_NETWORK,
+    SELECT_DOMAIN,
     SELECTED_ACCOUNT,
 )
 from nucypher.config.base import CharacterConfiguration
@@ -40,7 +40,7 @@ def select_client_account(
     registry: ContractRegistry = None,
     show_matic_balance: bool = False,
     show_staking: bool = False,
-    network: str = None,
+    domain: str = None,
     poa: bool = None,
 ) -> str:
     """
@@ -71,15 +71,15 @@ def select_client_account(
     )
 
     if signer_uri and not signer:
-        testnet = network != NetworksInventory.MAINNET.name
+        testnet = domain != NetworksInventory.MAINNET.name
         signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
     # Display accounts info
     if show_staking:  # Lazy registry fetching
         if not registry:
-            if not network:
+            if not domain:
                 raise ValueError("Pass network name or registry; Got neither.")
-            registry = ContractRegistry.from_latest_publication(domain=network)
+            registry = ContractRegistry.from_latest_publication(domain=domain)
 
     enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
@@ -115,19 +115,19 @@ def select_client_account(
     return chosen_account
 
 
-def select_network(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
+def select_domain(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
     """Interactively select a network from nucypher networks inventory list"""
     emitter.message(message=message or str(), color="yellow")
-    network_list = NetworksInventory.SUPPORTED_NETWORK_NAMES
-    rows = [[n] for n in network_list]
+    domain_list = NetworksInventory.SUPPORTED_DOMAIN_NAMES
+    rows = [[n] for n in domain_list]
     emitter.echo(tabulate(rows, showindex="always"))
     choice = click.prompt(
-        SELECT_NETWORK,
+        SELECT_DOMAIN,
         default=0,
         type=click.IntRange(0, len(rows) - 1),
     )
-    network = network_list[choice]
-    return network
+    domain = domain_list[choice]
+    return domain
 
 
 def select_config_file(emitter: StdoutEmitter,

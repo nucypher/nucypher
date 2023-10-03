@@ -35,7 +35,7 @@ class BaseTestNodeStorageBackends:
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
         pre_payment_method = SubscriptionManagerPayment(
-            blockchain_endpoint=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+            blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
         )
 
         # Save more nodes

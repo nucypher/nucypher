@@ -11,9 +11,9 @@ def mock_teacher_nodes(mocker):
 
 
 def test_default_teacher_seednodes_defined():
-    for network_name in NetworksInventory.SUPPORTED_NETWORK_NAMES:
-        if network_name == NetworksInventory.IBEX.name:
+    for domain in NetworksInventory.SUPPORTED_DOMAIN_NAMES:
+        if domain == NetworksInventory.IBEX.name:
             # skip
             continue
-        teacher_nodes = TEACHER_NODES[network_name]
+        teacher_nodes = TEACHER_NODES[domain]
         assert len(teacher_nodes) > 0

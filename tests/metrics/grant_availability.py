@@ -54,9 +54,9 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-TACO_NETWORK: str = NetworksInventory.LYNX.name  # mainnet
+TACO_DOMAIN: str = NetworksInventory.LYNX.name  # mainnet
 DEFAULT_SEEDNODE_URIS: List[str] = [
-    *TEACHER_NODES[TACO_NETWORK],
+    *TEACHER_NODES[TACO_DOMAIN],
 ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
@@ -155,7 +155,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
     # This is Alice's PRE payment method.
     pre_payment_method = SubscriptionManagerPayment(
-        network=TACO_NETWORK, blockchain_endpoint=POLYGON_PROVIDER_URI
+        domain=TACO_DOMAIN, blockchain_endpoint=POLYGON_PROVIDER_URI
     )
 
     wallet = Signer.from_signer_uri(f'keystore://{SIGNER_URI}')
@@ -167,7 +167,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
         config_root=TEMP_ALICE_DIR,
-        domain=TACO_NETWORK,
+        domain=TACO_DOMAIN,
         known_nodes=known_nodes,
         start_learning_now=False,
         learn_on_same_thread=True,

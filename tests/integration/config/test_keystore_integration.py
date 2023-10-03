@@ -74,7 +74,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
     )
 
     alice = Alice(
@@ -160,7 +160,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
     )
 
     ursula = Ursula(

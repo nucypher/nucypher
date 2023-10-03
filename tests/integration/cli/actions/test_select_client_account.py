@@ -191,7 +191,7 @@ def test_select_client_account_with_balance_display(
     mock_stdin.line(str(selection))
     selected_account = select_client_account(
         emitter=test_emitter,
-        network=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN,
         show_matic_balance=show_matic,
         show_staking=show_staking,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from nucypher.config.constants import TEMPORARY_DOMAIN
 
@@ -22,7 +22,7 @@ class PolygonChain(ChainInfo, Enum):
     TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
 
 
-class TACoNetwork(NamedTuple):
+class TACoDomain(NamedTuple):
     name: str
     eth_chain: EthChain
     polygon_chain: PolygonChain
@@ -31,22 +31,22 @@ class TACoNetwork(NamedTuple):
         return self.eth_chain != EthChain.MAINNET
 
 
-class UnrecognizedNetwork(RuntimeError):
-    """Raised when a provided network name is not recognized."""
+class UnrecognizedDomain(RuntimeError):
+    """Raised when a provided domain name is not recognized."""
 
 
 class NetworksInventory:
-    MAINNET = TACoNetwork("mainnet", EthChain.MAINNET, PolygonChain.POLYGON)
+    MAINNET = TACoDomain("mainnet", EthChain.MAINNET, PolygonChain.POLYGON)
     # Testnets
-    ORYX = TACoNetwork("oryx", EthChain.GOERLI, PolygonChain.POLYGON)
-    LYNX = TACoNetwork("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
-    TAPIR = TACoNetwork("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
+    ORYX = TACoDomain("oryx", EthChain.GOERLI, PolygonChain.POLYGON)
+    LYNX = TACoDomain("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
+    TAPIR = TACoDomain("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
     # TODO did Ibex even use a PolyNetwork?
-    IBEX = TACoNetwork(
+    IBEX = TACoDomain(
         "ibex", EthChain.GOERLI, PolygonChain.MUMBAI
     )  # this is required for configuration file migrations (backwards compatibility)
 
-    SUPPORTED_NETWORKS = [
+    SUPPORTED_DOMAINS = [
         MAINNET,
         ORYX,
         LYNX,
@@ -54,22 +54,17 @@ class NetworksInventory:
         IBEX,
     ]
 
-    SUPPORTED_NETWORK_NAMES = [network.name for network in SUPPORTED_NETWORKS]
+    SUPPORTED_DOMAIN_NAMES = [network.name for network in SUPPORTED_DOMAINS]
 
     # TODO not needed once merged with registry changes
-    POLYGON_CHAINS = [network.polygon_chain.name for network in SUPPORTED_NETWORKS]
+    POLYGON_CHAINS = [network.polygon_chain.name for network in SUPPORTED_DOMAINS]
 
-    DEFAULT_NETWORK_NAME: str = MAINNET.name
-
-    @classmethod
-    def get_network(cls, network_name: str) -> TACoNetwork:
-        for network in cls.SUPPORTED_NETWORKS:
-            if network.name == network_name:
-                return network
-
-        raise UnrecognizedNetwork(f"{network_name} is not a recognized network.")
+    DEFAULT_DOMAIN_NAME: str = MAINNET.name
 
     @classmethod
-    def get_network_names(cls) -> List[str]:
-        networks = [network.name for network in cls.SUPPORTED_NETWORKS]
-        return networks
+    def from_domain_name(cls, domain: str) -> TACoDomain:
+        for taco_domain in cls.SUPPORTED_DOMAINS:
+            if taco_domain.name == domain:
+                return taco_domain
+
+        raise UnrecognizedDomain(f"{domain} is not a recognized domain.")

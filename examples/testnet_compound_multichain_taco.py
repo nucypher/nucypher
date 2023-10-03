@@ -20,7 +20,7 @@ GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
 eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
-taco_network = NetworksInventory.get_network("lynx")
+taco_domain = NetworksInventory.from_domain_name("lynx")
 
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 
@@ -31,7 +31,7 @@ polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 print("--------- Threshold Encryption ---------")
 
 registry = ContractRegistry.from_latest_publication(
-    domain=taco_network.name,
+    domain=taco_domain.name,
 )
 
 coordinator_agent = CoordinatorAgent(
@@ -100,7 +100,7 @@ print(f"\nEncrypted message:\n{bytes(threshold_message_kit).hex()}")
 print("--------- Threshold Decryption ---------")
 
 bob = Bob(
-    domain=taco_network.name,
+    domain=taco_domain.name,
     eth_endpoint=eth_endpoint,
     polygon_endpoint=polygon_endpoint,
     registry=registry,

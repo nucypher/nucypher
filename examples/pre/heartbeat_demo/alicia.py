@@ -57,7 +57,7 @@ try:
 except KeyError:
     raise RuntimeError("Missing environment variables to run demo.")
 
-TACO_NETWORK = "lynx"
+TACO_DOMAIN = "lynx"
 
 
 #######################################
@@ -83,14 +83,14 @@ wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
-    network=TACO_NETWORK, blockchain_endpoint=L2_PROVIDER
+    domain=TACO_DOMAIN, blockchain_endpoint=L2_PROVIDER
 )
 
 # This is Alicia.
 alicia = Alice(
     checksum_address=ALICE_ADDRESS,
     signer=wallet,
-    domain=TACO_NETWORK,
+    domain=TACO_DOMAIN,
     eth_endpoint=L1_PROVIDER,
     polygon_endpoint=L2_PROVIDER,
     pre_payment_method=pre_payment_method,

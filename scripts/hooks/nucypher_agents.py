@@ -42,10 +42,10 @@ emitter = StdoutEmitter(verbosity=2)
 
 @click.command()
 @click.option(
-    "--network",
-    "network",
-    help="TACo network",
-    type=click.Choice(NetworksInventory.SUPPORTED_NETWORK_NAMES),
+    "--domain",
+    "domain",
+    help="TACo domain",
+    type=click.Choice(NetworksInventory.SUPPORTED_DOMAIN_NAMES),
     default="lynx",
 )
 @click.option(
@@ -63,22 +63,18 @@ emitter = StdoutEmitter(verbosity=2)
     required=True,
 )
 def nucypher_agents(
-    network,
+    domain,
     eth_endpoint,
     polygon_endpoint,
 ):
-    staking_registry = ContractRegistry.from_latest_publication(domain=network)
-    emitter.echo(f"NOTICE: Connecting to {network} network", color="yellow")
+    registry = ContractRegistry.from_latest_publication(domain=domain)
+    emitter.echo(f"NOTICE: Connecting to {domain} network", color="yellow")
 
     taco_application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,
-        registry=staking_registry,
+        registry=registry,
         blockchain_endpoint=eth_endpoint,
     )  # type: TACoApplicationAgent
-
-    registry = ContractRegistry.from_latest_publication(
-        domain=network
-    )
 
     taco_child_application_agent = ContractAgency.get_agent(
         agent_class=TACoChildApplicationAgent,

@@ -154,7 +154,7 @@ def nucypher_dkg(
                 ),
             )
 
-    taco_network = NetworksInventory.get_network(network)
+    taco_domain = NetworksInventory.from_domain_name(network)
     registry = ContractRegistry.from_latest_publication(
         domain=network
     )
@@ -193,7 +193,7 @@ def nucypher_dkg(
 
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
-            f"Commencing DKG Ritual(s) on {taco_network.polygon_chain.name} using {account_address}",
+            f"Commencing DKG Ritual(s) on {taco_domain.polygon_chain.name} using {account_address}",
             color="green",
         )
 

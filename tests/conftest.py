@@ -8,7 +8,7 @@ from nucypher.blockchain.eth.networks import (
     EthChain,
     NetworksInventory,
     PolygonChain,
-    TACoNetwork,
+    TACoDomain,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
@@ -147,16 +147,12 @@ def mock_condition_blockchains(session_mocker):
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
-    testing_network = TACoNetwork(
+    testing_network = TACoDomain(
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
     session_mocker.patch.object(
-        NetworksInventory, "get_network_names", return_value=[TEMPORARY_DOMAIN]
-    )
-
-    session_mocker.patch.object(
-        NetworksInventory, "get_network", return_value=testing_network
+        NetworksInventory, "from_domain_name", return_value=testing_network
     )
 
 

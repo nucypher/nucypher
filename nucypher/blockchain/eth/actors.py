@@ -93,7 +93,7 @@ class BaseActor:
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
-        self.taco_network = NetworksInventory.get_network(self.network)
+        self.taco_domain = NetworksInventory.from_domain_name(self.network)
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):

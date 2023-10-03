@@ -38,11 +38,11 @@ option_blockchain_endpoint = click.option(
     required=True,
 )
 
-option_network = click.option(
-    "--network",
-    help="TACo Network",
+option_domain = click.option(
+    "--domain",
+    help="TACo Domain",
     type=click.STRING,
-    default=click.Choice(NetworksInventory.SUPPORTED_NETWORK_NAMES),
+    default=click.Choice(NetworksInventory.SUPPORTED_DOMAIN_NAMES),
     required=True,
 )
 
@@ -50,17 +50,17 @@ option_network = click.option(
 class RegistryOptions:
     __option_name__ = "registry_options"
 
-    def __init__(self, blockchain_endpoint, poa, registry_filepath, light, network):
+    def __init__(self, blockchain_endpoint, poa, registry_filepath, light, domain):
         self.blockchain_endpoint = blockchain_endpoint
         self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
-        self.network = network
+        self.domain = domain
 
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
         registry = get_registry(
-            network=self.network, registry_filepath=self.registry_filepath
+            network=self.domain, registry_filepath=self.registry_filepath
         )
         return emitter, registry, self.blockchain_endpoint
 
@@ -70,7 +70,7 @@ group_registry_options = group_options(
     poa=option_poa,
     light=option_light,
     registry_filepath=option_registry_filepath,
-    network=option_network,
+    domain=option_domain,
     blockchain_endpoint=option_blockchain_endpoint,
 )
 

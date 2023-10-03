@@ -88,21 +88,21 @@ class DecimalRange(DecimalType):
         return rv
 
 
-class NuCypherNetworkName(click.ParamType):
-    name = 'nucypher_network_name'
+class NuCypherDomainName(click.ParamType):
+    name = "nucypher_domain_name"
 
     def __init__(self, validate: bool = True):
         self.validate = bool(validate)
 
     def convert(self, value, param, ctx):
         if self.validate:
-            network = str(value).lower()
-            if network not in NetworksInventory.ETH_NETWORKS:
+            domain = str(value).lower()
+            if domain not in NetworksInventory.SUPPORTED_DOMAIN_NAMES:
                 self.fail(
-                    f"'{value}' is not a recognized network. Valid options are: {list(NetworksInventory.ETH_NETWORKS)}"
+                    f"'{value}' is not a recognized domain. Valid options are: {list(NetworksInventory.SUPPORTED_DOMAIN_NAMES)}"
                 )
             else:
-                return network
+                return domain
         else:
             return value
 

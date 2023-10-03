@@ -14,7 +14,7 @@ from nucypher.cli.types import (
     NETWORK_PORT,
     PRE_PAYMENT_METHOD_CHOICES,
     STAKED_TOKENS_RANGE,
-    NuCypherNetworkName,
+    NuCypherDomainName,
 )
 from nucypher.utilities.logging import Logger
 
@@ -180,7 +180,7 @@ def option_network(required: bool = False,
     return click.option(
         '--network',
         help="NuCypher Network/Domain Name",
-        type=NuCypherNetworkName(validate=validate),
+        type=NuCypherDomainName(validate=validate),
         required=required,
         default=default)
 

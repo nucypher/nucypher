@@ -43,7 +43,7 @@ nucypher {init_command}
 """
 
 
-SELECT_NETWORK = "Select TACo Network"
+SELECT_DOMAIN = "Select TACo Domain"
 
 NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found. Run 'nucypher {command} init' then try again."
 

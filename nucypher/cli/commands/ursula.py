@@ -20,7 +20,7 @@ from nucypher.cli.actions.configure import (
 from nucypher.cli.actions.select import (
     select_client_account,
     select_config_file,
-    select_network,
+    select_domain,
 )
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
@@ -341,9 +341,9 @@ def init(general_config, config_options, force, config_root, key_material):
             ),
         )
     if not config_options.domain:
-        config_options.domain = select_network(
+        config_options.domain = select_domain(
             emitter,
-            message="Select TACo Network",
+            message="Select TACo Domain",
         )
     ursula_config = config_options.generate_config(
         emitter=emitter, config_root=config_root, force=force, key_material=key_material

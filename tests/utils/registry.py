@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.networks import (
     EthChain,
     NetworksInventory,
     PolygonChain,
-    TACoNetwork,
+    TACoDomain,
 )
 from nucypher.blockchain.eth.registry import (
     RegistryData,
@@ -22,23 +22,23 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 @contextmanager
 def mock_registry_sources():
     # capture the real values
-    real_networks = NetworksInventory.SUPPORTED_NETWORKS
-    real_network_names = NetworksInventory.SUPPORTED_NETWORK_NAMES
+    real_domains = NetworksInventory.SUPPORTED_DOMAINS
+    real_domain_names = NetworksInventory.SUPPORTED_DOMAIN_NAMES
     real_registry_sources = RegistrySourceManager._FALLBACK_CHAIN
 
     # set the mock values
-    NetworksInventory.SUPPORTED_NETWORK_NAMES = [TEMPORARY_DOMAIN]
-    testing_network = TACoNetwork(
+    NetworksInventory.SUPPORTED_DOMAIN_NAMES = [TEMPORARY_DOMAIN]
+    test_domain = TACoDomain(
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
-    NetworksInventory.SUPPORTED_NETWORKS = [testing_network]
+    NetworksInventory.SUPPORTED_DOMAINS = [test_domain]
     RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
 
     yield  # run the test
 
     # restore the real values
-    NetworksInventory.SUPPORTED_NETWORKS = real_networks
-    NetworksInventory.SUPPORTED_NETWORK_NAMES = real_network_names
+    NetworksInventory.SUPPORTED_DOMAINS = real_domains
+    NetworksInventory.SUPPORTED_DOMAIN_NAMES = real_domain_names
     RegistrySourceManager._FALLBACK_CHAIN = real_registry_sources
 
 

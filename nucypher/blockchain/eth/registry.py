@@ -34,10 +34,10 @@ class RegistrySource(ABC):
         """Raised when there are no available registry sources"""
 
     def __init__(self, domain: str, *args, **kwargs):
-        if domain not in NetworksInventory.SUPPORTED_NETWORK_NAMES:
+        if domain not in NetworksInventory.SUPPORTED_DOMAIN_NAMES:
             raise ValueError(
                 f"{self.__class__.__name__} not available for domain '{domain}'. "
-                f"Valid options are: {', '.join(list(NetworksInventory.SUPPORTED_NETWORK_NAMES))}"
+                f"Valid options are: {', '.join(list(NetworksInventory.SUPPORTED_DOMAIN_NAMES))}"
             )
         self.domain = domain
         self.data = self.get()

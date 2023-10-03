@@ -307,7 +307,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     CHARACTER_CLASS = NotImplemented
     MNEMONIC_KEYSTORE = False
-    DEFAULT_DOMAIN = NetworksInventory.DEFAULT_NETWORK_NAME
+    DEFAULT_DOMAIN = NetworksInventory.DEFAULT_DOMAIN_NAME
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     SIGNER_ENVVAR = None
@@ -420,7 +420,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Learner
         self.domain = domain
-        self.taco_network = NetworksInventory.get_network(self.domain)
+        self.taco_domain = NetworksInventory.from_domain_name(self.domain)
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
@@ -459,7 +459,7 @@ class CharacterConfiguration(BaseConfiguration):
                 self.log.info(f"Using local registry ({self.registry}).")
 
         self.signer = Signer.from_signer_uri(
-            self.signer_uri, testnet=self.taco_network.is_testnet()
+            self.signer_uri, testnet=self.taco_domain.is_testnet()
         )
 
         #
@@ -479,12 +479,13 @@ class CharacterConfiguration(BaseConfiguration):
                 if not self.policy_registry_filepath:
                     self.log.info("Fetching latest policy registry from source.")
                     self.policy_registry = ContractRegistry.from_latest_publication(
-                        domain=self.taco_network.name
+                        domain=self.taco_domain.name
                     )
                 else:
-                    self.policy_registry = ContractRegistry(
-                        filepath=self.policy_registry_filepath
+                    source = LocalRegistrySource(
+                        domain=self.domain, filepath=self.policy_registry_filepath
                     )
+                    self.policy_registry = ContractRegistry(source=source)
                     self.log.info(
                         f"Using local policy registry ({self.policy_registry})."
                     )
@@ -854,7 +855,7 @@ class CharacterConfiguration(BaseConfiguration):
         if pre_payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
             pre_payment_strategy = pre_payment_class(
-                network=self.taco_network.name,
+                domain=self.taco_domain.name,
                 blockchain_endpoint=self.polygon_endpoint,
                 registry=self.policy_registry,
             )

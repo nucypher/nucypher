@@ -323,7 +323,7 @@ def light_ursula(temp_dir_path, random_account, mocker):
         KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
     )
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
     )
 
     mocker.patch.object(
