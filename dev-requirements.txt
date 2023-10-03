@@ -123,7 +123,7 @@ tqdm==4.66.1 ; python_version >= '3.7'
 traitlets==5.9.0 ; python_version >= '3.7'
 trie==2.1.1 ; python_version >= '3.7' and python_version < '4'
 typing-extensions==4.7.1 ; python_version >= '3.7'
-urllib3==2.0.4 ; python_version >= '3.7'
+urllib3==2.0.6 ; python_version >= '3.7'
 varint==1.0.2
 virtualenv==20.24.4 ; python_version >= '3.7'
 watchdog==3.0.0 ; python_version >= '3.7'
