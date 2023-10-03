@@ -48,7 +48,7 @@ def test_ursula_init_with_local_keystore_signer(
         "ursula",
         "init",
         # Layer 1
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         testerchain.blockchain_endpoint,

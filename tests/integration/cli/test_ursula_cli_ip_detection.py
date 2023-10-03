@@ -34,7 +34,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
     args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
@@ -52,7 +52,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
     args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--force",
         "--eth-endpoint",
@@ -70,7 +70,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
     args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--force",
         "--eth-endpoint",

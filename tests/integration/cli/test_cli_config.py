@@ -40,7 +40,7 @@ def test_initialize_via_cli(
     init_args = (
         command,
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,

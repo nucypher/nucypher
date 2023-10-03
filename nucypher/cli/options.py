@@ -174,12 +174,14 @@ def option_message_kit(required: bool = False, multiple: bool = False):
         required=required)
 
 
-def option_network(required: bool = False,
-                   default: str = None,  # NetworksInventory.DEFAULT is not a good global default (2214)
-                   validate: bool = False):
+def option_domain(
+    required: bool = False,
+    default: str = None,  # NetworksInventory.DEFAULT is not a good global default (2214)
+    validate: bool = False,
+):
     return click.option(
-        '--network',
-        help="NuCypher Network/Domain Name",
+        "--domain",
+        help="TACo Domain Name",
         type=NuCypherDomainName(validate=validate),
         required=required,
         default=default)

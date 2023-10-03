@@ -23,7 +23,7 @@ from nucypher.utilities.networking import (
 )
 from tests.constants import MOCK_ETH_PROVIDER_URI, MOCK_IP_ADDRESS
 
-MOCK_NETWORK = 'holodeck'
+MOCK_DOMAIN = "holodeck"
 MOCK_PORT = 1111
 
 
@@ -33,7 +33,7 @@ class Dummy:  # Teacher
         self.canonical_address = canonical_address
         self.checksum_address = to_checksum_address(canonical_address)
         self.certificate_filepath = None
-        self.domain = MOCK_NETWORK
+        self.domain = MOCK_DOMAIN
 
     class GoodResponse:
         status_code = 200
@@ -96,7 +96,7 @@ def mock_client(mocker):
 
 @pytest.fixture(autouse=True)
 def mock_default_teachers(mocker):
-    teachers = {MOCK_NETWORK: (f"{MOCK_IP_ADDRESS}:{MOCK_PORT}", )}
+    teachers = {MOCK_DOMAIN: (f"{MOCK_IP_ADDRESS}:{MOCK_PORT}",)}
     mocker.patch.dict(TEACHER_NODES, teachers, clear=True)
 
 
@@ -106,7 +106,7 @@ def test_get_external_ip_from_centralized_source(mock_requests):
 
 
 def test_get_external_ip_from_empty_known_nodes(mock_requests):
-    sensor = FleetSensor(domain=MOCK_NETWORK)
+    sensor = FleetSensor(domain=MOCK_DOMAIN)
     assert len(sensor) == 0
     get_external_ip_from_known_nodes(
         known_nodes=sensor, eth_endpoint=MOCK_ETH_PROVIDER_URI
@@ -116,7 +116,7 @@ def test_get_external_ip_from_empty_known_nodes(mock_requests):
 
 
 def test_get_external_ip_from_known_nodes_with_one_known_node(mock_requests):
-    sensor = FleetSensor(domain=MOCK_NETWORK)
+    sensor = FleetSensor(domain=MOCK_DOMAIN)
     sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_fleet_state()
     assert len(sensor) == 1
@@ -130,7 +130,7 @@ def test_get_external_ip_from_known_nodes_with_one_known_node(mock_requests):
 def test_get_external_ip_from_known_nodes(mock_client):
 
     # Setup FleetSensor
-    sensor = FleetSensor(domain=MOCK_NETWORK)
+    sensor = FleetSensor(domain=MOCK_DOMAIN)
     sample_size = 3
     sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_node(Dummy(b'deadllamadeadllamade'))
@@ -156,7 +156,7 @@ def test_get_external_ip_from_known_nodes(mock_client):
 def test_get_external_ip_from_known_nodes_client(mocker, mock_client):
 
     # Setup FleetSensor
-    sensor = FleetSensor(domain=MOCK_NETWORK)
+    sensor = FleetSensor(domain=MOCK_DOMAIN)
     sample_size = 3
     sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_node(Dummy(b'deadllamadeadllamade'))
@@ -166,7 +166,7 @@ def test_get_external_ip_from_known_nodes_client(mocker, mock_client):
 
     # Setup HTTP Client
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy(b'deadporkdeadporkdead'))
-    teacher_uri = TEACHER_NODES[MOCK_NETWORK][0]
+    teacher_uri = TEACHER_NODES[MOCK_DOMAIN][0]
 
     get_external_ip_from_known_nodes(
         known_nodes=sensor, sample_size=sample_size, eth_endpoint=MOCK_ETH_PROVIDER_URI
@@ -183,7 +183,7 @@ def test_get_external_ip_default_teacher_unreachable(mocker):
         # Default seednode is down
         mocker.patch.object(Ursula, "from_teacher_uri", side_effect=error)
         ip = get_external_ip_from_default_teacher(
-            network=MOCK_NETWORK, eth_endpoint=MOCK_ETH_PROVIDER_URI
+            domain=MOCK_DOMAIN, eth_endpoint=MOCK_ETH_PROVIDER_URI
         )
         assert ip is None
 
@@ -191,12 +191,12 @@ def test_get_external_ip_default_teacher_unreachable(mocker):
 def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests):
 
     mock_client.return_value = Dummy.GoodResponse
-    teacher_uri = TEACHER_NODES[MOCK_NETWORK][0]
+    teacher_uri = TEACHER_NODES[MOCK_DOMAIN][0]
     mocker.patch.object(Ursula, 'from_teacher_uri', return_value=Dummy(b'deadbeefdeadbeefdead'))
 
     # "Success"
     ip = get_external_ip_from_default_teacher(
-        network=MOCK_NETWORK, eth_endpoint=MOCK_ETH_PROVIDER_URI
+        domain=MOCK_DOMAIN, eth_endpoint=MOCK_ETH_PROVIDER_URI
     )
     assert ip == MOCK_IP_ADDRESS
 
@@ -208,13 +208,13 @@ def test_get_external_ip_from_default_teacher(mocker, mock_client, mock_requests
     assert endpoint == f'https://{teacher_uri}/ping'
 
 
-def test_get_external_ip_default_unknown_network():
+def test_get_external_ip_default_unknown_domain():
     unknown_domain = 'thisisnotarealdomain'
 
     # Without fleet sensor
     with pytest.raises(UnknownIPAddress):
         determine_external_ip_address(
-            network=unknown_domain, eth_endpoint=MOCK_ETH_PROVIDER_URI
+            domain=unknown_domain, eth_endpoint=MOCK_ETH_PROVIDER_URI
         )
 
     # with fleet sensor
@@ -222,7 +222,7 @@ def test_get_external_ip_default_unknown_network():
     with pytest.raises(UnknownIPAddress):
         determine_external_ip_address(
             known_nodes=sensor,
-            network=unknown_domain,
+            domain=unknown_domain,
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
         )
 
@@ -232,13 +232,13 @@ def test_get_external_ip_cascade_failure(mocker, mock_requests):
     second = mocker.patch('nucypher.utilities.networking.get_external_ip_from_default_teacher', return_value=None)
     third = mocker.patch('nucypher.utilities.networking.get_external_ip_from_centralized_source', return_value=None)
 
-    sensor = FleetSensor(domain=MOCK_NETWORK)
+    sensor = FleetSensor(domain=MOCK_DOMAIN)
     sensor.record_node(Dummy(b'deadbeefdeadbeefdead'))
     sensor.record_fleet_state()
 
     with pytest.raises(UnknownIPAddress, match="External IP address detection failed"):
         determine_external_ip_address(
-            network=MOCK_NETWORK, known_nodes=sensor, eth_endpoint=MOCK_ETH_PROVIDER_URI
+            domain=MOCK_DOMAIN, known_nodes=sensor, eth_endpoint=MOCK_ETH_PROVIDER_URI
         )
 
     first.assert_called_once()

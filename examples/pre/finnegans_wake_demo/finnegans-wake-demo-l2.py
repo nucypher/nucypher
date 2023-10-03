@@ -40,9 +40,9 @@ except KeyError:
 
 print("\n************** Setup **************\n")
 
-###########
-# Network #
-###########
+##########
+# DOMAIN #
+##########
 
 TACO_DOMAIN = "lynx"
 
@@ -51,7 +51,7 @@ TACO_DOMAIN = "lynx"
 #####################
 
 # Then, there was bob. Bob learns about the
-# rest of the network from the seednode.
+# rest of the domain from the seednode.
 bob = Bob(
     domain=TACO_DOMAIN,
     eth_endpoint=L1_PROVIDER,

@@ -44,9 +44,9 @@ def get_transacting_power(signer: Signer):
 
 @click.command()
 @click.option(
-    "--network",
-    "network",
-    help="TACo Network",
+    "--domain",
+    "domain",
+    help="TACo Domain",
     type=click.Choice(["tapir", "lynx"]),
     default="lynx",
 )
@@ -111,7 +111,7 @@ def get_transacting_power(signer: Signer):
     default=False,
 )
 def nucypher_dkg(
-    network,
+    domain,
     eth_endpoint,
     polygon_endpoint,
     ritual_id,
@@ -154,9 +154,9 @@ def nucypher_dkg(
                 ),
             )
 
-    taco_domain = NetworksInventory.from_domain_name(network)
+    taco_domain = NetworksInventory.from_domain_name(domain)
     registry = ContractRegistry.from_latest_publication(
-        domain=network
+        domain=domain
     )
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
@@ -380,7 +380,7 @@ def nucypher_dkg(
     #
     emitter.echo("--------- Threshold Decryption ---------")
     bob = Bob(
-        domain=network,
+        domain=domain,
         eth_endpoint=eth_endpoint,
         polygon_endpoint=polygon_endpoint,
         registry=registry,

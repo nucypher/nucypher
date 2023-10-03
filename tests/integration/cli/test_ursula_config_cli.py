@@ -57,7 +57,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
@@ -90,7 +90,7 @@ def test_initialize_custom_configuration_root(
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--config-root",
         str(custom_filepath.absolute()),

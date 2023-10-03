@@ -57,7 +57,6 @@ class Vladimir(Ursula):
         bogus_pre_payment_method = FreeReencryptions()
         bogus_pre_payment_method.provider = Mock()
         bogus_pre_payment_method.agent = Mock()
-        bogus_pre_payment_method.network = TEMPORARY_DOMAIN
         bogus_pre_payment_method.agent.blockchain.client.chain_id = (
             polygon_blockchain.client.chain_id
         )

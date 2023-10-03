@@ -78,7 +78,7 @@ def select_client_account(
     if show_staking:  # Lazy registry fetching
         if not registry:
             if not domain:
-                raise ValueError("Pass network name or registry; Got neither.")
+                raise ValueError("Pass domain name or registry; Got neither.")
             registry = ContractRegistry.from_latest_publication(domain=domain)
 
     enumerated_accounts = dict(enumerate(signer.accounts))
@@ -116,7 +116,7 @@ def select_client_account(
 
 
 def select_domain(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
-    """Interactively select a network from nucypher networks inventory list"""
+    """Interactively select a domain from TACo domain inventory list"""
     emitter.message(message=message or str(), color="yellow")
     domain_list = NetworksInventory.SUPPORTED_DOMAIN_NAMES
     rows = [[n] for n in domain_list]

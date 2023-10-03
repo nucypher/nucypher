@@ -27,7 +27,7 @@ from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 @mock.patch('glob.glob', return_value=list())
 def test_missing_configuration_file(_default_filepath_mock, click_runner):
-    cmd_args = ('ursula', 'run', '--network', TEMPORARY_DOMAIN)
+    cmd_args = ("ursula", "run", "--domain", TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     configuration_type = UrsulaConfiguration.NAME
@@ -182,7 +182,7 @@ def test_persistent_node_storage_integration(
         TEST_POLYGON_PROVIDER_URI,
         "--operator-address",
         another_ursula,
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--rest-host",
         MOCK_IP_ADDRESS,

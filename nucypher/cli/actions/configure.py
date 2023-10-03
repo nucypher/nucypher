@@ -126,13 +126,13 @@ def handle_invalid_configuration_file(emitter: StdoutEmitter,
 
 
 def collect_operator_ip_address(
-    emitter: StdoutEmitter, network: str, eth_endpoint: str, force: bool = False
+    emitter: StdoutEmitter, domain: str, eth_endpoint: str, force: bool = False
 ) -> str:
     # From node swarm
     try:
         message = "Detecting external IP address automatically"
         emitter.message(message, verbosity=2)
-        ip = determine_external_ip_address(network=network, eth_endpoint=eth_endpoint)
+        ip = determine_external_ip_address(domain=domain, eth_endpoint=eth_endpoint)
     except UnknownIPAddress:
         if force:
             raise
@@ -157,7 +157,7 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
     """
     try:
         external_ip = determine_external_ip_address(
-            network=ursula.domain,
+            domain=ursula.domain,
             known_nodes=ursula.known_nodes,
             eth_endpoint=ursula.eth_endpoint,
         )

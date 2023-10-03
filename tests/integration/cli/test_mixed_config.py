@@ -68,7 +68,7 @@ def test_corrupted_configuration(
         TEST_POLYGON_PROVIDER_URI,
         "--operator-address",
         another_ursula,
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--rest-host",
         MOCK_IP_ADDRESS,
@@ -103,7 +103,7 @@ def test_corrupted_configuration(
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,

@@ -216,7 +216,7 @@ class Alice(Character, actors.PolicyAuthor):
 
     def add_active_policy(self, active_policy):
         """
-        Adds a Policy object that is active on the NuCypher network to Alice's
+        Adds a Policy object that is active on the TACo network to Alice's
         `active_policies` dictionary by the policy ID.
         """
         if active_policy.hrac in self.active_policies:
@@ -1183,14 +1183,14 @@ class Ursula(Teacher, Character, Operator):
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
-    def seednode_for_network(cls, network: str, eth_endpoint: str) -> "Ursula":
+    def seednode_for_domain(cls, domain: str, eth_endpoint: str) -> "Ursula":
         """Returns a default seednode ursula for a given network."""
         try:
-            url = TEACHER_NODES[network][0]
+            url = TEACHER_NODES[domain][0]
         except KeyError:
-            raise ValueError(f'"{network}" is not a known network.')
+            raise ValueError(f'"{domain}" is not a known domain.')
         except IndexError:
-            raise ValueError(f'No default seednodes available for "{network}".')
+            raise ValueError(f'No default seednodes available for "{domain}".')
         ursula = cls.from_seed_and_stake_info(seed_uri=url, eth_endpoint=eth_endpoint)
         return ursula
 

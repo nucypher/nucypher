@@ -178,7 +178,7 @@ def test_select_client_account_with_balance_display(
     blockchain_read_required = any((show_staking, show_matic))
     if blockchain_read_required:
         with pytest.raises(
-            ValueError, match="Pass network name or registry; Got neither."
+            ValueError, match="Pass domain name or registry; Got neither."
         ):
             select_client_account(
                 emitter=test_emitter,

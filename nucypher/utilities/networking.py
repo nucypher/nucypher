@@ -100,7 +100,7 @@ def _request_from_node(
 
 
 def get_external_ip_from_default_teacher(
-    network: str,
+    domain: str,
     eth_endpoint: str,
     registry: Optional[ContractRegistry] = None,
     log: Logger = IP_DETECTION_LOGGER,
@@ -111,15 +111,15 @@ def get_external_ip_from_default_teacher(
 
     base_error = 'Cannot determine IP using default teacher'
 
-    if network not in TEACHER_NODES:
-        log.debug(f'{base_error}: Unknown network "{network}".')
+    if domain not in TEACHER_NODES:
+        log.debug(f'{base_error}: Unknown domain "{domain}".')
         return
 
     node_storage = LocalFileBasedNodeStorage()
     Ursula.set_cert_storage_function(node_storage.store_node_certificate)
 
     external_ip = None
-    for teacher_uri in TEACHER_NODES[network]:
+    for teacher_uri in TEACHER_NODES[domain]:
         try:
             teacher = Ursula.from_teacher_uri(
                 teacher_uri=teacher_uri, eth_endpoint=eth_endpoint, min_stake=0
@@ -134,7 +134,7 @@ def get_external_ip_from_default_teacher(
             continue
 
     if not external_ip:
-        log.debug(f'{base_error}: No teacher available for network "{network}".')
+        log.debug(f'{base_error}: No teacher available for domain "{domain}".')
         return
 
     return external_ip
@@ -171,7 +171,7 @@ def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -
 
 
 def determine_external_ip_address(
-    network: str, eth_endpoint: str, known_nodes: FleetSensor = None
+    domain: str, eth_endpoint: str, known_nodes: FleetSensor = None
 ) -> str:
     """
     Attempts to automatically determine the external IP in the following priority:
@@ -192,7 +192,7 @@ def determine_external_ip_address(
     # fallback 1
     if not rest_host:
         rest_host = get_external_ip_from_default_teacher(
-            network=network, eth_endpoint=eth_endpoint
+            domain=domain, eth_endpoint=eth_endpoint
         )
 
     # fallback 2

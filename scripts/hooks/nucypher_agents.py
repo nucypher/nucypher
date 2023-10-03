@@ -68,7 +68,7 @@ def nucypher_agents(
     polygon_endpoint,
 ):
     registry = ContractRegistry.from_latest_publication(domain=domain)
-    emitter.echo(f"NOTICE: Connecting to {domain} network", color="yellow")
+    emitter.echo(f"NOTICE: Connecting to {domain} domain", color="yellow")
 
     taco_application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,

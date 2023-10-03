@@ -10,7 +10,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
 )
 from tests.utils.middleware import MockRestMiddleware
 
@@ -60,7 +60,7 @@ def test_bob_retrieves(alice, ursulas, certificates_tempdir):
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
-    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
+    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     policy = alice.grant(

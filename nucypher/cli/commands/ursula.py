@@ -33,6 +33,7 @@ from nucypher.cli.options import (
     option_config_file,
     option_config_root,
     option_dev,
+    option_domain,
     option_dry_run,
     option_eth_endpoint,
     option_force,
@@ -42,7 +43,6 @@ from nucypher.cli.options import (
     option_lonely,
     option_max_gas_price,
     option_min_stake,
-    option_network,
     option_poa,
     option_policy_registry_filepath,
     option_polygon_endpoint,
@@ -77,7 +77,7 @@ class UrsulaConfigOptions:
         operator_address: str,
         rest_host: str,
         rest_port: int,
-        network: str,
+        domain: str,
         registry_filepath: Path,
         policy_registry_filepath: Path,
         dev: bool,
@@ -96,7 +96,7 @@ class UrsulaConfigOptions:
         self.operator_address = operator_address
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
-        self.domain = network
+        self.domain = domain
         self.registry_filepath = registry_filepath
         self.policy_registry_filepath = policy_registry_filepath
         self.dev = dev
@@ -178,7 +178,7 @@ class UrsulaConfigOptions:
         if not self.rest_host:
             self.rest_host = collect_operator_ip_address(
                 emitter,
-                network=self.domain,
+                domain=self.domain,
                 force=force,
                 eth_endpoint=self.eth_endpoint,
             )
@@ -247,7 +247,7 @@ group_config_options = group_options(
         help="The host port to run Ursula network services on",
         type=NETWORK_PORT,
     ),
-    network=option_network(),
+    domain=option_domain(),
     registry_filepath=option_registry_filepath,
     policy_registry_filepath=option_policy_registry_filepath,
     poa=option_poa,
@@ -481,7 +481,7 @@ def config(general_config, config_options, config_file, force, action):
     if action == "ip-address":
         rest_host = collect_operator_ip_address(
             emitter=emitter,
-            network=config_options.domain,
+            domain=config_options.domain,
             force=force,
             eth_endpoint=config_options.eth_endpoint,
         )

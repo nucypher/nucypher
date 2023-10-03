@@ -123,7 +123,7 @@ def test_ursula_and_local_keystore_signer_integration(
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--operator-address",
         worker_account.address,

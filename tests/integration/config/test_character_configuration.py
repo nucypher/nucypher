@@ -101,7 +101,7 @@ def test_default_character_configuration_preservation(
 ):
     configuration_class.DEFAULT_CONFIG_ROOT = Path("/tmp")
     fake_address = "0xdeadbeef"
-    network = TEMPORARY_DOMAIN
+    domain = TEMPORARY_DOMAIN
 
     expected_filename = (
         f"{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}"
@@ -124,7 +124,7 @@ def test_default_character_configuration_preservation(
         character_config = configuration_class(
             checksum_address=fake_address,
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
-            domain=network,
+            domain=domain,
             rest_host=MOCK_IP_ADDRESS,
             polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             policy_registry=test_registry,
@@ -135,7 +135,7 @@ def test_default_character_configuration_preservation(
         character_config = configuration_class(
             checksum_address=fake_address,
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
-            domain=network,
+            domain=domain,
             policy_registry=test_registry,
         )
 
