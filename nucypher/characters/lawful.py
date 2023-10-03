@@ -817,6 +817,7 @@ class Ursula(Teacher, Character, Operator):
         operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
         transacting_power: Optional[TransactingPower] = None,
+        operator_signature_from_metadata=NOT_SIGNED,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
         condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
