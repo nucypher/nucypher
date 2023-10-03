@@ -52,10 +52,10 @@ class NetworksInventory:
         TAPIR,
     ]
 
-    SUPPORTED_DOMAIN_NAMES = [network.name for network in SUPPORTED_DOMAINS]
+    SUPPORTED_DOMAIN_NAMES = [domain.name for domain in SUPPORTED_DOMAINS]
 
     # TODO not needed once merged with registry changes
-    POLYGON_CHAINS = [network.polygon_chain.name for network in SUPPORTED_DOMAINS]
+    POLYGON_CHAINS = [domain.polygon_chain.name for domain in SUPPORTED_DOMAINS]
 
     DEFAULT_DOMAIN_NAME: str = MAINNET.name
 

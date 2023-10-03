@@ -147,12 +147,12 @@ def mock_condition_blockchains(session_mocker):
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
-    testing_network = TACoDomain(
+    test_domain = TACoDomain(
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
     session_mocker.patch.object(
-        NetworksInventory, "from_domain_name", return_value=testing_network
+        NetworksInventory, "from_domain_name", return_value=test_domain
     )
 
 
