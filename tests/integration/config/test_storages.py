@@ -76,6 +76,7 @@ class BaseTestNodeStorageBackends:
     # Storage Backend Tests
     #
 
+    @pytest.mark.usefixtures("mock_registry_sources")
     def test_read_and_write_to_storage(self, light_ursula, testerchain):
         assert self._read_and_write_metadata(ursula=light_ursula,
                                              node_storage=self.storage_backend,

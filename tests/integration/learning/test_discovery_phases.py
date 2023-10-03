@@ -38,7 +38,7 @@ performance bottlenecks.
 
 
 @pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
-def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice, test_registry_source_manager):
+def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     # During the fixture execution, Alice verified one node.
     # TODO: Consider changing this - #1449
     assert VerificationTracker.node_verifications == 1

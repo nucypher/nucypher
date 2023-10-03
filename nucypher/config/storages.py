@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.config.util import cast_paths_from
 from nucypher.crypto.signing import SignatureStamp
@@ -33,7 +33,7 @@ class NodeStorage(ABC):
     class UnknownNode(NodeStorageError):
         pass
 
-    def __init__(self, character_class=None, registry: BaseContractRegistry = None):
+    def __init__(self, character_class=None, registry: ContractRegistry = None):
 
         from nucypher.characters.lawful import Ursula
 

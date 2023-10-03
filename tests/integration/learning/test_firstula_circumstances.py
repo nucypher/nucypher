@@ -7,9 +7,7 @@ from nucypher.network.middleware import RestMiddleware
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
-def test_proper_seed_node_instantiation(
-    lonely_ursula_maker, test_registry_source_manager
-):
+def test_proper_seed_node_instantiation(lonely_ursula_maker):
     _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
     firstula = _lonely_ursula_maker(domain="this-is-meaningful-now").pop()
     firstula_as_seed_node = firstula.seed_node_metadata()

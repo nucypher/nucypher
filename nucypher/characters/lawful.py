@@ -79,8 +79,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
+    ContractRegistry,
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -484,8 +483,8 @@ class Bob(Character):
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
                 provider_uri=coordinator_provider_uri,
-                registry=InMemoryContractRegistry.from_latest_publication(
-                    network=coordinator_network
+                registry=ContractRegistry.from_latest_publication(
+                    domain=coordinator_network
                 ),
             )
         self.coordinator_agent = coordinator_agent
@@ -1207,7 +1206,7 @@ class Ursula(Teacher, Character, Operator):
         teacher_uri: str,
         min_stake: int,
         provider_uri: str,
-        registry: BaseContractRegistry = None,
+        registry: ContractRegistry = None,
         network_middleware: RestMiddleware = None,
         retry_attempts: int = 2,
         retry_interval: int = 2,
@@ -1246,7 +1245,7 @@ class Ursula(Teacher, Character, Operator):
         cls,
         seed_uri: str,
         provider_uri: str,
-        registry: BaseContractRegistry = None,
+        registry: ContractRegistry = None,
         minimum_stake: int = 0,
         network_middleware: RestMiddleware = None,
     ) -> Union["Ursula", "NodeSprout"]:

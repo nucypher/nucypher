@@ -38,7 +38,7 @@ def ursula_v4_config_filepath(tempfile_path):
     return tempfile_path
 
 
-@pytest.mark.usefixtures("test_registry_source_manager")
+@pytest.mark.usefixtures("mock_registry_sources")
 def test_migrate_v4_to_latest(ursula_v4_config_filepath):
     _do_migration(config_file=ursula_v4_config_filepath)
 

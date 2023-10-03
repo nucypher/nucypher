@@ -12,8 +12,7 @@ from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
+    ContractRegistry,
 )
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.blockchain.eth.token import NU
@@ -35,19 +34,20 @@ from nucypher.config.constants import (
 from nucypher.utilities.emitters import StdoutEmitter
 
 
-def select_client_account(emitter,
-                          eth_provider_uri: str = None,
-                          signer: Signer = None,
-                          signer_uri: str = None,
-                          prompt: str = None,
-                          default: int = 0,
-                          registry: BaseContractRegistry = None,
-                          show_eth_balance: bool = False,
-                          show_nu_balance: bool = False,
-                          show_staking: bool = False,
-                          network: str = None,
-                          poa: bool = None
-                          ) -> str:
+def select_client_account(
+    emitter,
+    eth_provider_uri: str = None,
+    signer: Signer = None,
+    signer_uri: str = None,
+    prompt: str = None,
+    default: int = 0,
+    registry: ContractRegistry = None,
+    show_eth_balance: bool = False,
+    show_nu_balance: bool = False,
+    show_staking: bool = False,
+    network: str = None,
+    poa: bool = None,
+) -> str:
     """
     Interactively select an ethereum wallet account from a table of nucypher account metadata.
 
@@ -78,7 +78,7 @@ def select_client_account(emitter,
         if not registry:
             if not network:
                 raise ValueError("Pass network name or registry; Got neither.")
-            registry = InMemoryContractRegistry.from_latest_publication(network=network)
+            registry = ContractRegistry.from_latest_publication(domain=network)
 
     enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:

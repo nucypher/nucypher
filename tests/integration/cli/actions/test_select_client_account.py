@@ -160,7 +160,6 @@ def test_select_client_account_with_balance_display(
     test_emitter,
     testerchain,
     capsys,
-    test_registry_source_manager,
     mock_staking_agent,
     mock_token_agent,
     selection,

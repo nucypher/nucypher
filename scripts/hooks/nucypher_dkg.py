@@ -11,7 +11,7 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     TACoApplicationAgent,
 )
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.crypto.powers import TransactingPower
@@ -161,8 +161,8 @@ def nucypher_dkg(
                 ),
             )
 
-    coordinator_network_registry = InMemoryContractRegistry.from_latest_publication(
-        network=coordinator_network
+    coordinator_network_registry = ContractRegistry.from_latest_publication(
+        domain=coordinator_network
     )
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
@@ -170,8 +170,8 @@ def nucypher_dkg(
         provider_uri=coordinator_provider_uri,
     )  # type: CoordinatorAgent
 
-    staking_network_registry = InMemoryContractRegistry.from_latest_publication(
-        network=eth_staking_network
+    staking_network_registry = ContractRegistry.from_latest_publication(
+        domain=eth_staking_network
     )
     application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,

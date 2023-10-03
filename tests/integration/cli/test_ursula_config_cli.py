@@ -43,7 +43,8 @@ def mock_dkg_tracker(mocker):
     return mock
 
 
-def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_registry_source_manager):
+@pytest.mark.usefixtures("mock_registry_sources")
+def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
 
     # Mock out filesystem writes
     mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
@@ -83,8 +84,9 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_regist
     assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_initialize_custom_configuration_root(click_runner, custom_filepath: Path, test_registry_source_manager, testerchain):
-
+def test_initialize_custom_configuration_root(
+    click_runner, custom_filepath: Path, testerchain
+):
     deploy_port = select_test_port()
     # Use a custom local filepath for configuration
     init_args = (
@@ -133,8 +135,9 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
     assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_configuration_file_contents(custom_filepath: Path, nominal_configuration_fields, test_registry_source_manager):
-
+def test_configuration_file_contents(
+    custom_filepath: Path, nominal_configuration_fields
+):
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 

@@ -92,7 +92,6 @@ def test_ursula_and_local_keystore_signer_integration(
     mocker,
     mock_funded_account_password_keystore,
     testerchain,
-    test_registry_source_manager,
 ):
     config_root_path = tmp_path
     ursula_config_path = config_root_path / UrsulaConfiguration.generate_filename()

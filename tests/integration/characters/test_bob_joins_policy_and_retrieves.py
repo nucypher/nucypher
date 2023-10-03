@@ -38,9 +38,7 @@ def test_bob_full_retrieve_flow(
     assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
 
 
-def test_bob_retrieves(
-    alice, ursulas, certificates_tempdir, test_registry_source_manager
-):
+def test_bob_retrieves(alice, ursulas, certificates_tempdir):
     """A test to show that Bob can retrieve data from Ursula"""
 
     # Let's partition Ursulas in two parts
@@ -115,7 +113,6 @@ def test_bob_retrieves(
 def test_bob_retrieves_with_treasure_map(
     bob, ursulas, enacted_policy, capsule_side_channel
 ):
-    enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
     treasure_map = enacted_policy.treasure_map
     alice_verifying_key = enacted_policy.publisher_verifying_key

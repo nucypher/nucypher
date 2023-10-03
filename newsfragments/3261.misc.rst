@@ -1,0 +1,1 @@
+Contract registries now use JSON format and support multi-chain deployments organized by nucypher "domain".

@@ -7,8 +7,7 @@ from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
+    ContractRegistry,
 )
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -44,7 +43,7 @@ class Character(Learner):
         crypto_power: CryptoPower = None,
         crypto_power_ups: List[CryptoPowerUp] = None,
         signer: Signer = None,
-        registry: BaseContractRegistry = None,
+        registry: ContractRegistry = None,
         include_self_in_the_state: bool = False,
         *args,
         **kwargs,
@@ -115,9 +114,8 @@ class Character(Learner):
                 self._stamp = NO_SIGNING_POWER
 
             self.eth_provider_uri = eth_provider_uri
-            self.registry = (
-                registry
-                or InMemoryContractRegistry.from_latest_publication(network=domain)
+            self.registry = registry or ContractRegistry.from_latest_publication(
+                domain=domain
             )  # See #1580
 
             # REST

@@ -48,14 +48,14 @@ from nucypher.blockchain.eth.constants import (
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
+    ContractRegistry,
 )
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
 from nucypher.crypto.powers import TransactingPower
-from nucypher.utilities.logging import Logger  # type: ignore
+from nucypher.utilities.logging import Logger
 
 
 class EthereumContractAgent:
@@ -82,10 +82,9 @@ class EthereumContractAgent:
     def __init__(
         self,
         provider_uri: str,
-        registry: BaseContractRegistry,
+        registry: ContractRegistry,
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
-        contract_version: Optional[str] = None,
     ):
 
         self.log = Logger(self.__class__.__name__)
@@ -99,7 +98,6 @@ class EthereumContractAgent:
             contract = self.blockchain.get_contract_by_name(
                 registry=registry,
                 contract_name=self.contract_name,
-                contract_version=contract_version,
             )
 
         self.__contract = contract
@@ -846,7 +844,7 @@ class ContractAgency:
     def get_agent(
         cls,
         agent_class: Type[types.Agent],
-        registry: Optional[BaseContractRegistry],
+        registry: Optional[ContractRegistry],
         provider_uri: Optional[str],
         contract_version: Optional[str] = None,
     ) -> types.Agent:
@@ -872,7 +870,6 @@ class ContractAgency:
                 agent_class(
                     registry=registry,
                     provider_uri=provider_uri,
-                    contract_version=contract_version,
                 ),
             )
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
@@ -891,7 +888,7 @@ class ContractAgency:
     def get_agent_by_contract_name(
         cls,
         contract_name: str,
-        registry: BaseContractRegistry,
+        registry: ContractRegistry,
         provider_uri: str,
         contract_version: Optional[str] = None,
     ) -> EthereumContractAgent:

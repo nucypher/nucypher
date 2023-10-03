@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import CharacterConfiguration, UrsulaConfiguration
 from nucypher.config.constants import (
@@ -26,13 +26,13 @@ CONFIG_CLASSES = (UrsulaConfiguration, )
 ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
 
+@pytest.mark.usefixtures("mock_registry_sources")
 @pytest.mark.parametrize("config_class", CONFIG_CLASSES)
 def test_initialize_via_cli(
     config_class,
     custom_filepath: Path,
     click_runner,
     monkeypatch,
-    test_registry_source_manager,
 ):
     command = config_class.CHARACTER_CLASS.__name__.lower()
 
@@ -72,14 +72,15 @@ def test_initialize_via_cli(
     assert not (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
 
-@pytest.mark.parametrize('config_class', CONFIG_CLASSES)
-def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry, test_registry_source_manager):
-
+@pytest.mark.parametrize("config_class", CONFIG_CLASSES)
+def test_reconfigure_via_cli(
+    click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry
+):
     def fake_get_latest_registry(*args, **kwargs):
         return test_registry
 
     monkeypatch.setattr(
-        InMemoryContractRegistry, "from_latest_publication", fake_get_latest_registry
+        ContractRegistry, "from_latest_publication", fake_get_latest_registry
     )
     monkeypatch.setattr(
         CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
