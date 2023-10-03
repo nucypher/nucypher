@@ -35,7 +35,7 @@ class Web3Signer(Signer):
         )
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(
-                blockchain_endpoint=uri
+                endpoint=uri
             )
         except BlockchainInterface.UnsupportedProvider:
             raise cls.InvalidSignerURI(uri)

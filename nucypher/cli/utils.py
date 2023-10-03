@@ -120,14 +120,14 @@ def connect_to_blockchain(
     try:
         # Note: Conditional for test compatibility.
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            blockchain_endpoint=blockchain_endpoint
+            endpoint=blockchain_endpoint
         ):
             BlockchainInterfaceFactory.initialize_interface(
-                blockchain_endpoint=blockchain_endpoint, light=light, emitter=emitter
+                endpoint=blockchain_endpoint, light=light, emitter=emitter
             )
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
         blockchain = BlockchainInterfaceFactory.get_interface(
-            blockchain_endpoint=blockchain_endpoint
+            endpoint=blockchain_endpoint
         )
         return blockchain
     except Exception as e:

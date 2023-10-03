@@ -14,33 +14,33 @@ class ProviderError(Exception):
     pass
 
 
-def _get_IPC_provider(blockchain_endpoint) -> BaseProvider:
-    uri_breakdown = urlparse(blockchain_endpoint)
+def _get_IPC_provider(endpoint) -> BaseProvider:
+    uri_breakdown = urlparse(endpoint)
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
     return IPCProvider(ipc_path=uri_breakdown.path,
                        timeout=BlockchainInterface.TIMEOUT,
                        request_kwargs={'timeout': BlockchainInterface.TIMEOUT})
 
 
-def _get_HTTP_provider(blockchain_endpoint) -> BaseProvider:
+def _get_HTTP_provider(endpoint) -> BaseProvider:
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
     return HTTPProvider(
-        endpoint_uri=blockchain_endpoint,
+        endpoint_uri=endpoint,
         request_kwargs={"timeout": BlockchainInterface.TIMEOUT},
     )
 
 
-def _get_websocket_provider(blockchain_endpoint) -> BaseProvider:
+def _get_websocket_provider(endpoint) -> BaseProvider:
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
     return WebsocketProvider(
-        endpoint_uri=blockchain_endpoint,
+        endpoint_uri=endpoint,
         websocket_kwargs={"timeout": BlockchainInterface.TIMEOUT},
     )
 
 
-def _get_auto_provider(blockchain_endpoint) -> BaseProvider:
+def _get_auto_provider(endpoint) -> BaseProvider:
     from web3.auto import w3
     # how-automated-detection-works: https://web3py.readthedocs.io/en/latest/providers.html
     connected = w3.isConnected()
@@ -69,7 +69,7 @@ def _get_ethereum_tester(test_backend: Union[PyEVMBackend, MockBackend]) -> Ethe
     return provider
 
 
-def _get_pyevm_test_provider(blockchain_endpoint) -> BaseProvider:
+def _get_pyevm_test_provider(endpoint) -> BaseProvider:
     """ Test provider entry-point"""
     # https://github.com/ethereum/eth-tester#pyevm-experimental
     pyevm_eth_tester = _get_pyevm_test_backend()
@@ -77,13 +77,13 @@ def _get_pyevm_test_provider(blockchain_endpoint) -> BaseProvider:
     return provider
 
 
-def _get_mock_test_provider(blockchain_endpoint) -> BaseProvider:
+def _get_mock_test_provider(endpoint) -> BaseProvider:
     # https://github.com/ethereum/eth-tester#mockbackend
     mock_backend = MockBackend()
     provider = _get_ethereum_tester(test_backend=mock_backend)
     return provider
 
 
-def _get_tester_ganache(blockchain_endpoint=None) -> BaseProvider:
-    endpoint_uri = blockchain_endpoint or "http://localhost:7545"
+def _get_tester_ganache(endpoint=None) -> BaseProvider:
+    endpoint_uri = endpoint or "http://localhost:7545"
     return HTTPProvider(endpoint_uri=endpoint_uri)

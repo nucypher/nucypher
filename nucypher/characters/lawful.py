@@ -179,7 +179,7 @@ class Alice(Character, actors.PolicyAuthor):
 
         if is_me:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(
-                blockchain_endpoint=self.eth_endpoint
+                endpoint=self.eth_endpoint
             )
             signer = signer or Web3Signer(
                 blockchain.client
@@ -991,11 +991,9 @@ class Ursula(Teacher, Character, Operator):
 
         # Connect to Provider
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            blockchain_endpoint=self.eth_endpoint
+            endpoint=self.eth_endpoint
         ):
-            BlockchainInterfaceFactory.initialize_interface(
-                blockchain_endpoint=self.eth_endpoint
-            )
+            BlockchainInterfaceFactory.initialize_interface(endpoint=self.eth_endpoint)
 
         if preflight:
             self.__preflight()

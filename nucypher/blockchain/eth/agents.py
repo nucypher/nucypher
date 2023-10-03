@@ -91,7 +91,7 @@ class EthereumContractAgent:
         self.registry = registry
 
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(
-            blockchain_endpoint=blockchain_endpoint
+            endpoint=blockchain_endpoint
         )
 
         if not contract:  # Fetch the contract
@@ -110,7 +110,7 @@ class EthereumContractAgent:
             "Initialized new {} for {} with {} and {}".format(
                 self.__class__.__name__,
                 self.contract.address,
-                self.blockchain.blockchain_endpoint,
+                self.blockchain.endpoint,
                 str(self.registry),
             )
         )

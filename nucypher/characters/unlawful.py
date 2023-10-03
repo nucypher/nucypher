@@ -43,9 +43,7 @@ class Vladimir(Ursula):
                 importable_name="tests.utils.middleware.EvilMiddleWare"
             )
         eth_blockchain = target_ursula.application_agent.blockchain
-        cls.network_middleware = EvilMiddleWare(
-            eth_endpoint=eth_blockchain.blockchain_endpoint
-        )
+        cls.network_middleware = EvilMiddleWare(eth_endpoint=eth_blockchain.endpoint)
 
         polygon_blockchain = target_ursula.child_application_agent.blockchain
 
@@ -76,8 +74,8 @@ class Vladimir(Ursula):
             checksum_address=cls.fraud_address,
             operator_address=cls.fraud_address,
             signer=Web3Signer(eth_blockchain.client),
-            eth_endpoint=eth_blockchain.blockchain_endpoint,
-            polygon_endpoint=polygon_blockchain.blockchain_endpoint,
+            eth_endpoint=eth_blockchain.endpoint,
+            polygon_endpoint=polygon_blockchain.endpoint,
             pre_payment_method=bogus_pre_payment_method,
         )
 

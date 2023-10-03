@@ -511,12 +511,12 @@ class CharacterConfiguration(BaseConfiguration):
         for endpoint in endpoints:
             if endpoint and endpoint != NO_BLOCKCHAIN_CONNECTION:
                 is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
-                    blockchain_endpoint=endpoint
+                    endpoint=endpoint
                 )
 
                 if not is_initialized:
                     BlockchainInterfaceFactory.initialize_interface(
-                        blockchain_endpoint=endpoint,
+                        endpoint=endpoint,
                         poa=self.poa,
                         light=self.is_light,
                         emitter=emitter,

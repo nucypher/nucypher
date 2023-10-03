@@ -84,7 +84,7 @@ class TesterBlockchain(BlockchainInterface):
     ):
         EXPECTED_CONFIRMATION_TIME_IN_SECONDS["free"] = 5  # Just some upper-limit
         super().__init__(
-            blockchain_endpoint=self.ETH_PROVIDER_URI,
+            endpoint=self.ETH_PROVIDER_URI,
             poa=poa,
             light=light,
             *args,

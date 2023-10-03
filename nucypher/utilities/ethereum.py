@@ -31,12 +31,8 @@ def connect_web3_provider(blockchain_endpoint: str) -> None:
     from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 
     if not BlockchainInterfaceFactory.is_interface_initialized(
-        blockchain_endpoint=blockchain_endpoint
+        endpoint=blockchain_endpoint
     ):
-        BlockchainInterfaceFactory.initialize_interface(
-            blockchain_endpoint=blockchain_endpoint
-        )
-    interface = BlockchainInterfaceFactory.get_interface(
-        blockchain_endpoint=blockchain_endpoint
-    )
+        BlockchainInterfaceFactory.initialize_interface(endpoint=blockchain_endpoint)
+    interface = BlockchainInterfaceFactory.get_interface(endpoint=blockchain_endpoint)
     interface.connect()

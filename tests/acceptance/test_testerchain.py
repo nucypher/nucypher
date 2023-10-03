@@ -26,7 +26,7 @@ def test_testerchain_creation(testerchain, another_testerchain):
     for chain in chains:
 
         # Ensure we are testing on the correct network...
-        assert "tester" in chain.blockchain_endpoint
+        assert "tester" in chain.endpoint
 
         # ... and that there are already some blocks mined
         chain.w3.eth.w3.testing.mine(1)

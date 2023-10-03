@@ -58,17 +58,15 @@ def select_client_account(
     if polygon_endpoint:
         # Connect to the blockchain in order to select an account
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            blockchain_endpoint=polygon_endpoint
+            endpoint=polygon_endpoint
         ):
             BlockchainInterfaceFactory.initialize_interface(
-                blockchain_endpoint=polygon_endpoint, poa=poa, emitter=emitter
+                endpoint=polygon_endpoint, poa=poa, emitter=emitter
             )
         if not signer_uri:
             signer_uri = polygon_endpoint
 
-    blockchain = BlockchainInterfaceFactory.get_interface(
-        blockchain_endpoint=polygon_endpoint
-    )
+    blockchain = BlockchainInterfaceFactory.get_interface(endpoint=polygon_endpoint)
 
     if signer_uri and not signer:
         testnet = domain != domains.MAINNET.name

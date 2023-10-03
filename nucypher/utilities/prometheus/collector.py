@@ -140,7 +140,7 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
 
     def _collect_internal(self) -> None:
         blockchain = BlockchainInterfaceFactory.get_or_create_interface(
-            blockchain_endpoint=self.eth_endpoint
+            endpoint=self.eth_endpoint
         )
         self.metrics["eth_chain_id"].set(blockchain.client.chain_id)
         self.metrics["eth_current_block_number"].set(blockchain.client.block_number)

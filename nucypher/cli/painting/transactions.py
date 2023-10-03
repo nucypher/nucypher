@@ -23,7 +23,7 @@ def paint_receipt_summary(
 
     if not chain_name:
         blockchain = BlockchainInterfaceFactory.get_interface(
-            blockchain_endpoint=blockchain_endpoint
+            endpoint=blockchain_endpoint
         )
         chain_name = blockchain.client.chain_name
     try:

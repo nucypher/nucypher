@@ -316,7 +316,7 @@ def test_registry(deployed_contracts, module_mocker):
 def testerchain(project) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
-    testerchain = TesterBlockchain(blockchain_provider=provider)
+    testerchain = TesterBlockchain(provider=provider)
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
     yield testerchain
 
