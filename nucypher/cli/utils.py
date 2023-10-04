@@ -16,6 +16,7 @@ from nucypher.blockchain.eth.interfaces import (
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
+    LocalRegistrySource,
 )
 from nucypher.characters.base import Character
 from nucypher.cli.actions.auth import (
@@ -102,12 +103,13 @@ def make_cli_character(
 
 
 def get_registry(
-    network: str, registry_filepath: Optional[Path] = None
+    domain: str, registry_filepath: Optional[Path] = None
 ) -> ContractRegistry:
     if registry_filepath:
-        registry = ContractRegistry(filepath=registry_filepath)
+        source = LocalRegistrySource(filepath=registry_filepath)
+        registry = ContractRegistry(source=source)
     else:
-        registry = ContractRegistry.from_latest_publication(domain=network)
+        registry = ContractRegistry.from_latest_publication(domain=domain)
     return registry
 
 

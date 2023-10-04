@@ -60,7 +60,7 @@ class RegistryOptions:
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
         registry = get_registry(
-            network=self.domain, registry_filepath=self.registry_filepath
+            domain=self.domain, registry_filepath=self.registry_filepath
         )
         return emitter, registry, self.blockchain_endpoint
 
