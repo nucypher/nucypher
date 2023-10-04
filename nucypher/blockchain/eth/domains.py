@@ -1,8 +1,6 @@
 from enum import Enum
 from typing import NamedTuple
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
-
 
 class ChainInfo(NamedTuple):
     id: int
@@ -13,13 +11,13 @@ class EthChain(ChainInfo, Enum):
     MAINNET = ChainInfo(1, "mainnet")
     GOERLI = ChainInfo(5, "goerli")
     SEPOLIA = ChainInfo(11155111, "sepolia")
-    TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
+    TESTERCHAIN = ChainInfo(131277322940537, "eth-tester")
 
 
 class PolygonChain(ChainInfo, Enum):
     POLYGON = ChainInfo(137, "polygon")
     MUMBAI = ChainInfo(80001, "mumbai")
-    TESTERCHAIN = ChainInfo(131277322940537, TEMPORARY_DOMAIN)
+    TESTERCHAIN = ChainInfo(131277322940537, "eth-tester")
 
 
 class TACoDomain(NamedTuple):
@@ -54,9 +52,6 @@ SUPPORTED_DOMAINS = [
 ]
 
 SUPPORTED_DOMAIN_NAMES = [domain.name for domain in SUPPORTED_DOMAINS]
-
-# TODO not needed once merged with registry changes
-POLYGON_CHAINS = [domain.polygon_chain.name for domain in SUPPORTED_DOMAINS]
 
 
 def from_domain_name(domain: str) -> TACoDomain:
