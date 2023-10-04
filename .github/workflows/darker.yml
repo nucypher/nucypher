@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - development
+      - epic-*
 
 jobs:
   darker-lint:

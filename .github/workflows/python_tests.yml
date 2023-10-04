@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - development
+      - epic-*
 
 concurrency:
   group: ci-tests-${{ github.ref }}-pytest
