@@ -64,14 +64,14 @@ def test_learner_learns_about_domains_separately(
     # Learn from a teacher in our domain.
     hero_learner.remember_node(other_first_domain_learner)
     hero_learner.start_learning_loop(now=True)
-    hero_learner.learn_from_teacher_node()
+    hero_learner.learn_from_teacher_node(eager=True)
 
     # All domain 1 nodes
     assert len(hero_learner.known_nodes) == 2
 
     # Learn about the second domain.
     hero_learner._current_teacher_node = second_domain_learners.pop()
-    hero_learner.learn_from_teacher_node()
+    hero_learner.learn_from_teacher_node(eager=True)
 
     # All domain 1 nodes
     assert len(hero_learner.known_nodes) == 2
@@ -85,7 +85,7 @@ def test_learner_learns_about_domains_separately(
 
     new_first_domain_learner.remember_node(hero_learner)
 
-    new_first_domain_learner.learn_from_teacher_node()
+    new_first_domain_learner.learn_from_teacher_node(eager=True)
 
     # This node, in the first domain, didn't learn about the second domain.
     assert not set(second_domain_learners).intersection(new_first_domain_learner.known_nodes)
