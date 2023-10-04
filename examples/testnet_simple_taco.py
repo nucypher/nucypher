@@ -2,7 +2,6 @@ import os
 
 from nucypher_core.ferveo import DkgPublicKey
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
@@ -20,7 +19,7 @@ GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
 eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
-taco_domain = domains.from_domain_name("lynx")
+domain = "lynx"
 
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 
@@ -31,7 +30,7 @@ polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 print("--------- Threshold Encryption ---------")
 
 registry = ContractRegistry.from_latest_publication(
-    domain=taco_domain.name,
+    domain=domain,
 )
 
 coordinator_agent = CoordinatorAgent(
@@ -77,7 +76,7 @@ print(f"\nEncrypted message:\n{bytes(threshold_message_kit).hex()}")
 print("--------- Threshold Decryption ---------")
 
 bob = Bob(
-    domain=taco_domain.name,
+    domain=domain,
     eth_endpoint=eth_endpoint,
     polygon_endpoint=polygon_endpoint,
     registry=registry,
