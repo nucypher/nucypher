@@ -20,13 +20,22 @@ from nucypher.config.constants import TEMPORARY_DOMAIN
 
 
 @contextmanager
-def mock_registry_sources(mocker):
-    test_domain = TACoDomain(
-        TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
-    )
+def mock_registry_sources(mocker, domain_names: List[str] = None):
+    if not domain_names:
+        domain_names = [TEMPORARY_DOMAIN]
 
-    mocker.patch.object(domains, "SUPPORTED_DOMAINS", [test_domain])
-    mocker.patch.object(domains, "SUPPORTED_DOMAIN_NAMES", [TEMPORARY_DOMAIN])
+    supported_domains = []
+    supported_domain_names = []
+    for domain_name in domain_names:
+        test_domain = TACoDomain(
+            domain_name, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
+        )
+        supported_domains.append(test_domain)
+        supported_domain_names.append(domain_name)
+
+    mocker.patch.object(domains, "SUPPORTED_DOMAINS", supported_domains)
+    mocker.patch.object(domains, "SUPPORTED_DOMAIN_NAMES", supported_domain_names)
+    mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", domain_names)
 
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
 
@@ -34,15 +43,17 @@ def mock_registry_sources(mocker):
 
 
 class MockRegistrySource(RegistrySource):
+    ALLOWED_DOMAINS = [TEMPORARY_DOMAIN]
+
     name = "Mock Registry Source"
     is_primary = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.domain != TEMPORARY_DOMAIN:
+        if self.domain not in self.ALLOWED_DOMAINS:
             raise ValueError(
                 f"Somehow, MockRegistrySource is trying to get a registry for '{self.domain}'. "
-                f"Only '{TEMPORARY_DOMAIN}' is supported.'"
+                f"Only '{','.join(self.ALLOWED_DOMAINS)}' are supported.'"
             )
 
     @property

@@ -2,22 +2,62 @@ from pathlib import Path
 
 import pytest
 
+import tests
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.nodes import TEACHER_NODES
+from tests.utils.registry import MockRegistrySource
 from tests.utils.ursula import make_ursulas
 
 
-@pytest.mark.usefixtures("test_registry_source_manager")
-def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
+@pytest.fixture(scope="module")
+def domain_1():
+    return "domain_uno"
+
+
+@pytest.fixture(scope="module")
+def domain_2():
+    return "domain_dos"
+
+
+@pytest.fixture(scope="module")
+def test_registry(module_mocker, domain_1, domain_2):
+    with tests.utils.registry.mock_registry_sources(
+        mocker=module_mocker, domain_names=[domain_1, domain_2]
+    ):
+        # doesn't really matter what domain is used here
+        registry = ContractRegistry(MockRegistrySource(domain=domain_1))
+        yield registry
+
+
+@pytest.fixture(scope="module")
+def registry_1(domain_1, test_registry):
+    return ContractRegistry(MockRegistrySource(domain=domain_1))
+
+
+@pytest.fixture(scope="module")
+def registry_2(domain_2, test_registry):
+    return ContractRegistry(MockRegistrySource(domain=domain_2))
+
+
+def test_learner_learns_about_domains_separately(
+    lonely_ursula_maker, domain_1, domain_2, registry_1, registry_2, caplog
+):
     hero_learner, other_first_domain_learner = lonely_ursula_maker(
-        domain="nucypher1.test_suite", quantity=2
+        domain=domain_1,
+        registry=registry_1,
+        quantity=2,
     )
-    _nobody = lonely_ursula_maker(domain="nucypher1.test_suite", quantity=1).pop()
+    _nobody = lonely_ursula_maker(
+        domain=domain_1, registry=registry_1, quantity=1
+    ).pop()
     other_first_domain_learner.remember_node(_nobody)
 
-    second_domain_learners = lonely_ursula_maker(domain="nucypher2.test_suite", know_each_other=True, quantity=3)
+    second_domain_learners = lonely_ursula_maker(
+        domain=domain_2, registry=registry_2, know_each_other=True, quantity=3
+    )
 
     assert len(hero_learner.known_nodes) == 0
 
@@ -36,8 +76,12 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     # All domain 1 nodes
     assert len(hero_learner.known_nodes) == 2
 
-    new_first_domain_learner = lonely_ursula_maker(domain="nucypher1.test_suite", quantity=1).pop()
-    _new_second_domain_learner = lonely_ursula_maker(domain="nucypher2.test_suite", quantity=1).pop()
+    new_first_domain_learner = lonely_ursula_maker(
+        domain=domain_1, registry=registry_1, quantity=1
+    ).pop()
+    _new_second_domain_learner = lonely_ursula_maker(
+        domain=domain_2, registry=registry_2, quantity=1
+    ).pop()
 
     new_first_domain_learner.remember_node(hero_learner)
 
@@ -52,7 +96,9 @@ def test_learner_learns_about_domains_separately(lonely_ursula_maker, caplog):
     assert _nobody in new_first_domain_learner.known_nodes
 
 
-def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
+def test_learner_restores_metadata_from_storage(
+    lonely_ursula_maker, tmpdir, domain_1, domain_2
+):
     # Create a local file-based node storage
     root = tmpdir.mkdir("known_nodes")
     metadata = root.mkdir("metadata")
@@ -62,20 +108,24 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
                                             storage_root=Path(root))
 
     # Use the ursula maker with this storage so it's populated with nodes from one domain
-    _some_ursulas = lonely_ursula_maker(domain="fistro",
-                                        node_storage=old_storage,
-                                        know_each_other=True,
-                                        quantity=3,
-                                        save_metadata=True)
+    _some_ursulas = lonely_ursula_maker(
+        domain=domain_1,
+        node_storage=old_storage,
+        know_each_other=True,
+        quantity=3,
+        save_metadata=True,
+    )
 
     # Create a pair of new learners in a different domain, using the previous storage, and learn from it
-    new_learners = lonely_ursula_maker(domain="duodenal",
-                                       node_storage=old_storage,
-                                       quantity=2,
-                                       know_each_other=True,
-                                       save_metadata=False)
+    new_learners = lonely_ursula_maker(
+        domain=domain_2,
+        node_storage=old_storage,
+        quantity=2,
+        know_each_other=True,
+        save_metadata=False,
+    )
     learner, buddy = new_learners
-    buddy._Learner__known_nodes = FleetSensor(domain="fistro")
+    buddy._Learner__known_nodes = FleetSensor(domain=domain_1)
 
     # The learner shouldn't learn about any node from the first domain, since it's different.
     learner.learn_from_teacher_node()
@@ -88,11 +138,19 @@ def test_learner_restores_metadata_from_storage(lonely_ursula_maker, tmpdir):
 
 
 def test_learner_ignores_stored_nodes_from_other_domains(
-    lonely_ursula_maker, tmpdir, testerchain, ursula_test_config
+    lonely_ursula_maker,
+    domain_1,
+    domain_2,
+    registry_1,
+    registry_2,
+    tmpdir,
+    testerchain,
+    ursula_test_config,
 ):
     learner, other_staker = make_ursulas(
         ursula_test_config,
-        domain="call-it-mainnet",
+        domain=domain_1,
+        registry=registry_1,
         quantity=2,
         know_each_other=True,
         staking_provider_addresses=testerchain.stake_providers_accounts[:2],
@@ -101,7 +159,8 @@ def test_learner_ignores_stored_nodes_from_other_domains(
 
     pest, *other_ursulas_from_the_wrong_side_of_the_tracks = make_ursulas(
         ursula_test_config,
-        domain="i-dunno-testt-maybe",
+        domain=domain_2,
+        registry=registry_2,
         quantity=5,
         know_each_other=True,
         staking_provider_addresses=testerchain.stake_providers_accounts[2:],
@@ -129,13 +188,16 @@ def test_learner_ignores_stored_nodes_from_other_domains(
     assert pest not in other_staker.known_nodes  # But not anymore.
 
 
-def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, mocker):
-    domain = "learner-domain"
-    mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
+def test_learner_with_empty_storage_uses_fallback_nodes(
+    lonely_ursula_maker, domain_1, mocker
+):
+    mocker.patch.dict(TEACHER_NODES, {domain_1: ("teacher-uri",)}, clear=True)
 
     # Create a learner and a teacher
-    learner, teacher = lonely_ursula_maker(domain=domain, quantity=2, save_metadata=False)
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+    learner, teacher = lonely_ursula_maker(
+        domain=domain_1, quantity=2, save_metadata=False
+    )
+    mocker.patch.object(Ursula, "from_teacher_uri", return_value=teacher)
 
     # Since there are no nodes in local node storage, the learner should only learn about the teacher
     learner.learn_from_teacher_node()
@@ -143,10 +205,16 @@ def test_learner_with_empty_storage_uses_fallback_nodes(lonely_ursula_maker, moc
 
 
 def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
-    lonely_ursula_maker, tmpdir, mocker, test_registry, ursula_test_config, testerchain
+    lonely_ursula_maker,
+    domain_1,
+    registry_1,
+    tmpdir,
+    mocker,
+    test_registry,
+    ursula_test_config,
+    testerchain,
 ):
-    domain = "learner-domain"
-    mocker.patch.dict(TEACHER_NODES, {domain: ("teacher-uri",)}, clear=True)
+    mocker.patch.dict(TEACHER_NODES, {domain_1: ("teacher-uri",)}, clear=True)
 
     # Create a local file-based node storage
     root = tmpdir.mkdir("known_nodes")
@@ -159,7 +227,8 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
     # Create some nodes and persist them to local storage
     other_nodes = make_ursulas(
         ursula_test_config,
-        domain=domain,
+        domain=domain_1,
+        registry=registry_1,
         node_storage=node_storage,
         know_each_other=True,
         quantity=3,
@@ -170,7 +239,8 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
 
     # Create a teacher and a learner using existing node storage
     learner, teacher = lonely_ursula_maker(
-        domain=domain,
+        domain=domain_1,
+        registry=registry_1,
         node_storage=node_storage,
         quantity=2,
         know_each_other=True,
