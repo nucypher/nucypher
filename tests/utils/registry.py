@@ -30,6 +30,8 @@ def mock_registry_sources(mocker):
 
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
 
+    yield  # run the test
+
 
 class MockRegistrySource(RegistrySource):
     name = "Mock Registry Source"
