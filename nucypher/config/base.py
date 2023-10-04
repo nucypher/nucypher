@@ -376,8 +376,6 @@ class CharacterConfiguration(BaseConfiguration):
         # Registries
         registry: Optional[ContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
-        policy_registry: Optional[ContractRegistry] = None,
-        policy_registry_filepath: Optional[Path] = None,
     ):
 
         self.log = Logger(self.__class__.__name__)
@@ -407,9 +405,6 @@ class CharacterConfiguration(BaseConfiguration):
                 self.log.warn("Registry and registry filepath were both passed.")
         self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
-
-        self.policy_registry = policy_registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-        self.policy_registry_filepath = policy_registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
         self.poa = poa
@@ -473,22 +468,6 @@ class CharacterConfiguration(BaseConfiguration):
             self.pre_payment_method = (
                 pre_payment_method or self.DEFAULT_PRE_PAYMENT_METHOD
             )
-
-            # TODO: Dedupe
-            if not self.policy_registry:
-                if not self.policy_registry_filepath:
-                    self.log.info("Fetching latest policy registry from source.")
-                    self.policy_registry = ContractRegistry.from_latest_publication(
-                        domain=self.taco_domain.name
-                    )
-                else:
-                    source = LocalRegistrySource(
-                        domain=self.domain, filepath=self.policy_registry_filepath
-                    )
-                    self.policy_registry = ContractRegistry(source=source)
-                    self.log.info(
-                        f"Using local policy registry ({self.policy_registry})."
-                    )
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -857,7 +836,7 @@ class CharacterConfiguration(BaseConfiguration):
             pre_payment_strategy = pre_payment_class(
                 domain=self.taco_domain.name,
                 blockchain_endpoint=self.polygon_endpoint,
-                registry=self.policy_registry,
+                registry=self.registry,
             )
         else:
             pre_payment_strategy = pre_payment_class()

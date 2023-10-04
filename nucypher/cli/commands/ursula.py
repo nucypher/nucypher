@@ -44,7 +44,6 @@ from nucypher.cli.options import (
     option_max_gas_price,
     option_min_stake,
     option_poa,
-    option_policy_registry_filepath,
     option_polygon_endpoint,
     option_pre_payment_method,
     option_registry_filepath,
@@ -79,7 +78,6 @@ class UrsulaConfigOptions:
         rest_port: int,
         domain: str,
         registry_filepath: Path,
-        policy_registry_filepath: Path,
         dev: bool,
         poa: bool,
         light: bool,
@@ -98,7 +96,6 @@ class UrsulaConfigOptions:
         self.rest_port = rest_port  # FIXME: not used in generate()
         self.domain = domain
         self.registry_filepath = registry_filepath
-        self.policy_registry_filepath = policy_registry_filepath
         self.dev = dev
         self.poa = poa
         self.light = light
@@ -117,7 +114,6 @@ class UrsulaConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
-                policy_registry_filepath=self.policy_registry_filepath,
                 eth_endpoint=self.eth_endpoint,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
@@ -139,7 +135,6 @@ class UrsulaConfigOptions:
                     filepath=config_file,
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
-                    policy_registry_filepath=self.policy_registry_filepath,
                     eth_endpoint=self.eth_endpoint,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
@@ -192,7 +187,6 @@ class UrsulaConfigOptions:
             domain=self.domain,
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
-            policy_registry_filepath=self.policy_registry_filepath,
             eth_endpoint=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
@@ -210,7 +204,6 @@ class UrsulaConfigOptions:
             domain=self.domain,
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
-            policy_registry_filepath=self.policy_registry_filepath,
             eth_endpoint=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
@@ -249,7 +242,6 @@ group_config_options = group_options(
     ),
     domain=option_domain(),
     registry_filepath=option_registry_filepath,
-    policy_registry_filepath=option_policy_registry_filepath,
     poa=option_poa,
     light=option_light,
     dev=option_dev,

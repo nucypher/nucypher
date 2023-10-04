@@ -127,7 +127,6 @@ def test_default_character_configuration_preservation(
             domain=domain,
             rest_host=MOCK_IP_ADDRESS,
             polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-            policy_registry=test_registry,
             keystore=keystore,
         )
 
@@ -136,7 +135,6 @@ def test_default_character_configuration_preservation(
             checksum_address=fake_address,
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=domain,
-            policy_registry=test_registry,
         )
 
     generated_filepath = character_config.generate_filepath()

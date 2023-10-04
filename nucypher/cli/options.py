@@ -100,11 +100,6 @@ option_registry_filepath = click.option(
     help="Custom contract registry filepath",
     type=EXISTING_READABLE_FILE,
 )
-option_policy_registry_filepath = click.option(
-    "--policy-registry-filepath",
-    help="Custom contract registry filepath for policies",
-    type=EXISTING_READABLE_FILE,
-)
 option_signer_uri = click.option("--signer", "signer_uri", "-S", default=None, type=str)
 option_staking_provider = click.option(
     "--staking-provider",
