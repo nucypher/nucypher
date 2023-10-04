@@ -117,10 +117,9 @@ class Character(Learner):
             self.eth_endpoint = eth_endpoint
             self.polygon_endpoint = polygon_endpoint
 
-            self.registry = (
-                registry
-                or ContractRegistry.from_latest_publication(domain=domain)
-            )  # See #1580
+            self.registry = registry or ContractRegistry.from_latest_publication(
+                domain=domain
+            )
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(

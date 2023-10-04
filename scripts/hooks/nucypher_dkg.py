@@ -155,9 +155,7 @@ def nucypher_dkg(
             )
 
     taco_domain = domains.from_domain_name(domain)
-    registry = ContractRegistry.from_latest_publication(
-        domain=domain
-    )
+    registry = ContractRegistry.from_latest_publication(domain=domain)
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
         registry=registry,
