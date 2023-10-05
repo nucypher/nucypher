@@ -39,11 +39,12 @@ jobs:
           path: ${{ env.pythonLocation }}
           key: ${{ runner.os }}-pip-${{ steps.setup_python.outputs.python-version }}-${{ hashFiles('dev-requirements.txt', 'requirements.txt') }}
 
-      - name: Install Dependencies
+      - name: Upgrade pip
         if: steps.python_cache.outputs.cache-hit != 'true'
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
+        run: python -m pip install --upgrade pip
+
+      - name: Install packages (incl. updated code)
+        run: pip install .[dev]
 
       - name: Check CLI Entrypoint
         run: nucypher --help
