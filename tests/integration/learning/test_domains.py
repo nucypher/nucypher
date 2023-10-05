@@ -53,7 +53,7 @@ def test_learner_learns_about_domains_separately(
     _nobody = lonely_ursula_maker(
         domain=domain_1, registry=registry_1, quantity=1
     ).pop()
-    other_first_domain_learner.remember_node(_nobody)
+    other_first_domain_learner.remember_node(_nobody, eager=True)
 
     second_domain_learners = lonely_ursula_maker(
         domain=domain_2, registry=registry_2, know_each_other=True, quantity=3
@@ -62,7 +62,7 @@ def test_learner_learns_about_domains_separately(
     assert len(hero_learner.known_nodes) == 0
 
     # Learn from a teacher in our domain.
-    hero_learner.remember_node(other_first_domain_learner)
+    hero_learner.remember_node(other_first_domain_learner, eager=True)
     hero_learner.start_learning_loop(now=True)
     hero_learner.learn_from_teacher_node(eager=True)
 
@@ -83,7 +83,7 @@ def test_learner_learns_about_domains_separately(
         domain=domain_2, registry=registry_2, quantity=1
     ).pop()
 
-    new_first_domain_learner.remember_node(hero_learner)
+    new_first_domain_learner.remember_node(hero_learner, eager=True)
 
     new_first_domain_learner.learn_from_teacher_node(eager=True)
 
