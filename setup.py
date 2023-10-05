@@ -19,14 +19,12 @@ You should have received a copy of the GNU Affero General Public License
 along with nucypher.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import os
-import subprocess
+import sys
 from pathlib import Path
 from typing import Dict
 from urllib.parse import urlparse
 
-import sys
 from setuptools import find_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
@@ -48,6 +46,7 @@ PYPI_CLASSIFIERS = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Security",
 ]
 
@@ -87,6 +86,7 @@ class PostDevelopCommand(develop):
     Execute manually with python setup.py develop or automatically included with
     `pip install -e . -r dev-requirements.txt`.
     """
+
     def run(self):
         """development setup scripts (pre-requirements)"""
         develop.run(self)
@@ -143,7 +143,6 @@ EXTRAS = {
     "ursula": URSULA_REQUIRES,
     "docs": DOC_REQUIRES,
 }
-
 
 setup(
 

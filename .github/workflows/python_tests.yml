@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.8", "3.10" ]
+        python-version: [ "3.8", "3.11" ]
 
     steps:
       - uses: actions/checkout@v3
@@ -53,94 +53,94 @@ jobs:
 
       # Unit tests
       - name: Unit Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         run: |
           coverage run --data-file=unit_data -m pytest tests/unit
           coverage xml -i --data-file=unit_data -o unit-coverage.xml
 
       - name: Unit Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         run: python -m pytest tests/unit
 
       # Integration tests
       - name: Integration Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         run: |
           coverage run --data-file=integration_data -m pytest tests/integration
           coverage xml -i --data-file=integration_data -o integration-coverage.xml
 
       - name: Integration Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         run: python -m pytest tests/integration
 
       # Acceptance tests
       - name: Agents Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         working-directory: tests/acceptance
         run: |
           coverage run --data-file=acceptance_agent_data -m pytest agents
           coverage xml -i --data-file=acceptance_agent_data -o acceptance-agents-coverage.xml
 
       - name: Agents Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         working-directory: tests/acceptance
         run: python -m pytest agents
 
       - name: Actors Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         working-directory: tests/acceptance
         run: |
           coverage run --data-file=acceptance_actors_data -m pytest actors
           coverage xml -i --data-file=acceptance_actors_data -o acceptance-actors-coverage.xml
 
       - name: Actors Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         working-directory: tests/acceptance
         run: python -m pytest actors
 
 
       - name: Conditions Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         working-directory: tests/acceptance
         run: |
           coverage run --data-file=acceptance_conditions_data -m pytest conditions
           coverage xml -i --data-file=acceptance_conditions_data -o acceptance-conditions-coverage.xml
 
       - name: Conditions Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         working-directory: tests/acceptance
         run: python -m pytest conditions
 
 
       - name: Characters Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         working-directory: tests/acceptance
         run: |
           coverage run --data-file=acceptance_characters_data -m pytest characters
           coverage xml -i --data-file=acceptance_characters_data -o acceptance-characters-coverage.xml
 
       - name: Characters Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         working-directory: tests/acceptance
         run: python -m pytest characters
 
 
       - name: CLI Tests (Coverage)
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         working-directory: tests/acceptance
         run: |
           coverage run --data-file=acceptance_cli_data -m pytest cli
           coverage xml -i --data-file=acceptance_cli_data -o acceptance-cli-coverage.xml
 
       - name: CLI Tests
-        if: matrix.python-version != '3.10'
+        if: matrix.python-version != '3.11'
         working-directory: tests/acceptance
         run: python -m pytest cli
 
 
       # Only upload coverage files after all tests have passed
       - name: Upload unit tests coverage to Codecov
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         uses: codecov/codecov-action@v3.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -150,7 +150,7 @@ jobs:
           verbose: true
 
       - name: Upload integration tests coverage to Codecov
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         uses: codecov/codecov-action@v3.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -160,7 +160,7 @@ jobs:
           verbose: true
 
       - name: Upload acceptance tests coverage to Codecov
-        if: matrix.python-version == '3.10'
+        if: matrix.python-version == '3.11'
         uses: codecov/codecov-action@v3.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
