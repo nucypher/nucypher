@@ -15,7 +15,7 @@ class EthChain(ChainInfo, Enum):
 
 
 class PolygonChain(ChainInfo, Enum):
-    POLYGON = (137, "polygon")
+    MAINNET = (137, "polygon")
     MUMBAI = (80001, "mumbai")
     TESTERCHAIN = (131277322940537, "eth-tester")
 
@@ -40,21 +40,15 @@ class TACoDomain:
     class Unrecognized(RuntimeError):
         """Raised when a provided domain name is not recognized."""
 
-    MAINNET = DomainInfo("mainnet", EthChain.MAINNET, PolygonChain.POLYGON)
+    MAINNET = DomainInfo("mainnet", EthChain.MAINNET, PolygonChain.MAINNET)
     # Testnets
     LYNX = DomainInfo("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
     TAPIR = DomainInfo("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
-    # TODO remove these (oryx, ibex) when appropriate
-    ORYX = DomainInfo("oryx", EthChain.GOERLI, PolygonChain.POLYGON)
-    IBEX = DomainInfo(
-        "ibex", EthChain.GOERLI, None
-    )  # this is required for configuration file migrations (backwards compatibility)
 
     DEFAULT_DOMAIN_NAME: str = MAINNET.name
 
     SUPPORTED_DOMAINS = [
         MAINNET,
-        ORYX,
         LYNX,
         TAPIR,
     ]

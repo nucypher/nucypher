@@ -53,7 +53,6 @@ TEACHER_NODES = {
     ),
     TACoDomain.LYNX.name: ("https://lynx.nucypher.network:9151",),
     TACoDomain.TAPIR.name: ("https://tapir.nucypher.network:9151",),
-    TACoDomain.ORYX.name: ("https://oryx.nucypher.network:9151",),
 }
 
 

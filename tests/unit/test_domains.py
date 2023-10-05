@@ -36,7 +36,7 @@ def test_eth_chains(eth_chain_test):
 @pytest.mark.parametrize(
     "poly_chain_test",
     (
-        (PolygonChain.POLYGON, "polygon", 137),
+        (PolygonChain.MAINNET, "polygon", 137),
         (PolygonChain.MUMBAI, "mumbai", 80001),
     ),
 )
@@ -49,7 +49,7 @@ def test_polygon_chains(poly_chain_test):
 @pytest.mark.parametrize(
     "taco_domain_test",
     (
-        (TACoDomain.MAINNET, "mainnet", EthChain.MAINNET, PolygonChain.POLYGON),
+        (TACoDomain.MAINNET, "mainnet", EthChain.MAINNET, PolygonChain.MAINNET),
         (TACoDomain.LYNX, "lynx", EthChain.GOERLI, PolygonChain.MUMBAI),
         (TACoDomain.TAPIR, "tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI),
     ),
