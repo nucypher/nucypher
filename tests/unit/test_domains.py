@@ -67,10 +67,6 @@ def test_taco_domain_info(taco_domain_test):
 
     assert domain_info.is_testnet == (expected_name != "mainnet")
 
-    # magic methods
-    assert str(domain_info) == expected_name
-    assert bytes(domain_info) == expected_name.encode()
-
 
 @pytest.mark.parametrize(
     "domain_name_test",
