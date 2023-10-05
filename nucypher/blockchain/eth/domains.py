@@ -42,9 +42,10 @@ class TACoDomain:
 
     MAINNET = DomainInfo("mainnet", EthChain.MAINNET, PolygonChain.POLYGON)
     # Testnets
-    ORYX = DomainInfo("oryx", EthChain.GOERLI, PolygonChain.POLYGON)
     LYNX = DomainInfo("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
     TAPIR = DomainInfo("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
+    # TODO remove these (oryx, ibex) when appropriate
+    ORYX = DomainInfo("oryx", EthChain.GOERLI, PolygonChain.POLYGON)
     IBEX = DomainInfo(
         "ibex", EthChain.GOERLI, None
     )  # this is required for configuration file migrations (backwards compatibility)
