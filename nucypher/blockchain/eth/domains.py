@@ -33,7 +33,6 @@ class TACoDomain:
         """Raised when a provided domain name is not recognized."""
 
     MAINNET = DomainInfo("mainnet", EthChain.MAINNET, PolygonChain.MAINNET)
-    # Testnets
     LYNX = DomainInfo("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
     TAPIR = DomainInfo("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
 
