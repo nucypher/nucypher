@@ -7,6 +7,18 @@ from nucypher.blockchain.eth.domains import (
 )
 
 
+@pytest.fixture(scope="module")
+def test_registry(module_mocker):
+    # override fixture which mocks SUPPORTED_DOMAIN_NAMES
+    yield
+
+
+@pytest.fixture(scope="module", autouse=True)
+def mock_condition_blockchains(module_mocker):
+    # override fixture which mocks get_domain_info
+    yield
+
+
 @pytest.mark.parametrize(
     "eth_chain_test",
     (
@@ -58,3 +70,21 @@ def test_taco_domain_info(taco_domain_test):
     # magic methods
     assert str(domain_info) == expected_name
     assert bytes(domain_info) == expected_name.encode()
+
+
+@pytest.mark.parametrize(
+    "domain_name_test",
+    (
+        ("mainnet", TACoDomain.MAINNET),
+        ("lynx", TACoDomain.LYNX),
+        ("tapir", TACoDomain.TAPIR),
+    ),
+)
+def test_get_domain_info(domain_name_test):
+    domain_name, expected_domain_info = domain_name_test
+    assert TACoDomain.get_domain_info(domain_name) == expected_domain_info
+
+
+def test_get_domain_info_unrecognized_domain_name():
+    with pytest.raises(TACoDomain.Unrecognized):
+        TACoDomain.get_domain_info(domain="5am_In_Toronto")

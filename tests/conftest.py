@@ -140,10 +140,10 @@ def disable_check_grant_requirements(session_mocker):
     session_mocker.patch(target, return_value=MOCK_IP_ADDRESS)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_condition_blockchains(session_mocker):
+@pytest.fixture(scope="module", autouse=True)
+def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
-    session_mocker.patch.dict(
+    module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
@@ -151,7 +151,7 @@ def mock_condition_blockchains(session_mocker):
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
-    session_mocker.patch.object(
+    module_mocker.patch.object(
         TACoDomain, "get_domain_info", return_value=test_domain_info
     )
 
