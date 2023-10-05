@@ -9,6 +9,7 @@ import msgpack
 from nucypher_core import EncryptedTreasureMap, MessageKit
 from nucypher_core.umbral import PublicKey
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -27,7 +28,7 @@ except KeyError:
     raise RuntimeError("Missing environment variables to run demo.")
 
 
-TACO_DOMAIN = "lynx"
+TACO_DOMAIN = TACoDomain.LYNX.name
 
 # To create a Bob, we need the doctor's private keys previously generated.
 from doctor_keys import get_doctor_privkeys  # noqa: E402

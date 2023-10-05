@@ -1,3 +1,4 @@
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
@@ -8,7 +9,7 @@ THIS_IS_NOT_A_TRINKET = 55  # sometimes called "public key"
 
 signer = InMemorySigner()
 enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET, signer=signer)
-bob = ThisBobAlwaysDecrypts(domain="lynx", eth_endpoint="Nowhere")
+bob = ThisBobAlwaysDecrypts(domain=TACoDomain.LYNX.name, eth_endpoint="Nowhere")
 
 ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55
 

@@ -26,9 +26,9 @@ from twisted.internet.defer import Deferred
 from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -46,14 +46,14 @@ from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
-    domains.MAINNET.name: (
+    TACoDomain.MAINNET.name: (
         'https://closest-seed.nucypher.network:9151',
         'https://seeds.nucypher.network',
         'https://mainnet.nucypher.network:9151',
     ),
-    domains.LYNX.name: ("https://lynx.nucypher.network:9151",),
-    domains.TAPIR.name: ("https://tapir.nucypher.network:9151",),
-    domains.ORYX.name: ("https://oryx.nucypher.network:9151",),
+    TACoDomain.LYNX.name: ("https://lynx.nucypher.network:9151",),
+    TACoDomain.TAPIR.name: ("https://tapir.nucypher.network:9151",),
+    TACoDomain.ORYX.name: ("https://oryx.nucypher.network:9151",),
 }
 
 
@@ -271,7 +271,7 @@ class Learner:
 
         self.learning_deferred = Deferred()
         self.domain = domain
-        self.taco_domain = domains.from_domain_name(self.domain)
+        self.taco_domain_info = TACoDomain.get_domain_info(self.domain)
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
             registry=self.registry, eth_endpoint=self.eth_endpoint
         )

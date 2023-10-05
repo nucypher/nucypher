@@ -6,12 +6,12 @@ import maya
 from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
     TACoApplicationAgent,
 )
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
@@ -47,8 +47,8 @@ def get_transacting_power(signer: Signer):
     "--domain",
     "domain",
     help="TACo Domain",
-    type=click.Choice(["tapir", "lynx"]),
-    default="lynx",
+    type=click.Choice([TACoDomain.TAPIR.name, TACoDomain.LYNX.name]),
+    default=TACoDomain.LYNX.name,
 )
 @click.option(
     "--eth-endpoint",
@@ -154,7 +154,7 @@ def nucypher_dkg(
                 ),
             )
 
-    taco_domain = domains.from_domain_name(domain)
+    taco_domain_info = TACoDomain.get_domain_info(domain)
     registry = ContractRegistry.from_latest_publication(domain=domain)
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
@@ -191,7 +191,7 @@ def nucypher_dkg(
 
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
-            f"Commencing DKG Ritual(s) on {taco_domain.polygon_chain.name} using {account_address}",
+            f"Commencing DKG Ritual(s) on {taco_domain_info.polygon_chain.name} using {account_address}",
             color="green",
         )
 

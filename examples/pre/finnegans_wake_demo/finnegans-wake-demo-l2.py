@@ -5,6 +5,7 @@ from pathlib import Path
 
 import maya
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Enrico as Enrico
@@ -41,10 +42,10 @@ except KeyError:
 print("\n************** Setup **************\n")
 
 ##########
-# DOMAIN #
+# Domain #
 ##########
 
-TACO_DOMAIN = "lynx"
+TACO_DOMAIN = TACoDomain.LYNX.name
 
 #####################
 # Bob the BUIDLer  ##

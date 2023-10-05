@@ -24,6 +24,7 @@ from pathlib import Path
 
 import maya
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.policy.payment import SubscriptionManagerPayment
@@ -57,7 +58,7 @@ try:
 except KeyError:
     raise RuntimeError("Missing environment variables to run demo.")
 
-TACO_DOMAIN = "lynx"
+TACO_DOMAIN = TACoDomain.LYNX.name
 
 
 #######################################

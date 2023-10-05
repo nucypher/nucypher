@@ -1,6 +1,6 @@
 import pytest
 
-from nucypher.blockchain.eth import domains
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.network.nodes import TEACHER_NODES
 
 
@@ -17,6 +17,6 @@ def test_registry(module_mocker):
 
 
 def test_default_teacher_seednodes_defined():
-    for domain in domains.SUPPORTED_DOMAIN_NAMES:
+    for domain in TACoDomain.SUPPORTED_DOMAIN_NAMES:
         teacher_nodes = TEACHER_NODES[domain]
         assert len(teacher_nodes) > 0

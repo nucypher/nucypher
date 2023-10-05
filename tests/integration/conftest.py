@@ -15,6 +15,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.domains import (
+    DomainInfo,
     EthChain,
     PolygonChain,
     TACoDomain,
@@ -290,12 +291,12 @@ def mock_condition_blockchains(session_mocker):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    test_domain = TACoDomain(
+    test_domain_info = DomainInfo(
         TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
     )
 
-    session_mocker.patch(
-        "nucypher.blockchain.eth.domains.from_domain_name", return_value=test_domain
+    session_mocker.patch.object(
+        TACoDomain, "get_domain_info", return_value=test_domain_info
     )
 
 

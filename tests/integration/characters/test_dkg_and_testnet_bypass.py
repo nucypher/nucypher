@@ -1,5 +1,6 @@
 import pytest
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.chaotic import (
     NiceGuyEddie,
@@ -22,7 +23,7 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
     enrico = NiceGuyEddie(encrypting_key=trinket, signer=signer)
     bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
-        domain="lynx",
+        domain=TACoDomain.LYNX.name,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 

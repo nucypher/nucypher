@@ -3,7 +3,6 @@ from pathlib import Path
 import click
 from web3 import Web3
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     TACoApplicationAgent,
@@ -12,6 +11,7 @@ from nucypher.blockchain.eth.constants import (
     AVERAGE_BLOCK_TIME_IN_SECONDS,
     TACO_CONTRACT_NAMES,
 )
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -42,7 +42,7 @@ option_domain = click.option(
     "--domain",
     help="TACo Domain",
     type=click.STRING,
-    default=click.Choice(domains.SUPPORTED_DOMAIN_NAMES),
+    default=click.Choice(TACoDomain.SUPPORTED_DOMAIN_NAMES),
     required=True,
 )
 
