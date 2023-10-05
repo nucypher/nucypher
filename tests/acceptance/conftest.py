@@ -13,8 +13,6 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.domains import (
     DomainInfo,
-    EthChain,
-    PolygonChain,
     TACoDomain,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -30,6 +28,7 @@ from tests.constants import (
     MIN_OPERATOR_SECONDS,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_INFO,
 )
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -442,7 +441,7 @@ def mock_condition_blockchains(module_mocker):
     )
 
     test_domain_info = DomainInfo(
-        TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
+        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
     )
 
     module_mocker.patch.object(

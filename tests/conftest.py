@@ -6,15 +6,17 @@ from eth_utils.crypto import keccak
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.domains import (
     DomainInfo,
-    EthChain,
-    PolygonChain,
     TACoDomain,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.utilities.logging import GlobalLoggerSettings
-from tests.constants import MOCK_IP_ADDRESS, TESTERCHAIN_CHAIN_ID
+from tests.constants import (
+    MOCK_IP_ADDRESS,
+    TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_INFO,
+)
 
 # Don't re-lock accounts in the background while making commitments
 LOCK_FUNCTION = TransactingPower.lock_account
@@ -148,7 +150,7 @@ def mock_condition_blockchains(module_mocker):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
     test_domain_info = DomainInfo(
-        TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
+        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
     )
 
     module_mocker.patch.object(

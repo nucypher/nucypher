@@ -7,8 +7,6 @@ from eth_utils import to_checksum_address
 
 from nucypher.blockchain.eth.domains import (
     DomainInfo,
-    EthChain,
-    PolygonChain,
     TACoDomain,
 )
 from nucypher.blockchain.eth.registry import (
@@ -17,6 +15,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import TESTERCHAIN_CHAIN_INFO
 
 
 @contextmanager
@@ -28,7 +27,7 @@ def mock_registry_sources(mocker, domain_names: List[str] = None):
     supported_domain_names = []
     for domain_name in domain_names:
         test_domain = DomainInfo(
-            domain_name, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
+            domain_name, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
         )
         supported_domains.append(test_domain)
         supported_domain_names.append(domain_name)

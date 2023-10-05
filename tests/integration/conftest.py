@@ -16,8 +16,6 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.domains import (
     DomainInfo,
-    EthChain,
-    PolygonChain,
     TACoDomain,
 )
 from nucypher.blockchain.eth.interfaces import (
@@ -40,6 +38,7 @@ from tests.constants import (
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_INFO,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
@@ -292,7 +291,7 @@ def mock_condition_blockchains(module_mocker):
     )
 
     test_domain_info = DomainInfo(
-        TEMPORARY_DOMAIN, EthChain.TESTERCHAIN, PolygonChain.TESTERCHAIN
+        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
     )
 
     module_mocker.patch.object(

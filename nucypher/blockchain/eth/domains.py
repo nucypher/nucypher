@@ -11,25 +11,17 @@ class EthChain(ChainInfo, Enum):
     MAINNET = (1, "mainnet")
     GOERLI = (5, "goerli")
     SEPOLIA = (11155111, "sepolia")
-    TESTERCHAIN = (131277322940537, "eth-tester")
 
 
 class PolygonChain(ChainInfo, Enum):
     MAINNET = (137, "polygon")
     MUMBAI = (80001, "mumbai")
-    TESTERCHAIN = (131277322940537, "eth-tester")
 
 
 class DomainInfo(NamedTuple):
     name: str
     eth_chain: EthChain
     polygon_chain: PolygonChain
-
-    def __str__(self) -> str:
-        return self.name
-
-    def __bytes__(self) -> bytes:
-        return self.name.encode()
 
     @property
     def is_testnet(self) -> bool:
