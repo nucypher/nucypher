@@ -1,15 +1,13 @@
-name: Lynx Taco Test
+name: '🔎 Lynx Testnet Example'
 
 on:
-#  schedule:
-#    - cron: "0/5 * * * *"  # Every 5 minutes
-#  push:
-#    branches:
-#      - main
-  branches:
-    - main
-    - development
-    - epic-*
+  schedule:
+    - cron: "0/15 * * * *"  # Every 15 minutes
+  pull_request:
+    branches:
+      - main
+      - development
+      - epic-*
   workflow_dispatch:
 
 jobs:
