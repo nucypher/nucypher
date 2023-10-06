@@ -10,6 +10,10 @@ on:
       - epic-*
   workflow_dispatch:
 
+env:
+  DEMO_L1_PROVIDER_URI: ${{ vars.DEMO_L1_PROVIDER_URI }}
+  DEMO_L2_PROVIDER_URI: ${{ vars.DEMO_L2_PROVIDER_URI }}
+
 jobs:
   python-tests:
 
@@ -51,7 +55,4 @@ jobs:
         run: python -c "import nucypher; print(nucypher.__version__)"
 
       - name: Lynx testnet script
-        env:
-          DEMO_L1_PROVIDER_URI: ${{ secrets.DEMO_L1_PROVIDER_URI }}
-          DEMO_L2_PROVIDER_URI: ${{ secrets.DEMO_L2_PROVIDER_URI }}
         run: python examples/testnet_simple_taco.py
