@@ -29,6 +29,7 @@ from nucypher.utilities import logging
 _CONDITION_CHAINS = {
     1: "ethereum/mainnet",
     5: "ethereum/goerli",
+    11155111: "ethereum/sepolia",
     137: "polygon/mainnet",
     80001: "polygon/mumbai",
     # TODO: Permit support for these chains
