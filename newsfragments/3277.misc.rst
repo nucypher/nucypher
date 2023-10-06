@@ -1,0 +1,1 @@
+Add ``tapir`` contract registry.
