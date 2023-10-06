@@ -50,7 +50,8 @@ jobs:
       - name: Check Python Entrypoint
         run: python -c "import nucypher; print(nucypher.__version__)"
 
-      # Lynx testnet script
-      - name: Lynx
+      - name: Lynx testnet script
+        env:
+          DEMO_L1_PROVIDER_URI: ${{ secrets.DEMO_L1_PROVIDER_URI }}
+          DEMO_L2_PROVIDER_URI: ${{ secrets.DEMO_L2_PROVIDER_URI }}
         run: python examples/testnet_simple_taco.py
-# export WEB3_INFURA_PROJECT_ID=${{ secrets.WEB3_INFURA_PROJECT_ID }}
