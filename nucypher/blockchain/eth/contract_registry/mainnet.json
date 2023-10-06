@@ -1,14 +1,2657 @@
 {
-  "1": {
-    "SimplePREApplication": {
-      "address": "0x7E01c9c03FD3737294dbD7630a34845B0F70E5Dd",
-      "abi": [{"inputs": [{"internalType": "contract IStaking", "name": "_tStaking", "type": "address"}, {"internalType": "uint256", "name": "_minAuthorization", "type": "uint256"}, {"internalType": "uint256", "name": "_minOperatorSeconds", "type": "uint256"}], "stateMutability": "nonpayable", "type": "constructor"}, {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "stakingProvider", "type": "address"}, {"indexed": true, "internalType": "address", "name": "operator", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "startTimestamp", "type": "uint256"}], "name": "OperatorBonded", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": true, "internalType": "address", "name": "stakingProvider", "type": "address"}, {"indexed": true, "internalType": "address", "name": "operator", "type": "address"}], "name": "OperatorConfirmed", "type": "event"}, {"inputs": [{"internalType": "address", "name": "_stakingProvider", "type": "address"}], "name": "authorizedStake", "outputs": [{"internalType": "uint96", "name": "", "type": "uint96"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_stakingProvider", "type": "address"}, {"internalType": "address", "name": "_operator", "type": "address"}], "name": "bondOperator", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [], "name": "confirmOperatorAddress", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_startIndex", "type": "uint256"}, {"internalType": "uint256", "name": "_maxStakingProviders", "type": "uint256"}], "name": "getActiveStakingProviders", "outputs": [{"internalType": "uint256", "name": "allAuthorizedTokens", "type": "uint256"}, {"internalType": "uint256[2][]", "name": "activeStakingProviders", "type": "uint256[2][]"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_stakingProvider", "type": "address"}], "name": "getBeneficiary", "outputs": [{"internalType": "address payable", "name": "beneficiary", "type": "address"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_stakingProvider", "type": "address"}], "name": "getOperatorFromStakingProvider", "outputs": [{"internalType": "address", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "getStakingProvidersLength", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_stakingProvider", "type": "address"}], "name": "isAuthorized", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_operator", "type": "address"}], "name": "isOperatorConfirmed", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "minAuthorization", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "minOperatorSeconds", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_operator", "type": "address"}], "name": "stakingProviderFromOperator", "outputs": [{"internalType": "address", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "", "type": "address"}], "name": "stakingProviderInfo", "outputs": [{"internalType": "address", "name": "operator", "type": "address"}, {"internalType": "bool", "name": "operatorConfirmed", "type": "bool"}, {"internalType": "uint256", "name": "operatorStartTimestamp", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "name": "stakingProviders", "outputs": [{"internalType": "address", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "tStaking", "outputs": [{"internalType": "contract IStaking", "name": "", "type": "address"}], "stateMutability": "view", "type": "function"}]
+    "1": {
+        "WorkLock": {
+            "address": "0xe9778E69a961e64d3cdBB34CF6778281d34667c2",
+            "abi": [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "contract NuCypherToken",
+                            "name": "_token",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "contract IStakingEscrow",
+                            "name": "_escrow",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_startBidDate",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_endBidDate",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_endCancellationDate",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_boostingRefund",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "_stakingPeriods",
+                            "type": "uint16"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_minAllowedBid",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "constructor"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "depositedETH",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Bid",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "startIndex",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "endIndex",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "BiddersChecked",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Canceled",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "claimedTokens",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Claimed",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "CompensationWithdrawn",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Deposited",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "bidder",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "refundETH",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "ForceRefund",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "previousOwner",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "newOwner",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "OwnershipTransferred",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "refundETH",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "completedWork",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Refund",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "Shutdown",
+                    "type": "event"
+                },
+                {
+                    "inputs": [],
+                    "name": "SLOWING_REFUND",
+                    "outputs": [
+                        {
+                            "internalType": "uint16",
+                            "name": "",
+                            "type": "uint16"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "bid",
+                    "outputs": [],
+                    "stateMutability": "payable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "bidders",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "bonusETHSupply",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "boostingRefund",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "cancelBid",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "claim",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "claimedTokens",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "compensation",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "endBidDate",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "endCancellationDate",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "escrow",
+                    "outputs": [
+                        {
+                            "internalType": "contract IStakingEscrow",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_ethAmount",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "ethToTokens",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_ethAmount",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "ethToWork",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address payable[]",
+                            "name": "_biddersForRefund",
+                            "type": "address[]"
+                        }
+                    ],
+                    "name": "forceRefund",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_bidder",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getAvailableRefund",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "getBiddersLength",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_bidder",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getRemainingWork",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "isClaimingAvailable",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "isOwner",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "maxAllowableLockedTokens",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "minAllowableLockedTokens",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "minAllowedBid",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "nextBidderToCheck",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "owner",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "refund",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "refundETH",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "renounceOwnership",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "shutdown",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "stakingPeriods",
+                    "outputs": [
+                        {
+                            "internalType": "uint16",
+                            "name": "",
+                            "type": "uint16"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "startBidDate",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "token",
+                    "outputs": [
+                        {
+                            "internalType": "contract NuCypherToken",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "tokenDeposit",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "tokenSupply",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "newOwner",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "transferOwnership",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_gasToSaveState",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "verifyBiddingCorrectness",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "withdrawCompensation",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "workInfo",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "depositedETH",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "completedWork",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "bool",
+                            "name": "claimed",
+                            "type": "bool"
+                        },
+                        {
+                            "internalType": "uint128",
+                            "name": "index",
+                            "type": "uint128"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_completedWork",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_depositedETH",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "workToETH",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                }
+            ],
+            "tx_hash": "0xbc1efbd39448e0555f6c2a685d97c683bc0adb2ee3bca3f98c972b7cfe4407da",
+            "block_number": "10763629",
+            "deployer": "0xebA17F35955E057a8d2e74bD4638528851d8E063"
+        },
+        "NuCypherToken": {
+            "address": "0x4fE83213D56308330EC302a8BD641f1d0113A4Cc",
+            "abi": [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_totalSupplyOfTokens",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "constructor"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "owner",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "spender",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Approval",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "from",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "to",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Transfer",
+                    "type": "event"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "owner",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "spender",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "allowance",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "spender",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "approve",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_spender",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_value",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "bytes",
+                            "name": "_extraData",
+                            "type": "bytes"
+                        }
+                    ],
+                    "name": "approveAndCall",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "success",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "owner",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "balanceOf",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "decimals",
+                    "outputs": [
+                        {
+                            "internalType": "uint8",
+                            "name": "",
+                            "type": "uint8"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "spender",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "subtractedValue",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "decreaseAllowance",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "spender",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "addedValue",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "increaseAllowance",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "name",
+                    "outputs": [
+                        {
+                            "internalType": "string",
+                            "name": "",
+                            "type": "string"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "symbol",
+                    "outputs": [
+                        {
+                            "internalType": "string",
+                            "name": "",
+                            "type": "string"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "totalSupply",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "to",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "transfer",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "from",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "to",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "transferFrom",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                }
+            ],
+            "tx_hash": "0x675d43be8ddd74dd5b6bb0afd002d70c1fe7e83d02332e2002165e06eea57af9",
+            "block_number": "10763456",
+            "deployer": "0xebA17F35955E057a8d2e74bD4638528851d8E063"
+        },
+        "SimplePREApplication": {
+            "address": "0x7E01c9c03FD3737294dbD7630a34845B0F70E5Dd",
+            "abi": [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "contract IStaking",
+                            "name": "_tStaking",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_minAuthorization",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_minOperatorSeconds",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "constructor"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "stakingProvider",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "operator",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "startTimestamp",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "OperatorBonded",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "stakingProvider",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "operator",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "OperatorConfirmed",
+                    "type": "event"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_stakingProvider",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "authorizedStake",
+                    "outputs": [
+                        {
+                            "internalType": "uint96",
+                            "name": "",
+                            "type": "uint96"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_stakingProvider",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "_operator",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "bondOperator",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "confirmOperatorAddress",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_startIndex",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_maxStakingProviders",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "getActiveStakingProviders",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "allAuthorizedTokens",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256[2][]",
+                            "name": "activeStakingProviders",
+                            "type": "uint256[2][]"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_stakingProvider",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getBeneficiary",
+                    "outputs": [
+                        {
+                            "internalType": "address payable",
+                            "name": "beneficiary",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_stakingProvider",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getOperatorFromStakingProvider",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "getStakingProvidersLength",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_stakingProvider",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "isAuthorized",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_operator",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "isOperatorConfirmed",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "minAuthorization",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "minOperatorSeconds",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_operator",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "stakingProviderFromOperator",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "stakingProviderInfo",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "operator",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bool",
+                            "name": "operatorConfirmed",
+                            "type": "bool"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "operatorStartTimestamp",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "stakingProviders",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "tStaking",
+                    "outputs": [
+                        {
+                            "internalType": "contract IStaking",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                }
+            ],
+            "tx_hash": "0x9a6db81f7db30bf80aa36c444729b3e4800c0dc77351f2fecbf8e2c0515defb0",
+            "block_number": "14141140",
+            "deployer": "0x99eA9f76e4f7186400F715234f5DA763CC0456b2"
+        },
+        "StakingEscrow": {
+            "address": "0xbbD3C0C794F40c4f993B03F65343aCC6fcfCb2e2",
+            "abi": [
+                {
+                    "inputs": [
+                        {
+                            "internalType": "contract NuCypherToken",
+                            "name": "_token",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "contract WorkLockInterface",
+                            "name": "_workLock",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "contract IStaking",
+                            "name": "_tStaking",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "constructor"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "staker",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Deposited",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "staker",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "stakingProvider",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "MergeRequested",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "previousOwner",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "newOwner",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "OwnershipTransferred",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "staker",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "penalty",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "investigator",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "reward",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Slashed",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "testTarget",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "StateVerified",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "target",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "address",
+                            "name": "sender",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "UpgradeFinished",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "staker",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "releaseTimestamp",
+                            "type": "uint256"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "releaseRate",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "VestingSet",
+                    "type": "event"
+                },
+                {
+                    "anonymous": false,
+                    "inputs": [
+                        {
+                            "indexed": true,
+                            "internalType": "address",
+                            "name": "staker",
+                            "type": "address"
+                        },
+                        {
+                            "indexed": false,
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "Withdrawn",
+                    "type": "event"
+                },
+                {
+                    "inputs": [],
+                    "name": "currentPeriodSupply",
+                    "outputs": [
+                        {
+                            "internalType": "uint128",
+                            "name": "",
+                            "type": "uint128"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_value",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "_unlockingDuration",
+                            "type": "uint16"
+                        }
+                    ],
+                    "name": "depositFromWorkLock",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_target",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "finishUpgrade",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getAllTokens",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getCompletedWork",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "getStakersLength",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "getUnvestedTokens",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "isOwner",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "isUpgrade",
+                    "outputs": [
+                        {
+                            "internalType": "uint8",
+                            "name": "",
+                            "type": "uint8"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "owner",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "previousTarget",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "renounceOwnership",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "_stakingProvider",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "requestMerge",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "bool",
+                            "name": "_measureWork",
+                            "type": "bool"
+                        }
+                    ],
+                    "name": "setWorkMeasurement",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address[]",
+                            "name": "_stakers",
+                            "type": "address[]"
+                        },
+                        {
+                            "internalType": "uint256[]",
+                            "name": "_releaseTimestamp",
+                            "type": "uint256[]"
+                        },
+                        {
+                            "internalType": "uint256[]",
+                            "name": "_releaseRate",
+                            "type": "uint256[]"
+                        }
+                    ],
+                    "name": "setupVesting",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_staker",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_penalty",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "_investigator",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_reward",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "slashStaker",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "stakerInfo",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "value",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "stub1",
+                            "type": "uint16"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "stub2",
+                            "type": "uint16"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "lastCommittedPeriod",
+                            "type": "uint16"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "stub4",
+                            "type": "uint16"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "stub5",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint16",
+                            "name": "stub6",
+                            "type": "uint16"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "stub7",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "flags",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "vestingReleaseTimestamp",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "vestingReleaseRate",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "address",
+                            "name": "stakingProvider",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "reservedSlot4",
+                            "type": "uint256"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "reservedSlot5",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "stakers",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "supportsHistory",
+                    "outputs": [
+                        {
+                            "internalType": "bool",
+                            "name": "",
+                            "type": "bool"
+                        }
+                    ],
+                    "stateMutability": "pure",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "tStaking",
+                    "outputs": [
+                        {
+                            "internalType": "contract IStaking",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "target",
+                    "outputs": [
+                        {
+                            "internalType": "address",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "token",
+                    "outputs": [
+                        {
+                            "internalType": "contract NuCypherToken",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_blockNumber",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "totalStakedAt",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_owner",
+                            "type": "address"
+                        },
+                        {
+                            "internalType": "uint256",
+                            "name": "_blockNumber",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "totalStakedForAt",
+                    "outputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "",
+                            "type": "uint256"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "newOwner",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "transferOwnership",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "address",
+                            "name": "_testTarget",
+                            "type": "address"
+                        }
+                    ],
+                    "name": "verifyState",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "internalType": "uint256",
+                            "name": "_value",
+                            "type": "uint256"
+                        }
+                    ],
+                    "name": "withdraw",
+                    "outputs": [],
+                    "stateMutability": "nonpayable",
+                    "type": "function"
+                },
+                {
+                    "inputs": [],
+                    "name": "workLock",
+                    "outputs": [
+                        {
+                            "internalType": "contract WorkLockInterface",
+                            "name": "",
+                            "type": "address"
+                        }
+                    ],
+                    "stateMutability": "view",
+                    "type": "function"
+                }
+            ],
+            "tx_hash": "0x9cbc0b9329da794b62903946b3af4ba8e4ce2bffed6fff736f18d224e07b32ed",
+            "block_number": "10763506",
+            "deployer": "0xebA17F35955E057a8d2e74bD4638528851d8E063"
+        }
+    },
+    "137": {
+        "SubscriptionManager": {
+            "address": "0xB0194073421192F6Cf38d72c791Be8729721A0b3",
+            "abi": [
+              {
+                  "anonymous": false,
+                  "inputs": [
+                      {
+                          "indexed": false,
+                          "internalType": "uint256",
+                          "name": "oldFeeRate",
+                          "type": "uint256"
+                      },
+                      {
+                          "indexed": false,
+                          "internalType": "uint256",
+                          "name": "newFeeRate",
+                          "type": "uint256"
+                      }
+                  ],
+                  "name": "FeeRateUpdated",
+                  "type": "event"
+              },
+              {
+                  "anonymous": false,
+                  "inputs": [
+                      {
+                          "indexed": true,
+                          "internalType": "bytes16",
+                          "name": "policyId",
+                          "type": "bytes16"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "address",
+                          "name": "sponsor",
+                          "type": "address"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "address",
+                          "name": "owner",
+                          "type": "address"
+                      },
+                      {
+                          "indexed": false,
+                          "internalType": "uint16",
+                          "name": "size",
+                          "type": "uint16"
+                      },
+                      {
+                          "indexed": false,
+                          "internalType": "uint32",
+                          "name": "startTimestamp",
+                          "type": "uint32"
+                      },
+                      {
+                          "indexed": false,
+                          "internalType": "uint32",
+                          "name": "endTimestamp",
+                          "type": "uint32"
+                      },
+                      {
+                          "indexed": false,
+                          "internalType": "uint256",
+                          "name": "cost",
+                          "type": "uint256"
+                      }
+                  ],
+                  "name": "PolicyCreated",
+                  "type": "event"
+              },
+              {
+                  "anonymous": false,
+                  "inputs": [
+                      {
+                          "indexed": true,
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "bytes32",
+                          "name": "previousAdminRole",
+                          "type": "bytes32"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "bytes32",
+                          "name": "newAdminRole",
+                          "type": "bytes32"
+                      }
+                  ],
+                  "name": "RoleAdminChanged",
+                  "type": "event"
+              },
+              {
+                  "anonymous": false,
+                  "inputs": [
+                      {
+                          "indexed": true,
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "address",
+                          "name": "account",
+                          "type": "address"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "address",
+                          "name": "sender",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "RoleGranted",
+                  "type": "event"
+              },
+              {
+                  "anonymous": false,
+                  "inputs": [
+                      {
+                          "indexed": true,
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "address",
+                          "name": "account",
+                          "type": "address"
+                      },
+                      {
+                          "indexed": true,
+                          "internalType": "address",
+                          "name": "sender",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "RoleRevoked",
+                  "type": "event"
+              },
+              {
+                  "inputs": [],
+                  "name": "DEFAULT_ADMIN_ROLE",
+                  "outputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "",
+                          "type": "bytes32"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [],
+                  "name": "SET_RATE_ROLE",
+                  "outputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "",
+                          "type": "bytes32"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [],
+                  "name": "WITHDRAW_ROLE",
+                  "outputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "",
+                          "type": "bytes32"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes16",
+                          "name": "_policyId",
+                          "type": "bytes16"
+                      },
+                      {
+                          "internalType": "address",
+                          "name": "_policyOwner",
+                          "type": "address"
+                      },
+                      {
+                          "internalType": "uint16",
+                          "name": "_size",
+                          "type": "uint16"
+                      },
+                      {
+                          "internalType": "uint32",
+                          "name": "_startTimestamp",
+                          "type": "uint32"
+                      },
+                      {
+                          "internalType": "uint32",
+                          "name": "_endTimestamp",
+                          "type": "uint32"
+                      }
+                  ],
+                  "name": "createPolicy",
+                  "outputs": [],
+                  "stateMutability": "payable",
+                  "type": "function"
+              },
+              {
+                  "inputs": [],
+                  "name": "feeRate",
+                  "outputs": [
+                      {
+                          "internalType": "uint256",
+                          "name": "",
+                          "type": "uint256"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes16",
+                          "name": "_policyID",
+                          "type": "bytes16"
+                      }
+                  ],
+                  "name": "getPolicy",
+                  "outputs": [
+                      {
+                          "components": [
+                              {
+                                  "internalType": "address payable",
+                                  "name": "sponsor",
+                                  "type": "address"
+                              },
+                              {
+                                  "internalType": "uint32",
+                                  "name": "startTimestamp",
+                                  "type": "uint32"
+                              },
+                              {
+                                  "internalType": "uint32",
+                                  "name": "endTimestamp",
+                                  "type": "uint32"
+                              },
+                              {
+                                  "internalType": "uint16",
+                                  "name": "size",
+                                  "type": "uint16"
+                              },
+                              {
+                                  "internalType": "address",
+                                  "name": "owner",
+                                  "type": "address"
+                              }
+                          ],
+                          "internalType": "struct SubscriptionManager.Policy",
+                          "name": "",
+                          "type": "tuple"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "uint16",
+                          "name": "_size",
+                          "type": "uint16"
+                      },
+                      {
+                          "internalType": "uint32",
+                          "name": "_startTimestamp",
+                          "type": "uint32"
+                      },
+                      {
+                          "internalType": "uint32",
+                          "name": "_endTimestamp",
+                          "type": "uint32"
+                      }
+                  ],
+                  "name": "getPolicyCost",
+                  "outputs": [
+                      {
+                          "internalType": "uint256",
+                          "name": "",
+                          "type": "uint256"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      }
+                  ],
+                  "name": "getRoleAdmin",
+                  "outputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "",
+                          "type": "bytes32"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "internalType": "address",
+                          "name": "account",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "grantRole",
+                  "outputs": [],
+                  "stateMutability": "nonpayable",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "internalType": "address",
+                          "name": "account",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "hasRole",
+                  "outputs": [
+                      {
+                          "internalType": "bool",
+                          "name": "",
+                          "type": "bool"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "uint256",
+                          "name": "_feeRate",
+                          "type": "uint256"
+                      }
+                  ],
+                  "name": "initialize",
+                  "outputs": [],
+                  "stateMutability": "nonpayable",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes16",
+                          "name": "_policyID",
+                          "type": "bytes16"
+                      }
+                  ],
+                  "name": "isPolicyActive",
+                  "outputs": [
+                      {
+                          "internalType": "bool",
+                          "name": "",
+                          "type": "bool"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "internalType": "address",
+                          "name": "account",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "renounceRole",
+                  "outputs": [],
+                  "stateMutability": "nonpayable",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes32",
+                          "name": "role",
+                          "type": "bytes32"
+                      },
+                      {
+                          "internalType": "address",
+                          "name": "account",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "revokeRole",
+                  "outputs": [],
+                  "stateMutability": "nonpayable",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "uint256",
+                          "name": "_ratePerSecond",
+                          "type": "uint256"
+                      }
+                  ],
+                  "name": "setFeeRate",
+                  "outputs": [],
+                  "stateMutability": "nonpayable",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "bytes4",
+                          "name": "interfaceId",
+                          "type": "bytes4"
+                      }
+                  ],
+                  "name": "supportsInterface",
+                  "outputs": [
+                      {
+                          "internalType": "bool",
+                          "name": "",
+                          "type": "bool"
+                      }
+                  ],
+                  "stateMutability": "view",
+                  "type": "function"
+              },
+              {
+                  "inputs": [
+                      {
+                          "internalType": "address payable",
+                          "name": "recipient",
+                          "type": "address"
+                      }
+                  ],
+                  "name": "sweep",
+                  "outputs": [],
+                  "stateMutability": "nonpayable",
+                  "type": "function"
+              }
+            ],
+            "tx_hash": "0xcb0dcb4414557bd56e158156ab32e84aa77af3f58b1799bedb119d46e950d3d0",
+            "block_number": "25163557",
+            "deployer": "0xf4cef231159750e1199c4577716f0e71604f1216"
+        }
     }
-  },
-  "137": {
-    "SubscriptionManager": {
-      "address": "0xB0194073421192F6Cf38d72c791Be8729721A0b3",
-      "abi": [{"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "oldFeeRate", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "newFeeRate", "type": "uint256"}], "name": "FeeRateUpdated", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": true, "internalType": "bytes16", "name": "policyId", "type": "bytes16"}, {"indexed": true, "internalType": "address", "name": "sponsor", "type": "address"}, {"indexed": true, "internalType": "address", "name": "owner", "type": "address"}, {"indexed": false, "internalType": "uint16", "name": "size", "type": "uint16"}, {"indexed": false, "internalType": "uint32", "name": "startTimestamp", "type": "uint32"}, {"indexed": false, "internalType": "uint32", "name": "endTimestamp", "type": "uint32"}, {"indexed": false, "internalType": "uint256", "name": "cost", "type": "uint256"}], "name": "PolicyCreated", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": true, "internalType": "bytes32", "name": "role", "type": "bytes32"}, {"indexed": true, "internalType": "bytes32", "name": "previousAdminRole", "type": "bytes32"}, {"indexed": true, "internalType": "bytes32", "name": "newAdminRole", "type": "bytes32"}], "name": "RoleAdminChanged", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": true, "internalType": "bytes32", "name": "role", "type": "bytes32"}, {"indexed": true, "internalType": "address", "name": "account", "type": "address"}, {"indexed": true, "internalType": "address", "name": "sender", "type": "address"}], "name": "RoleGranted", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": true, "internalType": "bytes32", "name": "role", "type": "bytes32"}, {"indexed": true, "internalType": "address", "name": "account", "type": "address"}, {"indexed": true, "internalType": "address", "name": "sender", "type": "address"}], "name": "RoleRevoked", "type": "event"}, {"inputs": [], "name": "DEFAULT_ADMIN_ROLE", "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "SET_RATE_ROLE", "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "WITHDRAW_ROLE", "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "bytes16", "name": "_policyId", "type": "bytes16"}, {"internalType": "address", "name": "_policyOwner", "type": "address"}, {"internalType": "uint16", "name": "_size", "type": "uint16"}, {"internalType": "uint32", "name": "_startTimestamp", "type": "uint32"}, {"internalType": "uint32", "name": "_endTimestamp", "type": "uint32"}], "name": "createPolicy", "outputs": [], "stateMutability": "payable", "type": "function"}, {"inputs": [], "name": "feeRate", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "bytes16", "name": "_policyID", "type": "bytes16"}], "name": "getPolicy", "outputs": [{"components": [{"internalType": "address payable", "name": "sponsor", "type": "address"}, {"internalType": "uint32", "name": "startTimestamp", "type": "uint32"}, {"internalType": "uint32", "name": "endTimestamp", "type": "uint32"}, {"internalType": "uint16", "name": "size", "type": "uint16"}, {"internalType": "address", "name": "owner", "type": "address"}], "internalType": "struct SubscriptionManager.Policy", "name": "", "type": "tuple"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint16", "name": "_size", "type": "uint16"}, {"internalType": "uint32", "name": "_startTimestamp", "type": "uint32"}, {"internalType": "uint32", "name": "_endTimestamp", "type": "uint32"}], "name": "getPolicyCost", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "bytes32", "name": "role", "type": "bytes32"}], "name": "getRoleAdmin", "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "bytes32", "name": "role", "type": "bytes32"}, {"internalType": "address", "name": "account", "type": "address"}], "name": "grantRole", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "bytes32", "name": "role", "type": "bytes32"}, {"internalType": "address", "name": "account", "type": "address"}], "name": "hasRole", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_feeRate", "type": "uint256"}], "name": "initialize", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "bytes16", "name": "_policyID", "type": "bytes16"}], "name": "isPolicyActive", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "bytes32", "name": "role", "type": "bytes32"}, {"internalType": "address", "name": "account", "type": "address"}], "name": "renounceRole", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "bytes32", "name": "role", "type": "bytes32"}, {"internalType": "address", "name": "account", "type": "address"}], "name": "revokeRole", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_ratePerSecond", "type": "uint256"}], "name": "setFeeRate", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "bytes4", "name": "interfaceId", "type": "bytes4"}], "name": "supportsInterface", "outputs": [{"internalType": "bool", "name": "", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address payable", "name": "recipient", "type": "address"}], "name": "sweep", "outputs": [], "stateMutability": "nonpayable", "type": "function"}]
-    }
-  }
 }
