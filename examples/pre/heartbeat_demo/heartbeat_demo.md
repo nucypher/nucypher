@@ -44,10 +44,10 @@ Alternatively you can use the provided .env.template file by making a copy named
 and adding your provider and wallet details.  To set the variables in your current session run:
 `export $(cat .env | xargs)`
 
-Optionally, you can change the network the demo is running on by changing the value of `L1_NETWORK` and `L2_NETWORK`.
+Optionally, you can change the network the demo is running on by changing the value of `TACO_DOMAIN`.
 If you change these values be sure to also change `L1_PROVIDER_URI` and `L2_PROVIDER_URI` accordingly.
 
-Available options for `TACO_NETWORK` are `lynx`, `tapir` or `mainnet`.
+Available options for `TACO_DOMAIN` are `lynx`, `tapir` or `mainnet`.
 
 Ensure Alice's account has a bit of MATIC on polygon to pay for the policy.
 
