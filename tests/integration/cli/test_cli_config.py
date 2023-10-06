@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import CharacterConfiguration, UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
@@ -26,13 +26,13 @@ CONFIG_CLASSES = (UrsulaConfiguration, )
 ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
 
 
+@pytest.mark.usefixtures("mock_registry_sources")
 @pytest.mark.parametrize("config_class", CONFIG_CLASSES)
 def test_initialize_via_cli(
     config_class,
     custom_filepath: Path,
     click_runner,
     monkeypatch,
-    test_registry_source_manager,
 ):
     command = config_class.CHARACTER_CLASS.__name__.lower()
 
@@ -40,11 +40,11 @@ def test_initialize_via_cli(
     init_args = (
         command,
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--config-root",
         str(custom_filepath.absolute()),
@@ -72,17 +72,15 @@ def test_initialize_via_cli(
     assert not (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
 
 
-@pytest.mark.parametrize('config_class', CONFIG_CLASSES)
-def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry, test_registry_source_manager):
-
+@pytest.mark.parametrize("config_class", CONFIG_CLASSES)
+def test_reconfigure_via_cli(
+    click_runner, custom_filepath: Path, config_class, monkeypatch, test_registry
+):
     def fake_get_latest_registry(*args, **kwargs):
         return test_registry
 
     monkeypatch.setattr(
-        InMemoryContractRegistry, "from_latest_publication", fake_get_latest_registry
-    )
-    monkeypatch.setattr(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
+        ContractRegistry, "from_latest_publication", fake_get_latest_registry
     )
 
     custom_config_filepath = custom_filepath / config_class.generate_filename()
@@ -102,13 +100,18 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
 
     # Read pre-edit state
     config = config_class.from_configuration_file(custom_config_filepath)
-    assert config.eth_provider_uri != TEST_ETH_PROVIDER_URI
+    assert config.eth_endpoint != TEST_ETH_PROVIDER_URI
     del config
 
     # Write
-    view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
-                 '--config-file', str(custom_config_filepath.absolute()),
-                 '--eth-provider', TEST_ETH_PROVIDER_URI)
+    view_args = (
+        config_class.CHARACTER_CLASS.__name__.lower(),
+        "config",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+        "--eth-endpoint",
+        TEST_ETH_PROVIDER_URI,
+    )
     result = click_runner.invoke(nucypher_cli, view_args, env=ENV)
     assert result.exit_code == 0
 
@@ -120,4 +123,4 @@ def test_reconfigure_via_cli(click_runner, custom_filepath: Path, config_class, 
     assert str(custom_filepath) in result.output
 
     # After editing the fields have been updated
-    assert config.eth_provider_uri == TEST_ETH_PROVIDER_URI
+    assert config.eth_endpoint == TEST_ETH_PROVIDER_URI

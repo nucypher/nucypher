@@ -137,12 +137,12 @@ def test_invalid_operators_tolerance(
         force=True,
         registry=test_registry,
         network_middleware_client=ursula.network_middleware.client,
-        eth_provider_uri=ursula.eth_provider_uri,
+        eth_endpoint=ursula.eth_endpoint,
     )
     # In particular, we know that it's bonded to a staker who is really staking.
     assert ursula.is_confirmed
     assert ursula._staking_provider_is_really_staking(
-        registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+        registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
     )
 
     # OK. Now we learn about this new worker.
@@ -161,7 +161,7 @@ def test_invalid_operators_tolerance(
 
     # OK...so...the staker is not staking anymore ...
     assert not ursula._staking_provider_is_really_staking(
-        registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+        registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
     )
 
     # ... but the worker node still is "verified" (since we're not forcing on-chain verification)
@@ -176,7 +176,7 @@ def test_invalid_operators_tolerance(
             force=True,
             registry=test_registry,
             network_middleware_client=ursula.network_middleware.client,
-            eth_provider_uri=TEST_ETH_PROVIDER_URI,
+            eth_endpoint=TEST_ETH_PROVIDER_URI,
         )
 
     #

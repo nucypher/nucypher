@@ -29,7 +29,7 @@ def mock_account_password_keystore(tmp_path_factory):
 
 
 @pytest.mark.usefixtures(
-    "test_registry_source_manager", "monkeypatch_get_staking_provider_from_operator"
+    "mock_registry_sources", "monkeypatch_get_staking_provider_from_operator"
 )
 def test_ursula_init_with_local_keystore_signer(
     click_runner, temp_dir_path, mocker, testerchain, mock_account_password_keystore
@@ -48,15 +48,13 @@ def test_ursula_init_with_local_keystore_signer(
         "ursula",
         "init",
         # Layer 1
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
-        testerchain.eth_provider_uri,
+        "--eth-endpoint",
+        testerchain.endpoint,
         # Layer 2
-        "--pre-payment-network",
-        TEMPORARY_DOMAIN,
-        "--pre-payment-provider",
-        testerchain.eth_provider_uri,
+        "--polygon-endpoint",
+        testerchain.endpoint,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--rest-port",

@@ -1,4 +1,3 @@
-import pytest
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -14,7 +13,6 @@ def log(message):
     print(message)
 
 
-@pytest.mark.usefixtures("test_registry_source_manager")
 def test_ursula_operator_confirmation(
     ursula_test_config,
     testerchain,

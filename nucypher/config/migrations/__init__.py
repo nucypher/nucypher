@@ -5,6 +5,7 @@ from .configuration_v3_to_v4 import configuration_v3_to_v4
 from .configuration_v4_to_v5 import configuration_v4_to_v5
 from .configuration_v5_to_v6 import configuration_v5_to_v6
 from .configuration_v6_to_v7 import configuration_v6_to_v7
+from .configuration_v7_to_v8 import configuration_v7_to_v8
 
 MIGRATIONS = OrderedDict(
     {
@@ -14,5 +15,6 @@ MIGRATIONS = OrderedDict(
         (4, 5): configuration_v4_to_v5,
         (5, 6): configuration_v5_to_v6,
         (6, 7): configuration_v6_to_v7,
+        (7, 8): configuration_v7_to_v8,
     }
 )

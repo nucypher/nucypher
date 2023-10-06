@@ -79,8 +79,7 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
+    ContractRegistry,
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -132,7 +131,7 @@ class Alice(Character, actors.PolicyAuthor):
         self,
         # Mode
         is_me: bool = True,
-        eth_provider_uri: str = None,
+        eth_endpoint: str = None,
         signer=None,
         # Ownership
         checksum_address: Optional[ChecksumAddress] = None,
@@ -171,7 +170,7 @@ class Alice(Character, actors.PolicyAuthor):
             self,
             known_node_class=Ursula,
             is_me=is_me,
-            eth_provider_uri=eth_provider_uri,
+            eth_endpoint=eth_endpoint,
             checksum_address=checksum_address,
             network_middleware=network_middleware,
             *args,
@@ -180,7 +179,7 @@ class Alice(Character, actors.PolicyAuthor):
 
         if is_me:  # TODO: #289
             blockchain = BlockchainInterfaceFactory.get_interface(
-                eth_provider_uri=self.eth_provider_uri
+                endpoint=self.eth_endpoint
             )
             signer = signer or Web3Signer(
                 blockchain.client
@@ -194,7 +193,7 @@ class Alice(Character, actors.PolicyAuthor):
                 domain=self.domain,
                 transacting_power=self.transacting_power,
                 registry=self.registry,
-                eth_provider_uri=eth_provider_uri,
+                eth_endpoint=eth_endpoint,
             )
 
         self.log = Logger(self.__class__.__name__)
@@ -217,7 +216,7 @@ class Alice(Character, actors.PolicyAuthor):
 
     def add_active_policy(self, active_policy):
         """
-        Adds a Policy object that is active on the NuCypher network to Alice's
+        Adds a Policy object that is active on the TACo network to Alice's
         `active_policies` dictionary by the policy ID.
         """
         if active_policy.hrac in self.active_policies:
@@ -459,9 +458,8 @@ class Bob(Character):
         self,
         is_me: bool = True,
         verify_node_bonding: bool = False,
-        eth_provider_uri: str = None,
-        coordinator_provider_uri: str = None,  # TODO: Move to a higher level and formalize
-        coordinator_network: str = None,  # TODO: Move to a higher level and formalize
+        eth_endpoint: str = None,
+        polygon_endpoint: str = None,
         *args,
         **kwargs,
     ) -> None:
@@ -470,26 +468,22 @@ class Bob(Character):
             is_me=is_me,
             known_node_class=Ursula,
             verify_node_bonding=verify_node_bonding,
-            eth_provider_uri=eth_provider_uri,
+            eth_endpoint=eth_endpoint,
+            polygon_endpoint=polygon_endpoint,
             *args,
             **kwargs,
         )
 
         coordinator_agent = None
-        if coordinator_provider_uri:
-            if not coordinator_network:
-                raise ValueError(
-                    "If coordinator_provider_uri is set, coordinator_network must also be set"
-                )
+        if polygon_endpoint:
             coordinator_agent = ContractAgency.get_agent(
                 CoordinatorAgent,
-                provider_uri=coordinator_provider_uri,
-                registry=InMemoryContractRegistry.from_latest_publication(
-                    network=coordinator_network
+                blockchain_endpoint=polygon_endpoint,
+                registry=ContractRegistry.from_latest_publication(
+                    domain=self.domain,
                 ),
             )
         self.coordinator_agent = coordinator_agent
-        self.coordinator_network = coordinator_network
 
         # Cache of decrypted treasure maps
         self._treasure_maps: Dict[int, TreasureMap] = {}
@@ -706,9 +700,7 @@ class Bob(Character):
 
     def _get_coordinator_agent(self) -> CoordinatorAgent:
         if not self.coordinator_agent:
-            raise ValueError(
-                "No coordinator provider URI provided in Bob's constructor."
-            )
+            raise ValueError("No polygon endpoint URI provided in Bob's constructor.")
 
         return self.coordinator_agent
 
@@ -826,8 +818,9 @@ class Ursula(Teacher, Character, Operator):
         client_password: Optional[str] = None,
         transacting_power: Optional[TransactingPower] = None,
         operator_signature_from_metadata=NOT_SIGNED,
-        eth_provider_uri: Optional[str] = None,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        eth_endpoint: Optional[str] = None,
+        polygon_endpoint: Optional[str] = None,
+        condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
         pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
         # Character
         abort_on_learning_error: bool = False,
@@ -845,7 +838,8 @@ class Ursula(Teacher, Character, Operator):
             domain=domain,
             known_node_class=Ursula,
             include_self_in_the_state=True,
-            eth_provider_uri=eth_provider_uri,
+            eth_endpoint=eth_endpoint,
+            polygon_endpoint=polygon_endpoint,
             **character_kwargs,
         )
 
@@ -864,13 +858,12 @@ class Ursula(Teacher, Character, Operator):
                     signer=self.signer,
                     crypto_power=self._crypto_power,
                     operator_address=operator_address,
-                    eth_provider_uri=eth_provider_uri,
+                    eth_endpoint=eth_endpoint,
+                    polygon_endpoint=polygon_endpoint,
                     pre_payment_method=pre_payment_method,
                     client_password=client_password,
-                    condition_provider_uris=condition_provider_uris,
-                    coordinator_provider_uri=pre_payment_method.provider,
+                    condition_blockchain_endpoints=condition_blockchain_endpoints,
                     transacting_power=transacting_power,
-                    coordinator_network=pre_payment_method.network,
                 )
 
             except Exception:
@@ -998,11 +991,9 @@ class Ursula(Teacher, Character, Operator):
 
         # Connect to Provider
         if not BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_provider_uri
+            endpoint=self.eth_endpoint
         ):
-            BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_provider_uri
-            )
+            BlockchainInterfaceFactory.initialize_interface(endpoint=self.eth_endpoint)
 
         if preflight:
             self.__preflight()
@@ -1190,15 +1181,15 @@ class Ursula(Teacher, Character, Operator):
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
     @classmethod
-    def seednode_for_network(cls, network: str, provider_uri: str) -> "Ursula":
+    def seednode_for_domain(cls, domain: str, eth_endpoint: str) -> "Ursula":
         """Returns a default seednode ursula for a given network."""
         try:
-            url = TEACHER_NODES[network][0]
+            url = TEACHER_NODES[domain][0]
         except KeyError:
-            raise ValueError(f'"{network}" is not a known network.')
+            raise ValueError(f'"{domain}" is not a known domain.')
         except IndexError:
-            raise ValueError(f'No default seednodes available for "{network}".')
-        ursula = cls.from_seed_and_stake_info(seed_uri=url, provider_uri=provider_uri)
+            raise ValueError(f'No default seednodes available for "{domain}".')
+        ursula = cls.from_seed_and_stake_info(seed_uri=url, eth_endpoint=eth_endpoint)
         return ursula
 
     @classmethod
@@ -1206,8 +1197,8 @@ class Ursula(Teacher, Character, Operator):
         cls,
         teacher_uri: str,
         min_stake: int,
-        provider_uri: str,
-        registry: BaseContractRegistry = None,
+        eth_endpoint: str,
+        registry: ContractRegistry = None,
         network_middleware: RestMiddleware = None,
         retry_attempts: int = 2,
         retry_interval: int = 2,
@@ -1221,7 +1212,7 @@ class Ursula(Teacher, Character, Operator):
             try:
                 teacher = cls.from_seed_and_stake_info(
                     seed_uri=teacher_uri,
-                    provider_uri=provider_uri,
+                    eth_endpoint=eth_endpoint,
                     minimum_stake=min_stake,
                     network_middleware=network_middleware,
                     registry=registry,
@@ -1245,14 +1236,14 @@ class Ursula(Teacher, Character, Operator):
     def from_seed_and_stake_info(
         cls,
         seed_uri: str,
-        provider_uri: str,
-        registry: BaseContractRegistry = None,
+        eth_endpoint: str,
+        registry: ContractRegistry = None,
         minimum_stake: int = 0,
         network_middleware: RestMiddleware = None,
     ) -> Union["Ursula", "NodeSprout"]:
         if network_middleware is None:
             network_middleware = RestMiddleware(
-                registry=registry, eth_provider_uri=provider_uri
+                registry=registry, eth_endpoint=eth_endpoint
             )
 
         # Parse node URI
@@ -1281,7 +1272,9 @@ class Ursula(Teacher, Character, Operator):
         # Check the node's stake (optional)
         if minimum_stake > 0 and staking_provider_address:
             application_agent = ContractAgency.get_agent(
-                TACoApplicationAgent, provider_uri=provider_uri, registry=registry
+                TACoApplicationAgent,
+                blockchain_endpoint=eth_endpoint,
+                registry=registry,
             )
             seednode_stake = application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address

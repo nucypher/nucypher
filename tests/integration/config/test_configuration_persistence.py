@@ -10,17 +10,14 @@ from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
 
-def test_alices_powers_are_persistent(
-    ursulas, temp_dir_path, test_registry_source_manager, testerchain
-):
+def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
     # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
         config_root=config_root,
-        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
         domain=TEMPORARY_DOMAIN,
-        pre_payment_network=TEMPORARY_DOMAIN,
         checksum_address=testerchain.alice_account,
         start_learning_now=False,
         save_metadata=False,
@@ -59,8 +56,8 @@ def test_alices_powers_are_persistent(
     bob = Bob(
         start_learning_now=False,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
     )
 
     bob_policy = alice.grant(bob, label, threshold=threshold, shares=shares, expiration=policy_end_datetime)
@@ -83,7 +80,7 @@ def test_alices_powers_are_persistent(
     # A new Alice is restored from the configuration file
     new_alice_config = AliceConfiguration.from_configuration_file(
         filepath=alice_config_file,
-        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
         start_learning_now=False,
         config_root=config_root,
         known_nodes=ursulas,
@@ -100,9 +97,9 @@ def test_alices_powers_are_persistent(
     # Bob's eldest brother, Roberto, appears too
     roberto = Bob(
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
-        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
     )
 
     # Alice creates a new policy for Roberto. Note how all the parameters

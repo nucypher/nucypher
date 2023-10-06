@@ -10,7 +10,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
 )
 from tests.utils.middleware import MockRestMiddleware
 
@@ -38,9 +38,7 @@ def test_bob_full_retrieve_flow(
     assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
 
 
-def test_bob_retrieves(
-    alice, ursulas, certificates_tempdir, test_registry_source_manager
-):
+def test_bob_retrieves(alice, ursulas, certificates_tempdir):
     """A test to show that Bob can retrieve data from Ursula"""
 
     # Let's partition Ursulas in two parts
@@ -51,8 +49,8 @@ def test_bob_retrieves(
     bob = Bob(
         domain=TEMPORARY_DOMAIN,
         start_learning_now=True,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-        network_middleware=MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI),
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
         abort_on_learning_error=True,
         known_nodes=a_couple_of_ursulas,
     )
@@ -62,7 +60,7 @@ def test_bob_retrieves(
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
-    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK - 2
+    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     policy = alice.grant(
@@ -115,7 +113,6 @@ def test_bob_retrieves(
 def test_bob_retrieves_with_treasure_map(
     bob, ursulas, enacted_policy, capsule_side_channel
 ):
-    enrico = capsule_side_channel.enrico
     message_kit = capsule_side_channel()
     treasure_map = enacted_policy.treasure_map
     alice_verifying_key = enacted_policy.publisher_verifying_key

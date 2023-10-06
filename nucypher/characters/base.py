@@ -7,8 +7,7 @@ from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
+    ContractRegistry,
 )
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -35,7 +34,8 @@ class Character(Learner):
     def __init__(
         self,
         domain: str,
-        eth_provider_uri: str = None,
+        eth_endpoint: str = None,
+        polygon_endpoint: str = None,
         known_node_class: object = None,
         is_me: bool = True,
         checksum_address: str = None,
@@ -44,7 +44,7 @@ class Character(Learner):
         crypto_power: CryptoPower = None,
         crypto_power_ups: List[CryptoPowerUp] = None,
         signer: Signer = None,
-        registry: BaseContractRegistry = None,
+        registry: ContractRegistry = None,
         include_self_in_the_state: bool = False,
         *args,
         **kwargs,
@@ -114,15 +114,17 @@ class Character(Learner):
             except NoSigningPower:
                 self._stamp = NO_SIGNING_POWER
 
-            self.eth_provider_uri = eth_provider_uri
-            self.registry = (
-                registry
-                or InMemoryContractRegistry.from_latest_publication(network=domain)
-            )  # See #1580
+            self.eth_endpoint = eth_endpoint
+            self.polygon_endpoint = polygon_endpoint
+
+            self.registry = registry or ContractRegistry.from_latest_publication(
+                domain=domain
+            )
 
             # REST
-            self.network_middleware = network_middleware or RestMiddleware(registry=self.registry,
-                                                                           eth_provider_uri=eth_provider_uri)
+            self.network_middleware = network_middleware or RestMiddleware(
+                registry=self.registry, eth_endpoint=eth_endpoint
+            )
 
             # Learner
             Learner.__init__(self,

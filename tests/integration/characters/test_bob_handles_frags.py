@@ -14,7 +14,6 @@ def _policy_info_kwargs(enacted_policy):
         alice_verifying_key=enacted_policy.publisher_verifying_key,
         )
 
-
 def test_retrieval_kit(enacted_policy, ursulas):
     messages, message_kits = make_message_kits(enacted_policy.public_key)
 
@@ -84,9 +83,7 @@ def test_use_external_cache(enacted_policy, bob, ursulas):
     ursulas = list(ursulas)
 
     # All Ursulas are down except for two
-    bob.network_middleware = NodeIsDownMiddleware(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI
-    )
+    bob.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     for ursula in ursulas[2:]:
         bob.network_middleware.node_is_down(ursula)
 

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import requests
 from flask import Response
-from nucypher_core import MetadataRequest, FleetStateChecksum
+from nucypher_core import FleetStateChecksum, MetadataRequest
 
 from nucypher.characters.lawful import Ursula
 from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
@@ -143,7 +143,7 @@ class NodeIsDownMiddleware(MockRestMiddleware):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = _MiddlewareClientWithConnectionProblems(
-            eth_provider_uri=TEST_ETH_PROVIDER_URI
+            eth_endpoint=TEST_ETH_PROVIDER_URI
         )
 
     def node_is_down(self, node):

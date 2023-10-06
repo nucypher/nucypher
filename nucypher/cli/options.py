@@ -14,7 +14,7 @@ from nucypher.cli.types import (
     NETWORK_PORT,
     PRE_PAYMENT_METHOD_CHOICES,
     STAKED_TOKENS_RANGE,
-    NuCypherNetworkName,
+    NuCypherDomainName,
 )
 from nucypher.utilities.logging import Logger
 
@@ -79,19 +79,13 @@ option_parameters = click.option(
     help="Filepath to a JSON file containing additional parameters",
     type=EXISTING_READABLE_FILE,
 )
-option_pre_payment_provider = click.option(
-    "--pre-payment-provider",
-    "pre_payment_provider",
+option_polygon_endpoint = click.option(
+    "--polygon-endpoint",
+    "polygon_endpoint",
     help="Connection URL for PRE payment method",
     type=click.STRING,
     required=False,
 )
-option_pre_payment_network = click.option(
-    "--pre-payment-network",
-    help="PRE payment network name",
-    type=click.STRING,
-    required=False,
-)  # TODO: Choices
 option_pre_payment_method = click.option(
     "--pre-payment-method",
     help="PRE payment method name",
@@ -104,11 +98,6 @@ option_poa = click.option(
 option_registry_filepath = click.option(
     "--registry-filepath",
     help="Custom contract registry filepath",
-    type=EXISTING_READABLE_FILE,
-)
-option_policy_registry_filepath = click.option(
-    "--policy-registry-filepath",
-    help="Custom contract registry filepath for policies",
     type=EXISTING_READABLE_FILE,
 )
 option_signer_uri = click.option("--signer", "signer_uri", "-S", default=None, type=str)
@@ -180,13 +169,15 @@ def option_message_kit(required: bool = False, multiple: bool = False):
         required=required)
 
 
-def option_network(required: bool = False,
-                   default: str = None,  # NetworksInventory.DEFAULT is not a good global default (2214)
-                   validate: bool = False):
+def option_domain(
+    required: bool = False,
+    default: str = None,  # nucypher.blockchain.eth.domains.DEFAULT.name is not a good global default (#2214)
+    validate: bool = False,
+):
     return click.option(
-        '--network',
-        help="NuCypher Network/Domain Name",
-        type=NuCypherNetworkName(validate=validate),
+        "--domain",
+        help="TACo Domain Name",
+        type=NuCypherDomainName(validate=validate),
         required=required,
         default=default)
 
@@ -199,9 +190,10 @@ def option_policy_encrypting_key(required: bool = False):
         required=required)
 
 
-def option_eth_provider_uri(default=None, required: bool = False):
+def option_eth_endpoint(default=None, required: bool = False):
     return click.option(
-        '--eth-provider', 'eth_provider_uri',
+        "--eth-endpoint",
+        "eth_endpoint",
         help="Blockchain provider's URI i.e. 'file:///path/to/geth.ipc'",
         type=click.STRING,
         required=required,

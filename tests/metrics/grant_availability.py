@@ -22,6 +22,7 @@ from nucypher_core.umbral import SecretKey
 from web3 import Web3
 from web3.types import Wei
 
+from nucypher.blockchain.eth.domains import LYNX
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
@@ -53,9 +54,9 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-DOMAIN: str = 'mainnet'  # tapir
+TACO_DOMAIN: str = LYNX.name  # mainnet
 DEFAULT_SEEDNODE_URIS: List[str] = [
-    *TEACHER_NODES[DOMAIN],
+    *TEACHER_NODES[TACO_DOMAIN],
 ]
 INSECURE_PASSWORD: str = "METRICS_INSECURE_DEVELOPMENT_PASSWORD"
 TEMP_ALICE_DIR: Path = Path('/', 'tmp', 'grant-metrics')
@@ -154,19 +155,19 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
 
     # This is Alice's PRE payment method.
     pre_payment_method = SubscriptionManagerPayment(
-        network='polygon',
-        eth_provider=POLYGON_PROVIDER_URI
+        domain=TACO_DOMAIN, blockchain_endpoint=POLYGON_PROVIDER_URI
     )
 
     wallet = Signer.from_signer_uri(f'keystore://{SIGNER_URI}')
     wallet.unlock_account(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
 
     alice_config = AliceConfiguration(
-        eth_provider_uri=ETHEREUM_PROVIDER_URI,
+        eth_endpoint=ETHEREUM_PROVIDER_URI,
+        polygon_endpoint=POLYGON_PROVIDER_URI,
         checksum_address=ALICE_ADDRESS,
         signer_uri=f'keystore://{SIGNER_URI}',
         config_root=TEMP_ALICE_DIR,
-        domain=DOMAIN,
+        domain=TACO_DOMAIN,
         known_nodes=known_nodes,
         start_learning_now=False,
         learn_on_same_thread=True,
@@ -189,14 +190,14 @@ def setup():
     GlobalLoggerSettings.set_log_level('info')
 
 
-def aggregate_nodes(provider_uri: str) -> Tuple[Set[Ursula], Set[Ursula]]:
+def aggregate_nodes(eth_endpoint: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     """generates ursulas from URIs used in grant metrics collection"""
 
     seednodes = set()
     if DEFAULT_SEEDNODE_URIS:
         for uri in DEFAULT_SEEDNODE_URIS:
             ursula = Ursula.from_seed_and_stake_info(
-                seed_uri=uri, provider_uri=provider_uri
+                seed_uri=uri, eth_endpoint=eth_endpoint
             )
             seednodes.add(ursula)
 
@@ -204,7 +205,7 @@ def aggregate_nodes(provider_uri: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
             ursula = Ursula.from_seed_and_stake_info(
-                seed_uri=uri, provider_uri=provider_uri
+                seed_uri=uri, eth_endpoint=eth_endpoint
             )
             ursulas.add(ursula)
 
@@ -213,6 +214,6 @@ def aggregate_nodes(provider_uri: str) -> Tuple[Set[Ursula], Set[Ursula]]:
 
 if __name__ == '__main__':
     setup()
-    seednodes, ursulas = aggregate_nodes(provider_uri=ETHEREUM_PROVIDER_URI)
+    seednodes, ursulas = aggregate_nodes(eth_endpoint=ETHEREUM_PROVIDER_URI)
     alice = make_alice(known_nodes=seednodes)
     collect(alice=alice, ursulas=ursulas)

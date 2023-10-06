@@ -16,12 +16,11 @@ from constant_sorrow.constants import (
 )
 from eth_utils.address import is_checksum_address
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
-    LocalContractRegistry,
+    ContractRegistry,
+    LocalRegistrySource,
 )
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
@@ -304,11 +303,11 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 7  # bump when static payload scheme changes
+    VERSION = 8  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     MNEMONIC_KEYSTORE = False
-    DEFAULT_DOMAIN = NetworksInventory.DEFAULT
+    DEFAULT_DOMAIN = TACoDomain.DEFAULT_DOMAIN_NAME
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     SIGNER_ENVVAR = None
@@ -322,7 +321,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     # Payments
     DEFAULT_PRE_PAYMENT_METHOD = "SubscriptionManager"
-    DEFAULT_PRE_PAYMENT_NETWORK = "polygon"
 
     # Fields specified here are *not* passed into the Character's constructor
     # and can be understood as configuration fields only.
@@ -335,8 +333,6 @@ class CharacterConfiguration(BaseConfiguration):
         "max_gas_price",  # gwei
         "signer_uri",
         "keystore_path",
-        "pre_payment_provider",
-        "pre_payment_network",
     )
 
     def __init__(
@@ -369,20 +365,17 @@ class CharacterConfiguration(BaseConfiguration):
         # Blockchain
         poa: Optional[bool] = None,
         light: bool = False,
-        eth_provider_uri: Optional[str] = None,
+        eth_endpoint: Optional[str] = None,
+        polygon_endpoint: Optional[str] = None,
         gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
         max_gas_price: Optional[int] = None,
         signer_uri: Optional[str] = None,
         # Payments
         # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
         pre_payment_method: Optional[str] = None,
-        pre_payment_provider: Optional[str] = None,
-        pre_payment_network: Optional[str] = None,
         # Registries
-        registry: Optional[BaseContractRegistry] = None,
+        registry: Optional[ContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
-        policy_registry: Optional[BaseContractRegistry] = None,
-        policy_registry_filepath: Optional[Path] = None,
     ):
 
         self.log = Logger(self.__class__.__name__)
@@ -413,17 +406,16 @@ class CharacterConfiguration(BaseConfiguration):
         self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
-        self.policy_registry = policy_registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-        self.policy_registry_filepath = policy_registry_filepath or UNINITIALIZED_CONFIGURATION
-
         # Blockchain
         self.poa = poa
         self.is_light = light
-        self.eth_provider_uri = eth_provider_uri or NO_BLOCKCHAIN_CONNECTION
+        self.eth_endpoint = eth_endpoint or NO_BLOCKCHAIN_CONNECTION
+        self.polygon_endpoint = polygon_endpoint or NO_BLOCKCHAIN_CONNECTION
         self.signer_uri = signer_uri or None
 
         # Learner
         self.domain = domain
+        self.taco_domain_info = TACoDomain.get_domain_info(self.domain)
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
@@ -443,49 +435,27 @@ class CharacterConfiguration(BaseConfiguration):
 
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
-        is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
-            eth_provider_uri=self.eth_provider_uri
-        )
-        if not is_initialized and eth_provider_uri:
-            BlockchainInterfaceFactory.initialize_interface(
-                eth_provider_uri=self.eth_provider_uri,
-                poa=self.poa,
-                light=self.is_light,
-                emitter=emitter,
-                gas_strategy=self.gas_strategy,
-                max_gas_price=self.max_gas_price,
-            )
-        else:
-            self.log.warn(
-                f"Using existing blockchain interface connection ({self.eth_provider_uri})."
-            )
 
-        # TODO: this is potential fix for multichain connection, if we want to use it build it out into a loop
-        # for uri in eth_provider_uri (list of uris fom config):
-        BlockchainInterfaceFactory.get_or_create_interface(
-            eth_provider_uri=pre_payment_provider,
-            poa=self.poa,
-            light=self.is_light,
-            emitter=emitter,
-            gas_strategy=self.gas_strategy,
-            max_gas_price=self.max_gas_price,
+        self._connect_to_endpoints(
+            emitter=emitter, endpoints=[self.eth_endpoint, self.polygon_endpoint]
         )
 
         if not self.registry:
-            # TODO: These two code blocks are untested.
-            if (
-                not self.registry_filepath
-            ):  # TODO: Registry URI  (goerli://speedynet.json) :-)
+            if not self.registry_filepath:
                 self.log.info("Fetching latest registry from source.")
-                self.registry = InMemoryContractRegistry.from_latest_publication(
-                    network=self.domain
+                self.registry = ContractRegistry.from_latest_publication(
+                    domain=self.domain
                 )
             else:
-                self.registry = LocalContractRegistry(filepath=self.registry_filepath)
+                source = LocalRegistrySource(
+                    domain=self.domain, filepath=self.registry_filepath
+                )
+                self.registry = ContractRegistry(source=source)
                 self.log.info(f"Using local registry ({self.registry}).")
 
-        self.testnet = self.domain != NetworksInventory.MAINNET
-        self.signer = Signer.from_signer_uri(self.signer_uri, testnet=self.testnet)
+        self.signer = Signer.from_signer_uri(
+            self.signer_uri, testnet=self.taco_domain_info.is_testnet
+        )
 
         #
         # Onchain Payments & Policies
@@ -495,34 +465,9 @@ class CharacterConfiguration(BaseConfiguration):
         from nucypher.config.characters import BobConfiguration
 
         if not isinstance(self, BobConfiguration):
-            # if not pre_payment_provider:
-            #     raise self.ConfigurationError("payment provider is required.")
             self.pre_payment_method = (
                 pre_payment_method or self.DEFAULT_PRE_PAYMENT_METHOD
             )
-            self.pre_payment_network = (
-                pre_payment_network or self.DEFAULT_PRE_PAYMENT_NETWORK
-            )
-            self.pre_payment_provider = pre_payment_provider or (
-                self.eth_provider_uri or None
-            )  # default to L1 payments
-
-            # TODO: Dedupe
-            if not self.policy_registry:
-                if not self.policy_registry_filepath:
-                    self.log.info("Fetching latest policy registry from source.")
-                    self.policy_registry = (
-                        InMemoryContractRegistry.from_latest_publication(
-                            network=self.pre_payment_network
-                        )
-                    )
-                else:
-                    self.policy_registry = LocalContractRegistry(
-                        filepath=self.policy_registry_filepath
-                    )
-                    self.log.info(
-                        f"Using local policy registry ({self.policy_registry})."
-                    )
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
@@ -536,10 +481,31 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Network
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(
-            registry=self.registry, eth_provider_uri=self.eth_provider_uri
+            registry=self.registry, eth_endpoint=self.eth_endpoint
         )
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
+
+    def _connect_to_endpoints(self, emitter, endpoints: List[str]) -> None:
+        for endpoint in endpoints:
+            if endpoint and endpoint != NO_BLOCKCHAIN_CONNECTION:
+                is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
+                    endpoint=endpoint
+                )
+
+                if not is_initialized:
+                    BlockchainInterfaceFactory.initialize_interface(
+                        endpoint=endpoint,
+                        poa=self.poa,
+                        light=self.is_light,
+                        emitter=emitter,
+                        gas_strategy=self.gas_strategy,
+                        max_gas_price=self.max_gas_price,
+                    )
+                else:
+                    self.log.warn(
+                        f"Using existing blockchain interface connection ({endpoint})."
+                    )
 
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
@@ -706,12 +672,12 @@ class CharacterConfiguration(BaseConfiguration):
         )
 
         # Optional values (mode)
-        if self.eth_provider_uri:
+        if self.eth_endpoint:
             if not self.signer_uri:
-                self.signer_uri = self.eth_provider_uri
+                self.signer_uri = self.eth_endpoint
             payload.update(
                 dict(
-                    eth_provider_uri=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                     poa=self.poa,
                     light=self.is_light,
                     signer_uri=self.signer_uri,
@@ -719,6 +685,11 @@ class CharacterConfiguration(BaseConfiguration):
             )
         if self.registry_filepath:
             payload.update(dict(registry_filepath=self.registry_filepath))
+
+        if self.polygon_endpoint:
+            payload.update(
+                polygon_endpoint=self.polygon_endpoint,
+            )
 
         # Gas Price
         __max_price = str(self.max_gas_price) if self.max_gas_price else None
@@ -843,8 +814,8 @@ class CharacterConfiguration(BaseConfiguration):
         #
         # Strategy-Based (current implementation, inflexible & hardcoded)
         # 'pre_payment_strategy': 'SubscriptionManager'
-        # 'pre_payment_network': 'matic'
-        # 'pre_payment_provider': 'https:///matic.infura.io....'
+        # 'network': 'polygon'
+        # 'blockchain_endpoint': 'https:///polygon.infura.io....'
         #
         # Contract-Targeted (alternative implementation, flexible & generic)
         # 'pre_payment': {
@@ -863,9 +834,9 @@ class CharacterConfiguration(BaseConfiguration):
         if pre_payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
             pre_payment_strategy = pre_payment_class(
-                network=self.pre_payment_network,
-                eth_provider=self.pre_payment_provider,
-                registry=self.policy_registry,
+                domain=self.taco_domain_info.name,
+                blockchain_endpoint=self.polygon_endpoint,
+                registry=self.registry,
             )
         else:
             pre_payment_strategy = pre_payment_class()

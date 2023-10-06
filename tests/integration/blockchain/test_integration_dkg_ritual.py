@@ -130,7 +130,6 @@ def test_ursula_ritualist(
     dkg_size,
     ritual_id,
     variant,
-    test_registry_source_manager,
     get_random_checksum_address,
 ):
     """Tests the DKG and the encryption/decryption of a message"""

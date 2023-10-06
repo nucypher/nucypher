@@ -232,7 +232,7 @@ def test_join(join_worker_pool):
     assert t_end - t_start < 3
 
 
-class TestBatchValueFactory(BatchValueFactory):
+class BatchTrackingBatchValueFactory(BatchValueFactory):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.batch_sizes = []
@@ -258,7 +258,9 @@ def test_batched_value_generation(join_worker_pool):
         seed=123,
     )
 
-    factory = TestBatchValueFactory(values=list(outcomes), required_successes=10)
+    factory = BatchTrackingBatchValueFactory(
+        values=list(outcomes), required_successes=10
+    )
     pool = WorkerPool(
         worker,
         factory,

@@ -10,7 +10,7 @@ from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from tests.constants import (
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
     TESTERCHAIN_CHAIN_ID,
 )
 
@@ -68,7 +68,7 @@ def make_ursulas(
     ursula_config: UrsulaConfiguration,
     staking_provider_addresses: Iterable[str],
     operator_addresses: Iterable[str],
-    quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK,
+    quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
     know_each_other: bool = True,
     **ursula_overrides
 ) -> List[Ursula]:
@@ -133,13 +133,15 @@ def mock_permitted_multichain_connections(mocker) -> List[int]:
 def setup_multichain_ursulas(chain_ids: List[int], ursulas: List[Ursula]) -> None:
     base_uri = "tester://multichain.{}"
     base_fallback_uri = "tester://multichain.fallback.{}"
-    provider_uris = [base_uri.format(i) for i in range(len(chain_ids))]
-    fallback_provider_uris = [
+    blockchain_endpoints = [base_uri.format(i) for i in range(len(chain_ids))]
+    fallback_blockchain_endpoints = [
         base_fallback_uri.format(i) for i in range(len(chain_ids))
     ]
     mocked_condition_providers = {
         cid: {HTTPProvider(uri), HTTPProvider(furi)}
-        for cid, uri, furi in zip(chain_ids, provider_uris, fallback_provider_uris)
+        for cid, uri, furi in zip(
+            chain_ids, blockchain_endpoints, fallback_blockchain_endpoints
+        )
     }
     for ursula in ursulas:
         ursula.condition_providers = mocked_condition_providers

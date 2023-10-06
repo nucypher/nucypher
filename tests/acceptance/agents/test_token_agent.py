@@ -13,7 +13,9 @@ from tests.constants import TEST_ETH_PROVIDER_URI
 @pytest.fixture(scope='module')
 def agent(testerchain, test_registry) -> NucypherTokenAgent:
     token_agent = ContractAgency.get_agent(
-        NucypherTokenAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
+        NucypherTokenAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     return token_agent
 

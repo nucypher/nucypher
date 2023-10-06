@@ -20,11 +20,9 @@ from web3 import Web3
 import tests
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import LocalContractRegistry
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
@@ -47,11 +45,10 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
-    MOCK_REGISTRY_FILEPATH,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.mock.interfaces import MockBlockchain, mock_registry_source_manager
+from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,
     mock_cert_loading,
@@ -78,6 +75,7 @@ from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, make_ursulas, select_te
 test_logger = Logger("test-logger")
 
 # defer.setDebugging(True)
+
 
 #
 # Temporary
@@ -131,8 +129,8 @@ def random_address(random_account):
 @pytest.fixture(scope="module")
 def ursula_test_config(test_registry, temp_dir_path, testerchain):
     config = make_ursula_test_configuration(
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        pre_payment_provider=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
+        polygon_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
         operator_address=testerchain.ursulas_accounts.pop(),
@@ -146,8 +144,8 @@ def ursula_test_config(test_registry, temp_dir_path, testerchain):
 @pytest.fixture(scope="module")
 def alice_test_config(ursulas, testerchain, test_registry):
     config = make_alice_test_configuration(
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
-        pre_payment_provider=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
+        polygon_endpoint=TEST_ETH_PROVIDER_URI,
         known_nodes=ursulas,
         checksum_address=testerchain.alice_account,
         test_registry=test_registry,
@@ -158,9 +156,11 @@ def alice_test_config(ursulas, testerchain, test_registry):
 
 @pytest.fixture(scope="module")
 def bob_test_config(testerchain, test_registry):
-    config = make_bob_test_configuration(eth_provider_uri=TEST_ETH_PROVIDER_URI,
-                                         test_registry=test_registry,
-                                         checksum_address=testerchain.bob_account)
+    config = make_bob_test_configuration(
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
+        test_registry=test_registry,
+        checksum_address=testerchain.bob_account,
+    )
     yield config
     config.cleanup()
 
@@ -198,7 +198,7 @@ def enacted_policy(idle_policy, ursulas):
     # cannot set them again
     # deposit = NON_PAYMENT(b"0000000")
     # contract_end_datetime = maya.now() + datetime.timedelta(days=5)
-    network_middleware = MockRestMiddleware(eth_provider_uri=TEST_ETH_PROVIDER_URI)
+    network_middleware = MockRestMiddleware(eth_endpoint=TEST_ETH_PROVIDER_URI)
 
     # REST call happens here, as does population of TreasureMap.
     enacted_policy = idle_policy.enact(
@@ -263,8 +263,7 @@ def alice(alice_test_config, ursulas, testerchain):
 @pytest.fixture(scope="module")
 def bob(bob_test_config, testerchain):
     bob = bob_test_config.produce(
-        coordinator_provider_uri=MOCK_ETH_PROVIDER_URI,
-        coordinator_network=TEMPORARY_DOMAIN,
+        polygon_endpoint=TEST_ETH_PROVIDER_URI,
     )
     yield bob
     bob.disenchant()
@@ -304,6 +303,12 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 #
 
 
+@pytest.fixture(scope="module")
+def mock_registry_sources(module_mocker):
+    with tests.utils.registry.mock_registry_sources(module_mocker):
+        yield
+
+
 @pytest.fixture(scope='module')
 def mock_testerchain() -> MockBlockchain:
     BlockchainInterfaceFactory._interfaces = dict()
@@ -312,28 +317,13 @@ def mock_testerchain() -> MockBlockchain:
     yield testerchain
 
 
-@pytest.fixture(scope='module')
-def test_registry_source_manager(test_registry):
-    with mock_registry_source_manager(test_registry=test_registry):
-        yield
-
-
-@pytest.fixture(scope='module')
-def agency_local_registry(testerchain, test_registry):
-    registry = LocalContractRegistry(filepath=MOCK_REGISTRY_FILEPATH)
-    registry.write(test_registry.read())
-    yield registry
-    if MOCK_REGISTRY_FILEPATH.exists():
-        MOCK_REGISTRY_FILEPATH.unlink()
-
-
 @pytest.fixture()
-def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mocker):
+def light_ursula(temp_dir_path, random_account, mocker):
     mocker.patch.object(
         KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
     )
     pre_payment_method = SubscriptionManagerPayment(
-        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
     )
 
     mocker.patch.object(
@@ -347,7 +337,8 @@ def light_ursula(temp_dir_path, test_registry_source_manager, random_account, mo
         pre_payment_method=pre_payment_method,
         checksum_address=random_account.address,
         operator_address=random_account.address,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         signer=KeystoreSigner(path=temp_dir_path),
     )
     return ursula
@@ -391,9 +382,7 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope="module")
-def fleet_of_highperf_mocked_ursulas(
-    ursula_test_config, request, testerchain, test_registry_source_manager
-):
+def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
     mocks = (
         mock_cert_storage,
         mock_cert_loading,
@@ -442,21 +431,16 @@ def fleet_of_highperf_mocked_ursulas(
 @pytest.fixture(scope="module")
 def highperf_mocked_alice(
     fleet_of_highperf_mocked_ursulas,
-    test_registry_source_manager,
     monkeymodule,
     testerchain,
 ):
-    monkeymodule.setattr(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
-    )
-
     config = AliceConfiguration(
         dev_mode=True,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
-            eth_provider_uri=TEST_ETH_PROVIDER_URI
+            eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
         abort_on_learning_error=True,
         save_metadata=False,
@@ -474,10 +458,10 @@ def highperf_mocked_alice(
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(
         dev_mode=True,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
         domain=TEMPORARY_DOMAIN,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
-            eth_provider_uri=TEST_ETH_PROVIDER_URI
+            eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
         abort_on_learning_error=True,
         save_metadata=False,
@@ -510,12 +494,11 @@ def click_runner():
 
 
 @pytest.fixture(scope='module')
-def nominal_configuration_fields(test_registry_source_manager):
+def nominal_configuration_fields():
     config = UrsulaConfiguration(
         dev_mode=True,
-        pre_payment_network=TEMPORARY_DOMAIN,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
     )
     config_fields = config.static_payload()
     yield tuple(config_fields.keys())
@@ -577,7 +560,7 @@ def basic_auth_file(temp_dir_path):
 
 @pytest.fixture(scope='module')
 def mock_rest_middleware():
-    return MockRestMiddleware(eth_provider_uri=TEST_ETH_PROVIDER_URI)
+    return MockRestMiddleware(eth_endpoint=TEST_ETH_PROVIDER_URI)
 
 
 #
@@ -698,9 +681,7 @@ def control_time():
 
 
 @pytest.fixture(scope="module")
-def ursulas(
-    testerchain, staking_providers, ursula_test_config, test_registry_source_manager
-):
+def ursulas(testerchain, ursula_test_config, staking_providers):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")

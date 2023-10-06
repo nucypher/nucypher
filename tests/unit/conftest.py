@@ -4,11 +4,13 @@ from nucypher_core.ferveo import Keypair, Validator
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import InMemoryContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient
+from tests.utils.registry import MockRegistrySource, mock_registry_sources
 
 
 def pytest_addhooks(pluginmanager):
@@ -16,8 +18,10 @@ def pytest_addhooks(pluginmanager):
 
 
 @pytest.fixture(scope='module')
-def test_registry():
-    return InMemoryContractRegistry()
+def test_registry(module_mocker):
+    with mock_registry_sources(mocker=module_mocker):
+        source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
+        yield ContractRegistry(source=source)
 
 
 @pytest.fixture(scope='function')

@@ -24,6 +24,7 @@ from pathlib import Path
 
 import maya
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.policy.payment import SubscriptionManagerPayment
@@ -57,16 +58,19 @@ try:
 except KeyError:
     raise RuntimeError("Missing environment variables to run demo.")
 
-L1_NETWORK = "lynx"
-L2_NETWORK = "mumbai"
+TACO_DOMAIN = TACoDomain.LYNX.name
 
 
 #######################################
 # Alicia, the Authority of the Policy #
 #######################################
 
-connect_web3_provider(eth_provider_uri=L1_PROVIDER)  # Connect to the ethereum provider.
-connect_web3_provider(eth_provider_uri=L2_PROVIDER)  # Connect to the layer 2 provider.
+connect_web3_provider(
+    blockchain_endpoint=L1_PROVIDER
+)  # Connect to the ethereum provider.
+connect_web3_provider(
+    blockchain_endpoint=L2_PROVIDER
+)  # Connect to the layer 2 provider.
 
 
 # Setup and unlock alice's ethereum wallet.
@@ -80,15 +84,16 @@ wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
-    network=L2_NETWORK, eth_provider=L2_PROVIDER
+    domain=TACO_DOMAIN, blockchain_endpoint=L2_PROVIDER
 )
 
 # This is Alicia.
 alicia = Alice(
     checksum_address=ALICE_ADDRESS,
     signer=wallet,
-    domain=L1_NETWORK,
-    eth_provider_uri=L1_PROVIDER,
+    domain=TACO_DOMAIN,
+    eth_endpoint=L1_PROVIDER,
+    polygon_endpoint=L2_PROVIDER,
     pre_payment_method=pre_payment_method,
 )
 

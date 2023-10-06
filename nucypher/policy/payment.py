@@ -6,10 +6,8 @@ from nucypher_core import ReencryptionRequest
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
-from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
-)
+from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.policy import policies
 
 
@@ -65,16 +63,19 @@ class ContractPayment(PaymentMethod, ABC):
         rate: Wei
         value: Wei
 
-    def __init__(self,
-                 eth_provider: str,
-                 network: str,
-                 registry: Optional[BaseContractRegistry] = None,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        blockchain_endpoint: str,
+        domain: str,
+        registry: Optional[ContractRegistry] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
-        self.provider = eth_provider
-        self.network = network
+        self.blockchain_endpoint = blockchain_endpoint
+        self.taco_domain_info = TACoDomain.get_domain_info(domain)
         if not registry:
-            registry = InMemoryContractRegistry.from_latest_publication(network=network)
+            registry = ContractRegistry.from_latest_publication(domain=domain)
         self.registry = registry
         self.__agent = None  # delay blockchain/registry reads until later
 
@@ -84,7 +85,9 @@ class ContractPayment(PaymentMethod, ABC):
         if self.__agent:
             return self.__agent  # get cache
         agent = ContractAgency.get_agent(
-            agent_class=self._AGENT, provider_uri=self.provider, registry=self.registry
+            agent_class=self._AGENT,
+            blockchain_endpoint=self.blockchain_endpoint,
+            registry=self.registry,
         )
         self.__agent = agent
         return self.__agent  # set cache

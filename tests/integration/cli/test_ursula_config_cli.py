@@ -11,7 +11,6 @@ from nucypher.cli.literature import (
     CONFIRM_IPV4_ADDRESS_QUESTION,
     REPEAT_FOR_CONFIRMATION,
     SELECT_OPERATOR_ACCOUNT,
-    SELECT_PRE_PAYMENT_NETWORK,
     SUCCESSFUL_DESTRUCTION,
 )
 from nucypher.cli.main import nucypher_cli
@@ -43,7 +42,8 @@ def mock_dkg_tracker(mocker):
     return mock
 
 
-def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_registry_source_manager):
+@pytest.mark.usefixtures("mock_registry_sources")
+def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
 
     # Mock out filesystem writes
     mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
@@ -57,20 +57,19 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_regist
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
     )
 
-    user_input = '0\n' + '0\n' + YES_ENTER + FAKE_PASSWORD_CONFIRMED
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
+    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED
+    result = click_runner.invoke(
+        nucypher_cli, init_args, input=user_input, catch_exceptions=False
+    )
     assert result.exit_code == 0, result.output
-
-    # Select network
-    assert SELECT_PRE_PAYMENT_NETWORK in result.output
 
     # Select account
     assert SELECT_OPERATOR_ACCOUNT in result.output
@@ -83,14 +82,15 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir, test_regist
     assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_initialize_custom_configuration_root(click_runner, custom_filepath: Path, test_registry_source_manager, testerchain):
-
+def test_initialize_custom_configuration_root(
+    click_runner, custom_filepath: Path, testerchain
+):
     deploy_port = select_test_port()
     # Use a custom local filepath for configuration
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--config-root",
         str(custom_filepath.absolute()),
@@ -98,12 +98,10 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
         MOCK_IP_ADDRESS,
         "--rest-port",
         deploy_port,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-network",
-        TEMPORARY_DOMAIN,
         "--operator-address",
         testerchain.ursulas_accounts[0],
     )
@@ -133,8 +131,9 @@ def test_initialize_custom_configuration_root(click_runner, custom_filepath: Pat
     assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_configuration_file_contents(custom_filepath: Path, nominal_configuration_fields, test_registry_source_manager):
-
+def test_configuration_file_contents(
+    custom_filepath: Path, nominal_configuration_fields
+):
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 

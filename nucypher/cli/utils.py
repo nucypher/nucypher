@@ -1,7 +1,6 @@
 
 
 import os
-import shutil
 from distutils.util import strtobool
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -16,9 +15,8 @@ from nucypher.blockchain.eth.interfaces import (
     BlockchainInterfaceFactory,
 )
 from nucypher.blockchain.eth.registry import (
-    BaseContractRegistry,
-    InMemoryContractRegistry,
-    LocalContractRegistry,
+    ContractRegistry,
+    LocalRegistrySource,
 )
 from nucypher.characters.base import Character
 from nucypher.cli.actions.auth import (
@@ -31,9 +29,7 @@ from nucypher.cli.literature import (
     CONNECTING_TO_BLOCKCHAIN,
     ETHERSCAN_FLAG_DISABLED_WARNING,
     ETHERSCAN_FLAG_ENABLED_WARNING,
-    LOCAL_REGISTRY_ADVISORY,
     NO_HARDWARE_WALLET_WARNING,
-    PRODUCTION_REGISTRY_ADVISORY,
 )
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.emitters import StdoutEmitter
@@ -50,7 +46,7 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
 def make_cli_character(
     character_config,
     emitter,
-    provider_uri: str,
+    eth_endpoint: str,
     unlock_keystore: bool = True,
     unlock_signer: bool = True,
     teacher_uri: str = None,
@@ -87,14 +83,14 @@ def make_cli_character(
             min_stake=min_stake,
             network_middleware=character_config.network_middleware,
             registry=character_config.registry,
-            provider_uri=provider_uri,
+            eth_endpoint=eth_endpoint,
         )
         sage_nodes.append(maybe_sage_node)
 
     CHARACTER = character_config(
         known_nodes=sage_nodes,
         network_middleware=character_config.network_middleware,
-        eth_provider_uri=provider_uri,
+        eth_endpoint=eth_endpoint,
         **config_args,
     )
 
@@ -106,65 +102,35 @@ def make_cli_character(
     return CHARACTER
 
 
-def establish_deployer_registry(emitter,
-                                network: str = None,
-                                registry_infile: Optional[Path] = None,
-                                registry_outfile: Optional[Path] = None,
-                                use_existing_registry: bool = False,
-                                download_registry: bool = False,
-                                dev: bool = False
-                                ) -> BaseContractRegistry:
-    if download_registry:
-        registry = InMemoryContractRegistry.from_latest_publication(network=network)
-        emitter.message(PRODUCTION_REGISTRY_ADVISORY.format(source=registry.source))
-        return registry
-
-    # Establish a contract registry from disk if specified
-    filepath = registry_infile
-    default_registry_filepath = DEFAULT_CONFIG_ROOT / BaseContractRegistry.REGISTRY_NAME
-    if registry_outfile:
-        # mutative usage of existing registry
-        registry_infile = registry_infile or default_registry_filepath
-        if use_existing_registry:
-            try:
-                _result = shutil.copyfile(registry_infile, registry_outfile)
-            except shutil.SameFileError:
-                raise click.BadArgumentUsage(f"--registry-infile and --registry-outfile must not be the same path '{registry_infile}'.")
-        filepath = registry_outfile
-
-    if dev:
-        # TODO: Need a way to detect a geth --dev registry filepath here. (then deprecate the --dev flag)
-        filepath = DEFAULT_CONFIG_ROOT / BaseContractRegistry.DEVELOPMENT_REGISTRY_NAME
-
-    registry_filepath = filepath or default_registry_filepath
-
-    # All Done.
-    registry = LocalContractRegistry(filepath=registry_filepath)
-    emitter.message(LOCAL_REGISTRY_ADVISORY.format(registry_filepath=registry_filepath))
-    return registry
-
-
-def get_registry(network: str, registry_filepath: Optional[Path] = None) -> BaseContractRegistry:
+def get_registry(
+    domain: str, registry_filepath: Optional[Path] = None
+) -> ContractRegistry:
     if registry_filepath:
-        registry = LocalContractRegistry(filepath=registry_filepath)
+        source = LocalRegistrySource(filepath=registry_filepath)
+        registry = ContractRegistry(source=source)
     else:
-        registry = InMemoryContractRegistry.from_latest_publication(network=network)
+        registry = ContractRegistry.from_latest_publication(domain=domain)
     return registry
 
 
-def connect_to_blockchain(emitter: StdoutEmitter,
-                          eth_provider_uri: str,
-                          debug: bool = False,
-                          light: bool = False
-                          ) -> BlockchainInterface:
+def connect_to_blockchain(
+    emitter: StdoutEmitter,
+    blockchain_endpoint: str,
+    debug: bool = False,
+    light: bool = False,
+) -> BlockchainInterface:
     try:
         # Note: Conditional for test compatibility.
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri,
-                                                            light=light,
-                                                            emitter=emitter)
+        if not BlockchainInterfaceFactory.is_interface_initialized(
+            endpoint=blockchain_endpoint
+        ):
+            BlockchainInterfaceFactory.initialize_interface(
+                endpoint=blockchain_endpoint, light=light, emitter=emitter
+            )
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
-        blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface(
+            endpoint=blockchain_endpoint
+        )
         return blockchain
     except Exception as e:
         if debug:

@@ -35,7 +35,7 @@ class BaseTestNodeStorageBackends:
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
         pre_payment_method = SubscriptionManagerPayment(
-            eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+            blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
         )
 
         # Save more nodes
@@ -46,7 +46,8 @@ class BaseTestNodeStorageBackends:
                 rest_port=select_test_port(),
                 domain=TEMPORARY_DOMAIN,
                 signer=signer,
-                eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+                eth_endpoint=MOCK_ETH_PROVIDER_URI,
+                polygon_endpoint=MOCK_ETH_PROVIDER_URI,
                 checksum_address=operator_addresses[i],
                 operator_address=operator_addresses[i],
                 pre_payment_method=pre_payment_method,
@@ -76,6 +77,7 @@ class BaseTestNodeStorageBackends:
     # Storage Backend Tests
     #
 
+    @pytest.mark.usefixtures("mock_registry_sources")
     def test_read_and_write_to_storage(self, light_ursula, testerchain):
         assert self._read_and_write_metadata(ursula=light_ursula,
                                              node_storage=self.storage_backend,

@@ -42,7 +42,7 @@ def test_alice_finds_ursula_via_rest(alice, ursulas):
 
 
 @pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
-def test_vladimir_illegal_interface_key_does_not_propagate(ursulas, test_registry_source_manager):
+def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     """
     Although Ursulas propagate each other's interface information, as demonstrated above,
     they do not propagate interface information for Vladimir.
@@ -67,7 +67,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas, test_registr
 
     # This Ursula is totally legit...
     ursula_whom_vladimir_will_imitate.verify_node(
-        MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI)
+        MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     )
 
     globalLogPublisher.addObserver(warning_trapper)

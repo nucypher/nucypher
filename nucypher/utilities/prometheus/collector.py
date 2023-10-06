@@ -22,7 +22,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import BaseContractRegistry
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters import lawful
 
 
@@ -121,9 +121,10 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
     """Collector for Blockchain specific metrics."""
-    def __init__(self, eth_provider_uri: str):
+
+    def __init__(self, eth_endpoint: str):
         super().__init__()
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
@@ -138,7 +139,9 @@ class BlockchainMetricsCollector(BaseMetricsCollector):
         }
 
     def _collect_internal(self) -> None:
-        blockchain = BlockchainInterfaceFactory.get_or_create_interface(eth_provider_uri=self.eth_provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.eth_endpoint
+        )
         self.metrics["eth_chain_id"].set(blockchain.client.chain_id)
         self.metrics["eth_current_block_number"].set(blockchain.client.block_number)
 
@@ -149,13 +152,13 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
     def __init__(
         self,
         staking_provider_address: ChecksumAddress,
-        contract_registry: BaseContractRegistry,
-        eth_provider_uri: str,
+        contract_registry: ContractRegistry,
+        eth_endpoint: str,
     ):
         super().__init__()
         self.staking_provider_address = staking_provider_address
         self.contract_registry = contract_registry
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
 
     def initialize(self, metrics_prefix: str, registry: CollectorRegistry) -> None:
         self.metrics = {
@@ -180,7 +183,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
             registry=self.contract_registry,
-            provider_uri=self.eth_provider_uri,
+            blockchain_endpoint=self.eth_endpoint,
         )
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
@@ -200,7 +203,13 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
 
 class OperatorMetricsCollector(BaseMetricsCollector):
     """Collector for Operator specific metrics."""
-    def __init__(self, domain: str, operator_address: ChecksumAddress, contract_registry: BaseContractRegistry):
+
+    def __init__(
+        self,
+        domain: str,
+        operator_address: ChecksumAddress,
+        contract_registry: ContractRegistry,
+    ):
         super().__init__()
         self.domain = domain
         self.operator_address = operator_address
@@ -228,12 +237,15 @@ class OperatorMetricsCollector(BaseMetricsCollector):
 
 class EventMetricsCollector(BaseMetricsCollector):
     """General collector for emitted events."""
-    def __init__(self,
-                 event_name: str,
-                 event_args_config: Dict[str, tuple],
-                 argument_filters: Dict[str, str],
-                 contract_agent_class: Type[EthereumContractAgent],
-                 contract_registry: BaseContractRegistry):
+
+    def __init__(
+        self,
+        event_name: str,
+        event_args_config: Dict[str, tuple],
+        argument_filters: Dict[str, str],
+        contract_agent_class: Type[EthereumContractAgent],
+        contract_registry: ContractRegistry,
+    ):
         super().__init__()
         self.event_name = event_name
         self.contract_agent_class = contract_agent_class
