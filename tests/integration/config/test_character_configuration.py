@@ -44,15 +44,13 @@ all_configurations = tuple(
 def test_development_character_configurations(
     character, configuration, mocker, testerchain
 ):
-    mocker.patch.object(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
-    )
     params = dict(
         dev_mode=True,
         lonely=True,
         domain=TEMPORARY_DOMAIN,
         checksum_address=testerchain.unassigned_accounts[0],
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     if character is Ursula:
         params.update(dict(operator_address=testerchain.unassigned_accounts[0]))
@@ -103,7 +101,7 @@ def test_default_character_configuration_preservation(
 ):
     configuration_class.DEFAULT_CONFIG_ROOT = Path("/tmp")
     fake_address = "0xdeadbeef"
-    network = TEMPORARY_DOMAIN
+    domain = TEMPORARY_DOMAIN
 
     expected_filename = (
         f"{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}"
@@ -125,22 +123,18 @@ def test_default_character_configuration_preservation(
         keystore.signing_public_key = SecretKey.random().public_key()
         character_config = configuration_class(
             checksum_address=fake_address,
-            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-            domain=network,
+            eth_endpoint=MOCK_ETH_PROVIDER_URI,
+            domain=domain,
             rest_host=MOCK_IP_ADDRESS,
-            pre_payment_provider=MOCK_ETH_PROVIDER_URI,
-            policy_registry=test_registry,
-            pre_payment_network=TEMPORARY_DOMAIN,
+            polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             keystore=keystore,
         )
 
     else:
         character_config = configuration_class(
             checksum_address=fake_address,
-            eth_provider_uri=MOCK_ETH_PROVIDER_URI,
-            domain=network,
-            pre_payment_network=TEMPORARY_DOMAIN,
-            policy_registry=test_registry,
+            eth_endpoint=MOCK_ETH_PROVIDER_URI,
+            domain=domain,
         )
 
     generated_filepath = character_config.generate_filepath()
@@ -177,8 +171,8 @@ def test_ursula_development_configuration(testerchain):
         checksum_address=testerchain.unassigned_accounts[0],
         operator_address=testerchain.unassigned_accounts[1],
         domain=TEMPORARY_DOMAIN,
-        pre_payment_network=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert config.is_me is True
     assert config.dev_mode is True

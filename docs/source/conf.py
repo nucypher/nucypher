@@ -178,9 +178,15 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (main_doc, 'NuCypher', 'NuCypher Documentation',
-     author, 'NuCypher', 'A proxy re-encryption network to empower privacy in decentralized systems.',
-     'Miscellaneous'),
+    (
+        main_doc,
+        "NuCypher",
+        "NuCypher Documentation",
+        author,
+        "NuCypher",
+        "A threshold access control application to empower privacy in decentralized systems.",
+        "Miscellaneous",
+    ),
 ]
 
 

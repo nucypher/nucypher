@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -42,71 +42,56 @@ emitter = StdoutEmitter(verbosity=2)
 
 @click.command()
 @click.option(
-    "--eth-provider",
-    "eth_provider_uri",
+    "--domain",
+    "domain",
+    help="TACo domain",
+    type=click.Choice(TACoDomain.SUPPORTED_DOMAIN_NAMES),
+    default=TACoDomain.LYNX.name,
+)
+@click.option(
+    "--eth-endpoint",
+    "eth_endpoint",
     help="ETH staking network provider URI",
     type=click.STRING,
     required=True,
 )
 @click.option(
-    "--eth-staking-network",
-    "eth_staking_network",
-    help="ETH staking network",
-    type=click.Choice(NetworksInventory.ETH_NETWORKS),
-    default="lynx",
-)
-@click.option(
-    "--coordinator-provider",
-    "coordinator_provider_uri",
-    help="Coordinator network provider URI",
+    "--polygon-endpoint",
+    "polygon_endpoint",
+    help="Polygon network provider URI",
     type=click.STRING,
     required=True,
 )
-@click.option(
-    "--coordinator-network",
-    "coordinator_network",
-    help="Coordinator network",
-    type=click.Choice(NetworksInventory.POLY_NETWORKS),
-    default="mumbai",
-)
 def nucypher_agents(
-    eth_provider_uri,
-    eth_staking_network,
-    coordinator_provider_uri,
-    coordinator_network,
+    domain,
+    eth_endpoint,
+    polygon_endpoint,
 ):
-    staking_registry = ContractRegistry.from_latest_publication(
-        domain=eth_staking_network
-    )
-    emitter.echo(f"NOTICE: Connecting to {eth_staking_network} network", color="yellow")
+    registry = ContractRegistry.from_latest_publication(domain=domain)
+    emitter.echo(f"NOTICE: Connecting to {domain} domain", color="yellow")
 
     taco_application_agent = ContractAgency.get_agent(
         agent_class=TACoApplicationAgent,
-        registry=staking_registry,
-        provider_uri=eth_provider_uri,
+        registry=registry,
+        blockchain_endpoint=eth_endpoint,
     )  # type: TACoApplicationAgent
-
-    coordinator_network_registry = ContractRegistry.from_latest_publication(
-        domain=coordinator_network
-    )
-    emitter.echo(f"NOTICE: Connecting to {coordinator_network} network", color="yellow")
 
     taco_child_application_agent = ContractAgency.get_agent(
         agent_class=TACoChildApplicationAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: TACoChildApplicationAgent
 
     coordinator_agent = ContractAgency.get_agent(
         agent_class=CoordinatorAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: CoordinatorAgent
 
     subscription_manager_agent = ContractAgency.get_agent(
         agent_class=SubscriptionManagerAgent,
-        registry=coordinator_network_registry,
-        provider_uri=coordinator_provider_uri,
+        registry=registry,
+        blockchain_endpoint=polygon_endpoint,
     )  # type: SubscriptionManagerAgent
 
     message = (

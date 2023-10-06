@@ -21,7 +21,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     signer = Character(
         is_me=True,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=TEST_ETH_PROVIDER_URI,
+        eth_endpoint=TEST_ETH_PROVIDER_URI,
         registry=test_registry,
         checksum_address=eth_address,
     )

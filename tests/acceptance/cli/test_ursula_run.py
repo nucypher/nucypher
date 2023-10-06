@@ -27,7 +27,7 @@ from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 @mock.patch('glob.glob', return_value=list())
 def test_missing_configuration_file(_default_filepath_mock, click_runner):
-    cmd_args = ('ursula', 'run', '--network', TEMPORARY_DOMAIN)
+    cmd_args = ("ursula", "run", "--domain", TEMPORARY_DOMAIN)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     configuration_type = UrsulaConfiguration.NAME
@@ -45,9 +45,9 @@ def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
         "--dry-run",  # Disable twisted reactor in subprocess
         "--lonely",  # Do not load seednodes
         "--prometheus",  # Specify collection of prometheus metrics
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
     )
 
@@ -74,12 +74,10 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         "--lonely",  # Do not load seednodes,
         "--operator-address",
         ursulas[0].operator_address,
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-network",
-        TEMPORARY_DOMAIN,
     )
 
     result = yield threads.deferToThread(
@@ -128,12 +126,10 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain):
             "--dry-run",  # Disable twisted reactor
             "--operator-address",
             ursulas[0].operator_address,
-            "--eth-provider",
+            "--eth-endpoint",
             TEST_ETH_PROVIDER_URI,
-            "--pre-payment-provider",
+            "--polygon-endpoint",
             TEST_ETH_PROVIDER_URI,
-            "--pre-payment-network",
-            TEMPORARY_DOMAIN,
         )
 
         return threads.deferToThread(
@@ -180,15 +176,13 @@ def test_persistent_node_storage_integration(
     init_args = (
         "ursula",
         "init",
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
         "--operator-address",
         another_ursula,
-        "--network",
-        TEMPORARY_DOMAIN,
-        "--pre-payment-network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--rest-host",
         MOCK_IP_ADDRESS,

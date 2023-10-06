@@ -22,7 +22,7 @@ def test_actor_without_signing_power_cannot_sign():
         crypto_power=cannot_sign,
         start_learning_now=False,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     # The non-signer's stamp doesn't work for signing...
@@ -47,7 +47,7 @@ def test_actor_with_signing_power_can_sign():
         is_me=True,
         start_learning_now=False,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     stamp_of_the_signer = signer.stamp
 
@@ -73,14 +73,14 @@ def test_anybody_can_verify(random_address):
         domain=TEMPORARY_DOMAIN,
         checksum_address=random_address,
         pre_payment_method=FreeReencryptions(),
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     # So, our story is fairly simple: an everyman meets Alice.
     somebody = Character(
         start_learning_now=False,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     # Alice signs a message.

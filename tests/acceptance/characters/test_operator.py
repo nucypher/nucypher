@@ -16,7 +16,7 @@ def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
     assert len(ursulas) == len(staking_providers)
     for ursula in ursulas:
         ursula.validate_operator(
-            registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+            registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
         )
         assert ursula.verified_operator
 
@@ -106,7 +106,7 @@ def test_vladimir_uses_his_own_signing_key(alice, ursulas, test_registry):
     message = f"Operator {vladimir.operator_address} is not bonded"
     with pytest.raises(vladimir.UnbondedOperator, match=message):
         vladimir.validate_metadata(
-            registry=test_registry, eth_provider_uri=TEST_ETH_PROVIDER_URI
+            registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
         )
 
 
@@ -159,9 +159,7 @@ def test_ursulas_reencrypt(ursulas, alice, bob, policy_value):
     assert plaintexts == [message]
 
     # Let's consider also that a node may be down when granting
-    alice.network_middleware = NodeIsDownMiddleware(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI
-    )
+    alice.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     alice.network_middleware.node_is_down(ursulas[0])
 
     with pytest.raises(Policy.NotEnoughUrsulas):

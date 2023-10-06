@@ -67,7 +67,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
 
     # This Ursula is totally legit...
     ursula_whom_vladimir_will_imitate.verify_node(
-        MockRestMiddleware(eth_provider_uri=MOCK_ETH_PROVIDER_URI)
+        MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     )
 
     globalLogPublisher.addObserver(warning_trapper)

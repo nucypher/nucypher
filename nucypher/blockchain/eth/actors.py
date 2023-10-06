@@ -30,19 +30,18 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    NucypherTokenAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
 from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.token import NU
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import truncate_checksum_address
@@ -70,7 +69,7 @@ class BaseActor:
     @validate_checksum_address
     def __init__(
         self,
-        domain: Optional[str],
+        domain: str,
         registry: ContractRegistry,
         transacting_power: Optional[TransactingPower] = None,
         checksum_address: Optional[ChecksumAddress] = None,
@@ -94,6 +93,7 @@ class BaseActor:
         self.transacting_power = transacting_power
         self.registry = registry
         self.network = domain
+        self.taco_domain_info = TACoDomain.get_domain_info(self.network)
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -130,24 +130,6 @@ class NucypherTokenActor(BaseActor):
         super().__init__(registry=registry, **kwargs)
         self.__token_agent = None
 
-    @property
-    def token_agent(self):
-        if self.__token_agent:
-            return self.__token_agent
-        self.__token_agent = ContractAgency.get_agent(
-            NucypherTokenAgent,
-            provider_uri=self.eth_provider_uri,
-            registry=self.registry,
-        )
-        return self.__token_agent
-
-    @property
-    def token_balance(self) -> NU:
-        """Return this actor's current token balance"""
-        balance = int(self.token_agent.get_balance(address=self.checksum_address))
-        nu_balance = NU(balance, 'NuNit')
-        return nu_balance
-
 
 class Operator(BaseActor):
     READY_TIMEOUT = None  # (None or 0) == indefinite
@@ -158,25 +140,24 @@ class Operator(BaseActor):
 
     def __init__(
         self,
-        eth_provider_uri: str,
-        coordinator_provider_uri: str,
-        coordinator_network: str,
+        eth_endpoint: str,
+        polygon_endpoint: str,
         pre_payment_method: ContractPayment,
         transacting_power: TransactingPower,
         signer: Signer = None,
         crypto_power: CryptoPower = None,
         client_password: str = None,
         operator_address: Optional[ChecksumAddress] = None,
-        condition_provider_uris: Optional[Dict[int, List[str]]] = None,
+        condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
         publish_finalization: bool = True,  # TODO: Remove this
         *args,
         **kwargs,
     ):
         # Falsy values may be passed down from the superclass
-        if not eth_provider_uri:
-            raise ValueError("Ethereum Provider URI is required to init an operator.")
-        if not coordinator_provider_uri:
-            raise ValueError("Polygon Provider URI is required to init an operator.")
+        if not eth_endpoint:
+            raise ValueError("Ethereum endpoint URI is required to init an operator.")
+        if not polygon_endpoint:
+            raise ValueError("Polygon endpoint URI is required to init an operator.")
         if not pre_payment_method:
             raise ValueError("PRE payment method is required to init an operator.")
 
@@ -204,24 +185,21 @@ class Operator(BaseActor):
 
         self.application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
-            provider_uri=eth_provider_uri,
+            blockchain_endpoint=eth_endpoint,
             registry=self.registry,
         )
 
-        # TODO: registry usage (and subsequently "network") is inconsistent here
-        coordinator_network_registry = ContractRegistry.from_latest_publication(
-            domain=coordinator_network
-        )
+        registry = ContractRegistry.from_latest_publication(domain=self.network)
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,
-            registry=coordinator_network_registry,
-            provider_uri=coordinator_provider_uri,
+            registry=registry,
+            blockchain_endpoint=polygon_endpoint,
         )
 
         self.coordinator_agent = ContractAgency.get_agent(
             CoordinatorAgent,
-            registry=coordinator_network_registry,
-            provider_uri=coordinator_provider_uri,
+            registry=registry,
+            blockchain_endpoint=polygon_endpoint,
         )
 
         # track active onchain rituals
@@ -242,7 +220,7 @@ class Operator(BaseActor):
         )  # used for secure decryption request channel
 
         self.condition_providers = self.connect_condition_providers(
-            condition_provider_uris
+            condition_blockchain_endpoints
         )
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
@@ -266,19 +244,22 @@ class Operator(BaseActor):
         return provider
 
     def connect_condition_providers(
-        self, condition_provider_uris: Optional[Dict[int, List[str]]] = None
+        self, condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None
     ) -> DefaultDict[int, Set[HTTPProvider]]:
         """Multi-provider support"""
 
-        # If condition_provider_uris is None the node operator
+        # If condition_blockchain_endpoints is None the node operator
         # did not configure any additional condition providers.
-        condition_provider_uris = condition_provider_uris or dict()
+        condition_blockchain_endpoints = condition_blockchain_endpoints or dict()
 
         # These are the chains that the Operator will connect to for conditions evaluation (read-only).
         condition_providers = defaultdict(set)
 
         # Now, add any additional providers that were passed in.
-        for chain_id, condition_provider_uris in condition_provider_uris.items():
+        for (
+            chain_id,
+            condition_blockchain_endpoints,
+        ) in condition_blockchain_endpoints.items():
             if not self._is_permitted_condition_chain(chain_id):
                 # this is a safety check to prevent the Operator from connecting to
                 # chains that are not supported by ursulas on the network;
@@ -288,7 +269,7 @@ class Operator(BaseActor):
                 )
 
             providers = set()
-            for uri in condition_provider_uris:
+            for uri in condition_blockchain_endpoints:
                 provider = self._make_condition_provider(uri)
                 providers.add(provider)
 
@@ -742,10 +723,12 @@ class Operator(BaseActor):
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
-    def __init__(self, eth_provider_uri: str, *args, **kwargs):
+    def __init__(self, eth_endpoint: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.application_agent = ContractAgency.get_agent(
-            TACoApplicationAgent, registry=self.registry, provider_uri=eth_provider_uri
+            TACoApplicationAgent,
+            registry=self.registry,
+            blockchain_endpoint=eth_endpoint,
         )
 
     def create_policy(self, *args, **kwargs):

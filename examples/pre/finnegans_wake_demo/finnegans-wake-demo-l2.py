@@ -5,6 +5,7 @@ from pathlib import Path
 
 import maya
 
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Enrico as Enrico
@@ -40,22 +41,21 @@ except KeyError:
 
 print("\n************** Setup **************\n")
 
-###########
-# Network #
-###########
+##########
+# Domain #
+##########
 
-L1_NETWORK = "lynx"
-L2_NETWORK = "mumbai"
+TACO_DOMAIN = TACoDomain.LYNX.name
 
 #####################
 # Bob the BUIDLer  ##
 #####################
 
 # Then, there was bob. Bob learns about the
-# rest of the network from the seednode.
+# rest of the domain from the seednode.
 bob = Bob(
-    domain=L1_NETWORK,
-    eth_provider_uri=L1_PROVIDER,
+    domain=TACO_DOMAIN,
+    eth_endpoint=L1_PROVIDER,
 )
 
 # Bob puts his public keys somewhere alice can find them.
@@ -67,9 +67,9 @@ encrypting_key = bob.public_keys(DecryptingPower)
 ######################################
 
 # Connect to the ethereum provider.
-connect_web3_provider(eth_provider_uri=L1_PROVIDER)
+connect_web3_provider(blockchain_endpoint=L1_PROVIDER)
 # Connect to the layer 2 provider.
-connect_web3_provider(eth_provider_uri=L2_PROVIDER)
+connect_web3_provider(blockchain_endpoint=L2_PROVIDER)
 
 # Setup and unlock alice's ethereum wallet.
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
@@ -82,15 +82,16 @@ wallet.unlock_account(account=ALICE_ADDRESS, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
-    network=L2_NETWORK, eth_provider=L2_PROVIDER
+    domain=TACO_DOMAIN, blockchain_endpoint=L2_PROVIDER
 )
 
 # This is Alice.
 alice = Alice(
     checksum_address=ALICE_ADDRESS,
     signer=wallet,
-    domain=L1_NETWORK,
-    eth_provider_uri=L1_PROVIDER,
+    domain=TACO_DOMAIN,
+    eth_endpoint=L1_PROVIDER,
+    polygon_endpoint=L2_PROVIDER,
     pre_payment_method=pre_payment_method,
 )
 
@@ -111,7 +112,7 @@ policy_public_key = alice.get_policy_encrypting_key_from_label(label)
 remote_bob = Bob.from_public_keys(
     encrypting_key=encrypting_key,
     verifying_key=verifying_key,
-    eth_provider_uri=L1_PROVIDER,
+    eth_endpoint=L1_PROVIDER,
 )
 
 # These are the policy details.

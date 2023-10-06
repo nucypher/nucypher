@@ -7,6 +7,7 @@ from random import SystemRandom
 from hexbytes import HexBytes
 from web3 import Web3
 
+from nucypher.blockchain.eth.domains import ChainInfo
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
@@ -37,7 +38,7 @@ NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS = NUMBER_OF_URSULAS_IN_BLOCKCHAI
 # Ursulas (Operators) and Staking Providers have their own account
 NUMBER_OF_ETH_TEST_ACCOUNTS = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS + NUMBER_OF_STAKING_PROVIDERS_IN_BLOCKCHAIN_TESTS + 10
 
-NUMBER_OF_URSULAS_IN_DEVELOPMENT_NETWORK = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
+NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN = NUMBER_OF_URSULAS_IN_BLOCKCHAIN_TESTS
 
 #
 # Local Signer Keystore
@@ -70,6 +71,8 @@ DEVELOPMENT_ETH_AIRDROP_AMOUNT = int(Web3().to_wei(100, 'ether'))
 NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 
 TESTERCHAIN_CHAIN_ID = 131277322940537
+
+TESTERCHAIN_CHAIN_INFO = ChainInfo(131277322940537, "eth-tester")
 
 
 #

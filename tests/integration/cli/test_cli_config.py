@@ -5,7 +5,7 @@ import pytest
 
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.cli.main import nucypher_cli
-from nucypher.config.characters import CharacterConfiguration, UrsulaConfiguration
+from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN,
@@ -40,11 +40,11 @@ def test_initialize_via_cli(
     init_args = (
         command,
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_ETH_PROVIDER_URI,
         "--config-root",
         str(custom_filepath.absolute()),
@@ -82,9 +82,6 @@ def test_reconfigure_via_cli(
     monkeypatch.setattr(
         ContractRegistry, "from_latest_publication", fake_get_latest_registry
     )
-    monkeypatch.setattr(
-        CharacterConfiguration, "DEFAULT_PRE_PAYMENT_NETWORK", TEMPORARY_DOMAIN
-    )
 
     custom_config_filepath = custom_filepath / config_class.generate_filename()
 
@@ -103,13 +100,18 @@ def test_reconfigure_via_cli(
 
     # Read pre-edit state
     config = config_class.from_configuration_file(custom_config_filepath)
-    assert config.eth_provider_uri != TEST_ETH_PROVIDER_URI
+    assert config.eth_endpoint != TEST_ETH_PROVIDER_URI
     del config
 
     # Write
-    view_args = (config_class.CHARACTER_CLASS.__name__.lower(), 'config',
-                 '--config-file', str(custom_config_filepath.absolute()),
-                 '--eth-provider', TEST_ETH_PROVIDER_URI)
+    view_args = (
+        config_class.CHARACTER_CLASS.__name__.lower(),
+        "config",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+        "--eth-endpoint",
+        TEST_ETH_PROVIDER_URI,
+    )
     result = click_runner.invoke(nucypher_cli, view_args, env=ENV)
     assert result.exit_code == 0
 
@@ -121,4 +123,4 @@ def test_reconfigure_via_cli(
     assert str(custom_filepath) in result.output
 
     # After editing the fields have been updated
-    assert config.eth_provider_uri == TEST_ETH_PROVIDER_URI
+    assert config.eth_endpoint == TEST_ETH_PROVIDER_URI

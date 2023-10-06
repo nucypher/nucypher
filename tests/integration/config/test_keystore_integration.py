@@ -74,25 +74,27 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_payment_method = SubscriptionManagerPayment(
-        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
     )
 
     alice = Alice(
         start_learning_now=False,
         keystore=keystore,
         domain=TEMPORARY_DOMAIN,
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
         pre_payment_method=pre_payment_method,
     )
     Bob(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
         keystore=keystore,
         domain=TEMPORARY_DOMAIN,
     )
     Ursula(
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
@@ -158,7 +160,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_payment_method = SubscriptionManagerPayment(
-        eth_provider=MOCK_ETH_PROVIDER_URI, network=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
     )
 
     ursula = Ursula(
@@ -170,7 +172,8 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         pre_payment_method=pre_payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
-        eth_provider_uri=MOCK_ETH_PROVIDER_URI,
+        eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     ritual_id = 23

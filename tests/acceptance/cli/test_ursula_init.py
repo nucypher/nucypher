@@ -73,7 +73,7 @@ def mock_funded_account_password_keystore(
     taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     taco_application_agent.bond_operator(
         staking_provider=provider_address,
@@ -123,17 +123,15 @@ def test_ursula_and_local_keystore_signer_integration(
     init_args = (
         "ursula",
         "init",
-        "--network",
-        TEMPORARY_DOMAIN,
-        "--pre-payment-network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--operator-address",
         worker_account.address,
         "--config-root",
         str(config_root_path.absolute()),
-        "--eth-provider",
+        "--eth-endpoint",
         TEST_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
         "--rest-host",
         MOCK_IP_ADDRESS,

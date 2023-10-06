@@ -14,11 +14,14 @@ from nucypher.blockchain.eth.agents import (
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.clients import EthereumClient
+from nucypher.blockchain.eth.domains import (
+    DomainInfo,
+    TACoDomain,
+)
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
 )
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -35,6 +38,7 @@ from tests.constants import (
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_INFO,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
@@ -132,8 +136,8 @@ def mock_interface(module_mocker):
 
 
 @pytest.fixture(scope='module')
-def test_registry():
-    with mock_registry_sources():
+def test_registry(module_mocker):
+    with mock_registry_sources(mocker=module_mocker):
         mock_source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
         registry = ContractRegistry(source=mock_source)
         yield registry
@@ -278,20 +282,20 @@ def monkeypatch_get_staking_provider_from_operator(monkeymodule):
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_condition_blockchains(session_mocker):
+@pytest.fixture(scope="module", autouse=True)
+def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
-    session_mocker.patch.dict(
+    module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    test_domain_info = DomainInfo(
+        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    module_mocker.patch.object(
+        TACoDomain, "get_domain_info", return_value=test_domain_info
     )
 
 

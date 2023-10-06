@@ -11,7 +11,6 @@ from nucypher.cli.literature import (
     CONFIRM_IPV4_ADDRESS_QUESTION,
     REPEAT_FOR_CONFIRMATION,
     SELECT_OPERATOR_ACCOUNT,
-    SELECT_PRE_PAYMENT_NETWORK,
     SUCCESSFUL_DESTRUCTION,
 )
 from nucypher.cli.main import nucypher_cli
@@ -58,20 +57,19 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
     )
 
-    user_input = '0\n' + '0\n' + YES_ENTER + FAKE_PASSWORD_CONFIRMED
-    result = click_runner.invoke(nucypher_cli, init_args, input=user_input, catch_exceptions=False)
+    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED
+    result = click_runner.invoke(
+        nucypher_cli, init_args, input=user_input, catch_exceptions=False
+    )
     assert result.exit_code == 0, result.output
-
-    # Select network
-    assert SELECT_PRE_PAYMENT_NETWORK in result.output
 
     # Select account
     assert SELECT_OPERATOR_ACCOUNT in result.output
@@ -92,7 +90,7 @@ def test_initialize_custom_configuration_root(
     init_args = (
         "ursula",
         "init",
-        "--network",
+        "--domain",
         TEMPORARY_DOMAIN,
         "--config-root",
         str(custom_filepath.absolute()),
@@ -100,12 +98,10 @@ def test_initialize_custom_configuration_root(
         MOCK_IP_ADDRESS,
         "--rest-port",
         deploy_port,
-        "--eth-provider",
+        "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-provider",
+        "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--pre-payment-network",
-        TEMPORARY_DOMAIN,
         "--operator-address",
         testerchain.ursulas_accounts[0],
     )

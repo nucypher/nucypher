@@ -2,7 +2,6 @@ from pathlib import Path
 
 import click
 
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.cli.actions.auth import (
     get_client_password,
     get_nucypher_password,
@@ -15,26 +14,28 @@ from nucypher.cli.actions.configure import (
     handle_missing_configuration_file,
     perform_startup_ip_check,
 )
-from nucypher.cli.actions.configure import forget as forget_nodes
+from nucypher.cli.actions.configure import (
+    forget as forget_nodes,
+)
 from nucypher.cli.actions.select import (
     select_client_account,
     select_config_file,
-    select_network,
+    select_domain,
 )
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
     SELECT_OPERATOR_ACCOUNT,
-    SELECT_PRE_PAYMENT_NETWORK,
 )
 from nucypher.cli.options import (
     group_options,
     option_config_file,
     option_config_root,
     option_dev,
+    option_domain,
     option_dry_run,
-    option_eth_provider_uri,
+    option_eth_endpoint,
     option_force,
     option_gas_strategy,
     option_key_material,
@@ -42,12 +43,9 @@ from nucypher.cli.options import (
     option_lonely,
     option_max_gas_price,
     option_min_stake,
-    option_network,
     option_poa,
-    option_policy_registry_filepath,
+    option_polygon_endpoint,
     option_pre_payment_method,
-    option_pre_payment_network,
-    option_pre_payment_provider,
     option_registry_filepath,
     option_signer_uri,
     option_teacher_uri,
@@ -74,13 +72,12 @@ class UrsulaConfigOptions:
 
     def __init__(
         self,
-        eth_provider_uri: str,
+        eth_endpoint: str,
         operator_address: str,
         rest_host: str,
         rest_port: int,
-        network: str,
+        domain: str,
         registry_filepath: Path,
-        policy_registry_filepath: Path,
         dev: bool,
         poa: bool,
         light: bool,
@@ -88,19 +85,17 @@ class UrsulaConfigOptions:
         max_gas_price: int,  # gwei
         signer_uri: str,
         lonely: bool,
+        polygon_endpoint: str,
         pre_payment_method: str,
-        pre_payment_provider: str,
-        pre_payment_network: str,
     ):
 
-        self.eth_provider_uri = eth_provider_uri
+        self.eth_endpoint = eth_endpoint
         self.signer_uri = signer_uri
         self.operator_address = operator_address
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
-        self.domain = network
+        self.domain = domain
         self.registry_filepath = registry_filepath
-        self.policy_registry_filepath = policy_registry_filepath
         self.dev = dev
         self.poa = poa
         self.light = light
@@ -108,8 +103,7 @@ class UrsulaConfigOptions:
         self.max_gas_price = max_gas_price
         self.lonely = lonely
         self.pre_payment_method = pre_payment_method
-        self.pre_payment_provider = pre_payment_provider
-        self.pre_payment_network = pre_payment_network
+        self.polygon_endpoint = polygon_endpoint
 
     def create_config(self, emitter, config_file):
         if self.dev:
@@ -120,8 +114,7 @@ class UrsulaConfigOptions:
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,
-                policy_registry_filepath=self.policy_registry_filepath,
-                eth_provider_uri=self.eth_provider_uri,
+                eth_endpoint=self.eth_endpoint,
                 signer_uri=self.signer_uri,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
@@ -129,8 +122,7 @@ class UrsulaConfigOptions:
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
                 pre_payment_method=self.pre_payment_method,
-                pre_payment_provider=self.pre_payment_provider,
-                pre_payment_network=self.pre_payment_network,
+                polygon_endpoint=self.polygon_endpoint,
             )
         else:
             if not config_file:
@@ -143,8 +135,7 @@ class UrsulaConfigOptions:
                     filepath=config_file,
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
-                    policy_registry_filepath=self.policy_registry_filepath,
-                    eth_provider_uri=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                     signer_uri=self.signer_uri,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
@@ -153,8 +144,7 @@ class UrsulaConfigOptions:
                     poa=self.poa,
                     light=self.light,
                     pre_payment_method=self.pre_payment_method,
-                    pre_payment_provider=self.pre_payment_provider,
-                    pre_payment_network=self.pre_payment_network,
+                    polygon_endpoint=self.polygon_endpoint,
                 )
             except FileNotFoundError:
                 return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
@@ -175,7 +165,7 @@ class UrsulaConfigOptions:
             self.operator_address = select_client_account(
                 emitter=emitter,
                 prompt=prompt,
-                eth_provider_uri=self.eth_provider_uri,
+                polygon_endpoint=self.polygon_endpoint,
                 signer_uri=self.signer_uri,
             )
 
@@ -183,9 +173,9 @@ class UrsulaConfigOptions:
         if not self.rest_host:
             self.rest_host = collect_operator_ip_address(
                 emitter,
-                network=self.domain,
+                domain=self.domain,
                 force=force,
-                provider_uri=self.eth_provider_uri,
+                eth_endpoint=self.eth_endpoint,
             )
 
         return UrsulaConfiguration.generate(
@@ -197,16 +187,14 @@ class UrsulaConfigOptions:
             domain=self.domain,
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
-            policy_registry_filepath=self.policy_registry_filepath,
-            eth_provider_uri=self.eth_provider_uri,
+            eth_endpoint=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
             poa=self.poa,
             light=self.light,
             pre_payment_method=self.pre_payment_method,
-            pre_payment_provider=self.pre_payment_provider,
-            pre_payment_network=self.pre_payment_network,
+            polygon_endpoint=self.polygon_endpoint,
         )
 
     def get_updates(self) -> dict:
@@ -216,16 +204,14 @@ class UrsulaConfigOptions:
             domain=self.domain,
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
-            policy_registry_filepath=self.policy_registry_filepath,
-            eth_provider_uri=self.eth_provider_uri,
+            eth_endpoint=self.eth_endpoint,
             signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
             poa=self.poa,
             light=self.light,
             pre_payment_method=self.pre_payment_method,
-            pre_payment_provider=self.pre_payment_provider,
-            pre_payment_network=self.pre_payment_network,
+            polygon_endpoint=self.polygon_endpoint,
         )
         # Depends on defaults being set on Configuration classes, filtrates None values
         updates = {k: v for k, v in payload.items() if v is not None}
@@ -235,7 +221,7 @@ class UrsulaConfigOptions:
 group_config_options = group_options(
     # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
     UrsulaConfigOptions,
-    eth_provider_uri=option_eth_provider_uri(),
+    eth_endpoint=option_eth_endpoint(),
     signer_uri=option_signer_uri,
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
@@ -254,15 +240,13 @@ group_config_options = group_options(
         help="The host port to run Ursula network services on",
         type=NETWORK_PORT,
     ),
-    network=option_network(),
+    domain=option_domain(),
     registry_filepath=option_registry_filepath,
-    policy_registry_filepath=option_policy_registry_filepath,
     poa=option_poa,
     light=option_light,
     dev=option_dev,
     lonely=option_lonely,
-    pre_payment_provider=option_pre_payment_provider,
-    pre_payment_network=option_pre_payment_network,
+    polygon_endpoint=option_polygon_endpoint,
     pre_payment_method=option_pre_payment_method,
 )
 
@@ -290,7 +274,7 @@ class UrsulaCharacterOptions:
             URSULA = make_cli_character(
                 character_config=ursula_config,
                 emitter=emitter,
-                provider_uri=ursula_config.eth_provider_uri,
+                eth_endpoint=ursula_config.eth_endpoint,
                 min_stake=self.min_stake,
                 teacher_uri=self.teacher_uri,
                 unlock_keystore=not self.config_options.dev,
@@ -333,32 +317,25 @@ def init(general_config, config_options, force, config_root, key_material):
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
-    if not config_options.eth_provider_uri:
+    if not config_options.eth_endpoint:
         raise click.BadOptionUsage(
-            "--eth-provider",
+            "--eth-endpoint",
             message=click.style(
-                "--eth-provider is required to initialize a new ursula.", fg="red"
+                "--eth-endpoint is required to initialize a new ursula.", fg="red"
             ),
         )
-    if not config_options.pre_payment_provider:
+    if not config_options.polygon_endpoint:
         raise click.BadOptionUsage(
-            "--pre-payment-provider",
+            "--polygon-endpoint",
             message=click.style(
-                "--pre-payment-provider is required to initialize a new ursula.",
+                "--polygon-endpoint is required to initialize a new ursula.",
                 fg="red",
             ),
         )
     if not config_options.domain:
-        config_options.domain = select_network(
+        config_options.domain = select_domain(
             emitter,
-            message="Select Staking Network",
-            network_type=NetworksInventory.ETH,
-        )
-    if not config_options.pre_payment_network:
-        config_options.pre_payment_network = select_network(
-            emitter,
-            message=SELECT_PRE_PAYMENT_NETWORK,
-            network_type=NetworksInventory.POLYGON,
+            message="Select TACo Domain",
         )
     ursula_config = config_options.generate_config(
         emitter=emitter, config_root=config_root, force=force, key_material=key_material
@@ -496,9 +473,9 @@ def config(general_config, config_options, config_file, force, action):
     if action == "ip-address":
         rest_host = collect_operator_ip_address(
             emitter=emitter,
-            network=config_options.domain,
+            domain=config_options.domain,
             force=force,
-            provider_uri=config_options.eth_provider_uri,
+            eth_endpoint=config_options.eth_endpoint,
         )
         config_options.rest_host = rest_host
     if action == "migrate":

@@ -1,0 +1,3 @@
+Since the L2 network is always implied based on the TACo network connected to, we no longer need those config/parameters across the codebase, it can be inferred.
+Each Character now takes optional eth and polygon endpoints.
+Remove various usages of redundant L2 values. General rename from ``[eth_]provider[_uri]`` to ``[blockchain/eth/polygon]_endpoint``.

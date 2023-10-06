@@ -1,5 +1,3 @@
-
-
 import os
 from pathlib import Path
 from typing import Optional, Type
@@ -8,22 +6,20 @@ import click
 from tabulate import tabulate
 from web3.main import Web3
 
-from nucypher.blockchain.eth.agents import ContractAgency, NucypherTokenAgent
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.blockchain.eth.token import NU
 from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
     DEFAULT_TO_LONE_CONFIG_FILE,
     GENERIC_SELECT_ACCOUNT,
     IGNORE_OLD_CONFIGURATION,
+    NO_ACCOUNTS,
     NO_CONFIGURATIONS_ON_DISK,
-    NO_ETH_ACCOUNTS,
-    SELECT_NETWORK,
+    SELECT_DOMAIN,
     SELECTED_ACCOUNT,
 )
 from nucypher.config.base import CharacterConfiguration
@@ -36,53 +32,56 @@ from nucypher.utilities.emitters import StdoutEmitter
 
 def select_client_account(
     emitter,
-    eth_provider_uri: str = None,
+    polygon_endpoint: str = None,
     signer: Signer = None,
     signer_uri: str = None,
     prompt: str = None,
     default: int = 0,
     registry: ContractRegistry = None,
-    show_eth_balance: bool = False,
-    show_nu_balance: bool = False,
+    show_matic_balance: bool = False,
     show_staking: bool = False,
-    network: str = None,
+    domain: str = None,
     poa: bool = None,
 ) -> str:
     """
-    Interactively select an ethereum wallet account from a table of nucypher account metadata.
+    Interactively select an ethereum wallet account from a table of account metadata.
 
-    Note: Showing ETH and/or NU balances, causes an eager blockchain connection.
+    Note: Showing MATIC balance causes an eager blockchain connection.
     """
 
     if signer and signer_uri:
         raise ValueError('Pass either signer or signer_uri but not both.')
 
-    if not any((eth_provider_uri, signer_uri, signer)):
+    if not any((polygon_endpoint, signer_uri, signer)):
         raise ValueError("At least a provider URI, signer URI or signer must be provided to select an account")
 
-    if eth_provider_uri:
+    if polygon_endpoint:
         # Connect to the blockchain in order to select an account
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri, poa=poa, emitter=emitter)
+        if not BlockchainInterfaceFactory.is_interface_initialized(
+            endpoint=polygon_endpoint
+        ):
+            BlockchainInterfaceFactory.initialize_interface(
+                endpoint=polygon_endpoint, poa=poa, emitter=emitter
+            )
         if not signer_uri:
-            signer_uri = eth_provider_uri
+            signer_uri = polygon_endpoint
 
-    blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+    blockchain = BlockchainInterfaceFactory.get_interface(endpoint=polygon_endpoint)
 
     if signer_uri and not signer:
-        testnet = network != NetworksInventory.MAINNET
+        testnet = domain != TACoDomain.MAINNET.name
         signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
 
     # Display accounts info
-    if show_nu_balance or show_staking:  # Lazy registry fetching
+    if show_staking:  # Lazy registry fetching
         if not registry:
-            if not network:
-                raise ValueError("Pass network name or registry; Got neither.")
-            registry = ContractRegistry.from_latest_publication(domain=network)
+            if not domain:
+                raise ValueError("Pass domain name or registry; Got neither.")
+            registry = ContractRegistry.from_latest_publication(domain=domain)
 
     enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
-        emitter.echo(NO_ETH_ACCOUNTS, color='red', bold=True)
+        emitter.echo(NO_ACCOUNTS, color="red", bold=True)
         raise click.Abort()
     elif len(enumerated_accounts) == 1:
         # There are no choices if there is only one available address.
@@ -90,23 +89,17 @@ def select_client_account(
 
     # Display account info
     headers = ['Account']
-    if show_eth_balance:
-        headers.append('ETH')
-    if show_nu_balance:
-        headers.append('NU')
+    if show_matic_balance:
+        headers.append("MATIC")
 
     rows = list()
     for index, account in enumerated_accounts.items():
         row = [account]
-        if show_eth_balance:
-            ether_balance = Web3.from_wei(blockchain.client.get_balance(account), 'ether')
-            row.append(f'{ether_balance} ETH')
-        if show_nu_balance:
-            token_agent = ContractAgency.get_agent(
-                NucypherTokenAgent, registry=registry, provider_uri=eth_provider_uri
+        if show_matic_balance:
+            matic_balance = Web3.from_wei(
+                blockchain.client.get_balance(account), "ether"
             )
-            token_balance = NU.from_units(token_agent.get_balance(account, registry))
-            row.append(token_balance)
+            row.append(f"{matic_balance} MATIC")
         rows.append(row)
     emitter.echo(tabulate(rows, headers=headers, showindex='always'))
 
@@ -120,24 +113,19 @@ def select_client_account(
     return chosen_account
 
 
-def select_network(emitter: StdoutEmitter, network_type: str, message: Optional[str] = None) -> str:
-    """Interactively select a network from nucypher networks inventory list"""
+def select_domain(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
+    """Interactively select a domain from TACo domain inventory list"""
     emitter.message(message=message or str(), color="yellow")
-    if network_type == NetworksInventory.ETH:
-        network_list = NetworksInventory.ETH_NETWORKS
-    elif network_type == NetworksInventory.POLYGON:
-        network_list = NetworksInventory.POLY_NETWORKS
-    else:
-        raise(ValueError("Network type must be either 'eth' or 'polygon'"))
-    rows = [[n] for n in network_list]
+    domain_list = TACoDomain.SUPPORTED_DOMAIN_NAMES
+    rows = [[n] for n in domain_list]
     emitter.echo(tabulate(rows, showindex="always"))
     choice = click.prompt(
-        SELECT_NETWORK,
+        SELECT_DOMAIN,
         default=0,
         type=click.IntRange(0, len(rows) - 1),
     )
-    network = network_list[choice]
-    return network
+    domain = domain_list[choice]
+    return domain
 
 
 def select_config_file(emitter: StdoutEmitter,

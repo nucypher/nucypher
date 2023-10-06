@@ -43,9 +43,7 @@ nucypher {init_command}
 """
 
 
-SELECT_NETWORK = "Select Network"
-
-SELECT_PRE_PAYMENT_NETWORK = "Select PRE Payment Network"
+SELECT_DOMAIN = "Select TACo Domain"
 
 NO_CONFIGURATIONS_ON_DISK = "No {name} configurations found. Run 'nucypher {command} init' then try again."
 
@@ -55,7 +53,7 @@ INVALID_JSON_IN_CONFIGURATION_WARNING = "Invalid JSON in Configuration File at {
 
 INVALID_CONFIGURATION_FILE_WARNING = "Invalid Configuration at {filepath}."
 
-NO_ETH_ACCOUNTS = "No ETH accounts were found."
+NO_ACCOUNTS = "No accounts were found."
 
 GENERIC_SELECT_ACCOUNT = "Select index of account"
 

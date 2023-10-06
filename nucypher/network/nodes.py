@@ -28,7 +28,7 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -46,14 +46,13 @@ from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
-    NetworksInventory.MAINNET: (
+    TACoDomain.MAINNET.name: (
         'https://closest-seed.nucypher.network:9151',
         'https://seeds.nucypher.network',
         'https://mainnet.nucypher.network:9151',
     ),
-    NetworksInventory.LYNX: ("https://lynx.nucypher.network:9151",),
-    NetworksInventory.TAPIR: ("https://tapir.nucypher.network:9151",),
-    NetworksInventory.ORYX: ("https://oryx.nucypher.network:9151",),
+    TACoDomain.LYNX.name: ("https://lynx.nucypher.network:9151",),
+    TACoDomain.TAPIR.name: ("https://tapir.nucypher.network:9151",),
 }
 
 
@@ -271,8 +270,9 @@ class Learner:
 
         self.learning_deferred = Deferred()
         self.domain = domain
+        self.taco_domain_info = TACoDomain.get_domain_info(self.domain)
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
-            registry=self.registry, eth_provider_uri=self.eth_provider_uri
+            registry=self.registry, eth_endpoint=self.eth_endpoint
         )
         self.network_middleware = network_middleware or default_middleware
         self.save_metadata = save_metadata
@@ -359,7 +359,7 @@ class Learner:
                     maybe_sage_node = self.node_class.from_teacher_uri(
                         teacher_uri=uri,
                         min_stake=0,
-                        provider_uri=self.eth_provider_uri,
+                        eth_endpoint=self.eth_endpoint,
                         network_middleware=self.network_middleware,
                         registry=self.registry,
                     )
@@ -383,7 +383,7 @@ class Learner:
                 seed_node = self.node_class.from_seednode_metadata(
                     seednode_metadata=seednode_metadata,
                     network_middleware=self.network_middleware,
-                    provider_uri=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                 )
             except Exception as e:
                 # TODO: log traceback here?
@@ -472,7 +472,7 @@ class Learner:
                     force=force_verification_recheck,
                     network_middleware_client=self.network_middleware.client,
                     registry=registry,
-                    eth_provider_uri=self.eth_provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                 )
             except SSLError:
                 # TODO: Bucket this node as having bad TLS info - maybe it's an update that hasn't fully propagated?  567
@@ -758,7 +758,7 @@ class Learner:
             try:
                 node_on_the_other_end = self.node_class.from_seednode_metadata(
                     stranger.seed_node_metadata(),
-                    provider_uri=self.provider_uri,
+                    eth_endpoint=self.eth_endpoint,
                     network_middleware=self.network_middleware,
                 )
                 if node_on_the_other_end != stranger:
@@ -1040,7 +1040,7 @@ class Teacher:
         return bytes(response)
 
     def _operator_is_bonded(
-        self, provider_uri: str, registry: ContractRegistry
+        self, eth_endpoint: str, registry: ContractRegistry
     ) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
@@ -1048,7 +1048,7 @@ class Teacher:
         the case that the "staking provider" isn't "staking" (e.g., all her tokens have been slashed).
         """
         application_agent = ContractAgency.get_agent(
-            TACoApplicationAgent, provider_uri=provider_uri, registry=registry
+            TACoApplicationAgent, blockchain_endpoint=eth_endpoint, registry=registry
         )  # type: TACoApplicationAgent
         staking_provider_address = application_agent.get_staking_provider_from_operator(operator_address=self.operator_address)
         if staking_provider_address == NULL_ADDRESS:
@@ -1056,14 +1056,14 @@ class Teacher:
         return staking_provider_address == self.checksum_address
 
     def _staking_provider_is_really_staking(
-        self, registry: ContractRegistry, eth_provider_uri: Optional[str] = None
+        self, registry: ContractRegistry, eth_endpoint: Optional[str] = None
     ) -> bool:
         """
         This method assumes the stamp's signature is valid and accurate.
         As a follow-up, this checks that the staking provider is, indeed, staking.
         """
         application_agent = ContractAgency.get_agent(
-            TACoApplicationAgent, registry=registry, provider_uri=eth_provider_uri
+            TACoApplicationAgent, registry=registry, blockchain_endpoint=eth_endpoint
         )  # type: TACoApplicationAgent
         is_staking = application_agent.is_authorized(staking_provider=self.checksum_address)  # checksum address here is staking provider
         return is_staking
@@ -1071,7 +1071,7 @@ class Teacher:
     def validate_operator(
         self,
         registry: ContractRegistry = None,
-        eth_provider_uri: Optional[str] = None,
+        eth_endpoint: Optional[str] = None,
     ) -> None:
         # TODO: restore this enforcement
         # if registry and not eth_provider_uri:
@@ -1088,14 +1088,14 @@ class Teacher:
         # On-chain staking check, if registry is present
         if registry:
             if not self._operator_is_bonded(
-                registry=registry, provider_uri=eth_provider_uri
+                registry=registry, eth_endpoint=eth_endpoint
             ):  # <-- Blockchain CALL
                 message = f"Operator {self.operator_address} is not bonded to staking provider {self.checksum_address}"
                 self.log.debug(message)
                 raise self.UnbondedOperator(message)
 
             if self._staking_provider_is_really_staking(
-                registry=registry, eth_provider_uri=eth_provider_uri
+                registry=registry, eth_endpoint=eth_endpoint
             ):  # <-- Blockchain CALL
                 self.log.info(f"Verified operator {self}")
                 self.verified_operator = True
@@ -1115,7 +1115,7 @@ class Teacher:
             raise self.InvalidNode("Metadata signature is invalid")
 
     def validate_metadata(
-        self, registry: ContractRegistry = None, eth_provider_uri: Optional[str] = None
+        self, registry: ContractRegistry = None, eth_endpoint: Optional[str] = None
     ):
         # Verify the metadata signature
         if not self.verified_metadata:
@@ -1126,13 +1126,13 @@ class Teacher:
             return
 
         # Offline check of valid stamp signature by worker
-        self.validate_operator(registry=registry, eth_provider_uri=eth_provider_uri)
+        self.validate_operator(registry=registry, eth_endpoint=eth_endpoint)
 
     def verify_node(
         self,
         network_middleware_client,
         registry: ContractRegistry = None,
-        eth_provider_uri: Optional[str] = None,
+        eth_endpoint: Optional[str] = None,
         certificate_filepath: Optional[Path] = None,
         force: bool = False,
     ) -> bool:
@@ -1165,7 +1165,7 @@ class Teacher:
             )
 
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
-        self.validate_metadata(registry=registry, eth_provider_uri=eth_provider_uri)
+        self.validate_metadata(registry=registry, eth_endpoint=eth_endpoint)
 
         # The node's metadata is valid; let's be sure the interface is in order.
         if not certificate_filepath:

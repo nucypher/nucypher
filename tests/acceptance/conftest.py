@@ -11,8 +11,11 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.domains import (
+    DomainInfo,
+    TACoDomain,
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.networks import NetworksInventory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.config.constants import TEMPORARY_DOMAIN
@@ -25,6 +28,7 @@ from tests.constants import (
     MIN_OPERATOR_SECONDS,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_INFO,
 )
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -299,8 +303,8 @@ def deployed_contracts(
 
 
 @pytest.fixture(scope="module", autouse=True)
-def test_registry(deployed_contracts):
-    with tests.utils.registry.mock_registry_sources():
+def test_registry(deployed_contracts, module_mocker):
+    with tests.utils.registry.mock_registry_sources(mocker=module_mocker):
         RegistrySourceManager._FALLBACK_CHAIN = (ApeRegistrySource,)
         source = ApeRegistrySource(domain=TEMPORARY_DOMAIN)
         registry = ContractRegistry(source=source)
@@ -312,7 +316,7 @@ def test_registry(deployed_contracts):
 def testerchain(project) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
-    testerchain = TesterBlockchain(eth_provider=provider)
+    testerchain = TesterBlockchain(provider=provider)
     BlockchainInterfaceFactory.register_interface(interface=testerchain, force=True)
     yield testerchain
 
@@ -370,7 +374,9 @@ def staking_providers(
 def coordinator_agent(testerchain, test_registry):
     """Creates a coordinator agent"""
     coordinator = ContractAgency.get_agent(
-        CoordinatorAgent, registry=test_registry, provider_uri=TEST_ETH_PROVIDER_URI
+        CoordinatorAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
     return coordinator
 
@@ -380,7 +386,7 @@ def taco_application_agent(test_registry):
     _taco_application_agent = ContractAgency.get_agent(
         TACoApplicationAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
 
     return _taco_application_agent
@@ -391,7 +397,7 @@ def taco_child_application_agent(testerchain, test_registry):
     _taco_child_application_agent = ContractAgency.get_agent(
         TACoChildApplicationAgent,
         registry=test_registry,
-        provider_uri=TEST_ETH_PROVIDER_URI,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
     )
 
     return _taco_child_application_agent
@@ -426,20 +432,20 @@ def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
     return ursulas
 
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_condition_blockchains(session_mocker):
+@pytest.fixture(scope="module", autouse=True)
+def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
-    session_mocker.patch.dict(
+    module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_polygon_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    test_domain_info = DomainInfo(
+        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
     )
 
-    session_mocker.patch.object(
-        NetworksInventory, "get_ethereum_chain_id", return_value=TESTERCHAIN_CHAIN_ID
+    module_mocker.patch.object(
+        TACoDomain, "get_domain_info", return_value=test_domain_info
     )
 
 

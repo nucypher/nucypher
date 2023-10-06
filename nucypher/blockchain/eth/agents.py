@@ -81,7 +81,7 @@ class EthereumContractAgent:
 
     def __init__(
         self,
-        provider_uri: str,
+        blockchain_endpoint: str,
         registry: ContractRegistry,
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
@@ -91,7 +91,7 @@ class EthereumContractAgent:
         self.registry = registry
 
         self.blockchain = BlockchainInterfaceFactory.get_or_create_interface(
-            eth_provider_uri=provider_uri
+            endpoint=blockchain_endpoint
         )
 
         if not contract:  # Fetch the contract
@@ -106,12 +106,14 @@ class EthereumContractAgent:
             transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
         self.transaction_gas = transaction_gas
 
-        self.log.info("Initialized new {} for {} with {} and {}".format(
-            self.__class__.__name__,
-            self.contract.address,
-            self.blockchain.eth_provider_uri,
-            str(self.registry)
-        ))
+        self.log.info(
+            "Initialized new {} for {} with {} and {}".format(
+                self.__class__.__name__,
+                self.contract.address,
+                self.blockchain.endpoint,
+                str(self.registry),
+            )
+        )
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
@@ -845,15 +847,15 @@ class ContractAgency:
         cls,
         agent_class: Type[types.Agent],
         registry: Optional[ContractRegistry],
-        provider_uri: Optional[str],
+        blockchain_endpoint: Optional[str],
         contract_version: Optional[str] = None,
     ) -> types.Agent:
         if not issubclass(agent_class, EthereumContractAgent):
             raise TypeError("Only agent subclasses can be used from the agency.")
 
-        if not provider_uri:
+        if not blockchain_endpoint:
             raise ValueError(
-                "Need to specify an Ethereum provider URI in order to get an agent from the ContractAgency"
+                "Need to specify a blockchain provider URI in order to get an agent from the ContractAgency"
             )
 
         if not registry:
@@ -869,7 +871,7 @@ class ContractAgency:
                 types.Agent,
                 agent_class(
                     registry=registry,
-                    provider_uri=provider_uri,
+                    blockchain_endpoint=blockchain_endpoint,
                 ),
             )
             cls.__agents[registry_id] = cls.__agents.get(registry_id, dict())
@@ -889,7 +891,7 @@ class ContractAgency:
         cls,
         contract_name: str,
         registry: ContractRegistry,
-        provider_uri: str,
+        blockchain_endpoint: str,
         contract_version: Optional[str] = None,
     ) -> EthereumContractAgent:
         agent_name: str = cls._contract_name_to_agent_name(name=contract_name)
@@ -898,7 +900,7 @@ class ContractAgency:
         agent: EthereumContractAgent = cls.get_agent(
             agent_class=agent_class,
             registry=registry,
-            provider_uri=provider_uri,
+            blockchain_endpoint=blockchain_endpoint,
             contract_version=contract_version
         )
         return agent

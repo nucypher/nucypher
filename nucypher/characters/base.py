@@ -34,7 +34,8 @@ class Character(Learner):
     def __init__(
         self,
         domain: str,
-        eth_provider_uri: str = None,
+        eth_endpoint: str = None,
+        polygon_endpoint: str = None,
         known_node_class: object = None,
         is_me: bool = True,
         checksum_address: str = None,
@@ -113,14 +114,17 @@ class Character(Learner):
             except NoSigningPower:
                 self._stamp = NO_SIGNING_POWER
 
-            self.eth_provider_uri = eth_provider_uri
+            self.eth_endpoint = eth_endpoint
+            self.polygon_endpoint = polygon_endpoint
+
             self.registry = registry or ContractRegistry.from_latest_publication(
                 domain=domain
-            )  # See #1580
+            )
 
             # REST
-            self.network_middleware = network_middleware or RestMiddleware(registry=self.registry,
-                                                                           eth_provider_uri=eth_provider_uri)
+            self.network_middleware = network_middleware or RestMiddleware(
+                registry=self.registry, eth_endpoint=eth_endpoint
+            )
 
             # Learner
             Learner.__init__(self,

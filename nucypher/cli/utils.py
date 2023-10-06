@@ -16,6 +16,7 @@ from nucypher.blockchain.eth.interfaces import (
 )
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
+    LocalRegistrySource,
 )
 from nucypher.characters.base import Character
 from nucypher.cli.actions.auth import (
@@ -45,7 +46,7 @@ def setup_emitter(general_config, banner: str = None) -> StdoutEmitter:
 def make_cli_character(
     character_config,
     emitter,
-    provider_uri: str,
+    eth_endpoint: str,
     unlock_keystore: bool = True,
     unlock_signer: bool = True,
     teacher_uri: str = None,
@@ -82,14 +83,14 @@ def make_cli_character(
             min_stake=min_stake,
             network_middleware=character_config.network_middleware,
             registry=character_config.registry,
-            provider_uri=provider_uri,
+            eth_endpoint=eth_endpoint,
         )
         sage_nodes.append(maybe_sage_node)
 
     CHARACTER = character_config(
         known_nodes=sage_nodes,
         network_middleware=character_config.network_middleware,
-        eth_provider_uri=provider_uri,
+        eth_endpoint=eth_endpoint,
         **config_args,
     )
 
@@ -102,28 +103,34 @@ def make_cli_character(
 
 
 def get_registry(
-    network: str, registry_filepath: Optional[Path] = None
+    domain: str, registry_filepath: Optional[Path] = None
 ) -> ContractRegistry:
     if registry_filepath:
-        registry = ContractRegistry(filepath=registry_filepath)
+        source = LocalRegistrySource(filepath=registry_filepath)
+        registry = ContractRegistry(source=source)
     else:
-        registry = ContractRegistry.from_latest_publication(domain=network)
+        registry = ContractRegistry.from_latest_publication(domain=domain)
     return registry
 
 
-def connect_to_blockchain(emitter: StdoutEmitter,
-                          eth_provider_uri: str,
-                          debug: bool = False,
-                          light: bool = False
-                          ) -> BlockchainInterface:
+def connect_to_blockchain(
+    emitter: StdoutEmitter,
+    blockchain_endpoint: str,
+    debug: bool = False,
+    light: bool = False,
+) -> BlockchainInterface:
     try:
         # Note: Conditional for test compatibility.
-        if not BlockchainInterfaceFactory.is_interface_initialized(eth_provider_uri=eth_provider_uri):
-            BlockchainInterfaceFactory.initialize_interface(eth_provider_uri=eth_provider_uri,
-                                                            light=light,
-                                                            emitter=emitter)
+        if not BlockchainInterfaceFactory.is_interface_initialized(
+            endpoint=blockchain_endpoint
+        ):
+            BlockchainInterfaceFactory.initialize_interface(
+                endpoint=blockchain_endpoint, light=light, emitter=emitter
+            )
         emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
-        blockchain = BlockchainInterfaceFactory.get_interface(eth_provider_uri=eth_provider_uri)
+        blockchain = BlockchainInterfaceFactory.get_interface(
+            endpoint=blockchain_endpoint
+        )
         return blockchain
     except Exception as e:
         if debug:

@@ -18,8 +18,8 @@ def pytest_addhooks(pluginmanager):
 
 
 @pytest.fixture(scope='module')
-def test_registry():
-    with mock_registry_sources():
+def test_registry(module_mocker):
+    with mock_registry_sources(mocker=module_mocker):
         source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
         yield ContractRegistry(source=source)
 

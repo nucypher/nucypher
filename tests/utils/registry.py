@@ -5,48 +5,54 @@ from typing import List
 from ape.contracts import ContractInstance
 from eth_utils import to_checksum_address
 
-from nucypher.blockchain.eth.networks import NetworksInventory
+from nucypher.blockchain.eth.domains import (
+    DomainInfo,
+    TACoDomain,
+)
 from nucypher.blockchain.eth.registry import (
     RegistryData,
     RegistrySource,
     RegistrySourceManager,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN
+from tests.constants import TESTERCHAIN_CHAIN_INFO
 
 
 @contextmanager
-def mock_registry_sources():
-    # capture the real values
-    real_networks = NetworksInventory.NETWORKS
-    real_eth_networks = NetworksInventory.ETH_NETWORKS
-    real_poly_networks = NetworksInventory.POLY_NETWORKS
-    real_registry_sources = RegistrySourceManager._FALLBACK_CHAIN
+def mock_registry_sources(mocker, domain_names: List[str] = None):
+    if not domain_names:
+        domain_names = [TEMPORARY_DOMAIN]
 
-    # set the mock values
-    RegistrySourceManager._FALLBACK_CHAIN = (MockRegistrySource,)
-    NetworksInventory.NETWORKS = (TEMPORARY_DOMAIN,)
-    NetworksInventory.ETH_NETWORKS = (TEMPORARY_DOMAIN,)
-    NetworksInventory.POLY_NETWORKS = (TEMPORARY_DOMAIN,)
+    supported_domains = []
+    supported_domain_names = []
+    for domain_name in domain_names:
+        test_domain = DomainInfo(
+            domain_name, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
+        )
+        supported_domains.append(test_domain)
+        supported_domain_names.append(domain_name)
+
+    mocker.patch.object(TACoDomain, "SUPPORTED_DOMAINS", supported_domains)
+    mocker.patch.object(TACoDomain, "SUPPORTED_DOMAIN_NAMES", supported_domain_names)
+    mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", domain_names)
+
+    mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
 
     yield  # run the test
 
-    # restore the real values
-    RegistrySourceManager._FALLBACK_CHAIN = real_registry_sources
-    NetworksInventory.NETWORKS = real_networks
-    NetworksInventory.ETH_NETWORKS = real_eth_networks
-    NetworksInventory.POLY_NETWORKS = real_poly_networks
-
 
 class MockRegistrySource(RegistrySource):
+    ALLOWED_DOMAINS = [TEMPORARY_DOMAIN]
+
     name = "Mock Registry Source"
     is_primary = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.domain != TEMPORARY_DOMAIN:
+        if self.domain not in self.ALLOWED_DOMAINS:
             raise ValueError(
                 f"Somehow, MockRegistrySource is trying to get a registry for '{self.domain}'. "
-                f"Only '{TEMPORARY_DOMAIN}' is supported.'"
+                f"Only '{','.join(self.ALLOWED_DOMAINS)}' are supported.'"
             )
 
     @property

@@ -42,26 +42,25 @@ class Vladimir(Ursula):
             raise DevelopmentInstallationRequired(
                 importable_name="tests.utils.middleware.EvilMiddleWare"
             )
-        blockchain = target_ursula.application_agent.blockchain
-        cls.network_middleware = EvilMiddleWare(
-            eth_provider_uri=blockchain.eth_provider_uri
-        )
+        eth_blockchain = target_ursula.application_agent.blockchain
+        cls.network_middleware = EvilMiddleWare(eth_endpoint=eth_blockchain.endpoint)
+
+        polygon_blockchain = target_ursula.child_application_agent.blockchain
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
-        cls.attach_transacting_key(blockchain=blockchain)
+        cls.attach_transacting_key(blockchain=eth_blockchain)
 
         # Vladimir does not care about payment.
         bogus_pre_payment_method = FreeReencryptions()
         bogus_pre_payment_method.provider = Mock()
         bogus_pre_payment_method.agent = Mock()
-        bogus_pre_payment_method.network = TEMPORARY_DOMAIN
         bogus_pre_payment_method.agent.blockchain.client.chain_id = (
-            blockchain.client.chain_id
+            polygon_blockchain.client.chain_id
         )
         mock.patch(
             "mock.interfaces.MockBlockchain.client.chain_id",
-            new_callable=mock.PropertyMock(return_value=blockchain.client.chain_id),
+            new_callable=mock.PropertyMock(return_value=eth_blockchain.client.chain_id),
         )
 
         vladimir = cls(
@@ -74,8 +73,9 @@ class Vladimir(Ursula):
             network_middleware=cls.network_middleware,
             checksum_address=cls.fraud_address,
             operator_address=cls.fraud_address,
-            signer=Web3Signer(blockchain.client),
-            eth_provider_uri=blockchain.eth_provider_uri,
+            signer=Web3Signer(eth_blockchain.client),
+            eth_endpoint=eth_blockchain.endpoint,
+            polygon_endpoint=polygon_blockchain.endpoint,
             pre_payment_method=bogus_pre_payment_method,
         )
 
