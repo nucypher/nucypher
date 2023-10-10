@@ -154,7 +154,10 @@ def test_ursula_ritualist(
         print("======== DKG DECRYPTION UNAUTHORIZED ENCRYPTION ========")
         # ritual_id, ciphertext, conditions are obtained from the side channel
         bob.start_learning_loop(now=True)
-        with pytest.raises(Ursula.NotEnoughUrsulas):
+        with pytest.raises(
+            Ursula.NotEnoughUrsulas,
+            match=f"Encrypted data not authorized for ritual {RITUAL_ID}",
+        ):
             _ = bob.threshold_decrypt(
                 threshold_message_kit=threshold_message_kit,
                 peering_timeout=0,

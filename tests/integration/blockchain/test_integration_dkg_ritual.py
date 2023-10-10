@@ -208,6 +208,52 @@ def test_ursula_ritualist(
             )
             return threshold_message_kit
 
+        def decrypt_failure_cases(threshold_message_kit):
+            # define failure test cases
+            def unauthorized_encryptor():
+                print("======== DKG DECRYPTION UNAUTHORIZED ENCRYPTION ========")
+                with patch.object(
+                    mock_coordinator_agent,
+                    "is_encryption_authorized",
+                    return_value=False,
+                ):
+                    with pytest.raises(
+                        Ursula.NotEnoughUrsulas,
+                        match=f"Encrypted data not authorized for ritual {ritual_id}",
+                    ):
+                        bob.threshold_decrypt(
+                            threshold_message_kit=threshold_message_kit,
+                            peering_timeout=0,
+                        )
+                print("========= UNAUTHORIZED DECRYPTION UNSUCCESSFUL =========")
+
+            def expired_ritual():
+                print("============ DKG DECRYPTION EXPIRED RITUAL =============")
+                ritual = mock_coordinator_agent.get_ritual(ritual_id)
+                time_in_past = mock_coordinator_agent.blockchain.get_blocktime() - 1
+                with patch.object(ritual, "end_timestamp", time_in_past):
+                    with pytest.raises(
+                        Ursula.NotEnoughUrsulas, match=f"Ritual {ritual_id} is expired"
+                    ):
+                        bob.threshold_decrypt(
+                            threshold_message_kit=threshold_message_kit,
+                            peering_timeout=0,
+                        )
+                print("======== EXPIRED RITUAL DECRYPTION UNSUCCESSFUL ========")
+
+            # run failure test cases
+            bob.start_learning_loop(now=True)
+            # mock the use of non-default variants since it can no longer be specified
+            with patch.object(
+                bob,
+                "_default_dkg_variant",
+                new_callable=PropertyMock(return_value=variant),
+            ):
+                unauthorized_encryptor()
+                expired_ritual()
+
+            return threshold_message_kit
+
         def decrypt(threshold_message_kit):
             """Decrypts a message and checks that it matches the original plaintext"""
             print("==================== DKG DECRYPTION ====================")
@@ -240,6 +286,7 @@ def test_ursula_ritualist(
             round_2,
             finality,
             encrypt,
+            decrypt_failure_cases,
             decrypt,
         ]
         for callback in callbacks:
