@@ -10,9 +10,9 @@ on:
       - epic-*
   workflow_dispatch:
 
-env:
-  DEMO_L1_PROVIDER_URI: ${{ vars.DEMO_L1_PROVIDER_URI }}
-  DEMO_L2_PROVIDER_URI: ${{ vars.DEMO_L2_PROVIDER_URI }}
+env: # TODO: Use variables when GH supports it for forks. See https://github.com/orgs/community/discussions/44322
+  DEMO_L1_PROVIDER_URI: "https://goerli.infura.io/v3/3747007a284045d483c342fb39889a30"
+  DEMO_L2_PROVIDER_URI: "https://polygon-mumbai.infura.io/v3/3747007a284045d483c342fb39889a30"
 
 jobs:
   python-tests:
