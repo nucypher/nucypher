@@ -162,6 +162,20 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
         )
 
+        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
+        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
+        ritual = this_node.coordinator_agent.get_ritual(
+            decryption_request.ritual_id, with_participants=True
+        )
+
+        # check that ritual not timed out
+        current_timestamp = this_node.coordinator_agent.blockchain.get_blocktime()
+        if current_timestamp > ritual.end_timestamp:
+            return Response(
+                f"Ritual {decryption_request.ritual_id} is expired",
+                status=HTTPStatus.FORBIDDEN,
+            )
+
         ciphertext_header = decryption_request.ciphertext_header
 
         # check whether enrico is authorized
@@ -203,11 +217,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         if error:
             return Response(error.message, status=error.status_code)
 
-        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
-        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
-        ritual = this_node.coordinator_agent.get_ritual(
-            decryption_request.ritual_id, with_participants=True
-        )
         participants = [p.provider for p in ritual.participants]
 
         # enforces that the node is part of the ritual
