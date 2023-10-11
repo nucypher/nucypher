@@ -1,0 +1,1 @@
+Nodes reject decryption requests for already expired rituals.
