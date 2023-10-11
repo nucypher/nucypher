@@ -41,7 +41,7 @@ coordinator_agent = CoordinatorAgent(
 ritual_id = 3  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
-# known already authorized signer for ritual 1
+# known authorized encryptor for ritual 3
 signer = InMemorySigner(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY)
 enrico = Enrico(
     encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)), signer=signer
