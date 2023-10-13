@@ -377,6 +377,7 @@ class CharacterConfiguration(BaseConfiguration):
         registry: Optional[ContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
     ):
+        self.emitter = emitter
 
         self.log = Logger(self.__class__.__name__)
 
@@ -436,10 +437,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
 
-        self._connect_to_endpoints(
-            emitter=emitter, endpoints=[self.eth_endpoint, self.polygon_endpoint]
-        )
-
         if not self.registry:
             if not self.registry_filepath:
                 self.log.info("Fetching latest registry from source.")
@@ -486,7 +483,7 @@ class CharacterConfiguration(BaseConfiguration):
         
         super().__init__(filepath=self.config_file_location, config_root=self.config_root)
 
-    def _connect_to_endpoints(self, emitter, endpoints: List[str]) -> None:
+    def _connect_to_endpoints(self, endpoints: List[str]) -> None:
         for endpoint in endpoints:
             if endpoint and endpoint != NO_BLOCKCHAIN_CONNECTION:
                 is_initialized = BlockchainInterfaceFactory.is_interface_initialized(
@@ -498,7 +495,7 @@ class CharacterConfiguration(BaseConfiguration):
                         endpoint=endpoint,
                         poa=self.poa,
                         light=self.is_light,
-                        emitter=emitter,
+                        emitter=self.emitter,
                         gas_strategy=self.gas_strategy,
                         max_gas_price=self.max_gas_price,
                     )
@@ -602,6 +599,9 @@ class CharacterConfiguration(BaseConfiguration):
 
     def produce(self, **overrides) -> CHARACTER_CLASS:
         """Initialize a new character instance and return it."""
+        # prime endpoint connections
+        self._connect_to_endpoints(endpoints=[self.eth_endpoint, self.polygon_endpoint])
+
         merged_parameters = self.generate_parameters(**overrides)
         character = self.CHARACTER_CLASS(**merged_parameters)
         return character

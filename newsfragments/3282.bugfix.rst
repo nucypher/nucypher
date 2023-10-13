@@ -1,0 +1,1 @@
+``UrsulaConfiguration`` object should not be too eager to connect to provided blockchain endpoints; if faulty then the configuration file can't be updated.
