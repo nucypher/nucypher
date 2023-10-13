@@ -1,6 +1,7 @@
 import cProfile
 import os
 import pstats
+from contextlib import nullcontext
 
 from nucypher_core.ferveo import DkgPublicKey
 
@@ -89,12 +90,7 @@ bob = Bob(
 
 bob.start_learning_loop(now=True)
 
-profiler = None
-try:
-    if collect_stats:
-        profiler = cProfile.Profile()
-        profiler.enable()
-
+with cProfile.Profile() if collect_stats else nullcontext() as profiler:
     cleartext = bob.threshold_decrypt(
         threshold_message_kit=threshold_message_kit,
     )
@@ -102,9 +98,8 @@ try:
     cleartext = bytes(cleartext)
     print(f"\nCleartext: {cleartext.decode()}")
     assert message == cleartext
-finally:
-    if profiler:
-        profiler.disable()
+
+    if collect_stats:
         profiler_stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
         print("\n------ Profile Stats -------")
         profiler_stats.print_stats(10)
