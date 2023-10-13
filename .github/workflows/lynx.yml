@@ -22,7 +22,9 @@ jobs:
         python-version: [ "3.10" ]
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Install latest Rust stable
         uses: actions-rs/toolchain@v1
         with:
