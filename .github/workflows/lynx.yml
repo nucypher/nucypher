@@ -55,4 +55,4 @@ jobs:
         run: python -c "import nucypher; print(nucypher.__version__)"
 
       - name: Lynx testnet script
-        run: python examples/testnet_simple_taco.py
+        run: python examples/testnet_simple_taco.py True
