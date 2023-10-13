@@ -1,4 +1,5 @@
 import os
+import time
 
 from nucypher_core.ferveo import DkgPublicKey
 
@@ -85,10 +86,14 @@ bob = Bob(
 
 bob.start_learning_loop(now=True)
 
+start = time.time()
 cleartext = bob.threshold_decrypt(
     threshold_message_kit=threshold_message_kit,
 )
+end = time.time()
 
 cleartext = bytes(cleartext)
 print(f"\nCleartext: {cleartext.decode()}")
 assert message == cleartext
+
+print(f"\nDecryption time: {end - start} seconds")
