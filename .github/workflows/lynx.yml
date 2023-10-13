@@ -13,6 +13,7 @@ on:
 env: # TODO: Use variables when GH supports it for forks. See https://github.com/orgs/community/discussions/44322
   DEMO_L1_PROVIDER_URI: "https://goerli.infura.io/v3/3747007a284045d483c342fb39889a30"
   DEMO_L2_PROVIDER_URI: "https://polygon-mumbai.infura.io/v3/3747007a284045d483c342fb39889a30"
+  COLLECT_DEMO_PROFILER_STATS: True
 
 jobs:
   lynx-test:
@@ -55,4 +56,4 @@ jobs:
         run: python -c "import nucypher; print(nucypher.__version__)"
 
       - name: Lynx testnet script
-        run: python examples/testnet_simple_taco.py True
+        run: python examples/testnet_simple_taco.py
