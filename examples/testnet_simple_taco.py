@@ -1,7 +1,6 @@
 import cProfile
 import os
 import pstats
-import sys
 
 from nucypher_core.ferveo import DkgPublicKey
 
@@ -18,7 +17,7 @@ from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 # Boring setup stuff #
 ######################
 
-collect_stats = True if len(sys.argv) == 2 and sys.argv[1] == "True" else False
+collect_stats = "COLLECT_DEMO_PROFILER_STATS" in os.environ
 
 LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
@@ -90,11 +89,11 @@ bob = Bob(
 
 bob.start_learning_loop(now=True)
 
-pr = None
+profiler = None
 try:
     if collect_stats:
-        pr = cProfile.Profile()
-        pr.enable()
+        profiler = cProfile.Profile()
+        profiler.enable()
 
     cleartext = bob.threshold_decrypt(
         threshold_message_kit=threshold_message_kit,
@@ -104,10 +103,10 @@ try:
     print(f"\nCleartext: {cleartext.decode()}")
     assert message == cleartext
 finally:
-    if pr:
-        pr.disable()
-        ps = pstats.Stats(pr).sort_stats(pstats.SortKey.TIME)
+    if profiler:
+        profiler.disable()
+        profiler_stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
         print("\n------ Profile Stats -------")
-        ps.print_stats(10)
+        profiler_stats.print_stats(10)
         print("\n- Caller Info -")
-        ps.print_callers(10)
+        profiler_stats.print_callers(10)
