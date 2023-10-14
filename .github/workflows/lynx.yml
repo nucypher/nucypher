@@ -2,7 +2,7 @@ name: '🔎 Lynx Testnet Example'
 
 on:
   schedule:
-    - cron: "0/20 * * * *"  # Every 20 minutes
+    - cron: "0 * * * *"  # Every hour
   pull_request:
     branches:
       - main
