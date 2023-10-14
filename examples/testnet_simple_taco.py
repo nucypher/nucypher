@@ -1,6 +1,4 @@
-import cProfile
 import os
-import pstats
 
 from nucypher_core.ferveo import DkgPublicKey
 
@@ -11,6 +9,7 @@ from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import GlobalLoggerSettings
+from nucypher.utilities.profiler import Profiler
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
 ######################
@@ -25,27 +24,6 @@ eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
 domain = TACoDomain.LYNX.name
 
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
-
-
-class Profiler(cProfile.Profile):
-    def __init__(self, **kwargs) -> None:
-        self.active = "COLLECT_DEMO_PROFILER_STATS" in os.environ
-        super().__init__(**kwargs)
-
-    def __enter__(self):
-        if self.active:
-            self.enable()
-        return self
-
-    def __exit__(self, *exc_info):
-        if self.active:
-            super().__exit__(*exc_info)
-            profiler_stats = pstats.Stats(self).sort_stats(pstats.SortKey.TIME)
-            print("\n------ Profile Stats -------")
-            profiler_stats.print_stats(10)
-            print("\n- Caller Info -")
-            profiler_stats.print_callers(10)
-
 
 ###############
 # Enrico
