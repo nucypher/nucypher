@@ -1,7 +1,6 @@
 import cProfile
 import os
 import pstats
-from contextlib import nullcontext
 
 from nucypher_core.ferveo import DkgPublicKey
 
@@ -18,8 +17,6 @@ from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 # Boring setup stuff #
 ######################
 
-collect_stats = "COLLECT_DEMO_PROFILER_STATS" in os.environ
-
 LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
@@ -28,6 +25,27 @@ eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
 domain = TACoDomain.LYNX.name
 
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
+
+
+class Profiler(cProfile.Profile):
+    def __init__(self, **kwargs) -> None:
+        self.active = "COLLECT_DEMO_PROFILER_STATS" in os.environ
+        super().__init__(**kwargs)
+
+    def __enter__(self):
+        if self.active:
+            self.enable()
+        return self
+
+    def __exit__(self, *exc_info):
+        if self.active:
+            super().__exit__(*exc_info)
+            profiler_stats = pstats.Stats(self).sort_stats(pstats.SortKey.TIME)
+            print("\n------ Profile Stats -------")
+            profiler_stats.print_stats(10)
+            print("\n- Caller Info -")
+            profiler_stats.print_callers(10)
+
 
 ###############
 # Enrico
@@ -90,7 +108,7 @@ bob = Bob(
 
 bob.start_learning_loop(now=True)
 
-with cProfile.Profile() if collect_stats else nullcontext() as profiler:
+with Profiler():
     cleartext = bob.threshold_decrypt(
         threshold_message_kit=threshold_message_kit,
     )
@@ -98,10 +116,3 @@ with cProfile.Profile() if collect_stats else nullcontext() as profiler:
     cleartext = bytes(cleartext)
     print(f"\nCleartext: {cleartext.decode()}")
     assert message == cleartext
-
-    if collect_stats:
-        profiler_stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
-        print("\n------ Profile Stats -------")
-        profiler_stats.print_stats(10)
-        print("\n- Caller Info -")
-        profiler_stats.print_callers(10)
