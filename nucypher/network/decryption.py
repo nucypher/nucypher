@@ -26,7 +26,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         self,
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
-        timeout: float = 10,
+        timeout: float = 15,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
