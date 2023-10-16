@@ -1,0 +1,1 @@
+Add profiling option to ``testnet_simple_taco.py`` demo.

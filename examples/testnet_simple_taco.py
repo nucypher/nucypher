@@ -9,6 +9,7 @@ from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.utilities.logging import GlobalLoggerSettings
+from nucypher.utilities.profiler import Profiler
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
 ######################
@@ -85,10 +86,11 @@ bob = Bob(
 
 bob.start_learning_loop(now=True)
 
-cleartext = bob.threshold_decrypt(
-    threshold_message_kit=threshold_message_kit,
-)
+with Profiler():
+    cleartext = bob.threshold_decrypt(
+        threshold_message_kit=threshold_message_kit,
+    )
 
-cleartext = bytes(cleartext)
-print(f"\nCleartext: {cleartext.decode()}")
-assert message == cleartext
+    cleartext = bytes(cleartext)
+    print(f"\nCleartext: {cleartext.decode()}")
+    assert message == cleartext

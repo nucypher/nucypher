@@ -14,5 +14,8 @@ jobs:
     name: 'Checking release note entry for PR ${{ github.event.number }}'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - run: ls -l ${{ github.workspace }}/newsfragments/ | grep -E '${{ github.event.number }}\.(feature|bugfix|doc|removal|misc|dev)\.rst'
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Check for presence of newsfragment file
+        run: ls -l ${{ github.workspace }}/newsfragments/ | grep -E '${{ github.event.number }}\.(feature|bugfix|doc|removal|misc|dev)\.rst'
