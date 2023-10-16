@@ -139,6 +139,8 @@ class EthereumClient:
 
         self._add_default_middleware()
 
+        self.__chain_id = None
+
     def _add_default_middleware(self):
         # default retry functionality
         self.log.debug('Adding RPC retry middleware to client')
@@ -242,12 +244,17 @@ class EthereumClient:
 
     @property
     def chain_id(self) -> int:
-        try:
-            # from hex-str
-            return int(self.w3.eth.chain_id, 16)
-        except TypeError:
-            # from str
-            return int(self.w3.eth.chain_id)
+        if not self.__chain_id:
+            try:
+                # from hex-str
+                chain_id = int(self.w3.eth.chain_id, 16)
+            except TypeError:
+                # from str
+                chain_id = int(self.w3.eth.chain_id)
+
+            self.__chain_id = chain_id
+
+        return self.__chain_id
 
     @property
     def net_version(self) -> int:
