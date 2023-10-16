@@ -245,12 +245,13 @@ class EthereumClient:
     @property
     def chain_id(self) -> int:
         if not self.__chain_id:
+            result = self.w3.eth.chain_id
             try:
                 # from hex-str
-                chain_id = int(self.w3.eth.chain_id, 16)
+                chain_id = int(result, 16)
             except TypeError:
                 # from str
-                chain_id = int(self.w3.eth.chain_id)
+                chain_id = int(result)
 
             self.__chain_id = chain_id
 
