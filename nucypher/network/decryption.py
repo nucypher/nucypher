@@ -70,6 +70,9 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                 ursula_to_contact=list(encrypted_requests.keys()), threshold=threshold
             ),
             target_successes=threshold,
+            threadpool_size=len(
+                encrypted_requests
+            ),  # TODO should we cap this (say 40?)
             timeout=timeout,
         )
         worker_pool.start()
