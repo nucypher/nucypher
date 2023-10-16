@@ -2,6 +2,7 @@
 
 import os
 import time
+from functools import cached_property
 from typing import Union
 
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
@@ -240,14 +241,17 @@ class EthereumClient:
     def set_gas_strategy(self, gas_strategy):
         self.w3.eth.set_gas_price_strategy(gas_strategy)
 
-    @property
+    @cached_property
     def chain_id(self) -> int:
+        result = self.w3.eth.chain_id
         try:
             # from hex-str
-            return int(self.w3.eth.chain_id, 16)
+            chain_id = int(result, 16)
         except TypeError:
             # from str
-            return int(self.w3.eth.chain_id)
+            chain_id = int(result)
+
+        return chain_id
 
     @property
     def net_version(self) -> int:
