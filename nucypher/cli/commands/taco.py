@@ -175,10 +175,6 @@ def active_providers(general_config, registry_options):
 @group_general_config
 def rituals(ritual_ids, include_inactive, registry_options, general_config):
     """Information about rituals on the TACo domain."""
-    if ritual_ids and not include_inactive:
-        # provided ritual ids may/may not be active
-        include_inactive = True
-
     emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
@@ -193,9 +189,9 @@ def rituals(ritual_ids, include_inactive, registry_options, general_config):
         "Threshold",
         "Participants",
         "Expiry",
+        "State",
+        "Active",
     ]
-    if include_inactive:
-        headers += ["Status", "Active"]
 
     now = maya.now()
     rows = list()
@@ -225,11 +221,9 @@ def rituals(ritual_ids, include_inactive, registry_options, general_config):
                 [truncate_checksum_address(p.provider) for p in ritual.participants]
             ),
             ritual_expiry.rfc3339(),
+            ritual_status,
+            "✓" if is_ritual_active else "x",
         ]
-
-        if include_inactive:
-            row.append(str(ritual_status))
-            row.append("✓" if is_ritual_active else "x")
 
         rows.append(row)
 
