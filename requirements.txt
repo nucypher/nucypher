@@ -93,7 +93,7 @@ txaio==23.1.1 ; python_version >= '3.7'
 typing-extensions==4.7.1 ; python_version >= '3.7'
 tzdata==2023.3 ; python_version >= '2'
 tzlocal==5.0.1 ; python_version >= '3.7'
-urllib3==2.0.4 ; python_version >= '3.7'
+urllib3==2.0.7 ; python_version >= '3.7'
 watchdog==3.0.0 ; python_version >= '3.7'
 web3==6.9.0
 websockets==11.0.3 ; python_version >= '3.7'
