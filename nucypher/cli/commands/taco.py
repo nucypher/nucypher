@@ -15,6 +15,7 @@ from nucypher.blockchain.eth.constants import (
     TACO_CONTRACT_NAMES,
 )
 from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
     group_options,
@@ -185,7 +186,14 @@ def rituals(ritual_ids, include_inactive, registry_options, general_config):
         CoordinatorAgent, registry=registry, blockchain_endpoint=blockchain_endpoint
     )
 
-    headers = ["ID", "Expiry", "Threshold", "Participants"]
+    headers = [
+        "ID",
+        "Authority",
+        "AccessController",
+        "Threshold",
+        "Participants",
+        "Expiry",
+    ]
     if include_inactive:
         headers += ["Status", "Active"]
 
@@ -210,9 +218,13 @@ def rituals(ritual_ids, include_inactive, registry_options, general_config):
 
         row = [
             ritual_id,
-            ritual_expiry.rfc3339(),
+            truncate_checksum_address(ritual.authority),
+            truncate_checksum_address(ritual.access_controller),
             f"{ritual.threshold}/{ritual.dkg_size}",
-            "\n".join([p.provider for p in ritual.participants]),
+            "\n".join(
+                [truncate_checksum_address(p.provider) for p in ritual.participants]
+            ),
+            ritual_expiry.rfc3339(),
         ]
 
         if include_inactive:
