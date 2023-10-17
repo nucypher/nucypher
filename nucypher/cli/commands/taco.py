@@ -165,16 +165,20 @@ def active_providers(general_config, registry_options):
 @taco.command()
 @option_ritual_ids
 @click.option(
-    "--include-inactive",
+    "--show-inactive",
     "-i",
-    "include_inactive",
-    help="Include all known rituals including failed/expired ones",
+    "show_inactive",
+    help="Include failed/expired rituals",
     is_flag=True,
 )
 @group_registry_options
 @group_general_config
-def rituals(ritual_ids, include_inactive, registry_options, general_config):
+def rituals(ritual_ids, show_inactive, registry_options, general_config):
     """Information about rituals on the TACo domain."""
+    if not show_inactive and ritual_ids:
+        # provided ritual ids may/may not be active
+        show_inactive = True
+
     emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
@@ -209,7 +213,7 @@ def rituals(ritual_ids, include_inactive, registry_options, general_config):
                 ritual_expiry > now,
             ]
         )
-        if not include_inactive and not is_ritual_active:
+        if not show_inactive and not is_ritual_active:
             continue
 
         row = [
