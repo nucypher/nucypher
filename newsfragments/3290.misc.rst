@@ -1,0 +1,1 @@
+Add ``nucypher taco rituals`` CLI command to list ritual information for a TACo domain.
