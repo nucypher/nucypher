@@ -1,10 +1,13 @@
 from pathlib import Path
 
 import click
+import maya
+from tabulate import tabulate
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
+    CoordinatorAgent,
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.constants import (
@@ -106,6 +109,16 @@ option_to_block = click.option(
     type=click.INT,
 )
 
+option_ritual_ids = click.option(
+    "--ritual-id",
+    "-r",
+    "ritual_ids",
+    help="ID of a ritual",
+    multiple=True,
+    type=click.INT,
+    default=[],
+)
+
 
 @click.group()
 def taco():
@@ -116,7 +129,7 @@ def taco():
 @group_registry_options
 @group_general_config
 def application_info(general_config, registry_options):
-    """Overall information for the TACo Application."""
+    """Overall information about the TACo Application."""
     emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
@@ -129,7 +142,7 @@ def application_info(general_config, registry_options):
 @group_registry_options
 @group_general_config
 def active_providers(general_config, registry_options):
-    """List of active stakers for the TACo Application"""
+    """List of active stakers for the TACo Domain."""
     emitter, registry, blockchain_endpoint = registry_options.setup(
         general_config=general_config
     )
@@ -146,6 +159,71 @@ def active_providers(general_config, registry_options):
     emitter.echo(f"Active Staking Providers .......... {len(staking_providers)}")
     for provider, staked in staking_providers.items():
         emitter.echo(f"\t{provider} ..... {Web3.from_wei(staked, 'ether'):,}")
+
+
+@taco.command()
+@option_ritual_ids
+@click.option(
+    "--include-inactive",
+    "-i",
+    "include_inactive",
+    help="Include all known rituals including failed/expired ones",
+    is_flag=True,
+)
+@group_registry_options
+@group_general_config
+def rituals(ritual_ids, include_inactive, registry_options, general_config):
+    """Information about rituals on the TACo domain."""
+    if ritual_ids and not include_inactive:
+        # provided ritual ids may/may not be active
+        include_inactive = True
+
+    emitter, registry, blockchain_endpoint = registry_options.setup(
+        general_config=general_config
+    )
+    coordinator_agent = ContractAgency.get_agent(
+        CoordinatorAgent, registry=registry, blockchain_endpoint=blockchain_endpoint
+    )
+
+    headers = ["ID", "Expiry", "Threshold", "Participants"]
+    if include_inactive:
+        headers += ["Status", "Active"]
+
+    now = maya.now()
+    rows = list()
+    ritual_id_list = (
+        ritual_ids if ritual_ids else range(coordinator_agent.number_of_rituals())
+    )
+    for ritual_id in ritual_id_list:
+        ritual = coordinator_agent.get_ritual(ritual_id)
+
+        ritual_status = coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+        ritual_expiry = maya.MayaDT(epoch=ritual.end_timestamp)
+        is_ritual_active = all(
+            [
+                ritual_status == CoordinatorAgent.Ritual.Status.FINALIZED,
+                ritual_expiry > now,
+            ]
+        )
+        if not include_inactive and not is_ritual_active:
+            continue
+
+        row = [
+            ritual_id,
+            ritual_expiry.rfc3339(),
+            f"{ritual.threshold}/{ritual.dkg_size}",
+            "\n".join([p.provider for p in ritual.participants]),
+        ]
+
+        if include_inactive:
+            row.append(str(ritual_status))
+            row.append("✓" if is_ritual_active else "x")
+
+        rows.append(row)
+
+    emitter.echo(
+        tabulate(rows, headers=headers, showindex=False, tablefmt="fancy_grid")
+    )
 
 
 @taco.command()
