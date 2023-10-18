@@ -478,7 +478,7 @@ def config(general_config, config_options, config_file, force, action):
             eth_endpoint=config_options.eth_endpoint,
         )
         config_options.rest_host = rest_host
-    if action == "migrate":
+    elif action == "migrate":
         for jump, migration in MIGRATIONS.items():
             old, new = jump
             emitter.message(f"Checking migration {old} -> {new}")
