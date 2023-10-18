@@ -75,7 +75,7 @@ SUCCESSFUL_FORGET_NODES = "Removed all stored known nodes metadata and certifica
 
 IGNORE_OLD_CONFIGURATION = """
 Ignoring configuration file '{config_file}' - version is too old,
-Run `nucypher ursula config migrate --config-file {config_file}` to update it.
+Run `nucypher ursula config migrate --config-file '{config_file}'` to update it.
 """
 
 DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: '{config_file}'"
@@ -158,7 +158,7 @@ REGISTRY_NOT_AVAILABLE = "Registry not available."
 
 DEPLOYER_BALANCE = "\n\nDeployer ETH balance: {eth_balance}"
 
-SELECT_DEPLOYER_ACCOUNT = "Select deployer account" 
+SELECT_DEPLOYER_ACCOUNT = "Select deployer account"
 
 DEPLOYER_ADDRESS_ZERO_ETH = "Deployer address has no ETH."
 
