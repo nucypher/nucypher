@@ -1,0 +1,52 @@
+name: Build and Push Docker Image (version tags)
+
+on:
+  push:
+    tags: [ 'v*.*.*' ]
+    branches:
+      - development
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Update Development Package Metadata
+      if: ${{ github.ref_name == 'development' }}
+      run: |
+        pip install bumpversion
+        export VERSION=$(bumpversion major --dry-run --list --allow-dirty | grep current_version= | sed 's/current_version=//g')
+        echo "Set development version: $VERSION-dev.${{github.sha}}"
+        bumpversion devnum --new-version $VERSION-dev.${{github.sha}} --no-tag --no-commit
+
+    - name: Build and push Docker image (development)
+      if: ${{ github.ref_name == 'development' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ github.workspace }}
+        file: ./deploy/docker/Dockerfile
+        push: true
+        tags: nucypher/nucypher:lynx
+
+    - name: Build and push Docker image (tag)
+      if: ${{ github.ref_type == 'tag' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ github.workspace }}
+        file: ./deploy/docker/Dockerfile
+        push: true
+        tags: |
+          nucypher/nucypher:${{github.ref_name}}
+          nucypher/nucypher:lynx
