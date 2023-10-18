@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import Dict, List, Tuple
 
 from eth_typing import ChecksumAddress
@@ -52,7 +53,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                         timeout=timeout,
                     )
                 )
-                if response.status_code == 200:
+                if response.status_code == HTTPStatus.OK:
                     return EncryptedThresholdDecryptionResponse.from_bytes(
                         response.content
                     )
