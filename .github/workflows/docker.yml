@@ -2,21 +2,20 @@ name: Build and Push Docker Image (version tags)
 
 on:
   push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+    tags: [ 'v*.*.*' ]
     branches:
       - development
 
 jobs:
-  build:
+  docker:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v3
 
     - name: Login to DockerHub
       uses: docker/login-action@v1
@@ -24,13 +23,30 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Extract Current Version
+    - name: Update Development Package Metadata
       if: ${{ github.ref_name == 'development' }}
       run: |
-        export VERSION=$(bumpversion major --dry-run --list | grep current_version= | sed 's/current_version=//g')
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        pip install bumpversion
+        export VERSION=$(bumpversion major --dry-run --list --allow-dirty | grep current_version= | sed 's/current_version=//g')
+        echo "Set development version: $VERSION-dev.${{github.sha}}"
+        bumpversion devnum --new-version $VERSION-dev.${{github.sha}} --no-tag --no-commit
 
-    - name: Build and push Docker image
-      run: |
-        docker-compose build --tag nucypher/nucypher:$VERSION .
-        docker push nucypher/nucypher:$VERSION
+    - name: Build and push Docker image (development)
+      if: ${{ github.ref_name == 'development' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ github.workspace }}
+        file: ./deploy/docker/Dockerfile
+        push: true
+        tags: nucypher/nucypher:lynx
+
+    - name: Build and push Docker image (tag)
+      if: ${{ github.ref_type == 'tag' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ github.workspace }}
+        file: ./deploy/docker/Dockerfile
+        push: true
+        tags: |
+          nucypher/nucypher:${{github.ref_name}}
+          nucypher/nucypher:lynx
