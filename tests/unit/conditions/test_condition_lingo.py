@@ -6,7 +6,10 @@ from packaging.version import parse as parse_version
 import nucypher
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
-from nucypher.policy.conditions.exceptions import InvalidConditionLingo
+from nucypher.policy.conditions.exceptions import (
+    InvalidConditionLingo,
+    InvalidLogicalOperator,
+)
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
@@ -22,7 +25,7 @@ def lingo_with_condition():
 
 
 @pytest.fixture(scope="module")
-def lingo_with_compound_condition():
+def lingo_with_compound_conditions(get_random_checksum_address):
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
@@ -40,6 +43,40 @@ def lingo_with_compound_condition():
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "conditionType": "compound",
+                    "operator": "or",
+                    "operands": [
+                        {
+                            "conditionType": "time",
+                            "returnValueTest": {"value": 0, "comparator": ">"},
+                            "method": "blocktime",
+                            "chain": TESTERCHAIN_CHAIN_ID,
+                        },
+                        {
+                            "conditionType": "rpc",
+                            "chain": TESTERCHAIN_CHAIN_ID,
+                            "method": "eth_getBalance",
+                            "parameters": [get_random_checksum_address(), "latest"],
+                            "returnValueTest": {
+                                "comparator": ">=",
+                                "value": "10000000000000",
+                            },
+                        },
+                    ],
+                },
+                {
+                    "conditionType": "compound",
+                    "operator": "not",
+                    "operands": [
+                        {
+                            "conditionType": "time",
+                            "returnValueTest": {"value": 0, "comparator": ">"},
+                            "method": "blocktime",
+                            "chain": TESTERCHAIN_CHAIN_ID,
+                        },
+                    ],
                 },
             ],
         },
@@ -64,8 +101,27 @@ def test_invalid_condition():
             }
         )
 
+    # invalid operator
+    invalid_operator = {
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "conditionType": "compound",
+            "operator": "xTrue",
+            "operands": [
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+            ],
+        },
+    }
+    with pytest.raises(InvalidLogicalOperator):
+        ConditionLingo.from_dict(invalid_operator)
+
     # < 2 operands for and condition
-    invalid_operator_position_lingo = {
+    invalid_and_operands_lingo = {
         "version": ConditionLingo.VERSION,
         "condition": {
             "conditionType": "compound",
@@ -81,7 +137,51 @@ def test_invalid_condition():
         },
     }
     with pytest.raises(InvalidConditionLingo):
-        ConditionLingo.from_dict(invalid_operator_position_lingo)
+        ConditionLingo.from_dict(invalid_and_operands_lingo)
+
+    # < 2 operands for or condition
+    invalid_or_operands_lingo = {
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "conditionType": "compound",
+            "operator": "or",
+            "operands": [
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                }
+            ],
+        },
+    }
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_dict(invalid_or_operands_lingo)
+
+    # > 1 operand for `not` condition
+    invalid_not_operands_lingo = {
+        "version": ConditionLingo.VERSION,
+        "condition": {
+            "conditionType": "compound",
+            "operator": "not",
+            "operands": [
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {"value": 0, "comparator": ">"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+                {
+                    "conditionType": "time",
+                    "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
+                    "method": "blocktime",
+                    "chain": TESTERCHAIN_CHAIN_ID,
+                },
+            ],
+        },
+    }
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_dict(invalid_not_operands_lingo)
 
 
 @pytest.mark.parametrize("case", ["major", "minor", "patch"])
@@ -118,24 +218,24 @@ def test_invalid_condition_version(case):
         _ = ConditionLingo.from_dict(lingo_dict)
 
 
-def test_condition_lingo_to_from_dict(lingo_with_compound_condition):
-    clingo = ConditionLingo.from_dict(lingo_with_compound_condition)
+def test_condition_lingo_to_from_dict(lingo_with_compound_conditions):
+    clingo = ConditionLingo.from_dict(lingo_with_compound_conditions)
     clingo_dict = clingo.to_dict()
-    assert clingo_dict == lingo_with_compound_condition
+    assert clingo_dict == lingo_with_compound_conditions
 
 
-def test_condition_lingo_to_from_json(lingo_with_compound_condition):
+def test_condition_lingo_to_from_json(lingo_with_compound_conditions):
     # A bit more convoluted because fields aren't
     # necessarily ordered - so string comparison is tricky
-    clingo_from_dict = ConditionLingo.from_dict(lingo_with_compound_condition)
+    clingo_from_dict = ConditionLingo.from_dict(lingo_with_compound_conditions)
     lingo_json = clingo_from_dict.to_json()
 
     clingo_from_json = ConditionLingo.from_json(lingo_json)
-    assert clingo_from_json.to_dict() == lingo_with_compound_condition
+    assert clingo_from_json.to_dict() == lingo_with_compound_conditions
 
 
-def test_condition_lingo_repr(lingo_with_compound_condition):
-    clingo = ConditionLingo.from_dict(lingo_with_compound_condition)
+def test_condition_lingo_repr(lingo_with_compound_conditions):
+    clingo = ConditionLingo.from_dict(lingo_with_compound_conditions)
     clingo_string = f"{clingo}"
     assert f"{clingo.__class__.__name__}" in clingo_string
     assert f"version={ConditionLingo.VERSION}" in clingo_string

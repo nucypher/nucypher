@@ -24,7 +24,11 @@ from nucypher.policy.conditions.exceptions import (
     RequiredContextVariable,
     RPCExecutionFailed,
 )
-from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    ConditionLingo,
+    NotCompoundCondition,
+    ReturnValueTest,
+)
 from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
@@ -492,14 +496,45 @@ def test_time_condition_evaluation(testerchain, time_condition, condition_provid
     assert condition_result is True
 
 
-def test_simple_compound_conditions_evaluation(
+def test_not_time_condition_evaluation(
+    testerchain, time_condition, condition_providers
+):
+    not_condition = NotCompoundCondition(operand=time_condition)
+    condition_result, call_value = time_condition.verify(providers=condition_providers)
+    assert condition_result is True
+
+    not_condition_result, not_call_value = not_condition.verify(
+        providers=condition_providers
+    )
+    assert not_condition_result is (not condition_result)
+    assert not_call_value == call_value
+
+
+def test_simple_compound_conditions_lingo_evaluation(
     testerchain, compound_blocktime_lingo, condition_providers
 ):
-    # TODO Improve internals of evaluation here (natural vs recursive approach)
     conditions = json.dumps(compound_blocktime_lingo)
     lingo = ConditionLingo.from_json(conditions)
     result = lingo.eval(providers=condition_providers)
     assert result is True
+
+
+def test_not_of_simple_compound_conditions_lingo_evaluation(
+    testerchain, compound_blocktime_lingo, condition_providers
+):
+    # evaluate base condition
+    access_condition_lingo = ConditionLingo.from_dict(compound_blocktime_lingo)
+    result = access_condition_lingo.eval(providers=condition_providers)
+    assert result is True
+
+    # evaluate not of base condition
+    not_access_condition = NotCompoundCondition(
+        operand=access_condition_lingo.condition
+    )
+    not_access_condition_lingo = ConditionLingo(condition=not_access_condition)
+    not_result = not_access_condition_lingo.eval(providers=condition_providers)
+    assert not_result is False
+    assert not_result is (not result)
 
 
 @mock.patch(
@@ -515,6 +550,29 @@ def test_onchain_conditions_lingo_evaluation(
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.etherbase_account}}
     result = compound_lingo.eval(providers=condition_providers, **context)
     assert result is True
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_not_of_onchain_conditions_lingo_evaluation(
+    get_context_value_mock,
+    testerchain,
+    compound_lingo,
+    condition_providers,
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.etherbase_account}}
+    result = compound_lingo.eval(providers=condition_providers, **context)
+    assert result is True
+
+    not_condition = NotCompoundCondition(operand=compound_lingo.condition)
+    not_access_condition_lingo = ConditionLingo(condition=not_condition)
+    not_result = not_access_condition_lingo.eval(
+        providers=condition_providers, **context
+    )
+    assert not_result is False
+    assert not_result is (not result)
 
 
 def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
