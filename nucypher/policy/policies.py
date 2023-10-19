@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import Dict, Iterable, List, Optional, Sequence
 
 import maya
@@ -95,7 +96,7 @@ class Policy:
         response = network_middleware.ping(node=ursula)
         status_code = response.status_code
 
-        if status_code == 200:
+        if status_code == HTTPStatus.OK:
             return ursula
         else:
             raise RuntimeError(f"{ursula} is not available for selection ({status_code}).")

@@ -9,9 +9,14 @@ class Profiler(cProfile.Profile):
     PROFILER_ENV_VAR = "COLLECT_PROFILER_STATS"
 
     def __init__(
-        self, sort_by: SortKey = SortKey.TIME, top_n_entries: int = 10, **kwargs
+        self,
+        label: str = "",
+        sort_by: SortKey = SortKey.TIME,
+        top_n_entries: int = 10,
+        **kwargs,
     ) -> None:
         self.active = self.PROFILER_ENV_VAR in os.environ
+        self.label = label
         self.top_n = top_n_entries
         self.sort_by = sort_by
         super().__init__(**kwargs)
@@ -25,7 +30,8 @@ class Profiler(cProfile.Profile):
         if self.active:
             super().__exit__(exc_info)
             profiler_stats = Stats(self).sort_stats(self.sort_by)
-            print("\n------ Profile Stats -------")
+            label = f"[{self.label}]" if self.label else ""
+            print(f"\n------ Profile Stats {label} -------")
             profiler_stats.print_stats(self.top_n)
-            print("\n- Caller Info -")
+            print(f"\n- Caller Info {label} -")
             profiler_stats.print_callers(self.top_n)

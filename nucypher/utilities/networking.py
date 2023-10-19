@@ -1,7 +1,5 @@
-
-
-
 import random
+from http import HTTPStatus
 from ipaddress import ip_address
 from typing import Optional, Union
 
@@ -63,7 +61,7 @@ def _request(url: str, certificate=None) -> Union[str, None]:
         response = requests.get(url, verify=certificate)
     except RequestErrors:
         return None
-    if response.status_code == 200:
+    if response.status_code == HTTPStatus.OK:
         return response.text
 
 
@@ -86,7 +84,7 @@ def _request_from_node(
     except NodeSeemsToBeDown:
         # This node is unreachable.  Move on.
         return
-    if response.status_code == 200:
+    if response.status_code == HTTPStatus.OK:
         try:
             ip = str(ip_address(response.text))
         except ValueError:

@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import Dict, List, Tuple
 
 from eth_typing import ChecksumAddress
@@ -26,7 +27,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         self,
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
-        timeout: float = 10,
+        timeout: float = 15,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
@@ -52,7 +53,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                         timeout=timeout,
                     )
                 )
-                if response.status_code == 200:
+                if response.status_code == HTTPStatus.OK:
                     return EncryptedThresholdDecryptionResponse.from_bytes(
                         response.content
                     )
@@ -70,6 +71,9 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                 ursula_to_contact=list(encrypted_requests.keys()), threshold=threshold
             ),
             target_successes=threshold,
+            threadpool_size=len(
+                encrypted_requests
+            ),  # TODO should we cap this (say 40?)
             timeout=timeout,
         )
         worker_pool.start()
