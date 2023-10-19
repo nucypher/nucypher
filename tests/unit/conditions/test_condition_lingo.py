@@ -39,10 +39,27 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": ConditionType.TIME.value,
-                    "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-                    "method": "blocktime",
+                    "conditionType": ConditionType.CONTRACT.value,
                     "chain": TESTERCHAIN_CHAIN_ID,
+                    "method": "isPolicyActive",
+                    "parameters": [":hrac"],
+                    "returnValueTest": {"comparator": "==", "value": True},
+                    "contractAddress": get_random_checksum_address(),
+                    "functionAbi": {
+                        "type": "function",
+                        "name": "isPolicyActive",
+                        "stateMutability": "view",
+                        "inputs": [
+                            {
+                                "name": "_policyID",
+                                "type": "bytes16",
+                                "internalType": "bytes16",
+                            }
+                        ],
+                        "outputs": [
+                            {"name": "", "type": "bool", "internalType": "bool"}
+                        ],
+                    },
                 },
                 {
                     "conditionType": ConditionType.COMPOUND.value,
