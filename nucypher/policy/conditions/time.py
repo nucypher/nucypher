@@ -37,7 +37,7 @@ class TimeCondition(RPCCondition):
         return_value_test: ReturnValueTest,
         chain: int,
         method: str = METHOD,
-        condition_type: str = ConditionType.TIME.value,
+        condition_type: str = CONDITION_TYPE,
         name: Optional[str] = None,
     ):
         if method != self.METHOD:

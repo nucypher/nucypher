@@ -151,6 +151,11 @@ class RPCCondition(AccessControlCondition):
         _validate_chain(chain=chain)
 
         # internal
+        if condition_type != self.CONDITION_TYPE:
+            raise InvalidCondition(
+                f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
+            )
+
         self.condition_type = condition_type
         self.name = name
         self.chain = chain
@@ -296,7 +301,7 @@ class ContractCondition(RPCCondition):
         **kwargs,
     ):
         # internal
-        super().__init__(*args, **kwargs)
+        super().__init__(condition_type=condition_type, *args, **kwargs)
         self.w3 = Web3()  # used to instantiate contract function without a provider
 
         if not (bool(standard_contract_type) ^ bool(function_abi)):
