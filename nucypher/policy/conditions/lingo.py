@@ -3,7 +3,7 @@ import base64
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
-from typing import Any, List, Optional, Tuple, Type
+from typing import Any, List, Optional, Tuple, Type, Union
 
 from marshmallow import (
     Schema,
@@ -82,6 +82,26 @@ class CompoundAccessControlCondition(AccessControlCondition):
     OPERATORS = (AND_OPERATOR, OR_OPERATOR, NOT_OPERATOR)
     CONDITION_TYPE = ConditionType.COMPOUND.value
 
+    @classmethod
+    def _validate_operator_and_operands(
+        cls,
+        operator: str,
+        operands: List,
+        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+    ):
+        if operator not in cls.OPERATORS:
+            raise exception_class(f"{operator} is not a valid operator")
+
+        if operator == cls.NOT_OPERATOR:
+            if len(operands) != 1:
+                raise exception_class(
+                    f"Only 1 operand permitted for '{operator}' compound condition"
+                )
+        elif len(operands) < 2:
+            raise exception_class(
+                f"Minimum of 2 operand needed for '{operator}' compound condition"
+            )
+
     class Schema(CamelCaseSchema):
         SKIP_VALUES = (None,)
         condition_type = fields.Str(
@@ -98,19 +118,10 @@ class CompoundAccessControlCondition(AccessControlCondition):
         @validates_schema
         def validate_operator_and_operands(self, data, **kwargs):
             operator = data["operator"]
-            if operator not in CompoundAccessControlCondition.OPERATORS:
-                raise ValidationError(f"{operator} is not a valid operator")
-
             operands = data["operands"]
-            if operator == CompoundAccessControlCondition.NOT_OPERATOR:
-                if len(operands) != 1:
-                    raise ValidationError(
-                        f"Only 1 operand permitted for '{operator}' condition"
-                    )
-            elif len(operands) < 2:
-                raise ValidationError(
-                    f"Minimum of 2 operand needed for '{operator}' compound condition"
-                )
+            CompoundAccessControlCondition._validate_operator_and_operands(
+                operator, operands, ValidationError
+            )
 
         @post_load
         def make(self, data, **kwargs):
@@ -134,18 +145,7 @@ class CompoundAccessControlCondition(AccessControlCondition):
                 f"{self.__class__.__name__} must be instantiated with the {self.CONDITION_TYPE} type."
             )
 
-        if operator not in self.OPERATORS:
-            raise InvalidCondition(f"{operator} is not a valid operator")
-
-        if operator == self.NOT_OPERATOR:
-            if len(operands) != 1:
-                raise InvalidCondition(
-                    f"Only 1 operand permitted for '{operator}' condition"
-                )
-        elif len(operands) < 2:
-            raise InvalidCondition(
-                f"Minimum of 2 operand needed for '{operator}' compound condition"
-            )
+        self._validate_operator_and_operands(operator, operands, InvalidCondition)
 
         self.condition_type = condition_type
         self.operator = operator
@@ -169,7 +169,6 @@ class CompoundAccessControlCondition(AccessControlCondition):
                 if overall_result is False:
                     break
             elif self.operator == self.OR_OPERATOR:
-                # or operator
                 overall_result = overall_result or current_result
                 # short-circuit check
                 if overall_result is True:
