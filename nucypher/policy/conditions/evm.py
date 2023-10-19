@@ -1,4 +1,4 @@
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, Union
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
@@ -270,6 +270,18 @@ class RPCCondition(AccessControlCondition):
 class ContractCondition(RPCCondition):
     CONDITION_TYPE = ConditionType.CONTRACT.value
 
+    @classmethod
+    def _validate_contract_type_or_function_abi(
+        cls,
+        standard_contract_type: str,
+        function_abi: Dict,
+        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+    ):
+        if not (bool(standard_contract_type) ^ bool(function_abi)):
+            raise exception_class(
+                f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
+            )
+
     class Schema(RPCCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.CONTRACT.value), required=True
@@ -286,10 +298,9 @@ class ContractCondition(RPCCondition):
         def check_standard_contract_type_or_function_abi(self, data, **kwargs):
             standard_contract_type = data.get("standard_contract_type")
             function_abi = data.get("function_abi")
-            if not (bool(standard_contract_type) ^ bool(function_abi)):
-                raise ValidationError(
-                    f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
-                )
+            ContractCondition._validate_contract_type_or_function_abi(
+                standard_contract_type, function_abi, ValidationError
+            )
 
     def __init__(
         self,
@@ -304,10 +315,9 @@ class ContractCondition(RPCCondition):
         super().__init__(condition_type=condition_type, *args, **kwargs)
         self.w3 = Web3()  # used to instantiate contract function without a provider
 
-        if not (bool(standard_contract_type) ^ bool(function_abi)):
-            raise InvalidCondition(
-                f"Provide 'standard_contract_type' or 'function_abi'; got ({standard_contract_type}, {function_abi})."
-            )
+        ContractCondition._validate_contract_type_or_function_abi(
+            standard_contract_type, function_abi, InvalidCondition
+        )
 
         # preprocessing
         contract_address = to_checksum_address(contract_address)
