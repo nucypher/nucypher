@@ -29,6 +29,7 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
+    NO_ENTER,
     YES_ENTER,
 )
 from tests.utils.ursula import select_test_port
@@ -198,6 +199,44 @@ def test_run_ursula_from_config_file(custom_filepath: Path, click_runner):
     # CLI Output
     assert result.exit_code == 0, result.output
     assert f"Rest Server https://{MOCK_IP_ADDRESS}" in result.output
+
+
+def test_ursula_config_ip_address(click_runner, custom_filepath: Path):
+    # Ensure the configuration file still exists
+    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    assert custom_config_filepath.is_file(), "Configuration file does not exist"
+
+    ip_address_args = (
+        "ursula",
+        "config",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+        "ip-address",
+    )
+
+    ip_address = "99.99.99.99"
+    user_input = NO_ENTER + ip_address + "\n"
+    result = click_runner.invoke(
+        nucypher_cli, ip_address_args, input=user_input, catch_exceptions=False
+    )
+
+    # Loads the configuration file
+    with open(custom_config_filepath, "r") as config_file:
+        raw_contents = config_file.read()
+
+        try:
+            data = json.loads(raw_contents)
+        except JSONDecodeError:
+            raise pytest.fail(
+                msg="Invalid JSON configuration file {}".format(custom_config_filepath)
+            )
+
+        assert data["rest_host"] == ip_address, "IP address not updated in "
+
+    assert result.exit_code == 0, result.output
+    assert (
+        f'"rest_host": "{ip_address}"' in result.output
+    ), "IP address Not updated in command output"
 
 
 # Should be the last test since it deletes the configuration file
