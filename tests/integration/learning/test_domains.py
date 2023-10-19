@@ -42,6 +42,7 @@ def registry_2(domain_2, test_registry):
     return ContractRegistry(MockRegistrySource(domain=domain_2))
 
 
+@pytest.mark.skip("inconsistent behaviour on CI - see #3289")
 def test_learner_learns_about_domains_separately(
     lonely_ursula_maker, domain_1, domain_2, registry_1, registry_2, caplog
 ):
