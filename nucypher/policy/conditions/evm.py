@@ -2,7 +2,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
-from marshmallow import fields, post_load, validate, validates_schema
+from marshmallow import ValidationError, fields, post_load, validate, validates_schema
 from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractFunction
 from web3.middleware import geth_poa_middleware
@@ -282,7 +282,7 @@ class ContractCondition(RPCCondition):
             standard_contract_type = data.get("standard_contract_type")
             function_abi = data.get("function_abi")
             if not (bool(standard_contract_type) ^ bool(function_abi)):
-                raise InvalidCondition(
+                raise ValidationError(
                     f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
                 )
 

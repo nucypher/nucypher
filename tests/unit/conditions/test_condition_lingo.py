@@ -8,7 +8,6 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.exceptions import (
     InvalidConditionLingo,
-    InvalidLogicalOperator,
 )
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
@@ -134,7 +133,7 @@ def test_invalid_condition():
             ],
         },
     }
-    with pytest.raises(InvalidLogicalOperator):
+    with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_operator)
 
     # < 2 operands for and condition

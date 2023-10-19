@@ -2,7 +2,11 @@ import pytest
 
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
-from nucypher.policy.conditions.lingo import ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    CompoundAccessControlCondition,
+    ConditionType,
+    ReturnValueTest,
+)
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
@@ -229,3 +233,47 @@ def test_contract_condition_schema_validation():
         condition_dict = contract_condition.to_dict()
         del condition_dict["returnValueTest"]
         ContractCondition.validate(condition_dict)
+
+
+@pytest.mark.parametrize("operator", CompoundAccessControlCondition.OPERATORS)
+def test_compound_condition_schema_validation(operator, time_condition, rpc_condition):
+    if operator == CompoundAccessControlCondition.NOT_OPERATOR:
+        operands = [time_condition]
+    else:
+        operands = [time_condition, rpc_condition]
+
+    compound_condition = CompoundAccessControlCondition(
+        operator=operator, operands=operands
+    )
+    compound_condition_dict = compound_condition.to_dict()
+
+    # no issues here
+    CompoundAccessControlCondition.validate(compound_condition_dict)
+
+    # no issues with optional name
+    compound_condition_dict["name"] = "my_contract_condition"
+    CompoundAccessControlCondition.validate(compound_condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # incorrect condition type
+        compound_condition_dict = compound_condition.to_dict()
+        compound_condition_dict["condition_type"] = ConditionType.RPC.value
+        CompoundAccessControlCondition.validate(compound_condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # invalid operator
+        compound_condition_dict = compound_condition.to_dict()
+        compound_condition_dict["operator"] = "5True"
+        CompoundAccessControlCondition.validate(compound_condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no operator
+        compound_condition_dict = compound_condition.to_dict()
+        del compound_condition_dict["operator"]
+        CompoundAccessControlCondition.validate(compound_condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no operands
+        compound_condition_dict = compound_condition.to_dict()
+        del compound_condition_dict["operands"]
+        CompoundAccessControlCondition.validate(compound_condition_dict)

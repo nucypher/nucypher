@@ -22,7 +22,6 @@ from nucypher.policy.conditions.context import is_context_variable
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
-    InvalidLogicalOperator,
     ReturnValueEvaluationError,
 )
 from nucypher.policy.conditions.types import ConditionDict, Lingo
@@ -100,16 +99,16 @@ class CompoundAccessControlCondition(AccessControlCondition):
         def validate_operator_and_operands(self, data, **kwargs):
             operator = data["operator"]
             if operator not in CompoundAccessControlCondition.OPERATORS:
-                raise InvalidLogicalOperator(f"{operator} is not a valid operator")
+                raise ValidationError(f"{operator} is not a valid operator")
 
             operands = data["operands"]
             if operator == CompoundAccessControlCondition.NOT_OPERATOR:
                 if len(operands) != 1:
-                    raise InvalidConditionLingo(
+                    raise ValidationError(
                         f"Only 1 operand permitted for '{operator}' condition"
                     )
             elif len(operands) < 2:
-                raise InvalidConditionLingo(
+                raise ValidationError(
                     f"Minimum of 2 operand needed for '{operator}' compound condition"
                 )
 
