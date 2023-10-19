@@ -34,7 +34,11 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
-from nucypher.policy.conditions.lingo import ConditionLingo, ReturnValueTest
+from nucypher.policy.conditions.lingo import (
+    ConditionLingo,
+    ConditionType,
+    ReturnValueTest,
+)
 from nucypher.policy.conditions.time import TimeCondition
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
@@ -592,17 +596,17 @@ def compound_blocktime_lingo():
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "and",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": "0", "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {
                         "value": "99999999999999999",
                         "comparator": "<",
@@ -611,7 +615,7 @@ def compound_blocktime_lingo():
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": "0", "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,

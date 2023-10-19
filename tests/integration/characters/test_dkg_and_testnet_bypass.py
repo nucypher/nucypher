@@ -8,7 +8,7 @@ from nucypher.characters.chaotic import (
     ThisBobAlwaysFails,
 )
 from nucypher.characters.lawful import Ursula
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     MOCK_REGISTRY_FILEPATH,
@@ -30,7 +30,7 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
     definitely_false_condition = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "time",
+            "conditionType": ConditionType.TIME.value,
             "chain": TESTERCHAIN_CHAIN_ID,
             "method": "blocktime",
             "returnValueTest": {"comparator": "<", "value": 0},

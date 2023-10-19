@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
@@ -56,32 +56,32 @@ print(
 conditions = {
     "version": ConditionLingo.VERSION,
     "condition": {
-        "conditionType": "compound",
+        "conditionType": ConditionType.COMPOUND.value,
         "operator": "and",
         "operands": [
             {
-                "conditionType": "rpc",
+                "conditionType": ConditionType.RPC.value,
                 "chain": 1,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": "==", "value": 0},
             },
             {
-                "conditionType": "rpc",
+                "conditionType": ConditionType.RPC.value,
                 "chain": 137,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": "==", "value": 0},
             },
             {
-                "conditionType": "rpc",
+                "conditionType": ConditionType.RPC.value,
                 "chain": 5,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": ">", "value": 1},
             },
             {
-                "conditionType": "rpc",
+                "conditionType": ConditionType.RPC.value,
                 "chain": 80001,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],

@@ -4,8 +4,17 @@ import pytest
 from nucypher_core import Conditions
 
 from nucypher.characters.lawful import Ursula
-from nucypher.policy.conditions.exceptions import *
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
+    ContextVariableVerificationFailed,
+    InvalidCondition,
+    InvalidConditionLingo,
+    InvalidContextVariableData,
+    NoConnectionToChain,
+    RequiredContextVariable,
+    ReturnValueEvaluationError,
+)
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.utils.middleware import MockRestMiddleware
 
@@ -28,17 +37,17 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
     conditions = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "and",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -72,7 +81,7 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
             {
                 "version": ConditionLingo.VERSION,
                 "condition": {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -134,7 +143,7 @@ def test_middleware_handling_of_failed_condition_responses(
             {
                 "version": ConditionLingo.VERSION,
                 "condition": {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,

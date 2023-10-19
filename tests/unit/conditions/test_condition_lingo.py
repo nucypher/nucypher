@@ -17,7 +17,7 @@ from tests.constants import TESTERCHAIN_CHAIN_ID
 @pytest.fixture(scope="module")
 def lingo_with_condition():
     return {
-        "conditionType": "time",
+        "conditionType": ConditionType.TIME.value,
         "returnValueTest": {"value": 0, "comparator": ">"},
         "method": "blocktime",
         "chain": TESTERCHAIN_CHAIN_ID,
@@ -29,33 +29,33 @@ def lingo_with_compound_conditions(get_random_checksum_address):
     return {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "and",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": "compound",
+                    "conditionType": ConditionType.COMPOUND.value,
                     "operator": "or",
                     "operands": [
                         {
-                            "conditionType": "time",
+                            "conditionType": ConditionType.TIME.value,
                             "returnValueTest": {"value": 0, "comparator": ">"},
                             "method": "blocktime",
                             "chain": TESTERCHAIN_CHAIN_ID,
                         },
                         {
-                            "conditionType": "rpc",
+                            "conditionType": ConditionType.RPC.value,
                             "chain": TESTERCHAIN_CHAIN_ID,
                             "method": "eth_getBalance",
                             "parameters": [get_random_checksum_address(), "latest"],
@@ -67,11 +67,11 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                     ],
                 },
                 {
-                    "conditionType": "compound",
+                    "conditionType": ConditionType.COMPOUND.value,
                     "operator": "not",
                     "operands": [
                         {
-                            "conditionType": "time",
+                            "conditionType": ConditionType.TIME.value,
                             "returnValueTest": {"value": 0, "comparator": ">"},
                             "method": "blocktime",
                             "chain": TESTERCHAIN_CHAIN_ID,
@@ -105,11 +105,11 @@ def test_invalid_condition():
     invalid_operator = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "xTrue",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -124,11 +124,11 @@ def test_invalid_condition():
     invalid_and_operands_lingo = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "and",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -143,11 +143,11 @@ def test_invalid_condition():
     invalid_or_operands_lingo = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "or",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -162,17 +162,17 @@ def test_invalid_condition():
     invalid_not_operands_lingo = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "compound",
+            "conditionType": ConditionType.COMPOUND.value,
             "operator": "not",
             "operands": [
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
-                    "conditionType": "time",
+                    "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
@@ -202,7 +202,7 @@ def test_invalid_condition_version(case):
     lingo_dict = {
         "version": newer_version_string,
         "condition": {
-            "conditionType": "time",
+            "conditionType": ConditionType.TIME.value,
             "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,

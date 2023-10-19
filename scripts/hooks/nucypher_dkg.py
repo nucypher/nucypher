@@ -16,7 +16,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.crypto.powers import TransactingPower
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY, GLOBAL_ALLOW_LIST
@@ -303,7 +303,7 @@ def nucypher_dkg(
     CONDITIONS = {
         "version": ConditionLingo.VERSION,
         "condition": {
-            "conditionType": "time",
+            "conditionType": ConditionType.TIME.value,
             "returnValueTest": {"value": "0", "comparator": ">"},
             "method": "blocktime",
             "chain": application_agent.blockchain.client.chain_id,

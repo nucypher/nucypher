@@ -2,7 +2,7 @@ from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 
 plaintext = b"paz al amanecer"
 THIS_IS_NOT_A_TRINKET = 55  # sometimes called "public key"
@@ -16,7 +16,7 @@ ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55
 before_the_beginning_of_time = {
     "version": ConditionLingo.VERSION,
     "condition": {
-        "conditionType": "time",
+        "conditionType": ConditionType.TIME.value,
         "chain": 1,
         "method": "blocktime",
         "returnValueTest": {"comparator": "<", "value": 0},

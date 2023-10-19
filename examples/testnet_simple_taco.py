@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.profiler import Profiler
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
@@ -57,7 +57,7 @@ print(
 eth_balance_condition = {
     "version": ConditionLingo.VERSION,
     "condition": {
-        "conditionType": "rpc",
+        "conditionType": ConditionType.RPC.value,
         "chain": 80001,
         "method": "eth_getBalance",
         "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
