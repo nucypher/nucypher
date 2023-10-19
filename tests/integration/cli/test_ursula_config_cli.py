@@ -236,7 +236,7 @@ def test_ursula_config_ip_address(click_runner, custom_filepath: Path):
     assert result.exit_code == 0, result.output
     assert (
         f'"rest_host": "{ip_address}"' in result.output
-    ), "IP address Not updated in command output"
+    ), "IP address not updated in command output"
 
 
 # Should be the last test since it deletes the configuration file
