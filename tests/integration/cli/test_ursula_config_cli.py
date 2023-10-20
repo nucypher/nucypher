@@ -201,7 +201,9 @@ def test_run_ursula_from_config_file(custom_filepath: Path, click_runner):
     assert f"Rest Server https://{MOCK_IP_ADDRESS}" in result.output
 
 
-def test_ursula_config_ip_address(click_runner, custom_filepath: Path):
+def test_ursula_config_ip_address_manually_inserted(
+    click_runner, custom_filepath: Path
+):
     # Ensure the configuration file still exists
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), "Configuration file does not exist"
@@ -238,6 +240,66 @@ def test_ursula_config_ip_address(click_runner, custom_filepath: Path):
     assert result.exit_code == 0, result.output
     assert (
         f'"rest_host": "{ip_address}"' in result.output
+    ), "IP address not updated in command output"
+
+
+def test_ursula_config_ip_address_detected(click_runner, custom_filepath: Path):
+    # Ensure the configuration file still exists
+    custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
+    assert custom_config_filepath.is_file(), "Configuration file does not exist"
+
+    # set a test IP address in config file
+    ip_address = "88.88.88.88"
+    config_args = (
+        "ursula",
+        "config",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+        "--rest-host",
+        ip_address,
+    )
+
+    config_result = click_runner.invoke(
+        nucypher_cli, config_args, catch_exceptions=False
+    )
+
+    # check the IP address has been set
+    assert (
+        f'"rest_host": "{ip_address}"' in config_result.output
+    ), "IP address not updated in command output"
+
+    # set the automatically detected IP address in config file
+    ip_address_args = (
+        "ursula",
+        "config",
+        "--config-file",
+        str(custom_config_filepath.absolute()),
+        "ip-address",
+    )
+
+    user_input = YES_ENTER
+    result = click_runner.invoke(
+        nucypher_cli, ip_address_args, input=user_input, catch_exceptions=False
+    )
+
+    # Loads the configuration file
+    with open(custom_config_filepath, "r") as config_file:
+        raw_contents = config_file.read()
+
+        try:
+            data = json.loads(raw_contents)
+        except JSONDecodeError:
+            raise pytest.fail(
+                msg=f"Invalid JSON configuration file {custom_config_filepath}"
+            )
+
+        assert (
+            data["rest_host"] == MOCK_IP_ADDRESS
+        ), "IP address not updated in configuration file"
+
+    assert result.exit_code == 0, result.output
+    assert (
+        f'"rest_host": "{MOCK_IP_ADDRESS}"' in result.output
     ), "IP address not updated in command output"
 
 
