@@ -3,7 +3,11 @@ from unittest.mock import Mock
 import pytest
 
 from nucypher.policy.conditions.base import AccessControlCondition
-from nucypher.policy.conditions.lingo import AndCompoundCondition, OrCompoundCondition
+from nucypher.policy.conditions.lingo import (
+    AndCompoundCondition,
+    NotCompoundCondition,
+    OrCompoundCondition,
+)
 
 
 @pytest.fixture(scope="function")
@@ -203,3 +207,160 @@ def test_nested_compound_condition(mock_conditions):
     assert result is False
     assert len(value) == 2, "or_condition and condition_4"
     assert value == [[1, [2, 3]], 4]
+
+
+def test_not_compound_condition(mock_conditions):
+    condition_1, condition_2, condition_3, condition_4 = mock_conditions
+
+    not_condition = NotCompoundCondition(operand=condition_1)
+
+    #
+    # simple `not`
+    #
+    condition_1.verify.return_value = (True, 1)
+    result, value = not_condition.verify()
+    assert result is False
+    assert value == 1
+
+    condition_1.verify.return_value = (False, 2)
+    result, value = not_condition.verify()
+    assert result is True
+    assert value == 2
+
+    #
+    # `not` of `or` condition
+    #
+
+    # only True
+    condition_1.verify.return_value = (True, 1)
+    condition_2.verify.return_value = (True, 2)
+    condition_3.verify.return_value = (True, 3)
+
+    or_condition = OrCompoundCondition(
+        operands=[
+            condition_1,
+            condition_2,
+            condition_3,
+        ]
+    )
+    not_condition = NotCompoundCondition(operand=or_condition)
+    or_result, or_value = or_condition.verify()
+    result, value = not_condition.verify()
+    assert result is False
+    assert result is (not or_result)
+    assert value == or_value
+
+    # only False
+    condition_1.verify.return_value = (False, 1)
+    condition_2.verify.return_value = (False, 2)
+    condition_3.verify.return_value = (False, 3)
+    or_result, or_value = or_condition.verify()
+    result, value = not_condition.verify()
+    assert result is True
+    assert result is (not or_result)
+    assert value == or_value
+
+    # mixture of True/False
+    condition_1.verify.return_value = (False, 1)
+    condition_2.verify.return_value = (False, 2)
+    condition_3.verify.return_value = (True, 3)
+    or_result, or_value = or_condition.verify()
+    result, value = not_condition.verify()
+    assert result is False
+    assert result is (not or_result)
+    assert value == or_value
+
+    #
+    # `not` of `and` condition
+    #
+
+    # only True
+    condition_1.verify.return_value = (True, 1)
+    condition_2.verify.return_value = (True, 2)
+    condition_3.verify.return_value = (True, 3)
+
+    and_condition = AndCompoundCondition(
+        operands=[
+            condition_1,
+            condition_2,
+            condition_3,
+        ]
+    )
+    not_condition = NotCompoundCondition(operand=and_condition)
+
+    and_result, and_value = and_condition.verify()
+    result, value = not_condition.verify()
+    assert result is False
+    assert result is (not and_result)
+    assert value == and_value
+
+    # only False
+    condition_1.verify.return_value = (False, 1)
+    condition_2.verify.return_value = (False, 2)
+    condition_3.verify.return_value = (False, 3)
+    and_result, and_value = and_condition.verify()
+    result, value = not_condition.verify()
+    assert result is True
+    assert result is (not and_result)
+    assert value == and_value
+
+    # mixture of True/False
+    condition_1.verify.return_value = (False, 1)
+    condition_2.verify.return_value = (True, 2)
+    condition_3.verify.return_value = (False, 3)
+    and_result, and_value = and_condition.verify()
+    result, value = not_condition.verify()
+    assert result is True
+    assert result is (not and_result)
+    assert value == and_value
+
+    #
+    # Complex nested `or` and `and` (reused nested compound condition in previous test)
+    #
+    nested_compound_condition = AndCompoundCondition(
+        operands=[
+            OrCompoundCondition(
+                operands=[
+                    condition_1,
+                    AndCompoundCondition(
+                        operands=[
+                            condition_2,
+                            condition_3,
+                        ]
+                    ),
+                ]
+            ),
+            condition_4,
+        ]
+    )
+
+    not_condition = NotCompoundCondition(operand=nested_compound_condition)
+
+    # reset all conditions to True
+    condition_1.verify.return_value = (True, 1)
+    condition_2.verify.return_value = (True, 2)
+    condition_3.verify.return_value = (True, 3)
+    condition_4.verify.return_value = (True, 4)
+
+    nested_result, nested_value = nested_compound_condition.verify()
+    result, value = not_condition.verify()
+    assert result is False
+    assert result is (not nested_result)
+    assert value == nested_value
+
+    # set condition_1 to False so nested and-condition must be evaluated
+    condition_1.verify.return_value = (False, 1)
+
+    nested_result, nested_value = nested_compound_condition.verify()
+    result, value = not_condition.verify()
+    assert result is False
+    assert result is (not nested_result)
+    assert value == nested_value
+
+    # set condition_4 to False so that overall result flips to False, so `not` is now True
+    condition_4.verify.return_value = (False, 4)
+    nested_result, nested_value = nested_compound_condition.verify()
+    result, value = not_condition.verify()
+    assert result is True
+    assert result is (not nested_result)
+    assert value == nested_value

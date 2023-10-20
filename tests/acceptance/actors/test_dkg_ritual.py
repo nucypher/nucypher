@@ -5,7 +5,7 @@ from twisted.internet.threads import deferToThread
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 
 # constants
@@ -21,7 +21,7 @@ PLAINTEXT = "peace at dawn"
 CONDITIONS = {
     "version": ConditionLingo.VERSION,
     "condition": {
-        "conditionType": "time",
+        "conditionType": ConditionType.TIME.value,
         "returnValueTest": {"value": "0", "comparator": ">"},
         "method": "blocktime",
         "chain": TESTERCHAIN_CHAIN_ID,

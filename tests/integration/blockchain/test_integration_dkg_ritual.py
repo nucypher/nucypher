@@ -12,7 +12,7 @@ from web3.datastructures import AttributeDict
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.policy.conditions.lingo import ConditionLingo
+from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
@@ -22,7 +22,7 @@ PLAINTEXT = "peace at dawn"
 CONDITIONS = {
     "version": ConditionLingo.VERSION,
     "condition": {
-        "conditionType": "time",
+        "conditionType": ConditionType.TIME.value,
         "returnValueTest": {"value": "0", "comparator": ">"},
         "method": "blocktime",
         "chain": TESTERCHAIN_CHAIN_ID,

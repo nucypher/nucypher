@@ -3,10 +3,6 @@ class InvalidConditionLingo(Exception):
     """Invalid lingo grammar."""
 
 
-class InvalidLogicalOperator(InvalidConditionLingo):
-    """Invalid definition of logical lingo operator."""
-
-
 # Connectivity
 class NoConnectionToChain(RuntimeError):
     """Raised when a node does not have an associated provider for a chain."""
