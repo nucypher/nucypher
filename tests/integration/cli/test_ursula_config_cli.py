@@ -231,7 +231,9 @@ def test_ursula_config_ip_address(click_runner, custom_filepath: Path):
                 msg=f"Invalid JSON configuration file {custom_config_filepath}"
             )
 
-        assert data["rest_host"] == ip_address, "IP address not updated in command output"
+        assert (
+            data["rest_host"] == ip_address
+        ), "IP address not updated in configuration file"
 
     assert result.exit_code == 0, result.output
     assert (
