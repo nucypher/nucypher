@@ -27,7 +27,7 @@ jobs:
       if: ${{ github.ref_name == 'development' }}
       run: |
         pip install bumpversion
-        export VERSION=$(bumpversion major --dry-run --list --allow-dirty | grep current_version= | sed 's/current_version=//g')
+        export VERSION=$(bumpversion devnum --dry-run --allow-dirty --list | grep current_version | sed 's/^current_version=\([0-9]*\.[0-9]*\.[0-9]*\).*/\1/')
         echo "Set development version: $VERSION-dev.${{github.sha}}"
         bumpversion devnum --new-version $VERSION-dev.${{github.sha}} --no-tag --no-commit
 
