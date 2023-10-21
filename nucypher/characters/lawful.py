@@ -1213,22 +1213,9 @@ class Ursula(Teacher, Character, Operator):
         # Parse node URI
         host, port, staking_provider_address = parse_node_uri(seed_uri)
 
-        # Fetch the hosts TLS certificate and read the common name
-        try:
-            certificate, _filepath = network_middleware.client.get_certificate(
-                host=host, port=port
-            )
-        except NodeSeemsToBeDown as e:
-            e.args += (f"While trying to load seednode {seed_uri}",)
-            e.crash_right_now = True
-            raise
-        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[
-            0
-        ].value
-
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
-            host=real_host,
+            host=host,
             port=port,
             network_middleware=network_middleware,
         )
