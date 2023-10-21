@@ -1,24 +1,15 @@
 import os
-import socket
-import ssl
 from http import HTTPStatus
-<<<<<<< HEAD
-from typing import Tuple, Union
-=======
 from typing import Optional, Sequence
->>>>>>> 8233d2ce2 (removes certificate filepath handling)
+from typing import Tuple, Union
 
-import time
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
 
 from nucypher import characters
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.config.storages import NodeStorage
-from nucypher.utilities.logging import Logger
 from nucypher.utilities.certs import InMemoryCertSession
+from nucypher.utilities.logging import Logger
 
 SSL_LOGGER = Logger('ssl-middleware')
 EXEMPT_FROM_VERIFICATION.bool_value(False)
@@ -43,7 +34,6 @@ class NucypherMiddlewareClient:
         self,
         eth_endpoint: Optional[str],
         registry: Optional[ContractRegistry] = None,
-        storage: Optional[NodeStorage] = None,
         *args,
         **kwargs,
     ):
@@ -52,39 +42,6 @@ class NucypherMiddlewareClient:
 
         self.registry = registry
         self.eth_endpoint = eth_endpoint
-        self.storage = storage or NodeStorage()  # for certificate storage
-
-    def get_certificate(
-        self,
-        host,
-        port,
-        timeout=MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT,
-        retry_attempts: int = 3,
-        retry_rate: int = 2,
-        current_attempt: int = 0,
-    ):
-        socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-
-        try:
-            SSL_LOGGER.debug(f"Fetching {host}:{port} TLS certificate")
-            certificate_pem = ssl.get_server_certificate(addr=(host, port))
-            certificate = ssl.PEM_cert_to_DER_cert(certificate_pem)
-
-        except socket.timeout:
-            if current_attempt == retry_attempts:
-                message = f"No Response from {host}:{port} after {retry_attempts} attempts"
-                SSL_LOGGER.info(message)
-                raise ConnectionRefusedError("No response from {}:{}".format(host, port))
-            SSL_LOGGER.info(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
-            time.sleep(retry_rate)
-            return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
-
-        except OSError:
-            raise  # TODO: #1835
-
-        certificate = x509.load_der_x509_certificate(certificate, backend=default_backend())
-        filepath = self.storage.store_node_certificate(certificate=certificate, port=port)
-        return certificate, filepath
 
     @staticmethod
     def response_cleaner(response):
