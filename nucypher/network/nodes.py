@@ -29,6 +29,9 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
+<<<<<<< HEAD
+=======
+>>>>>>> affc706fb (removes certificate filepath handling)
 from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
@@ -1203,7 +1206,8 @@ class Teacher:
         self.validate_metadata(registry=registry, eth_endpoint=eth_endpoint)
 
         response_data = network_middleware_client.node_information(
-            host=self.rest_interface.host, port=self.rest_interface.port
+            host=self.rest_interface.host,
+            port=self.rest_interface.port
         )
 
         try:

@@ -872,7 +872,6 @@ class Ursula(Teacher, Character, Operator):
 
         # Teacher (All Modes)
         Teacher.__init__(self, certificate=certificate)
-
         self._prometheus_metrics_tracker = None
 
     def _substantiate_stamp(self):
