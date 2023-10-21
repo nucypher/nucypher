@@ -68,10 +68,6 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
     def clean_params(self, request_kwargs):
         request_kwargs["query_string"] = request_kwargs.pop("params", {})
 
-    def get_certificate(self, port, *args, **kwargs):
-        ursula = self._get_ursula_by_port(port)
-        return ursula.certificate, Path()
-
 
 class MockRestMiddleware(RestMiddleware):
     _ursulas = None

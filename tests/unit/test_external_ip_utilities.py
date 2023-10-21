@@ -89,7 +89,6 @@ def mock_requests(mocker):
 @pytest.fixture(autouse=True)
 def mock_client(mocker):
     cert, pk = generate_self_signed_certificate(host=MOCK_IP_ADDRESS)
-    mocker.patch.object(NucypherMiddlewareClient, 'get_certificate', return_value=(cert, Path()))
     yield mocker.patch.object(NucypherMiddlewareClient, 'invoke_method', return_value=Dummy.GoodResponse)
 
 
