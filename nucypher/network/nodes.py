@@ -1,14 +1,12 @@
-import time
 from collections import defaultdict, deque
 from contextlib import suppress
-from pathlib import Path
 from queue import Queue
-from typing import Callable, List, Optional, Set, Tuple
+from typing import List, Optional, Set, Tuple
 
 import maya
 import requests
+import time
 from constant_sorrow.constants import (
-    CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
     NO_STORAGE_AVAILABLE,
     NOT_SIGNED,
@@ -32,7 +30,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.storages import NodeStorage
 from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
@@ -186,16 +184,12 @@ class NodeSprout:
 
         self._is_finishing = True  # Prevent reentrance.
         _finishing_mutex = self._finishing_mutex
-
         mature_node = self.finish()
+
         self.__class__ = mature_node.__class__
         self.__dict__ = mature_node.__dict__
-
-        # As long as we're doing egregious workarounds, here's another one.  # TODO: 1481
-        filepath = mature_node._cert_store_function(certificate=mature_node.certificate, port=mature_node.rest_interface.port)
-        mature_node.certificate_filepath = filepath
-
         _finishing_mutex.put(self)
+
         return self  # To reduce the awkwardity of renaming; this is always the weird part of polymorphism for me.
 
 
@@ -225,7 +219,7 @@ class Learner:
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
 
     # For Keeps
-    __DEFAULT_NODE_STORAGE = ForgetfulNodeStorage
+    __DEFAULT_NODE_STORAGE = NodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     _crashed = False  # moved from Character - why was this in Character and not Learner before
@@ -298,8 +292,6 @@ class Learner:
             raise ValueError("Cannot save nodes without a configured node storage")
 
         self.node_class = node_class or characters.lawful.Ursula
-        self.node_class.set_cert_storage_function(
-            node_storage.store_node_certificate)  # TODO: Fix this temporary workaround for on-disk cert storage.  #1481
 
         known_nodes = known_nodes or tuple()
         self.unresponsive_startup_nodes = list()  # TODO: Buckets - Attempt to use these again later  #567
@@ -455,18 +447,6 @@ class Learner:
 
         if eager:
             node.mature()
-            stranger_certificate = node.certificate
-
-            # Store node's certificate - It has been seen.
-            certificate_filepath = self.node_storage.store_node_certificate(certificate=stranger_certificate, port=node.rest_interface.port)
-
-            # In some cases (seed nodes or other temp stored certs),
-            # this will update the filepath from the temp location to this one.
-            node.certificate_filepath = certificate_filepath
-
-            # Use this to control whether or not this node performs
-            # blockchain calls to determine if stranger nodes are bonded.
-            # Note: self.registry is composed on blockchainy character subclasses.
             registry = self.registry if self._verify_node_bonding else None
 
             try:
@@ -794,6 +774,7 @@ class Learner:
         self._learning_round += 1
 
         current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
+        current_teacher.mature()
 
         if isinstance(self, Teacher):
             announce_nodes = [self.metadata()]
@@ -821,7 +802,7 @@ class Learner:
             # Ugh.  The teacher is invalid.  Rough.
             # TODO: Bucket separately and report.
             unresponsive_nodes.add(current_teacher)  # This does nothing.
-            self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
+            # self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
             self.log.warn(f"Teacher {str(current_teacher)} is invalid: {e}.")
             # TODO (#567): bucket the node as suspicious
             return
@@ -975,7 +956,6 @@ class Teacher:
 
     def __init__(self,
                  certificate: Certificate,
-                 certificate_filepath: Path,
                  ) -> None:
 
         #
@@ -983,7 +963,6 @@ class Teacher:
         #
 
         self.certificate = certificate
-        self.certificate_filepath = certificate_filepath
 
         # Assume unverified
         self.verified_stamp = False
@@ -1008,10 +987,6 @@ class Teacher:
 
     class UnbondedOperator(InvalidNode):
         """Raised when a node fails verification because it is not bonded to a Staker"""
-
-    @classmethod
-    def set_cert_storage_function(cls, node_storage_function: Callable):
-        cls._cert_store_function = node_storage_function
 
     def mature(self, *args, **kwargs):
         """This is the most mature form, so we do nothing."""
@@ -1134,7 +1109,6 @@ class Teacher:
         network_middleware_client,
         registry: ContractRegistry = None,
         eth_endpoint: Optional[str] = None,
-        certificate_filepath: Optional[Path] = None,
         force: bool = False,
     ) -> bool:
         """
@@ -1168,14 +1142,10 @@ class Teacher:
         # This is both the stamp's client signature and interface metadata check; May raise InvalidNode
         self.validate_metadata(registry=registry, eth_endpoint=eth_endpoint)
 
-        # The node's metadata is valid; let's be sure the interface is in order.
-        if not certificate_filepath:
-            if self.certificate_filepath is CERTIFICATE_NOT_SAVED:
-                self.certificate_filepath = self._cert_store_function(self.certificate, port=self.rest_interface.port)
-            certificate_filepath = self.certificate_filepath
-
-        response_data = network_middleware_client.node_information(host=self.rest_interface.host,
-                                                                   port=self.rest_interface.port)
+        response_data = network_middleware_client.node_information(
+            host=self.rest_interface.host,
+            port=self.rest_interface.port
+        )
 
         try:
             sprout = self.from_metadata_bytes(response_data)
