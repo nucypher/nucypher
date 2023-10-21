@@ -25,11 +25,7 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
-from nucypher.config.storages import (
-    ForgetfulNodeStorage,
-    LocalFileBasedNodeStorage,
-    NodeStorage,
-)
+from nucypher.config.storages import NodeStorage
 from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
@@ -563,20 +559,8 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    def _setup_node_storage(self, node_storage=None) -> None:
-        # TODO: Disables node metadata persistence
-        # if self.dev_mode:
-        #     node_storage = ForgetfulNodeStorage(registry=self.registry)
-
-        # TODO: Forcibly clears the filesystem of any stored node metadata and certificates...
-        local_node_storage = LocalFileBasedNodeStorage(
-            registry=self.registry, config_root=self.config_root
-        )
-        local_node_storage.clear()
-        self.log.info(f'Cleared peer metadata from {local_node_storage.root_dir}')
-
-        # TODO: Always sets up nodes for in-memory node metadata storage
-        node_storage = ForgetfulNodeStorage(registry=self.registry)
+    def _setup_node_storage(self) -> None:
+        node_storage = NodeStorage()
         self.node_storage = node_storage
 
     def forget_nodes(self) -> None:
@@ -666,7 +650,6 @@ class CharacterConfiguration(BaseConfiguration):
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
             save_metadata=self.save_metadata,
-            node_storage=self.node_storage.payload(),
             lonely=self.lonely,
         )
 
