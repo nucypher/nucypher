@@ -32,7 +32,6 @@ class Dummy:  # Teacher
     def __init__(self, canonical_address):
         self.canonical_address = canonical_address
         self.checksum_address = to_checksum_address(canonical_address)
-        self.certificate_filepath = None
         self.domain = MOCK_DOMAIN
 
     class GoodResponse:

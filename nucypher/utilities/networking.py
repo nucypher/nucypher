@@ -8,9 +8,9 @@ from requests.exceptions import HTTPError, RequestException
 
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
+from nucypher.network.middleware import NucypherMiddlewareClient
+from nucypher.network.middleware import RestMiddleware
 from nucypher.utilities.logging import Logger
 
 
@@ -68,7 +68,7 @@ def _request(url: str, certificate=None) -> Union[str, None]:
 def _request_from_node(
     teacher,
     eth_endpoint: str,
-    client: Optional[NucypherMiddlewareClient] = None,
+    client: Optional['NucypherMiddlewareClient'] = None,
     timeout: int = 2,
     log: Logger = IP_DETECTION_LOGGER,
 ) -> Union[str, None]:
@@ -112,9 +112,6 @@ def get_external_ip_from_default_teacher(
     if domain not in TEACHER_NODES:
         log.debug(f'{base_error}: Unknown domain "{domain}".')
         return
-
-    node_storage = LocalFileBasedNodeStorage()
-    Ursula.set_cert_storage_function(node_storage.store_node_certificate)
 
     external_ip = None
     for teacher_uri in TEACHER_NODES[domain]:

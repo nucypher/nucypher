@@ -1,23 +1,24 @@
 import os
 import socket
 import ssl
-import time
 from http import HTTPStatus
-from pathlib import Path
-from typing import Optional, Sequence, Tuple, Union
+<<<<<<< HEAD
+from typing import Tuple, Union
+=======
+from typing import Optional, Sequence
+>>>>>>> 8233d2ce2 (removes certificate filepath handling)
 
-import requests
+import time
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
-from requests.exceptions import SSLError
 
 from nucypher import characters
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
-from nucypher.network.exceptions import NodeSeemsToBeDown
+from nucypher.config.storages import NodeStorage
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.certs import InMemoryCertSession
 
 SSL_LOGGER = Logger('ssl-middleware')
 EXEMPT_FROM_VERIFICATION.bool_value(False)
@@ -35,7 +36,7 @@ MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT = os.getenv(
 
 
 class NucypherMiddlewareClient:
-    library = requests
+    library = InMemoryCertSession()
     timeout = MIDDLEWARE_DEFAULT_CONNECT_TIMEOUT
 
     def __init__(
@@ -51,7 +52,7 @@ class NucypherMiddlewareClient:
 
         self.registry = registry
         self.eth_endpoint = eth_endpoint
-        self.storage = storage or ForgetfulNodeStorage()  # for certificate storage
+        self.storage = storage or NodeStorage()  # for certificate storage
 
     def get_certificate(
         self,
@@ -175,14 +176,8 @@ class NucypherMiddlewareClient:
             host, port, http_client = self.verify_and_parse_node_or_host_and_port(node_or_sprout, host, port)
             endpoint = f"https://{host}:{port}/{path}"
             method = getattr(http_client, method_name)
+            response = self._execute_method(method, endpoint, *args, **kwargs)
 
-            response = self._execute_method(node_or_sprout,
-                                            host,
-                                            port,
-                                            method,
-                                            endpoint,
-                                            *args,
-                                            **kwargs)
             # Handle response
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
@@ -212,37 +207,11 @@ class NucypherMiddlewareClient:
         return method_wrapper
 
     def _execute_method(self,
-                        node_or_sprout,
-                        host,
-                        port,
                         method,
                         endpoint,
                         *args, **kwargs):
-        # Use existing cached SSL certificate or fetch fresh copy and retry
-        cached_cert_filepath = Path(self.storage.generate_certificate_filepath(host=host, port=port))
-        if cached_cert_filepath.exists():
-            # already cached try it
-            try:
-                # Send request
-                response = self.invoke_method(method, endpoint, verify=cached_cert_filepath,
-                                              *args, **kwargs)
-
-                # successful use of cached certificate
-                return response
-            except SSLError as e:
-                # ignore this exception - probably means that our cached cert may not be up-to-date.
-                SSL_LOGGER.debug(f"Cached cert for {host}:{port} is invalid {e}")
-
-        # Fetch fresh copy of SSL certificate
-        try:
-            certificate, filepath = self.get_certificate(host=host, port=port)
-        except NodeSeemsToBeDown as e:
-            raise RestMiddleware.Unreachable(
-                message=f'Node {node_or_sprout} {host}:{port} is unreachable: {e}')
-
         # Send request
-        response = self.invoke_method(method, endpoint, verify=filepath,
-                                      *args, **kwargs)
+        response = self.invoke_method(method, endpoint, *args, **kwargs)
         return response
 
     def node_selector(self, node):

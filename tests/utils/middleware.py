@@ -61,8 +61,6 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
 
     def invoke_method(self, method, url, *args, **kwargs):
         self.clean_params(kwargs)
-
-        _cert_location = kwargs.pop("verify")  # TODO: Is this something that can be meaningfully tested?
         kwargs.pop("timeout", None)  # Just get rid of timeout; not needed for the test client.
         response = method(url, *args, **kwargs)
         return response

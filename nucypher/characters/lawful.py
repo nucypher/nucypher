@@ -791,7 +791,6 @@ class Ursula(Teacher, Character, Operator):
         domain: str,
         is_me: bool = True,
         certificate: Optional[Certificate] = None,
-        certificate_filepath: Optional[Path] = None,
         metadata: Optional[NodeMetadata] = None,
         # Blockchain
         checksum_address: Optional[ChecksumAddress] = None,
@@ -859,11 +858,6 @@ class Ursula(Teacher, Character, Operator):
 
             # Server
             self.rest_server = self._make_local_server(host=rest_host, port=rest_port)
-
-            # Self-signed TLS certificate of self for Teacher.__init__
-            certificate_filepath = self._crypto_power.power_ups(
-                TLSHostingPower
-            ).keypair.certificate_filepath
             certificate = self._crypto_power.power_ups(
                 TLSHostingPower
             ).keypair.certificate
@@ -887,7 +881,6 @@ class Ursula(Teacher, Character, Operator):
         Teacher.__init__(
             self,
             certificate=certificate,
-            certificate_filepath=certificate_filepath,
         )
 
     def _substantiate_stamp(self):
