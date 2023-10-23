@@ -1,8 +1,8 @@
 import contextlib
-import time
 
 import maya
 import pytest
+import time
 from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.characters.lawful import Ursula
@@ -10,7 +10,6 @@ from nucypher.crypto.signing import SignatureStamp
 from tests.mock.performance_mocks import (
     VerificationTracker,
     mock_cert_loading,
-    mock_cert_storage,
     mock_message_verification,
     mock_metadata_validation,
     mock_secret_source,
@@ -57,7 +56,7 @@ def test_alice_can_learn_about_a_whole_bunch_of_ursulas(highperf_mocked_alice):
     _teacher_known_nodes_bytestring = actual_ursula.bytestring_of_known_nodes()
     actual_ursula.bytestring_of_known_nodes = lambda *args, **kwargs: _teacher_known_nodes_bytestring  # TODO: Formalize this?  #1537
 
-    with mock_cert_storage, mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
+    with mock_cert_loading, mock_verify_node, mock_message_verification, mock_metadata_validation:
         started = time.time()
         highperf_mocked_alice.block_until_number_of_known_nodes_is(4000, learn_on_this_thread=True)
         ended = time.time()

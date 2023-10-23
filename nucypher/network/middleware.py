@@ -45,6 +45,7 @@ class NucypherMiddlewareClient:
 
     @staticmethod
     def response_cleaner(response):
+
         return response
 
     def verify_and_parse_node_or_host_and_port(self, node_or_sprout, host, port):
@@ -115,6 +116,7 @@ class NucypherMiddlewareClient:
             host=host,
             port=port,
             path="public_information",
+            timeout=2
         )
         return response.content
 

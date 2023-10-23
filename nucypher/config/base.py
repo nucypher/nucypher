@@ -559,8 +559,8 @@ class CharacterConfiguration(BaseConfiguration):
     def dev_mode(self) -> bool:
         return self.__dev_mode
 
-    def _setup_node_storage(self) -> None:
-        node_storage = NodeStorage()
+    def _setup_node_storage(self, node_storage: Optional = None) -> None:
+        node_storage = node_storage or NodeStorage()
         self.node_storage = node_storage
 
     def forget_nodes(self) -> None:
@@ -595,13 +595,12 @@ class CharacterConfiguration(BaseConfiguration):
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
         payload = cls._read_configuration_file(filepath=filepath)
-        node_storage = cls.load_node_storage(storage_payload=payload["node_storage"])
         max_gas_price = payload.get("max_gas_price")  # gwei
         if max_gas_price:
             max_gas_price = Decimal(max_gas_price)
 
         # Assemble
-        payload.update(dict(node_storage=node_storage, max_gas_price=max_gas_price))
+        payload.update(dict(max_gas_price=max_gas_price))
         payload = cast_paths_from(cls, payload)
 
         # Filter out None values from **overrides to detect, well, overrides...
@@ -754,7 +753,6 @@ class CharacterConfiguration(BaseConfiguration):
                                 interactive=self.MNEMONIC_KEYSTORE)
 
         self._cache_runtime_filepaths()
-        self.node_storage.initialize()
 
         # Validate
         if not self.__dev_mode:
@@ -785,10 +783,10 @@ class CharacterConfiguration(BaseConfiguration):
     @classmethod
     def load_node_storage(cls, storage_payload: dict):
         from nucypher.config.storages import NodeStorage
-        node_storage_subclasses = {storage._name: storage for storage in NodeStorage.__subclasses__()}
+        node_storage_subclasses = {storage._name: storage for storage in [NodeStorage]}
         storage_type = storage_payload[NodeStorage._TYPE_LABEL]
         storage_class = node_storage_subclasses[storage_type]
-        node_storage = storage_class.from_payload(payload=storage_payload)
+        node_storage = storage_class()
         return node_storage
 
     def configure_pre_payment_method(self):
