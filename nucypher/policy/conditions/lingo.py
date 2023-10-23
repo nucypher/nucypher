@@ -1,10 +1,12 @@
 import ast
 import base64
+import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
 from typing import Any, List, Optional, Tuple, Type, Union
 
+from hexbytes import HexBytes
 from marshmallow import (
     Schema,
     ValidationError,
@@ -234,6 +236,14 @@ class ReturnValueTest:
                 f'"{index}" is not a permitted index. Must be a an integer.'
             )
 
+        try:
+            # ensure that value is JSON serializable
+            json.dumps(value)
+        except TypeError:
+            raise self.InvalidExpression(
+                f"{value} object of type '{type(value)}' is not JSON serializable."
+            )
+
         if not is_context_variable(value):
             # verify that value is valid, but don't set it here so as not to change the value;
             # it will be sanitized at eval time. Need to maintain serialization/deserialization
@@ -244,11 +254,16 @@ class ReturnValueTest:
         self.value = value
         self.index = index
 
-    def _sanitize_value(self, value):
+    @classmethod
+    def _sanitize_value(cls, value):
         try:
             return ast.literal_eval(str(value))
         except Exception:
-            raise self.InvalidExpression(f'"{value}" is not a permitted value.')
+            raise cls.InvalidExpression(f'"{value}" is not a permitted value.')
+
+    @staticmethod
+    def __handle_potential_bytes(data: Any) -> Any:
+        return HexBytes(data).hex() if isinstance(data, bytes) else data
 
     def _process_data(self, data: Any) -> Any:
         """
@@ -256,8 +271,13 @@ class ReturnValueTest:
         Otherwise, return the data.
         """
         processed_data = data
-        if self.index is not None:
-            if isinstance(self.index, int) and isinstance(data, (list, tuple)):
+        if isinstance(data, (list, tuple)):
+            if self.index is None:
+                # convert any bytes in sequence to hex
+                data = [self.__handle_potential_bytes(item) for item in data]
+                return data
+
+            if isinstance(self.index, int):
                 try:
                     processed_data = data[self.index]
                 except IndexError:
@@ -269,7 +289,8 @@ class ReturnValueTest:
                     f"Index: {self.index} and Value: {data} are not compatible types."
                 )
 
-        return processed_data
+        # potentially convert bytes to hex
+        return self.__handle_potential_bytes(processed_data)
 
     def eval(self, data) -> bool:
         if is_context_variable(self.value):
