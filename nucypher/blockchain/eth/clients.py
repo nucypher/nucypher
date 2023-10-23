@@ -572,4 +572,4 @@ class EthereumTesterClient(EthereumClient):
         return signature_and_stuff['signature']
 
     def parse_transaction_data(self, transaction):
-        return transaction.data  # TODO: See https://github.com/ethereum/eth-tester/issues/173
+        return transaction._certificates  # TODO: See https://github.com/ethereum/eth-tester/issues/173
