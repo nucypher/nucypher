@@ -10,7 +10,6 @@ def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
     confirmation = CHARACTER_DESTRUCTION.format(name=config.NAME,
                                                 root=config.config_root,
                                                 keystore=config.keystore_dir,
-                                                nodestore=config.node_storage.source,
                                                 config=config.filepath)
     click.confirm(confirmation, abort=True)
     return True

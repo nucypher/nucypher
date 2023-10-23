@@ -109,8 +109,6 @@ def test_alice_refuses_to_select_node_unless_ursula_is_valid(
                                            substitute_verifying_key=True,
                                            sign_metadata=True)
 
-    vladimir.node_storage.store_node_certificate(certificate=target.certificate, port=vladimir.rest_interface.port)
-
     # Ideally, a fishy node will be present in `known_nodes`,
     # This tests the case when it became fishy after discovering it
     # but before being selected for a policy.

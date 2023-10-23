@@ -3,7 +3,6 @@ import pytest
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
@@ -28,7 +27,7 @@ class BaseTestNodeStorageBackends:
 
     def _read_and_write_metadata(self, ursula, node_storage, operator_addresses, signer):
         # Write Node
-        node_storage.store_node_metadata(node=ursula)
+        node_storage.set(node=ursula)
 
         # Read Node
         node_from_storage = node_storage.get(stamp=ursula.stamp)
@@ -55,7 +54,7 @@ class BaseTestNodeStorageBackends:
                     TESTERCHAIN_CHAIN_ID: [MOCK_ETH_PROVIDER_URI]
                 },
             )
-            node_storage.store_node_metadata(node=node)
+            node_storage.set(node=node)
             all_known_nodes.add(node)
 
         # Read all nodes from storage
@@ -87,39 +86,3 @@ class BaseTestNodeStorageBackends:
                                              operator_addresses=testerchain.ursulas_accounts,
                                              signer=Web3Signer(testerchain.client))
         self.storage_backend.clear()
-
-
-class TestInMemoryNodeStorage(BaseTestNodeStorageBackends):
-    storage_backend = ForgetfulNodeStorage(character_class=BaseTestNodeStorageBackends.character_class)
-    storage_backend.initialize()
-
-
-class TestTemporaryFileBasedNodeStorage(BaseTestNodeStorageBackends):
-    storage_backend = TemporaryFileBasedNodeStorage(character_class=BaseTestNodeStorageBackends.character_class)
-    storage_backend.initialize()
-
-    def test_invalid_metadata(self, light_ursula, testerchain):
-        self._read_and_write_metadata(ursula=light_ursula, node_storage=self.storage_backend, operator_addresses=testerchain.ursulas_accounts, signer=Web3Signer(testerchain.client))
-        some_node, another_node, *other = list(self.storage_backend.metadata_dir.iterdir())
-
-        # Let's break the metadata (but not the version)
-        metadata_path = self.storage_backend.metadata_dir / some_node
-        with open(metadata_path, 'wb') as file:
-            file.write(make_header(b'NdMd', 1, 0) + b'invalid')
-
-        with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=some_node.name[:-5], certificate_only=False)
-
-        # Let's break the metadata, by putting a completely wrong version
-        metadata_path = self.storage_backend.metadata_dir / another_node
-        with open(metadata_path, 'wb') as file:
-            full_header = make_header(b'NdMd', 1, 0)
-            file.write(full_header[:-1])  # Not even a valid header
-
-        with pytest.raises(TemporaryFileBasedNodeStorage.InvalidNodeMetadata):
-            self.storage_backend.get(stamp=another_node.name[:-5], certificate_only=False)
-
-        # Since there are 2 broken metadata files, we should get 2 nodes less when reading all
-        restored_nodes = self.storage_backend.all(certificates_only=False)
-        total_nodes = 1 + ADDITIONAL_NODES_TO_LEARN_ABOUT
-        assert total_nodes - 2 == len(restored_nodes)

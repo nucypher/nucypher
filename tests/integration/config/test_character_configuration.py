@@ -1,9 +1,8 @@
 import json
-from pathlib import Path
-
 import pytest
-from constant_sorrow.constants import CERTIFICATE_NOT_SAVED, NO_KEYSTORE_ATTACHED
+from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 from nucypher_core.umbral import SecretKey
+from pathlib import Path
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration
@@ -15,7 +14,7 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from nucypher.config.storages import ForgetfulNodeStorage
+from nucypher.config.storages import NodeStorage
 from nucypher.crypto.keystore import Keystore
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -77,7 +76,7 @@ def test_development_character_configurations(
     assert TEMPORARY_DOMAIN_NAME == str(thing_one.domain)
 
     # Node Storage
-    assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
+    assert isinstance(thing_one.node_storage, NodeStorage)
     assert ":memory:" in thing_one.node_storage._name
 
     # All development characters are unique
@@ -188,8 +187,7 @@ def test_ursula_development_configuration(testerchain):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert ursula_one.certificate_filepath is CERTIFICATE_NOT_SAVED
-    assert isinstance(ursula_one.node_storage, ForgetfulNodeStorage)
+    assert isinstance(ursula_one.node_storage, NodeStorage)
     assert ":memory:" in ursula_one.node_storage._name
 
     # Alternate way to produce a character with a direct call

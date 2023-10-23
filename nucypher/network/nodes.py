@@ -285,8 +285,7 @@ class Learner:
         self._learning_deferred = None
         self._discovery_canceller = DiscoveryCanceller()
 
-        if not node_storage:
-            node_storage = self.__DEFAULT_NODE_STORAGE()
+        node_storage = self.__DEFAULT_NODE_STORAGE()
         self.node_storage = node_storage
         if save_metadata and node_storage is NO_STORAGE_AVAILABLE:
             raise ValueError("Cannot save nodes without a configured node storage")
@@ -400,7 +399,7 @@ class Learner:
         return discovered
 
     def read_nodes_from_storage(self) -> List:
-        stored_nodes = self.node_storage.all()  # TODO: #466
+        stored_nodes = self.node_storage.all()
 
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
@@ -443,7 +442,7 @@ class Learner:
         self.known_nodes.record_node(node)  # FIXME - dont always remember nodes, bucket them.
 
         if self.save_metadata:
-            self.node_storage.store_node_metadata(node=node)
+            self.node_storage.set(node=node)
 
         if eager:
             node.mature()
@@ -543,7 +542,8 @@ class Learner:
         nodes_we_know_about = self.known_nodes.shuffled()
 
         if not nodes_we_know_about:
-            raise self.NotEnoughTeachers("Need some nodes to start learning from.")
+            self.log.warn("Need some nodes to start learning from.")
+            return False
 
         self.teacher_nodes.extend(nodes_we_know_about)
 
@@ -554,7 +554,7 @@ class Learner:
             self._current_teacher_node = self.teacher_nodes.pop()
         except IndexError:
             error = "Not enough nodes to select a good teacher, Check your network connection then node configuration"
-            raise self.NotEnoughTeachers(error)
+            self.log.warn(error)
         self.log.debug("Cycled teachers; New teacher is {}".format(self._current_teacher_node))
 
     def current_teacher_node(self, cycle=False):
@@ -726,7 +726,7 @@ class Learner:
         # Scenario 3: We don't know about this node, and neither does our friend.
 
     def write_node_metadata(self, node, serializer=bytes) -> str:
-        return self.node_storage.store_node_metadata(node=node)
+        return self.node_storage.set(node=node)
 
     def verify_from(
         self,
@@ -771,7 +771,9 @@ class Learner:
 
         self._learning_round += 1
 
-        current_teacher = self.current_teacher_node()  # Will raise if there's no available teacher.
+        current_teacher = self.current_teacher_node()
+        if not current_teacher:
+            return RELAX
         current_teacher.mature()
 
         if isinstance(self, Teacher):
@@ -797,12 +799,9 @@ class Learner:
             self.log.info(f"Teacher {current_teacher.seed_node_metadata(as_teacher_uri=True)} is unreachable: {e}.")
             return
         except current_teacher.InvalidNode as e:
-            # Ugh.  The teacher is invalid.  Rough.
-            # TODO: Bucket separately and report.
-            unresponsive_nodes.add(current_teacher)  # This does nothing.
-            # self.known_nodes.mark_as(current_teacher.InvalidNode, current_teacher)
-            self.log.warn(f"Teacher {str(current_teacher)} is invalid: {e}.")
             # TODO (#567): bucket the node as suspicious
+            unresponsive_nodes.add(current_teacher)  # This does nothing.
+            self.log.warn(f"Teacher {str(current_teacher)} is invalid: {e}.")
             return
         except RuntimeError as e:
             if canceller and canceller.stop_now:
@@ -820,7 +819,7 @@ class Learner:
                 f"(hex={bytes(current_teacher.metadata()).hex()}):{e}.")  # To track down 2345 / 1698
             raise
         finally:
-            # Is cycling happening in the right order?
+            # cycle now -- cycle even if this function raises an exception or returns early.
             self.cycle_teacher_node()
 
         if response.status_code != 200:
@@ -834,9 +833,10 @@ class Learner:
         # TODO: we really should be checking this *before* we ask it for a node list,
         # but currently we may not know this before the REST request (which may mature the node)
         if self.domain != current_teacher.domain:
+            # Ignore nodes from other domains.
             self.log.debug(f"{current_teacher} is serving '{current_teacher.domain}', "
                            f"ignore since we are learning about '{self.domain}'")
-            return  # This node is not serving our domain.
+            return
 
         #
         # Deserialize

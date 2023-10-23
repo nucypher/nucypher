@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 import tests
@@ -7,7 +5,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
-from nucypher.config.storages import LocalFileBasedNodeStorage
+from nucypher.config.storages import NodeStorage
 from nucypher.network.nodes import TEACHER_NODES
 from tests.constants import TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO
 from tests.utils.registry import MockRegistrySource
@@ -114,11 +112,7 @@ def test_learner_restores_metadata_from_storage(
 ):
     # Create a local file-based node storage
     root = tmpdir.mkdir("known_nodes")
-    metadata = root.mkdir("metadata")
-    certs = root.mkdir("certs")
-    old_storage = LocalFileBasedNodeStorage(metadata_dir=Path(metadata),
-                                            certificates_dir=Path(certs),
-                                            storage_root=Path(root))
+    old_storage = NodeStorage()
 
     # Use the ursula maker with this storage so it's populated with nodes from one domain
     _some_ursulas = lonely_ursula_maker(
@@ -231,11 +225,7 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
 
     # Create a local file-based node storage
     root = tmpdir.mkdir("known_nodes")
-    metadata = root.mkdir("metadata")
-    certs = root.mkdir("certs")
-    node_storage = LocalFileBasedNodeStorage(metadata_dir=Path(metadata),
-                                             certificates_dir=Path(certs),
-                                             storage_root=Path(root))
+    node_storage = NodeStorage()
 
     # Create some nodes and persist them to local storage
     other_nodes = make_ursulas(
