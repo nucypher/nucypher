@@ -5,14 +5,14 @@ import pytest
 from requests import Session, RequestException
 
 from nucypher.utilities.certs import (
-    InMemoryCertAdapter,
-    InMemoryCertSession,
+    SelfSignedCertificateAdapter,
+    P2PSession,
     CertificateCache,
     Address
 )
 
 # Define test URLs
-VALID_URL = "https://example.com"
+VALID_URL = "https://lynx.nucypher.network:9151/status"
 INVALID_URL = "https://nonexistent-domain.com"
 
 MOCK_CERT = """-----BEGIN CERTIFICATE-----
@@ -28,20 +28,20 @@ def cache():
 
 @pytest.fixture
 def adapter(cache):
-    _adapter = InMemoryCertAdapter()
+    _adapter = SelfSignedCertificateAdapter()
     _adapter.cert_cache = cache
     return _adapter
 
 
 @pytest.fixture
 def session(adapter):
-    s = InMemoryCertSession()
+    s = P2PSession()
     s.adapter = adapter  # Use the same adapter instance
     return s
 
 
 def test_init_adapter(cache, adapter):
-    assert isinstance(adapter, InMemoryCertAdapter)
+    assert isinstance(adapter, SelfSignedCertificateAdapter)
 
 
 def test_cert_cache_set_get():
@@ -68,7 +68,7 @@ def test_cache_cert(cache):
 
 
 def test_send_request(session, mocker):
-    mocker.patch.object(InMemoryCertAdapter, 'load_certificate')
+    mocker.patch.object(SelfSignedCertificateAdapter, 'trust_certificate')
     mocked_refresh = mocker.patch.object(session, '_refresh_certificate', return_value=MOCK_CERT)
     mocker.patch.object(Session, 'send', return_value='response')
     response = session.send(mocker.Mock(url=VALID_URL))
@@ -78,7 +78,7 @@ def test_send_request(session, mocker):
 
 def test_https_request_with_cert_caching():
     # Create a session with certificate caching
-    session = InMemoryCertSession()
+    session = P2PSession()
 
     # Send a request (it should succeed)
     response = session.get(VALID_URL)
@@ -91,14 +91,14 @@ def test_https_request_with_cert_caching():
 
 def test_https_request_with_cert_refresh():
     # Create a session with certificate caching
-    session = InMemoryCertSession()
+    session = P2PSession()
 
     # Send a request (it should succeed)
     response = session.get(VALID_URL)
     assert response.status_code == 200
 
     # Manually expire the cached certificate
-    hostname, port = InMemoryCertSession._parse_url(VALID_URL)
+    hostname, port = P2PSession._resolve_address(VALID_URL)
     session.cache._expirations[(hostname, port)] = 0
 
     # Send another request to the same URL (it should refresh the certificate)
