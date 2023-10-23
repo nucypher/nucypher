@@ -227,12 +227,18 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             )
 
         # derive the decryption share
-        decryption_share = this_node.derive_decryption_share(
-            ritual_id=decryption_request.ritual_id,
-            ciphertext_header=decryption_request.ciphertext_header,
-            aad=decryption_request.acp.aad(),
-            variant=decryption_request.variant,
-        )
+        try:
+            decryption_share = this_node.derive_decryption_share(
+                ritual_id=decryption_request.ritual_id,
+                ciphertext_header=decryption_request.ciphertext_header,
+                aad=decryption_request.acp.aad(),
+                variant=decryption_request.variant,
+            )
+        except Exception as e:
+            log.warn(f"Failed to derive decryption share: {e}")
+            return Response(
+                f"Failed to derive decryption share: {e}", status=HTTPStatus.BAD_REQUEST
+            )
 
         # return the decryption share
         # TODO: #3098 nucypher-core#49 Use DecryptionShare type
