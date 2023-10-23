@@ -31,7 +31,7 @@ def test_middleware_response_status_code_processing(
     _original_execute_method = mock_rest_middleware.client._execute_method
 
     def execute_method_side_effect(
-        node_or_sprout, host, port, method, endpoint, *args, **kwargs
+        method, endpoint, *args, **kwargs
     ):
         endpoint_url = urlparse(endpoint)
         if endpoint_url.path == "/reencrypt":
@@ -42,7 +42,7 @@ def test_middleware_response_status_code_processing(
             return response
         else:
             return _original_execute_method(
-                node_or_sprout, host, port, method, endpoint, *args, **kwargs
+                method, endpoint, *args, **kwargs
             )
 
     mocker.patch.object(

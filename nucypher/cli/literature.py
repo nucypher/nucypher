@@ -30,7 +30,6 @@ SELECTED_ACCOUNT = "Selected {choice}: {chosen_account}"
 CHARACTER_DESTRUCTION = """
 Delete all {name} character files including:
     - Private and Public Keys ({keystore})
-    - Known Nodes             ({nodestore})
     - Node Configuration File ({config})
 
 Are you sure?"""
