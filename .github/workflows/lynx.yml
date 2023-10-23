@@ -6,7 +6,7 @@ on:
   pull_request:
     branches:
       - main
-      - development
+      - v*.*.*
       - epic-*
   workflow_dispatch:
 

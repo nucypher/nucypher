@@ -4,7 +4,7 @@ on:
   push:
     tags: [ 'v*.*.*' ]
     branches:
-      - development
+      - 'v*.*.*'
 
 jobs:
   docker:
@@ -24,7 +24,7 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
 
     - name: Update Development Package Metadata
-      if: ${{ github.ref_name == 'development' }}
+      if: ${{ github.ref_type == 'branch' }}
       run: |
         pip install bumpversion
         export VERSION=$(bumpversion major --dry-run --list --allow-dirty | grep current_version= | sed 's/current_version=//g')
@@ -32,7 +32,7 @@ jobs:
         bumpversion devnum --new-version $VERSION-dev.${{github.sha}} --no-tag --no-commit
 
     - name: Build and push Docker image (development)
-      if: ${{ github.ref_name == 'development' }}
+      if: ${{ github.ref_type == 'branch' }}
       uses: docker/build-push-action@v5
       with:
         context: ${{ github.workspace }}
