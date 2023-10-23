@@ -2,6 +2,7 @@ import os
 import random
 
 import pytest
+from hexbytes import HexBytes
 
 from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 from nucypher.policy.conditions.lingo import ReturnValueTest
@@ -36,7 +37,7 @@ def test_return_value_test_schema():
     assert not errors, f"{errors}"
 
 
-def test_return_value_index():
+def test_return_value_index_invalid():
     with pytest.raises(ReturnValueTest.InvalidExpression):
         _ = ReturnValueTest(comparator=">", value="0", index="james")
 
@@ -59,24 +60,36 @@ def test_return_value_index_tuple():
     assert not test.eval((-1,))
 
 
-def test_return_value_test_invalid_comparators():
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator="eq", value=1)
+@pytest.mark.parametrize(
+    "not_json_serializable",
+    [
+        {1, 2, 3},  # sets
+        os.urandom(32),  # bytes
+    ],
+)
+def test_return_value_test_not_json_serializable_value(not_json_serializable):
+    with pytest.raises(
+        ReturnValueTest.InvalidExpression, match="not JSON serializable"
+    ):
+        _ = ReturnValueTest(comparator="==", value=not_json_serializable)
 
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator="=", value=1)
 
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator="+", value=1)
-
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator="*", value=1)
-
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator="/", value=1)
-
-    with pytest.raises(ReturnValueTest.InvalidExpression):
-        _test = ReturnValueTest(comparator="DROP", value=1)
+@pytest.mark.parametrize(
+    "comparator",
+    [
+        "eq",
+        "=",
+        "+",
+        "*",
+        "/",
+        "DROP",
+    ],
+)
+def test_return_value_test_invalid_comparators(comparator):
+    with pytest.raises(
+        ReturnValueTest.InvalidExpression, match="not a permitted comparator"
+    ):
+        _ = ReturnValueTest(comparator=comparator, value=1)
 
 
 def test_eval_is_evil():
@@ -205,6 +218,97 @@ def test_return_value_test_bool():
     assert not test.eval("False")
 
 
+def test_return_value_test_bytes():
+    value = b"\xe4\xe4u\x18\x03\x81i\xb74\x0e\xf5\xeb\x18\xf0\x0f\x82"  # bytes
+
+    # use hex value for bytes
+    test = ReturnValueTest(comparator="==", value=HexBytes(value).hex())
+
+    # ensure serialization/deserialization
+    schema = ReturnValueTest.ReturnValueTestSchema()
+    reloaded = schema.loads(schema.dumps(test))
+    assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
+
+    # ensure correct bytes/hex comparison
+    assert reloaded.eval(value), "passing in bytes compared correctly to hex"
+    assert not reloaded.eval(
+        b"Here every creed and race find an equal place"
+    )  # TT national anthem
+
+
+def test_return_value_test_bytes_in_list_of_values():
+    # test as part of a list
+    value = [1, True, "test", 1.23, b"some bytes"]
+
+    json_serializable_condition_value = [
+        value[0],
+        value[1],
+        value[2],
+        value[3],
+        HexBytes(value[4]).hex(),
+    ]
+    test = ReturnValueTest(comparator="==", value=json_serializable_condition_value)
+
+    # ensure serialization/deserialization
+    schema = ReturnValueTest.ReturnValueTestSchema()
+    reloaded = schema.loads(schema.dumps(test))
+    assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
+    # ensure correct bytes/hex comparison
+    assert reloaded.eval(value), "passing in bytes compared correctly to hex"
+    assert not reloaded.eval([1, 2, 3])
+
+
+def test_return_value_test_tuples():
+    value = (1, True, "test", 1.23, b"some bytes")
+
+    # only list can be provided from json for condition (tuples are serialized to lists)
+    value_as_list = [value[0], value[1], value[2], value[3], HexBytes(value[4]).hex()]
+
+    # use hex value for bytes
+    test = ReturnValueTest(comparator="==", value=value_as_list)
+
+    # ensure serialization/deserialization
+    schema = ReturnValueTest.ReturnValueTestSchema()
+    reloaded = schema.loads(schema.dumps(test))
+    assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
+
+    # ensure correct tuple/list comparison
+    assert reloaded.eval(value)
+    assert not reloaded.eval([1, 2, 3])  # TT national anthem
+
+
+@pytest.mark.parametrize(
+    "test_scenario",
+    [
+        ("'foo'", "foo"),  # string
+        (
+            "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            int("0xaDD9D957170dF6F33982001E4c22eCCdd5539118", 16),
+        ),  # hex string that is evaluated as int
+        (125, None),  # int
+        (1.223, None),  # float
+        (True, None),  # bool
+        (False, None),  # bool as string
+        ({"name": "John", "age": 22}, None),  # dict
+        ([1, 1.23, True, "foo"], None),  # list of different types
+    ],
+)
+def test_return_value_sanitize(test_scenario):
+    value, expected_sanitized_value = test_scenario
+    sanitized_value = ReturnValueTest._sanitize_value(value)
+    if expected_sanitized_value:
+        assert sanitized_value == expected_sanitized_value
+    else:
+        assert sanitized_value == value  # same value
+
+    # sanity check comparison
+    test = ReturnValueTest(comparator="==", value=value)
+    # ensure serialization/deserialization
+    schema = ReturnValueTest.ReturnValueTestSchema()
+    reloaded = schema.loads(schema.dumps(test))
+    assert reloaded.eval(value)
+
+
 @pytest.mark.parametrize(
     "test_value",
     [
@@ -213,20 +317,18 @@ def test_return_value_test_bool():
         "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",  # string that is evaluated as int
         125,  # int
         1.223,  # float
-        b"\xe4\xe4u\x18\x03\x81i\xb74\x0e\xf5\xeb\x18\xf0\x0f\x82",  # bytes
         True,  # bool
-        "True",  # bool as string
-        (1, True, "love"),  # tuple
+        [1, 1.2314, False, "love"],  # list of different types
         ["a", "b", "c"],  # list
+        [True, False],  # list of bools
         {"name": "John", "age": 22},  # dict
-        {True, False},  # set
     ],
 )
-def test_return_value_serialization(test_value):
+def test_return_value_json_serialization(test_value):
     schema = ReturnValueTest.ReturnValueTestSchema()
     comparator = random.choice(ReturnValueTest.COMPARATORS)
     test = ReturnValueTest(comparator=comparator, value=test_value)
-    reloaded = schema.load(schema.dump(test))
+    reloaded = schema.loads(schema.dumps(test))
     assert (test.comparator == reloaded.comparator) and (
         test.value == reloaded.value
     ), f"test for '{comparator} {test_value}'"
