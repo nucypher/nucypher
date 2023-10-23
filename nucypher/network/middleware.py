@@ -8,7 +8,7 @@ from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
 
 from nucypher import characters
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.utilities.certs import InMemoryCertSession
+from nucypher.utilities.certs import P2PSession
 from nucypher.utilities.logging import Logger
 
 SSL_LOGGER = Logger('ssl-middleware')
@@ -27,7 +27,7 @@ MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT = os.getenv(
 
 
 class NucypherMiddlewareClient:
-    library = InMemoryCertSession()
+    library = P2PSession()
     timeout = MIDDLEWARE_DEFAULT_CONNECT_TIMEOUT
 
     def __init__(
