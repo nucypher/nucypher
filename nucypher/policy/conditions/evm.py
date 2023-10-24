@@ -378,9 +378,6 @@ class ContractCondition(RPCCondition):
         )
 
         if len(output_abi_types) == 1:
-            if is_context_variable(comparator_value):
-                return
-
             expected_type = output_abi_types[0]
             self._validate_value_type(expected_type, comparator_value, failure_message)
         elif len(output_abi_types) > 1:
@@ -401,15 +398,15 @@ class ContractCondition(RPCCondition):
             for output_abi_type, component_value in zip(
                 output_abi_types, comparator_value
             ):
-                if is_context_variable(component_value):
-                    # can't know type for context variable; skip
-                    continue
-
                 self._validate_value_type(
                     output_abi_type, component_value, failure_message
                 )
 
     def _validate_value_type(self, expected_type, comparator_value, failure_message):
+        if is_context_variable(comparator_value):
+            # can't know type for context variable
+            return
+
         comparator_value = self._normalize_comparator_value(
             comparator_value, expected_type, failure_message
         )
