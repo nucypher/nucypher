@@ -28,7 +28,7 @@ flask = "*"
 requests = "*"
 # Third-Party Ethereum
 eth-tester = "*"   # providers.py still uses this
-py-evm = "*"
+py-evm = "<0.8"
 web3 = ">=6.0.0"
 eth-utils = "*"
 # CLI / Configuration
@@ -50,7 +50,7 @@ pytest-cov = "*"
 pytest-mock = "*"
 pytest-timeout = "*"
 # Tools
-eth-ape = "*"
+eth-ape = "<=0.6.19" # eth-ape 0.6.22 depends on urllib3<2 and >=1.26.16
 eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
 ape-solidity = ">=0.6.5"
 hypothesis = "*"
