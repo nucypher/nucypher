@@ -302,7 +302,51 @@ def test_subscription_manager_is_active_policy_condition_evaluation(
     assert not condition_result
 
 
-def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
+def test_subscription_manager_get_policy_policy_struct_condition_evaluation_struct_direct_value(
+    testerchain, test_registry, enacted_policy, condition_providers
+):
+    # zeroized policy struct - specificed as list
+    zeroized_policy_struct = [
+        NULL_ADDRESS,
+        0,
+        0,
+        0,
+        NULL_ADDRESS,
+    ]
+
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
+    )
+    condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", zeroized_policy_struct),
+        parameters=[":hrac"],
+    )
+
+    context = {
+        ":hrac": bytes(enacted_policy.hrac),
+    }  # user-defined context vars
+    condition_result, call_result = condition.verify(
+        providers=condition_providers, **context
+    )
+    assert not condition_result  # not zeroized policy
+
+    # unknown policy hrac
+    context[":hrac"] = os.urandom(16)
+    condition_result, call_result = condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result is True  # zeroized policy was indeed returned
+
+
+def test_subscription_manager_get_policy_policy_struct_condition_evaluation_context_var(
     testerchain,
     enacted_policy,
     subscription_manager_get_policy_zeroized_policy_struct_condition,
