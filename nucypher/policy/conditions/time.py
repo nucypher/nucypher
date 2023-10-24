@@ -44,6 +44,8 @@ class TimeCondition(RPCCondition):
             raise InvalidCondition(
                 f"{self.__class__.__name__} must be instantiated with the {self.METHOD} method."
             )
+
+        # call to super must be at the end for proper validation
         super().__init__(
             chain=chain,
             method=method,
@@ -52,8 +54,15 @@ class TimeCondition(RPCCondition):
             condition_type=condition_type,
         )
 
-    def validate_method(self, method):
+    def _validate_method(self, method):
         return method
+
+    def _validate_expected_return_type(self):
+        comparator_value = self.return_value_test.value
+        if not isinstance(comparator_value, int):
+            raise InvalidCondition(
+                f"Invalid return value comparison type '{type(comparator_value)}'; must be an integer"
+            )
 
     @property
     def timestamp(self):

@@ -1,6 +1,5 @@
 import ast
 import base64
-import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
@@ -234,14 +233,6 @@ class ReturnValueTest:
         if index is not None and not isinstance(index, int):
             raise self.InvalidExpression(
                 f'"{index}" is not a permitted index. Must be a an integer.'
-            )
-
-        try:
-            # ensure that value is JSON serializable
-            json.dumps(value)
-        except TypeError:
-            raise self.InvalidExpression(
-                f"{value} object of type '{type(value)}' is not JSON serializable."
             )
 
         if not is_context_variable(value):

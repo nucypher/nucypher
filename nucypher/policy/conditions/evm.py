@@ -1,9 +1,24 @@
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
+from eth_utils.abi import collapse_if_tuple
+from hexbytes import HexBytes
 from marshmallow import ValidationError, fields, post_load, validate, validates_schema
 from web3 import HTTPProvider, Web3
+from web3.auto import w3
 from web3.contract.contract import ContractFunction
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
@@ -109,10 +124,10 @@ def _validate_chain(chain: int) -> None:
 
 class RPCCondition(AccessControlCondition):
     ETH_PREFIX = "eth_"
-    ALLOWED_METHODS = (
+    ALLOWED_METHODS = {
         # RPC
-        "eth_getBalance",
-    )  # TODO other allowed methods (tDEC #64)
+        "eth_getBalance": int,
+    }  # TODO other allowed methods (tDEC #64)
     LOG = logging.Logger(__name__)
     CONDITION_TYPE = ConditionType.RPC.value
 
@@ -160,15 +175,18 @@ class RPCCondition(AccessControlCondition):
         self.name = name
         self.chain = chain
         self.provider: Optional[BaseProvider] = None  # set in _configure_provider
-        self.method = self.validate_method(method=method)
+        self.method = self._validate_method(method=method)
 
         # test
         # should not be set to None - we do list unpacking so cannot be None; use empty list
         self.parameters = parameters or []
+        self.parameters = parameters or []
         self.return_value_test = return_value_test  # output
 
-    def validate_method(self, method):
-        if method not in self.ALLOWED_METHODS:
+        self._validate_expected_return_type()
+
+    def _validate_method(self, method):
+        if method not in self.ALLOWED_METHODS.keys():
             raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
@@ -177,6 +195,18 @@ class RPCCondition(AccessControlCondition):
                 f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."
             )
         return method
+
+    def _validate_expected_return_type(self):
+        expected_return_type = self.ALLOWED_METHODS[self.method]
+        comparator_value = self.return_value_test.value
+        if is_context_variable(comparator_value):
+            return
+
+        if not isinstance(self.return_value_test.value, expected_return_type):
+            raise InvalidCondition(
+                f"Return value comparison for '{self.method}' call output "
+                f"should be '{expected_return_type}' and not {type(comparator_value)}."
+            )
 
     def _next_endpoint(
         self, providers: Dict[int, Set[HTTPProvider]]
@@ -237,6 +267,9 @@ class RPCCondition(AccessControlCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
+    def _normalize(self, return_value_test: ReturnValueTest) -> ReturnValueTest:
+        return return_value_test
+
     def verify(
         self, providers: Dict[int, Set[HTTPProvider]], **context
     ) -> Tuple[bool, Any]:
@@ -250,6 +283,7 @@ class RPCCondition(AccessControlCondition):
             parameters, return_value_test = _resolve_any_context_variables(
                 self.parameters, self.return_value_test, **context
             )
+            return_value_test = self._normalize(return_value_test)
             try:
                 result = self._execute_call(parameters=parameters)
                 break
@@ -304,6 +338,7 @@ class ContractCondition(RPCCondition):
 
     def __init__(
         self,
+        method: str,
         contract_address: ChecksumAddress,
         condition_type: str = CONDITION_TYPE,
         standard_contract_type: Optional[str] = None,
@@ -311,8 +346,7 @@ class ContractCondition(RPCCondition):
         *args,
         **kwargs,
     ):
-        # internal
-        super().__init__(condition_type=condition_type, *args, **kwargs)
+        self.method = method
         self.w3 = Web3()  # used to instantiate contract function without a provider
 
         ContractCondition._validate_contract_type_or_function_abi(
@@ -329,6 +363,69 @@ class ContractCondition(RPCCondition):
         self.function_abi = function_abi
         self.contract_function = self._get_unbound_contract_function()
 
+        # call to super must be at the end for proper validation
+        super().__init__(condition_type=condition_type, method=method, *args, **kwargs)
+
+    def _validate_method(self, method):
+        return method
+
+    def _validate_expected_return_type(self):
+        output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
+        comparator_value = self.return_value_test.value
+        failure_message = (
+            f"Invalid return value comparison type '{type(comparator_value)}' "
+            f"for '{self.contract_function.fn_name}' based on ABI"
+        )
+
+        if len(output_abi_types) == 1:
+            if is_context_variable(comparator_value):
+                return
+
+            expected_type = output_abi_types[0]
+            self._validate_value_type(expected_type, comparator_value, failure_message)
+        elif len(output_abi_types) > 1:
+            if self.return_value_test.index is not None:
+                # only index entry we care about
+                expected_type = output_abi_types[self.return_value_test.index]
+                self._validate_value_type(
+                    expected_type, comparator_value, failure_message
+                )
+                return
+
+            if not isinstance(comparator_value, Sequence):
+                raise InvalidCondition(failure_message)
+
+            if len(output_abi_types) != len(comparator_value):
+                raise InvalidCondition(failure_message)
+
+            for output_abi_type, component_value in zip(
+                output_abi_types, comparator_value
+            ):
+                if is_context_variable(component_value):
+                    # can't know type for context variable; skip
+                    continue
+
+                self._validate_value_type(
+                    output_abi_type, component_value, failure_message
+                )
+
+    def _validate_value_type(self, expected_type, comparator_value, failure_message):
+        comparator_value = self._normalize_comparator_value(
+            comparator_value, expected_type, failure_message
+        )
+        if not w3.is_encodable(expected_type, comparator_value):
+            raise InvalidCondition(failure_message)
+
+    def _normalize_comparator_value(
+        self, comparator_value: Any, expected_type: str, failure_message: str
+    ):
+        if expected_type.startswith("bytes"):
+            try:
+                comparator_value = bytes(HexBytes(comparator_value))
+            except Exception:
+                raise InvalidCondition(failure_message)
+        return comparator_value
+
     def __repr__(self) -> str:
         r = (
             f"{self.__class__.__name__}(function={self.method}, "
@@ -336,9 +433,6 @@ class ContractCondition(RPCCondition):
             f"chain={self.chain})"
         )
         return r
-
-    def validate_method(self, method):
-        return method
 
     def _configure_provider(self, *args, **kwargs):
         super()._configure_provider(*args, **kwargs)
@@ -370,3 +464,40 @@ class ContractCondition(RPCCondition):
         )  # bind contract function
         contract_result = bound_contract_function.call()  # onchain read
         return contract_result
+
+    def _normalize(self, return_value_test: ReturnValueTest) -> ReturnValueTest:
+        output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
+        comparator_value = return_value_test.value
+        if len(output_abi_types) == 1:
+            expected_type = output_abi_types[0]
+            comparator_value = self._normalize_comparator_value(
+                comparator_value, expected_type, failure_message="Unencodable type"
+            )
+            return ReturnValueTest(
+                comparator=return_value_test.comparator, value=comparator_value
+            )
+        elif len(output_abi_types) > 1:
+            values = list()
+            for output_abi_type, component_value in zip(
+                output_abi_types, comparator_value
+            ):
+                comparator_value = self._normalize_comparator_value(
+                    comparator_value,
+                    output_abi_type,
+                    failure_message="Unencodable type",
+                )
+                values.append(component_value)
+            return ReturnValueTest(
+                comparator=return_value_test.comparator, value=values
+            )
+        else:
+            raise RuntimeError("No outputs for ABI function.")  # should never happen
+
+    @staticmethod
+    def _get_abi_types(abi: ABIFunction) -> List[str]:
+        if abi["type"] == "fallback":
+            return []
+        else:
+            return [
+                collapse_if_tuple(cast(Dict[str, Any], arg)) for arg in abi["outputs"]
+            ]
