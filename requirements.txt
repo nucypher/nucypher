@@ -7,6 +7,7 @@ attrs==23.1.0; python_version >= '3.7'
 autobahn==23.6.2; python_version >= '3.9'
 automat==22.10.0
 bitarray==2.8.2
+blinker==1.6.3; python_version >= '3.7'
 bytestring-splitter==2.4.1
 cached-property==1.5.2
 certifi==2023.7.22; python_version >= '3.6'
@@ -29,7 +30,7 @@ eth-rlp==0.3.0; python_version >= '3.7' and python_version < '4'
 eth-tester==0.9.1b1; python_version < '4' and python_full_version >= '3.6.8'
 eth-typing==3.5.1; python_version < '4' and python_full_version >= '3.7.2'
 eth-utils==2.3.0; python_version >= '3.7' and python_version < '4'
-flask==2.2.5; python_version >= '3.7'
+flask==3.0.0; python_version >= '3.8'
 frozenlist==1.4.0; python_version >= '3.8'
 hendrix==4.0.0
 hexbytes==0.3.1; python_version >= '3.7' and python_version < '4'
@@ -38,7 +39,7 @@ hyperlink==21.0.0
 idna==3.4; python_version >= '3.5'
 incremental==22.10.0
 itsdangerous==2.1.2; python_version >= '3.7'
-jinja2==3.0.3; python_version >= '3.6'
+jinja2==3.1.2; python_version >= '3.7'
 jsonschema==4.19.1; python_version >= '3.8'
 jsonschema-specifications==2023.7.1; python_version >= '3.8'
 lru-dict==1.2.0
@@ -93,6 +94,6 @@ urllib3==2.0.7; python_version >= '3.7'
 watchdog==3.0.0; python_version >= '3.7'
 web3==6.11.1; python_full_version >= '3.7.2'
 websockets==12.0; python_version >= '3.8'
-werkzeug==3.0.0; python_version >= '3.8'
+werkzeug==3.0.1; python_version >= '3.8'
 yarl==1.9.2; python_version >= '3.7'
 zope-interface==6.1; python_version >= '3.7'

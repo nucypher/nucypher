@@ -36,8 +36,6 @@ appdirs = "*"
 click = ">=7.0"
 colorama = "*"
 tabulate = "*"
-# Template
-jinja2 = ""  # because of docs
 # Tools
 eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
 
