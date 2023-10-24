@@ -77,7 +77,7 @@ def lingo_with_compound_conditions(get_random_checksum_address):
                             "parameters": [get_random_checksum_address(), "latest"],
                             "returnValueTest": {
                                 "comparator": ">=",
-                                "value": "10000000000000",
+                                "value": 10000000000000,
                             },
                         },
                     ],

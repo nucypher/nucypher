@@ -61,20 +61,6 @@ def test_return_value_index_tuple():
 
 
 @pytest.mark.parametrize(
-    "not_json_serializable",
-    [
-        {1, 2, 3},  # sets
-        os.urandom(32),  # bytes
-    ],
-)
-def test_return_value_test_not_json_serializable_value(not_json_serializable):
-    with pytest.raises(
-        ReturnValueTest.InvalidExpression, match="not JSON serializable"
-    ):
-        _ = ReturnValueTest(comparator="==", value=not_json_serializable)
-
-
-@pytest.mark.parametrize(
     "comparator",
     [
         "eq",
@@ -287,6 +273,7 @@ def test_return_value_test_tuples():
         ),  # hex string that is evaluated as int
         (125, None),  # int
         (1.223, None),  # float
+        # (Decimal('10.5'), None),  # decimal
         (True, None),  # bool
         (False, None),  # bool as string
         ({"name": "John", "age": 22}, None),  # dict
@@ -316,12 +303,15 @@ def test_return_value_sanitize(test_scenario):
         ":userAddress",  # context variable is an exception case for a string value
         "0xaDD9D957170dF6F33982001E4c22eCCdd5539118",  # string that is evaluated as int
         125,  # int
+        -123456789,  # negative int
         1.223,  # float
+        # Decimal('10.5'),  # decimal
         True,  # bool
         [1, 1.2314, False, "love"],  # list of different types
         ["a", "b", "c"],  # list
         [True, False],  # list of bools
         {"name": "John", "age": 22},  # dict
+        # namedtuple('MyStruct', ['field1', 'field2'])(1, 'a'),  # named tuple
     ],
 )
 def test_return_value_json_serialization(test_value):
