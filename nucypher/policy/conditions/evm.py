@@ -265,7 +265,9 @@ class RPCCondition(AccessControlCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
-    def _normalize(self, return_value_test: ReturnValueTest) -> ReturnValueTest:
+    def _align_comparator_with_abi(
+        self, return_value_test: ReturnValueTest
+    ) -> ReturnValueTest:
         return return_value_test
 
     def verify(
@@ -281,7 +283,7 @@ class RPCCondition(AccessControlCondition):
             parameters, return_value_test = _resolve_any_context_variables(
                 self.parameters, self.return_value_test, **context
             )
-            return_value_test = self._normalize(return_value_test)
+            return_value_test = self._align_comparator_with_abi(return_value_test)
             try:
                 result = self._execute_call(parameters=parameters)
                 break
@@ -416,13 +418,13 @@ class ContractCondition(RPCCondition):
             # can't know type for context variable
             return
 
-        comparator_value = self._normalize_comparator_value(
+        comparator_value = self._align_comparator_value(
             comparator_value, expected_type, failure_message
         )
         if not w3.is_encodable(expected_type, comparator_value):
             raise InvalidCondition(failure_message)
 
-    def _normalize_comparator_value(
+    def _align_comparator_value(
         self, comparator_value: Any, expected_type: str, failure_message: str
     ):
         if expected_type.startswith("bytes"):
@@ -471,7 +473,9 @@ class ContractCondition(RPCCondition):
         contract_result = bound_contract_function.call()  # onchain read
         return contract_result
 
-    def _normalize(self, return_value_test: ReturnValueTest) -> ReturnValueTest:
+    def _align_comparator_with_abi(
+        self, return_value_test: ReturnValueTest
+    ) -> ReturnValueTest:
         output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
         comparator = return_value_test.comparator
         comparator_value = return_value_test.value
@@ -487,7 +491,7 @@ class ContractCondition(RPCCondition):
             if comparator_index is not None and self._is_tuple_type(expected_type):
                 type_entries = self._get_tuple_type_entries(expected_type)
                 expected_type = type_entries[comparator_index]
-            comparator_value = self._normalize_comparator_value(
+            comparator_value = self._align_comparator_value(
                 comparator_value, expected_type, failure_message="Unencodable type"
             )
             return ReturnValueTest(
@@ -499,7 +503,7 @@ class ContractCondition(RPCCondition):
             if comparator_index is not None:
                 # only index entry we care about
                 expected_type = output_abi_types[comparator_index]
-                comparator_value = self._normalize_comparator_value(
+                comparator_value = self._align_comparator_value(
                     comparator_value,
                     expected_type,
                     failure_message="Unencodable type",
@@ -514,7 +518,7 @@ class ContractCondition(RPCCondition):
             for output_abi_type, component_value in zip(
                 output_abi_types, comparator_value
             ):
-                comparator_value = self._normalize_comparator_value(
+                comparator_value = self._align_comparator_value(
                     comparator_value,
                     output_abi_type,
                     failure_message="Unencodable type",
