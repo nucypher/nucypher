@@ -40,6 +40,7 @@ tabulate = "*"
 jinja2 = "<3.1.0"  # because of docs
 # Tools
 eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
+prometheus-client = "*"
 
 [dev-packages]
 # Pytest

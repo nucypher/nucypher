@@ -55,6 +55,7 @@ nucypher-core==0.13.0
 packaging==23.2; python_version >= '3.7'
 parsimonious==0.9.0
 pendulum==3.0.0b1; python_version >= '3.8'
+prometheus-client==0.17.1; python_version >= '3.6'
 protobuf==4.25.0rc2; python_version >= '3.8'
 py-ecc==6.0.0; python_version >= '3.6' and python_version < '4'
 py-evm==0.7.0a4
