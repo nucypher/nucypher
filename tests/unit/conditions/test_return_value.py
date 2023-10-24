@@ -216,7 +216,7 @@ def test_return_value_test_bytes():
     assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
 
     # ensure correct bytes/hex comparison
-    assert reloaded.eval(value), "passing in bytes compared correctly to hex"
+    assert reloaded.eval(value), "bytes compared correctly to hex"
     assert not reloaded.eval(
         b"Here every creed and race find an equal place"
     )  # TT national anthem
@@ -240,7 +240,7 @@ def test_return_value_test_bytes_in_list_of_values():
     reloaded = schema.loads(schema.dumps(test))
     assert (test.comparator == reloaded.comparator) and (test.value == reloaded.value)
     # ensure correct bytes/hex comparison
-    assert reloaded.eval(value), "passing in bytes compared correctly to hex"
+    assert reloaded.eval(value), "bytes compared correctly to hex"
     assert not reloaded.eval([1, 2, 3])
 
 
@@ -305,13 +305,11 @@ def test_return_value_sanitize(test_scenario):
         125,  # int
         -123456789,  # negative int
         1.223,  # float
-        # Decimal('10.5'),  # decimal
         True,  # bool
         [1, 1.2314, False, "love"],  # list of different types
         ["a", "b", "c"],  # list
         [True, False],  # list of bools
         {"name": "John", "age": 22},  # dict
-        # namedtuple('MyStruct', ['field1', 'field2'])(1, 'a'),  # named tuple
     ],
 )
 def test_return_value_json_serialization(test_value):

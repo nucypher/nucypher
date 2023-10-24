@@ -179,7 +179,6 @@ class RPCCondition(AccessControlCondition):
         # test
         # should not be set to None - we do list unpacking so cannot be None; use empty list
         self.parameters = parameters or []
-        self.parameters = parameters or []
         self.return_value_test = return_value_test  # output
 
         self._validate_expected_return_type()
@@ -479,8 +478,8 @@ class ContractCondition(RPCCondition):
         comparator_index = return_value_test.index
         if isinstance(comparator_value, tuple):
             # must be list;
-            # TODO revisit this - when processing returned tuples we convert to list,
-            #  hence this conversion is needed
+            # TODO revisit this - when processing returned tuples from contract calls
+            #  we convert to list, hence this conversion is needed
             comparator_value = list(comparator_value)
 
         if len(output_abi_types) == 1:
@@ -492,7 +491,7 @@ class ContractCondition(RPCCondition):
                 comparator_value, expected_type, failure_message="Unencodable type"
             )
             return ReturnValueTest(
-                comparator=return_value_test.comparator,
+                comparator=comparator,
                 value=comparator_value,
                 index=comparator_index,
             )
@@ -527,35 +526,33 @@ class ContractCondition(RPCCondition):
         else:
             raise RuntimeError("No outputs for ABI function.")  # should never happen
 
-    @staticmethod
-    def _get_abi_types(abi: ABIFunction) -> List[str]:
+    @classmethod
+    def _get_abi_types(cls, abi: ABIFunction) -> List[str]:
         if abi["type"] == "fallback":
             return []
         else:
             return [
-                ContractCondition._collapse_if_tuple(cast(Dict[str, Any], arg))
+                cls._collapse_if_tuple(cast(Dict[str, Any], arg))
                 for arg in abi["outputs"]
             ]
 
-    @staticmethod
-    def _collapse_if_tuple(abi: Dict[str, Any]) -> str:
+    @classmethod
+    def _collapse_if_tuple(cls, abi: Dict[str, Any]) -> str:
         abi_type = abi["type"]
         if not abi_type.startswith("tuple"):
             return abi_type
 
-        delimited = ",".join(
-            ContractCondition._collapse_if_tuple(c) for c in abi["components"]
-        )
+        delimited = ",".join(cls._collapse_if_tuple(c) for c in abi["components"])
         collapsed = f"({delimited})"
         return collapsed
 
-    @staticmethod
-    def _is_tuple_type(abi_type: str):
+    @classmethod
+    def _is_tuple_type(cls, abi_type: str):
         return abi_type.startswith("(") and abi_type.endswith(")")
 
-    @staticmethod
-    def _get_tuple_type_entries(tuple_type: str) -> List[str]:
-        if not ContractCondition._is_tuple_type(tuple_type):
+    @classmethod
+    def _get_tuple_type_entries(cls, tuple_type: str) -> List[str]:
+        if not cls._is_tuple_type(tuple_type):
             raise ValueError(
                 f"Invalid type provided '{tuple_type}; not a tuple type definition"
             )
