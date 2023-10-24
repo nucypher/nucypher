@@ -372,18 +372,25 @@ class ContractCondition(RPCCondition):
     def _validate_expected_return_type(self):
         output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
         comparator_value = self.return_value_test.value
+        comparator_index = self.return_value_test.index
+        index_string = (
+            f"@index={comparator_index}" if comparator_index is not None else ""
+        )
         failure_message = (
             f"Invalid return value comparison type '{type(comparator_value)}' "
-            f"for '{self.contract_function.fn_name}' based on ABI"
+            f"for '{self.contract_function.fn_name}'{index_string} based on ABI types {output_abi_types}"
         )
 
         if len(output_abi_types) == 1:
             expected_type = output_abi_types[0]
+            if comparator_index is not None and self._is_tuple_type(expected_type):
+                type_entries = self._get_tuple_type_entries(expected_type)
+                expected_type = type_entries[comparator_index]
             self._validate_value_type(expected_type, comparator_value, failure_message)
         elif len(output_abi_types) > 1:
-            if self.return_value_test.index is not None:
+            if comparator_index is not None:
                 # only index entry we care about
-                expected_type = output_abi_types[self.return_value_test.index]
+                expected_type = output_abi_types[comparator_index]
                 self._validate_value_type(
                     expected_type, comparator_value, failure_message
                 )
@@ -401,6 +408,10 @@ class ContractCondition(RPCCondition):
                 self._validate_value_type(
                     output_abi_type, component_value, failure_message
                 )
+        else:
+            raise InvalidCondition(
+                "No outputs for ABI function."
+            )  # should never happen
 
     def _validate_value_type(self, expected_type, comparator_value, failure_message):
         if is_context_variable(comparator_value):
@@ -464,7 +475,9 @@ class ContractCondition(RPCCondition):
 
     def _normalize(self, return_value_test: ReturnValueTest) -> ReturnValueTest:
         output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
+        comparator = return_value_test.comparator
         comparator_value = return_value_test.value
+        comparator_index = return_value_test.index
         if isinstance(comparator_value, tuple):
             # must be list;
             # TODO revisit this - when processing returned tuples we convert to list,
@@ -473,13 +486,32 @@ class ContractCondition(RPCCondition):
 
         if len(output_abi_types) == 1:
             expected_type = output_abi_types[0]
+            if comparator_index is not None and self._is_tuple_type(expected_type):
+                type_entries = self._get_tuple_type_entries(expected_type)
+                expected_type = type_entries[comparator_index]
             comparator_value = self._normalize_comparator_value(
                 comparator_value, expected_type, failure_message="Unencodable type"
             )
             return ReturnValueTest(
-                comparator=return_value_test.comparator, value=comparator_value
+                comparator=return_value_test.comparator,
+                value=comparator_value,
+                index=comparator_index,
             )
         elif len(output_abi_types) > 1:
+            if comparator_index is not None:
+                # only index entry we care about
+                expected_type = output_abi_types[comparator_index]
+                comparator_value = self._normalize_comparator_value(
+                    comparator_value,
+                    expected_type,
+                    failure_message="Unencodable type",
+                )
+                return ReturnValueTest(
+                    comparator=comparator,
+                    value=comparator_value,
+                    index=comparator_index,
+                )
+
             values = list()
             for output_abi_type, component_value in zip(
                 output_abi_types, comparator_value
@@ -491,7 +523,7 @@ class ContractCondition(RPCCondition):
                 )
                 values.append(component_value)
             return ReturnValueTest(
-                comparator=return_value_test.comparator, value=values
+                comparator=comparator, value=values, index=comparator_index
             )
         else:
             raise RuntimeError("No outputs for ABI function.")  # should never happen
@@ -504,3 +536,18 @@ class ContractCondition(RPCCondition):
             return [
                 collapse_if_tuple(cast(Dict[str, Any], arg)) for arg in abi["outputs"]
             ]
+
+    @staticmethod
+    def _is_tuple_type(abi_type: str):
+        return abi_type.startswith("(") and abi_type.endswith(")")
+
+    @staticmethod
+    def _get_tuple_type_entries(tuple_type: str) -> List[str]:
+        if not ContractCondition._is_tuple_type(tuple_type):
+            raise ValueError(
+                f"Invalid type provided '{tuple_type}; not a tuple type definition"
+            )
+
+        result = tuple_type.replace("(", "").replace(")", "")
+        result = result.split(",")
+        return result
