@@ -30,7 +30,7 @@ requests = "*"
 urllib3 = ">=1.26.16,<2"  # because of eth-ape
 # Third-Party Ethereum
 eth-tester = "*"   # providers.py still uses this
-py-evm = "*"
+py-evm = "<0.8"  # because of evm-trace 0.1.0a25
 web3 = ">=6.0.0"
 eth-utils = "*"
 # CLI / Configuration
