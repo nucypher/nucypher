@@ -1,0 +1,2 @@
+Fix issues when bytes are provided as hex for return value comparators.
+Make condition value types more strict by using ABI to validate.
