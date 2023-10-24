@@ -4,6 +4,7 @@ import os
 from unittest import mock
 
 import pytest
+from hexbytes import HexBytes
 from web3 import Web3
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
@@ -283,7 +284,9 @@ def test_subscription_manager_is_active_policy_condition_evaluation(
     subscription_manager_is_active_policy_condition,
     condition_providers
 ):
-    context = {":hrac": bytes(enacted_policy.hrac)}  # user-defined context var
+    context = {
+        ":hrac": HexBytes(bytes(enacted_policy.hrac)).hex()
+    }  # user-defined context var
     (
         condition_result,
         call_result,
@@ -294,7 +297,7 @@ def test_subscription_manager_is_active_policy_condition_evaluation(
     assert condition_result is True
 
     # non-active policy hrac
-    context[":hrac"] = os.urandom(16)
+    context[":hrac"] = HexBytes(os.urandom(16)).hex()
     condition_result, call_result = subscription_manager_is_active_policy_condition.verify(
         providers=condition_providers, **context
     )
@@ -331,7 +334,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation_stru
     )
 
     context = {
-        ":hrac": bytes(enacted_policy.hrac),
+        ":hrac": HexBytes(bytes(enacted_policy.hrac)).hex(),
     }  # user-defined context vars
     condition_result, call_result = condition.verify(
         providers=condition_providers, **context
@@ -339,7 +342,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation_stru
     assert not condition_result  # not zeroized policy
 
     # unknown policy hrac
-    context[":hrac"] = os.urandom(16)
+    context[":hrac"] = HexBytes(os.urandom(16)).hex()
     condition_result, call_result = condition.verify(
         providers=condition_providers, **context
     )
@@ -357,7 +360,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation_cont
         NULL_ADDRESS, 0, 0, 0, NULL_ADDRESS,
     )
     context = {
-        ":hrac": bytes(enacted_policy.hrac),
+        ":hrac": HexBytes(bytes(enacted_policy.hrac)).hex(),
         ":expectedPolicyStruct": zeroized_policy_struct,
     }  # user-defined context vars
     condition_result, call_result = subscription_manager_get_policy_zeroized_policy_struct_condition.verify(
@@ -367,7 +370,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation_cont
     assert not condition_result  # not zeroized policy
 
     # unknown policy hrac
-    context[":hrac"] = os.urandom(16)
+    context[":hrac"] = HexBytes(os.urandom(16)).hex()
     condition_result, call_result = subscription_manager_get_policy_zeroized_policy_struct_condition.verify(
         providers=condition_providers, **context
     )
@@ -389,7 +392,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_key_tuple_evalu
     sponsor = idle_policy.publisher.checksum_address
 
     context = {
-        ":hrac": bytes(enacted_policy.hrac),
+        ":hrac": HexBytes(bytes(enacted_policy.hrac)).hex(),
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
         SubscriptionManagerAgent,
@@ -506,7 +509,7 @@ def test_subscription_manager_get_policy_policy_struct_condition_index_and_value
     # enacted policy created from idle policy
     sponsor = idle_policy.publisher.checksum_address
     context = {
-        ":hrac": bytes(enacted_policy.hrac),
+        ":hrac": HexBytes(bytes(enacted_policy.hrac)).hex(),
         ":sponsor": sponsor,
     }  # user-defined context vars
     subscription_manager = ContractAgency.get_agent(
