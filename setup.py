@@ -119,7 +119,6 @@ def read_requirements(path):
 
 INSTALL_REQUIRES = read_requirements("requirements.txt")
 DEV_REQUIRES = read_requirements("dev-requirements.txt")
-DOC_REQUIRES = read_requirements("docs-requirements.txt")
 
 BENCHMARK_REQUIRES = [
     'pytest-benchmark'
@@ -141,7 +140,6 @@ EXTRAS = {
     "benchmark": DEV_REQUIRES + BENCHMARK_REQUIRES,
     "deploy": DEPLOY_REQUIRES,
     "ursula": URSULA_REQUIRES,
-    "docs": DOC_REQUIRES,
 }
 
 setup(

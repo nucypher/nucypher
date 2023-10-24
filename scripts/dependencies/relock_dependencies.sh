@@ -33,14 +33,6 @@ pip cache purge
 # start enforcing failures
 set -e
 
-echo "Building Documentation Requirements"
-pushd ./scripts/dependencies/docs
-pipenv --python 3.11 lock --clear --pre
-pipenv requirements > ../../../docs-$PREFIX.txt
-rm -f Pipfile.lock
-pipenv --rm
-popd
-
 echo "Building Development Requirements"
 pipenv --python 3.11 lock --clear --pre --dev-only
 pipenv requirements --dev-only > dev-$PREFIX.txt

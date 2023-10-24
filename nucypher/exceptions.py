@@ -1,6 +1,3 @@
-
-
-
 # Package Warnings #
 ####################
 
@@ -8,9 +5,7 @@
 class DevelopmentInstallationRequired(RuntimeError):
 
     MESSAGE = '''
-    A development installation of nucypher is required to import {importable_name}. 
-    Please follow the installation instructions published at:
-    https://docs.nucypher.com/en/latest/installation.html
+    A development installation of nucypher is required to import {importable_name}.
     '''
 
     def __init__(self, importable_name: str, *args, **kwargs):
