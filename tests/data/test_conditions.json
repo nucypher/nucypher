@@ -29,41 +29,9 @@
       "name": "isSubscribedToToken",
       "outputs": [
         {
-          "components": [
-            {
-              "internalType": "bool",
-              "name": "valid",
-              "type": "bool"
-            },
-            {
-              "internalType": "bytes32",
-              "name": "subscriptionType",
-              "type": "bytes32"
-            },
-            {
-              "internalType": "uint256",
-              "name": "price",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "createdAt",
-              "type": "uint256"
-            },
-            {
-              "internalType": "uint256",
-              "name": "expireAt",
-              "type": "uint256"
-            },
-            {
-              "internalType": "bytes",
-              "name": "data",
-              "type": "bytes"
-            }
-          ],
-          "internalType": "struct Project.SubscriberData",
-          "name": "",
-          "type": "tuple"
+          "internalType": "bool",
+          "name": "valid",
+          "type": "bool"
         }
       ],
       "stateMutability": "view",

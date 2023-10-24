@@ -308,7 +308,6 @@ def test_subscription_manager_get_policy_policy_struct_condition_evaluation(
     subscription_manager_get_policy_zeroized_policy_struct_condition,
     condition_providers
 ):
-
     # zeroized policy struct
     zeroized_policy_struct = (
         NULL_ADDRESS, 0, 0, 0, NULL_ADDRESS,
