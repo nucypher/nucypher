@@ -586,7 +586,7 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
             "operands": [
                 {
                     "conditionType": ConditionType.TIME.value,
-                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
@@ -595,7 +595,7 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
                     "chain": TESTERCHAIN_CHAIN_ID,
                     "method": "eth_getBalance",
                     "parameters": [bob.checksum_address, "latest"],
-                    "returnValueTest": {"comparator": ">=", "value": "10000000000000"},
+                    "returnValueTest": {"comparator": ">=", "value": 10000000000000},
                 },
             ],
         },

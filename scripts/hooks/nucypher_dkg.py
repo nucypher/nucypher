@@ -304,7 +304,7 @@ def nucypher_dkg(
         "version": ConditionLingo.VERSION,
         "condition": {
             "conditionType": ConditionType.TIME.value,
-            "returnValueTest": {"value": "0", "comparator": ">"},
+            "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "blocktime",
             "chain": application_agent.blockchain.client.chain_id,
         },

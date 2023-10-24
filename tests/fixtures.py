@@ -601,14 +601,14 @@ def compound_blocktime_lingo():
             "operands": [
                 {
                     "conditionType": ConditionType.TIME.value,
-                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
                 {
                     "conditionType": ConditionType.TIME.value,
                     "returnValueTest": {
-                        "value": "99999999999999999",
+                        "value": 99999999999999999,
                         "comparator": "<",
                     },
                     "method": "blocktime",
@@ -616,7 +616,7 @@ def compound_blocktime_lingo():
                 },
                 {
                     "conditionType": ConditionType.TIME.value,
-                    "returnValueTest": {"value": "0", "comparator": ">"},
+                    "returnValueTest": {"value": 0, "comparator": ">"},
                     "method": "blocktime",
                     "chain": TESTERCHAIN_CHAIN_ID,
                 },
