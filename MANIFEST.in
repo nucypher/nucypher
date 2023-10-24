@@ -3,7 +3,6 @@ include LICENSE
 include README.md
 include requirements.txt
 include dev-requirements.txt
-include docs-requirements.txt
 
 recursive-exclude * __pycache__
 global-exclude *.py[cod]

@@ -1,12 +1,8 @@
-.PHONY: clean-pyc clean-build docs
+.PHONY: clean-pyc clean-build
 
 help:
 	@echo "clean-build - remove build artifacts"
 	@echo "clean-pyc - remove Python file artifacts"
-	@echo "build-docs - build documentation"
-	@echo "validate-docs - Validate news fragments"
-	@echo "docs - build then validate"
-	@echo "mac-docs - build, validate, the open in default browser (mac only)"
 	@echo "release - package and push a new release"
 	@echo "dist - build wheels and source distribution"
 	@echo "smoke-test - build a source distribution and spawn an active virtual environment"
@@ -25,21 +21,6 @@ clean-pyc:
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f {} +
-
-build-docs:
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
-
-validate-docs: build-docs
-    # Requires dependencies from docs-requirements.txt
-	python3 newsfragments/validate_files.py
-	python3 -m towncrier --draft
-
-docs: build-docs validate-docs
-	readlink -f docs/build/html/index.html
-
-mac-docs: build-docs validate-docs
-	open docs/build/html/index.html
 
 release: clean
     # Enable GPG signing of release commits

@@ -35,9 +35,6 @@ repos:
       - id: debug-statements
       - id: detect-private-key
 
-      # Docs
-      - id: check-vcs-permalinks
-
   - repo: https://github.com/akaihola/darker
     rev: 1.6.1
     hooks:
