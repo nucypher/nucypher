@@ -183,7 +183,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         "version": ConditionLingo.VERSION,
         "condition": {
             "conditionType": ConditionType.TIME.value,
-            "returnValueTest": {"value": "0", "comparator": ">"},
+            "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "blocktime",
             "chain": TESTERCHAIN_CHAIN_ID,
         },

@@ -17,7 +17,7 @@ def make_multichain_evm_conditions(bob, chain_ids):
         operand = [
             {
                 "conditionType": ConditionType.TIME.value,
-                "returnValueTest": {"value": "0", "comparator": ">"},
+                "returnValueTest": {"value": 0, "comparator": ">"},
                 "method": "blocktime",
                 "chain": chain_id,
             },
@@ -26,7 +26,7 @@ def make_multichain_evm_conditions(bob, chain_ids):
                 "chain": chain_id,
                 "method": "eth_getBalance",
                 "parameters": [bob.checksum_address, "latest"],
-                "returnValueTest": {"comparator": ">=", "value": "10000000000000"},
+                "returnValueTest": {"comparator": ">=", "value": 10000000000000},
             },
         ]
         operands.extend(operand)

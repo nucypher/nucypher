@@ -22,7 +22,7 @@ CONDITIONS = {
     "version": ConditionLingo.VERSION,
     "condition": {
         "conditionType": ConditionType.TIME.value,
-        "returnValueTest": {"value": "0", "comparator": ">"},
+        "returnValueTest": {"value": 0, "comparator": ">"},
         "method": "blocktime",
         "chain": TESTERCHAIN_CHAIN_ID,
     },
