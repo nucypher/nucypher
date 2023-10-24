@@ -264,9 +264,9 @@ class ReturnValueTest:
         processed_data = data
         if isinstance(data, (list, tuple)):
             if self.index is None:
-                # convert any bytes in sequence to hex
-                data = [self.__handle_potential_bytes(item) for item in data]
-                return data
+                # convert any bytes in list to hex
+                processed_data = [self.__handle_potential_bytes(item) for item in data]
+                return processed_data
 
             if isinstance(self.index, int):
                 try:
