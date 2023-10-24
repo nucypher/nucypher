@@ -14,6 +14,7 @@ mnemonic = "*"
 pynacl = ">=1.4.0"
 pyopenssl = "*"
 # Ethereum
+eth-abi = "<5.0.0"  # eth-ape restriction
 eth-tester = "<0.10.0,>0.9.0"  # web3[tester]
 eth-account = "<0.9,>=0.8.0"
 eth-utils = "*"
@@ -37,6 +38,7 @@ appdirs = "*"
 constant-sorrow = ">=0.1.0a9"
 maya = "*"
 pendulum = ">=3.0.0b1"
+prometheus-client = "*"
 setuptools = "*"  # for distutils
 urllib3 = "<2,>=1.26.16"  # eth-ape
 
