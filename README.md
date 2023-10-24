@@ -10,59 +10,6 @@
 
 ----
 
-The NuCypher network provides accessible, intuitive, and extensible runtimes and interfaces
-for secrets management and dynamic access control.
-* Accessible - The network is permissionless and censorship-resistant.
-There are no gate-keepers and anyone can use it.
-* Intuitive - The network leverages the classic cryptological narrative of Alice and Bob
-(with additional characters where appropriate). This character-based narrative permeates the code-base and helps
-developers write safe, misuse-resistant code.
-* Extensible - The network currently supports proxy re-encryption but can be extended to provide support for other cryptographic primitives.
-
-Access permissions are baked into the underlying encryption,
-and access can only be explicitly granted by the data owner via sharing policies.
-Consequently, the data owner has ultimate control over access to their data.
-At no point is the data decrypted nor can the underlying private keys be
-determined by the NuCypher network.
-
-Under the hood, the NuCypher network uses the [Umbral](https://github.com/nucypher/pyUmbral)
-threshold proxy re-encryption scheme to provide cryptographic access control.
-
-# How does NuCypher work?
-
-![](./docs/source/.static/img/nucypher_overview.png)
-
-01. Alice, the data owner, grants access to her encrypted data to
-anyone she wants by creating a policy and uploading it to
-the NuCypher network.
-
-02. A group of Ursulas, which are nodes on the NuCypher network,
-receive information about the policy, called a PolicyArrangement that include
-a re-encryption key share. The Ursulas stand ready to re-encrypt data in exchange for payment
-in fees and token rewards. Thanks to the use of proxy re-encryption,
-Ursulas and the storage layer never have access to Alice's plaintext data.
-
-03. Each policy created by Alice has an associated encryption key, which can be used
-by any entity (Enrico) to encrypt data on Alice's behalf.
-This entity could be an IoT device in her car, a collaborator assigned
-the task of writing data to her policy, or even a third-party creating
-data that belongs to her – for example, a lab analyzing medical tests.
-The resulting encrypted data can be uploaded to IPFS, Swarm, S3,
-or any other storage layer.
-
-04. Bob, a data recipient, obtains the encrypted data from the storage layer and sends an access request
-to the NuCypher network. If the policy is satisfied, the data is re-encrypted to his public key
-and he can decrypt it with his private key.
-
-05. Ursulas earn fees and token rewards for performing
-re-encryption operations.
-
-More detailed information:
-
-- Documentation https://docs.nucypher.com/
-- Website https://www.nucypher.com/
-
-
 # Whitepapers
 
 ### Network
