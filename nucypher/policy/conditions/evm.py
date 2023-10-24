@@ -14,7 +14,6 @@ from typing import (
 
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
-from eth_utils.abi import collapse_if_tuple
 from hexbytes import HexBytes
 from marshmallow import ValidationError, fields, post_load, validate, validates_schema
 from web3 import HTTPProvider, Web3
@@ -389,7 +388,7 @@ class ContractCondition(RPCCondition):
             self._validate_value_type(expected_type, comparator_value, failure_message)
         elif len(output_abi_types) > 1:
             if comparator_index is not None:
-                # only index entry we care about
+                # only care about indexed entry
                 expected_type = output_abi_types[comparator_index]
                 self._validate_value_type(
                     expected_type, comparator_value, failure_message
@@ -534,8 +533,21 @@ class ContractCondition(RPCCondition):
             return []
         else:
             return [
-                collapse_if_tuple(cast(Dict[str, Any], arg)) for arg in abi["outputs"]
+                ContractCondition._collapse_if_tuple(cast(Dict[str, Any], arg))
+                for arg in abi["outputs"]
             ]
+
+    @staticmethod
+    def _collapse_if_tuple(abi: Dict[str, Any]) -> str:
+        abi_type = abi["type"]
+        if not abi_type.startswith("tuple"):
+            return abi_type
+
+        delimited = ",".join(
+            ContractCondition._collapse_if_tuple(c) for c in abi["components"]
+        )
+        collapsed = f"({delimited})"
+        return collapsed
 
     @staticmethod
     def _is_tuple_type(abi_type: str):
