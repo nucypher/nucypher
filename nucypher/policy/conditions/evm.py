@@ -465,6 +465,12 @@ class ContractCondition(RPCCondition):
     def _normalize(self, return_value_test: ReturnValueTest) -> ReturnValueTest:
         output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
         comparator_value = return_value_test.value
+        if isinstance(comparator_value, tuple):
+            # must be list;
+            # TODO revisit this - when processing returned tuples we convert to list,
+            #  hence this conversion is needed
+            comparator_value = list(comparator_value)
+
         if len(output_abi_types) == 1:
             expected_type = output_abi_types[0]
             comparator_value = self._normalize_comparator_value(
