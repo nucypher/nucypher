@@ -29,9 +29,6 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
-<<<<<<< HEAD
-=======
->>>>>>> affc706fb (removes certificate filepath handling)
 from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
