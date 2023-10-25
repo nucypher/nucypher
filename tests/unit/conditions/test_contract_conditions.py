@@ -446,97 +446,94 @@ def test_abi_tuple_output_with_index(
         )
 
 
-def test_abi_multiple_output_values(get_random_checksum_address):
-    condition_dict = {
-        "conditionType": "contract",
-        "contractAddress": "0x01B67b1194C75264d06F808A921228a95C765dd7",
-        "method": "isSubscribedToToken",
-        "parameters": [
-            "0x5082F249cDb2f2c1eE035E4f423c46EA2daB3ab1",
-            "subscriptionCode",
-            4,
+def test_abi_multiple_output_values(
+    contract_condition_dict, get_random_checksum_address
+):
+    contract_condition_dict["functionAbi"] = {
+        "inputs": [
+            {"internalType": "address", "name": "subscriber", "type": "address"},
+            {
+                "internalType": "bytes32",
+                "name": "subscriptionCode",
+                "type": "bytes32",
+            },
+            {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
         ],
-        "functionAbi": {
-            "inputs": [
-                {"internalType": "address", "name": "subscriber", "type": "address"},
-                {
-                    "internalType": "bytes32",
-                    "name": "subscriptionCode",
-                    "type": "bytes32",
-                },
-                {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
-            ],
-            "name": "isSubscribedToToken",
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "tuple",
-                    "components": [
-                        {
-                            "name": "sponsor",
-                            "type": "address",
-                            "internalType": "address payable",
-                        },
-                        {
-                            "name": "startTimestamp",
-                            "type": "uint32",
-                            "internalType": "uint32",
-                        },
-                        {
-                            "name": "endTimestamp",
-                            "type": "uint32",
-                            "internalType": "uint32",
-                        },
-                        {"name": "size", "type": "uint16", "internalType": "uint16"},
-                        {"name": "owner", "type": "address", "internalType": "address"},
-                    ],
-                    "internalType": "struct SubscriptionManager.Policy",
-                },
-                {
-                    "name": "valid",
-                    "type": "bool",
-                    "internalType": "bool",
-                },
-                {
-                    "name": "randoValue",
-                    "type": "uint256",
-                    "internalType": "uint256",
-                },
-            ],
-            "stateMutability": "view",
-            "type": "function",
-            "constant": True,
-        },
-        "chain": 137,
-        "returnValueTest": {
-            "comparator": "==",
-            "value": True,
-            "index": 1,
-        },
+        "name": "isSubscribedToToken",
+        "outputs": [
+            {
+                "name": "",
+                "type": "tuple",
+                "components": [
+                    {
+                        "name": "sponsor",
+                        "type": "address",
+                        "internalType": "address payable",
+                    },
+                    {
+                        "name": "startTimestamp",
+                        "type": "uint32",
+                        "internalType": "uint32",
+                    },
+                    {
+                        "name": "endTimestamp",
+                        "type": "uint32",
+                        "internalType": "uint32",
+                    },
+                    {"name": "size", "type": "uint16", "internalType": "uint16"},
+                    {"name": "owner", "type": "address", "internalType": "address"},
+                ],
+                "internalType": "struct SubscriptionManager.Policy",
+            },
+            {
+                "name": "valid",
+                "type": "bool",
+                "internalType": "bool",
+            },
+            {
+                "name": "randoValue",
+                "type": "uint256",
+                "internalType": "uint256",
+            },
+        ],
+        "stateMutability": "view",
+        "type": "function",
+        "constant": True,
+    }
+    contract_condition_dict["returnValueTest"] = {
+        "comparator": "==",
+        "value": True,
+        "index": 1,
     }
 
     # process index 0 (tuple)
-    condition_dict["returnValueTest"]["index"] = 0
-    condition_dict["returnValueTest"]["value"] = [
+    contract_condition_dict["returnValueTest"]["index"] = 0
+    contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
         1,
         2,
         3,
         get_random_checksum_address(),
     ]
-    contract_condition = ContractCondition.from_json(json.dumps(condition_dict))
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
     assert isinstance(contract_condition.return_value_test.value, Sequence)
 
     # process index 1 (bool)
-    condition_dict["returnValueTest"]["index"] = 1
-    condition_dict["returnValueTest"]["value"] = False
-    contract_condition = ContractCondition.from_json(json.dumps(condition_dict))
+    contract_condition_dict["returnValueTest"]["index"] = 1
+    contract_condition_dict["returnValueTest"]["value"] = False
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
     assert isinstance(contract_condition.return_value_test.value, bool)
 
     # process index 2 (int)
-    condition_dict["returnValueTest"]["index"] = 2
-    condition_dict["returnValueTest"]["value"] = 123456789
-    contract_condition = ContractCondition.from_json(json.dumps(condition_dict))
+    contract_condition_dict["returnValueTest"]["index"] = 2
+    contract_condition_dict["returnValueTest"]["value"] = 123456789
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
     assert isinstance(contract_condition.return_value_test.value, int)
 
     # test execution logic - multiple outputs including tuples
@@ -547,7 +544,7 @@ def test_abi_multiple_output_values(get_random_checksum_address):
     ]
     for i in range(len(result)):
         _check_execution_logic(
-            condition_dict=condition_dict,
+            condition_dict=contract_condition_dict,
             execution_result=tuple(result),
             comparator_value=result[i],
             comparator="==",
@@ -556,7 +553,7 @@ def test_abi_multiple_output_values(get_random_checksum_address):
         )
 
         _check_execution_logic(
-            condition_dict=condition_dict,
+            condition_dict=contract_condition_dict,
             execution_result=tuple(result),
             comparator_value=result[i],
             comparator="!=",
@@ -565,116 +562,111 @@ def test_abi_multiple_output_values(get_random_checksum_address):
         )
 
 
-def test_abi_nested_tuples_output_values(get_random_checksum_address):
-    condition_dict = {
-        "conditionType": "contract",
-        "contractAddress": "0x01B67b1194C75264d06F808A921228a95C765dd7",
-        "method": "isSubscribedToToken",
-        "parameters": [
-            "0x5082F249cDb2f2c1eE035E4f423c46EA2daB3ab1",
-            "subscriptionCode",
-            4,
+def test_abi_nested_tuples_output_values(
+    contract_condition_dict, get_random_checksum_address
+):
+    contract_condition_dict["functionAbi"] = {
+        "inputs": [
+            {"internalType": "address", "name": "subscriber", "type": "address"},
+            {
+                "internalType": "bytes32",
+                "name": "subscriptionCode",
+                "type": "bytes32",
+            },
+            {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
         ],
-        "functionAbi": {
-            "inputs": [
-                {"internalType": "address", "name": "subscriber", "type": "address"},
-                {
-                    "internalType": "bytes32",
-                    "name": "subscriptionCode",
-                    "type": "bytes32",
-                },
-                {"internalType": "uint256", "name": "tokenId", "type": "uint256"},
-            ],
-            "name": "isSubscribedToToken",
-            "outputs": [
-                {
-                    "name": "",
-                    "type": "tuple",
-                    "components": [
-                        {
-                            "name": "sponsor",
-                            "type": "address",
-                            "internalType": "address payable",
-                        },
-                        {
-                            "name": "",
-                            "type": "tuple",
-                            "components": [
-                                {
-                                    "name": "startTimestamp",
-                                    "type": "uint32",
-                                    "internalType": "uint32",
-                                },
-                                {
-                                    "name": "endTimestamp",
-                                    "type": "uint32",
-                                    "internalType": "uint32",
-                                },
-                            ],
-                            "internalType": "struct SubscriptionManager.Timeframe",
-                        },
-                        {"name": "owner", "type": "address", "internalType": "address"},
-                    ],
-                    "internalType": "struct SubscriptionManager.Policy",
-                },
-                {
-                    "name": "valid",
-                    "type": "bool",
-                    "internalType": "bool",
-                },
-            ],
-            "stateMutability": "view",
-            "type": "function",
-            "constant": True,
-        },
-        "chain": 137,
-        "returnValueTest": {
-            "comparator": "==",
-            "value": True,
-            "index": 1,
-        },
+        "name": "isSubscribedToToken",
+        "outputs": [
+            {
+                "name": "",
+                "type": "tuple",
+                "components": [
+                    {
+                        "name": "sponsor",
+                        "type": "address",
+                        "internalType": "address payable",
+                    },
+                    {
+                        "name": "",
+                        "type": "tuple",
+                        "components": [
+                            {
+                                "name": "startTimestamp",
+                                "type": "uint32",
+                                "internalType": "uint32",
+                            },
+                            {
+                                "name": "endTimestamp",
+                                "type": "uint32",
+                                "internalType": "uint32",
+                            },
+                        ],
+                        "internalType": "struct SubscriptionManager.Timeframe",
+                    },
+                    {"name": "owner", "type": "address", "internalType": "address"},
+                ],
+                "internalType": "struct SubscriptionManager.Policy",
+            },
+            {
+                "name": "valid",
+                "type": "bool",
+                "internalType": "bool",
+            },
+        ],
+        "stateMutability": "view",
+        "type": "function",
+        "constant": True,
+    }
+    contract_condition_dict["returnValueTest"] = {
+        "comparator": "==",
+        "value": True,
+        "index": 1,
     }
 
     # process index 0 (nested tuples)
-    condition_dict["returnValueTest"]["index"] = 0
-    condition_dict["returnValueTest"]["value"] = [
+    contract_condition_dict["returnValueTest"]["index"] = 0
+    contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
         [1, 2],
         get_random_checksum_address(),
     ]
-    contract_condition = ContractCondition.from_json(json.dumps(condition_dict))
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
     assert isinstance(contract_condition.return_value_test.value, Sequence)
 
     # invalid if entire tuple not populated
-    condition_dict["returnValueTest"]["value"] = [
+    contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
         [1],
         get_random_checksum_address(),  # missing tuple value
     ]
     with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
-        ContractCondition.from_json(json.dumps(condition_dict))
+        ContractCondition.from_json(json.dumps(contract_condition_dict))
 
-    condition_dict["returnValueTest"]["value"] = [
+    contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
         1,
         2,
         get_random_checksum_address(),  # incorrect tuple value for Timeframe
     ]
     with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
-        ContractCondition.from_json(json.dumps(condition_dict))
+        ContractCondition.from_json(json.dumps(contract_condition_dict))
 
-    condition_dict["returnValueTest"]["value"] = [
+    contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
         [1, 2, 3],
         get_random_checksum_address(),  # too many values
     ]
     with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
-        ContractCondition.from_json(json.dumps(condition_dict))
+        ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # process index 1 (bool)
-    condition_dict["returnValueTest"]["index"] = 1
-    condition_dict["returnValueTest"]["value"] = False
-    contract_condition = ContractCondition.from_json(json.dumps(condition_dict))
+    contract_condition_dict["returnValueTest"]["index"] = 1
+    contract_condition_dict["returnValueTest"]["value"] = False
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
     assert isinstance(contract_condition.return_value_test.value, bool)
 
     # test execution logic - nested tuples
@@ -684,7 +676,7 @@ def test_abi_nested_tuples_output_values(get_random_checksum_address):
     ]
     for i in range(len(result)):
         _check_execution_logic(
-            condition_dict=condition_dict,
+            condition_dict=contract_condition_dict,
             execution_result=tuple(result),
             comparator_value=result[i],
             comparator="==",
@@ -693,7 +685,7 @@ def test_abi_nested_tuples_output_values(get_random_checksum_address):
         )
 
         _check_execution_logic(
-            condition_dict=condition_dict,
+            condition_dict=contract_condition_dict,
             execution_result=tuple(result),
             comparator_value=result[i],
             comparator="!=",
