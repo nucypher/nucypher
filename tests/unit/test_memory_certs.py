@@ -2,13 +2,13 @@ import socket
 import time
 
 import pytest
-from requests import Session, RequestException
+from requests import RequestException, Session
 
 from nucypher.utilities.certs import (
-    SelfSignedCertificateAdapter,
-    P2PSession,
+    Address,
     CertificateCache,
-    Address
+    P2PSession,
+    SelfSignedCertificateAdapter,
 )
 
 # Define test URLs
@@ -46,14 +46,14 @@ def test_init_adapter(cache, adapter):
 
 def test_cert_cache_set_get():
     cache = CertificateCache()
-    address = Address('example.com', 443)
+    address = Address("example.com", 443)
     cache.set(address, MOCK_CERT)
     assert cache.get(address) == MOCK_CERT
 
 
 def test_cert_cache_expiry():
     cache = CertificateCache(cache_duration=1)
-    address = Address('example.com', 443)
+    address = Address("example.com", 443)
     cache.set(address, MOCK_CERT)
     assert not cache.is_expired(address)
     # Wait for the cert to expire
@@ -62,18 +62,20 @@ def test_cert_cache_expiry():
 
 
 def test_cache_cert(cache):
-    address = Address('example.com', 443)
-    cache.set(address, 'cert_data')
-    assert cache.get(address) == 'cert_data'
+    address = Address("example.com", 443)
+    cache.set(address, "cert_data")
+    assert cache.get(address) == "cert_data"
 
 
 def test_send_request(session, mocker):
-    mocker.patch.object(SelfSignedCertificateAdapter, 'trust_certificate')
-    mocked_refresh = mocker.patch.object(session, '_refresh_certificate', return_value=MOCK_CERT)
-    mocker.patch.object(Session, 'send', return_value='response')
+    mocker.patch.object(SelfSignedCertificateAdapter, "trust_certificate")
+    mocked_refresh = mocker.patch.object(
+        session, "_refresh_certificate", return_value=MOCK_CERT
+    )
+    mocker.patch.object(Session, "send", return_value="response")
     response = session.send(mocker.Mock(url=VALID_URL))
     mocked_refresh.assert_called()
-    assert response == 'response'
+    assert response == "response"
 
 
 def test_https_request_with_cert_caching():
@@ -107,8 +109,8 @@ def test_https_request_with_cert_refresh():
 
 
 def test_fetch_server_cert_socket_error(session, mocker):
-    mocker.patch('socket.create_connection', side_effect=socket.error)
-    address = Address('localhost', 443)
+    mocker.patch("socket.create_connection", side_effect=socket.error)
+    address = Address("localhost", 443)
     with pytest.raises(socket.error):
         session._refresh_certificate(address)
 
@@ -116,10 +118,10 @@ def test_fetch_server_cert_socket_error(session, mocker):
 def test_send_request_exception(session, mocker):
     """Test that a RequestException is raised when the request fails."""
     mock_request = mocker.Mock()
-    mock_request.url = 'https://localhost'
+    mock_request.url = "https://localhost"
 
-    mocker.patch.object(session, '_refresh_certificate', return_value=MOCK_CERT)
-    mocker.patch('requests.Session.send', side_effect=RequestException)
+    mocker.patch.object(session, "_refresh_certificate", return_value=MOCK_CERT)
+    mocker.patch("requests.Session.send", side_effect=RequestException)
 
     with pytest.raises(RequestException):
         session.send(mock_request)
@@ -128,10 +130,10 @@ def test_send_request_exception(session, mocker):
 def test_retry_on_request_exception(session, mocker):
     """Test to ensure that the request is retried upon encountering a RequestException."""
     mock_request = mocker.Mock()
-    mock_request.url = 'https://localhost'
+    mock_request.url = "https://localhost"
 
-    mocker.patch.object(session, '_refresh_certificate', return_value=MOCK_CERT)
-    mocker.patch('requests.Session.send', side_effect=[RequestException, 'response'])
+    mocker.patch.object(session, "_refresh_certificate", return_value=MOCK_CERT)
+    mocker.patch("requests.Session.send", side_effect=[RequestException, "response"])
 
     response = session.send(mock_request)
-    assert response == 'response'
+    assert response == "response"
