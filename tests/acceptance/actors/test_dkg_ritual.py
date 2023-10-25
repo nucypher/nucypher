@@ -1,12 +1,25 @@
+import os
+import random
+
 import pytest
 import pytest_twisted
+from hexbytes import HexBytes
 from twisted.internet.threads import deferToThread
 
+from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
+from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
+from nucypher.policy.conditions.lingo import (
+    ConditionLingo,
+    NotCompoundCondition,
+    OrCompoundCondition,
+    ReturnValueTest,
+)
+from nucypher.policy.conditions.time import TimeCondition
+from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 
 # constants
 DKG_SIZE = 4
@@ -18,17 +31,64 @@ TIME_TRAVEL_INTERVAL = 60
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
-CONDITIONS = {
-    "version": ConditionLingo.VERSION,
-    "condition": {
-        "conditionType": ConditionType.TIME.value,
-        "returnValueTest": {"value": 0, "comparator": ">"},
-        "method": "blocktime",
-        "chain": TESTERCHAIN_CHAIN_ID,
-    },
-}
 
 DURATION = 48 * 60 * 60
+
+
+@pytest.fixture(scope="module")
+def condition(test_registry):
+    time_condition = TimeCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(comparator=">", value=0),
+    )
+    rpc_condition = RPCCondition(
+        chain=TESTERCHAIN_CHAIN_ID,
+        method="eth_getBalance",
+        return_value_test=ReturnValueTest(comparator="==", value=0),
+        parameters=["0x0000000000000000000000000000000000000007"],  # random account
+    )
+
+    subscription_manager = ContractAgency.get_agent(
+        SubscriptionManagerAgent,
+        registry=test_registry,
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI,
+    )
+    contract_condition = ContractCondition(
+        contract_address=subscription_manager.contract.address,
+        function_abi=subscription_manager.contract.get_function_by_name(
+            "getPolicy"
+        ).abi,
+        method="getPolicy",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest(
+            comparator="==", value=[NULL_ADDRESS, 0, 0, 0, NULL_ADDRESS]
+        ),
+        parameters=[HexBytes(os.urandom(16)).hex()],
+    )
+
+    or_condition = OrCompoundCondition(
+        operands=[time_condition, rpc_condition, contract_condition]
+    )
+
+    and_condition = OrCompoundCondition(
+        operands=[time_condition, rpc_condition, contract_condition]
+    )
+
+    not_not_condition = NotCompoundCondition(
+        operand=NotCompoundCondition(operand=and_condition)
+    )
+
+    conditions = [
+        time_condition,
+        rpc_condition,
+        contract_condition,
+        or_condition,
+        and_condition,
+        not_not_condition,
+    ]
+
+    condition_to_use = random.choice(conditions)
+    return ConditionLingo(condition_to_use).to_dict()
 
 
 @pytest.fixture(scope='module')
@@ -41,6 +101,7 @@ def cohort(ursulas):
 
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
+    condition,
     testerchain,
     coordinator_agent,
     global_allow_list,
@@ -144,7 +205,7 @@ def test_ursula_ritualist(
         # encrypt
         print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
         threshold_message_kit = enrico.encrypt_for_dkg(
-            plaintext=plaintext, conditions=CONDITIONS
+            plaintext=plaintext, conditions=condition
         )
 
         return threshold_message_kit
