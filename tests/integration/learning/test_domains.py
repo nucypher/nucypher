@@ -111,7 +111,6 @@ def test_learner_restores_metadata_from_storage(
     lonely_ursula_maker, tmpdir, domain_1, domain_2
 ):
     # Create a local file-based node storage
-    root = tmpdir.mkdir("known_nodes")
     old_storage = NodeStorage()
 
     # Use the ursula maker with this storage so it's populated with nodes from one domain
@@ -224,7 +223,6 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
     mocker.patch.dict(TEACHER_NODES, {domain_1: ("teacher-uri",)}, clear=True)
 
     # Create a local file-based node storage
-    root = tmpdir.mkdir("known_nodes")
     node_storage = NodeStorage()
 
     # Create some nodes and persist them to local storage
@@ -250,10 +248,12 @@ def test_learner_uses_both_nodes_from_storage_and_fallback_nodes(
         staking_provider_addresses=testerchain.stake_providers_accounts[3:],
         operator_addresses=testerchain.ursulas_accounts[3:],
     )
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+    # mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
 
     # The learner should learn about all nodes
     learner.learn_from_teacher_node()
     all_nodes = {teacher}
     all_nodes.update(other_nodes)
+    assert learner not in all_nodes
+    assert learner not in set(learner.known_nodes)
     assert set(learner.known_nodes) == all_nodes
