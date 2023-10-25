@@ -1,5 +1,6 @@
 import ast
 import base64
+import json
 import operator as pyoperator
 from enum import Enum
 from hashlib import md5
@@ -236,6 +237,19 @@ class ReturnValueTest:
             )
 
         if not is_context_variable(value):
+            # adjust stored value to be JSON serializable
+            if isinstance(value, (tuple, set)):
+                value = list(value)
+            if isinstance(value, bytes):
+                value = HexBytes(value).hex()
+
+            try:
+                json.dumps(value)
+            except Exception:
+                raise self.InvalidExpression(
+                    f"No JSON serializable equivalent found for type {type(value)}"
+                )
+
             # verify that value is valid, but don't set it here so as not to change the value;
             # it will be sanitized at eval time. Need to maintain serialization/deserialization
             # consistency

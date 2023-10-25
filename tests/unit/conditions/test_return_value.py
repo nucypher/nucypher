@@ -1,5 +1,7 @@
 import os
 import random
+from collections import namedtuple
+from typing import NamedTuple
 
 import pytest
 from hexbytes import HexBytes
@@ -310,6 +312,7 @@ def test_return_value_sanitize(test_scenario):
         ["a", "b", "c"],  # list
         [True, False],  # list of bools
         {"name": "John", "age": 22},  # dict
+        namedtuple("MyStruct", ["field1", "field2"])(1, "a"),
     ],
 )
 def test_return_value_json_serialization(test_value):
@@ -320,3 +323,31 @@ def test_return_value_json_serialization(test_value):
     assert (test.comparator == reloaded.comparator) and (
         test.value == reloaded.value
     ), f"test for '{comparator} {test_value}'"
+
+
+def test_return_value_non_json_serializable_adjustments():
+    # bytes
+    bytes_value = os.urandom(32)
+    return_value_test = ReturnValueTest(comparator="==", value=bytes_value)
+    assert return_value_test.value == HexBytes(bytes_value).hex()
+
+    # tuple
+    tuple_value = (1, True, "love")
+    return_value_test = ReturnValueTest(comparator="!=", value=tuple_value)
+    assert return_value_test.value == list(tuple_value)
+
+    # set
+    set_value = {1, 2, 3, 5}
+    return_value_test = ReturnValueTest(comparator="<=", value=set_value)
+    assert return_value_test.value == list(set_value)
+
+    # not json serializable - named tuple w/ bytes (no adjustment)
+    class NotJSONSerializable(NamedTuple):
+        index: int
+        data: bytes
+
+    not_json_serializable = NotJSONSerializable(index=1, data=b"1234")
+    with pytest.raises(
+        ReturnValueTest.InvalidExpression, match="No JSON serializable equivalent"
+    ):
+        ReturnValueTest(comparator="==", value=not_json_serializable)
