@@ -27,10 +27,8 @@ technical questions, discuss feature requests,
 and accept bug reports.
 
 If you're interested in contributing code, please check out
-our [Contribution Guide](https://docs.nucypher.com/en/latest/support/contribution.html)
+our [Contribution Guide](CONTRIBUTING.rst)
 and browse our [Open Issues](https://github.com/nucypher/nucypher/issues) for potential areas to contribute.
-
-Get up and running quickly by using our [docker development setup](dev/docker/README.md)
 
 # Security
 
@@ -48,7 +46,7 @@ We are happy to work together to use a more secure medium, such as Signal.
 Email security@nucypher.com and we will coordinate a communication channel that we're both comfortable with.
 
 A great place to begin your research is by working on our testnet.
-Please see our [documentation](https://docs.nucypher.com) to get started.
+Please see our [documentation](https://docs.threshold.network) to get started.
 We ask that you please respect testnet machines and their owners.
 If you find a vulnerability that you suspect has given you access to a machine against the owner's permission, stop what
 you're doing and immediately email security@nucypher.com.
