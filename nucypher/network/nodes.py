@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict, deque
 from contextlib import suppress
 from queue import Queue
@@ -5,7 +6,6 @@ from typing import List, Optional, Set, Tuple
 
 import maya
 import requests
-import time
 from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
     NO_STORAGE_AVAILABLE,
@@ -285,7 +285,7 @@ class Learner:
         self._learning_deferred = None
         self._discovery_canceller = DiscoveryCanceller()
 
-        node_storage = self.__DEFAULT_NODE_STORAGE()
+        node_storage = node_storage or self.__DEFAULT_NODE_STORAGE()
         self.node_storage = node_storage
         if save_metadata and node_storage is NO_STORAGE_AVAILABLE:
             raise ValueError("Cannot save nodes without a configured node storage")
