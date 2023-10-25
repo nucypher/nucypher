@@ -1203,8 +1203,7 @@ class Teacher:
         self.validate_metadata(registry=registry, eth_endpoint=eth_endpoint)
 
         response_data = network_middleware_client.node_information(
-            host=self.rest_interface.host,
-            port=self.rest_interface.port
+            host=self.rest_interface.host, port=self.rest_interface.port
         )
 
         try:

@@ -10,8 +10,7 @@ from requests.exceptions import HTTPError, RequestException
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import NucypherMiddlewareClient
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from nucypher.utilities.logging import Logger
 
 
@@ -67,7 +66,7 @@ def _request(url: str, certificate=None) -> Union[str, None]:
 def _request_from_node(
     teacher,
     eth_endpoint: str,
-    client: Optional['NucypherMiddlewareClient'] = None,
+    client: Optional["NucypherMiddlewareClient"] = None,
     timeout: int = 2,
     log: Logger = IP_DETECTION_LOGGER,
 ) -> Union[str, None]:

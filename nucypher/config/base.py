@@ -840,7 +840,6 @@ class CharacterConfiguration(BaseConfiguration):
                 )
 
         return self.keystore
-
     def configure_pre_payment_method(self):
         # TODO: finalize config fields
         #
