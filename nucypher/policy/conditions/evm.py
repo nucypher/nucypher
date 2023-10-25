@@ -6,8 +6,6 @@ from typing import (
     Optional,
     Set,
     Tuple,
-    Type,
-    Union,
 )
 
 from eth_typing import ChecksumAddress
@@ -33,6 +31,7 @@ from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snak
 from nucypher.policy.conditions.validation import (
     _align_comparator_value_with_abi,
     _get_abi_types,
+    _validate_contract_type_or_function_abi,
     _validate_multiple_output_types,
     _validate_single_output_type,
 )
@@ -306,18 +305,6 @@ class RPCCondition(AccessControlCondition):
 class ContractCondition(RPCCondition):
     CONDITION_TYPE = ConditionType.CONTRACT.value
 
-    @classmethod
-    def _validate_contract_type_or_function_abi(
-        cls,
-        standard_contract_type: str,
-        function_abi: Dict,
-        exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
-    ):
-        if not (bool(standard_contract_type) ^ bool(function_abi)):
-            raise exception_class(
-                f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
-            )
-
     class Schema(RPCCondition.Schema):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.CONTRACT.value), required=True
@@ -334,7 +321,7 @@ class ContractCondition(RPCCondition):
         def check_standard_contract_type_or_function_abi(self, data, **kwargs):
             standard_contract_type = data.get("standard_contract_type")
             function_abi = data.get("function_abi")
-            ContractCondition._validate_contract_type_or_function_abi(
+            _validate_contract_type_or_function_abi(
                 standard_contract_type, function_abi, ValidationError
             )
 
@@ -351,7 +338,7 @@ class ContractCondition(RPCCondition):
         self.method = method
         self.w3 = Web3()  # used to instantiate contract function without a provider
 
-        ContractCondition._validate_contract_type_or_function_abi(
+        _validate_contract_type_or_function_abi(
             standard_contract_type, function_abi, InvalidCondition
         )
 
