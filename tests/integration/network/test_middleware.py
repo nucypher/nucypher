@@ -30,9 +30,7 @@ def test_middleware_response_status_code_processing(
     ursula = list(ursulas)[0]
     _original_execute_method = mock_rest_middleware.client._execute_method
 
-    def execute_method_side_effect(
-        method, endpoint, *args, **kwargs
-    ):
+    def execute_method_side_effect(method, endpoint, *args, **kwargs):
         endpoint_url = urlparse(endpoint)
         if endpoint_url.path == "/reencrypt":
             response = mocker.MagicMock(
@@ -41,9 +39,7 @@ def test_middleware_response_status_code_processing(
             )
             return response
         else:
-            return _original_execute_method(
-                method, endpoint, *args, **kwargs
-            )
+            return _original_execute_method(method, endpoint, *args, **kwargs)
 
     mocker.patch.object(
         mock_rest_middleware.client,

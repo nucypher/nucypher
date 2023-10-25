@@ -1,11 +1,11 @@
 import socket
 import ssl
-from typing import NamedTuple, Dict
+import time
+from typing import Dict, NamedTuple
 from urllib.parse import urlparse, urlunparse
 
-import time
 from _socket import gethostbyname
-from requests import Session, Response, PreparedRequest
+from requests import PreparedRequest, Response, Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 from urllib3 import PoolManager
@@ -23,14 +23,16 @@ class Address(NamedTuple):
 def _replace_hostname_with_ip(url: str, ip_address: str) -> str:
     """Replace the hostname in the URL with the provided IP address."""
     parsed_url = urlparse(url)
-    return urlunparse((
-        parsed_url.scheme,
-        f"{ip_address}:{parsed_url.port or ''}",
-        parsed_url.path,
-        parsed_url.params,
-        parsed_url.query,
-        parsed_url.fragment
-    ))
+    return urlunparse(
+        (
+            parsed_url.scheme,
+            f"{ip_address}:{parsed_url.port or ''}",
+            parsed_url.path,
+            parsed_url.params,
+            parsed_url.query,
+            parsed_url.fragment,
+        )
+    )
 
 
 def _fetch_server_cert(address: Address) -> Certificate:
@@ -55,9 +57,9 @@ class CertificateCache:
     DEFAULT_REFRESH_INTERVAL = 600
 
     def __init__(
-            self,
-            cache_duration: int = DEFAULT_DURATION,
-            refresh_interval: int = DEFAULT_REFRESH_INTERVAL
+        self,
+        cache_duration: int = DEFAULT_DURATION,
+        refresh_interval: int = DEFAULT_REFRESH_INTERVAL,
     ):
         self._certificates: Dict[Address, Certificate] = dict()
         self._expirations: Dict[Address, float] = dict()
@@ -72,15 +74,12 @@ class CertificateCache:
         self._expirations[address] = time.time() + self.cache_duration
 
     def is_expired(self, address: Address) -> bool:
-        return (address in self._expirations
-                and time.time() > self._expirations[address])
+        return address in self._expirations and time.time() > self._expirations[address]
 
     def should_cache_now(self, address: Address) -> bool:
         return (
-                address not in self._expirations
-                or time.time()
-                > self._expirations[address]
-                - self.cache_refresh_interval
+            address not in self._expirations
+            or time.time() > self._expirations[address] - self.cache_refresh_interval
         )
 
 
@@ -108,7 +107,7 @@ class SelfSignedCertificateAdapter(HTTPAdapter):
 
 
 class P2PSession(Session):
-    _DEFAULT_HOSTNAME = ''
+    _DEFAULT_HOSTNAME = ""
     _DEFAULT_PORT = 443
 
     def __init__(self):
@@ -123,10 +122,7 @@ class P2PSession(Session):
         parsed = urlparse(url)
         hostname = parsed.hostname or cls._DEFAULT_HOSTNAME
         hostname = gethostbyname(hostname)  # resolve DNS
-        return Address(
-            hostname,
-            parsed.port or cls._DEFAULT_PORT
-        )
+        return Address(hostname, parsed.port or cls._DEFAULT_PORT)
 
     def __retry_send(self, address, request, *args, **kwargs) -> Response:
         certificate = self._refresh_certificate(address)
@@ -150,10 +146,7 @@ class P2PSession(Session):
         address = self._resolve_address(url=request.url)  # resolves dns
         certificate = self.__get_or_refresh_certificate(address)  # cache by resolved ip
         self.adapter.trust_certificate(certificate=certificate)
-        url = _replace_hostname_with_ip(
-            url=request.url,
-            ip_address=address.hostname
-        )
+        url = _replace_hostname_with_ip(url=request.url, ip_address=address.hostname)
         request.url = url  # replace the hostname with the resolved IP address
         try:
             return super().send(request, *args, **kwargs)

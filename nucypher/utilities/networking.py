@@ -9,8 +9,7 @@ from requests.exceptions import HTTPError, RequestException
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.network.exceptions import NodeSeemsToBeDown
-from nucypher.network.middleware import NucypherMiddlewareClient
-from nucypher.network.middleware import RestMiddleware
+from nucypher.network.middleware import NucypherMiddlewareClient, RestMiddleware
 from nucypher.utilities.logging import Logger
 
 
@@ -22,32 +21,30 @@ class InvalidOperatorIP(RuntimeError):
     """Raised when an Ursula is using an invalid IP address for it's server."""
 
 
-CENTRALIZED_IP_ORACLE_URL = 'https://ifconfig.me/'
+CENTRALIZED_IP_ORACLE_URL = "https://ifconfig.me/"
 
-LOOPBACK_ADDRESS = '127.0.0.1'
+LOOPBACK_ADDRESS = "127.0.0.1"
 
 RequestErrors = (
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions
     ConnectionError,
     TimeoutError,
     RequestException,
-    HTTPError
+    HTTPError,
 )
 
-RESERVED_IP_ADDRESSES = (
-    '0.0.0.0',
-    LOOPBACK_ADDRESS,
-    '1.2.3.4'
-)
+RESERVED_IP_ADDRESSES = ("0.0.0.0", LOOPBACK_ADDRESS, "1.2.3.4")
 
-IP_DETECTION_LOGGER = Logger('external-ip-detection')
+IP_DETECTION_LOGGER = Logger("external-ip-detection")
 
 
 def validate_operator_ip(ip: str) -> None:
     if ip in RESERVED_IP_ADDRESSES:
-        raise InvalidOperatorIP(f"{ip} is not a valid or permitted operator IP address. "
-                                f"Verify the 'rest_host' configuration value is set to the "
-                                f"external IPV4 address")
+        raise InvalidOperatorIP(
+            f"{ip} is not a valid or permitted operator IP address. "
+            f"Verify the 'rest_host' configuration value is set to the "
+            f"external IPV4 address"
+        )
 
 
 def _request(url: str, certificate=None) -> Union[str, None]:
@@ -68,7 +65,7 @@ def _request(url: str, certificate=None) -> Union[str, None]:
 def _request_from_node(
     teacher,
     eth_endpoint: str,
-    client: Optional['NucypherMiddlewareClient'] = None,
+    client: Optional["NucypherMiddlewareClient"] = None,
     timeout: int = 2,
     log: Logger = IP_DETECTION_LOGGER,
 ) -> Union[str, None]:
@@ -88,13 +85,15 @@ def _request_from_node(
         try:
             ip = str(ip_address(response.text))
         except ValueError:
-            error = f'Teacher {teacher} returned an invalid IP response; Got {response.text}'
+            error = f"Teacher {teacher} returned an invalid IP response; Got {response.text}"
             raise UnknownIPAddress(error)
-        log.info(f'Fetched external IP address ({ip}) from teacher ({teacher}).')
+        log.info(f"Fetched external IP address ({ip}) from teacher ({teacher}).")
         return ip
     else:
         # Something strange happened... move on anyways.
-        log.debug(f'Failed to get external IP from teacher node ({teacher} returned {response.status_code})')
+        log.debug(
+            f"Failed to get external IP from teacher node ({teacher} returned {response.status_code})"
+        )
 
 
 def get_external_ip_from_default_teacher(
@@ -107,7 +106,7 @@ def get_external_ip_from_default_teacher(
     from nucypher.characters.lawful import Ursula
     from nucypher.network.nodes import TEACHER_NODES
 
-    base_error = 'Cannot determine IP using default teacher'
+    base_error = "Cannot determine IP using default teacher"
 
     if domain not in TEACHER_NODES:
         log.debug(f'{base_error}: Unknown domain "{domain}".')
@@ -153,15 +152,21 @@ def get_external_ip_from_known_nodes(
     for node in sample:
         ip = _request_from_node(teacher=node, client=client, eth_endpoint=eth_endpoint)
         if ip:
-            log.info(f'Fetched external IP address ({ip}) from randomly selected known nodes.')
+            log.info(
+                f"Fetched external IP address ({ip}) from randomly selected known nodes."
+            )
             return ip
 
 
-def get_external_ip_from_centralized_source(log: Logger = IP_DETECTION_LOGGER) -> Union[str, None]:
+def get_external_ip_from_centralized_source(
+    log: Logger = IP_DETECTION_LOGGER,
+) -> Union[str, None]:
     """Use hardcoded URL to determine the external IP address of this host."""
     ip = _request(url=CENTRALIZED_IP_ORACLE_URL)
     if ip:
-        log.info(f'Fetched external IP address ({ip}) from centralized source ({CENTRALIZED_IP_ORACLE_URL}).')
+        log.info(
+            f"Fetched external IP address ({ip}) from centralized source ({CENTRALIZED_IP_ORACLE_URL})."
+        )
     return ip
 
 
@@ -196,5 +201,5 @@ def determine_external_ip_address(
 
     # complete failure!
     if not rest_host:
-        raise UnknownIPAddress('External IP address detection failed')
+        raise UnknownIPAddress("External IP address detection failed")
     return rest_host

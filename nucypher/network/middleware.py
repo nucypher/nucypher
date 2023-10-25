@@ -11,7 +11,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.utilities.certs import P2PSession
 from nucypher.utilities.logging import Logger
 
-SSL_LOGGER = Logger('ssl-middleware')
+SSL_LOGGER = Logger("ssl-middleware")
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
 # It’s a good practice to set connect timeouts to slightly larger
@@ -45,7 +45,6 @@ class NucypherMiddlewareClient:
 
     @staticmethod
     def response_cleaner(response):
-
         return response
 
     def verify_and_parse_node_or_host_and_port(self, node_or_sprout, host, port):
@@ -68,7 +67,9 @@ class NucypherMiddlewareClient:
     def parse_node_or_host_and_port(self, node, host, port):
         if node:
             if any((host, port)):
-                raise ValueError("Don't pass host and port if you are passing the node.")
+                raise ValueError(
+                    "Don't pass host and port if you are passing the node."
+                )
             host, port = node.rest_interface.host, node.rest_interface.port
         elif not (host and port):
             raise ValueError("You need to pass either the node or a host and port.")
@@ -116,23 +117,24 @@ class NucypherMiddlewareClient:
             host=host,
             port=port,
             path="public_information",
-            timeout=2
+            timeout=2,
         )
         return response.content
 
     def __getattr__(self, method_name):
         # Quick sanity check.
         if method_name not in ("post", "get", "put", "patch", "delete"):
-            raise TypeError(f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
+            raise TypeError(
+                f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'."
+            )
 
-        def method_wrapper(path,
-                           node_or_sprout=None,
-                           host=None,
-                           port=None,
-                           *args, **kwargs):
-
+        def method_wrapper(
+            path, node_or_sprout=None, host=None, port=None, *args, **kwargs
+        ):
             # Get interface
-            host, port, http_client = self.verify_and_parse_node_or_host_and_port(node_or_sprout, host, port)
+            host, port, http_client = self.verify_and_parse_node_or_host_and_port(
+                node_or_sprout, host, port
+            )
             endpoint = f"https://{host}:{port}/{path}"
             method = getattr(http_client, method_name)
             response = self._execute_method(method, endpoint, *args, **kwargs)
@@ -140,7 +142,6 @@ class NucypherMiddlewareClient:
             # Handle response
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
-
                 if cleaned_response.status_code == HTTPStatus.BAD_REQUEST:
                     raise RestMiddleware.BadRequest(reason=cleaned_response.text)
 
@@ -165,10 +166,7 @@ class NucypherMiddlewareClient:
 
         return method_wrapper
 
-    def _execute_method(self,
-                        method,
-                        endpoint,
-                        *args, **kwargs):
+    def _execute_method(self, method, endpoint, *args, **kwargs):
         # Send request
         response = self.invoke_method(method, endpoint, *args, **kwargs)
         return response
@@ -191,28 +189,35 @@ class RestMiddleware:
 
     class UnexpectedResponse(Exception):
         """Based for all HTTP status codes"""
+
         def __init__(self, message, status, *args, **kwargs):
             super().__init__(message, *args, **kwargs)
             self.status = status
 
     class NotFound(UnexpectedResponse):
         """Raised for HTTP 404"""
+
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.NOT_FOUND, *args, **kwargs)
 
     class BadRequest(UnexpectedResponse):
         """Raised for HTTP 400"""
+
         def __init__(self, reason, *args, **kwargs):
             self.reason = reason
-            super().__init__(message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs)
+            super().__init__(
+                message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs
+            )
 
     class PaymentRequired(UnexpectedResponse):
         """Raised for HTTP 402"""
+
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.PAYMENT_REQUIRED, *args, **kwargs)
 
     class Unauthorized(UnexpectedResponse):
         """Raised for HTTP 403"""
+
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
@@ -260,15 +265,18 @@ class RestMiddleware:
         response = self.client.get(node_or_sprout=node, path="ping")
         return response
 
-    def get_nodes_via_rest(self,
-                           node,
-                           fleet_state_checksum: FleetStateChecksum,
-                           announce_nodes: Sequence[NodeMetadata]):
-
-        request = MetadataRequest(fleet_state_checksum=fleet_state_checksum,
-                                  announce_nodes=announce_nodes)
-        response = self.client.post(node_or_sprout=node,
-                                    path="node_metadata",
-                                    data=bytes(request),
-                                    )
+    def get_nodes_via_rest(
+        self,
+        node,
+        fleet_state_checksum: FleetStateChecksum,
+        announce_nodes: Sequence[NodeMetadata],
+    ):
+        request = MetadataRequest(
+            fleet_state_checksum=fleet_state_checksum, announce_nodes=announce_nodes
+        )
+        response = self.client.post(
+            node_or_sprout=node,
+            path="node_metadata",
+            data=bytes(request),
+        )
         return response
