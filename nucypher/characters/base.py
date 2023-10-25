@@ -1,9 +1,8 @@
-from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Union
-
 from constant_sorrow.constants import NO_NICKNAME, NO_SIGNING_POWER, STRANGER
 from eth_utils import to_canonical_address
 from nucypher_core.umbral import PublicKey
+from typing import ClassVar, Dict, List, Optional
+from typing import Union
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth import domains
@@ -209,10 +208,6 @@ class Character(Learner):
         return to_canonical_address(str(self.checksum_address))
 
     @classmethod
-    def from_config(cls, config, **overrides) -> 'Character':
-        return config.produce(**overrides)
-
-    @classmethod
     def from_public_keys(cls,
                          powers_and_material: Dict = None,
                          verifying_key: Optional[PublicKey] = None,
@@ -256,25 +251,6 @@ class Character(Learner):
             *args,
             **kwargs,
         )
-
-    def _set_known_node_class(self, known_node_class):
-        """
-        Once in a while, in tests or demos, we init a plain Character who doesn't already know about its node class.
-        """
-        if not known_node_class:
-            from nucypher.characters.lawful import Ursula
-            known_node_class = Ursula
-        self.known_node_class = known_node_class
-
-    # TODO: Unused
-    def store_metadata(self, filepath: Path) -> Path:
-        """
-        Save this node to the disk.
-        :param filepath: Output filepath to save node metadata.
-        :return: Output filepath
-        """
-
-        return self.node_storage.store_node_metadata(node=self, filepath=filepath)
 
     def public_keys(self, power_up_class: ClassVar):
         """

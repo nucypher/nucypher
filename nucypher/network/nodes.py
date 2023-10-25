@@ -710,11 +710,6 @@ class Learner:
                     self._LONG_LEARNING_DELAY))
                 self._learning_task.interval = self._LONG_LEARNING_DELAY
 
-    def network_bootstrap(self, node_list: list) -> None:
-        for node_addr, port in node_list:
-            new_nodes = self.learn_about_nodes_now(node_addr, port)
-            self.__known_nodes.update(new_nodes)
-
     def get_nodes_by_ids(self, node_ids):
         for node_id in node_ids:
             try:
@@ -726,9 +721,6 @@ class Learner:
         # TODO: Build a concurrent pool of lookups here.  NRN
 
         # Scenario 3: We don't know about this node, and neither does our friend.
-
-    def write_node_metadata(self, node, serializer=bytes) -> str:
-        return self.node_storage.set(node=node)
 
     def verify_from(
         self,
