@@ -4,8 +4,8 @@ from nucypher.utilities.logging import Logger
 
 
 class NodeStorage:
-    _TYPE_LABEL = 'storage_type'
-    _name = ':memory:'
+    _TYPE_LABEL = "storage_type"
+    _name = ":memory:"
 
     class NodeStorageError(Exception):
         pass
@@ -16,6 +16,7 @@ class NodeStorage:
     def __init__(self, character_class=None):
         self.__metadata = dict()
         from nucypher.characters.lawful import Ursula
+
         self.character_class = character_class or Ursula
         self.log = Logger(self.__class__.__name__)
 
@@ -34,7 +35,9 @@ class NodeStorage:
     @validate_checksum_address
     def get(self, host: str = None, stamp: SignatureStamp = None):
         if not bool(stamp) ^ bool(host):
-            message = "Either pass stamp or host; Not both. Got ({} {})".format(stamp, host)
+            message = "Either pass stamp or host; Not both. Got ({} {})".format(
+                stamp, host
+            )
             raise ValueError(message)
         try:
             return self.__metadata[stamp or host]
