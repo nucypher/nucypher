@@ -1,4 +1,4 @@
-![](./docs/source/.static/img/nucypher.png)
+![](nucypher.png)
 
 *A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for
 secrets management and dynamic access control.*

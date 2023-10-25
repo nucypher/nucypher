@@ -1,7 +1,7 @@
 [tool.towncrier]
     package = "nucypher"
     package_dir = "nucypher"
-    filename = "docs/source/release_notes/releases.rst"
+    filename = "releases.rst"
     directory = "newsfragments"
     underlines = ["-", "~", "^", "*"]
     issue_format = "`#{issue} <https://github.com/nucypher/nucypher/issues/{issue}>`__"
