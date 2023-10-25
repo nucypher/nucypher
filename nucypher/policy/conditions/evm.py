@@ -265,7 +265,7 @@ class RPCCondition(AccessControlCondition):
         rpc_result = rpc_function(*parameters)  # RPC read
         return rpc_result
 
-    def _align_comparator_with_abi(
+    def _align_comparator_value_with_abi(
         self, return_value_test: ReturnValueTest
     ) -> ReturnValueTest:
         return return_value_test
@@ -283,7 +283,7 @@ class RPCCondition(AccessControlCondition):
             parameters, return_value_test = _resolve_any_context_variables(
                 self.parameters, self.return_value_test, **context
             )
-            return_value_test = self._align_comparator_with_abi(return_value_test)
+            return_value_test = self._align_comparator_value_with_abi(return_value_test)
             try:
                 result = self._execute_call(parameters=parameters)
                 break
@@ -424,8 +424,9 @@ class ContractCondition(RPCCondition):
         if not w3.is_encodable(expected_type, comparator_value):
             raise InvalidCondition(failure_message)
 
+    @staticmethod
     def _align_comparator_value(
-        self, comparator_value: Any, expected_type: str, failure_message: str
+        comparator_value: Any, expected_type: str, failure_message: str
     ):
         if expected_type.startswith("bytes"):
             try:
@@ -473,7 +474,7 @@ class ContractCondition(RPCCondition):
         contract_result = bound_contract_function.call()  # onchain read
         return contract_result
 
-    def _align_comparator_with_abi(
+    def _align_comparator_value_with_abi(
         self, return_value_test: ReturnValueTest
     ) -> ReturnValueTest:
         output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
@@ -481,9 +482,7 @@ class ContractCondition(RPCCondition):
         comparator_value = return_value_test.value
         comparator_index = return_value_test.index
         if isinstance(comparator_value, tuple):
-            # must be list;
-            # TODO revisit this - when processing returned tuples from contract calls
-            #  we convert to list, hence this conversion is needed
+            # must be list
             comparator_value = list(comparator_value)
 
         if len(output_abi_types) == 1:
