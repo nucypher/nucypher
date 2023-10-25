@@ -409,13 +409,11 @@ class ContractCondition(RPCCondition):
                     output_abi_type, component_value, failure_message
                 )
         else:
-            raise InvalidCondition(
-                "No outputs for ABI function."
-            )  # should never happen
+            raise InvalidCondition("No output types available for ABI function.")
 
     def _validate_value_type(self, expected_type, comparator_value, failure_message):
         if is_context_variable(comparator_value):
-            # can't know type for context variable
+            # context variable types cannot be known until execution time.
             return
 
         comparator_value = self._align_comparator_value(
@@ -520,14 +518,15 @@ class ContractCondition(RPCCondition):
                 comparator_value = self._align_comparator_value(
                     comparator_value,
                     output_abi_type,
-                    failure_message="Unencodable type",
+                    failure_message=f"Unencodable type ({comparator_value} as {output_abi_type})",
                 )
                 values.append(component_value)
             return ReturnValueTest(
                 comparator=comparator, value=values, index=comparator_index
             )
         else:
-            raise RuntimeError("No outputs for ABI function.")  # should never happen
+            # should never happen (validated on object initialization)
+            raise RuntimeError("No output types available for ABI function.")
 
     @classmethod
     def _get_abi_types(cls, abi: ABIFunction) -> List[str]:
