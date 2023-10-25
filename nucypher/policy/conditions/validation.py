@@ -4,10 +4,13 @@ from typing import (
     List,
     Optional,
     Sequence,
+    Type,
+    Union,
     cast,
 )
 
 from hexbytes import HexBytes
+from marshmallow import ValidationError
 from web3.auto import w3
 from web3.types import ABIFunction
 
@@ -160,3 +163,14 @@ def _align_comparator_value_with_abi(
         )
     else:
         raise RuntimeError("No outputs for ABI function.")  # should never happen
+
+
+def _validate_contract_type_or_function_abi(
+    standard_contract_type: str,
+    function_abi: Dict,
+    exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+) -> None:
+    if not (bool(standard_contract_type) ^ bool(function_abi)):
+        raise exception_class(
+            f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
+        )
