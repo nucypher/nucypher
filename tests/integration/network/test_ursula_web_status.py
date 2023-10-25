@@ -1,8 +1,5 @@
 
 
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -24,9 +21,9 @@ def test_ursula_html_renders(ursula, client):
     assert response.status_code == 404
     response = client.get('/status/')
     assert response.status_code == 200
-    assert b'<!DOCTYPE html>' in response._certificates
-    assert ursula.checksum_address.encode() in response._certificates
-    assert str(ursula.nickname).encode() in response._certificates
+    assert b"<!DOCTYPE html>" in response.data
+    assert ursula.checksum_address.encode() in response.data
+    assert str(ursula.nickname).encode() in response.data
 
 
 @pytest.mark.parametrize('omit_known_nodes', [False, True])
