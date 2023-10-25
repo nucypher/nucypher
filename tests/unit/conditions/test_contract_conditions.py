@@ -314,8 +314,14 @@ def test_abi_tuple_output(contract_condition_dict):
         {"internalType": "uint96", "name": "tStake", "type": "uint96"},
         {"internalType": "uint96", "name": "keepInTStake", "type": "uint96"},
         {"internalType": "uint96", "name": "nuInTStake", "type": "uint96"},
+        {"internalType": "bytes", "name": "randoBytes", "type": "bytes"},
     ]
-    contract_condition_dict["returnValueTest"]["value"] = [1, 2, 3]
+
+    random_bytes = os.urandom(16)
+    random_bytes_hex = HexBytes(random_bytes).hex()
+
+    contract_condition_dict["returnValueTest"]["value"] = [1, 2, 3, random_bytes_hex]
+
     contract_condition = ContractCondition.from_json(
         json.dumps(contract_condition_dict)
     )
@@ -349,24 +355,32 @@ def test_abi_tuple_output(contract_condition_dict):
     # test execution logic (tuples are serialized as lists for comparator_value)
     _check_execution_logic(
         condition_dict=contract_condition_dict,
-        execution_result=(1, 2, 3),
-        comparator_value=[1, 2, 3],
+        execution_result=(1, 2, 3, random_bytes),
+        comparator_value=[1, 2, 3, random_bytes_hex],
         comparator="==",
         expected_outcome=True,
     )
 
     _check_execution_logic(
         condition_dict=contract_condition_dict,
-        execution_result=(2, 3, 4),
-        comparator_value=[2, 3, 4],
+        execution_result=(2, 3, 4, random_bytes),
+        comparator_value=[2, 3, 4, random_bytes_hex],
         comparator="!=",
         expected_outcome=False,
     )
 
     _check_execution_logic(
         condition_dict=contract_condition_dict,
-        execution_result=(3, 4, 5),
-        comparator_value=[3, 4, 6],
+        execution_result=(3, 4, 5, random_bytes),
+        comparator_value=[3, 4, 6, random_bytes_hex],
+        comparator="==",
+        expected_outcome=False,
+    )
+
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=(3, 4, 5, random_bytes),
+        comparator_value=[3, 4, 5, HexBytes(os.urandom(16)).hex()],
         comparator="==",
         expected_outcome=False,
     )
@@ -379,13 +393,18 @@ def test_abi_tuple_output_with_index(
         {"internalType": "uint96", "name": "tStake", "type": "uint96"},
         {"internalType": "uint96", "name": "hasKeep", "type": "bool"},
         {"internalType": "uint96", "name": "nuAddress", "type": "address"},
+        {"internalType": "bytes", "name": "randoBytes", "type": "bytes"},
     ]
+
+    random_bytes = os.urandom(16)
+    random_bytes_hex = HexBytes(random_bytes).hex()
 
     # without index
     contract_condition_dict["returnValueTest"]["value"] = [
         1,
         True,
         get_random_checksum_address(),
+        random_bytes_hex,
     ]
     contract_condition = ContractCondition.from_json(
         json.dumps(contract_condition_dict)
@@ -416,6 +435,14 @@ def test_abi_tuple_output_with_index(
     )
     assert isinstance(contract_condition.return_value_test.value, str)
 
+    # index 3
+    contract_condition_dict["returnValueTest"]["index"] = 3
+    contract_condition_dict["returnValueTest"]["value"] = random_bytes_hex
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
+    assert isinstance(contract_condition.return_value_test.value, str)
+
     # invalid type at index
     with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
         contract_condition_dict["returnValueTest"]["index"] = 0
@@ -425,12 +452,16 @@ def test_abi_tuple_output_with_index(
         ContractCondition.from_json(json.dumps(contract_condition_dict))
 
     # test execution logic with index for tuples
-    result = [1, True, get_random_checksum_address()]
+    result = [1, True, get_random_checksum_address(), random_bytes]
     for i in range(len(result)):
+        comparator_value = result[i]
+        if comparator_value == random_bytes:
+            comparator_value = random_bytes_hex
+
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
-            comparator_value=result[i],
+            comparator_value=comparator_value,
             comparator="==",
             expected_outcome=True,
             comparator_index=i,
@@ -439,7 +470,7 @@ def test_abi_tuple_output_with_index(
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
-            comparator_value=result[i],
+            comparator_value=comparator_value,
             comparator="!=",
             expected_outcome=False,
             comparator_index=i,
@@ -481,7 +512,7 @@ def test_abi_multiple_output_values(
                         "internalType": "uint32",
                     },
                     {"name": "size", "type": "uint16", "internalType": "uint16"},
-                    {"name": "owner", "type": "address", "internalType": "address"},
+                    {"name": "randoBytes", "type": "bytes", "internalType": "bytes"},
                 ],
                 "internalType": "struct SubscriptionManager.Policy",
             },
@@ -506,6 +537,9 @@ def test_abi_multiple_output_values(
         "index": 1,
     }
 
+    random_bytes = os.urandom(16)
+    random_bytes_hex = HexBytes(random_bytes).hex()
+
     # process index 0 (tuple)
     contract_condition_dict["returnValueTest"]["index"] = 0
     contract_condition_dict["returnValueTest"]["value"] = [
@@ -513,7 +547,7 @@ def test_abi_multiple_output_values(
         1,
         2,
         3,
-        get_random_checksum_address(),
+        random_bytes_hex,
     ]
     contract_condition = ContractCondition.from_json(
         json.dumps(contract_condition_dict)
@@ -538,15 +572,20 @@ def test_abi_multiple_output_values(
 
     # test execution logic - multiple outputs including tuples
     result = [
-        [get_random_checksum_address(), 1, 2, 3, get_random_checksum_address()],
+        [get_random_checksum_address(), 1, 2, 3, random_bytes],
         True,
         4,
     ]
     for i in range(len(result)):
+        comparator_value = result[i]
+        if isinstance(comparator_value, List):
+            comparator_value = copy.deepcopy(result[i])
+            comparator_value[4] = random_bytes_hex
+
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
-            comparator_value=result[i],
+            comparator_value=comparator_value,
             comparator="==",
             expected_outcome=True,
             comparator_index=i,
@@ -555,11 +594,34 @@ def test_abi_multiple_output_values(
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
-            comparator_value=result[i],
+            comparator_value=comparator_value,
             comparator="!=",
             expected_outcome=False,
             comparator_index=i,
         )
+
+    # test without index
+    del contract_condition_dict["returnValueTest"]["index"]
+    comparator_value = [
+        [result[0][0], result[0][1], result[0][2], result[0][3], random_bytes_hex],
+        result[1],
+        result[2],
+    ]
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=tuple(result),
+        comparator_value=comparator_value,
+        comparator="==",
+        expected_outcome=True,
+    )
+
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=tuple(result),
+        comparator_value=comparator_value,
+        comparator="!=",
+        expected_outcome=False,
+    )
 
 
 def test_abi_nested_tuples_output_values(
@@ -596,9 +658,9 @@ def test_abi_nested_tuples_output_values(
                                 "internalType": "uint32",
                             },
                             {
-                                "name": "endTimestamp",
-                                "type": "uint32",
-                                "internalType": "uint32",
+                                "name": "bytesValue",
+                                "type": "bytes",
+                                "internalType": "bytes",
                             },
                         ],
                         "internalType": "struct SubscriptionManager.Timeframe",
@@ -623,11 +685,14 @@ def test_abi_nested_tuples_output_values(
         "index": 1,
     }
 
+    random_bytes = os.urandom(16)
+    random_bytes_hex = HexBytes(random_bytes).hex()
+
     # process index 0 (nested tuples)
     contract_condition_dict["returnValueTest"]["index"] = 0
     contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
-        [1, 2],
+        [1, random_bytes_hex],
         get_random_checksum_address(),
     ]
     contract_condition = ContractCondition.from_json(
@@ -647,7 +712,7 @@ def test_abi_nested_tuples_output_values(
     contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
         1,
-        2,
+        random_bytes_hex,
         get_random_checksum_address(),  # incorrect tuple value for Timeframe
     ]
     with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
@@ -655,7 +720,7 @@ def test_abi_nested_tuples_output_values(
 
     contract_condition_dict["returnValueTest"]["value"] = [
         get_random_checksum_address(),
-        [1, 2, 3],
+        [1, random_bytes_hex, 3],
         get_random_checksum_address(),  # too many values
     ]
     with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
@@ -669,16 +734,25 @@ def test_abi_nested_tuples_output_values(
     )
     assert isinstance(contract_condition.return_value_test.value, bool)
 
-    # test execution logic - nested tuples
+    # test execution logic with index - nested tuples
     result = [
-        [get_random_checksum_address(), [1, 2], get_random_checksum_address()],
+        [
+            get_random_checksum_address(),
+            [1, random_bytes],
+            get_random_checksum_address(),
+        ],
         True,
     ]
     for i in range(len(result)):
+        comparator_value = result[i]
+        if isinstance(comparator_value, List):
+            comparator_value = copy.deepcopy(result[i])
+            comparator_value[1] = [1, random_bytes_hex]
+
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
-            comparator_value=result[i],
+            comparator_value=comparator_value,
             comparator="==",
             expected_outcome=True,
             comparator_index=i,
@@ -687,8 +761,30 @@ def test_abi_nested_tuples_output_values(
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=tuple(result),
-            comparator_value=result[i],
+            comparator_value=comparator_value,
             comparator="!=",
             expected_outcome=False,
             comparator_index=i,
         )
+
+    # test no index
+    del contract_condition_dict["returnValueTest"]["index"]
+    comparator_value = [
+        [result[0][0], [result[0][1][0], random_bytes_hex], result[0][2]],
+        True,
+    ]
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=tuple(result),
+        comparator_value=comparator_value,
+        comparator="==",
+        expected_outcome=True,
+    )
+
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=tuple(result),
+        comparator_value=comparator_value,
+        comparator="!=",
+        expected_outcome=False,
+    )

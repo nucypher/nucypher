@@ -9,7 +9,6 @@ from typing import (
     cast,
 )
 
-from hexbytes import HexBytes
 from marshmallow import ValidationError
 from web3.auto import w3
 from web3.types import ABIFunction
@@ -19,17 +18,6 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
 )
 from nucypher.policy.conditions.lingo import ReturnValueTest
-
-
-def _align_comparator_value(
-    comparator_value: Any, expected_type: str, failure_message: str
-) -> Any:
-    if expected_type.startswith("bytes"):
-        try:
-            comparator_value = bytes(HexBytes(comparator_value))
-        except Exception:
-            raise InvalidCondition(failure_message)
-    return comparator_value
 
 
 def _validate_single_output_type(
@@ -58,9 +46,6 @@ def _validate_value_type(
         # context variable types cannot be known until execution time.
         return
 
-    comparator_value = _align_comparator_value(
-        comparator_value, expected_type, failure_message
-    )
     if not w3.is_encodable(expected_type, comparator_value):
         raise InvalidCondition(failure_message)
 
@@ -117,11 +102,11 @@ def _align_comparator_value_single_output(
     if comparator_index is not None and _is_tuple_type(expected_type):
         type_entries = _get_tuple_type_entries(expected_type)
         expected_type = type_entries[comparator_index]
-    comparator_value = _align_comparator_value(
-        comparator_value,
-        expected_type,
-        failure_message=f"Unencodable type ({comparator_value} as {expected_type})",
-    )
+
+    if not w3.is_encodable(expected_type, comparator_value):
+        raise InvalidCondition(
+            f"Unencodable type ({comparator_value} as {expected_type})"
+        )
     return comparator_value
 
 
@@ -130,20 +115,21 @@ def _align_comparator_value_multiple_output(
 ) -> Any:
     if comparator_index is not None:
         expected_type = output_abi_types[comparator_index]
-        comparator_value = _align_comparator_value(
-            comparator_value,
-            expected_type,
-            failure_message=f"Unencodable type ({comparator_value} as {expected_type})",
-        )
+        # ensure alignment
+        if not w3.is_encodable(expected_type, comparator_value):
+            raise InvalidCondition(
+                f"Unencodable type ({comparator_value} as {expected_type})"
+            )
+
         return comparator_value
 
     values = list()
     for output_abi_type, component_value in zip(output_abi_types, comparator_value):
-        component_value = _align_comparator_value(
-            component_value,
-            output_abi_type,
-            failure_message=f"Unencodable type ({comparator_value} as {output_abi_type})",
-        )
+        # ensure alignment
+        if not w3.is_encodable(output_abi_type, component_value):
+            raise InvalidCondition(
+                f"Unencodable type ({component_value} as {output_abi_type})"
+            )
         values.append(component_value)
     return values
 

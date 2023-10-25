@@ -270,31 +270,34 @@ class ReturnValueTest:
     def __handle_potential_bytes(data: Any) -> Any:
         return HexBytes(data).hex() if isinstance(data, bytes) else data
 
-    def _process_data(self, data: Any) -> Any:
+    def _process_data(self, data: Any, index: Optional[int]) -> Any:
         """
         If an index is specified, return the value at that index in the data if data is list-like.
         Otherwise, return the data.
         """
         processed_data = data
-        if isinstance(data, (list, tuple)):
-            if self.index is None:
-                # convert any bytes in list to hex
-                processed_data = [self.__handle_potential_bytes(item) for item in data]
-                return processed_data
 
-            if isinstance(self.index, int):
-                try:
-                    processed_data = data[self.index]
-                except IndexError:
-                    raise ReturnValueEvaluationError(
-                        f"Index '{self.index}' not found in return data."
-                    )
-            else:
+        # try to get indexed entry first
+        if index is not None:
+            if not isinstance(processed_data, (list, tuple)):
                 raise ReturnValueEvaluationError(
-                    f"Index: {self.index} and Value: {data} are not compatible types."
+                    f"Index: {index} and Value: {processed_data} are not compatible types."
+                )
+            try:
+                processed_data = data[index]
+            except IndexError:
+                raise ReturnValueEvaluationError(
+                    f"Index '{index}' not found in returned data."
                 )
 
-        # potentially convert bytes to hex
+        if isinstance(processed_data, (list, tuple)):
+            # convert any bytes in list to hex (include nested lists/tuples); no additional indexing
+            processed_data = [
+                self._process_data(data=item, index=None) for item in processed_data
+            ]
+            return processed_data
+
+        # convert bytes to hex if necessary
         return self.__handle_potential_bytes(processed_data)
 
     def eval(self, data) -> bool:
@@ -305,7 +308,7 @@ class ReturnValueTest:
                 f"for condition evaluation."
             )
 
-        processed_data = self._process_data(data)
+        processed_data = self._process_data(data, self.index)
         left_operand = self._sanitize_value(processed_data)
         right_operand = self._sanitize_value(self.value)
         result = self._COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
