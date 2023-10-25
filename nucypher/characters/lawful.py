@@ -1,7 +1,6 @@
 import contextlib
 import json
 import time
-from pathlib import Path
 from queue import Queue
 from typing import (
     TYPE_CHECKING,
@@ -27,7 +26,7 @@ from constant_sorrow.constants import (
     STRANGER_ALICE,
 )
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate, NameOID
+from cryptography.x509 import Certificate
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
@@ -797,7 +796,6 @@ class Ursula(Teacher, Character, Operator):
         operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
         transacting_power: Optional[TransactingPower] = None,
-        operator_signature_from_metadata=NOT_SIGNED,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
         condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
@@ -847,9 +845,8 @@ class Ursula(Teacher, Character, Operator):
                 )
 
             except Exception:
-                # TODO: Move this lower to encapsulate the Operator init in a try/except block.
-                # TODO: Do not announce self to "other nodes" until this init is finished.
-                # It's not possible to finish constructing this node.
+                # It's not possible to finish constructing this node...
+                # This block is here to ensure that the reactor is stopped in tests.
                 self.stop(halt_reactor=False)
                 raise
 
@@ -878,10 +875,7 @@ class Ursula(Teacher, Character, Operator):
             self.__operator_address = None
 
         # Teacher (All Modes)
-        Teacher.__init__(
-            self,
-            certificate=certificate,
-        )
+        Teacher.__init__(self, certificate=certificate)
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
