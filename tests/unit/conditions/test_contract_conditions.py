@@ -1,9 +1,12 @@
 import copy
 import json
+import os
+import random
 from typing import Any, Dict, List, Optional, Sequence
 from unittest.mock import Mock
 
 import pytest
+from hexbytes import HexBytes
 from marshmallow import post_load
 from web3.providers import BaseProvider
 
@@ -244,6 +247,63 @@ def test_abi_address_output(contract_condition_dict, get_random_checksum_address
         condition_dict=contract_condition_dict,
         execution_result=checksum_address,
         comparator_value=get_random_checksum_address(),
+        comparator="==",
+        expected_outcome=False,
+    )
+
+
+@pytest.mark.parametrize(
+    "bytes_test_scenario",
+    [
+        # bytes type, bytes length to use
+        ("bytes1", 1),
+        ("bytes16", 16),
+        ("bytes32", 32),
+        ("bytes", random.randint(1, 96)),  # random number
+    ],
+)
+def test_abi_bytes_output(bytes_test_scenario, contract_condition_dict):
+    bytes_type, bytes_length = bytes_test_scenario
+
+    call_result_in_bytes = os.urandom(bytes_length)
+    comparator_value_in_hex = HexBytes(
+        call_result_in_bytes
+    ).hex()  # use hex str for bytes
+
+    _replace_abi_outputs(contract_condition_dict, bytes_type, comparator_value_in_hex)
+
+    # valid condition
+    contract_condition = ContractCondition.from_json(
+        json.dumps(contract_condition_dict)
+    )
+    assert isinstance(contract_condition.return_value_test.value, str)
+
+    # invalid type fails
+    with pytest.raises(InvalidCondition, match="Invalid return value comparison type"):
+        contract_condition_dict["returnValueTest"]["value"] = 1.25
+        ContractCondition.from_json(json.dumps(contract_condition_dict))
+
+    # test execution logic
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=call_result_in_bytes,
+        comparator_value=comparator_value_in_hex,
+        comparator="==",
+        expected_outcome=True,
+    )
+
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=call_result_in_bytes,
+        comparator_value=comparator_value_in_hex,
+        comparator="!=",
+        expected_outcome=False,
+    )
+
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=call_result_in_bytes,
+        comparator_value=HexBytes(os.urandom(bytes_length)).hex(),
         comparator="==",
         expected_outcome=False,
     )
