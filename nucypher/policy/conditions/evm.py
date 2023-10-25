@@ -369,7 +369,40 @@ class ContractCondition(RPCCondition):
     def _validate_method(self, method):
         return method
 
-    def _validate_expected_return_type(self):
+    def _validate_single_output_type(
+        self,
+        expected_type: str,
+        comparator_value: Any,
+        comparator_index: Optional[int],
+        failure_message: str,
+    ) -> None:
+        if comparator_index is not None and self._is_tuple_type(expected_type):
+            type_entries = self._get_tuple_type_entries(expected_type)
+            expected_type = type_entries[comparator_index]
+        self._validate_value_type(expected_type, comparator_value, failure_message)
+
+    def _validate_multiple_output_types(
+        self,
+        output_abi_types: List[str],
+        comparator_value: Any,
+        comparator_index: Optional[int],
+        failure_message: str,
+    ) -> None:
+        if comparator_index is not None:
+            expected_type = output_abi_types[comparator_index]
+            self._validate_value_type(expected_type, comparator_value, failure_message)
+            return
+
+        if not isinstance(comparator_value, Sequence):
+            raise InvalidCondition(failure_message)
+
+        if len(output_abi_types) != len(comparator_value):
+            raise InvalidCondition(failure_message)
+
+        for output_abi_type, component_value in zip(output_abi_types, comparator_value):
+            self._validate_value_type(output_abi_type, component_value, failure_message)
+
+    def _validate_expected_return_type(self) -> None:
         output_abi_types = self._get_abi_types(self.contract_function.contract_abi[0])
         comparator_value = self.return_value_test.value
         comparator_index = self.return_value_test.index
@@ -377,41 +410,24 @@ class ContractCondition(RPCCondition):
             f"@index={comparator_index}" if comparator_index is not None else ""
         )
         failure_message = (
-            f"Invalid return value comparison type '{type(comparator_value)}' "
-            f"for '{self.contract_function.fn_name}'{index_string} based on ABI types {output_abi_types}"
+            f"Invalid return value comparison type '{type(comparator_value)}' for "
+            f"'{self.contract_function.fn_name}'{index_string} based on ABI types {output_abi_types}"
         )
 
         if len(output_abi_types) == 1:
-            expected_type = output_abi_types[0]
-            if comparator_index is not None and self._is_tuple_type(expected_type):
-                type_entries = self._get_tuple_type_entries(expected_type)
-                expected_type = type_entries[comparator_index]
-            self._validate_value_type(expected_type, comparator_value, failure_message)
+            self._validate_single_output_type(
+                output_abi_types[0], comparator_value, comparator_index, failure_message
+            )
         elif len(output_abi_types) > 1:
-            if comparator_index is not None:
-                # only care about indexed entry
-                expected_type = output_abi_types[comparator_index]
-                self._validate_value_type(
-                    expected_type, comparator_value, failure_message
-                )
-                return
-
-            if not isinstance(comparator_value, Sequence):
-                raise InvalidCondition(failure_message)
-
-            if len(output_abi_types) != len(comparator_value):
-                raise InvalidCondition(failure_message)
-
-            for output_abi_type, component_value in zip(
-                output_abi_types, comparator_value
-            ):
-                self._validate_value_type(
-                    output_abi_type, component_value, failure_message
-                )
+            self._validate_multiple_output_types(
+                output_abi_types, comparator_value, comparator_index, failure_message
+            )
         else:
             raise InvalidCondition("No output types available for ABI function.")
 
-    def _validate_value_type(self, expected_type, comparator_value, failure_message):
+    def _validate_value_type(
+        self, expected_type: str, comparator_value: Any, failure_message: str
+    ) -> None:
         if is_context_variable(comparator_value):
             # context variable types cannot be known until execution time.
             return
@@ -425,7 +441,7 @@ class ContractCondition(RPCCondition):
     @staticmethod
     def _align_comparator_value(
         comparator_value: Any, expected_type: str, failure_message: str
-    ):
+    ) -> Any:
         if expected_type.startswith("bytes"):
             try:
                 comparator_value = bytes(HexBytes(comparator_value))
