@@ -55,7 +55,7 @@ def _validate_value_type(
     expected_type: str, comparator_value: Any, failure_message: str
 ) -> None:
     if is_context_variable(comparator_value):
-        # can't know type for context variable
+        # context variable types cannot be known until execution time.
         return
 
     comparator_value = _align_comparator_value(
@@ -111,6 +111,43 @@ def _validate_multiple_output_types(
         _validate_value_type(output_abi_type, component_value, failure_message)
 
 
+def _align_comparator_value_single_output(
+    expected_type: str, comparator_value: Any, comparator_index: Optional[int]
+) -> Any:
+    if comparator_index is not None and _is_tuple_type(expected_type):
+        type_entries = _get_tuple_type_entries(expected_type)
+        expected_type = type_entries[comparator_index]
+    comparator_value = _align_comparator_value(
+        comparator_value,
+        expected_type,
+        failure_message=f"Unencodable type ({comparator_value} as {expected_type})",
+    )
+    return comparator_value
+
+
+def _align_comparator_value_multiple_output(
+    output_abi_types: List[str], comparator_value: Any, comparator_index: Optional[int]
+) -> Any:
+    if comparator_index is not None:
+        expected_type = output_abi_types[comparator_index]
+        comparator_value = _align_comparator_value(
+            comparator_value,
+            expected_type,
+            failure_message=f"Unencodable type ({comparator_value} as {expected_type})",
+        )
+        return comparator_value
+
+    values = list()
+    for output_abi_type, component_value in zip(output_abi_types, comparator_value):
+        component_value = _align_comparator_value(
+            component_value,
+            output_abi_type,
+            failure_message=f"Unencodable type ({comparator_value} as {output_abi_type})",
+        )
+        values.append(component_value)
+    return values
+
+
 def _align_comparator_value_with_abi(
     abi, return_value_test: ReturnValueTest
 ) -> ReturnValueTest:
@@ -123,12 +160,8 @@ def _align_comparator_value_with_abi(
         comparator_value = list(comparator_value)
 
     if len(output_abi_types) == 1:
-        expected_type = output_abi_types[0]
-        if comparator_index is not None and _is_tuple_type(expected_type):
-            type_entries = _get_tuple_type_entries(expected_type)
-            expected_type = type_entries[comparator_index]
-        comparator_value = _align_comparator_value(
-            comparator_value, expected_type, failure_message="Unencodable type"
+        comparator_value = _align_comparator_value_single_output(
+            output_abi_types[0], comparator_value, comparator_index
         )
         return ReturnValueTest(
             comparator=comparator,
@@ -136,33 +169,16 @@ def _align_comparator_value_with_abi(
             index=comparator_index,
         )
     elif len(output_abi_types) > 1:
-        if comparator_index is not None:
-            # only index entry we care about
-            expected_type = output_abi_types[comparator_index]
-            comparator_value = _align_comparator_value(
-                comparator_value,
-                expected_type,
-                failure_message="Unencodable type",
-            )
-            return ReturnValueTest(
-                comparator=comparator,
-                value=comparator_value,
-                index=comparator_index,
-            )
-
-        values = list()
-        for output_abi_type, component_value in zip(output_abi_types, comparator_value):
-            comparator_value = _align_comparator_value(
-                comparator_value,
-                output_abi_type,
-                failure_message="Unencodable type",
-            )
-            values.append(component_value)
+        comparator_value = _align_comparator_value_multiple_output(
+            output_abi_types, comparator_value, comparator_index
+        )
         return ReturnValueTest(
-            comparator=comparator, value=values, index=comparator_index
+            comparator=comparator, value=comparator_value, index=comparator_index
         )
     else:
-        raise RuntimeError("No outputs for ABI function.")  # should never happen
+        raise RuntimeError(
+            "No output types available for ABI function."
+        )  # should never happen
 
 
 def _validate_contract_type_or_function_abi(
