@@ -245,7 +245,7 @@ class ReturnValueTest:
 
             try:
                 json.dumps(value)
-            except Exception:
+            except TypeError:
                 raise self.InvalidExpression(
                     f"No JSON serializable equivalent found for type {type(value)}"
                 )
