@@ -77,6 +77,10 @@ def _validate_multiple_output_types(
         _validate_value_type(expected_type, comparator_value, failure_message)
         return
 
+    if is_context_variable(comparator_value):
+        # context variable types cannot be known until execution time.
+        return
+
     if not isinstance(comparator_value, Sequence):
         raise InvalidCondition(failure_message)
 
