@@ -45,7 +45,7 @@ def test_return_value_index_invalid():
 
 
 def test_return_value_index():
-    test = ReturnValueTest(comparator=">", value="0", index=0)
+    test = ReturnValueTest(comparator=">", value=0, index=0)
     assert test.eval([1])
     assert not test.eval([-1])
 
@@ -56,8 +56,20 @@ def test_return_value_index():
         test.eval([0, 1, 2])
 
 
+def test_return_value_index_not_applicable():
+    test = ReturnValueTest(comparator="==", value=0, index=0)
+    with pytest.raises(ReturnValueEvaluationError):
+        test.eval(0)
+
+    with pytest.raises(ReturnValueEvaluationError):
+        test.eval(True)
+
+    with pytest.raises(ReturnValueEvaluationError):
+        test.eval(b"some data")
+
+
 def test_return_value_index_tuple():
-    test = ReturnValueTest(comparator=">", value="0", index=0)
+    test = ReturnValueTest(comparator=">", value=0, index=0)
     assert test.eval((1,))
     assert not test.eval((-1,))
 
