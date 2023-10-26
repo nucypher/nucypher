@@ -101,21 +101,31 @@ def lingo_with_compound_conditions(get_random_checksum_address):
 
 def test_invalid_condition():
     # no version or condition
+    data = dict()
     with pytest.raises(InvalidConditionLingo):
-        ConditionLingo.from_dict({})
+        ConditionLingo.from_dict(data)
+
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(data))
 
     # no condition
+    data = {"version": ConditionLingo.VERSION}
     with pytest.raises(InvalidConditionLingo):
-        ConditionLingo.from_dict({"version": ConditionLingo.VERSION})
+        ConditionLingo.from_dict(data)
+
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(data))
 
     # invalid condition
+    data = {
+        "version": ConditionLingo.VERSION,
+        "condition": {"dont_mind_me": "nothing_to_see_here"},
+    }
     with pytest.raises(InvalidConditionLingo):
-        ConditionLingo.from_dict(
-            {
-                "version": ConditionLingo.VERSION,
-                "condition": {"dont_mind_me": "nothing_to_see_here"},
-            }
-        )
+        ConditionLingo.from_dict(data)
+
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(data))
 
     # invalid operator
     invalid_operator = {
@@ -136,6 +146,9 @@ def test_invalid_condition():
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_operator)
 
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(invalid_operator))
+
     # < 2 operands for and condition
     invalid_and_operands_lingo = {
         "version": ConditionLingo.VERSION,
@@ -155,6 +168,9 @@ def test_invalid_condition():
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_and_operands_lingo)
 
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(invalid_and_operands_lingo))
+
     # < 2 operands for or condition
     invalid_or_operands_lingo = {
         "version": ConditionLingo.VERSION,
@@ -173,6 +189,9 @@ def test_invalid_condition():
     }
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_or_operands_lingo)
+
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(invalid_or_operands_lingo))
 
     # > 1 operand for `not` condition
     invalid_not_operands_lingo = {
@@ -198,6 +217,9 @@ def test_invalid_condition():
     }
     with pytest.raises(InvalidConditionLingo):
         ConditionLingo.from_dict(invalid_not_operands_lingo)
+
+    with pytest.raises(InvalidConditionLingo):
+        ConditionLingo.from_json(json.dumps(invalid_not_operands_lingo))
 
 
 @pytest.mark.parametrize("case", ["major", "minor", "patch"])
@@ -228,10 +250,14 @@ def test_invalid_condition_version(case):
         # exception should be thrown since incompatible:
         with pytest.raises(InvalidConditionLingo):
             ConditionLingo.from_dict(lingo_dict)
+
+        with pytest.raises(InvalidConditionLingo):
+            ConditionLingo.from_json(json.dumps(lingo_dict))
     else:
         # no exception thrown
         ConditionLingo.validate_condition_lingo(lingo_dict)
         _ = ConditionLingo.from_dict(lingo_dict)
+        _ = ConditionLingo.from_json(json.dumps(lingo_dict))
 
 
 def test_condition_lingo_to_from_dict(lingo_with_compound_conditions):
