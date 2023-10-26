@@ -12,6 +12,7 @@ from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.types import ContextDict
 
 CHAIN_ID = 137
 
@@ -78,6 +79,7 @@ def _check_execution_logic(
     comparator: str,
     expected_outcome: bool,
     comparator_index: Optional[int] = None,
+    context: Optional[ContextDict] = None,
 ):
     # test execution logic for bool
     condition_dict["returnValueTest"]["value"] = comparator_value
@@ -90,8 +92,9 @@ def _check_execution_logic(
     )
     fake_execution_contract_condition.set_execution_return_value(execution_result)
     fake_providers = {CHAIN_ID: {Mock(BaseProvider)}}
+    context = context or dict()
     condition_result, call_result = fake_execution_contract_condition.verify(
-        fake_providers
+        fake_providers, **context
     )
     assert call_result == execution_result
     assert condition_result == expected_outcome
@@ -384,6 +387,41 @@ def test_abi_tuple_output(contract_condition_dict):
         comparator="==",
         expected_outcome=False,
     )
+
+    # test using context var
+    context = {":myContextVar": [1, 2, 3, random_bytes_hex]}
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=(1, 2, 3, random_bytes),
+        comparator_value=":myContextVar",
+        comparator="==",
+        expected_outcome=True,
+        comparator_index=None,
+        context=context,
+    )
+
+    _check_execution_logic(
+        condition_dict=contract_condition_dict,
+        execution_result=(1, 2, 3, random_bytes),
+        comparator_value=":myContextVar",
+        comparator="!=",
+        expected_outcome=False,
+        comparator_index=None,
+        context=context,
+    )
+
+    # test where context var has invalid expected types - boolean is unexpected
+    context = {":myContextVar": [1, True, 3, random_bytes_hex]}
+    with pytest.raises(InvalidCondition):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=(1, 2, 3, random_bytes),
+            comparator_value=":myContextVar",
+            comparator="==",
+            expected_outcome=True,
+            comparator_index=None,
+            context=context,
+        )
 
 
 def test_abi_tuple_output_with_index(
