@@ -175,11 +175,9 @@ class CompoundAccessControlCondition(AccessControlCondition):
                 # short-circuit check
                 if overall_result is True:
                     break
-            elif self.operator == self.NOT_OPERATOR:
-                return not current_result, current_value
             else:
-                # should never get here; raise just in case
-                raise ValueError(f"Invalid operator {self.operator}")
+                # NOT_OPERATOR
+                return not current_result, current_value
 
         return overall_result, values
 
