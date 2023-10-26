@@ -2,7 +2,8 @@ import copy
 import json
 import os
 import random
-from typing import Any, Dict, List, Optional, Sequence
+from enum import Enum
+from typing import Any, Dict, List, Optional, Sequence, Union
 from unittest.mock import Mock
 
 import pytest
@@ -12,7 +13,6 @@ from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
-from nucypher.policy.conditions.types import ContextDict
 
 CHAIN_ID = 137
 
@@ -72,32 +72,59 @@ def _replace_abi_outputs(condition_json: Dict, output_type: str, output_value: A
     condition_json["returnValueTest"]["value"] = output_value
 
 
+class ContextVarTest(Enum):
+    WITH_CONTEXT_VAR_ONLY = 0
+    WITHOUT_CONTEXT_VAR_ONLY = 1
+    WITH_AND_WITHOUT_CONTEXT_VAR = 2
+
+    def get_test_cases(self):
+        if self.value == 0:
+            return [True]
+        elif self.value == 1:
+            return [False]
+        else:
+            return [True, False]
+
+
 def _check_execution_logic(
     condition_dict: Dict,
     execution_result: Any,
     comparator_value: Any,
     comparator: str,
-    expected_outcome: bool,
+    expected_outcome: Union[bool, None],  # None for expected failures
     comparator_index: Optional[int] = None,
-    context: Optional[ContextDict] = None,
+    context_var_testing: Optional[
+        ContextVarTest
+    ] = ContextVarTest.WITH_AND_WITHOUT_CONTEXT_VAR,
 ):
-    # test execution logic for bool
-    condition_dict["returnValueTest"]["value"] = comparator_value
-    condition_dict["returnValueTest"]["comparator"] = comparator
-    if comparator_index is not None:
-        condition_dict["returnValueTest"]["index"] = comparator_index
 
-    fake_execution_contract_condition = FakeExecutionContractCondition.from_json(
-        json.dumps(condition_dict)
-    )
-    fake_execution_contract_condition.set_execution_return_value(execution_result)
-    fake_providers = {CHAIN_ID: {Mock(BaseProvider)}}
-    context = context or dict()
-    condition_result, call_result = fake_execution_contract_condition.verify(
-        fake_providers, **context
-    )
-    assert call_result == execution_result
-    assert condition_result == expected_outcome
+    for use_context_var in context_var_testing.get_test_cases():
+        context = dict()
+
+        if use_context_var:
+            condition_dict["returnValueTest"]["value"] = ":myContextVar"
+            context[":myContextVar"] = comparator_value
+        else:
+            condition_dict["returnValueTest"]["value"] = comparator_value
+
+        condition_dict["returnValueTest"]["comparator"] = comparator
+        if comparator_index is not None:
+            condition_dict["returnValueTest"]["index"] = comparator_index
+
+        fake_execution_contract_condition = FakeExecutionContractCondition.from_json(
+            json.dumps(condition_dict)
+        )
+        fake_execution_contract_condition.set_execution_return_value(execution_result)
+        fake_providers = {CHAIN_ID: {Mock(BaseProvider)}}
+        condition_result, call_result = fake_execution_contract_condition.verify(
+            fake_providers, **context
+        )
+
+        if expected_outcome is None:
+            raise RuntimeError("Test should have failed before getting here")
+
+        assert call_result == execution_result
+        assert condition_result == expected_outcome
 
 
 def test_abi_bool_output(contract_condition_dict):
@@ -137,6 +164,17 @@ def test_abi_bool_output(contract_condition_dict):
         expected_outcome=False,
     )
 
+    # test where context var has invalid expected type(s), so only detected at decryption time
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=True,
+            comparator_value=3,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
+
 
 def test_abi_uint_output(contract_condition_dict):
     _replace_abi_outputs(contract_condition_dict, "uint256", 123456789)
@@ -175,6 +213,17 @@ def test_abi_uint_output(contract_condition_dict):
         expected_outcome=False,
     )
 
+    # test where context var has invalid expected type(s), so only detected at decryption time
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=123456789,
+            comparator_value=True,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
+
 
 def test_abi_int_output(contract_condition_dict):
     _replace_abi_outputs(contract_condition_dict, "int256", -123456789)
@@ -212,6 +261,17 @@ def test_abi_int_output(contract_condition_dict):
         comparator="!=",
         expected_outcome=False,
     )
+
+    # test where context var has invalid expected type(s), so only detected at decryption time
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=-123456789,
+            comparator_value=True,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
 
 
 def test_abi_address_output(contract_condition_dict, get_random_checksum_address):
@@ -253,6 +313,17 @@ def test_abi_address_output(contract_condition_dict, get_random_checksum_address
         comparator="==",
         expected_outcome=False,
     )
+
+    # test where context var has invalid expected type(s), so only detected at decryption time
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=checksum_address,
+            comparator_value=42,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
 
 
 @pytest.mark.parametrize(
@@ -310,6 +381,17 @@ def test_abi_bytes_output(bytes_test_scenario, contract_condition_dict):
         comparator="==",
         expected_outcome=False,
     )
+
+    # test where context var has invalid expected type(s), so only detected at decryption time
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=call_result_in_bytes,
+            comparator_value=True,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
 
 
 def test_abi_tuple_output(contract_condition_dict):
@@ -388,39 +470,15 @@ def test_abi_tuple_output(contract_condition_dict):
         expected_outcome=False,
     )
 
-    # test using context var
-    context = {":myContextVar": [1, 2, 3, random_bytes_hex]}
-    _check_execution_logic(
-        condition_dict=contract_condition_dict,
-        execution_result=(1, 2, 3, random_bytes),
-        comparator_value=":myContextVar",
-        comparator="==",
-        expected_outcome=True,
-        comparator_index=None,
-        context=context,
-    )
-
-    _check_execution_logic(
-        condition_dict=contract_condition_dict,
-        execution_result=(1, 2, 3, random_bytes),
-        comparator_value=":myContextVar",
-        comparator="!=",
-        expected_outcome=False,
-        comparator_index=None,
-        context=context,
-    )
-
-    # test where context var has invalid expected types - boolean is unexpected
-    context = {":myContextVar": [1, True, 3, random_bytes_hex]}
-    with pytest.raises(InvalidCondition):
+    # test where context var has invalid expected type(s) - boolean is unexpected in index 1
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
         _check_execution_logic(
             condition_dict=contract_condition_dict,
             execution_result=(1, 2, 3, random_bytes),
-            comparator_value=":myContextVar",
+            comparator_value=[1, True, 3, random_bytes_hex],
             comparator="==",
-            expected_outcome=True,
-            comparator_index=None,
-            context=context,
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
         )
 
 
@@ -512,6 +570,18 @@ def test_abi_tuple_output_with_index(
             comparator="!=",
             expected_outcome=False,
             comparator_index=i,
+        )
+
+    # using index, test where context var has invalid expected type - unexpected type in index 2
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=tuple(result),
+            comparator_value=True,
+            comparator="==",
+            expected_outcome=None,
+            comparator_index=2,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
         )
 
 
@@ -638,6 +708,18 @@ def test_abi_multiple_output_values(
             comparator_index=i,
         )
 
+    # test where context var has invalid expected type
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=tuple(result),
+            comparator_value=1.25,  # this should be address type
+            comparator="==",
+            expected_outcome=None,
+            comparator_index=0,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
+
     # test without index
     del contract_condition_dict["returnValueTest"]["index"]
     comparator_value = [
@@ -660,6 +742,18 @@ def test_abi_multiple_output_values(
         comparator="!=",
         expected_outcome=False,
     )
+
+    # test where context var has invalid expected type
+    comparator_value[0][0] = True  # should be address but setting to bool
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=tuple(result),
+            comparator_value=comparator_value,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
 
 
 def test_abi_nested_tuples_output_values(
@@ -805,6 +899,18 @@ def test_abi_nested_tuples_output_values(
             comparator_index=i,
         )
 
+    # test where context var has invalid expected type
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=tuple(result),
+            comparator_value=[1, 1],  # this should be [int, bytes]
+            comparator="==",
+            expected_outcome=None,
+            comparator_index=1,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
+
     # test no index
     del contract_condition_dict["returnValueTest"]["index"]
     comparator_value = [
@@ -826,3 +932,15 @@ def test_abi_nested_tuples_output_values(
         comparator="!=",
         expected_outcome=False,
     )
+
+    # test where context var has invalid expected type
+    comparator_value[0][2] = 1.25  # should be an address
+    with pytest.raises(InvalidCondition, match="Mismatched comparator type"):
+        _check_execution_logic(
+            condition_dict=contract_condition_dict,
+            execution_result=tuple(result),
+            comparator_value=comparator_value,
+            comparator="==",
+            expected_outcome=None,
+            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+        )
