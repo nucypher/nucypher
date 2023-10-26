@@ -30,10 +30,7 @@ def _validate_single_output_type(
 
 
 def _get_abi_types(abi: ABIFunction) -> List[str]:
-    if abi["type"] == "fallback":
-        return []
-    else:
-        return [_collapse_if_tuple(cast(Dict[str, Any], arg)) for arg in abi["outputs"]]
+    return [_collapse_if_tuple(cast(Dict[str, Any], arg)) for arg in abi["outputs"]]
 
 
 def _validate_value_type(
@@ -42,7 +39,6 @@ def _validate_value_type(
     if is_context_variable(comparator_value):
         # context variable types cannot be known until execution time.
         return
-
     if not w3.is_encodable(expected_type, comparator_value):
         raise InvalidCondition(failure_message)
 
@@ -51,7 +47,6 @@ def _collapse_if_tuple(abi: Dict[str, Any]) -> str:
     abi_type = abi["type"]
     if not abi_type.startswith("tuple"):
         return abi_type
-
     delimited = ",".join(_collapse_if_tuple(c) for c in abi["components"])
     collapsed = f"({delimited})"
     return collapsed
@@ -66,7 +61,6 @@ def _get_tuple_type_entries(tuple_type: str) -> List[str]:
         raise ValueError(
             f"Invalid type provided '{tuple_type}; not a tuple type definition"
         )
-
     result = tuple_type.replace("(", "").replace(")", "")
     result = result.split(",")
     return result
@@ -138,9 +132,6 @@ def _align_comparator_value_with_abi(
     comparator = return_value_test.comparator
     comparator_value = return_value_test.value
     comparator_index = return_value_test.index
-    if isinstance(comparator_value, tuple):
-        # must be list
-        comparator_value = list(comparator_value)
 
     if len(output_abi_types) == 1:
         comparator_value = _align_comparator_value_single_output(
