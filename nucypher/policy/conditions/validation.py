@@ -100,7 +100,7 @@ def _align_comparator_value_single_output(
 
     if not w3.is_encodable(expected_type, comparator_value):
         raise InvalidCondition(
-            f"Unencodable type ({comparator_value} as {expected_type})"
+            f"Mismatched comparator type ({comparator_value} as {expected_type})"
         )
     return comparator_value
 
@@ -113,7 +113,7 @@ def _align_comparator_value_multiple_output(
         # ensure alignment
         if not w3.is_encodable(expected_type, comparator_value):
             raise InvalidCondition(
-                f"Unencodable type ({comparator_value} as {expected_type})"
+                f"Mismatched comparator type ({comparator_value} as {expected_type})"
             )
 
         return comparator_value
@@ -123,7 +123,7 @@ def _align_comparator_value_multiple_output(
         # ensure alignment
         if not w3.is_encodable(output_abi_type, component_value):
             raise InvalidCondition(
-                f"Unencodable type ({component_value} as {output_abi_type})"
+                f"Mismatched comparator type ({component_value} as {output_abi_type})"
             )
         values.append(component_value)
     return values
