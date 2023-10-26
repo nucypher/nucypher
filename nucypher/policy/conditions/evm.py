@@ -31,7 +31,7 @@ from nucypher.policy.conditions.utils import CamelCaseSchema, camel_case_to_snak
 from nucypher.policy.conditions.validation import (
     _align_comparator_value_with_abi,
     _get_abi_types,
-    _validate_contract_type_or_function_abi,
+    _validate_condition_abi,
     _validate_multiple_output_types,
     _validate_single_output_type,
 )
@@ -219,7 +219,7 @@ class RPCCondition(AccessControlCondition):
         except KeyError:
             raise NoConnectionToChain(chain=self.chain)
         if not rpc_providers:
-            raise NoConnectionToChain(chain=self.chain)
+            raise NoConnectionToChain(chain=self.chain)  # TODO: unreachable?
         for provider in rpc_providers:
             # Someday, we might make this whole function async, and then we can knock on
             # each endpoint here to see if it's alive and only yield it if it is.
@@ -321,9 +321,12 @@ class ContractCondition(RPCCondition):
         def check_standard_contract_type_or_function_abi(self, data, **kwargs):
             standard_contract_type = data.get("standard_contract_type")
             function_abi = data.get("function_abi")
-            _validate_contract_type_or_function_abi(
-                standard_contract_type, function_abi, ValidationError
-            )
+            try:
+                _validate_condition_abi(
+                    standard_contract_type, function_abi, method_name=data.get("method")
+                )
+            except ValueError as e:
+                raise ValidationError(str(e))
 
     def __init__(
         self,
@@ -335,12 +338,15 @@ class ContractCondition(RPCCondition):
         *args,
         **kwargs,
     ):
+        try:
+            _validate_condition_abi(
+                standard_contract_type, function_abi, method_name=method
+            )
+        except ValueError as e:
+            raise InvalidCondition(str(e))
+
         self.method = method
         self.w3 = Web3()  # used to instantiate contract function without a provider
-
-        _validate_contract_type_or_function_abi(
-            standard_contract_type, function_abi, InvalidCondition
-        )
 
         # preprocessing
         contract_address = to_checksum_address(contract_address)
@@ -350,6 +356,7 @@ class ContractCondition(RPCCondition):
         self.condition_type = condition_type
         self.standard_contract_type = standard_contract_type
         self.function_abi = function_abi
+
         self.contract_function = self._get_unbound_contract_function()
 
         # call to super must be at the end for proper validation
@@ -375,12 +382,10 @@ class ContractCondition(RPCCondition):
             _validate_single_output_type(
                 output_abi_types[0], comparator_value, comparator_index, failure_message
             )
-        elif len(output_abi_types) > 1:
+        else:
             _validate_multiple_output_types(
                 output_abi_types, comparator_value, comparator_index, failure_message
             )
-        else:
-            raise InvalidCondition("No output types available for ABI function.")
 
     def __repr__(self) -> str:
         r = (

@@ -4,12 +4,9 @@ from typing import (
     List,
     Optional,
     Sequence,
-    Type,
-    Union,
     cast,
 )
 
-from marshmallow import ValidationError
 from web3.auto import w3
 from web3.types import ABIFunction
 
@@ -154,25 +151,39 @@ def _align_comparator_value_with_abi(
             value=comparator_value,
             index=comparator_index,
         )
-    elif len(output_abi_types) > 1:
+    else:
         comparator_value = _align_comparator_value_multiple_output(
             output_abi_types, comparator_value, comparator_index
         )
         return ReturnValueTest(
             comparator=comparator, value=comparator_value, index=comparator_index
         )
-    else:
-        raise RuntimeError(
-            "No output types available for ABI function."
-        )  # should never happen
 
 
-def _validate_contract_type_or_function_abi(
+def _validate_condition_function_abi(function_abi: Dict, method_name: str) -> None:
+    """validates a dictionary as valid for use as a condition function ABI"""
+    abi = ABIFunction(function_abi)
+
+    if not method_name:
+        raise ValueError("Missing method name")
+    if abi.get("type") != "function":
+        raise ValueError(f"Invalid ABI type {abi}")
+    if not abi.get("outputs"):
+        raise ValueError(f"Invalid ABI, no outputs found {abi}")
+    if abi.get("stateMutability") not in ["pure", "view"]:
+        raise ValueError(f"Invalid ABI stateMutability {abi}")
+    if abi.get("name") != method_name:
+        raise ValueError(f"Missing ABI for method {method_name}")
+
+
+def _validate_condition_abi(
     standard_contract_type: str,
     function_abi: Dict,
-    exception_class: Union[Type[ValidationError], Type[InvalidCondition]],
+    method_name: str,
 ) -> None:
     if not (bool(standard_contract_type) ^ bool(function_abi)):
-        raise exception_class(
+        raise ValueError(
             f"Provide 'standardContractType' or 'functionAbi'; got ({standard_contract_type}, {function_abi})."
         )
+    if function_abi:
+        _validate_condition_function_abi(function_abi, method_name=method_name)
