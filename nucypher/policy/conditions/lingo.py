@@ -397,12 +397,6 @@ class ConditionLingo(_Serializable):
         return result
 
     @classmethod
-    def validate_condition_lingo(cls, lingo: Lingo):
-        errors = cls.Schema().validate(data=lingo)
-        if errors:
-            raise InvalidConditionLingo(f"Invalid {cls.__name__}: {errors}")
-
-    @classmethod
     def resolve_condition_class(
         cls, condition: ConditionDict, version: int = None
     ) -> Type[AccessControlCondition]:

@@ -110,8 +110,8 @@ from nucypher.network.nodes import TEACHER_NODES, NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
+from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.types import Lingo
-from nucypher.policy.conditions.utils import validate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
@@ -1433,8 +1433,8 @@ class Enrico:
         self, plaintext: bytes, conditions: Optional[Lingo] = None
     ) -> MessageKit:
         if conditions:
-            validate_condition_lingo(conditions)
-            conditions = Conditions(json.dumps(conditions))
+            condition_lingo = ConditionLingo.from_dict(conditions)
+            conditions = Conditions(condition_lingo.to_json())
         message_kit = MessageKit(
             policy_encrypting_key=self.policy_pubkey,
             plaintext=plaintext,
@@ -1450,9 +1450,8 @@ class Enrico:
         if not self.signer:
             raise TypeError("This Enrico doesn't have a signer.")
 
-        validate_condition_lingo(conditions)
-        conditions_json = json.dumps(conditions)
-        access_conditions = Conditions(conditions_json)
+        condition_lingo = ConditionLingo.from_dict(conditions)
+        access_conditions = Conditions(condition_lingo.to_json())
 
         # encrypt for DKG
         ciphertext, auth_data = encrypt_for_dkg(

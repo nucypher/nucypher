@@ -53,13 +53,6 @@ class CamelCaseSchema(Schema):
         }
 
 
-def validate_condition_lingo(lingo: Lingo) -> None:
-    # TODO potentially remove
-    from nucypher.policy.conditions.lingo import ConditionLingo
-
-    ConditionLingo.validate_condition_lingo(lingo=lingo)
-
-
 def evaluate_condition_lingo(
     condition_lingo: Lingo,
     providers: Optional[Dict[int, BaseProvider]] = None,

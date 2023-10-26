@@ -255,7 +255,6 @@ def test_invalid_condition_version(case):
             ConditionLingo.from_json(json.dumps(lingo_dict))
     else:
         # no exception thrown
-        ConditionLingo.validate_condition_lingo(lingo_dict)
         _ = ConditionLingo.from_dict(lingo_dict)
         _ = ConditionLingo.from_json(json.dumps(lingo_dict))
 

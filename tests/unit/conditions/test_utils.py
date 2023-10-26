@@ -23,16 +23,23 @@ import pytest
 from marshmallow import fields
 from web3.providers import BaseProvider
 
-from nucypher.policy.conditions.exceptions import *
+from nucypher.policy.conditions.exceptions import (
+    ConditionEvaluationFailed,
+    ContextVariableVerificationFailed,
+    InvalidCondition,
+    InvalidConditionLingo,
+    InvalidContextVariableData,
+    NoConnectionToChain,
+    RequiredContextVariable,
+    ReturnValueEvaluationError,
+)
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
     camel_case_to_snake,
     evaluate_condition_lingo,
     to_camelcase,
-    validate_condition_lingo,
 )
-from tests.constants import TESTERCHAIN_CHAIN_ID
 
 FAILURE_CASE_EXCEPTION_CODE_MATCHING = [
     # (exception, constructor parameters, expected status code)
@@ -159,39 +166,3 @@ def test_camel_case_schema():
 
     reloaded_function = schema.load(output)
     assert reloaded_function == {"field_name_with_underscores": f"{value}"}
-
-
-def test_condition_lingo_validation(compound_lingo):
-    # valid compound lingo; no issues here
-    compound_lingo_dict = compound_lingo.to_dict()
-    validate_condition_lingo(compound_lingo_dict)
-
-    invalid_operator_lingo = {
-        "version": ConditionLingo.VERSION,
-        "condition": {
-            "operator": "AND_OPERATOR",  # invalid operator
-            "operands": [
-                {
-                    "returnValueTest": {"value": 0, "comparator": ">"},
-                    "method": "blocktime",
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                },
-                {
-                    "returnValueTest": {"value": 99999999999999999, "comparator": "<"},
-                    "method": "blocktime",
-                    "chain": TESTERCHAIN_CHAIN_ID,
-                },
-            ],
-        },
-    }
-    with pytest.raises(InvalidConditionLingo):
-        validate_condition_lingo(invalid_operator_lingo)
-
-    # type of condition is unknown
-    with pytest.raises(InvalidConditionLingo):
-        validate_condition_lingo(
-            {
-                "version": ConditionLingo.VERSION,
-                "condition": {"dont_mind_me": "nothing_to_see_here"},
-            }
-        )
