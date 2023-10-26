@@ -189,10 +189,6 @@ class RPCCondition(AccessControlCondition):
             raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
-        if not method.startswith(self.ETH_PREFIX):
-            raise InvalidCondition(
-                f"Only 'eth_' RPC methods are accepted for condition evaluation; '{method}' is not permitted."
-            )
         return method
 
     def _validate_expected_return_type(self):
