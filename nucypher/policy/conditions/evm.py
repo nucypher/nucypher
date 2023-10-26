@@ -356,6 +356,7 @@ class ContractCondition(RPCCondition):
         super().__init__(condition_type=condition_type, method=method, *args, **kwargs)
 
     def _validate_method(self, method):
+        # overrides validate method used by rpc superclass
         return method
 
     def _validate_expected_return_type(self) -> None:
