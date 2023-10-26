@@ -185,7 +185,7 @@ class RPCCondition(AccessControlCondition):
         self._validate_expected_return_type()
 
     def _validate_method(self, method):
-        if method not in self.ALLOWED_METHODS.keys():
+        if method not in self.ALLOWED_METHODS:
             raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
             )
