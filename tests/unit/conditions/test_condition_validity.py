@@ -68,6 +68,15 @@ def test_invalid_rpc_condition():
             parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
         )
 
+    # invalid chain type provided
+    with pytest.raises(ValueError):
+        _ = RPCCondition(
+            method="eth_getBalance",
+            chain=str(TESTERCHAIN_CHAIN_ID),  # should be int not str.
+            return_value_test=ReturnValueTest("==", 0),
+            parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
+        )
+
 
 def test_invalid_contract_condition():
     # invalid condition type
