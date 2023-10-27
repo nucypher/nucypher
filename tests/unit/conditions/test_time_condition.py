@@ -46,3 +46,17 @@ def test_time_condition_schema_validation(time_condition):
         condition_dict = time_condition.to_dict()
         del condition_dict["returnValueTest"]
         TimeCondition.validate(condition_dict)
+
+
+@pytest.mark.parametrize(
+    "invalid_value", ["0x123456", 10.15, [1], [1, 2, 3], [True, [1, 2], "0x0"]]
+)
+def test_time_condition_invalid_comparator_value_type(invalid_value, time_condition):
+    with pytest.raises(InvalidCondition, match="must be an integer"):
+        _ = TimeCondition(
+            chain=time_condition.chain,
+            return_value_test=ReturnValueTest(
+                comparator=time_condition.return_value_test.comparator,
+                value=invalid_value,
+            ),
+        )
