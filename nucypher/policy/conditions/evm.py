@@ -185,6 +185,9 @@ class RPCCondition(AccessControlCondition):
         self._validate_expected_return_type()
 
     def _validate_method(self, method):
+        if not method:
+            raise InvalidCondition("Undefined method name")
+
         if method not in self.ALLOWED_METHODS:
             raise InvalidCondition(
                 f"'{method}' is not a permitted RPC endpoint for condition evaluation."
@@ -334,6 +337,8 @@ class ContractCondition(RPCCondition):
         *args,
         **kwargs,
     ):
+        if not method:
+            raise InvalidCondition("Undefined method name")
         try:
             _validate_condition_abi(
                 standard_contract_type, function_abi, method_name=method
