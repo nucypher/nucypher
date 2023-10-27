@@ -6,6 +6,7 @@ from unittest import mock
 import pytest
 from hexbytes import HexBytes
 from web3 import Web3
+from web3.providers import BaseProvider
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -20,6 +21,7 @@ from nucypher.policy.conditions.evm import (
 )
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
+    InvalidCondition,
     InvalidContextVariableData,
     NoConnectionToChain,
     RequiredContextVariable,
@@ -111,11 +113,137 @@ def test_user_address_context_variable_verification(testerchain, valid_user_addr
     "nucypher.policy.conditions.evm.get_context_value",
     side_effect=_dont_validate_user_address,
 )
+def test_rpc_condition_evaluation_no_providers(
+    get_context_value_mock, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+    with pytest.raises(NoConnectionToChain):
+        _ = rpc_condition.verify(providers={}, **context)
+
+    with pytest.raises(NoConnectionToChain):
+        _ = rpc_condition.verify(
+            providers={testerchain.client.chain_id: set()}, **context
+        )
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_rpc_condition_evaluation_invalid_provider_for_chain(
+    get_context_value_mock, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+    new_chain = 23
+    rpc_condition.chain = new_chain
+    condition_providers = {new_chain: {testerchain.provider}}
+    with pytest.raises(
+        InvalidCondition, match=f"can only be evaluated on chain ID {new_chain}"
+    ):
+        _ = rpc_condition.verify(providers=condition_providers, **context)
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
 def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condition, condition_providers):
     context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
     condition_result, call_result = rpc_condition.verify(
         providers=condition_providers, **context
     )
+    assert condition_result is True
+    assert call_result == Web3.to_wei(
+        1_000_000, "ether"
+    )  # same value used in rpc_condition fixture
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_rpc_condition_evaluation_multiple_chain_providers(
+    get_context_value_mock, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+
+    condition_providers = {
+        "1": {"fake1a", "fake1b"},
+        "2": {"fake2"},
+        "3": {"fake3"},
+        "4": {"fake4"},
+        TESTERCHAIN_CHAIN_ID: {testerchain.provider},
+    }
+
+    condition_result, call_result = rpc_condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result is True
+    assert call_result == Web3.to_wei(
+        1_000_000, "ether"
+    )  # same value used in rpc_condition fixture
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
+    get_context_value_mock, mocker, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+
+    def my_configure_w3(provider: BaseProvider):
+        return Web3(provider)
+
+    condition_providers = {
+        TESTERCHAIN_CHAIN_ID: {
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+        }
+    }
+
+    mocker.patch.object(
+        rpc_condition, "_check_chain_id", return_value=None
+    )  # skip chain check
+    mocker.patch.object(rpc_condition, "_configure_w3", my_configure_w3)
+
+    with pytest.raises(RPCExecutionFailed):
+        _ = rpc_condition.verify(providers=condition_providers, **context)
+
+
+@mock.patch(
+    "nucypher.policy.conditions.evm.get_context_value",
+    side_effect=_dont_validate_user_address,
+)
+def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
+    get_context_value_mock, mocker, testerchain, rpc_condition
+):
+    context = {USER_ADDRESS_CONTEXT: {"address": testerchain.unassigned_accounts[0]}}
+
+    def my_configure_w3(provider: BaseProvider):
+        return Web3(provider)
+
+    condition_providers = {
+        TESTERCHAIN_CHAIN_ID: {
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            mocker.Mock(spec=BaseProvider),
+            testerchain.provider,
+        }
+    }
+
+    mocker.patch.object(
+        rpc_condition, "_check_chain_id", return_value=None
+    )  # skip chain check
+    mocker.patch.object(rpc_condition, "_configure_w3", my_configure_w3)
+
+    condition_result, call_result = rpc_condition.verify(
+        providers=condition_providers, **context
+    )
+
+    # valid provider at end of set used
     assert condition_result is True
     assert call_result == Web3.to_wei(
         1_000_000, "ether"
