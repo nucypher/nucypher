@@ -16,6 +16,8 @@ from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
 )
+from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 CHAIN_ID = 137
 
@@ -100,7 +102,6 @@ def _check_execution_logic(
         ContextVarTest
     ] = ContextVarTest.WITH_AND_WITHOUT_CONTEXT_VAR,
 ):
-
     for use_context_var in context_var_testing.get_use_context_var_test_cases():
         context = dict()
 
@@ -128,6 +129,174 @@ def _check_execution_logic(
 
         assert call_result == execution_result
         assert condition_result == expected_outcome
+
+
+def test_invalid_contract_condition():
+    # invalid condition type
+    with pytest.raises(
+        InvalidCondition,
+        match=f"must be instantiated with the {ConditionType.CONTRACT.value} type",
+    ):
+        _ = ContractCondition(
+            condition_type=ConditionType.RPC.value,
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method="balanceOf",
+            chain=TESTERCHAIN_CHAIN_ID,
+            standard_contract_type="ERC20",
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
+        )
+
+    # no method defined
+    with pytest.raises(InvalidCondition, match="Undefined method name"):
+        _ = ContractCondition(
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method=None,
+            chain=TESTERCHAIN_CHAIN_ID,
+            standard_contract_type="ERC20",
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=["0xaDD9D957170dF6F33982001E4c22eCCdd5539118"],
+        )
+
+    # no abi or contract type
+    with pytest.raises(
+        InvalidCondition, match="Provide 'standardContractType' or 'functionAbi'"
+    ):
+        _ = ContractCondition(
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method="getPolicy",
+            chain=TESTERCHAIN_CHAIN_ID,
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=[
+                ":hrac",
+            ],
+        )
+
+    # invalid standard contract type
+    with pytest.raises(InvalidCondition, match="Invalid standard contract type"):
+        _ = ContractCondition(
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method="getPolicy",
+            chain=TESTERCHAIN_CHAIN_ID,
+            standard_contract_type="ERC90210",  # Beverly Hills contract type :)
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=[
+                ":hrac",
+            ],
+        )
+
+    # invalid ABI
+    with pytest.raises(InvalidCondition, match="Invalid ABI, no function name found"):
+        _ = ContractCondition(
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method="getPolicy",
+            chain=TESTERCHAIN_CHAIN_ID,
+            function_abi={"rando": "ABI"},
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=[
+                ":hrac",
+            ],
+        )
+
+    # method not in ABI
+    with pytest.raises(InvalidCondition):
+        _ = ContractCondition(
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method="getPolicy",
+            chain=TESTERCHAIN_CHAIN_ID,
+            standard_contract_type="ERC20",
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=[
+                ":hrac",
+            ],
+        )
+
+    # standard contract type and function ABI
+    with pytest.raises(
+        InvalidCondition, match="Provide 'standardContractType' or 'functionAbi'"
+    ):
+        _ = ContractCondition(
+            contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+            method="balanceOf",
+            chain=TESTERCHAIN_CHAIN_ID,
+            standard_contract_type="ERC20",
+            function_abi={"rando": "ABI"},
+            return_value_test=ReturnValueTest("!=", 0),
+            parameters=[
+                ":hrac",
+            ],
+        )
+
+
+def test_contract_condition_schema_validation():
+    contract_condition = ContractCondition(
+        contract_address="0xaDD9D957170dF6F33982001E4c22eCCdd5539118",
+        method="balanceOf",
+        chain=TESTERCHAIN_CHAIN_ID,
+        standard_contract_type="ERC20",
+        return_value_test=ReturnValueTest("!=", 0),
+        parameters=[
+            ":hrac",
+        ],
+    )
+
+    condition_dict = contract_condition.to_dict()
+
+    # no issues here
+    ContractCondition.validate(condition_dict)
+
+    # no issues with optional name
+    condition_dict["name"] = "my_contract_condition"
+    ContractCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no contract address defined
+        condition_dict = contract_condition.to_dict()
+        del condition_dict["contractAddress"]
+        ContractCondition.validate(condition_dict)
+
+    balanceOf_abi = {
+        "constant": True,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "payable": False,
+        "stateMutability": "view",
+        "type": "function",
+    }
+
+    with pytest.raises(InvalidCondition):
+        # no function abi or standard contract type
+        condition_dict = contract_condition.to_dict()
+        del condition_dict["standardContractType"]
+        ContractCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # provide both function abi and standard contract type
+        condition_dict = contract_condition.to_dict()
+        condition_dict["functionAbi"] = balanceOf_abi
+        ContractCondition.validate(condition_dict)
+
+    # remove standardContractType but specify function abi; no issues with that
+    condition_dict = contract_condition.to_dict()
+    del condition_dict["standardContractType"]
+    condition_dict["functionAbi"] = balanceOf_abi
+    ContractCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # no returnValueTest defined
+        condition_dict = contract_condition.to_dict()
+        del condition_dict["returnValueTest"]
+        ContractCondition.validate(condition_dict)
+
+
+def test_contract_condition_repr(contract_condition_dict):
+    condition = ContractCondition.from_dict(contract_condition_dict)
+    condition_str = f"{condition}"
+    assert condition.__class__.__name__ in condition_str
+    assert f"function={condition.method}" in condition_str
+    assert f"contract={condition.contract_address}" in condition_str
+    assert f"chain={condition.chain}" in condition_str
 
 
 def test_abi_validation_on_init(contract_condition_dict):

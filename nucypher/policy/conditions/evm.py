@@ -203,7 +203,7 @@ class RPCCondition(AccessControlCondition):
         if not isinstance(self.return_value_test.value, expected_return_type):
             raise InvalidCondition(
                 f"Return value comparison for '{self.method}' call output "
-                f"should be '{expected_return_type}' and not {type(comparator_value)}."
+                f"should be '{expected_return_type}' and not '{type(comparator_value)}'."
             )
 
     def _next_endpoint(
@@ -391,7 +391,7 @@ class ContractCondition(RPCCondition):
     def __repr__(self) -> str:
         r = (
             f"{self.__class__.__name__}(function={self.method}, "
-            f"contract={self.contract_address[:6]}..., "
+            f"contract={self.contract_address}, "
             f"chain={self.chain})"
         )
         return r
