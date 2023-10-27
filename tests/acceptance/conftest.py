@@ -199,7 +199,9 @@ def taco_child_application(
     nucypher_dependency, taco_application_proxy, deployer_account
 ):
     _taco_child_application = deployer_account.deploy(
-        nucypher_dependency.TACoChildApplication, taco_application_proxy.address
+        nucypher_dependency.TACoChildApplication,
+        taco_application_proxy.address,
+        MIN_AUTHORIZATION,
     )
 
     return _taco_child_application
