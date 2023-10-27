@@ -22,10 +22,11 @@ from nucypher.utilities.prometheus.collector import (
 class PrometheusMetricsConfig:
     """Prometheus configuration."""
     def __init__(self,
-                 port: int,
-                 listen_address: str = '',  # default to localhost ip
-                 collection_interval: int = 90,  # every 1.5 minutes
-                 start_now: bool = False):
+        port: int,
+        listen_address: str = "",  # default to localhost ip
+        collection_interval: int = 90,  # every 1.5 minutes
+        start_now: bool = False,
+    ):
 
         if not port:
             raise ValueError('port must be provided')
