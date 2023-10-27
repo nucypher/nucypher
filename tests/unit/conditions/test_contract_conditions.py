@@ -76,11 +76,11 @@ def _replace_abi_outputs(condition_json: Dict, output_type: str, output_value: A
 
 
 class ContextVarTest(Enum):
-    WITH_CONTEXT_VAR_ONLY = 0
-    WITHOUT_CONTEXT_VAR_ONLY = 1
+    CONTEXT_VAR_ONLY = 0
+    NO_CONTEXT_VAR_ONLY = 1
     WITH_AND_WITHOUT_CONTEXT_VAR = 2
 
-    def get_test_cases(self):
+    def get_use_context_var_test_cases(self):
         if self.value == 0:
             return [True]
         elif self.value == 1:
@@ -101,7 +101,7 @@ def _check_execution_logic(
     ] = ContextVarTest.WITH_AND_WITHOUT_CONTEXT_VAR,
 ):
 
-    for use_context_var in context_var_testing.get_test_cases():
+    for use_context_var in context_var_testing.get_use_context_var_test_cases():
         context = dict()
 
         if use_context_var:
@@ -250,7 +250,7 @@ def test_abi_bool_output(contract_condition_dict):
             comparator_value=3,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -299,7 +299,7 @@ def test_abi_uint_output(contract_condition_dict):
             comparator_value=True,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -348,7 +348,7 @@ def test_abi_int_output(contract_condition_dict):
             comparator_value=True,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -400,7 +400,7 @@ def test_abi_address_output(contract_condition_dict, get_random_checksum_address
             comparator_value=42,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -468,7 +468,7 @@ def test_abi_bytes_output(bytes_test_scenario, contract_condition_dict):
             comparator_value=True,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -556,7 +556,7 @@ def test_abi_tuple_output(contract_condition_dict):
             comparator_value=[1, True, 3, random_bytes_hex],
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -659,7 +659,7 @@ def test_abi_tuple_output_with_index(
             comparator="==",
             expected_outcome=None,
             comparator_index=2,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -795,7 +795,7 @@ def test_abi_multiple_output_values(
             comparator="==",
             expected_outcome=None,
             comparator_index=0,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
     # test without index
@@ -830,7 +830,7 @@ def test_abi_multiple_output_values(
             comparator_value=comparator_value,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
 
@@ -986,7 +986,7 @@ def test_abi_nested_tuples_output_values(
             comparator="==",
             expected_outcome=None,
             comparator_index=1,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
 
     # test no index
@@ -1020,5 +1020,5 @@ def test_abi_nested_tuples_output_values(
             comparator_value=comparator_value,
             comparator="==",
             expected_outcome=None,
-            context_var_testing=ContextVarTest.WITH_CONTEXT_VAR_ONLY,
+            context_var_testing=ContextVarTest.CONTEXT_VAR_ONLY,
         )
