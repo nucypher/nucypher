@@ -12,7 +12,10 @@ from marshmallow import post_load
 from web3.providers import BaseProvider
 
 from nucypher.policy.conditions.evm import ContractCondition
-from nucypher.policy.conditions.exceptions import InvalidCondition
+from nucypher.policy.conditions.exceptions import (
+    InvalidCondition,
+    InvalidConditionLingo,
+)
 
 CHAIN_ID = 137
 
@@ -125,6 +128,81 @@ def _check_execution_logic(
 
         assert call_result == execution_result
         assert condition_result == expected_outcome
+
+
+def test_abi_validation_on_init(contract_condition_dict):
+    condition_object = ContractCondition.from_dict(contract_condition_dict)
+
+    def get_object_parameters(modified_function_abi: Dict):
+        parameters = dict(
+            method=condition_object.method,
+            contract_address=condition_object.contract_address,
+            chain=condition_object.chain,
+            return_value_test=condition_object.return_value_test,
+            parameters=condition_object.parameters,
+            function_abi=modified_function_abi,
+        )
+
+        return parameters
+
+    no_method_name = copy.deepcopy(contract_condition_dict)
+    del no_method_name["functionAbi"]["name"]
+    with pytest.raises(InvalidConditionLingo, match="no function name found"):
+        ContractCondition.from_json(json.dumps(no_method_name))
+
+    with pytest.raises(InvalidCondition, match="no function name found"):
+        parameters = get_object_parameters(no_method_name["functionAbi"])
+        ContractCondition(**parameters)
+
+    mismatched_method_name = copy.deepcopy(contract_condition_dict)
+    mismatched_method_name["functionAbi"]["name"] = "myFunctionName"
+    mismatched_method_name["method"] = "otherFunctionName"
+    with pytest.raises(
+        InvalidConditionLingo, match="Mismatched ABI for contract function"
+    ):
+        ContractCondition.from_json(json.dumps(mismatched_method_name))
+
+    with pytest.raises(InvalidCondition, match="Mismatched ABI for contract function"):
+        parameters = get_object_parameters(mismatched_method_name["functionAbi"])
+        ContractCondition(**parameters)
+
+    invalid_fn_type = copy.deepcopy(contract_condition_dict)
+    for invalid_type in ["constructor", "receive", "fallback"]:
+        invalid_fn_type["functionAbi"]["type"] = invalid_type
+        with pytest.raises(InvalidConditionLingo, match="Invalid ABI type"):
+            ContractCondition.from_json(json.dumps(invalid_fn_type))
+
+        with pytest.raises(InvalidCondition, match="Invalid ABI type"):
+            parameters = get_object_parameters(invalid_fn_type["functionAbi"])
+            ContractCondition(**parameters)
+
+    no_outputs = copy.deepcopy(contract_condition_dict)
+    del no_outputs["functionAbi"]["outputs"]
+    with pytest.raises(InvalidConditionLingo, match="no outputs found"):
+        ContractCondition.from_json(json.dumps(no_outputs))
+
+    with pytest.raises(InvalidCondition, match="no outputs found"):
+        parameters = get_object_parameters(no_outputs["functionAbi"])
+        ContractCondition(**parameters)
+
+    empty_outputs = copy.deepcopy(contract_condition_dict)
+    empty_outputs["functionAbi"]["outputs"] = []
+    with pytest.raises(InvalidConditionLingo, match="no outputs found"):
+        ContractCondition.from_json(json.dumps(empty_outputs))
+
+    with pytest.raises(InvalidCondition, match="no outputs found"):
+        parameters = get_object_parameters(empty_outputs["functionAbi"])
+        ContractCondition(**parameters)
+
+    invalid_mutability = copy.deepcopy(contract_condition_dict)
+    for invalid_mutability_value in ["payable", "nonpayable"]:
+        invalid_mutability["functionAbi"]["stateMutability"] = invalid_mutability_value
+        with pytest.raises(InvalidConditionLingo, match="Invalid ABI stateMutability"):
+            ContractCondition.from_json(json.dumps(invalid_mutability))
+
+        with pytest.raises(InvalidCondition, match="Invalid ABI stateMutability"):
+            parameters = get_object_parameters(invalid_mutability["functionAbi"])
+            ContractCondition(**parameters)
 
 
 def test_abi_bool_output(contract_condition_dict):
