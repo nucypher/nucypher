@@ -684,6 +684,11 @@ def control_time():
     return clock
 
 
+@pytest.fixture(scope="session", autouse=True)
+def mock_prometheus(session_mocker):
+    return session_mocker.patch("nucypher.characters.lawful.start_prometheus_exporter")
+
+
 @pytest.fixture(scope="module")
 def ursulas(testerchain, ursula_test_config, staking_providers):
     if MOCK_KNOWN_URSULAS_CACHE:
