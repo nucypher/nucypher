@@ -277,13 +277,14 @@ class RPCCondition(AccessControlCondition):
         Verifies the onchain condition is met by performing a
         read operation and evaluating the return value test.
         """
+        parameters, return_value_test = _resolve_any_context_variables(
+            self.parameters, self.return_value_test, **context
+        )
+        return_value_test = self._align_comparator_value_with_abi(return_value_test)
+
         endpoints = self._next_endpoint(providers=providers)
         for provider in endpoints:
             self._configure_provider(provider=provider)
-            parameters, return_value_test = _resolve_any_context_variables(
-                self.parameters, self.return_value_test, **context
-            )
-            return_value_test = self._align_comparator_value_with_abi(return_value_test)
             try:
                 result = self._execute_call(parameters=parameters)
                 break
