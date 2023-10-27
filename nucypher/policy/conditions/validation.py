@@ -59,7 +59,7 @@ def _is_tuple_type(abi_type: str):
 def _get_tuple_type_entries(tuple_type: str) -> List[str]:
     if not _is_tuple_type(tuple_type):
         raise ValueError(
-            f"Invalid type provided '{tuple_type}; not a tuple type definition"
+            f"Invalid type provided '{tuple_type}'; not a tuple type definition"
         )
     result = tuple_type.replace("(", "").replace(")", "")
     result = result.split(",")
