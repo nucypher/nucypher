@@ -12,12 +12,11 @@ from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAg
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
-    _recover_user_address,
+    get_context_value,
 )
 from nucypher.policy.conditions.evm import (
     ContractCondition,
     RPCCondition,
-    get_context_value,
 )
 from nucypher.policy.conditions.exceptions import (
     ContextVariableVerificationFailed,
@@ -61,7 +60,7 @@ def test_user_address_context_missing_required_entries(expected_entry, valid_use
     context = copy.deepcopy(valid_user_address_context)
     del context[USER_ADDRESS_CONTEXT][expected_entry]
     with pytest.raises(InvalidContextVariableData):
-        _recover_user_address(**context)
+        get_context_value(USER_ADDRESS_CONTEXT, **context)
 
 
 def test_user_address_context_invalid_eip712_typed_data(valid_user_address_context):
@@ -71,12 +70,12 @@ def test_user_address_context_invalid_eip712_typed_data(valid_user_address_conte
         randomSaying="Comparison is the thief of joy."  # -– Theodore Roosevelt
     )
     with pytest.raises(InvalidContextVariableData):
-        _recover_user_address(**context)
+        get_context_value(USER_ADDRESS_CONTEXT, **context)
 
 
 def test_user_address_context_variable_verification(testerchain, valid_user_address_context):
     # valid user address context - signature matches address
-    address = _recover_user_address(**valid_user_address_context)
+    address = get_context_value(USER_ADDRESS_CONTEXT, **valid_user_address_context)
     assert address == valid_user_address_context[USER_ADDRESS_CONTEXT]["address"]
 
     # invalid user address context - signature does not match address
@@ -86,7 +85,7 @@ def test_user_address_context_variable_verification(testerchain, valid_user_addr
         "address"
     ] = testerchain.etherbase_account
     with pytest.raises(ContextVariableVerificationFailed):
-        _recover_user_address(**mismatch_with_address_context)
+        get_context_value(USER_ADDRESS_CONTEXT, **mismatch_with_address_context)
 
     # invalid user address context - signature does not match address
     # internals are mutable - deepcopy
@@ -97,7 +96,7 @@ def test_user_address_context_variable_verification(testerchain, valid_user_addr
     )
     mismatch_with_address_context[USER_ADDRESS_CONTEXT]["signature"] = signature
     with pytest.raises(ContextVariableVerificationFailed):
-        _recover_user_address(**mismatch_with_address_context)
+        get_context_value(USER_ADDRESS_CONTEXT, **mismatch_with_address_context)
 
     # invalid signature
     # internals are mutable - deepcopy
@@ -106,7 +105,7 @@ def test_user_address_context_variable_verification(testerchain, valid_user_addr
         "signature"
     ] = "0xdeadbeef"  # invalid signature
     with pytest.raises(ContextVariableVerificationFailed):
-        _recover_user_address(**invalid_signature_context)
+        get_context_value(USER_ADDRESS_CONTEXT, **invalid_signature_context)
 
 
 @mock.patch(
