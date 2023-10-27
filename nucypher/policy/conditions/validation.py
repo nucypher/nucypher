@@ -159,16 +159,16 @@ def _validate_condition_function_abi(function_abi: Dict, method_name: str) -> No
     """validates a dictionary as valid for use as a condition function ABI"""
     abi = ABIFunction(function_abi)
 
-    if not method_name:
-        raise ValueError("Missing method name")
+    if not abi.get("name"):
+        raise ValueError(f"Invalid ABI, no function name found {abi}")
+    if abi.get("name") != method_name:
+        raise ValueError(f"Mismatched ABI for contract function {method_name} - {abi}")
     if abi.get("type") != "function":
         raise ValueError(f"Invalid ABI type {abi}")
     if not abi.get("outputs"):
         raise ValueError(f"Invalid ABI, no outputs found {abi}")
     if abi.get("stateMutability") not in ["pure", "view"]:
         raise ValueError(f"Invalid ABI stateMutability {abi}")
-    if abi.get("name") != method_name:
-        raise ValueError(f"Missing ABI for method {method_name}")
 
 
 def _validate_condition_abi(
