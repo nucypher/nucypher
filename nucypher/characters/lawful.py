@@ -828,6 +828,7 @@ class Ursula(Teacher, Character, Operator):
         known_nodes: Iterable[Teacher] = None,
         **character_kwargs,
     ):
+        domain = domains.get_domain(str(domain))
         Character.__init__(
             self,
             is_me=is_me,
@@ -1134,7 +1135,7 @@ class Ursula(Teacher, Character, Operator):
         ferveo_public_key = self.public_keys(RitualisticPower)
         payload = NodeMetadataPayload(
             staking_provider_address=Address(self.canonical_address),
-            domain=self.domain,
+            domain=str(self.domain),
             timestamp_epoch=timestamp.epoch,
             verifying_key=self.public_keys(SigningPower),
             encrypting_key=self.public_keys(DecryptingPower),

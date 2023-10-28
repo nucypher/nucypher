@@ -1,6 +1,5 @@
-import random
-
 import pytest
+import random
 from web3 import Web3
 
 import tests
@@ -10,10 +9,6 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     TACoApplicationAgent,
     TACoChildApplicationAgent,
-)
-from nucypher.blockchain.eth.domains import (
-    DomainInfo,
-    TACoDomain,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
@@ -28,7 +23,6 @@ from tests.constants import (
     MIN_OPERATOR_SECONDS,
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
-    TESTERCHAIN_CHAIN_INFO,
 )
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -410,19 +404,16 @@ def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker):
+def mock_condition_blockchains(module_mocker, temporary_domain):
     """adds testerchain's chain ID to permitted conditional chains"""
     module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    test_domain_info = DomainInfo(
-        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
-    )
-
-    module_mocker.patch.object(
-        TACoDomain, "get_domain_info", return_value=test_domain_info
+    module_mocker.patch(
+        "nucypher.blockchain.eth.domains.get_domain",
+        return_value=temporary_domain
     )
 
 

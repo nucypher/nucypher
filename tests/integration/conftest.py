@@ -1,9 +1,8 @@
 import os
-from pathlib import Path
-from typing import Iterable, Optional
-
 import pytest
 from eth_account.account import Account
+from pathlib import Path
+from typing import Iterable, Optional
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
@@ -14,10 +13,6 @@ from nucypher.blockchain.eth.agents import (
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.clients import EthereumClient
-from nucypher.blockchain.eth.domains import (
-    DomainInfo,
-    TACoDomain,
-)
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
     BlockchainInterfaceFactory,
@@ -38,7 +33,6 @@ from tests.constants import (
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TESTERCHAIN_CHAIN_ID,
-    TESTERCHAIN_CHAIN_INFO,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
@@ -283,19 +277,16 @@ def monkeypatch_get_staking_provider_from_operator(monkeymodule):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker):
+def mock_condition_blockchains(module_mocker, temporary_domain):
     """adds testerchain's chain ID to permitted conditional chains"""
     module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    test_domain_info = DomainInfo(
-        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
-    )
-
-    module_mocker.patch.object(
-        TACoDomain, "get_domain_info", return_value=test_domain_info
+    module_mocker.patch(
+        "nucypher.blockchain.eth.domains.get_domain",
+        return_value=temporary_domain
     )
 
 

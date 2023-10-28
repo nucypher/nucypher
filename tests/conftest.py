@@ -4,18 +4,12 @@ import pytest
 from eth_utils.crypto import keccak
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.domains import (
-    DomainInfo,
-    TACoDomain,
-)
-from nucypher.config.constants import TEMPORARY_DOMAIN
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Learner
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     MOCK_IP_ADDRESS,
     TESTERCHAIN_CHAIN_ID,
-    TESTERCHAIN_CHAIN_INFO,
 )
 
 # Don't re-lock accounts in the background while making commitments
@@ -143,18 +137,16 @@ def disable_check_grant_requirements(session_mocker):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker):
+def mock_condition_blockchains(module_mocker, temporary_domain):
     """adds testerchain's chain ID to permitted conditional chains"""
     module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
-    test_domain_info = DomainInfo(
-        TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
-    )
 
-    module_mocker.patch.object(
-        TACoDomain, "get_domain_info", return_value=test_domain_info
+    module_mocker.patch(
+        "nucypher.blockchain.eth.domains.get_domain",
+        return_value=temporary_domain
     )
 
 

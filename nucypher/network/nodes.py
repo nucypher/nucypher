@@ -26,6 +26,7 @@ from twisted.internet.defer import Deferred
 from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.domains import TACoDomain
@@ -269,8 +270,7 @@ class Learner:
         self.log = Logger("learning-loop")  # type: Logger
 
         self.learning_deferred = Deferred()
-        self.domain = domain
-        self.taco_domain_info = TACoDomain.get_domain_info(self.domain)
+        self.domain = domains.get_domain(str(domain))
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
             registry=self.registry, eth_endpoint=self.eth_endpoint
         )
@@ -352,7 +352,7 @@ class Learner:
         discovered = []
 
         if self.domain:
-            canonical_sage_uris = TEACHER_NODES.get(self.domain, ())
+            canonical_sage_uris = TEACHER_NODES.get(str(self.domain), ())
 
             for uri in canonical_sage_uris:
                 try:

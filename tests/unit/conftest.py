@@ -17,10 +17,11 @@ def pytest_addhooks(pluginmanager):
     pluginmanager.set_blocked('ape_test')
 
 
+
 @pytest.fixture(scope='module')
-def test_registry(module_mocker):
+def test_registry(module_mocker, temporary_domain):
     with mock_registry_sources(mocker=module_mocker):
-        source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
+        source = MockRegistrySource(domain=temporary_domain)
         yield ContractRegistry(source=source)
 
 

@@ -1,9 +1,8 @@
-import time
 from collections import defaultdict
-from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
+import time
+from decimal import Decimal
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
@@ -23,10 +22,12 @@ from nucypher_core.ferveo import (
     Transcript,
     Validator,
 )
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -36,7 +37,6 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -92,8 +92,7 @@ class BaseActor:
 
         self.transacting_power = transacting_power
         self.registry = registry
-        self.network = domain
-        self.taco_domain_info = TACoDomain.get_domain_info(self.network)
+        self.domain = domains.get_domain(str(domain))
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):
@@ -189,7 +188,7 @@ class Operator(BaseActor):
             registry=self.registry,
         )
 
-        registry = ContractRegistry.from_latest_publication(domain=self.network)
+        registry = ContractRegistry.from_latest_publication(domain=self.domain)
         self.child_application_agent = ContractAgency.get_agent(
             TACoChildApplicationAgent,
             registry=registry,

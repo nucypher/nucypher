@@ -1,24 +1,24 @@
 import contextlib
 import json
+import maya
 import os
+import pytest
 import shutil
 import tempfile
-from datetime import timedelta
-from functools import partial
-from pathlib import Path
-from typing import Tuple
-
-import maya
-import pytest
 from click.testing import CliRunner
+from datetime import timedelta
 from eth_account import Account
 from eth_utils import to_checksum_address
+from functools import partial
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
+from pathlib import Path
 from twisted.internet.task import Clock
+from typing import Tuple
 from web3 import Web3
 
 import tests
 from nucypher.blockchain.eth.actors import Operator
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
@@ -305,6 +305,15 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 #
 # Blockchain
 #
+
+@pytest.fixture(scope='session')
+def temporary_domain():
+    _domain = TACoDomain(
+        name=TEMPORARY_DOMAIN_NAME,
+        eth_chain=TESTERCHAIN_CHAIN_INFO,
+        polygon_chain=TESTERCHAIN_CHAIN_INFO,
+    )
+    return _domain
 
 
 @pytest.fixture(scope="module")

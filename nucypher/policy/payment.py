@@ -1,10 +1,10 @@
-from abc import ABC, abstractmethod
-from typing import Dict, NamedTuple, Optional
-
 import maya
+from abc import ABC, abstractmethod
 from nucypher_core import ReencryptionRequest
+from typing import Dict, NamedTuple, Optional
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
@@ -66,16 +66,16 @@ class ContractPayment(PaymentMethod, ABC):
     def __init__(
         self,
         blockchain_endpoint: str,
-        domain: str,
+        domain: TACoDomain,
         registry: Optional[ContractRegistry] = None,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.blockchain_endpoint = blockchain_endpoint
-        self.taco_domain_info = TACoDomain.get_domain_info(domain)
+        self.domain = domains.get_domain(str(domain))
         if not registry:
-            registry = ContractRegistry.from_latest_publication(domain=domain)
+            registry = ContractRegistry.from_latest_publication(domain=self.domain)
         self.registry = registry
         self.__agent = None  # delay blockchain/registry reads until later
 
