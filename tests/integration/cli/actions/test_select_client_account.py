@@ -11,7 +11,7 @@ from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.literature import GENERIC_SELECT_ACCOUNT, NO_ACCOUNTS
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     MOCK_SIGNER_URI,
@@ -183,7 +183,7 @@ def test_select_client_account_with_balance_display(
     mock_stdin.line(str(selection))
     selected_account = select_client_account(
         emitter=test_emitter,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         show_matic_balance=show_matic,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )

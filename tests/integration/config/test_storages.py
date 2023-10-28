@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -35,7 +35,7 @@ class BaseTestNodeStorageBackends:
         assert ursula == node_from_storage, "Node storage {} failed".format(node_storage)
 
         pre_payment_method = SubscriptionManagerPayment(
-            blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
+            blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
         )
 
         # Save more nodes
@@ -44,7 +44,7 @@ class BaseTestNodeStorageBackends:
             node = Ursula(
                 rest_host=LOOPBACK_ADDRESS,
                 rest_port=select_test_port(),
-                domain=TEMPORARY_DOMAIN,
+                domain=TEMPORARY_DOMAIN_NAME,
                 signer=signer,
                 eth_endpoint=MOCK_ETH_PROVIDER_URI,
                 polygon_endpoint=MOCK_ETH_PROVIDER_URI,

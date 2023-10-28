@@ -4,7 +4,7 @@ import maya
 
 from nucypher.characters.lawful import Bob
 from nucypher.config.characters import AliceConfiguration
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import DecryptingPower, SigningPower
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD, MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
@@ -17,7 +17,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         config_root=config_root,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         checksum_address=testerchain.alice_account,
         start_learning_now=False,
         save_metadata=False,
@@ -55,7 +55,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
 
     bob = Bob(
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
     )
@@ -96,7 +96,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
 
     # Bob's eldest brother, Roberto, appears too
     roberto = Bob(
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),

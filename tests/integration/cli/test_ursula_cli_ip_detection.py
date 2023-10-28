@@ -5,7 +5,7 @@ from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.cli.commands import ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.utilities.networking import UnknownIPAddress
 from tests.constants import (
     FAKE_PASSWORD_CONFIRMED,
@@ -35,7 +35,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
@@ -53,7 +53,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--force",
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
@@ -71,7 +71,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--force",
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,

@@ -14,7 +14,7 @@ from nucypher.config.characters import (
     BobConfiguration,
     UrsulaConfiguration,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.config.storages import ForgetfulNodeStorage
 from nucypher.crypto.keystore import Keystore
 from tests.constants import (
@@ -47,7 +47,7 @@ def test_development_character_configurations(
     params = dict(
         dev_mode=True,
         lonely=True,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         checksum_address=testerchain.unassigned_accounts[0],
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
@@ -74,7 +74,7 @@ def test_development_character_configurations(
     assert len(thing_one.checksum_address) == 42
 
     # Domain
-    assert TEMPORARY_DOMAIN == thing_one.domain
+    assert TEMPORARY_DOMAIN_NAME == thing_one.domain
 
     # Node Storage
     assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
@@ -101,7 +101,7 @@ def test_default_character_configuration_preservation(
 ):
     configuration_class.DEFAULT_CONFIG_ROOT = Path("/tmp")
     fake_address = "0xdeadbeef"
-    domain = TEMPORARY_DOMAIN
+    domain = TEMPORARY_DOMAIN_NAME
 
     expected_filename = (
         f"{configuration_class.NAME}.{configuration_class._CONFIG_FILE_EXTENSION}"
@@ -170,7 +170,7 @@ def test_ursula_development_configuration(testerchain):
         dev_mode=True,
         checksum_address=testerchain.unassigned_accounts[0],
         operator_address=testerchain.unassigned_accounts[1],
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )

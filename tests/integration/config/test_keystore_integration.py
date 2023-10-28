@@ -12,7 +12,7 @@ from nucypher_core.umbral import SecretKey, Signer
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo.dkg import FerveoVariant
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
@@ -74,13 +74,13 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
     )
 
     alice = Alice(
         start_learning_now=False,
         keystore=keystore,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
@@ -90,7 +90,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         start_learning_now=False,
         keystore=keystore,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
     )
     Ursula(
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
@@ -99,7 +99,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
         rest_port=12345,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
@@ -122,7 +122,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
         rest_port=rest_port,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
     )
 
     assert ursula.keystore is keystore
@@ -138,7 +138,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
         rest_port=rest_port,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
     )
 
     assert recreated_ursula.keystore is keystore
@@ -160,7 +160,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
     )
 
     ursula = Ursula(
@@ -168,7 +168,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
         rest_port=12345,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),

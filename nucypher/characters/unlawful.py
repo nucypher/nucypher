@@ -7,7 +7,7 @@ from nucypher_core import NodeMetadata
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.payment import FreeReencryptions
@@ -66,7 +66,7 @@ class Vladimir(Ursula):
         vladimir = cls(
             is_me=True,
             crypto_power=crypto_power,
-            domain=TEMPORARY_DOMAIN,
+            domain=TEMPORARY_DOMAIN_NAME,
             rest_host=target_ursula.rest_interface.host,
             rest_port=target_ursula.rest_interface.port,
             certificate=target_ursula.certificate,

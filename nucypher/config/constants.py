@@ -52,7 +52,7 @@ MAX_UPLOAD_CONTENT_LENGTH = 1024 * 50
 
 
 # Dev Mode
-TEMPORARY_DOMAIN = ":temporary-domain:"  # for use with `--dev` node runtimes
+TEMPORARY_DOMAIN_NAME = ":temporary-domain:"  # for use with `--dev` node runtimes
 
 
 # Event Blocks Throttling

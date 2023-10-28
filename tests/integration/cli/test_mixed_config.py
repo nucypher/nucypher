@@ -8,7 +8,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.keystore import InvalidPassword
 from tests.constants import (
@@ -69,7 +69,7 @@ def test_corrupted_configuration(
         "--operator-address",
         another_ursula,
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--config-root",
@@ -104,7 +104,7 @@ def test_corrupted_configuration(
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",

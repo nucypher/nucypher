@@ -12,7 +12,7 @@ from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
 from nucypher.blockchain.eth.signers.base import Signer
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -249,7 +249,7 @@ class Character(Learner):
 
         return cls(
             is_me=False,
-            domain=TEMPORARY_DOMAIN,
+            domain=TEMPORARY_DOMAIN_NAME,
             crypto_power=crypto_power,
             *args,
             **kwargs,

@@ -13,7 +13,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
@@ -27,7 +27,7 @@ from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 @mock.patch('glob.glob', return_value=list())
 def test_missing_configuration_file(_default_filepath_mock, click_runner):
-    cmd_args = ("ursula", "run", "--domain", TEMPORARY_DOMAIN)
+    cmd_args = ("ursula", "run", "--domain", TEMPORARY_DOMAIN_NAME)
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     configuration_type = UrsulaConfiguration.NAME
@@ -183,7 +183,7 @@ def test_persistent_node_storage_integration(
         "--operator-address",
         another_ursula,
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--config-root",

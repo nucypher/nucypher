@@ -14,14 +14,14 @@ from nucypher.blockchain.eth.registry import (
     RegistrySource,
     RegistrySourceManager,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import TESTERCHAIN_CHAIN_INFO
 
 
 @contextmanager
 def mock_registry_sources(mocker, domain_names: List[str] = None):
     if not domain_names:
-        domain_names = [TEMPORARY_DOMAIN]
+        domain_names = [TEMPORARY_DOMAIN_NAME]
 
     supported_domains = []
     supported_domain_names = []
@@ -76,10 +76,10 @@ class ApeRegistrySource(RegistrySource):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.domain != TEMPORARY_DOMAIN:
+        if self.domain != TEMPORARY_DOMAIN_NAME:
             raise ValueError(
                 f"Somehow, ApeRegistrySource is trying to get a registry for '{self.domain}'. "
-                f"Only '{TEMPORARY_DOMAIN}' is supported.'"
+                f"Only '{TEMPORARY_DOMAIN_NAME}' is supported.'"
             )
         if self._DEPLOYMENTS is None:
             raise ValueError(

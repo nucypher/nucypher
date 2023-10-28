@@ -5,7 +5,7 @@ from twisted.logger import LogLevel, globalLogPublisher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
@@ -31,7 +31,7 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas, test_registry):
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
     # Imagine alice knows of nobody.
-    alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
+    alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN_NAME)
 
     alice.remember_node(ursulas[0])
     alice.learn_from_teacher_node()

@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
@@ -277,7 +277,7 @@ def deployed_contracts(
 def test_registry(deployed_contracts, module_mocker):
     with tests.utils.registry.mock_registry_sources(mocker=module_mocker):
         RegistrySourceManager._FALLBACK_CHAIN = (ApeRegistrySource,)
-        source = ApeRegistrySource(domain=TEMPORARY_DOMAIN)
+        source = ApeRegistrySource(domain=TEMPORARY_DOMAIN_NAME)
         registry = ContractRegistry(source=source)
         yield registry
 

@@ -7,7 +7,7 @@ import pytest
 from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
@@ -47,7 +47,7 @@ def test_bob_retrieves(alice, ursulas, certificates_tempdir):
 
     # Bob becomes
     bob = Bob(
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         start_learning_now=True,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),

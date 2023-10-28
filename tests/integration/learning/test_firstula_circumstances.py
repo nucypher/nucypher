@@ -3,17 +3,17 @@ from functools import partial
 import pytest_twisted as pt
 from twisted.internet.threads import deferToThread
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.network.middleware import RestMiddleware
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
 def test_proper_seed_node_instantiation(lonely_ursula_maker):
     _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
-    firstula = _lonely_ursula_maker(domain=TEMPORARY_DOMAIN).pop()
+    firstula = _lonely_ursula_maker(domain=TEMPORARY_DOMAIN_NAME).pop()
     firstula_as_seed_node = firstula.seed_node_metadata()
     any_other_ursula = _lonely_ursula_maker(
-        seed_nodes=[firstula_as_seed_node], domain=TEMPORARY_DOMAIN
+        seed_nodes=[firstula_as_seed_node], domain=TEMPORARY_DOMAIN_NAME
     ).pop()
 
     assert not any_other_ursula.known_nodes
