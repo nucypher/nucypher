@@ -18,38 +18,82 @@ class PolygonChain(ChainInfo, Enum):
     MUMBAI = (80001, "mumbai")
 
 
-class DomainInfo(NamedTuple):
-    name: str
-    eth_chain: EthChain
-    polygon_chain: PolygonChain
+class TACoDomain:
+
+    def __init__(self,
+        name: str,
+        eth_chain: EthChain,
+        polygon_chain: PolygonChain,
+    ):
+        self.name = name
+        self.eth_chain = eth_chain
+        self.polygon_chain = polygon_chain
+
+    def __repr__(self):
+        return f"<TACoDomain {self.name}>"
+
+    def __str__(self):
+        return self.name
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __bytes__(self):
+        return self.name.encode()
+
+    def __eq__(self, other):
+        try:
+            return self.name == other.name
+        except AttributeError:
+            raise TypeError(f"Cannot compare TACoDomain to {type(other)}")
+
+    def __bool__(self):
+        return True
+
+    def __iter__(self):
+        return str(self)
 
     @property
     def is_testnet(self) -> bool:
         return self.eth_chain != EthChain.MAINNET
 
 
-class TACoDomain:
-    class Unrecognized(RuntimeError):
-        """Raised when a provided domain name is not recognized."""
 
-    MAINNET = DomainInfo("mainnet", EthChain.MAINNET, PolygonChain.MAINNET)
-    LYNX = DomainInfo("lynx", EthChain.GOERLI, PolygonChain.MUMBAI)
-    TAPIR = DomainInfo("tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI)
+MAINNET = TACoDomain(
+    name="mainnet",
+    eth_chain=EthChain.MAINNET,
+    polygon_chain=PolygonChain.MAINNET,
+)
 
-    DEFAULT_DOMAIN_NAME: str = MAINNET.name
+LYNX = TACoDomain(
+    name="lynx",
+    eth_chain=EthChain.GOERLI,
+    polygon_chain=PolygonChain.MUMBAI,
+)
 
-    SUPPORTED_DOMAINS = [
-        MAINNET,
-        LYNX,
-        TAPIR,
-    ]
+TAPIR = TACoDomain(
+    name="tapir",
+    eth_chain=EthChain.SEPOLIA,
+    polygon_chain=PolygonChain.MUMBAI,
+)
 
-    SUPPORTED_DOMAIN_NAMES = [domain.name for domain in SUPPORTED_DOMAINS]
+DEFAULT_DOMAIN_NAME: str = MAINNET.name
 
-    @classmethod
-    def get_domain_info(cls, domain: str) -> DomainInfo:
-        for taco_domain in cls.SUPPORTED_DOMAINS:
-            if taco_domain.name == domain:
-                return taco_domain
+SUPPORTED_DOMAINS = [
+    MAINNET,
+    LYNX,
+    TAPIR,
+]
 
-        raise cls.Unrecognized(f"{domain} is not a recognized domain.")
+SUPPORTED_DOMAIN_NAMES = [str(domain) for domain in SUPPORTED_DOMAINS]
+
+class Unrecognized(Exception):
+    pass
+
+def get_domain(domain: str) -> TACoDomain:
+    if not isinstance(domain, str):
+        raise TypeError(f"domain must be a string, not {type(domain)}")
+    for taco_domain in SUPPORTED_DOMAINS:
+        if taco_domain.name == domain:
+            return taco_domain
+    raise Unrecognized(f"{domain} is not a recognized domain.")
