@@ -42,14 +42,14 @@ def mock_registry_sources(mocker, domain_names: List[str] = None):
 
 
 class MockRegistrySource(RegistrySource):
-    ALLOWED_DOMAINS = [TEMPORARY_DOMAIN]
+    ALLOWED_DOMAINS = [TEMPORARY_DOMAIN_NAME]
 
     name = "Mock Registry Source"
     is_primary = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.domain not in self.ALLOWED_DOMAINS:
+        if self.domain.name not in self.ALLOWED_DOMAINS:
             raise ValueError(
                 f"Somehow, MockRegistrySource is trying to get a registry for '{self.domain}'. "
                 f"Only '{','.join(self.ALLOWED_DOMAINS)}' are supported.'"

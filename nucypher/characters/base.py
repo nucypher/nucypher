@@ -1,11 +1,13 @@
 from pathlib import Path
-from typing import ClassVar, Dict, List, Optional
+from typing import ClassVar, Dict, List, Optional, Union
 
 from constant_sorrow.constants import NO_NICKNAME, NO_SIGNING_POWER, STRANGER
 from eth_utils import to_canonical_address
 from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
+from nucypher.blockchain.eth import domains
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -33,7 +35,7 @@ class Character(Learner):
 
     def __init__(
         self,
-        domain: str,
+        domain: Union[str, TACoDomain],
         eth_endpoint: str = None,
         polygon_endpoint: str = None,
         known_node_class: object = None,
@@ -118,7 +120,7 @@ class Character(Learner):
             self.polygon_endpoint = polygon_endpoint
 
             self.registry = registry or ContractRegistry.from_latest_publication(
-                domain=domain
+                domain=domains.get_domain(str(domain)),
             )
 
             # REST

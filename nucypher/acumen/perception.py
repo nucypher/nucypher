@@ -1,20 +1,17 @@
-
-
-
-import random
-import weakref
 from collections import deque
-from collections.abc import KeysView
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 import maya
+import random
+import weakref
+from collections.abc import KeysView
 from eth_typing import ChecksumAddress
 from nucypher_core import FleetStateChecksum, NodeMetadata
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from nucypher import characters
 from nucypher.utilities.logging import Logger
-
 from .nicknames import Nickname
+from nucypher.blockchain.eth.domains import TACoDomain
 
 
 class ArchivedFleetState(NamedTuple):
@@ -214,7 +211,7 @@ class FleetSensor:
     log = Logger("Learning")
 
     def __init__(
-        self, domain: str, this_node: Optional["characters.lawful.Ursula"] = None
+        self, domain: TACoDomain, this_node: Optional["characters.lawful.Ursula"] = None
     ):
         self._domain = domain
 
@@ -231,7 +228,7 @@ class FleetSensor:
 
     def record_node(self, node: "characters.lawful.Ursula"):
 
-        if node.domain == self._domain:
+        if str(node.domain) == str(self._domain):
             # Replace the existing object with a newer object, even if they're equal
             # (this object can be mutated externally).
             # This behavior is supposed to be consistent with that of the node storage

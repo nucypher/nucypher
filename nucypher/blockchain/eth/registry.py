@@ -1,14 +1,15 @@
+from json import JSONDecodeError
+
 import hashlib
 import json
-from abc import ABC, abstractmethod
-from json import JSONDecodeError
-from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple, Type, Union
-
 import requests
+from abc import ABC, abstractmethod
+from pathlib import Path
 from requests import Response
+from typing import Dict, List, NamedTuple, Optional, Tuple, Type, Union
 from web3.types import ABI
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.utilities.logging import Logger
 
@@ -33,11 +34,11 @@ class RegistrySource(ABC):
     class Unavailable(RegistrySourceError):
         """Raised when there are no available registry sources"""
 
-    def __init__(self, domain: str, *args, **kwargs):
-        if domain not in TACoDomain.SUPPORTED_DOMAIN_NAMES:
+    def __init__(self, domain: TACoDomain, *args, **kwargs):
+        if domain not in domains.SUPPORTED_DOMAINS:
             raise ValueError(
                 f"{self.__class__.__name__} not available for domain '{domain}'. "
-                f"Valid options are: {', '.join(list(TACoDomain.SUPPORTED_DOMAIN_NAMES))}"
+                f"Valid options are: {', '.join(list(domains.SUPPORTED_DOMAIN_NAMES))}"
             )
         self.domain = domain
         self.data = self.get()
@@ -184,7 +185,7 @@ class RegistrySourceManager:
 
     def __init__(
         self,
-        domain: str,
+        domain: TACoDomain,
         sources: Optional[RegistrySource] = None,
         only_primary: bool = False,
     ):
@@ -301,10 +302,12 @@ class ContractRegistry:
     @classmethod
     def from_latest_publication(
         cls,
-        domain: str,
+        domain: TACoDomain,
         source_manager: Optional[RegistrySourceManager] = None,
     ) -> "ContractRegistry":
         """Get the latest contract registry available from a registry source chain."""
+        if not isinstance(domain, TACoDomain):
+            raise TypeError(f"Expected TACoDomain, got {type(domain)}")
         source_manager = source_manager or RegistrySourceManager(domain=domain)
         source = source_manager.fetch_latest_publication()
         registry = cls(source=source)
