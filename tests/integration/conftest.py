@@ -25,7 +25,7 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.constants import (
@@ -130,9 +130,9 @@ def mock_interface(module_mocker):
 
 
 @pytest.fixture(scope='module')
-def test_registry(module_mocker):
+def test_registry(module_mocker, temporary_domain):
     with mock_registry_sources(mocker=module_mocker):
-        mock_source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
+        mock_source = MockRegistrySource(domain=temporary_domain)
         registry = ContractRegistry(source=mock_source)
         yield registry
 

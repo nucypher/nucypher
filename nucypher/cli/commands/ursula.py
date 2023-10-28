@@ -56,7 +56,7 @@ from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.config.migrations import MIGRATIONS
 from nucypher.config.migrations.common import (
@@ -110,7 +110,7 @@ class UrsulaConfigOptions:
             return UrsulaConfiguration(
                 emitter=emitter,
                 dev_mode=True,
-                domain=TEMPORARY_DOMAIN,
+                domain=TEMPORARY_DOMAIN_NAME,
                 poa=self.poa,
                 light=self.light,
                 registry_filepath=self.registry_filepath,

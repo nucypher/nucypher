@@ -9,13 +9,13 @@ from nucypher.config.characters import (
     BobConfiguration,
     UrsulaConfiguration,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import select_test_port
 
 TEST_CHARACTER_CONFIG_BASE_PARAMS = dict(
     dev_mode=True,
-    domain=TEMPORARY_DOMAIN,
+    domain=TEMPORARY_DOMAIN_NAME,
     start_learning_now=False,
     abort_on_learning_error=True,
     save_metadata=False,

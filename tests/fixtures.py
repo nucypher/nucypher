@@ -28,7 +28,7 @@ from nucypher.config.characters import (
     BobConfiguration,
     UrsulaConfiguration,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
@@ -50,7 +50,7 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_ID, TESTERCHAIN_CHAIN_INFO,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
@@ -336,7 +336,7 @@ def light_ursula(temp_dir_path, random_account, mocker):
         KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
     )
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
     )
 
     mocker.patch.object(
@@ -346,7 +346,7 @@ def light_ursula(temp_dir_path, random_account, mocker):
     ursula = Ursula(
         rest_host=LOOPBACK_ADDRESS,
         rest_port=select_test_port(),
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
         checksum_address=random_account.address,
         operator_address=random_account.address,
@@ -449,7 +449,7 @@ def highperf_mocked_alice(
 ):
     config = AliceConfiguration(
         dev_mode=True,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         checksum_address=testerchain.alice_account,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
@@ -472,7 +472,7 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(
         dev_mode=True,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
             eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
@@ -510,7 +510,7 @@ def click_runner():
 def nominal_configuration_fields():
     config = UrsulaConfiguration(
         dev_mode=True,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
     )
     config_fields = config.static_payload()
@@ -549,7 +549,7 @@ def worker_configuration_file_location(custom_filepath) -> Path:
 @pytest.fixture(autouse=True)
 def mock_teacher_nodes(mocker):
     mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
-    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes}, clear=True)
+    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN_NAME: mock_nodes}, clear=True)
 
 
 @pytest.fixture(autouse=True)

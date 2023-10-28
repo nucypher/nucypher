@@ -11,7 +11,7 @@ from nucypher.blockchain.eth.registry import (
     RegistrySource,
     RegistrySourceManager,
 )
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 
 
 @pytest.fixture(scope="function")
@@ -46,34 +46,40 @@ def test_registry_filepath(tmpdir, registry_data):
 
 
 @pytest.mark.usefixtures("mock_200_response")
-def test_github_registry_source(registry_data):
-    source = GithubRegistrySource(domain=TEMPORARY_DOMAIN)
-    assert source.domain == TEMPORARY_DOMAIN
+def test_github_registry_source(registry_data, temporary_domain):
+    source = GithubRegistrySource(domain=temporary_domain)
+    assert source.domain.name == TEMPORARY_DOMAIN_NAME
+    assert str(source.domain) == TEMPORARY_DOMAIN_NAME
+    assert bytes(source.domain) == TEMPORARY_DOMAIN_NAME.encode("utf-8")
     data = source.get()
     assert data == registry_data
     assert source.data == registry_data
     assert data == source.data
 
 
-def test_local_registry_source(registry_data, test_registry_filepath):
+def test_local_registry_source(registry_data, test_registry_filepath, temporary_domain):
     source = LocalRegistrySource(
-        filepath=test_registry_filepath, domain=TEMPORARY_DOMAIN
+        filepath=test_registry_filepath, domain=temporary_domain
     )
-    assert source.domain == TEMPORARY_DOMAIN
+    assert source.domain.name == TEMPORARY_DOMAIN_NAME
+    assert str(source.domain) == TEMPORARY_DOMAIN_NAME
+    assert bytes(source.domain) == TEMPORARY_DOMAIN_NAME.encode("utf-8")
     data = source.get()
     assert data == registry_data
     assert source.data == registry_data
     assert data == source.data
 
 
-def test_embedded_registry_source(registry_data, test_registry_filepath, mocker):
+def test_embedded_registry_source(registry_data, test_registry_filepath, mocker, temporary_domain):
     mocker.patch.object(
         EmbeddedRegistrySource,
         "get_publication_endpoint",
         return_value=test_registry_filepath,
     )
-    source = EmbeddedRegistrySource(domain=TEMPORARY_DOMAIN)
-    assert source.domain == TEMPORARY_DOMAIN
+    source = EmbeddedRegistrySource(domain=temporary_domain)
+    assert source.domain.name == TEMPORARY_DOMAIN_NAME
+    assert str(source.domain) == TEMPORARY_DOMAIN_NAME
+    assert bytes(source.domain) == TEMPORARY_DOMAIN_NAME.encode("utf-8")
     data = source.get()
     assert data == registry_data
     assert source.data == registry_data
@@ -81,7 +87,7 @@ def test_embedded_registry_source(registry_data, test_registry_filepath, mocker)
 
 
 def test_registry_source_manager_fallback(
-    registry_data, test_registry_filepath, mocker
+    registry_data, test_registry_filepath, mocker, temporary_domain
 ):
     github_source_get = mocker.patch.object(
         GithubRegistrySource, "get", side_effect=RegistrySource.Unavailable
@@ -96,8 +102,10 @@ def test_registry_source_manager_fallback(
         GithubRegistrySource,
         EmbeddedRegistrySource,
     )
-    source_manager = RegistrySourceManager(domain=TEMPORARY_DOMAIN)
-    assert source_manager.domain == TEMPORARY_DOMAIN
+    source_manager = RegistrySourceManager(domain=temporary_domain)
+    assert source_manager.domain.name == TEMPORARY_DOMAIN_NAME
+    assert str(source_manager.domain) == TEMPORARY_DOMAIN_NAME
+    assert bytes(source_manager.domain) == TEMPORARY_DOMAIN_NAME.encode("utf-8")
 
     primary_sources = source_manager.get_primary_sources()
     assert len(primary_sources) == 1

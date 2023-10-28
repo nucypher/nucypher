@@ -1,7 +1,7 @@
 import pytest
 
 from nucypher.characters.lawful import Alice, Character
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower, NoSigningPower, SigningPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.policy.payment import FreeReencryptions
@@ -21,7 +21,7 @@ def test_actor_without_signing_power_cannot_sign():
     non_signer = Character(
         crypto_power=cannot_sign,
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
@@ -46,7 +46,7 @@ def test_actor_with_signing_power_can_sign():
         crypto_power_ups=[SigningPower],
         is_me=True,
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     stamp_of_the_signer = signer.stamp
@@ -70,7 +70,7 @@ def test_anybody_can_verify(random_address):
     # Alice can sign by default, by dint of her _default_crypto_powerups.
     alice = Alice(
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         checksum_address=random_address,
         pre_payment_method=FreeReencryptions(),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
@@ -79,7 +79,7 @@ def test_anybody_can_verify(random_address):
     # So, our story is fairly simple: an everyman meets Alice.
     somebody = Character(
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 

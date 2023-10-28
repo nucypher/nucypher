@@ -11,7 +11,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN_NAME,
 )
 from tests.constants import MOCK_IP_ADDRESS
 from tests.utils.ursula import select_test_port
@@ -49,7 +49,7 @@ def test_ursula_init_with_local_keystore_signer(
         "init",
         # Layer 1
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--eth-endpoint",
         testerchain.endpoint,
         # Layer 2

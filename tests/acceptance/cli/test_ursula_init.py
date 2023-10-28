@@ -14,7 +14,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import (
@@ -124,7 +124,7 @@ def test_ursula_and_local_keystore_signer_integration(
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--operator-address",
         worker_account.address,
         "--config-root",

@@ -4,7 +4,7 @@ import os
 import maya
 from nucypher_core import EncryptedKeyFrag
 
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.policy.payment import SubscriptionManagerPayment
 from tests.constants import TEST_ETH_PROVIDER_URI
 
@@ -30,7 +30,7 @@ def check(policy, bob, ursulas):
 
 def test_grant_subscription_manager(alice, bob, ursulas):
     pre_payment_method = SubscriptionManagerPayment(
-        blockchain_endpoint=TEST_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN
+        blockchain_endpoint=TEST_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
     )
     alice.pre_payment_method = pre_payment_method
     policy = alice.grant(

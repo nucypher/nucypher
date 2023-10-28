@@ -5,7 +5,7 @@ from nucypher_core.ferveo import Keypair
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
 from nucypher.crypto.utils import verify_eip_191
 from tests.conftest import LOCK_FUNCTION
@@ -20,7 +20,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     eth_address = testerchain.etherbase_account
     signer = Character(
         is_me=True,
-        domain=TEMPORARY_DOMAIN,
+        domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         registry=test_registry,
         checksum_address=eth_address,

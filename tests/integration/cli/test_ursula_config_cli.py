@@ -20,7 +20,7 @@ from nucypher.config.constants import (
     APP_DIR,
     DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.keystore import Keystore
 from tests.constants import (
@@ -59,7 +59,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
@@ -92,7 +92,7 @@ def test_initialize_custom_configuration_root(
         "ursula",
         "init",
         "--domain",
-        TEMPORARY_DOMAIN,
+        TEMPORARY_DOMAIN_NAME,
         "--config-root",
         str(custom_filepath.absolute()),
         "--rest-host",

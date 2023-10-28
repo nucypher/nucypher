@@ -6,7 +6,7 @@ from twisted.logger import LogLevel, globalLogPublisher
 from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.config.constants import TEMPORARY_DOMAIN
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
 from tests.constants import TEST_ETH_PROVIDER_URI
 from tests.utils.ursula import make_ursulas, start_pytest_ursula_services
@@ -30,7 +30,7 @@ def test_ursula_stamp_verification_tolerance(ursulas, mocker):
     unsigned._metadata = None
 
     # Wipe known nodes!
-    lonely_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN)
+    lonely_learner._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN_NAME)
     lonely_learner._current_teacher_node = teacher
     lonely_learner.remember_node(teacher)
 
