@@ -1,11 +1,6 @@
 import json
 import re
 from abc import ABC, abstractmethod
-from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Callable, List, Optional, Union
-
 from constant_sorrow.constants import (
     DEVELOPMENT_CONFIGURATION,
     LIVE_CONFIGURATION,
@@ -14,9 +9,13 @@ from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     UNKNOWN_VERSION,
 )
+from decimal import Decimal
 from eth_utils.address import is_checksum_address
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Callable, List, Optional, Union
 
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -415,8 +414,7 @@ class CharacterConfiguration(BaseConfiguration):
         self.signer_uri = signer_uri or None
 
         # Learner
-        self.domain = domain
-        self.taco_domain_info = TACoDomain.get_domain_info(self.domain)
+        self.domain = domains.get_domain(str(domain))
         self.learn_on_same_thread = learn_on_same_thread
         self.abort_on_learning_error = abort_on_learning_error
         self.start_learning_now = start_learning_now
@@ -451,7 +449,7 @@ class CharacterConfiguration(BaseConfiguration):
                 self.log.info(f"Using local registry ({self.registry}).")
 
         self.signer = Signer.from_signer_uri(
-            self.signer_uri, testnet=self.taco_domain_info.is_testnet
+            self.signer_uri, testnet=self.domain.is_testnet
         )
 
         #
@@ -662,7 +660,7 @@ class CharacterConfiguration(BaseConfiguration):
             keystore_path=keystore_path,
 
             # Behavior
-            domain=self.domain,
+            domain=str(self.domain),
             learn_on_same_thread=self.learn_on_same_thread,
             abort_on_learning_error=self.abort_on_learning_error,
             start_learning_now=self.start_learning_now,
@@ -834,7 +832,7 @@ class CharacterConfiguration(BaseConfiguration):
         if pre_payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
             pre_payment_strategy = pre_payment_class(
-                domain=self.taco_domain_info.name,
+                domain=str(self.domain),
                 blockchain_endpoint=self.polygon_endpoint,
                 registry=self.registry,
             )

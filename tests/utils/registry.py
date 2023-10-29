@@ -1,14 +1,11 @@
 from collections import defaultdict
-from contextlib import contextmanager
-from typing import List
 
 from ape.contracts import ContractInstance
+from contextlib import contextmanager
 from eth_utils import to_checksum_address
+from typing import List
 
-from nucypher.blockchain.eth.domains import (
-    DomainInfo,
-    TACoDomain,
-)
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import (
     RegistryData,
     RegistrySource,
@@ -19,23 +16,35 @@ from tests.constants import TESTERCHAIN_CHAIN_INFO
 
 
 @contextmanager
-def mock_registry_sources(mocker, domain_names: List[str] = None):
-    if not domain_names:
-        domain_names = [TEMPORARY_DOMAIN_NAME]
+def mock_registry_sources(mocker, domains: List[TACoDomain] = None):
+    if not domains:
+        domains = [
+            TACoDomain(
+                name=TEMPORARY_DOMAIN_NAME,
+                eth_chain=TESTERCHAIN_CHAIN_INFO,
+                polygon_chain=TESTERCHAIN_CHAIN_INFO,
+            )
+        ]
 
     supported_domains = []
     supported_domain_names = []
-    for domain_name in domain_names:
-        test_domain = DomainInfo(
-            domain_name, TESTERCHAIN_CHAIN_INFO, TESTERCHAIN_CHAIN_INFO
+    for domain in domains:
+        test_domain = TACoDomain(
+            name=str(domain),
+            eth_chain=TESTERCHAIN_CHAIN_INFO,
+            polygon_chain=TESTERCHAIN_CHAIN_INFO,
         )
         supported_domains.append(test_domain)
-        supported_domain_names.append(domain_name)
+        supported_domain_names.append(str(domain))
 
-    mocker.patch.object(TACoDomain, "SUPPORTED_DOMAINS", supported_domains)
-    mocker.patch.object(TACoDomain, "SUPPORTED_DOMAIN_NAMES", supported_domain_names)
-    mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", domain_names)
 
+    _supported_domains = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS', new_callable=list)
+    _supported_domains.extend(supported_domains)
+
+    _supported_domain_names = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAIN_NAMES', new_callable=list)
+    _supported_domain_names.extend(supported_domain_names)
+
+    mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, domains)))
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
 
     yield  # run the test
@@ -49,7 +58,7 @@ class MockRegistrySource(RegistrySource):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.domain.name not in self.ALLOWED_DOMAINS:
+        if str(self.domain) not in self.ALLOWED_DOMAINS:
             raise ValueError(
                 f"Somehow, MockRegistrySource is trying to get a registry for '{self.domain}'. "
                 f"Only '{','.join(self.ALLOWED_DOMAINS)}' are supported.'"
@@ -76,7 +85,7 @@ class ApeRegistrySource(RegistrySource):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.domain != TEMPORARY_DOMAIN_NAME:
+        if str(self.domain) != TEMPORARY_DOMAIN_NAME:
             raise ValueError(
                 f"Somehow, ApeRegistrySource is trying to get a registry for '{self.domain}'. "
                 f"Only '{TEMPORARY_DOMAIN_NAME}' is supported.'"

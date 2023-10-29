@@ -144,11 +144,6 @@ def mock_condition_blockchains(module_mocker, temporary_domain):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    module_mocker.patch(
-        "nucypher.blockchain.eth.domains.get_domain",
-        return_value=temporary_domain
-    )
-
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_multichain_configuration(module_mocker, testerchain):

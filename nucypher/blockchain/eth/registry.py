@@ -34,7 +34,8 @@ class RegistrySource(ABC):
     class Unavailable(RegistrySourceError):
         """Raised when there are no available registry sources"""
 
-    def __init__(self, domain: TACoDomain, *args, **kwargs):
+    def __init__(self, domain: Union[str, TACoDomain], *args, **kwargs):
+        domain = domains.get_domain(str(domain))
         if domain not in domains.SUPPORTED_DOMAINS:
             raise ValueError(
                 f"{self.__class__.__name__} not available for domain '{domain}'. "
@@ -154,14 +155,14 @@ class EmbeddedRegistrySource(LocalRegistrySource):
 
     _CONTRACT_REGISTRY_BASE = Path(__file__).parent / "contract_registry"
 
-    def __init__(self, domain: str, *args, **kwargs):
+    def __init__(self, domain, *args, **kwargs):
         self.domain = domain
         filepath = self.get_publication_endpoint()
         super().__init__(domain=domain, filepath=filepath, *args, **kwargs)
 
     @property
     def registry_name(self) -> str:
-        return f"{self.domain}.json"
+        return f"{str(self.domain)}.json"
 
     def get_publication_endpoint(self) -> Path:
         """Get the path to the embedded contract registry."""
@@ -302,12 +303,11 @@ class ContractRegistry:
     @classmethod
     def from_latest_publication(
         cls,
-        domain: TACoDomain,
+        domain: Union[str, TACoDomain],
         source_manager: Optional[RegistrySourceManager] = None,
     ) -> "ContractRegistry":
         """Get the latest contract registry available from a registry source chain."""
-        if not isinstance(domain, TACoDomain):
-            raise TypeError(f"Expected TACoDomain, got {type(domain)}")
+        domain = domains.get_domain(str(domain))
         source_manager = source_manager or RegistrySourceManager(domain=domain)
         source = source_manager.fetch_latest_publication()
         registry = cls(source=source)

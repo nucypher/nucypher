@@ -25,7 +25,6 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.constants import (
@@ -284,10 +283,6 @@ def mock_condition_blockchains(module_mocker, temporary_domain):
         {TESTERCHAIN_CHAIN_ID: "eth-tester/pyevm"},
     )
 
-    module_mocker.patch(
-        "nucypher.blockchain.eth.domains.get_domain",
-        return_value=temporary_domain
-    )
 
 
 @pytest.fixture(scope="module")
