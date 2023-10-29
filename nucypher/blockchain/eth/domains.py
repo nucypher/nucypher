@@ -1,6 +1,6 @@
 from cytoolz.functoolz import memoize
 from enum import Enum
-from typing import NamedTuple, Dict
+from typing import NamedTuple, Dict, Any
 
 
 class UnrecognizedTacoDomain(Exception):
@@ -30,25 +30,25 @@ class TACoDomain:
         self.eth_chain = eth_chain
         self.polygon_chain = polygon_chain
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<TACoDomain {self.name}>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.name)
 
-    def __bytes__(self):
+    def __bytes__(self) -> bytes:
         return self.name.encode()
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         try:
             return self.name == other.name
         except AttributeError:
             raise TypeError(f"Cannot compare TACoDomain to {type(other)}")
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return True
 
     @property
@@ -82,7 +82,7 @@ SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {domain.name: domain for domain in (M
 
 
 @memoize
-def get_domain(d: str) -> TACoDomain:
+def get_domain(d: Any) -> TACoDomain:
     if not isinstance(d, str):
         raise TypeError(f"domain must be a string, not {type(d)}")
     for name, domain in SUPPORTED_DOMAINS.items():

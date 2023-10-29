@@ -248,22 +248,14 @@ class Operator(BaseActor):
     ) -> DefaultDict[int, Set[HTTPProvider]]:
         """Multi-provider support"""
 
-        # If condition_blockchain_endpoints is None the node operator
-        # did not configure any additional condition providers.
         condition_blockchain_endpoints = condition_blockchain_endpoints or dict()
-
-        # These are the chains that the Operator will connect to for conditions evaluation (read-only).
         condition_providers = defaultdict(set)
 
-        # Now, add any additional providers that were passed in.
         for (
             chain_id,
             condition_blockchain_endpoints,
         ) in condition_blockchain_endpoints.items():
             if not self._is_permitted_condition_chain(chain_id):
-                # this is a safety check to prevent the Operator from connecting to
-                # chains that are not supported by ursulas on the network;
-                # Prevents the Ursula/Operator from starting up if this happens.
                 raise NotImplementedError(
                     f"Chain ID {chain_id} is not supported for condition evaluation by this Operator."
                 )
@@ -272,10 +264,8 @@ class Operator(BaseActor):
             for uri in condition_blockchain_endpoints:
                 provider = self._make_condition_provider(uri)
                 providers.add(provider)
-
             condition_providers[int(chain_id)] = providers
 
-        # Log the chains that the Operator is connected to.
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
         )
