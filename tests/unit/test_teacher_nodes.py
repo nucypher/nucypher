@@ -18,5 +18,5 @@ def test_registry(module_mocker):
 
 def test_default_teacher_seednodes_defined():
     for domain in domains.SUPPORTED_DOMAINS:
-        teacher_nodes = TEACHER_NODES[domain.name]
+        teacher_nodes = TEACHER_NODES[domain]
         assert len(teacher_nodes) > 0

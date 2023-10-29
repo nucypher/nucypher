@@ -1,9 +1,8 @@
 import json
-from pathlib import Path
-from typing import Dict, List, Optional
-
 from cryptography.x509 import Certificate
 from eth_utils import is_checksum_address
+from pathlib import Path
+from typing import Dict, List, Optional
 
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
@@ -70,7 +69,7 @@ class UrsulaConfiguration(CharacterConfiguration):
     def configure_condition_blockchain_endpoints(self) -> None:
         """Configure default condition provider URIs for eth and polygon network."""
         # Polygon
-        polygon_chain_id = self.taco_domain_info.polygon_chain.id
+        polygon_chain_id = self.domain.polygon_chain.id
         polygon_endpoints = self.condition_blockchain_endpoints.get(
             polygon_chain_id, []
         )
@@ -81,7 +80,7 @@ class UrsulaConfiguration(CharacterConfiguration):
             polygon_endpoints.append(self.polygon_endpoint)
 
         # Ethereum
-        staking_chain_id = self.taco_domain_info.eth_chain.id
+        staking_chain_id = self.domain.eth_chain.id
         staking_chain_endpoints = self.condition_blockchain_endpoints.get(
             staking_chain_id, []
         )

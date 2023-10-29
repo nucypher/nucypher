@@ -1,9 +1,8 @@
 import os
-
 from nucypher_core.ferveo import DkgPublicKey
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
@@ -21,7 +20,7 @@ GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
 eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
-domain = TACoDomain.LYNX.name
+domain = domains.LYNX
 
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 

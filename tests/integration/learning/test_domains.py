@@ -1,31 +1,41 @@
-from pathlib import Path
-
 import pytest
+from pathlib import Path
 
 import tests
 from nucypher.acumen.perception import FleetSensor
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.nodes import TEACHER_NODES
+from tests.constants import TESTERCHAIN_CHAIN_INFO
 from tests.utils.registry import MockRegistrySource
 from tests.utils.ursula import make_ursulas
 
 
 @pytest.fixture(scope="module")
 def domain_1():
-    return "domain_uno"
+    return TACoDomain(
+        name="domain_uno",
+        eth_chain=TESTERCHAIN_CHAIN_INFO,
+        polygon_chain=TESTERCHAIN_CHAIN_INFO,
+    )
 
 
 @pytest.fixture(scope="module")
 def domain_2():
-    return "domain_dos"
+    return TACoDomain(
+        name="domain_dos",
+        eth_chain=TESTERCHAIN_CHAIN_INFO,
+        polygon_chain=TESTERCHAIN_CHAIN_INFO,
+    )
+
 
 
 @pytest.fixture(scope="module")
-def test_registry(module_mocker, domain_1, domain_2):
+def test_registry(module_mocker, domain_1, domain_2, temporary_domain):
     with tests.utils.registry.mock_registry_sources(
-        mocker=module_mocker, domain_names=[domain_1, domain_2]
+        mocker=module_mocker, domains=[domain_1, domain_2, temporary_domain]
     ):
         # doesn't really matter what domain is used here
         registry = ContractRegistry(MockRegistrySource(domain=domain_1))

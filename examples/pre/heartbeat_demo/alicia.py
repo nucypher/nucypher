@@ -17,14 +17,13 @@
 import base64
 import datetime
 import json
+import maya
 import os
 import shutil
 from getpass import getpass
 from pathlib import Path
 
-import maya
-
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.policy.payment import SubscriptionManagerPayment
@@ -58,7 +57,7 @@ try:
 except KeyError:
     raise RuntimeError("Missing environment variables to run demo.")
 
-TACO_DOMAIN = TACoDomain.LYNX.name
+TACO_DOMAIN = domains.LYNX
 
 
 #######################################

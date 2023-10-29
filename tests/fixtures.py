@@ -547,9 +547,9 @@ def worker_configuration_file_location(custom_filepath) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def mock_teacher_nodes(mocker):
+def mock_teacher_nodes(mocker, temporary_domain):
     mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
-    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN_NAME: mock_nodes}, clear=True)
+    mocker.patch.dict(TEACHER_NODES, {temporary_domain: mock_nodes}, clear=True)
 
 
 @pytest.fixture(autouse=True)

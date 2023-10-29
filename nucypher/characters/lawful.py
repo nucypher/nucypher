@@ -1010,7 +1010,7 @@ class Ursula(Teacher, Character, Operator):
             self.start_learning_loop(now=eager)
             if emitter:
                 emitter.message(
-                    f"✓ Node Discovery ({self.domain.capitalize()})", color="green"
+                    f"✓ Node Discovery ({self.domain})", color="green"
                 )
 
         if ritual_tracking:
@@ -1364,7 +1364,7 @@ class Ursula(Teacher, Character, Operator):
             operator_address=self.operator_address,
             rest_url=self.rest_url(),
             timestamp=self.timestamp,
-            domain=domain,
+            domain=str(domain),
             version=version,
             fleet_state=fleet_state,
             previous_fleet_states=previous_fleet_states,

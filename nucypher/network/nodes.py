@@ -1,12 +1,8 @@
-import time
 from collections import defaultdict, deque
-from contextlib import suppress
-from pathlib import Path
-from queue import Queue
-from typing import Callable, List, Optional, Set, Tuple
 
 import maya
 import requests
+import time
 from constant_sorrow.constants import (
     CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
@@ -14,14 +10,18 @@ from constant_sorrow.constants import (
     NOT_SIGNED,
     RELAX,
 )
+from contextlib import suppress
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_der_x509_certificate
 from eth_utils import to_checksum_address
 from nucypher_core import MetadataResponse, MetadataResponsePayload, NodeMetadata
 from nucypher_core.umbral import Signature
+from pathlib import Path
+from queue import Queue
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
+from typing import Callable, List, Optional, Set, Tuple
 
 from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
@@ -29,7 +29,6 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -47,13 +46,13 @@ from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
 from nucypher.utilities.logging import Logger
 
 TEACHER_NODES = {
-    TACoDomain.MAINNET.name: (
+    domains.MAINNET: (
         'https://closest-seed.nucypher.network:9151',
         'https://seeds.nucypher.network',
         'https://mainnet.nucypher.network:9151',
     ),
-    TACoDomain.LYNX.name: ("https://lynx.nucypher.network:9151",),
-    TACoDomain.TAPIR.name: ("https://tapir.nucypher.network:9151",),
+    domains.LYNX: ("https://lynx.nucypher.network:9151",),
+    domains.TAPIR: ("https://tapir.nucypher.network:9151",),
 }
 
 
@@ -352,7 +351,7 @@ class Learner:
         discovered = []
 
         if self.domain:
-            canonical_sage_uris = TEACHER_NODES.get(str(self.domain), ())
+            canonical_sage_uris = TEACHER_NODES.get(self.domain, ())
 
             for uri in canonical_sage_uris:
                 try:
@@ -411,7 +410,7 @@ class Learner:
         restored_from_disk = []
         invalid_nodes = defaultdict(list)
         for node in stored_nodes:
-            if node.domain != self.domain:
+            if str(node.domain) != str(self.domain):
                 invalid_nodes[node.domain].append(node)
                 continue
             restored_node = self.remember_node(node, record_fleet_state=False)  # TODO: Validity status 1866

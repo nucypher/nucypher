@@ -1,11 +1,10 @@
 import datetime
+import maya
 import os
 from getpass import getpass
 from pathlib import Path
 
-import maya
-
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Enrico as Enrico
@@ -45,7 +44,7 @@ print("\n************** Setup **************\n")
 # Domain #
 ##########
 
-TACO_DOMAIN = TACoDomain.LYNX.name
+TACO_DOMAIN = domains.LYNX
 
 #####################
 # Bob the BUIDLer  ##

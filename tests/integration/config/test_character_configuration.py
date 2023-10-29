@@ -74,7 +74,7 @@ def test_development_character_configurations(
     assert len(thing_one.checksum_address) == 42
 
     # Domain
-    assert TEMPORARY_DOMAIN_NAME == thing_one.domain
+    assert TEMPORARY_DOMAIN_NAME == str(thing_one.domain)
 
     # Node Storage
     assert isinstance(thing_one.node_storage, ForgetfulNodeStorage)
