@@ -827,7 +827,6 @@ class Ursula(Teacher, Character, Operator):
         known_nodes: Iterable[Teacher] = None,
         **character_kwargs,
     ):
-        domain = domains.get_domain(str(domain))
         Character.__init__(
             self,
             is_me=is_me,
@@ -905,7 +904,6 @@ class Ursula(Teacher, Character, Operator):
         # Teacher (All Modes)
         Teacher.__init__(
             self,
-            domain=domain,
             certificate=certificate,
             certificate_filepath=certificate_filepath,
         )

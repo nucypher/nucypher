@@ -79,6 +79,8 @@ class Character(Learner):
 
         """
 
+        self.domain = domains.get_domain(str(domain))
+
         #
         # Keys & Powers
         #
@@ -118,9 +120,7 @@ class Character(Learner):
             self.eth_endpoint = eth_endpoint
             self.polygon_endpoint = polygon_endpoint
 
-            self.registry = registry or ContractRegistry.from_latest_publication(
-                domain=domains.get_domain(str(domain)),
-            )
+            self.registry = registry or ContractRegistry.from_latest_publication(domain)
 
             # REST
             self.network_middleware = network_middleware or RestMiddleware(
@@ -129,7 +129,6 @@ class Character(Learner):
 
             # Learner
             Learner.__init__(self,
-                             domain=domain,
                              network_middleware=self.network_middleware,
                              node_class=known_node_class,
                              include_self_in_the_state=include_self_in_the_state,

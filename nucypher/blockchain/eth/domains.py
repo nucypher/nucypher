@@ -1,3 +1,4 @@
+from cytoolz.functoolz import memoize
 from enum import Enum
 from typing import NamedTuple, Dict
 
@@ -24,11 +25,7 @@ class PolygonChain(ChainInfo, Enum):
 
 class TACoDomain:
 
-    def __init__(self,
-                 name: str,
-                 eth_chain: EthChain,
-                 polygon_chain: PolygonChain,
-                 ):
+    def __init__(self, name: str, eth_chain: EthChain, polygon_chain: PolygonChain):
         self.name = name
         self.eth_chain = eth_chain
         self.polygon_chain = polygon_chain
@@ -54,9 +51,6 @@ class TACoDomain:
     def __bool__(self):
         return True
 
-    def __iter__(self):
-        return str(self)
-
     @property
     def is_testnet(self) -> bool:
         return self.eth_chain != EthChain.MAINNET
@@ -80,14 +74,14 @@ TAPIR = TACoDomain(
     polygon_chain=PolygonChain.MUMBAI,
 )
 
-__DOMAINS = (MAINNET, LYNX, TAPIR)
 
 DEFAULT_DOMAIN: TACoDomain = MAINNET
 
-SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {domain.name: domain for domain in __DOMAINS}
+SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {domain.name: domain for domain in (MAINNET, LYNX, TAPIR)}
 
 
 
+@memoize
 def get_domain(d: str) -> TACoDomain:
     if not isinstance(d, str):
         raise TypeError(f"domain must be a string, not {type(d)}")

@@ -29,6 +29,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -251,7 +252,6 @@ class Learner:
         """
 
     def __init__(self,
-                 domain: str,
                  node_class: object = None,
                  network_middleware: RestMiddleware = None,
                  start_learning_now: bool = False,
@@ -269,7 +269,6 @@ class Learner:
         self.log = Logger("learning-loop")  # type: Logger
 
         self.learning_deferred = Deferred()
-        self.domain = domains.get_domain(str(domain))
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
             registry=self.registry, eth_endpoint=self.eth_endpoint
         )
@@ -280,7 +279,7 @@ class Learner:
 
         self._abort_on_learning_error = abort_on_learning_error
 
-        self.__known_nodes = self.tracker_class(domain=domain, this_node=self if include_self_in_the_state else None)
+        self.__known_nodes = self.tracker_class(domain=self.domain, this_node=self if include_self_in_the_state else None)
         self._verify_node_bonding = verify_node_bonding
 
         self.lonely = lonely
@@ -969,12 +968,9 @@ class Teacher:
     __DEFAULT_MIN_SEED_STAKE = 0
 
     def __init__(self,
-                 domain: str,  # TODO: Consider using a Domain type
                  certificate: Certificate,
                  certificate_filepath: Path,
                  ) -> None:
-
-        self.domain = domain
 
         #
         # Identity
