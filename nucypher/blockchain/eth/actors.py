@@ -37,6 +37,7 @@ from nucypher.blockchain.eth.agents import (
 from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -69,7 +70,7 @@ class BaseActor:
     @validate_checksum_address
     def __init__(
         self,
-        domain: str,
+        domain: TACoDomain,
         registry: ContractRegistry,
         transacting_power: Optional[TransactingPower] = None,
         checksum_address: Optional[ChecksumAddress] = None,
@@ -92,7 +93,7 @@ class BaseActor:
 
         self.transacting_power = transacting_power
         self.registry = registry
-        self.domain = domains.get_domain(str(domain))
+        self.domain = domain
         self._saved_receipts = list()  # track receipts of transmitted transactions
 
     def __repr__(self):

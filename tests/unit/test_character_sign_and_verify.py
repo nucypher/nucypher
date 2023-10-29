@@ -5,7 +5,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower, NoSigningPower, SigningPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.policy.payment import FreeReencryptions
-from tests.constants import MOCK_ETH_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI, TEMPORARY_DOMAIN
 
 """
 Chapter 1: SIGNING
@@ -21,7 +21,7 @@ def test_actor_without_signing_power_cannot_sign():
     non_signer = Character(
         crypto_power=cannot_sign,
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN_NAME,
+        domain=TEMPORARY_DOMAIN,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
@@ -46,7 +46,7 @@ def test_actor_with_signing_power_can_sign():
         crypto_power_ups=[SigningPower],
         is_me=True,
         start_learning_now=False,
-        domain=TEMPORARY_DOMAIN_NAME,
+        domain=TEMPORARY_DOMAIN,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     stamp_of_the_signer = signer.stamp

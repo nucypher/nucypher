@@ -73,7 +73,7 @@ class ContractPayment(PaymentMethod, ABC):
     ):
         super().__init__(*args, **kwargs)
         self.blockchain_endpoint = blockchain_endpoint
-        self.domain = domains.get_domain(str(domain))
+        self.domain = domain
         if not registry:
             registry = ContractRegistry.from_latest_publication(domain=self.domain)
         self.registry = registry

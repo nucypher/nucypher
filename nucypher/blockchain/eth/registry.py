@@ -34,8 +34,7 @@ class RegistrySource(ABC):
     class Unavailable(RegistrySourceError):
         """Raised when there are no available registry sources"""
 
-    def __init__(self, domain: Union[str, TACoDomain], *args, **kwargs):
-        domain = domains.get_domain(str(domain))
+    def __init__(self, domain: TACoDomain, *args, **kwargs):
         if str(domain) not in domains.SUPPORTED_DOMAINS:
             raise ValueError(
                 f"{self.__class__.__name__} not available for domain '{domain}'. "
@@ -303,11 +302,10 @@ class ContractRegistry:
     @classmethod
     def from_latest_publication(
         cls,
-        domain: Union[str, TACoDomain],
+        domain: TACoDomain,
         source_manager: Optional[RegistrySourceManager] = None,
     ) -> "ContractRegistry":
         """Get the latest contract registry available from a registry source chain."""
-        domain = domains.get_domain(str(domain))
         source_manager = source_manager or RegistrySourceManager(domain=domain)
         source = source_manager.fetch_latest_publication()
         registry = cls(source=source)
