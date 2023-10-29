@@ -8,7 +8,7 @@ except ImportError:
     raise ImportError('"prometheus_client" must be installed - run "pip install nucypher[ursula]" and try again.')
 
 from abc import ABC, abstractmethod
-from typing import Dict, Type
+from typing import Dict, Type, Union
 
 from eth_typing.evm import ChecksumAddress
 

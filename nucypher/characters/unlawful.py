@@ -1,9 +1,9 @@
-from copy import copy
 from unittest import mock
-from unittest.mock import Mock, patch
 
+from copy import copy
 from eth_tester.exceptions import ValidationError
 from nucypher_core import NodeMetadata
+from unittest.mock import Mock, patch
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
@@ -11,6 +11,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.payment import FreeReencryptions
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
 class Vladimir(Ursula):
@@ -77,6 +78,9 @@ class Vladimir(Ursula):
             eth_endpoint=eth_blockchain.endpoint,
             polygon_endpoint=polygon_blockchain.endpoint,
             pre_payment_method=bogus_pre_payment_method,
+            condition_blockchain_endpoints={
+                TESTERCHAIN_CHAIN_ID: eth_blockchain.endpoint,
+            }
         )
 
         # Let's use the target's public info, and try to make some changes.
