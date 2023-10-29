@@ -147,15 +147,15 @@ def test_select_client_account_valid_sources(
 
 @pytest.mark.skip("fix me")
 @pytest.mark.parametrize(
-    "selection,show_staking,show_matic,stake_info",
+    "selection,show_matic,stake_info",
     (
-        (0, True, True, []),
-        (1, True, True, []),
-        (5, True, True, []),
-        (NUMBER_OF_ETH_TEST_ACCOUNTS - 1, True, True, []),
-        (0, False, True, []),
-        (0, False, False, []),
-        (0, False, False, []),
+        (0, True, []),
+        (1, True, []),
+        (5, True, []),
+        (NUMBER_OF_ETH_TEST_ACCOUNTS - 1, True, []),
+        (0, True, []),
+        (0, False, []),
+        (0, False, []),
     ),
 )
 def test_select_client_account_with_balance_display(
@@ -166,7 +166,6 @@ def test_select_client_account_with_balance_display(
     mock_staking_agent,
     mock_token_agent,
     selection,
-    show_staking,
     show_matic,
     stake_info,
 ):
@@ -175,7 +174,7 @@ def test_select_client_account_with_balance_display(
     mock_staking_agent.get_all_stakes.return_value = stake_info
 
     # Missing network kwarg with balance display active
-    blockchain_read_required = any((show_staking, show_matic))
+    blockchain_read_required = any((show_matic, ))
     if blockchain_read_required:
         with pytest.raises(
             ValueError, match="Pass domain name or registry; Got neither."
@@ -183,7 +182,6 @@ def test_select_client_account_with_balance_display(
             select_client_account(
                 emitter=test_emitter,
                 show_matic_balance=show_matic,
-                show_staking=show_staking,
                 polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             )
 
@@ -193,7 +191,6 @@ def test_select_client_account_with_balance_display(
         emitter=test_emitter,
         domain=TEMPORARY_DOMAIN,
         show_matic_balance=show_matic,
-        show_staking=show_staking,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
@@ -203,8 +200,7 @@ def test_select_client_account_with_balance_display(
 
     # Display account info
     headers = ['Account']
-    if show_staking:
-        headers.append('Staking')
+
     if show_matic:
         headers.append("MATIC")
 
@@ -219,8 +215,3 @@ def test_select_client_account_with_balance_display(
             balance = testerchain.client.get_balance(account=account)
             assert str(Web3.from_wei(balance, 'ether')) in captured.out
 
-        if show_staking:
-            if len(stake_info) == 0:
-                assert "No" in captured.out
-            else:
-                assert 'Yes' in captured.out
