@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from eth_utils import to_checksum_address
 from typing import List
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import (
     RegistryData,

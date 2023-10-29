@@ -5,6 +5,7 @@ import maya
 from tabulate import tabulate
 from web3 import Web3
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -14,7 +15,7 @@ from nucypher.blockchain.eth.constants import (
     AVERAGE_BLOCK_TIME_IN_SECONDS,
     TACO_CONTRACT_NAMES,
 )
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.cli.config import group_general_config
 from nucypher.cli.options import (
@@ -46,7 +47,7 @@ option_domain = click.option(
     "--domain",
     help="TACo Domain",
     type=click.STRING,
-    default=click.Choice(TACoDomain.SUPPORTED_DOMAIN_NAMES),
+    default=click.Choice(domains.SUPPORTED_DOMAIN_NAMES),
     required=True,
 )
 

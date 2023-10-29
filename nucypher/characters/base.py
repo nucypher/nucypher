@@ -1,9 +1,8 @@
-from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Union
-
 from constant_sorrow.constants import NO_NICKNAME, NO_SIGNING_POWER, STRANGER
 from eth_utils import to_canonical_address
 from nucypher_core.umbral import PublicKey
+from pathlib import Path
+from typing import ClassVar, Dict, List, Optional, Union
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth import domains

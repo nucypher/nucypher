@@ -11,7 +11,8 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 from nucypher import characters
 from nucypher.utilities.logging import Logger
 from .nicknames import Nickname
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
+from ..blockchain.eth.domains import TACoDomain
 
 
 class ArchivedFleetState(NamedTuple):
