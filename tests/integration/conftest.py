@@ -31,7 +31,7 @@ from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
-    TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
@@ -129,9 +129,9 @@ def mock_interface(module_mocker):
 
 
 @pytest.fixture(scope='module')
-def test_registry(module_mocker, temporary_domain):
+def test_registry(module_mocker):
     with mock_registry_sources(mocker=module_mocker):
-        mock_source = MockRegistrySource(domain=temporary_domain)
+        mock_source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
         registry = ContractRegistry(source=mock_source)
         yield registry
 
@@ -276,7 +276,7 @@ def monkeypatch_get_staking_provider_from_operator(monkeymodule):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker, temporary_domain):
+def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",

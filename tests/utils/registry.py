@@ -12,37 +12,22 @@ from nucypher.blockchain.eth.registry import (
     RegistrySourceManager,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from tests.constants import TESTERCHAIN_CHAIN_INFO
+from tests.constants import TEMPORARY_DOMAIN
 
 
 @contextmanager
 def mock_registry_sources(mocker, _domains: List[TACoDomain] = None):
     if not _domains:
-        _domains = [
-            TACoDomain(
-                name=TEMPORARY_DOMAIN_NAME,
-                eth_chain=TESTERCHAIN_CHAIN_INFO,
-                polygon_chain=TESTERCHAIN_CHAIN_INFO,
-            )
-        ]
+        _domains = [TEMPORARY_DOMAIN]
 
-    supported_domains = dict()
-    for domain in _domains:
-        test_domain = TACoDomain(
-            name=str(domain),
-            eth_chain=TESTERCHAIN_CHAIN_INFO,
-            polygon_chain=TESTERCHAIN_CHAIN_INFO,
-        )
-        supported_domains[str(domain)] = test_domain
-
-
-    _supported_domains = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS', new_callable=dict)
-    _supported_domains.update(supported_domains)
+    _supported_domains = mocker.patch.dict(
+        'nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS',
+        {domain.name: domain for domain in _domains},
+    )
 
     mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, _domains)))
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
-
-    yield  # run the test
+    yield
 
 
 class MockRegistrySource(RegistrySource):

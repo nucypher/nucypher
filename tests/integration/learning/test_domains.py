@@ -8,7 +8,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.nodes import TEACHER_NODES
-from tests.constants import TESTERCHAIN_CHAIN_INFO
+from tests.constants import TESTERCHAIN_CHAIN_INFO, TEMPORARY_DOMAIN
 from tests.utils.registry import MockRegistrySource
 from tests.utils.ursula import make_ursulas
 
@@ -33,9 +33,9 @@ def domain_2():
 
 
 @pytest.fixture(scope="module")
-def test_registry(module_mocker, domain_1, domain_2, temporary_domain):
+def test_registry(module_mocker, domain_1, domain_2):
     with tests.utils.registry.mock_registry_sources(
-        mocker=module_mocker, _domains=[domain_1, domain_2, temporary_domain]
+        mocker=module_mocker, _domains=[domain_1, domain_2, TEMPORARY_DOMAIN]
     ):
         # doesn't really matter what domain is used here
         registry = ContractRegistry(MockRegistrySource(domain=domain_1))

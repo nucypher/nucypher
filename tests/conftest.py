@@ -137,7 +137,7 @@ def disable_check_grant_requirements(session_mocker):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker, temporary_domain):
+def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",

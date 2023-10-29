@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.constants import TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN
 from tests.utils.registry import MockRegistrySource
 
 
@@ -34,8 +34,8 @@ def data(record):
 
 
 @pytest.fixture(scope="function")
-def source(data, temporary_domain):
-    source = MockRegistrySource(domain=temporary_domain)
+def source(data):
+    source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
     source.data = data
     return source
 
@@ -77,9 +77,9 @@ def test_local_registry_unknown_contract_name_search(registry):
         )
 
 
-def test_local_contract_registry_ambiguous_search_terms(data, name, record, address, temporary_domain):
+def test_local_contract_registry_ambiguous_search_terms(data, name, record, address):
     data[TESTERCHAIN_CHAIN_ID]["fakeContract"] = record[name]
-    source = MockRegistrySource(domain=temporary_domain)
+    source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
     source.data = data
     registry = ContractRegistry(source=source)
     with pytest.raises(ContractRegistry.AmbiguousSearchTerms):
