@@ -6,7 +6,7 @@ import click
 from tabulate import tabulate
 from web3.main import Web3
 
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.cli.actions.configure import get_config_filepaths
@@ -104,7 +104,7 @@ def select_client_account(
 def select_domain(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
     """Interactively select a domain from TACo domain inventory list"""
     emitter.message(message=message or str(), color="yellow")
-    domain_list = TACoDomain.SUPPORTED_DOMAIN_NAMES
+    domain_list = domains.SUPPORTED_DOMAIN_NAMES
     rows = [[n] for n in domain_list]
     emitter.echo(tabulate(rows, showindex="always"))
     choice = click.prompt(

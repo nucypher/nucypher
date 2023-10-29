@@ -1,9 +1,9 @@
 import pytest
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.domains import (
     EthChain,
     PolygonChain,
-    TACoDomain,
 )
 
 
@@ -15,7 +15,7 @@ def test_registry(module_mocker):
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_condition_blockchains(module_mocker):
-    # override fixture which mocks get_domain_info
+    # override fixture which mocks get_domain
     yield
 
 
@@ -49,9 +49,9 @@ def test_polygon_chains(poly_chain_test):
 @pytest.mark.parametrize(
     "taco_domain_test",
     (
-        (TACoDomain.MAINNET, "mainnet", EthChain.MAINNET, PolygonChain.MAINNET),
-        (TACoDomain.LYNX, "lynx", EthChain.GOERLI, PolygonChain.MUMBAI),
-        (TACoDomain.TAPIR, "tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI),
+        (domains.MAINNET, "mainnet", EthChain.MAINNET, PolygonChain.MAINNET),
+        (domains.LYNX, "lynx", EthChain.GOERLI, PolygonChain.MUMBAI),
+        (domains.TAPIR, "tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI),
     ),
 )
 def test_taco_domain_info(taco_domain_test):
@@ -71,16 +71,16 @@ def test_taco_domain_info(taco_domain_test):
 @pytest.mark.parametrize(
     "domain_name_test",
     (
-        ("mainnet", TACoDomain.MAINNET),
-        ("lynx", TACoDomain.LYNX),
-        ("tapir", TACoDomain.TAPIR),
+        ("mainnet", domains.MAINNET),
+        ("lynx", domains.LYNX),
+        ("tapir", domains.TAPIR),
     ),
 )
-def test_get_domain_info(domain_name_test):
+def test_get_domain(domain_name_test):
     domain_name, expected_domain_info = domain_name_test
-    assert TACoDomain.get_domain_info(domain_name) == expected_domain_info
+    assert domains.get_domain(domain_name) == expected_domain_info
 
 
-def test_get_domain_info_unrecognized_domain_name():
-    with pytest.raises(TACoDomain.Unrecognized):
-        TACoDomain.get_domain_info(domain="5am_In_Toronto")
+def test_get_domain_unrecognized_domain_name():
+    with pytest.raises(domains.Unrecognized):
+        domains.get_domain(domain="5am_In_Toronto")

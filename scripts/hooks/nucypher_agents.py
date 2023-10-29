@@ -27,7 +27,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
@@ -45,8 +45,8 @@ emitter = StdoutEmitter(verbosity=2)
     "--domain",
     "domain",
     help="TACo domain",
-    type=click.Choice(TACoDomain.SUPPORTED_DOMAIN_NAMES),
-    default=TACoDomain.LYNX.name,
+    type=click.Choice(domains.SUPPORTED_DOMAIN_NAMES),
+    default=domains.LYNX.name,
 )
 @click.option(
     "--eth-endpoint",

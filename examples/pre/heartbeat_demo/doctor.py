@@ -10,7 +10,7 @@ from nucypher_core import EncryptedTreasureMap, MessageKit
 from nucypher_core.umbral import PublicKey
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
 from nucypher.crypto.powers import DecryptingPower, SigningPower

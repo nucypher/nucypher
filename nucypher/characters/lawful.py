@@ -1,23 +1,7 @@
 import contextlib
 import json
-import time
-from pathlib import Path
-from queue import Queue
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
-
 import maya
+import time
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     INVALIDATED,
@@ -64,13 +48,28 @@ from nucypher_core.umbral import (
     VerifiedKeyFrag,
     reencrypt,
 )
+from pathlib import Path
+from queue import Queue
 from twisted.internet import reactor
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
 from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth import actors
+from nucypher.blockchain.eth import actors, domains
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,

@@ -1,5 +1,5 @@
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.domains import TACoDomain
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
