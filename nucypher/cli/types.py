@@ -97,9 +97,9 @@ class NuCypherDomainName(click.ParamType):
     def convert(self, value, param, ctx):
         if self.validate:
             domain = str(value).lower()
-            if domain not in domains.SUPPORTED_DOMAIN_NAMES:
+            if str(domain) not in domains.SUPPORTED_DOMAINS:
                 self.fail(
-                    f"'{value}' is not a recognized domain. Valid options are: {list(domains.SUPPORTED_DOMAIN_NAMES)}"
+                    f"'{value}' is not a recognized domain. Valid options are: {list(domains.SUPPORTED_DOMAINS)}"
                 )
             else:
                 return domain

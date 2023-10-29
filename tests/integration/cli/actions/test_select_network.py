@@ -3,7 +3,7 @@ import pytest
 from nucypher.blockchain.eth import domains
 from nucypher.cli.actions.select import select_domain
 
-__DOMAINS = domains.SUPPORTED_DOMAIN_NAMES
+__DOMAINS = list(domains.SUPPORTED_DOMAINS)
 
 
 @pytest.mark.parametrize("user_input", range(0, len(__DOMAINS) - 1))

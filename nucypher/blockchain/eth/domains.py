@@ -1,5 +1,9 @@
 from enum import Enum
-from typing import NamedTuple
+from typing import NamedTuple, Dict
+
+
+class UnrecognizedTacoDomain(Exception):
+    """Raised when a domain is not recognized."""
 
 
 class ChainInfo(NamedTuple):
@@ -21,10 +25,10 @@ class PolygonChain(ChainInfo, Enum):
 class TACoDomain:
 
     def __init__(self,
-        name: str,
-        eth_chain: EthChain,
-        polygon_chain: PolygonChain,
-    ):
+                 name: str,
+                 eth_chain: EthChain,
+                 polygon_chain: PolygonChain,
+                 ):
         self.name = name
         self.eth_chain = eth_chain
         self.polygon_chain = polygon_chain
@@ -58,7 +62,6 @@ class TACoDomain:
         return self.eth_chain != EthChain.MAINNET
 
 
-
 MAINNET = TACoDomain(
     name="mainnet",
     eth_chain=EthChain.MAINNET,
@@ -77,23 +80,18 @@ TAPIR = TACoDomain(
     polygon_chain=PolygonChain.MUMBAI,
 )
 
-DEFAULT_DOMAIN_NAME: str = MAINNET.name
+__DOMAINS = (MAINNET, LYNX, TAPIR)
 
-SUPPORTED_DOMAINS = [
-    MAINNET,
-    LYNX,
-    TAPIR,
-]
+DEFAULT_DOMAIN: TACoDomain = MAINNET
 
-SUPPORTED_DOMAIN_NAMES = [str(domain) for domain in SUPPORTED_DOMAINS]
+SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {domain.name: domain for domain in __DOMAINS}
 
-class Unrecognized(Exception):
-    pass
 
-def get_domain(domain: str) -> TACoDomain:
-    if not isinstance(domain, str):
-        raise TypeError(f"domain must be a string, not {type(domain)}")
-    for taco_domain in SUPPORTED_DOMAINS:
-        if taco_domain.name == domain:
-            return taco_domain
-    raise Unrecognized(f"{domain} is not a recognized domain.")
+
+def get_domain(d: str) -> TACoDomain:
+    if not isinstance(d, str):
+        raise TypeError(f"domain must be a string, not {type(d)}")
+    for name, domain in SUPPORTED_DOMAINS.items():
+        if name == d == domain.name:
+            return domain
+    raise UnrecognizedTacoDomain(f"{d} is not a recognized domain.")

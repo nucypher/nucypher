@@ -36,10 +36,10 @@ class RegistrySource(ABC):
 
     def __init__(self, domain: Union[str, TACoDomain], *args, **kwargs):
         domain = domains.get_domain(str(domain))
-        if domain not in domains.SUPPORTED_DOMAINS:
+        if str(domain) not in domains.SUPPORTED_DOMAINS:
             raise ValueError(
                 f"{self.__class__.__name__} not available for domain '{domain}'. "
-                f"Valid options are: {', '.join(list(domains.SUPPORTED_DOMAIN_NAMES))}"
+                f"Valid options are: {', '.join(list(domains.SUPPORTED_DOMAINS))}"
             )
         self.domain = domain
         self.data = self.get()

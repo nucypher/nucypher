@@ -45,7 +45,7 @@ emitter = StdoutEmitter(verbosity=2)
     "--domain",
     "domain",
     help="TACo domain",
-    type=click.Choice(domains.SUPPORTED_DOMAIN_NAMES),
+    type=click.Choice(domains.SUPPORTED_DOMAINS),
     default=domains.LYNX.name,
 )
 @click.option(

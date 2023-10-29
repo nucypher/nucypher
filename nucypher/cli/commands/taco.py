@@ -47,7 +47,7 @@ option_domain = click.option(
     "--domain",
     help="TACo Domain",
     type=click.STRING,
-    default=click.Choice(domains.SUPPORTED_DOMAIN_NAMES),
+    default=click.Choice(domains.SUPPORTED_DOMAINS),
     required=True,
 )
 
