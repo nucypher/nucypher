@@ -37,9 +37,7 @@ def select_client_account(
     signer_uri: str = None,
     prompt: str = None,
     default: int = 0,
-    registry: ContractRegistry = None,
     show_matic_balance: bool = False,
-    show_staking: bool = False,
     domain: str = None,
     poa: bool = None,
 ) -> str:
@@ -71,13 +69,6 @@ def select_client_account(
     if signer_uri and not signer:
         testnet = domain != TACoDomain.MAINNET.name
         signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
-
-    # Display accounts info
-    if show_staking:  # Lazy registry fetching
-        if not registry:
-            if not domain:
-                raise ValueError("Pass domain name or registry; Got neither.")
-            registry = ContractRegistry.from_latest_publication(domain=domain)
 
     enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
