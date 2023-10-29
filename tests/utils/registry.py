@@ -46,7 +46,7 @@ class MockRegistrySource(RegistrySource):
 
     @property
     def registry_name(self) -> str:
-        return self.domain
+        return str(self.domain)
 
     def get_publication_endpoint(self) -> str:
         return f":mock-registry-source:/{self.registry_name}"
