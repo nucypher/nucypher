@@ -1,15 +1,13 @@
 import base64
 import json
-import os
-import shutil
-from timeit import default_timer as timer
-
 import maya
 import msgpack
+import os
+import shutil
 from nucypher_core import EncryptedTreasureMap, MessageKit
 from nucypher_core.umbral import PublicKey
+from timeit import default_timer as timer
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth import domains
 from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
