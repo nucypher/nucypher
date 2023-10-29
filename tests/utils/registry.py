@@ -17,9 +17,9 @@ from tests.constants import TESTERCHAIN_CHAIN_INFO
 
 
 @contextmanager
-def mock_registry_sources(mocker, domains: List[TACoDomain] = None):
-    if not domains:
-        domains = [
+def mock_registry_sources(mocker, _domains: List[TACoDomain] = None):
+    if not _domains:
+        _domains = [
             TACoDomain(
                 name=TEMPORARY_DOMAIN_NAME,
                 eth_chain=TESTERCHAIN_CHAIN_INFO,
@@ -29,7 +29,7 @@ def mock_registry_sources(mocker, domains: List[TACoDomain] = None):
 
     supported_domains = []
     supported_domain_names = []
-    for domain in domains:
+    for domain in _domains:
         test_domain = TACoDomain(
             name=str(domain),
             eth_chain=TESTERCHAIN_CHAIN_INFO,
@@ -45,7 +45,7 @@ def mock_registry_sources(mocker, domains: List[TACoDomain] = None):
     _supported_domain_names = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAIN_NAMES', new_callable=list)
     _supported_domain_names.extend(supported_domain_names)
 
-    mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, domains)))
+    mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, _domains)))
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
 
     yield  # run the test

@@ -35,7 +35,7 @@ def domain_2():
 @pytest.fixture(scope="module")
 def test_registry(module_mocker, domain_1, domain_2, temporary_domain):
     with tests.utils.registry.mock_registry_sources(
-        mocker=module_mocker, domains=[domain_1, domain_2, temporary_domain]
+        mocker=module_mocker, _domains=[domain_1, domain_2, temporary_domain]
     ):
         # doesn't really matter what domain is used here
         registry = ContractRegistry(MockRegistrySource(domain=domain_1))
