@@ -22,7 +22,7 @@ def mock_registry_sources(mocker, _domains: List[TACoDomain] = None):
 
     _supported_domains = mocker.patch.dict(
         'nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS',
-        {domain.name: domain for domain in _domains},
+        {str(domain): domain for domain in _domains},
     )
 
     mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, _domains)))

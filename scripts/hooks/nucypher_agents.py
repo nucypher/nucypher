@@ -45,8 +45,8 @@ emitter = StdoutEmitter(verbosity=2)
     "--domain",
     "domain",
     help="TACo domain",
-    type=click.Choice(domains.SUPPORTED_DOMAINS),
-    default=domains.LYNX.name,
+    type=click.Choice(list(domains.SUPPORTED_DOMAINS)),
+    default=str(domains.LYNX),
 )
 @click.option(
     "--eth-endpoint",
@@ -67,6 +67,7 @@ def nucypher_agents(
     eth_endpoint,
     polygon_endpoint,
 ):
+    domain = domains.get_domain(str(domain))
     registry = ContractRegistry.from_latest_publication(domain=domain)
     emitter.echo(f"NOTICE: Connecting to {domain} domain", color="yellow")
 

@@ -46,8 +46,8 @@ def get_transacting_power(signer: Signer):
     "--domain",
     "domain",
     help="TACo Domain",
-    type=click.Choice([domains.TAPIR.name, domains.LYNX.name]),
-    default=domains.LYNX.name,
+    type=click.Choice([str(domains.TAPIR), str(domains.LYNX)]),
+    default=str(domains.LYNX),
 )
 @click.option(
     "--eth-endpoint",
