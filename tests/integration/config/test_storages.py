@@ -6,7 +6,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.config.storages import ForgetfulNodeStorage, TemporaryFileBasedNodeStorage
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
-from tests.constants import MOCK_ETH_PROVIDER_URI
+from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.ursula import select_test_port
 
 ADDITIONAL_NODES_TO_LEARN_ABOUT = 10
@@ -51,6 +51,7 @@ class BaseTestNodeStorageBackends:
                 checksum_address=operator_addresses[i],
                 operator_address=operator_addresses[i],
                 pre_payment_method=pre_payment_method,
+                condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI}
             )
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)

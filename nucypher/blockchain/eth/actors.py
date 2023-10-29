@@ -260,8 +260,20 @@ class Operator(BaseActor):
             providers = set()
             for uri in condition_blockchain_endpoints:
                 provider = self._make_condition_provider(uri)
+                if int(Web3(provider).eth.chain_id) != int(chain_id):
+                    raise self.ActorError(
+                        f"Condition blockchain endpoint {uri} is not on chain {chain_id}"
+                    )
                 providers.add(provider)
             condition_providers[int(chain_id)] = providers
+
+        domain_chain_ids = tuple(chain.id for chain in self.domain.condition_chains)
+        connected_chain_ids = all(_id in condition_providers for _id in domain_chain_ids)
+        if not connected_chain_ids:
+            raise self.ActorError(
+                f"Missing blockchain endpoints for chains: "
+                f"{set(domain_chain_ids) - set(condition_providers)}"
+            )
 
         humanized_chain_ids = ", ".join(
             _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
