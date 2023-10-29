@@ -104,7 +104,7 @@ def select_client_account(
 def select_domain(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
     """Interactively select a domain from TACo domain inventory list"""
     emitter.message(message=message or str(), color="yellow")
-    domain_list = domains.SUPPORTED_DOMAIN_NAMES
+    domain_list = list(domains.SUPPORTED_DOMAINS)
     rows = [[n] for n in domain_list]
     emitter.echo(tabulate(rows, showindex="always"))
     choice = click.prompt(

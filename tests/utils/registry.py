@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from eth_utils import to_checksum_address
 from typing import List
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import (
     RegistryData,
@@ -27,23 +26,18 @@ def mock_registry_sources(mocker, _domains: List[TACoDomain] = None):
             )
         ]
 
-    supported_domains = []
-    supported_domain_names = []
+    supported_domains = dict()
     for domain in _domains:
         test_domain = TACoDomain(
             name=str(domain),
             eth_chain=TESTERCHAIN_CHAIN_INFO,
             polygon_chain=TESTERCHAIN_CHAIN_INFO,
         )
-        supported_domains.append(test_domain)
-        supported_domain_names.append(str(domain))
+        supported_domains[str(domain)] = test_domain
 
 
-    _supported_domains = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS', new_callable=list)
-    _supported_domains.extend(supported_domains)
-
-    _supported_domain_names = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAIN_NAMES', new_callable=list)
-    _supported_domain_names.extend(supported_domain_names)
+    _supported_domains = mocker.patch('nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS', new_callable=dict)
+    _supported_domains.update(supported_domains)
 
     mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, _domains)))
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))

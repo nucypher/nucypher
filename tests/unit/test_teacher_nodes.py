@@ -12,11 +12,11 @@ def mock_teacher_nodes(mocker):
 
 @pytest.fixture(scope="module")
 def test_registry(module_mocker):
-    # override fixture which mocks SUPPORTED_DOMAIN_NAMES
+    # override fixture which mocks SUPPORTED_DOMAINS
     yield
 
 
 def test_default_teacher_seednodes_defined():
-    for domain in domains.SUPPORTED_DOMAINS:
+    for name, domain in domains.SUPPORTED_DOMAINS.items():
         teacher_nodes = TEACHER_NODES[domain]
         assert len(teacher_nodes) > 0

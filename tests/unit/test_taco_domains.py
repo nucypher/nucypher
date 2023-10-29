@@ -9,7 +9,7 @@ from nucypher.blockchain.eth.domains import (
 
 @pytest.fixture(scope="module")
 def test_registry(module_mocker):
-    # override fixture which mocks SUPPORTED_DOMAIN_NAMES
+    # override fixture which mocks SUPPORTED_DOMAINS
     yield
 
 
@@ -82,5 +82,5 @@ def test_get_domain(domain_name_test):
 
 
 def test_get_domain_unrecognized_domain_name():
-    with pytest.raises(domains.Unrecognized):
-        domains.get_domain(domain="5am_In_Toronto")
+    with pytest.raises(domains.UnrecognizedTacoDomain):
+        domains.get_domain("5am_In_Toronto")
