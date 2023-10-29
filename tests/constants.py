@@ -7,11 +7,11 @@ from random import SystemRandom
 from hexbytes import HexBytes
 from web3 import Web3
 
-from nucypher.blockchain.eth.domains import ChainInfo
+from nucypher.blockchain.eth.domains import ChainInfo, TACoDomain
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, TEMPORARY_DOMAIN_NAME,
 )
 
 #
@@ -73,6 +73,12 @@ NUMBER_OF_ALLOCATIONS_IN_TESTS = 50  # TODO: Move to constants
 TESTERCHAIN_CHAIN_ID = 131277322940537
 
 TESTERCHAIN_CHAIN_INFO = ChainInfo(131277322940537, "eth-tester")
+
+TEMPORARY_DOMAIN = TACoDomain(
+    name=TEMPORARY_DOMAIN_NAME,
+    eth_chain=TESTERCHAIN_CHAIN_INFO,
+    polygon_chain=TESTERCHAIN_CHAIN_INFO,
+)
 
 
 #

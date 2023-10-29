@@ -21,7 +21,7 @@ from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_OPERATOR_SECONDS,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN,
 )
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -273,10 +273,10 @@ def deployed_contracts(
 
 
 @pytest.fixture(scope="module", autouse=True)
-def test_registry(deployed_contracts, module_mocker, temporary_domain):
+def test_registry(deployed_contracts, module_mocker):
     with tests.utils.registry.mock_registry_sources(mocker=module_mocker):
         RegistrySourceManager._FALLBACK_CHAIN = (ApeRegistrySource,)
-        source = ApeRegistrySource(domain=temporary_domain)
+        source = ApeRegistrySource(domain=TEMPORARY_DOMAIN)
         registry = ContractRegistry(source=source)
         yield registry
 
@@ -403,7 +403,7 @@ def multichain_ursulas(ursulas, multichain_ids, mock_rpc_condition):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_condition_blockchains(module_mocker, temporary_domain):
+def mock_condition_blockchains(module_mocker):
     """adds testerchain's chain ID to permitted conditional chains"""
     module_mocker.patch.dict(
         "nucypher.policy.conditions.evm._CONDITION_CHAINS",
@@ -412,7 +412,7 @@ def mock_condition_blockchains(module_mocker, temporary_domain):
 
     module_mocker.patch(
         "nucypher.blockchain.eth.domains.get_domain",
-        return_value=temporary_domain
+        return_value=TEMPORARY_DOMAIN
     )
 
 

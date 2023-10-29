@@ -9,6 +9,7 @@ from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
+from tests.constants import TEMPORARY_DOMAIN
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient
 from tests.utils.registry import MockRegistrySource, mock_registry_sources
 
@@ -19,9 +20,9 @@ def pytest_addhooks(pluginmanager):
 
 
 @pytest.fixture(scope='module')
-def test_registry(module_mocker, temporary_domain):
+def test_registry(module_mocker):
     with mock_registry_sources(mocker=module_mocker):
-        source = MockRegistrySource(domain=temporary_domain)
+        source = MockRegistrySource(domain=TEMPORARY_DOMAIN)
         yield ContractRegistry(source=source)
 
 

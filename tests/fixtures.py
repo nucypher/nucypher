@@ -18,7 +18,6 @@ from web3 import Web3
 
 import tests
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
@@ -50,8 +49,7 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID, TESTERCHAIN_CHAIN_INFO,
-)
+    TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN, )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,
@@ -306,15 +304,6 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 # Blockchain
 #
 
-@pytest.fixture(scope='session')
-def temporary_domain():
-    _domain = TACoDomain(
-        name=TEMPORARY_DOMAIN_NAME,
-        eth_chain=TESTERCHAIN_CHAIN_INFO,
-        polygon_chain=TESTERCHAIN_CHAIN_INFO,
-    )
-    return _domain
-
 
 @pytest.fixture(scope="module")
 def mock_registry_sources(module_mocker):
@@ -547,9 +536,9 @@ def worker_configuration_file_location(custom_filepath) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def mock_teacher_nodes(mocker, temporary_domain):
+def mock_teacher_nodes(mocker):
     mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
-    mocker.patch.dict(TEACHER_NODES, {temporary_domain: mock_nodes}, clear=True)
+    mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes}, clear=True)
 
 
 @pytest.fixture(autouse=True)
