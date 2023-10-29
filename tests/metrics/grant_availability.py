@@ -54,7 +54,7 @@ except KeyError:
     raise RuntimeError(message)
 
 # Alice Configuration
-TACO_DOMAIN: str = LYNX.name  # mainnet
+TACO_DOMAIN: str = str(LYNX)  # mainnet
 DEFAULT_SEEDNODE_URIS: List[str] = [
     *TEACHER_NODES[TACO_DOMAIN],
 ]

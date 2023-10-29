@@ -77,7 +77,7 @@ TAPIR = TACoDomain(
 
 DEFAULT_DOMAIN: TACoDomain = MAINNET
 
-SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {domain.name: domain for domain in (MAINNET, LYNX, TAPIR)}
+SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {str(domain): domain for domain in (MAINNET, LYNX, TAPIR)}
 
 
 
@@ -86,6 +86,6 @@ def get_domain(d: Any) -> TACoDomain:
     if not isinstance(d, str):
         raise TypeError(f"domain must be a string, not {type(d)}")
     for name, domain in SUPPORTED_DOMAINS.items():
-        if name == d == domain.name:
+        if name == d == str(domain):
             return domain
     raise UnrecognizedTacoDomain(f"{d} is not a recognized domain.")
