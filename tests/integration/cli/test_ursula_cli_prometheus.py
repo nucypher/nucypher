@@ -55,7 +55,7 @@ def test_ursula_cli_prometheus(
 
     assert result.exit_code == 0, result.output
     assert (
-        "✓ Prometheus Exporter" in result.output
+        f"✓ Prometheus Exporter http://{MOCK_IP_ADDRESS}:9101/metrics" in result.output
     ), "CLI didn't print Prometheus exporter check"
 
     mock_prometheus.assert_called_once()
@@ -82,6 +82,8 @@ def test_ursula_cli_prometheus_metrics_port(
     tempfile_path,
     mock_prometheus,
 ):
+    port = 6666
+
     mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prometheus)
 
     run_args = (
@@ -92,7 +94,7 @@ def test_ursula_cli_prometheus_metrics_port(
         "--config-file",
         str(tempfile_path.absolute()),
         "--metrics-port",
-        "6666",
+        str(port),
     )
 
     result = click_runner.invoke(
@@ -101,12 +103,13 @@ def test_ursula_cli_prometheus_metrics_port(
 
     assert result.exit_code == 0, result.output
     assert (
-        "✓ Prometheus Exporter" in result.output
+        f"✓ Prometheus Exporter http://{MOCK_IP_ADDRESS}:{port}/metrics"
+        in result.output
     ), "CLI didn't print Prometheus exporter check"
 
     mock_prometheus.assert_called_once()
     assert (
-        mock_prometheus.call_args.kwargs["prometheus_config"].port == 6666
+        mock_prometheus.call_args.kwargs["prometheus_config"].port == port
     ), "Wrong port set in prometheus_config"
     assert (
         mock_prometheus.call_args.kwargs["prometheus_config"].listen_address == ""
