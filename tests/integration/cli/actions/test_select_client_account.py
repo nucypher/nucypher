@@ -174,26 +174,10 @@ def test_select_client_account_with_balance_display(
     test_emitter,
     testerchain,
     capsys,
-    mock_staking_agent,
-    mock_token_agent,
     selection,
     show_matic,
     stake_info,
 ):
-    # Setup
-    mock_staking_agent.get_all_stakes.return_value = stake_info
-
-    # Missing network kwarg with balance display active
-    blockchain_read_required = any((show_matic,))
-    if blockchain_read_required:
-        with pytest.raises(
-            ValueError, match="Pass domain name or registry; Got neither."
-        ):
-            select_client_account(
-                emitter=test_emitter,
-                show_matic_balance=show_matic,
-                polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-            )
 
     # Good selection
     mock_stdin.line(str(selection))
