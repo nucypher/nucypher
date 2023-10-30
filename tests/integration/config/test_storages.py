@@ -51,7 +51,9 @@ class BaseTestNodeStorageBackends:
                 checksum_address=operator_addresses[i],
                 operator_address=operator_addresses[i],
                 pre_payment_method=pre_payment_method,
-                condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI}
+                condition_blockchain_endpoints={
+                    TESTERCHAIN_CHAIN_ID: [MOCK_ETH_PROVIDER_URI]
+                },
             )
             node_storage.store_node_metadata(node=node)
             all_known_nodes.add(node)
