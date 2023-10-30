@@ -1,9 +1,9 @@
-from unittest import mock
-
 from copy import copy
+from unittest import mock
+from unittest.mock import Mock, patch
+
 from eth_tester.exceptions import ValidationError
 from nucypher_core import NodeMetadata
-from unittest.mock import Mock, patch
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Alice, Ursula
@@ -80,7 +80,7 @@ class Vladimir(Ursula):
             pre_payment_method=bogus_pre_payment_method,
             condition_blockchain_endpoints={
                 TESTERCHAIN_CHAIN_ID: eth_blockchain.endpoint,
-            }
+            },
         )
 
         # Let's use the target's public info, and try to make some changes.

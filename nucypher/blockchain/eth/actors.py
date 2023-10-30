@@ -268,7 +268,9 @@ class Operator(BaseActor):
             condition_providers[int(chain_id)] = providers
 
         domain_chain_ids = tuple(chain.id for chain in self.domain.condition_chains)
-        connected_chain_ids = all(_id in condition_providers for _id in domain_chain_ids)
+        connected_chain_ids = all(
+            _id in condition_providers for _id in domain_chain_ids
+        )
         if not connected_chain_ids:
             raise self.ActorError(
                 f"Missing blockchain endpoints for chains: "

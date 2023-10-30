@@ -343,7 +343,9 @@ def light_ursula(temp_dir_path, random_account, mocker):
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         signer=KeystoreSigner(path=temp_dir_path),
-        condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: [MockBlockchain().endpoint]},
+        condition_blockchain_endpoints={
+            TESTERCHAIN_CHAIN_ID: [MockBlockchain().endpoint]
+        },
     )
     return ursula
 

@@ -103,7 +103,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         pre_payment_method=pre_payment_method,
         operator_address=testerchain.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
-        condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI}
+        condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
     )
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 
@@ -175,7 +175,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         signer=Web3Signer(testerchain.client),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-        condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI}
+        condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
     )
 
     ritual_id = 23
