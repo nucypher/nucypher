@@ -1,6 +1,3 @@
-
-
-
 from unittest.mock import Mock
 
 import click
@@ -36,7 +33,9 @@ def test_select_client_account(
     )
     assert selected_account, "Account selection returned Falsy instead of an address"
     assert isinstance(selected_account, str), "Selection is not a str"
-    assert is_checksum_address(selected_account), "Selection is not a valid checksum address"
+    assert is_checksum_address(
+        selected_account
+    ), "Selection is not a valid checksum address"
     assert selected_account == expected_account, "Selection returned the wrong address"
     assert mock_stdin.empty()
     captured = capsys.readouterr()
@@ -64,7 +63,6 @@ def test_select_client_account_with_no_accounts(
 def test_select_client_account_ambiguous_source(
     mock_stdin, test_emitter, testerchain  # used to assert the user was not prompted
 ):
-
     #
     # Implicit wallet  # TODO: Are all cases covered?
     #
@@ -75,7 +73,9 @@ def test_select_client_account_ambiguous_source(
 
     error_message = "Pass either signer or signer_uri but not both."
     with pytest.raises(ValueError, match=error_message):
-        select_client_account(emitter=test_emitter, signer=Mock(), signer_uri=MOCK_SIGNER_URI)
+        select_client_account(
+            emitter=test_emitter, signer=Mock(), signer_uri=MOCK_SIGNER_URI
+        )
 
 
 @pytest.mark.parametrize("selection", range(NUMBER_OF_ETH_TEST_ACCOUNTS))
@@ -89,7 +89,6 @@ def test_select_client_account_valid_sources(
     selection,
     capsys,
 ):
-
     # From External Signer
     mock_stdin.line(str(selection))
     mock_signer = mocker.patch.object(
@@ -103,7 +102,10 @@ def test_select_client_account_valid_sources(
     mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI, testnet=True)
     assert mock_stdin.empty()
     captured = capsys.readouterr()
-    assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
+    assert (
+        GENERIC_SELECT_ACCOUNT in captured.out
+        and f"Selected {selection}" in captured.out
+    )
 
     # From Wallet
     mock_stdin.line(str(selection))
@@ -114,7 +116,10 @@ def test_select_client_account_valid_sources(
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()
-    assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
+    assert (
+        GENERIC_SELECT_ACCOUNT in captured.out
+        and f"Selected {selection}" in captured.out
+    )
 
     # From pre-initialized Provider
     mock_stdin.line(str(selection))
@@ -125,7 +130,10 @@ def test_select_client_account_valid_sources(
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()
-    assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
+    assert (
+        GENERIC_SELECT_ACCOUNT in captured.out
+        and f"Selected {selection}" in captured.out
+    )
 
     # From uninitialized Provider
     mock_stdin.line(str(selection))
@@ -142,7 +150,10 @@ def test_select_client_account_valid_sources(
     assert selected_account == expected_account
     assert mock_stdin.empty()
     captured = capsys.readouterr()
-    assert GENERIC_SELECT_ACCOUNT in captured.out and f"Selected {selection}" in captured.out
+    assert (
+        GENERIC_SELECT_ACCOUNT in captured.out
+        and f"Selected {selection}" in captured.out
+    )
 
 
 @pytest.mark.skip("fix me")
@@ -169,12 +180,11 @@ def test_select_client_account_with_balance_display(
     show_matic,
     stake_info,
 ):
-
     # Setup
     mock_staking_agent.get_all_stakes.return_value = stake_info
 
     # Missing network kwarg with balance display active
-    blockchain_read_required = any((show_matic, ))
+    blockchain_read_required = any((show_matic,))
     if blockchain_read_required:
         with pytest.raises(
             ValueError, match="Pass domain name or registry; Got neither."
@@ -199,7 +209,7 @@ def test_select_client_account_with_balance_display(
     assert mock_stdin.empty()
 
     # Display account info
-    headers = ['Account']
+    headers = ["Account"]
 
     if show_matic:
         headers.append("MATIC")
@@ -213,5 +223,4 @@ def test_select_client_account_with_balance_display(
 
         if show_matic:
             balance = testerchain.client.get_balance(account=account)
-            assert str(Web3.from_wei(balance, 'ether')) in captured.out
-
+            assert str(Web3.from_wei(balance, "ether")) in captured.out

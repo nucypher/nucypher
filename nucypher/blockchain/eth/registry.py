@@ -316,7 +316,7 @@ class ContractRegistry:
         contract_name: Optional[str] = None,
         contract_address: Optional[str] = None,
     ) -> RegistryEntry:
-        """Search the registry for a contract by name or address."""
+        """Search the registry for a contract by name or address"""
         if not (bool(contract_name) ^ bool(contract_address)):
             raise ValueError("Pass contract_name or contract_address, not both.")
         registry_data, results = self._data, list()
