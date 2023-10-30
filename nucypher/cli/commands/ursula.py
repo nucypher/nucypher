@@ -165,6 +165,7 @@ class UrsulaConfigOptions:
             self.operator_address = select_client_account(
                 emitter=emitter,
                 prompt=prompt,
+                domain=self.domain,
                 polygon_endpoint=self.polygon_endpoint,
                 signer_uri=self.signer_uri,
             )

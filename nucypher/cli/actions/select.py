@@ -64,8 +64,8 @@ def select_client_account(
     blockchain = BlockchainInterfaceFactory.get_interface(endpoint=polygon_endpoint)
 
     if signer_uri and not signer:
-        testnet = str(domain) != str(domains.MAINNET)
-        signer = Signer.from_signer_uri(signer_uri, testnet=testnet)
+        domain = domains.get_domain(str(domain))
+        signer = Signer.from_signer_uri(signer_uri, testnet=domain.is_testnet)
 
     enumerated_accounts = dict(enumerate(signer.accounts))
     if len(enumerated_accounts) < 1:
