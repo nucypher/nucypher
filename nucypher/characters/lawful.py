@@ -1011,7 +1011,11 @@ class Ursula(Teacher, Character, Operator):
         if prometheus_config:
             start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
             if emitter:
-                emitter.message("✓ Prometheus Exporter", color="green")
+                emitter.message(
+                    f"✓ Prometheus Exporter http://{self.rest_interface.host}:"
+                    f"{prometheus_config.port}/metrics",
+                    color="green",
+                )
 
         if hendrix:
             if emitter:
