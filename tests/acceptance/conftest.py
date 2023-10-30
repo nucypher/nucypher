@@ -41,7 +41,7 @@ test_logger = Logger("acceptance-test-logger")
 
 
 # ERC-20
-TOTAL_SUPPLY = Web3.to_wei(10_000_000_000, "ether")
+TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
 NU_TOTAL_SUPPLY = Web3.to_wei(
     1_000_000_000, "ether"
 )  # TODO NU(1_000_000_000, 'NU').to_units()
