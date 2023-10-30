@@ -1,5 +1,6 @@
-import pytest
 import random
+
+import pytest
 from web3 import Web3
 
 import tests
@@ -20,8 +21,9 @@ from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
     INSECURE_DEVELOPMENT_PASSWORD,
     MIN_OPERATOR_SECONDS,
+    TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.blockchain import TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
@@ -411,8 +413,7 @@ def mock_condition_blockchains(module_mocker):
     )
 
     module_mocker.patch(
-        "nucypher.blockchain.eth.domains.get_domain",
-        return_value=TEMPORARY_DOMAIN
+        "nucypher.blockchain.eth.domains.get_domain", return_value=TEMPORARY_DOMAIN
     )
 
 

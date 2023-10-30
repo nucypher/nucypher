@@ -1,6 +1,7 @@
-from cytoolz.functoolz import memoize
 from enum import Enum
-from typing import NamedTuple, Dict, Any
+from typing import Any, Dict, NamedTuple
+
+from cytoolz.functoolz import memoize
 
 
 class UnrecognizedTacoDomain(Exception):
@@ -24,7 +25,6 @@ class PolygonChain(ChainInfo, Enum):
 
 
 class TACoDomain:
-
     def __init__(self, name: str, eth_chain: EthChain, polygon_chain: PolygonChain):
         self.name = name
         self.eth_chain = eth_chain
@@ -77,8 +77,9 @@ TAPIR = TACoDomain(
 
 DEFAULT_DOMAIN: TACoDomain = MAINNET
 
-SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {str(domain): domain for domain in (MAINNET, LYNX, TAPIR)}
-
+SUPPORTED_DOMAINS: Dict[str, TACoDomain] = {
+    str(domain): domain for domain in (MAINNET, LYNX, TAPIR)
+}
 
 
 @memoize

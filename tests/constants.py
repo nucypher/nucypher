@@ -11,7 +11,8 @@ from nucypher.blockchain.eth.domains import ChainInfo, TACoDomain
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, TEMPORARY_DOMAIN_NAME,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
+    TEMPORARY_DOMAIN_NAME,
 )
 
 #

@@ -1,8 +1,9 @@
 import os
-import pytest
-from eth_account.account import Account
 from pathlib import Path
 from typing import Iterable, Optional
+
+import pytest
+from eth_account.account import Account
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
@@ -31,7 +32,8 @@ from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
     NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
-    TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN,
+    TEMPORARY_DOMAIN,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper

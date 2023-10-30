@@ -1,8 +1,12 @@
+import time
 from collections import defaultdict, deque
+from contextlib import suppress
+from pathlib import Path
+from queue import Queue
+from typing import Callable, List, Optional, Set, Tuple
 
 import maya
 import requests
-import time
 from constant_sorrow.constants import (
     CERTIFICATE_NOT_SAVED,
     FLEET_STATES_MATCH,
@@ -10,18 +14,14 @@ from constant_sorrow.constants import (
     NOT_SIGNED,
     RELAX,
 )
-from contextlib import suppress
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import Certificate, load_der_x509_certificate
 from eth_utils import to_checksum_address
 from nucypher_core import MetadataResponse, MetadataResponsePayload, NodeMetadata
 from nucypher_core.umbral import Signature
-from pathlib import Path
-from queue import Queue
 from requests.exceptions import SSLError
 from twisted.internet import reactor, task
 from twisted.internet.defer import Deferred
-from typing import Callable, List, Optional, Set, Tuple
 
 from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
@@ -29,7 +29,6 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -279,7 +278,9 @@ class Learner:
 
         self._abort_on_learning_error = abort_on_learning_error
 
-        self.__known_nodes = self.tracker_class(domain=self.domain, this_node=self if include_self_in_the_state else None)
+        self.__known_nodes = self.tracker_class(
+            domain=self.domain, this_node=self if include_self_in_the_state else None
+        )
         self._verify_node_bonding = verify_node_bonding
 
         self.lonely = lonely

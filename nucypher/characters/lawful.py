@@ -1,7 +1,23 @@
 import contextlib
 import json
-import maya
 import time
+from pathlib import Path
+from queue import Queue
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Union,
+)
+
+import maya
 from constant_sorrow import constants
 from constant_sorrow.constants import (
     INVALIDATED,
@@ -48,28 +64,13 @@ from nucypher_core.umbral import (
     VerifiedKeyFrag,
     reencrypt,
 )
-from pathlib import Path
-from queue import Queue
 from twisted.internet import reactor
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-)
 from web3.types import TxReceipt
 
 import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
-from nucypher.blockchain.eth import actors, domains
+from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -1006,9 +1007,7 @@ class Ursula(Teacher, Character, Operator):
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
             if emitter:
-                emitter.message(
-                    f"✓ Node Discovery ({self.domain})", color="green"
-                )
+                emitter.message(f"✓ Node Discovery ({self.domain})", color="green")
 
         if ritual_tracking:
             self.ritual_tracker.start()

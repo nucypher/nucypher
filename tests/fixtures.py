@@ -1,19 +1,20 @@
 import contextlib
 import json
-import maya
 import os
-import pytest
 import shutil
 import tempfile
-from click.testing import CliRunner
 from datetime import timedelta
+from functools import partial
+from pathlib import Path
+from typing import Tuple
+
+import maya
+import pytest
+from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
-from functools import partial
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
-from pathlib import Path
 from twisted.internet.task import Clock
-from typing import Tuple
 from web3 import Web3
 
 import tests
@@ -48,8 +49,10 @@ from tests.constants import (
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
     MOCK_ETH_PROVIDER_URI,
+    TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN, )
+    TESTERCHAIN_CHAIN_ID,
+)
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,

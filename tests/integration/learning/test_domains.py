@@ -1,5 +1,6 @@
-import pytest
 from pathlib import Path
+
+import pytest
 
 import tests
 from nucypher.acumen.perception import FleetSensor
@@ -8,7 +9,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.storages import LocalFileBasedNodeStorage
 from nucypher.network.nodes import TEACHER_NODES
-from tests.constants import TESTERCHAIN_CHAIN_INFO, TEMPORARY_DOMAIN
+from tests.constants import TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO
 from tests.utils.registry import MockRegistrySource
 from tests.utils.ursula import make_ursulas
 
@@ -29,7 +30,6 @@ def domain_2():
         eth_chain=TESTERCHAIN_CHAIN_INFO,
         polygon_chain=TESTERCHAIN_CHAIN_INFO,
     )
-
 
 
 @pytest.fixture(scope="module")

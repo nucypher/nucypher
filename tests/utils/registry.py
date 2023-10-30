@@ -1,9 +1,9 @@
 from collections import defaultdict
+from contextlib import contextmanager
+from typing import List
 
 from ape.contracts import ContractInstance
-from contextlib import contextmanager
 from eth_utils import to_checksum_address
-from typing import List
 
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import (
@@ -21,7 +21,7 @@ def mock_registry_sources(mocker, _domains: List[TACoDomain] = None):
         _domains = [TEMPORARY_DOMAIN]
 
     _supported_domains = mocker.patch.dict(
-        'nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS',
+        "nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS",
         {str(domain): domain for domain in _domains},
     )
 
