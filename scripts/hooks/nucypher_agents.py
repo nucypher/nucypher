@@ -20,6 +20,7 @@ import rlcompleter
 
 import click
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -27,7 +28,6 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
     TACoChildApplicationAgent,
 )
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings

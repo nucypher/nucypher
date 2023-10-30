@@ -12,7 +12,7 @@ def mock_teacher_nodes(mocker):
 
 @pytest.fixture(scope="module")
 def test_registry(module_mocker):
-    # override fixture which mocks SUPPORTED_DOMAINS
+    # override fixture which mocks domains.SUPPORTED_DOMAINS
     yield
 
 

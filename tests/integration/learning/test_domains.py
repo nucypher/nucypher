@@ -20,6 +20,7 @@ def domain_1():
         name="domain_uno",
         eth_chain=TESTERCHAIN_CHAIN_INFO,
         polygon_chain=TESTERCHAIN_CHAIN_INFO,
+        condition_chains=(TESTERCHAIN_CHAIN_INFO,),
     )
 
 
@@ -29,6 +30,7 @@ def domain_2():
         name="domain_dos",
         eth_chain=TESTERCHAIN_CHAIN_INFO,
         polygon_chain=TESTERCHAIN_CHAIN_INFO,
+        condition_chains=(TESTERCHAIN_CHAIN_INFO,),
     )
 
 

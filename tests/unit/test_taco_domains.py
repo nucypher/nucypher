@@ -9,13 +9,13 @@ from nucypher.blockchain.eth.domains import (
 
 @pytest.fixture(scope="module")
 def test_registry(module_mocker):
-    # override fixture which mocks SUPPORTED_DOMAINS
+    # override fixture which mocks domains.SUPPORTED_DOMAINS
     yield
 
 
 @pytest.fixture(scope="module", autouse=True)
 def mock_condition_blockchains(module_mocker):
-    # override fixture which mocks get_domain
+    # override fixture which mocks domains.get_domain
     yield
 
 
@@ -49,9 +49,32 @@ def test_polygon_chains(poly_chain_test):
 @pytest.mark.parametrize(
     "taco_domain_test",
     (
-        (domains.MAINNET, "mainnet", EthChain.MAINNET, PolygonChain.MAINNET),
-        (domains.LYNX, "lynx", EthChain.GOERLI, PolygonChain.MUMBAI),
-        (domains.TAPIR, "tapir", EthChain.SEPOLIA, PolygonChain.MUMBAI),
+        (
+            domains.MAINNET,
+            "mainnet",
+            EthChain.MAINNET,
+            PolygonChain.MAINNET,
+            (EthChain.MAINNET, PolygonChain.MAINNET),
+        ),
+        (
+            domains.LYNX,
+            "lynx",
+            EthChain.GOERLI,
+            PolygonChain.MUMBAI,
+            (
+                EthChain.MAINNET,
+                EthChain.GOERLI,
+                PolygonChain.MUMBAI,
+                PolygonChain.MAINNET,
+            ),
+        ),
+        (
+            domains.TAPIR,
+            "tapir",
+            EthChain.SEPOLIA,
+            PolygonChain.MUMBAI,
+            (EthChain.SEPOLIA, PolygonChain.MUMBAI),
+        ),
     ),
 )
 def test_taco_domain_info(taco_domain_test):

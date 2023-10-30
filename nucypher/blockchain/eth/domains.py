@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, NamedTuple
+from typing import Any, Dict, NamedTuple, Tuple
 
 from cytoolz.functoolz import memoize
 
@@ -25,10 +25,17 @@ class PolygonChain(ChainInfo, Enum):
 
 
 class TACoDomain:
-    def __init__(self, name: str, eth_chain: EthChain, polygon_chain: PolygonChain):
+    def __init__(
+        self,
+        name: str,
+        eth_chain: EthChain,
+        polygon_chain: PolygonChain,
+        condition_chains: Tuple[ChainInfo, ...],
+    ):
         self.name = name
         self.eth_chain = eth_chain
         self.polygon_chain = polygon_chain
+        self.condition_chains = condition_chains
 
     def __repr__(self) -> str:
         return f"<TACoDomain {self.name}>"
@@ -63,18 +70,26 @@ MAINNET = TACoDomain(
     name="mainnet",
     eth_chain=EthChain.MAINNET,
     polygon_chain=PolygonChain.MAINNET,
+    condition_chains=(EthChain.MAINNET, PolygonChain.MAINNET),
 )
 
 LYNX = TACoDomain(
     name="lynx",
     eth_chain=EthChain.GOERLI,
     polygon_chain=PolygonChain.MUMBAI,
+    condition_chains=(
+        EthChain.MAINNET,
+        EthChain.GOERLI,
+        PolygonChain.MUMBAI,
+        PolygonChain.MAINNET,
+    ),
 )
 
 TAPIR = TACoDomain(
     name="tapir",
     eth_chain=EthChain.SEPOLIA,
     polygon_chain=PolygonChain.MUMBAI,
+    condition_chains=(EthChain.SEPOLIA, PolygonChain.MUMBAI),
 )
 
 
