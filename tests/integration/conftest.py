@@ -286,7 +286,6 @@ def mock_condition_blockchains(module_mocker):
     )
 
 
-
 @pytest.fixture(scope="module")
 def multichain_ids(module_mocker):
     ids = mock_permitted_multichain_connections(mocker=module_mocker)

@@ -9,9 +9,9 @@ from eth_typing import ChecksumAddress
 from nucypher_core import FleetStateChecksum, NodeMetadata
 
 from nucypher import characters
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.utilities.logging import Logger
 
+from ..blockchain.eth.domains import TACoDomain
 from .nicknames import Nickname
 
 

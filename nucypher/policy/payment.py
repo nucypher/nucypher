@@ -6,9 +6,9 @@ from nucypher_core import ReencryptionRequest
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
-from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.policy import policies
+from tests.utils.registry import TACoDomain
 
 
 class PaymentMethod(ABC):

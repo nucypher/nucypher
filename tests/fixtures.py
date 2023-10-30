@@ -306,8 +306,6 @@ def lonely_ursula_maker(ursula_test_config, testerchain):
 #
 # Blockchain
 #
-
-
 @pytest.fixture(scope="module")
 def mock_registry_sources(module_mocker):
     with tests.utils.registry.mock_registry_sources(module_mocker):

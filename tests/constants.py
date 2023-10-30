@@ -79,6 +79,7 @@ TEMPORARY_DOMAIN = TACoDomain(
     name=TEMPORARY_DOMAIN_NAME,
     eth_chain=TESTERCHAIN_CHAIN_INFO,
     polygon_chain=TESTERCHAIN_CHAIN_INFO,
+    condition_chains=(TESTERCHAIN_CHAIN_INFO,),
 )
 
 

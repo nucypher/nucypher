@@ -19,12 +19,10 @@ from tests.constants import TEMPORARY_DOMAIN
 def mock_registry_sources(mocker, _domains: List[TACoDomain] = None):
     if not _domains:
         _domains = [TEMPORARY_DOMAIN]
-
     _supported_domains = mocker.patch.dict(
         "nucypher.blockchain.eth.domains.SUPPORTED_DOMAINS",
         {str(domain): domain for domain in _domains},
     )
-
     mocker.patch.object(MockRegistrySource, "ALLOWED_DOMAINS", list(map(str, _domains)))
     mocker.patch.object(RegistrySourceManager, "_FALLBACK_CHAIN", (MockRegistrySource,))
     yield
