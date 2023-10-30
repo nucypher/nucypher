@@ -1,8 +1,9 @@
 import json
-from cryptography.x509 import Certificate
-from eth_utils import is_checksum_address
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from cryptography.x509 import Certificate
+from eth_utils import is_checksum_address
 
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import (
