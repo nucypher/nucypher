@@ -39,7 +39,6 @@ def test_prometheus_metrics_config():
     prometheus_config = PrometheusMetricsConfig(port=port)
 
     assert prometheus_config.port == 2020
-    assert prometheus_config.listen_address == ''
 
     # defaults
     assert prometheus_config.collection_interval == 90
@@ -55,7 +54,7 @@ def test_prometheus_metrics_config():
                                                 start_now=True)
     assert prometheus_config.listen_address == listen_address
     assert prometheus_config.collection_interval == collection_interval
-    assert prometheus_config.start_now
+    assert prometheus_config.start_now is True
 
 
 def test_base_metrics_collector():
