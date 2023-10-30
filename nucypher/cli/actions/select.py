@@ -8,9 +8,6 @@ from web3.main import Web3
 
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import (
-    ContractRegistry,
-)
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.cli.actions.configure import get_config_filepaths
 from nucypher.cli.literature import (
