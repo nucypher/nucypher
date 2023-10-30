@@ -112,7 +112,7 @@ def nucypher_dependency(project):
 
 @pytest.fixture(scope="session", autouse=True)
 def oz_dependency(project):
-    _oz_dependency = project.dependencies["openzeppelin"]["4.9.1"]
+    _oz_dependency = project.dependencies["openzeppelin"]["5.0.0"]
     return _oz_dependency
 
 
@@ -150,14 +150,14 @@ def threshold_staking(nucypher_dependency, deployer_account):
 
 
 @pytest.fixture(scope="module")
-def proxy_admin(oz_dependency, deployer_account):
-    _proxy_admin = oz_dependency.ProxyAdmin.deploy(sender=deployer_account)
-    return _proxy_admin
-
-
-@pytest.fixture(scope="module")
-def taco_application(nucypher_dependency, deployer_account, t_token, threshold_staking):
-    _taco_application = deployer_account.deploy(
+def taco_application(
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    t_token,
+    threshold_staking,
+):
+    taco_application_implementation = deployer_account.deploy(
         nucypher_dependency.TACoApplication,
         t_token.address,
         threshold_staking.address,
@@ -168,21 +168,9 @@ def taco_application(nucypher_dependency, deployer_account, t_token, threshold_s
         [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
     )
 
-    return _taco_application
-
-
-@pytest.fixture(scope="module")
-def taco_application_proxy(
-    oz_dependency,
-    nucypher_dependency,
-    deployer_account,
-    proxy_admin,
-    taco_application,
-    threshold_staking,
-):
     proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
-        taco_application.address,
-        proxy_admin.address,
+        taco_application_implementation.address,
+        deployer_account.address,
         b"",
         sender=deployer_account,
     )
@@ -196,34 +184,25 @@ def taco_application_proxy(
 
 @pytest.fixture(scope="module")
 def taco_child_application(
-    nucypher_dependency, taco_application_proxy, deployer_account
-):
-    _taco_child_application = deployer_account.deploy(
-        nucypher_dependency.TACoChildApplication,
-        taco_application_proxy.address,
-        MIN_AUTHORIZATION,
-    )
-
-    return _taco_child_application
-
-
-@pytest.fixture(scope="module")
-def taco_child_application_proxy(
     oz_dependency,
     nucypher_dependency,
     deployer_account,
-    proxy_admin,
-    taco_child_application,
-    taco_application_proxy,
+    taco_application,
 ):
+    taco_child_application_implementation = deployer_account.deploy(
+        nucypher_dependency.TACoChildApplication,
+        taco_application.address,
+        MIN_AUTHORIZATION,
+    )
+
     proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
-        taco_child_application.address,
-        proxy_admin.address,
+        taco_child_application_implementation.address,
+        deployer_account.address,
         b"",
         sender=deployer_account,
     )
     proxy_contract = nucypher_dependency.TACoChildApplication.at(proxy.address)
-    taco_application_proxy.setChildApplication(
+    taco_application.setChildApplication(
         proxy_contract.address, sender=deployer_account
     )
 
@@ -232,11 +211,11 @@ def taco_child_application_proxy(
 
 @pytest.fixture(scope="module")
 def coordinator(
-    nucypher_dependency, deployer_account, taco_child_application_proxy, ritual_token
+    nucypher_dependency, deployer_account, taco_child_application, ritual_token
 ):
     _coordinator = deployer_account.deploy(
         nucypher_dependency.Coordinator,
-        taco_child_application_proxy.address,
+        taco_child_application.address,
         TIMEOUT,
         MAX_DKG_SIZE,
         deployer_account.address,
@@ -244,9 +223,7 @@ def coordinator(
         FEE_RATE,
     )
     _coordinator.makeInitiationPublic(sender=deployer_account)
-    taco_child_application_proxy.initialize(
-        _coordinator.address, sender=deployer_account
-    )
+    taco_child_application.initialize(_coordinator.address, sender=deployer_account)
     return _coordinator
 
 
@@ -280,9 +257,8 @@ def deployed_contracts(
     t_token,
     nu_token,
     threshold_staking,
-    proxy_admin,
-    taco_application_proxy,
-    taco_child_application_proxy,
+    taco_application,
+    taco_child_application,
     coordinator,
     global_allow_list,
     subscription_manager,
@@ -293,9 +269,8 @@ def deployed_contracts(
         t_token,
         nu_token,
         threshold_staking,
-        proxy_admin,
-        taco_application_proxy,  # only proxy contract
-        taco_child_application_proxy,  # only proxy contract
+        taco_application,
+        taco_child_application,
         coordinator,
         global_allow_list,
         subscription_manager,
@@ -334,9 +309,9 @@ def staking_providers(
     accounts,
     testerchain,
     threshold_staking,
-    taco_application_proxy,
+    taco_application,
 ):
-    minimum_stake = taco_application_proxy.minimumAuthorization()
+    minimum_stake = taco_application.minimumAuthorization()
 
     staking_providers = list()
     for provider_address, operator_address in zip(
@@ -357,7 +332,7 @@ def staking_providers(
             provider_address, 0, amount, sender=deployer_account
         )
 
-        taco_application_proxy.bondOperator(
+        taco_application.bondOperator(
             provider_address, operator_address, sender=accounts[provider_address]
         )
 

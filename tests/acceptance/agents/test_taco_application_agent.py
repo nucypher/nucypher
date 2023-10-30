@@ -9,31 +9,31 @@ from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
-def test_get_min_authorization(taco_application_agent, taco_application_proxy):
+def test_get_min_authorization(taco_application_agent, taco_application):
     result = taco_application_agent.get_min_authorization()
-    assert result == taco_application_proxy.minimumAuthorization()
+    assert result == taco_application.minimumAuthorization()
 
 
-def test_get_min_seconds(taco_application_agent, taco_application_proxy):
+def test_get_min_seconds(taco_application_agent, taco_application):
     result = taco_application_agent.get_min_operator_seconds()
-    assert result == taco_application_proxy.minOperatorSeconds()
+    assert result == taco_application.minOperatorSeconds()
 
 
 def test_authorized_tokens(
-    testerchain, taco_application_proxy, taco_application_agent, staking_providers
+    testerchain, taco_application, taco_application_agent, staking_providers
 ):
     provider_account = staking_providers[0]
     authorized_amount = taco_application_agent.get_authorized_stake(
         staking_provider=provider_account
     )
-    assert authorized_amount >= taco_application_proxy.minimumAuthorization()
+    assert authorized_amount >= taco_application.minimumAuthorization()
 
 
 def test_staking_providers_and_operators_relationships(
     testerchain,
     taco_application_agent,
     threshold_staking,
-    taco_application_proxy,
+    taco_application,
     deployer_account,
 ):
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
@@ -41,7 +41,7 @@ def test_staking_providers_and_operators_relationships(
     threshold_staking.authorizationIncreased(
         staking_provider_account,
         0,
-        taco_application_proxy.minimumAuthorization(),
+        taco_application.minimumAuthorization(),
         sender=deployer_account,
     )
 
