@@ -1,8 +1,9 @@
+from pathlib import Path
+from typing import ClassVar, Dict, List, Optional, Union
+
 from constant_sorrow.constants import NO_NICKNAME, NO_SIGNING_POWER, STRANGER
 from eth_utils import to_canonical_address
 from nucypher_core.umbral import PublicKey
-from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, Union
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth import domains
@@ -78,7 +79,6 @@ class Character(Learner):
             represented by zero Characters or by more than one Character.
 
         """
-
         self.domain = domains.get_domain(str(domain))
 
         #
@@ -128,11 +128,15 @@ class Character(Learner):
             )
 
             # Learner
-            Learner.__init__(self,
-                             network_middleware=self.network_middleware,
-                             node_class=known_node_class,
-                             include_self_in_the_state=include_self_in_the_state,
-                             *args, **kwargs)
+            Learner.__init__(
+                self,
+                domain=self.domain,
+                network_middleware=self.network_middleware,
+                node_class=known_node_class,
+                include_self_in_the_state=include_self_in_the_state,
+                *args,
+                **kwargs,
+            )
 
             self.checksum_address = checksum_address
 

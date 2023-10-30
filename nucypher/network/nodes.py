@@ -29,6 +29,7 @@ from nucypher.acumen.perception import FleetSensor
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
 from nucypher.config.storages import ForgetfulNodeStorage
@@ -250,22 +251,24 @@ class Learner:
         it does not have the proper attributes for learning or verification.
         """
 
-    def __init__(self,
-                 node_class: object = None,
-                 network_middleware: RestMiddleware = None,
-                 start_learning_now: bool = False,
-                 learn_on_same_thread: bool = False,
-                 known_nodes: tuple = None,
-                 seed_nodes: Tuple[tuple] = None,
-                 node_storage=None,
-                 save_metadata: bool = False,
-                 abort_on_learning_error: bool = False,
-                 lonely: bool = False,
-                 verify_node_bonding: bool = True,
-                 include_self_in_the_state: bool = False,
-                 ) -> None:
-
+    def __init__(
+        self,
+        domain: TACoDomain,
+        node_class: object = None,
+        network_middleware: RestMiddleware = None,
+        start_learning_now: bool = False,
+        learn_on_same_thread: bool = False,
+        known_nodes: tuple = None,
+        seed_nodes: Tuple[tuple] = None,
+        node_storage=None,
+        save_metadata: bool = False,
+        abort_on_learning_error: bool = False,
+        lonely: bool = False,
+        verify_node_bonding: bool = True,
+        include_self_in_the_state: bool = False,
+    ) -> None:
         self.log = Logger("learning-loop")  # type: Logger
+        self.domain = domain
 
         self.learning_deferred = Deferred()
         default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(

@@ -1,6 +1,11 @@
 import json
 import re
 from abc import ABC, abstractmethod
+from decimal import Decimal
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import Callable, List, Optional, Union
+
 from constant_sorrow.constants import (
     DEVELOPMENT_CONFIGURATION,
     LIVE_CONFIGURATION,
@@ -9,11 +14,7 @@ from constant_sorrow.constants import (
     UNINITIALIZED_CONFIGURATION,
     UNKNOWN_VERSION,
 )
-from decimal import Decimal
 from eth_utils.address import is_checksum_address
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import Callable, List, Optional, Union
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -832,7 +833,7 @@ class CharacterConfiguration(BaseConfiguration):
         if pre_payment_class.ONCHAIN:
             # on-chain payment strategies require a blockchain connection
             pre_payment_strategy = pre_payment_class(
-                domain=str(self.domain),
+                domain=self.domain,
                 blockchain_endpoint=self.polygon_endpoint,
                 registry=self.registry,
             )
