@@ -14,7 +14,7 @@ def test_staking_provider_from_operator(taco_child_application_agent, ursulas):
 def test_staking_provider_info(
     taco_child_application_agent,
     ursulas,
-    taco_application_proxy,
+    taco_application,
     get_random_checksum_address,
 ):
     for ursula in ursulas:
@@ -23,7 +23,7 @@ def test_staking_provider_info(
         )
         assert provider_info.operator_confirmed is True
         assert provider_info.operator == ursula.operator_address
-        assert provider_info.authorized >= taco_application_proxy.minimumAuthorization()
+        assert provider_info.authorized >= taco_application.minimumAuthorization()
 
     # non-existing staking provider
     # TODO is this right? Technically this is what the contract returns

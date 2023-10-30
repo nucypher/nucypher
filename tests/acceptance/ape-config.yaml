@@ -9,13 +9,13 @@ dependencies:
     ref: main
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
-    version: 4.9.1
+    version: 5.0.0
 
 solidity:
-  version: 0.8.20
+  version: 0.8.22
   evm_version: paris
   import_remapping:
-    - "@openzeppelin/contracts=openzeppelin/v4.9.1"
+    - "@openzeppelin/contracts=openzeppelin/v5.0.0"
 
 
 test:
