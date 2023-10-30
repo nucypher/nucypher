@@ -106,7 +106,7 @@ from nucypher.crypto.utils import keccak_digest
 from nucypher.network.decryption import ThresholdDecryptionClient
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
-from nucypher.network.nodes import TEACHER_NODES, NodeSprout, Teacher
+from nucypher.network.nodes import NodeSprout, Teacher
 from nucypher.network.protocols import parse_node_uri
 from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
@@ -1177,17 +1177,6 @@ class Ursula(Teacher, Character, Operator):
         seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
 
-    @classmethod
-    def seednode_for_domain(cls, domain: str, eth_endpoint: str) -> "Ursula":
-        """Returns a default seednode ursula for a given network."""
-        try:
-            url = TEACHER_NODES[domain][0]
-        except KeyError:
-            raise ValueError(f'"{domain}" is not a known domain.')
-        except IndexError:
-            raise ValueError(f'No default seednodes available for "{domain}".')
-        ursula = cls.from_seed_and_stake_info(seed_uri=url, eth_endpoint=eth_endpoint)
-        return ursula
 
     @classmethod
     def from_teacher_uri(

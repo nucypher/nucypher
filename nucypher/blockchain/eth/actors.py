@@ -1,8 +1,9 @@
+import time
 from collections import defaultdict
+from decimal import Decimal
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
-import time
-from decimal import Decimal
 from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 from nucypher_core import (
@@ -22,12 +23,10 @@ from nucypher_core.ferveo import (
     Transcript,
     Validator,
 )
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -39,9 +38,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import (
-    ContractRegistry,
-)
+from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
