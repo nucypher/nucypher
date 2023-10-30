@@ -14,7 +14,10 @@ from nucypher.utilities.prometheus.collector import (
     StakingProviderMetricsCollector,
     UrsulaInfoMetricsCollector,
 )
-from nucypher.utilities.prometheus.metrics import create_metrics_collectors
+from nucypher.utilities.prometheus.metrics import (
+    PrometheusMetricsConfig,
+    create_metrics_collectors,
+)
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
@@ -27,6 +30,41 @@ def mock_operator_confirmation(random_address, mock_taco_application_agent):
         operator_start_timestamp=Timestamp(int(time.time()))
     )
     mock_taco_application_agent.get_staking_provider_info.return_value = info
+
+
+def test_start_prometheus_exporter_called(ursulas, mock_prometheus):
+    port = 9101
+
+    # Reset start_prometheus_exporter mock just in case it was previously called
+    mock_prometheus.reset_mock()
+
+    prometheus_config = PrometheusMetricsConfig(port=port)
+    ursula = random.choice(ursulas)
+
+    ursula.run(
+        start_reactor=False,
+        prometheus_config=prometheus_config,
+        preflight=False,
+        block_until_ready=False,
+    )
+    ursula.stop()
+
+    mock_prometheus.assert_called_once()
+    assert (
+        mock_prometheus.call_args.kwargs["prometheus_config"].port == port
+    ), "Wrong port set in prometheus_config"
+    assert (
+        mock_prometheus.call_args.kwargs["prometheus_config"].listen_address
+        == prometheus_config.listen_address
+    ), "Wrong listen address set in prometheus_config"
+    assert (
+        mock_prometheus.call_args.kwargs["prometheus_config"].collection_interval
+        == prometheus_config.collection_interval
+    ), "Wrong listen address set in prometheus_config"
+    assert (
+        mock_prometheus.call_args.kwargs["prometheus_config"].start_now
+        == prometheus_config.start_now
+    ), "Wrong listen address set in prometheus_config"
 
 
 def test_ursula_info_metrics_collector(ursulas):
