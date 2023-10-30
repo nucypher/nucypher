@@ -1,12 +1,12 @@
-from json import JSONDecodeError
-
 import hashlib
 import json
-import requests
 from abc import ABC, abstractmethod
+from json import JSONDecodeError
 from pathlib import Path
-from requests import Response
 from typing import Dict, List, NamedTuple, Optional, Tuple, Type, Union
+
+import requests
+from requests import Response
 from web3.types import ABI
 
 from nucypher.blockchain.eth import domains

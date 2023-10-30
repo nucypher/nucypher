@@ -1,10 +1,10 @@
-import maya
 from abc import ABC, abstractmethod
-from nucypher_core import ReencryptionRequest
 from typing import Dict, NamedTuple, Optional
+
+import maya
+from nucypher_core import ReencryptionRequest
 from web3.types import ChecksumAddress, Timestamp, TxReceipt, Wei
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
