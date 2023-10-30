@@ -30,6 +30,7 @@ def test_select_client_account(
         emitter=test_emitter,
         signer=Web3Signer(testerchain.client),
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
+        domain=TEMPORARY_DOMAIN_NAME,
     )
     assert selected_account, "Account selection returned Falsy instead of an address"
     assert isinstance(selected_account, str), "Selection is not a str"
@@ -55,6 +56,7 @@ def test_select_client_account_with_no_accounts(
             emitter=test_emitter,
             signer=Web3Signer(testerchain.client),
             polygon_endpoint=MOCK_ETH_PROVIDER_URI,
+            domain=TEMPORARY_DOMAIN_NAME,
         )
     captured = capsys.readouterr()
     assert NO_ACCOUNTS in captured.out
@@ -95,7 +97,9 @@ def test_select_client_account_valid_sources(
         KeystoreSigner, "from_signer_uri", return_value=Web3Signer(testerchain.client)
     )
     selected_account = select_client_account(
-        emitter=test_emitter, signer_uri=MOCK_SIGNER_URI
+        domain=TEMPORARY_DOMAIN_NAME,
+        emitter=test_emitter,
+        signer_uri=MOCK_SIGNER_URI,
     )
     expected_account = testerchain.client.accounts[selection]
     assert selected_account == expected_account
@@ -111,7 +115,9 @@ def test_select_client_account_valid_sources(
     mock_stdin.line(str(selection))
     expected_account = testerchain.client.accounts[selection]
     selected_account = select_client_account(
-        emitter=test_emitter, signer=Web3Signer(testerchain.client)
+        domain=TEMPORARY_DOMAIN_NAME,
+        emitter=test_emitter,
+        signer=Web3Signer(testerchain.client),
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
@@ -125,7 +131,9 @@ def test_select_client_account_valid_sources(
     mock_stdin.line(str(selection))
     expected_account = testerchain.client.accounts[selection]
     selected_account = select_client_account(
-        emitter=test_emitter, polygon_endpoint=MOCK_ETH_PROVIDER_URI
+        domain=TEMPORARY_DOMAIN_NAME,
+        emitter=test_emitter,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
@@ -145,7 +153,9 @@ def test_select_client_account_valid_sources(
         BlockchainInterfaceFactory, "get_interface", return_value=testerchain
     )
     selected_account = select_client_account(
-        emitter=test_emitter, polygon_endpoint=MOCK_ETH_PROVIDER_URI
+        domain=TEMPORARY_DOMAIN_NAME,
+        emitter=test_emitter,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
