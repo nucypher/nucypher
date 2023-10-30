@@ -1,6 +1,6 @@
 ![](nucypher.png)
 
-*A decentralized cryptological network offering accessible, intuitive, and extensible runtimes and interfaces for
+*Cryptographic primitives, hosted on the decentralized nodes of the Threshold network, offering accessible, intuitive, and extensible runtimes and interfaces for
 secrets management and dynamic access control.*
 
 [![pypi](https://img.shields.io/pypi/v/nucypher.svg?style=flat)](https://pypi.org/project/nucypher/)
