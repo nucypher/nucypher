@@ -1,0 +1,1 @@
+Address bug where context variable not properly processed when doing type checking for multi-value output.
