@@ -44,7 +44,9 @@ class TACoDomain:
         return self.name
 
     def __hash__(self) -> int:
-        return hash((self.name, self.eth_chain, self.polygon_chain))
+        return hash(
+            (self.name, self.eth_chain, self.polygon_chain, self.condition_chains)
+        )
 
     def __bytes__(self) -> bytes:
         return self.name.encode()
@@ -56,6 +58,7 @@ class TACoDomain:
             self.name == other.name
             and self.eth_chain == other.eth_chain
             and self.polygon_chain == other.polygon_chain
+            and self.condition_chains == other.condition_chains
         )
 
     def __bool__(self) -> bool:
