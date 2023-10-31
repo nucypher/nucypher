@@ -1,6 +1,4 @@
-
-
-
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.events import ContractEventsThrottler
 
 try:
@@ -107,7 +105,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         payload = {
             "app_version": nucypher.__version__,
             "host": str(self.ursula.rest_interface),
-            "domain": self.ursula.domain,
+            "domain": str(self.ursula.domain),
             "nickname": str(self.ursula.nickname),
             "nickname_icon": self.ursula.nickname.icon,
             "staking_provider_address": self.ursula.checksum_address,
@@ -206,7 +204,7 @@ class OperatorMetricsCollector(BaseMetricsCollector):
 
     def __init__(
         self,
-        domain: str,
+        domain: TACoDomain,
         operator_address: ChecksumAddress,
         contract_registry: ContractRegistry,
     ):
