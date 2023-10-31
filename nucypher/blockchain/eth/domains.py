@@ -37,7 +37,7 @@ class TACoDomain:
         return self.name
 
     def __hash__(self) -> int:
-        return hash(self.name)
+        return hash((self.name, self.eth_chain, self.polygon_chain))
 
     def __bytes__(self) -> bytes:
         return self.name.encode()
