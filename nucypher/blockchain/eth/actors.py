@@ -241,50 +241,41 @@ class Operator(BaseActor):
         return provider
 
     def connect_condition_providers(
-        self, condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None
+        self, endpoints: Dict[int, List[str]]
     ) -> DefaultDict[int, Set[HTTPProvider]]:
-        """Multi-provider support"""
+        providers = defaultdict(set)
 
-        condition_blockchain_endpoints = condition_blockchain_endpoints or dict()
-        condition_providers = defaultdict(set)
+        # check that we have endpoints for all condition chains
+        if self.domain.condition_chain_ids != set(endpoints):
+            raise self.ActorError(
+                f"Missing blockchain endpoints for chains: "
+                f"{self.domain.condition_chain_ids - set(endpoints)}"
+            )
 
-        for (
-            chain_id,
-            condition_blockchain_endpoints,
-        ) in condition_blockchain_endpoints.items():
+        # check that each chain id is supported
+        for chain_id, endpoints in endpoints.items():
             if not self._is_permitted_condition_chain(chain_id):
                 raise NotImplementedError(
                     f"Chain ID {chain_id} is not supported for condition evaluation by this Operator."
                 )
 
-            providers = set()
-            for uri in condition_blockchain_endpoints:
+            # connect to each endpoint and check that they are on the correct chain
+            for uri in endpoints:
                 provider = self._make_condition_provider(uri)
                 if int(Web3(provider).eth.chain_id) != int(chain_id):
                     raise self.ActorError(
                         f"Condition blockchain endpoint {uri} is not on chain {chain_id}"
                     )
-                providers.add(provider)
-            condition_providers[int(chain_id)] = providers
-
-        domain_chain_ids = tuple(chain.id for chain in self.domain.condition_chains)
-        connected_chain_ids = all(
-            _id in condition_providers for _id in domain_chain_ids
-        )
-        if not connected_chain_ids:
-            raise self.ActorError(
-                f"Missing blockchain endpoints for chains: "
-                f"{set(domain_chain_ids) - set(condition_providers)}"
-            )
+                providers[int(chain_id)].add(provider)
 
         humanized_chain_ids = ", ".join(
-            _CONDITION_CHAINS[chain_id] for chain_id in condition_providers
+            _CONDITION_CHAINS[chain_id] for chain_id in providers
         )
         self.log.info(
-            f"Connected to {len(condition_providers)} blockchains for condition checking: {humanized_chain_ids}"
+            f"Connected to {len(providers)} blockchains for condition checking: {humanized_chain_ids}"
         )
 
-        return condition_providers
+        return providers
 
     def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
         try:

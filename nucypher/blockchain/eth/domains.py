@@ -68,6 +68,11 @@ class TACoDomain:
     def is_testnet(self) -> bool:
         return self.eth_chain != EthChain.MAINNET
 
+    @property
+    def condition_chain_ids(self) -> set:
+        return set(chain.id for chain in self.condition_chains)
+
+
 
 MAINNET = TACoDomain(
     name="mainnet",
