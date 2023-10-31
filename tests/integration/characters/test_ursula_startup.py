@@ -1,6 +1,8 @@
 import pytest
 
+from nucypher.characters.lawful import Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
+from tests.constants import TESTERCHAIN_CHAIN_ID
 
 
 def test_new_ursula_announces_herself(lonely_ursula_maker):
@@ -35,11 +37,12 @@ def test_node_deployer(ursulas):
 def test_goerli_and_mumbai_as_conditions_providers(lonely_ursula_maker):
     INVALID_CHAIN_ID = 66775827584859395569954838  # If we eventually support a chain with this ID, heaven help us.
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(Ursula.ActorError):
         _ursula_who_tries_to_connect_to_an_invalid_chain = lonely_ursula_maker(
             quantity=1,
             domain=TEMPORARY_DOMAIN_NAME,
             condition_blockchain_endpoints={
+                TESTERCHAIN_CHAIN_ID: "this is a provider URI.",
                 INVALID_CHAIN_ID: "this is a provider URI, but it doesn't matter what we pass here because the chain_id is invalid."
             },
         )
