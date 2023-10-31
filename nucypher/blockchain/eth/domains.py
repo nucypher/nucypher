@@ -43,10 +43,13 @@ class TACoDomain:
         return self.name.encode()
 
     def __eq__(self, other: Any) -> bool:
-        try:
-            return self.name == other.name
-        except AttributeError:
-            raise TypeError(f"Cannot compare TACoDomain to {type(other)}")
+        if not isinstance(other, TACoDomain):
+            return False
+        return (
+            self.name == other.name
+            and self.eth_chain == other.eth_chain
+            and self.polygon_chain == other.polygon_chain
+        )
 
     def __bool__(self) -> bool:
         return True
