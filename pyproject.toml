@@ -2,6 +2,63 @@
 requires = ["setuptools", "setuptools-rust", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[metadata]
+license_files = "LICENSE"
+
+[aliases]
+test = "pytest"
+
+[tool.pytest]
+python_files = "tests/"
+addopts = "--capture fd --maxfail 1"
+
+[tool.flake8]
+ignore = "F812,H101,H202,H233,H301,H306,H401,H403,H404,H405,E,W,C"
+select = "F"
+exclude = [
+    ".git",
+    "__pycache__",
+    "old",
+    "build",
+    "dist"
+]
+
+[tool.mypy]
+python_version = "3.6"
+verbosity = 0
+disallow_untyped_defs = false
+check_untyped_defs = false
+disallow_untyped_calls = false
+ignore_missing_imports = true
+warn_return_any = false
+no_implicit_optional = false
+strict_optional = false
+warn_no_return = false
+
+[tool.mypy.overrides]
+module = ["setup.py"]
+ignore_errors = true
+
+[tool.coverage.run]
+omit = [
+    "setup.py",
+    "*__init__.py",
+    "tests/*",
+    "tests/*/*",
+    "nucypher/config/migrations/_template.py"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod"
+]
+
 [tool.towncrier]
     package = "nucypher"
     package_dir = "nucypher"
