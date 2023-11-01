@@ -14,7 +14,6 @@ from nucypher_core import (
     MetadataResponse,
     MetadataResponsePayload,
     ReencryptionRequest,
-    ThresholdDecryptionResponse,
 )
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
@@ -148,112 +147,25 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/decrypt', methods=["POST"])
     def threshold_decrypt():
-
-        # Deserialize and instantiate ThresholdDecryptionRequest from the request data
-        encrypted_decryption_request = EncryptedThresholdDecryptionRequest.from_bytes(
-            request.data
-        )
-
-        decryption_request = this_node.decrypt_threshold_decryption_request(
-            encrypted_request=encrypted_decryption_request
-        )
-
-        log.info(
-            f"Threshold decryption request for ritual ID #{decryption_request.ritual_id}"
-        )
-
-        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
-        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
-        ritual = this_node.coordinator_agent.get_ritual(
-            decryption_request.ritual_id, with_participants=True
-        )
-
-        # check that ritual not timed out
-        current_timestamp = this_node.coordinator_agent.blockchain.get_blocktime()
-        if current_timestamp > ritual.end_timestamp:
-            return Response(
-                f"Ritual {decryption_request.ritual_id} is expired",
-                status=HTTPStatus.FORBIDDEN,
-            )
-
-        ciphertext_header = decryption_request.ciphertext_header
-
-        # check whether enrico is authorized
-        authorization = decryption_request.acp.authorization
-        if not this_node.coordinator_agent.is_encryption_authorized(
-            ritual_id=decryption_request.ritual_id,
-            evidence=authorization,
-            ciphertext_header=bytes(ciphertext_header),
-        ):
-            return Response(
-                f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
-                status=HTTPStatus.UNAUTHORIZED,
-            )
-
-        # requester-supplied condition eval context
-        context = None
-        if decryption_request.context:
-            context = (
-                json.loads(str(decryption_request.context)) or dict()
-            )  # nucypher_core.Context -> str -> dict
-
-        # obtain condition from request
-        condition_lingo = json.loads(
-            str(decryption_request.acp.conditions)
-        )  # nucypher_core.Conditions -> str -> Lingo
-        if not condition_lingo:
-            # this should never happen for CBD - defeats the purpose
-            return Response(
-                "No conditions present for ciphertext - invalid for CBD functionality",
-                status=HTTPStatus.FORBIDDEN,
-            )
-
-        # evaluate the conditions for this ciphertext
-        error = evaluate_condition_lingo(
-            condition_lingo=condition_lingo,
-            context=context,
-            providers=this_node.condition_providers,
-        )
-        if error:
-            return Response(error.message, status=error.status_code)
-
-        participants = [p.provider for p in ritual.participants]
-
-        # enforces that the node is part of the ritual
-        if this_node.checksum_address not in participants:
-            return Response(
-                f"Node not part of ritual {decryption_request.ritual_id}",
-                status=HTTPStatus.FORBIDDEN,
-            )
-
-        # derive the decryption share
         try:
-            decryption_share = this_node.derive_decryption_share(
-                ritual_id=decryption_request.ritual_id,
-                ciphertext_header=decryption_request.ciphertext_header,
-                aad=decryption_request.acp.aad(),
-                variant=decryption_request.variant,
+            encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
+                request.data
             )
+            response = this_node.handle_threshold_decryption_request(encrypted_request)
+            response = Response(
+                response=bytes(response),
+                status=HTTPStatus.OK,
+                mimetype="application/octet-stream",
+            )
+            return response
+        except this_node.RitualNotFoundException:
+            return Response("Ritual not found", status=HTTPStatus.NOT_FOUND)
+        except this_node.UnauthorizedRequest as e:
+            return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
+        except this_node.DecryptionFailure as e:
+            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
         except Exception as e:
-            log.warn(f"Failed to derive decryption share: {e}")
-            return Response(
-                f"Failed to derive decryption share: {e}", status=HTTPStatus.BAD_REQUEST
-            )
-
-        # return the decryption share
-        # TODO: #3098 nucypher-core#49 Use DecryptionShare type
-        decryption_response = ThresholdDecryptionResponse(
-            ritual_id=decryption_request.ritual_id,
-            decryption_share=bytes(decryption_share),
-        )
-        encrypted_response = this_node.encrypt_threshold_decryption_response(
-            decryption_response=decryption_response,
-            requester_public_key=encrypted_decryption_request.requester_public_key,
-        )
-        return Response(
-            bytes(encrypted_response),
-            headers={"Content-Type": "application/octet-stream"},
-        )
+            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     @rest_app.route('/reencrypt', methods=["POST"])
     def reencrypt():

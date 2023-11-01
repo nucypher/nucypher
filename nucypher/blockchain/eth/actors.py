@@ -135,6 +135,15 @@ class Operator(BaseActor):
     class OperatorError(BaseActor.ActorError):
         """Operator-specific errors."""
 
+    class RitualNotFoundException(Exception):
+        """Ritual is not found."""
+
+    class UnauthorizedRequest(Exception):
+        """Request is not authorized."""
+
+    class DecryptionFailure(Exception):
+        """Decryption failed."""
+
     def __init__(
         self,
         eth_endpoint: str,
@@ -584,6 +593,83 @@ class Operator(BaseActor):
             decryption_response=decryption_response,
             requester_public_key=requester_public_key,
         )
+
+
+    def _authorize_ritual(self, decryption_request: ThresholdDecryptionRequest):
+        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
+        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
+        ritual = self.coordinator_agent.get_ritual(
+            decryption_request.ritual_id, with_participants=True
+        )
+
+        # enforces that the node is part of the ritual
+        participants = [p.provider for p in ritual.participants]
+        if self.checksum_address not in participants:
+            raise self.UnauthorizedRequest(
+                f"Node not part of ritual {decryption_request.ritual_id}",
+            )
+
+        # check that ritual not timed out
+        current_timestamp = self.coordinator_agent.blockchain.get_blocktime()
+        if current_timestamp > ritual.end_timestamp:
+            raise self.UnauthorizedRequest(
+                f"Ritual {decryption_request.ritual_id} is expired",
+            )
+
+    def _authorize_ciphertext(
+        self, decryption_request: ThresholdDecryptionRequest
+    ) -> None:
+        # check whether enrico is authorized
+        ciphertext_header = decryption_request.ciphertext_header
+        authorization = decryption_request.acp.authorization
+        if not self.coordinator_agent.is_encryption_authorized(
+            ritual_id=decryption_request.ritual_id,
+            evidence=authorization,
+            ciphertext_header=bytes(ciphertext_header),
+        ):
+            raise self.UnauthorizedRequest(
+                f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
+            )
+
+    def _authorize_decryption_request(
+        self, decryption_request: ThresholdDecryptionRequest
+    ) -> None:
+        self._authorize_ritual(decryption_request)
+        self._authorize_ciphertext(decryption_request)
+
+    def _derive_decryption_share_for_request(
+        self,
+        decryption_request: ThresholdDecryptionRequest,
+    ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
+        self._authorize_decryption_request(decryption_request=decryption_request)
+        try:
+            decryption_share = self.derive_decryption_share(
+                ritual_id=decryption_request.ritual_id,
+                ciphertext_header=decryption_request.ciphertext_header,
+                aad=decryption_request.acp.aad(),
+                variant=decryption_request.variant,
+            )
+        except Exception as e:
+            self.log.warn(f"Failed to derive decryption share: {e}")
+            raise self.DecryptionFailure(f"Failed to derive decryption share: {e}")
+        return decryption_share
+
+    def _encrypt_decryption_share(
+        self,
+        ritual_id: int,
+        decryption_share: Union[DecryptionShareSimple, DecryptionSharePrecomputed],
+        public_key: SessionStaticKey,
+    ) -> EncryptedThresholdDecryptionResponse:
+        # TODO: #3098 nucypher-core#49 Use DecryptionShare type
+        decryption_response = ThresholdDecryptionResponse(
+            ritual_id=ritual_id,
+            decryption_share=bytes(decryption_share),
+        )
+        encrypted_response = self.encrypt_threshold_decryption_response(
+            decryption_response=decryption_response,
+            requester_public_key=public_key,
+        )
+        return encrypted_response
 
     def _local_operator_address(self):
         return self.__operator_address
