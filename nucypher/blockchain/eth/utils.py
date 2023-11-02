@@ -1,42 +1,9 @@
 from decimal import Decimal
 from typing import Union
 
-from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from eth_typing import ChecksumAddress
-from eth_utils import is_address, is_hex, to_checksum_address
 from web3 import Web3
 from web3.contract.contract import ContractConstructor, ContractFunction
-
-from nucypher.blockchain.eth.clients import PUBLIC_CHAINS
-
-
-def etherscan_url(item, network: str, is_token=False) -> str:
-    if network is None or network is UNKNOWN_DEVELOPMENT_CHAIN_ID:
-        raise ValueError("A network must be provided")
-
-    if network == PUBLIC_CHAINS[1]:  # Mainnet chain ID is 1
-        domain = "https://etherscan.io"
-    else:
-        testnets_supported_by_etherscan = (PUBLIC_CHAINS[3],  # Ropsten
-                                           PUBLIC_CHAINS[4],  # Rinkeby
-                                           PUBLIC_CHAINS[5],  # Goerli
-                                           PUBLIC_CHAINS[42],  # Kovan
-                                           )
-        if network in testnets_supported_by_etherscan:
-            domain = f"https://{network.lower()}.etherscan.io"
-        else:
-            raise ValueError(f"'{network}' network not supported by Etherscan")
-
-    if is_address(item):
-        item_type = 'token' if is_token else 'address'
-        item = to_checksum_address(item)
-    elif is_hex(item) and len(item) == 2 + 32*2:  # If it's a hash...
-        item_type = 'tx'
-    else:
-        raise ValueError(f"Cannot construct etherscan URL for {item}")
-
-    url = f"{domain}/{item_type}/{item}"
-    return url
 
 
 def prettify_eth_amount(amount, original_denomination: str = 'wei') -> str:
