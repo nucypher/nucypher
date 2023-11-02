@@ -5,9 +5,6 @@
 FORCE_MODE_WARNING = "WARNING: Force is enabled"
 DEVELOPMENT_MODE_WARNING = "WARNING: Running in Development mode"
 
-# Blockchain
-CONNECTING_TO_BLOCKCHAIN = "Reading Latest Chaindata..."
-
 # Events
 CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_file}?"
 
@@ -65,12 +62,3 @@ CONFIRM_URSULA_IPV4_ADDRESS = (
     "Detected IPv4 address ({rest_host}) - " + CONFIRM_IPV4_ADDRESS_QUESTION
 )
 COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address"
-
-# Deployment
-NO_HARDWARE_WALLET_WARNING = "WARNING: --no-hw-wallet is enabled."
-ETHERSCAN_FLAG_ENABLED_WARNING = """
-WARNING: --etherscan is enabled. A browser tab will be opened with deployed contracts and TXs as provided by Etherscan.
-"""
-ETHERSCAN_FLAG_DISABLED_WARNING = """
-WARNING: --etherscan is disabled. If you want to see deployed contracts and TXs in your browser, activate --etherscan.
-"""

@@ -1,5 +1,3 @@
-
-
 import os
 from distutils.util import strtobool
 from pathlib import Path
@@ -11,10 +9,6 @@ from web3.types import BlockIdentifier
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.events import EventRecord
-from nucypher.blockchain.eth.interfaces import (
-    BlockchainInterface,
-    BlockchainInterfaceFactory,
-)
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
     LocalRegistrySource,
@@ -27,12 +21,7 @@ from nucypher.cli.actions.auth import (
 )
 from nucypher.cli.literature import (
     CONFIRM_OVERWRITE_EVENTS_CSV_FILE,
-    CONNECTING_TO_BLOCKCHAIN,
-    ETHERSCAN_FLAG_DISABLED_WARNING,
-    ETHERSCAN_FLAG_ENABLED_WARNING,
-    NO_HARDWARE_WALLET_WARNING,
 )
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.events import write_events_to_csv_file
 
@@ -114,32 +103,6 @@ def get_registry(
     return registry
 
 
-def connect_to_blockchain(
-    emitter: StdoutEmitter,
-    blockchain_endpoint: str,
-    debug: bool = False,
-    light: bool = False,
-) -> BlockchainInterface:
-    try:
-        # Note: Conditional for test compatibility.
-        if not BlockchainInterfaceFactory.is_interface_initialized(
-            endpoint=blockchain_endpoint
-        ):
-            BlockchainInterfaceFactory.initialize_interface(
-                endpoint=blockchain_endpoint, light=light, emitter=emitter
-            )
-        emitter.echo(message=CONNECTING_TO_BLOCKCHAIN)
-        blockchain = BlockchainInterfaceFactory.get_interface(
-            endpoint=blockchain_endpoint
-        )
-        return blockchain
-    except Exception as e:
-        if debug:
-            raise
-        emitter.echo(str(e), bold=True, color='red')
-        raise click.Abort
-
-
 def get_env_bool(var_name: str, default: bool) -> bool:
     if var_name in os.environ:
         # TODO: which is better: to fail on an incorrect envvar, or to use the default?
@@ -147,22 +110,6 @@ def get_env_bool(var_name: str, default: bool) -> bool:
         return strtobool(os.environ[var_name])
     else:
         return default
-
-
-def ensure_config_root(config_root: Path) -> None:
-    """Ensure config root exists, because we need a default place to put output files."""
-    config_root = config_root or DEFAULT_CONFIG_ROOT
-    if not config_root.exists():
-        config_root.mkdir(parents=True)
-
-
-def deployer_pre_launch_warnings(emitter: StdoutEmitter, etherscan: bool, hw_wallet: bool) -> None:
-    if not hw_wallet:
-        emitter.echo(NO_HARDWARE_WALLET_WARNING, color='yellow')
-    if etherscan:
-        emitter.echo(ETHERSCAN_FLAG_ENABLED_WARNING, color='yellow')
-    else:
-        emitter.echo(ETHERSCAN_FLAG_DISABLED_WARNING, color='yellow')
 
 
 def parse_event_filters_into_argument_filters(event_filters: Tuple[str]) -> Dict:

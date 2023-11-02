@@ -7,7 +7,6 @@ import click
 
 from nucypher.blockchain.eth.constants import TACO_CONTRACT_NAMES
 from nucypher.cli.types import (
-    EIP55_CHECKSUM_ADDRESS,
     EXISTING_READABLE_FILE,
     GWEI,
     MIN_AUTHORIZATION,
@@ -84,12 +83,6 @@ option_registry_filepath = click.option(
     type=EXISTING_READABLE_FILE,
 )
 option_signer_uri = click.option("--signer", "signer_uri", "-S", default=None, type=str)
-option_staking_provider = click.option(
-    "--staking-provider",
-    help="Staking provider ethereum address",
-    type=EIP55_CHECKSUM_ADDRESS,
-    required=True,
-)
 option_teacher_uri = click.option(
     "--teacher",
     "teacher_uri",
@@ -170,34 +163,6 @@ def group_options(option_class, **options):
 
         for dec in decorators:
             wrapper = dec(wrapper)
-
-        return wrapper
-
-    return _decorator
-
-
-def wrap_option(handler, **options):
-
-    assert len(options) == 1
-    name = list(options)[0]
-    dec = options[name]
-
-    @functools.wraps(handler)
-    def _decorator(func):
-
-        @functools.wraps(func)
-        def wrapper(**kwargs):
-            if name not in kwargs:
-                raise ValueError(
-                        f"When trying to wrap a CLI option with {handler}, "
-                        f"{name} was not found among arguments")
-            option_val = kwargs[name]
-            option_name, new_val = handler(option_val)
-            del kwargs[name]
-            kwargs[option_name] = new_val
-            return func(**kwargs)
-
-        wrapper = dec(wrapper)
 
         return wrapper
 

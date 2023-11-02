@@ -1,14 +1,9 @@
-
-
-
 from decimal import Decimal, DecimalException
 from ipaddress import ip_address
 from pathlib import Path
 
 import click
-from cryptography.exceptions import InternalError
 from eth_utils import to_checksum_address
-from nucypher_core.umbral import PublicKey
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.token import TToken
@@ -107,38 +102,19 @@ class NuCypherDomainName(click.ParamType):
             return value
 
 
-class UmbralPublicKeyHex(click.ParamType):
-    name = 'nucypher_umbral_public_key'
-
-    def __init__(self, validate: bool = True):
-        self.validate = bool(validate)
-
-    def convert(self, value, param, ctx):
-        if self.validate:
-            try:
-                _key = PublicKey.from_compressed_bytes(bytes.fromhex(value))
-            except (InternalError, ValueError):
-                self.fail(f"'{value}' is not a valid nucypher public key.")
-        return value
-
-
 # Ethereum
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
-WEI = click.IntRange(min=1, clamp=False)  # TODO: Better validation for ether and wei values?
 GWEI = DecimalRange(min=0)
-
 
 __min_authorization = TToken(40_000, "T").to_tokens()  # TODO right spot for this?
 MIN_AUTHORIZATION = Decimal(__min_authorization)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_authorization)
 
 # Filesystem
-EXISTING_WRITABLE_DIRECTORY = click.Path(exists=True, dir_okay=True, file_okay=False, writable=True, path_type=Path)
 EXISTING_READABLE_FILE = click.Path(exists=True, dir_okay=False, file_okay=True, readable=True, path_type=Path)
 
 # Network
 NETWORK_PORT = click.IntRange(min=0, max=65535, clamp=False)
-IPV4_ADDRESS = IPv4Address()
 OPERATOR_IP = OperatorIPAddress()
 
 PRE_PAYMENT_METHOD_CHOICES = click.Choice(list(PRE_PAYMENT_METHODS))
