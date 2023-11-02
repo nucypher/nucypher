@@ -1,8 +1,6 @@
 from secrets import SystemRandom
 from typing import Union
 
-from cryptography.hazmat.backends.openssl.backend import backend
-from cryptography.hazmat.primitives import hashes
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_hash.auto import keccak
@@ -71,23 +69,6 @@ def keccak_digest(*messages: bytes) -> bytes:
     # https://eth-utils.readthedocs.io/en/stable/utilities.html#keccak-bytes-int-bool-text-str-hexstr-str-bytes
     joined_bytes = bytes().join(messages)
     digest = keccak(joined_bytes)
-    return digest
-
-
-def sha256_digest(*messages: bytes) -> bytes:
-    """
-    Accepts an iterable containing bytes and digests it returning a
-    SHA256 digest of 32 bytes
-
-    :param bytes: Data to hash
-
-    :rtype: bytes
-    :return: bytestring of digested data
-    """
-    _hash_ctx = hashes.Hash(hashes.SHA256(), backend=backend)
-    for message in messages:
-        _hash_ctx.update(bytes(message))
-    digest = _hash_ctx.finalize()
     return digest
 
 

@@ -1,6 +1,3 @@
-
-
-
 import os
 from functools import partial
 from typing import Callable
@@ -58,20 +55,6 @@ class StdoutEmitter:
     def banner(self, banner):
         if self.verbosity >= 1:
             click.echo(banner)
-
-    def ipc(self, response: dict, request_id: int, duration):
-        # WARNING: Do not log in this block
-        if self.verbosity >= 1:
-            for k, v in response.items():
-                click.secho(message=f'{k} ...... {v}', fg=self.default_color)
-
-    def pretty(self, response):
-        if self.verbosity >= 1:
-            click.secho("-" * 90, fg='cyan')
-            for k, v in response.items():
-                click.secho(k, bold=True)
-                click.secho(message=str(v), fg=self.default_color)
-                click.secho("-"*90, fg='cyan')
 
     def error(self, e):
         if self.verbosity >= 1:

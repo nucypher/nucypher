@@ -24,6 +24,7 @@ INVALID_JSON_IN_CONFIGURATION_WARNING = "Invalid JSON in Configuration File at {
 INVALID_CONFIGURATION_FILE_WARNING = "Invalid Configuration at {filepath}."
 NO_ACCOUNTS = "No accounts were found."
 GENERIC_SELECT_ACCOUNT = "Select index of account"
+SELECT_OPERATOR_ACCOUNT = "Select operator account"
 SELECTED_ACCOUNT = "Selected {choice}: {chosen_account}"
 
 CHARACTER_DESTRUCTION = """
