@@ -114,7 +114,6 @@ from nucypher.network.retrieval import PRERetrievalClient
 from nucypher.network.server import ProxyRESTServer, make_rest_app
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.types import Lingo
-from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.kits import PolicyMessageKit
 from nucypher.policy.payment import ContractPayment, PaymentMethod
 from nucypher.policy.policies import Policy
@@ -1366,41 +1365,6 @@ class Ursula(Teacher, Character, Operator):
             address=self.checksum_address, public_key=self.public_keys(RitualisticPower)
         )
         return validator
-
-    def _authorize_lingo(self, decryption_request: ThresholdDecryptionRequest) -> None:
-        # requester-supplied condition eval context
-        context = None
-        if decryption_request.context:
-            # nucypher_core.Context -> str -> dict
-            context = json.loads(str(decryption_request.context)) or dict()
-
-        # obtain condition from request
-        condition_lingo = json.loads(
-            str(decryption_request.acp.conditions)
-        )  # nucypher_core.Conditions -> str -> Lingo
-        if not condition_lingo:
-            # this should never happen for CBD - defeats the purpose
-            raise self.UnauthorizedRequest(
-                "No conditions present for ciphertext - invalid for CBD functionality",
-            )
-
-        # evaluate the conditions for this ciphertext
-        error = evaluate_condition_lingo(
-            condition_lingo=condition_lingo,
-            context=context,
-            providers=self.condition_providers,
-        )
-        if error:
-            raise self.UnauthorizedRequest(
-                f"Condition evaluation failed: {error}",
-            )
-        return condition_lingo
-
-    def _authorize_decryption_request(
-        self, decryption_request: ThresholdDecryptionRequest
-    ) -> None:
-        super()._authorize_decryption_request(decryption_request)
-        self._authorize_lingo(decryption_request)
 
     def handle_threshold_decryption_request(
         self, encrypted_decryption_request: EncryptedThresholdDecryptionRequest
