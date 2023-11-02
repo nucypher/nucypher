@@ -1,3 +1,4 @@
+import json
 import time
 from collections import defaultdict
 from decimal import Decimal
@@ -51,6 +52,7 @@ from nucypher.crypto.powers import (
 )
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
+from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
@@ -595,7 +597,7 @@ class Operator(BaseActor):
         )
 
 
-    def _authorize_ritual(self, decryption_request: ThresholdDecryptionRequest):
+    def _verify_active_ritual(self, decryption_request: ThresholdDecryptionRequest):
         # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
         ritual = self.coordinator_agent.get_ritual(
@@ -616,10 +618,10 @@ class Operator(BaseActor):
                 f"Ritual {decryption_request.ritual_id} is expired",
             )
 
-    def _authorize_ciphertext(
+    def _verify_ciphertext_authorization(
         self, decryption_request: ThresholdDecryptionRequest
     ) -> None:
-        # check whether enrico is authorized
+        """check that the ciphertext is authorized for this ritual"""
         ciphertext_header = decryption_request.ciphertext_header
         authorization = decryption_request.acp.authorization
         if not self.coordinator_agent.is_encryption_authorized(
@@ -631,17 +633,52 @@ class Operator(BaseActor):
                 f"Encrypted data not authorized for ritual {decryption_request.ritual_id}",
             )
 
-    def _authorize_decryption_request(
+    def _evaluate_conditions(
         self, decryption_request: ThresholdDecryptionRequest
     ) -> None:
-        self._authorize_ritual(decryption_request)
-        self._authorize_ciphertext(decryption_request)
+        # requester-supplied condition eval context
+        context = None
+        if decryption_request.context:
+            # nucypher_core.Context -> str -> dict
+            context = json.loads(str(decryption_request.context)) or dict()
+
+        # obtain condition from request
+        condition_lingo = json.loads(
+            str(decryption_request.acp.conditions)
+        )  # nucypher_core.Conditions -> str -> Lingo
+        if not condition_lingo:
+            # this should never happen for CBD - defeats the purpose
+            raise self.UnauthorizedRequest(
+                "No conditions present for ciphertext - invalid for CBD functionality",
+            )
+
+        # evaluate the conditions for this ciphertext
+        error = evaluate_condition_lingo(
+            condition_lingo=condition_lingo,
+            context=context,
+            providers=self.condition_providers,
+        )
+        if error:
+            raise self.UnauthorizedRequest(
+                f"Condition evaluation failed: {error}",
+            )
+
+    def _verify_decryption_request_authorization(
+        self, decryption_request: ThresholdDecryptionRequest
+    ) -> None:
+        """check that the decryption request is authorized for this ritual"""
+        self._verify_active_ritual(decryption_request)
+        self._verify_ciphertext_authorization(decryption_request)
+        self._evaluate_conditions(decryption_request)
 
     def _derive_decryption_share_for_request(
         self,
         decryption_request: ThresholdDecryptionRequest,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
-        self._authorize_decryption_request(decryption_request=decryption_request)
+        """Derive a decryption share for a given request"""
+        self._verify_decryption_request_authorization(
+            decryption_request=decryption_request
+        )
         try:
             decryption_share = self.derive_decryption_share(
                 ritual_id=decryption_request.ritual_id,

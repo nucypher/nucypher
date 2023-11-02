@@ -151,9 +151,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
                 request.data
             )
-            response = this_node.handle_threshold_decryption_request(encrypted_request)
+            encrypted_response = this_node.handle_threshold_decryption_request(
+                encrypted_request
+            )
             response = Response(
-                response=bytes(response),
+                response=bytes(encrypted_response),
                 status=HTTPStatus.OK,
                 mimetype="application/octet-stream",
             )
@@ -163,7 +165,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         except this_node.UnauthorizedRequest as e:
             return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
         except this_node.DecryptionFailure as e:
-            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
             return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
