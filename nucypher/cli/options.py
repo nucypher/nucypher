@@ -11,12 +11,10 @@ from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     GWEI,
     MIN_AUTHORIZATION,
-    NETWORK_PORT,
     PRE_PAYMENT_METHOD_CHOICES,
     STAKED_TOKENS_RANGE,
     NuCypherDomainName,
 )
-from nucypher.utilities.logging import Logger
 
 # Alphabetical
 
@@ -35,9 +33,6 @@ option_dry_run = click.option(
     help="Execute normally without actually starting the node",
     is_flag=True,
 )
-option_etherscan = click.option(
-    "--etherscan/--no-etherscan", help="Enable/disable viewing TX in Etherscan"
-)
 option_event_name = click.option(
     "--event-name", help="Specify an event by name", type=click.STRING
 )
@@ -55,7 +50,6 @@ option_key_material = click.option(
 option_max_gas_price = click.option(
     "--max-gas-price", help="Maximum acceptable gas price (in GWEI)", type=GWEI
 )
-option_hw_wallet = click.option("--hw-wallet/--no-hw-wallet")
 option_light = click.option(
     "--light", help="Indicate that node is light", is_flag=True, default=None
 )
@@ -67,17 +61,6 @@ option_min_stake = click.option(
     help="The minimum stake the teacher must have to be locally accepted.",
     type=STAKED_TOKENS_RANGE,
     default=MIN_AUTHORIZATION,
-)
-option_operator_address = click.option(
-    "--operator-address",
-    help="Address to bond as an operator",
-    type=EIP55_CHECKSUM_ADDRESS,
-    required=True,
-)
-option_parameters = click.option(
-    "--parameters",
-    help="Filepath to a JSON file containing additional parameters",
-    type=EXISTING_READABLE_FILE,
 )
 option_polygon_endpoint = click.option(
     "--polygon-endpoint",
@@ -124,15 +107,6 @@ _option_middleware = click.option(
 # Alphabetical
 #
 
-def option_alice_verifying_key(required: bool = False):
-    return click.option(
-        '--alice-verifying-key',
-        '-avk',
-        help="Alice's verifying key as a hexadecimal string",
-        type=click.STRING,
-        required=required)
-
-
 def option_contract_name(
     required: bool = False, valid_options: Sequence[str] = TACO_CONTRACT_NAMES
 ):
@@ -142,31 +116,6 @@ def option_contract_name(
         type=click.Choice(valid_options),
         required=required
     )
-
-
-def option_discovery_port(default=None):
-    return click.option(
-        '--discovery-port',
-        help="The host port to run node discovery services on",
-        type=NETWORK_PORT,
-        default=default)
-
-
-def option_label(required: bool = False):
-    return click.option(
-        '--label',
-        help="The label for a policy",
-        type=click.STRING,
-        required=required)
-
-
-def option_message_kit(required: bool = False, multiple: bool = False):
-    return click.option(
-        '--message-kit',
-        help='The message kit unicode string encoded in base64',
-        type=click.STRING,
-        multiple=multiple,
-        required=required)
 
 
 def option_domain(
@@ -180,14 +129,6 @@ def option_domain(
         type=NuCypherDomainName(validate=validate),
         required=required,
         default=default)
-
-
-def option_policy_encrypting_key(required: bool = False):
-    return click.option(
-        '--policy-encrypting-key',
-        help="Encrypting Public Key for Policy as hexadecimal string",
-        type=click.STRING,
-        required=required)
 
 
 def option_eth_endpoint(default=None, required: bool = False):
@@ -261,27 +202,3 @@ def wrap_option(handler, **options):
         return wrapper
 
     return _decorator
-
-
-def process_middleware(mock_networking) -> tuple:
-    #################
-    # MUST NOT RAISE!
-    #################
-    try:
-        from tests.utils.middleware import MockRestMiddleware
-    except ImportError:
-        # It's okay to not crash here despite not having the tests package available.
-        logger = Logger("CLI-Middleware-Optional-Handler")
-        logger.info('--mock-networking flag is unavailable without dev install.')
-    if mock_networking:
-        middleware = MockRestMiddleware()
-    else:
-        from nucypher.network.middleware import RestMiddleware
-        middleware = RestMiddleware()
-    return 'middleware', middleware
-
-
-option_middleware = wrap_option(
-    process_middleware,
-    mock_networking=_option_middleware,
-)
