@@ -167,7 +167,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         except EvalError as e:
             return Response(e.message, status=e.status_code)
         except this_node.DecryptionFailure as e:
-            return Response(str(e), status=HTTPStatus.BAD_REQUEST)
+            return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
