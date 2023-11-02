@@ -21,7 +21,7 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.utils import evaluate_condition_lingo
+from nucypher.policy.conditions.utils import EvalError, evaluate_condition_lingo
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -164,6 +164,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response("Ritual not found", status=HTTPStatus.NOT_FOUND)
         except this_node.UnauthorizedRequest as e:
             return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
+        except EvalError as e:
+            return Response(e.message, status=e.status_code)
         except this_node.DecryptionFailure as e:
             return Response(str(e), status=HTTPStatus.BAD_REQUEST)
         except Exception as e:

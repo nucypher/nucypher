@@ -649,7 +649,7 @@ class Operator(BaseActor):
         if not condition_lingo:
             # this should never happen for CBD - defeats the purpose
             raise self.UnauthorizedRequest(
-                "No conditions present for ciphertext - invalid for CBD functionality",
+                "No conditions present for ciphertext.",
             )
 
         # evaluate the conditions for this ciphertext
@@ -659,9 +659,7 @@ class Operator(BaseActor):
             providers=self.condition_providers,
         )
         if error:
-            raise self.UnauthorizedRequest(
-                f"Condition evaluation failed: {error}",
-            )
+            raise error
 
     def _verify_decryption_request_authorization(
         self, decryption_request: ThresholdDecryptionRequest
