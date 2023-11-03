@@ -7,53 +7,52 @@ name = "pypi"
 python_version = "3"
 
 [packages]
-# NuCypher
-constant-sorrow = ">=0.1.0a9"
-bytestring-splitter = ">=2.4.0"
-hendrix = ">=4.0"
 nucypher-core = "==0.13.0"
 # Cryptography
 cryptography = ">=3.2"
 mnemonic = "*"
 pynacl = ">=1.4.0"
 pyopenssl = "*"
-# Utilities
-mako = "*"
-marshmallow = "*"
-maya = "*"
-msgpack = "*"
-# Web
-aiohttp = "==3.8.2"
-flask = "*"
-requests = "*"
-# Third-Party Ethereum
-eth-tester = "*"   # providers.py still uses this
-py-evm = "<0.8"
-web3 = ">=6.0.0"
+# Ethereum
+eth-tester = "<0.10.0,>0.9.0"  # web3[tester]
+eth-account = "<0.9,>=0.8.0"
 eth-utils = "*"
-# CLI / Configuration
-appdirs = "*"
+web3 = ">=6.0.0"
+# Web
+flask = "*"
+hendrix = ">=4.0"
+requests = "*"
+mako = "*"
+# CLI
 click = ">=7.0"
 colorama = "*"
 tabulate = "*"
-# Tools
-eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
+# Serialization
+bytestring-splitter = ">=2.4.0"
+marshmallow = "*"
+msgpack = "*"
+# Utilities
+aiohttp = "*"
+appdirs = "*"
+constant-sorrow = ">=0.1.0a9"
+maya = "*"
+pendulum = ">=3.0.0b1"
+setuptools = "*"  # for distutils
+urllib3 = "<2,>=1.26.16"  # eth-ape
+
 
 [dev-packages]
 # Pytest
-# See https://github.com/pytest-dev/pytest/issues/9703
-pytest = "<7"
-pytest-twisted = "*"
+pytest = "<7"  # See https://github.com/pytest-dev/pytest/issues/9703
 pytest-cov = "*"
 pytest-mock = "*"
 pytest-timeout = "*"
+pytest-twisted = "*"
 # Tools
-eth-ape = "<=0.6.19" # eth-ape 0.6.22 depends on urllib3<2 and >=1.26.16
-eth-account = ">=0.8.0,<0.9"  # because of eth-ape (eip712 dep)
 ape-solidity = ">=0.6.5"
-hypothesis = "*"
-pre-commit = "2.12.1"
-coverage = "<=6.5.0"
+coverage = ">=7.3.2"
+eth-ape = ">=0.6.23"
+pre-commit = ">=2.12.1"
 
 [scripts]
 nucypher = "python3 nucypher/cli/main.py"

@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env bash
 
 # Parse optional flag -k, to be used when we want to base the process on an existing Pipfile.lock
 KEEP_LOCK=false
