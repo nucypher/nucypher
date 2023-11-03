@@ -1,7 +1,7 @@
 import math
 import pprint
 from pathlib import Path
-from typing import Callable, NamedTuple, Optional, Union
+from typing import Callable, Dict, NamedTuple, Optional, Union
 from urllib.parse import urlparse
 
 import requests
@@ -10,7 +10,6 @@ from constant_sorrow.constants import (
     NO_BLOCKCHAIN_CONNECTION,
     UNKNOWN_TX_STATUS,
 )
-from eth.typing import TransactionDict
 from eth_tester import EthereumTester
 from eth_tester.exceptions import (
     TransactionFailed as TestTransactionFailed,
@@ -512,13 +511,14 @@ class BlockchainInterface:
 
         return transaction_dict
 
-    def sign_and_broadcast_transaction(self,
-                                       transacting_power: TransactingPower,
-                                       transaction_dict: TransactionDict,
-                                       transaction_name: str = "",
-                                       confirmations: int = 0,
-                                       fire_and_forget: bool = False
-                                       ) -> Union[TxReceipt, HexBytes]:
+    def sign_and_broadcast_transaction(
+        self,
+        transacting_power: TransactingPower,
+        transaction_dict: Dict,
+        transaction_name: str = "",
+        confirmations: int = 0,
+        fire_and_forget: bool = False,
+    ) -> Union[TxReceipt, HexBytes]:
         """
         Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
         transaction using the ethereum provider's eth_sendRawTransaction RPC endpoint.
