@@ -131,9 +131,6 @@ def start_prometheus_exporter(
     for collector in metrics_collectors:
         collector.initialize(registry=registry)
 
-    # TODO: was never used
-    # "requests_counter": Counter(f'{metrics_prefix}_http_failures', 'HTTP Failures', ['method', 'endpoint']),
-
     # Scheduling
     metrics_task = task.LoopingCall(collect_prometheus_metrics,
                                     metrics_collectors=metrics_collectors)
