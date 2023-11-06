@@ -1,13 +1,14 @@
-
 import json
 from typing import List
 
 from prometheus_client import GC_COLLECTOR, PLATFORM_COLLECTOR, PROCESS_COLLECTOR
 from prometheus_client.core import Timestamp
 from prometheus_client.registry import REGISTRY, CollectorRegistry
+from prometheus_client.twisted import MetricsResource
 from prometheus_client.utils import floatToGoString
 from twisted.internet import reactor, task
 from twisted.web.resource import Resource
+from twisted.web.server import Site
 
 from nucypher.characters import lawful
 from nucypher.utilities.prometheus.collector import (
@@ -117,9 +118,6 @@ def start_prometheus_exporter(
     registry: CollectorRegistry = REGISTRY,
 ) -> None:
     """Configure, collect, and serve prometheus metrics."""
-    from prometheus_client.twisted import MetricsResource
-    from twisted.web.resource import Resource
-    from twisted.web.server import Site
 
     # Disabling default collector metrics
     REGISTRY.unregister(GC_COLLECTOR)
