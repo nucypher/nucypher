@@ -22,15 +22,16 @@ from nucypher.utilities.prometheus.collector import (
 
 class PrometheusMetricsConfig:
     """Prometheus configuration."""
-    def __init__(self,
+
+    def __init__(
+        self,
         port: int,
         listen_address: str = "",  # default to localhost ip
         collection_interval: int = 90,  # every 1.5 minutes
         start_now: bool = False,
     ):
-
         if not port:
-            raise ValueError('port must be provided')
+            raise ValueError("port must be provided")
 
         self.port = port
         self.listen_address = listen_address
@@ -49,6 +50,7 @@ class JSONMetricsResource(Resource):
     """
     Twisted ``Resource`` that serves prometheus in JSON.
     """
+
     isLeaf = True
 
     def __init__(self, registry=REGISTRY):
@@ -56,14 +58,17 @@ class JSONMetricsResource(Resource):
         self.registry = registry
 
     def render_GET(self, request):
-        request.setHeader(b'Content-Type', "text/json")
+        request.setHeader(b"Content-Type", "text/json")
         return self.generate_latest_json()
 
     @staticmethod
     def get_exemplar(sample, metric):
         if not sample.exemplar:
             return {}
-        elif metric.type not in ('histogram', 'gaugehistogram') or not sample.name.endswith('_bucket'):
+        elif metric.type not in (
+            "histogram",
+            "gaugehistogram",
+        ) or not sample.name.endswith("_bucket"):
             raise ValueError(
                 "Metric {} has exemplars, but is not a "
                 "histogram bucket".format(metric.name)
@@ -71,7 +76,7 @@ class JSONMetricsResource(Resource):
         return {
             "labels": sample.exemplar.labels,
             "value": floatToGoString(sample.exemplar.value),
-            "timestamp": sample.exemplar.timestamp
+            "timestamp": sample.exemplar.timestamp,
         }
 
     def get_sample(self, sample, metric):
@@ -80,14 +85,14 @@ class JSONMetricsResource(Resource):
             "labels": sample.labels,
             "value": floatToGoString(sample.value),
             "timestamp": sample.timestamp,
-            "exemplar": self.get_exemplar(sample, metric)
+            "exemplar": self.get_exemplar(sample, metric),
         }
 
     def get_metric(self, metric):
         return {
             "samples": [self.get_sample(sample, metric) for sample in metric.samples],
             "help": metric.documentation,
-            "type": metric.type
+            "type": metric.type,
         }
 
     def generate_latest_json(self):
@@ -100,10 +105,10 @@ class JSONMetricsResource(Resource):
             try:
                 output[metric.name] = self.get_metric(metric)
             except Exception as exception:
-                exception.args = (exception.args or ('',)) + (metric,)
+                exception.args = (exception.args or ("",)) + (metric,)
                 raise
 
-        json_dump = json.dumps(output, cls=MetricsEncoder).encode('utf-8')
+        json_dump = json.dumps(output, cls=MetricsEncoder).encode("utf-8")
         return json_dump
 
 
@@ -130,17 +135,21 @@ def start_prometheus_exporter(
         collector.initialize(registry=registry)
 
     # Scheduling
-    metrics_task = task.LoopingCall(collect_prometheus_metrics,
-                                    metrics_collectors=metrics_collectors)
-    metrics_task.start(interval=prometheus_config.collection_interval,
-                       now=prometheus_config.start_now)
+    metrics_task = task.LoopingCall(
+        collect_prometheus_metrics, metrics_collectors=metrics_collectors
+    )
+    metrics_task.start(
+        interval=prometheus_config.collection_interval, now=prometheus_config.start_now
+    )
 
     # WSGI Service
     root = Resource()
-    root.putChild(b'metrics', MetricsResource())
-    root.putChild(b'json_metrics', JSONMetricsResource())
+    root.putChild(b"metrics", MetricsResource())
+    root.putChild(b"json_metrics", JSONMetricsResource())
     factory = Site(root)
-    reactor.listenTCP(prometheus_config.port, factory, interface=prometheus_config.listen_address)
+    reactor.listenTCP(
+        prometheus_config.port, factory, interface=prometheus_config.listen_address
+    )
 
 
 def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]:
@@ -148,7 +157,6 @@ def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 
     # Blockchain prometheus
-    # TODO possible include information about payment
     collectors.append(BlockchainMetricsCollector(eth_endpoint=ursula.eth_endpoint))
 
     # Staking Provider prometheus
