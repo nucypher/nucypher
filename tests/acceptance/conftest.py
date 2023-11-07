@@ -206,20 +206,33 @@ def taco_child_application(
 
 @pytest.fixture(scope="module")
 def coordinator(
-    nucypher_dependency, deployer_account, taco_child_application, ritual_token
+    oz_dependency,
+    nucypher_dependency,
+    deployer_account,
+    taco_child_application,
+    ritual_token,
 ):
     _coordinator = deployer_account.deploy(
         nucypher_dependency.Coordinator,
         taco_child_application.address,
-        TIMEOUT,
-        MAX_DKG_SIZE,
-        deployer_account.address,
         ritual_token.address,
         FEE_RATE,
     )
-    _coordinator.makeInitiationPublic(sender=deployer_account)
-    taco_child_application.initialize(_coordinator.address, sender=deployer_account)
-    return _coordinator
+
+    encoded_initializer_function = _coordinator.initialize.encode_input(
+        TIMEOUT, MAX_DKG_SIZE, deployer_account.address
+    )
+    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+        _coordinator.address,
+        deployer_account.address,
+        encoded_initializer_function,
+        sender=deployer_account,
+    )
+
+    proxy_contract = nucypher_dependency.Coordinator.at(proxy.address)
+    proxy_contract.makeInitiationPublic(sender=deployer_account)
+    taco_child_application.initialize(proxy_contract.address, sender=deployer_account)
+    return proxy_contract
 
 
 @pytest.fixture(scope="module")
@@ -227,7 +240,6 @@ def global_allow_list(nucypher_dependency, deployer_account, coordinator):
     contract = deployer_account.deploy(
         nucypher_dependency.GlobalAllowList,
         coordinator.address,
-        deployer_account.address,
     )
 
     return contract
