@@ -9,6 +9,7 @@ import click
 from web3.types import BlockIdentifier
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
+from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.events import EventRecord
 from nucypher.blockchain.eth.interfaces import (
     BlockchainInterface,
@@ -103,7 +104,7 @@ def make_cli_character(
 
 
 def get_registry(
-    domain: str, registry_filepath: Optional[Path] = None
+    domain: TACoDomain, registry_filepath: Optional[Path] = None
 ) -> ContractRegistry:
     if registry_filepath:
         source = LocalRegistrySource(filepath=registry_filepath)
