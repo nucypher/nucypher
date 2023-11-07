@@ -21,7 +21,7 @@ from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
 
 from nucypher.policy.conditions.base import AccessControlCondition, _Serializable
-from nucypher.policy.conditions.context import is_context_variable
+from nucypher.policy.conditions.context import get_context_value, is_context_variable
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
@@ -314,6 +314,12 @@ class ReturnValueTest:
         right_operand = self._sanitize_value(self.value)
         result = _COMPARATOR_FUNCTIONS[self.comparator](left_operand, right_operand)
         return result
+
+    def with_resolved_context(self, **context):
+        value = self.value
+        if is_context_variable(value):
+            value = get_context_value(context_variable=value, **context)
+        return ReturnValueTest(self.comparator, value=value, index=self.index)
 
 
 class ConditionLingo(_Serializable):
