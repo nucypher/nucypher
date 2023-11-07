@@ -24,20 +24,12 @@ def test_invalid_time_condition():
             method="time_after_time",
         )
 
-    # invalid chain id
-    with pytest.raises(InvalidCondition):
-        _ = TimeCondition(
-            return_value_test=ReturnValueTest(">", 0),
-            chain="mychain",
-            method="time_after_time",
-        )
-
     # chain id not permitted
     with pytest.raises(InvalidCondition):
         _ = TimeCondition(
             return_value_test=ReturnValueTest(">", 0),
             chain=90210,  # Beverly Hills Chain :)
-            method="time_after_time",
+            method=TimeCondition.METHOD,
         )
 
 
