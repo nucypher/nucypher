@@ -1,3 +1,4 @@
+import re
 from typing import Any, List
 
 from eth_account.account import Account
@@ -13,7 +14,8 @@ from nucypher.policy.conditions.exceptions import (
 
 USER_ADDRESS_CONTEXT = ":userAddress"
 
-_CONTEXT_PREFIX = ":"
+CONTEXT_PREFIX = ":"
+CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 
 def _recover_user_address(**context) -> ChecksumAddress:
@@ -74,14 +76,18 @@ _DIRECTIVES = {
 
 
 def is_context_variable(variable) -> bool:
-    return isinstance(variable, str) and variable.startswith(_CONTEXT_PREFIX)
+    if isinstance(variable, str) and variable.startswith(CONTEXT_PREFIX):
+        if CONTEXT_REGEX.fullmatch(variable):
+            return True
+        else:
+            raise ValueError(f"Context variable name '{variable}' is not valid.")
+    return False
 
 
 def get_context_value(context_variable: str, **context) -> Any:
     try:
-        func = _DIRECTIVES[
-            context_variable
-        ]  # These are special context vars that will pre-processed by ursula
+        # DIRECTIVES are special context vars that will pre-processed by ursula
+        func = _DIRECTIVES[context_variable]
     except KeyError:
         # fallback for context variable without directive - assume key,value pair
         # handles the case for user customized context variables
