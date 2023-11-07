@@ -1,9 +1,7 @@
+from typing import Any, List
 
-from typing import Any
-
-import eth_account.messages
 from eth_account.account import Account
-from eth_account.messages import HexBytes
+from eth_account.messages import HexBytes, encode_structured_data
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 
@@ -12,6 +10,7 @@ from nucypher.policy.conditions.exceptions import (
     InvalidContextVariableData,
     RequiredContextVariable,
 )
+from nucypher.policy.conditions.lingo import ReturnValueTest
 
 USER_ADDRESS_CONTEXT = ":userAddress"
 
@@ -44,9 +43,7 @@ def _recover_user_address(**context) -> ChecksumAddress:
         blockHash = eip712_message["message"]["blockHash"]
         eip712_message["message"]["blockHash"] = HexBytes(blockHash)
 
-        signable_message = eth_account.messages.encode_structured_data(
-            primitive=eip712_message
-        )
+        signable_message = encode_structured_data(primitive=eip712_message)
     except Exception as e:
         # data could not be processed
         raise InvalidContextVariableData(
@@ -98,3 +95,25 @@ def get_context_value(context_variable: str, **context) -> Any:
         value = func(**context)  # required inputs here
 
     return value
+
+
+def resolve_any_context_variables(
+    parameters: List[Any], return_value_test: ReturnValueTest, **context
+):
+    processed_parameters = []
+    for p in parameters:
+        # TODO needs additional support for ERC1155 which has lists of values
+        # context variables can only be strings, but other types of parameters can be passed
+        if is_context_variable(p):
+            p = get_context_value(context_variable=p, **context)
+        processed_parameters.append(p)
+
+    v = return_value_test.value
+    if is_context_variable(v):
+        v = get_context_value(context_variable=v, **context)
+    i = return_value_test.index
+    processed_return_value_test = ReturnValueTest(
+        return_value_test.comparator, value=v, index=i
+    )
+
+    return processed_parameters, processed_return_value_test
