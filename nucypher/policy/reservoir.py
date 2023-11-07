@@ -49,6 +49,9 @@ class MergedReservoir:
         else:
             return None
 
+    def __len__(self):
+        return len(self.values) + len(self.reservoir)
+
 
 class PrefetchStrategy:
     """
@@ -58,10 +61,18 @@ class PrefetchStrategy:
     """
 
     def __init__(self, reservoir: MergedReservoir, need_successes: int):
+        if len(reservoir) < need_successes:
+            raise ValueError(
+                f"Insufficient staking providers ({len(reservoir.values)}) to draw {need_successes}"
+            )
         self.reservoir = reservoir
         self.need_successes = need_successes
 
     def __call__(self, successes: int) -> Optional[List[ChecksumAddress]]:
+        if successes > self.need_successes:
+            # TODO: we could raise here, but we were returning `None` before
+            return None
+
         batch = []
         for i in range(self.need_successes - successes):
             value = self.reservoir()
