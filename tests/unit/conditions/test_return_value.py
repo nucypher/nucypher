@@ -26,6 +26,12 @@ def test_return_value_test_schema():
     errors = schema.validate(data=test_dict)
     assert errors, f"{errors}"
 
+    # invalid comparator should cause error
+    test_dict = schema.dump(return_value_test)
+    test_dict["comparator"] = "<>"
+    errors = schema.validate(data=test_dict)
+    assert errors, f"{errors}"
+
     # missing value should cause error
     test_dict = schema.dump(return_value_test)
     del test_dict["value"]
@@ -38,10 +44,30 @@ def test_return_value_test_schema():
     errors = schema.validate(data=test_dict)
     assert not errors, f"{errors}"
 
+    # negative index should cause error
+    test_dict = schema.dump(return_value_test)
+    test_dict["index"] = -3
+    errors = schema.validate(data=test_dict)
+    assert errors, f"{errors}"
+
+    # non-integer index should cause error
+    test_dict = schema.dump(return_value_test)
+    test_dict["index"] = "25"
+    errors = schema.validate(data=test_dict)
+    assert errors, f"{errors}"
+
 
 def test_return_value_index_invalid():
     with pytest.raises(ReturnValueTest.InvalidExpression):
-        _ = ReturnValueTest(comparator=">", value="0", index="james")
+        _ = ReturnValueTest(comparator=">", value=0, index="james")
+
+    with pytest.raises(ReturnValueTest.InvalidExpression):
+        _ = ReturnValueTest(comparator=">", value=0, index=-1)
+
+    with pytest.raises(ReturnValueTest.InvalidExpression):
+        _ = ReturnValueTest(
+            comparator=">", value=0, index="10"
+        )  # should not be a string
 
 
 def test_return_value_index():
