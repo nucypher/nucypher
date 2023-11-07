@@ -69,7 +69,7 @@ class GithubRegistrySource(RegistrySource):
     @property
     def registry_name(self) -> str:
         """Get the name of the registry file."""
-        name = f"{self.domain}.json"
+        name = f"{str(self.domain)}.json"
         return name
 
     def get_publication_endpoint(self) -> str:

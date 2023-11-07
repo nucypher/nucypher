@@ -59,7 +59,7 @@ class RegistryOptions:
         self.poa = poa
         self.registry_filepath = registry_filepath
         self.light = light
-        self.domain = domain
+        self.domain = domains.get_domain(str(domain))
 
     def setup(self, general_config) -> tuple:
         emitter = setup_emitter(general_config)
