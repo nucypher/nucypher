@@ -1,8 +1,9 @@
 from typing import Any, List, Optional
 
 from marshmallow import fields, post_load, validate
+from marshmallow.validate import Equal, OneOf
 
-from nucypher.policy.conditions.evm import RPCCondition
+from nucypher.policy.conditions.evm import _CONDITION_CHAINS, RPCCondition
 from nucypher.policy.conditions.exceptions import InvalidCondition
 from nucypher.policy.conditions.lingo import ConditionType, ReturnValueTest
 from nucypher.policy.conditions.utils import CamelCaseSchema
@@ -18,8 +19,12 @@ class TimeCondition(RPCCondition):
             validate=validate.Equal(ConditionType.TIME.value), required=True
         )
         name = fields.Str(required=False)
-        chain = fields.Int(required=True)
-        method = fields.Str(dump_default="blocktime", required=True)
+        chain = fields.Int(
+            required=True, strict=True, validate=OneOf(_CONDITION_CHAINS)
+        )
+        method = fields.Str(
+            dump_default="blocktime", required=True, validate=Equal("blocktime")
+        )
         return_value_test = fields.Nested(
             ReturnValueTest.ReturnValueTestSchema(), required=True
         )

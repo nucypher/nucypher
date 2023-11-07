@@ -11,6 +11,7 @@ from typing import (
 from eth_typing import ChecksumAddress
 from eth_utils import to_checksum_address
 from marshmallow import ValidationError, fields, post_load, validate, validates_schema
+from marshmallow.validate import OneOf
 from web3 import HTTPProvider, Web3
 from web3.contract.contract import ContractFunction
 from web3.middleware import geth_poa_middleware
@@ -137,7 +138,9 @@ class RPCCondition(AccessControlCondition):
         condition_type = fields.Str(
             validate=validate.Equal(ConditionType.RPC.value), required=True
         )
-        chain = fields.Int(required=True)
+        chain = fields.Int(
+            required=True, strict=True, validate=OneOf(_CONDITION_CHAINS)
+        )
         method = fields.Str(required=True)
         parameters = fields.List(fields.Field, attribute="parameters", required=False)
         return_value_test = fields.Nested(
