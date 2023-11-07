@@ -96,6 +96,16 @@ def test_rpc_condition_schema_validation(rpc_condition):
         del condition_dict["returnValueTest"]
         RPCCondition.validate(condition_dict)
 
+    with pytest.raises(InvalidCondition):
+        # chain id not an integer
+        condition_dict["chain"] = str(TESTERCHAIN_CHAIN_ID)
+        RPCCondition.validate(condition_dict)
+
+    with pytest.raises(InvalidCondition):
+        # chain id not a permitted chain
+        condition_dict["chain"] = 90210  # Beverly Hills Chain :)
+        RPCCondition.validate(condition_dict)
+
 
 def test_rpc_condition_repr(rpc_condition):
     rpc_condition_str = f"{rpc_condition}"
