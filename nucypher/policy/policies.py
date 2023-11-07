@@ -114,6 +114,10 @@ class Policy:
 
         self.publisher.block_until_number_of_known_nodes_is(self.shares, learn_on_this_thread=True, eager=True)
         reservoir = self._make_reservoir(handpicked_addresses)
+        if len(reservoir) < self.shares:
+            raise self.NotEnoughUrsulas(
+                f"There aren't enough nodes, {len(reservoir)} to sample {self.shares}"
+            )
         value_factory = PrefetchStrategy(reservoir, self.shares)
 
         def worker(address) -> "characters.lawful.Ursula":
