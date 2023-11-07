@@ -21,7 +21,10 @@ from web3.types import ABIFunction
 from nucypher.blockchain.eth.clients import POA_CHAINS
 from nucypher.policy.conditions import STANDARD_ABI_CONTRACT_TYPES, STANDARD_ABIS
 from nucypher.policy.conditions.base import AccessControlCondition
-from nucypher.policy.conditions.context import get_context_value, is_context_variable
+from nucypher.policy.conditions.context import (
+    is_context_variable,
+    resolve_any_context_variables,
+)
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     NoConnectionToChain,
@@ -86,28 +89,6 @@ def _resolve_abi(
             raise InvalidCondition(str(e))
 
     return ABIFunction(function_abi)
-
-
-def _resolve_any_context_variables(
-    parameters: List[Any], return_value_test: ReturnValueTest, **context
-):
-    processed_parameters = []
-    for p in parameters:
-        # TODO needs additional support for ERC1155 which has lists of values
-        # context variables can only be strings, but other types of parameters can be passed
-        if is_context_variable(p):
-            p = get_context_value(context_variable=p, **context)
-        processed_parameters.append(p)
-
-    v = return_value_test.value
-    if is_context_variable(v):
-        v = get_context_value(context_variable=v, **context)
-    i = return_value_test.index
-    processed_return_value_test = ReturnValueTest(
-        return_value_test.comparator, value=v, index=i
-    )
-
-    return processed_parameters, processed_return_value_test
 
 
 def _validate_chain(chain: int) -> None:
@@ -280,7 +261,7 @@ class RPCCondition(AccessControlCondition):
         Verifies the onchain condition is met by performing a
         read operation and evaluating the return value test.
         """
-        parameters, return_value_test = _resolve_any_context_variables(
+        parameters, return_value_test = resolve_any_context_variables(
             self.parameters, self.return_value_test, **context
         )
         return_value_test = self._align_comparator_value_with_abi(return_value_test)
