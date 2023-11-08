@@ -36,18 +36,11 @@ repos:
       - id: detect-private-key
 
   - repo: https://github.com/akaihola/darker
-    rev: 1.6.1
+    rev: 1.7.2
     hooks:
     -   id: darker
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.0.275'
+    rev: 'v0.1.4'
     hooks:
     - id: ruff
-
-# TODO: May be incrementally introduced
-#  - repo: https://github.com/psf/black
-#    rev: stable
-#    hooks:
-#      - id: black
-#        language_version: python3.6
