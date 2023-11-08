@@ -23,7 +23,7 @@ from constant_sorrow.constants import (
     TRANSACTION,
 )
 from eth_typing.evm import ChecksumAddress
-from eth_utils.address import to_checksum_address
+from eth_utils import to_checksum_address, to_int
 from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import (
@@ -38,7 +38,6 @@ from web3.types import Timestamp, TxParams, TxReceipt, Wei
 from nucypher import types
 from nucypher.blockchain.eth import events
 from nucypher.blockchain.eth.constants import (
-    ETH_ADDRESS_BYTE_LENGTH,
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
     SUBSCRIPTION_MANAGER_CONTRACT_NAME,
@@ -439,13 +438,15 @@ class TACoApplicationAgent(EthereumContractAgent):
         if pagination_size > 0:
             num_providers: int = self.get_staking_providers_population()
             start_index: int = 0
-            n_tokens: int = 0
-            staking_providers: Dict[int, int] = dict()
+            n_tokens = types.TuNits(0)
+            staking_providers: Dict[ChecksumAddress, types.TuNits] = dict()
             attempts: int = 0
             while start_index < num_providers:
                 try:
                     attempts += 1
-                    active_staking_providers = self.get_active_staking_providers(start_index, pagination_size)
+                    active_staking_providers_info = self.get_active_staking_providers(
+                        start_index, pagination_size
+                    )
                 except Exception as e:
                     if 'timeout' not in str(e):
                         # exception unrelated to pagination size and timeout
@@ -460,27 +461,25 @@ class TACoApplicationAgent(EthereumContractAgent):
                         self.log.debug(f"Failed staking providers sampling using pagination size = {old_pagination_size}."
                                        f"Retrying with size {pagination_size}")
                 else:
-                    temp_authorized_tokens, temp_staking_providers = active_staking_providers
-                    # temp_staking_providers is a list of length-2 lists (address -> authorized tokens)
-                    temp_staking_providers = {address: authorized_tokens for address, authorized_tokens in temp_staking_providers}
-                    n_tokens = n_tokens + temp_authorized_tokens
-                    staking_providers.update(temp_staking_providers)
+                    (
+                        batch_authorized_tokens,
+                        batch_staking_providers,
+                    ) = _process_active_staking_providers_info(
+                        active_staking_providers_info
+                    )
+                    n_tokens = n_tokens + batch_authorized_tokens
+                    staking_providers.update(batch_staking_providers)
                     start_index += pagination_size
 
         else:
-            n_tokens, temp_staking_providers = self.get_active_staking_providers(start_index=0, max_results=0)
-            staking_providers = {address: authorized_tokens for address, authorized_tokens in temp_staking_providers}
+            active_staking_providers_info = self.get_active_staking_providers(
+                start_index=0, max_results=0
+            )
+            n_tokens, staking_providers = _process_active_staking_providers_info(
+                active_staking_providers_info
+            )
 
-        # staking provider's addresses are returned as uint256 by getActiveStakingProviders(), convert to address objects
-        def checksum_address(address: int) -> ChecksumAddress:
-            return ChecksumAddress(to_checksum_address(address.to_bytes(ETH_ADDRESS_BYTE_LENGTH, 'big')))
-
-        typed_staking_providers = {
-            checksum_address(address): types.TuNits(authorized_tokens)
-            for address, authorized_tokens in staking_providers.items()
-        }
-
-        return types.TuNits(n_tokens), typed_staking_providers
+        return n_tokens, staking_providers
 
     def get_staking_provider_reservoir(self,
                                        without: Iterable[ChecksumAddress] = None,
@@ -516,6 +515,21 @@ class TACoApplicationAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
+
+
+def _process_active_staking_providers_info(
+    active_staking_providers_info: Iterable,
+) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
+    total_authorized_tokens, staking_providers_info = active_staking_providers_info
+    staking_providers = dict()
+    for info in staking_providers_info:
+        staking_provider_address = to_checksum_address(info[0:20])
+        staking_provider_authorized_tokens = to_int(info[20:32])
+        staking_providers[staking_provider_address] = types.TuNits(
+            staking_provider_authorized_tokens
+        )
+
+    return types.TuNits(total_authorized_tokens), staking_providers
 
 
 class CoordinatorAgent(EthereumContractAgent):
