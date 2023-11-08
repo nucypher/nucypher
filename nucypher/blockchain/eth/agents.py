@@ -416,9 +416,24 @@ class TACoApplicationAgent(EthereumContractAgent):
         return providers
 
     @contract_api(CONTRACT_CALL)
-    def get_active_staking_providers(self, start_index: int, max_results: int) -> Iterable:
-        result = self.contract.functions.getActiveStakingProviders(start_index, max_results).call()
-        return result
+    def get_active_staking_providers(
+        self, start_index: int, max_results: int
+    ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
+        active_staking_providers_info = (
+            self.contract.functions.getActiveStakingProviders(
+                start_index, max_results
+            ).call()
+        )
+        total_authorized_tokens, staking_providers_info = active_staking_providers_info
+        staking_providers = dict()
+        for info in staking_providers_info:
+            staking_provider_address = to_checksum_address(info[0:20])
+            staking_provider_authorized_tokens = to_int(info[20:32])
+            staking_providers[staking_provider_address] = types.TuNits(
+                staking_provider_authorized_tokens
+            )
+
+        return types.TuNits(total_authorized_tokens), staking_providers
 
     @contract_api(CONTRACT_CALL)
     def swarm(self) -> Iterable[ChecksumAddress]:
@@ -445,9 +460,10 @@ class TACoApplicationAgent(EthereumContractAgent):
             while start_index < num_providers:
                 try:
                     attempts += 1
-                    active_staking_providers_info = self.get_active_staking_providers(
-                        start_index, pagination_size
-                    )
+                    (
+                        batch_authorized_tokens,
+                        batch_staking_providers,
+                    ) = self.get_active_staking_providers(start_index, pagination_size)
                 except Exception as e:
                     if 'timeout' not in str(e):
                         # exception unrelated to pagination size and timeout
@@ -462,22 +478,13 @@ class TACoApplicationAgent(EthereumContractAgent):
                         self.log.debug(f"Failed staking providers sampling using pagination size = {old_pagination_size}."
                                        f"Retrying with size {pagination_size}")
                 else:
-                    (
-                        batch_authorized_tokens,
-                        batch_staking_providers,
-                    ) = _process_active_staking_providers_info(
-                        active_staking_providers_info
-                    )
                     n_tokens = n_tokens + batch_authorized_tokens
                     staking_providers.update(batch_staking_providers)
                     start_index += pagination_size
 
         else:
-            active_staking_providers_info = self.get_active_staking_providers(
+            n_tokens, staking_providers = self.get_active_staking_providers(
                 start_index=0, max_results=0
-            )
-            n_tokens, staking_providers = _process_active_staking_providers_info(
-                active_staking_providers_info
             )
 
         return n_tokens, staking_providers
@@ -516,21 +523,6 @@ class TACoApplicationAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                    transacting_power=transacting_power)
         return receipt
-
-
-def _process_active_staking_providers_info(
-    active_staking_providers_info: Iterable,
-) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
-    total_authorized_tokens, staking_providers_info = active_staking_providers_info
-    staking_providers = dict()
-    for info in staking_providers_info:
-        staking_provider_address = to_checksum_address(info[0:20])
-        staking_provider_authorized_tokens = to_int(info[20:32])
-        staking_providers[staking_provider_address] = types.TuNits(
-            staking_provider_authorized_tokens
-        )
-
-    return types.TuNits(total_authorized_tokens), staking_providers
 
 
 class CoordinatorAgent(EthereumContractAgent):
