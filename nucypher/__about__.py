@@ -16,7 +16,7 @@ __url__ = "https://github.com/nucypher/nucypher"
 
 __summary__ = "A threshold access control application to empower privacy in decentralized systems."
 
-__version__ = "7.0.0-rc.8"
+__version__ = "7.0.0-rc.9"
 
 __author__ = "NuCypher"
 
