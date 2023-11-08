@@ -307,8 +307,9 @@ class TACoChildApplicationAgent(EthereumContractAgent):
         """Matching StakingProviderInfo struct from TACoChildApplication contract."""
 
         operator: ChecksumAddress
-        operator_confirmed: bool
         authorized: int
+        operator_confirmed: bool
+        index: int
 
     @contract_api(CONTRACT_CALL)
     def staking_provider_from_operator(
