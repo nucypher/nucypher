@@ -5,14 +5,10 @@ from prometheus_client.registry import CollectorRegistry
 from typing import Dict, Type
 
 import nucypher
-from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
-    EthereumContractAgent,
     TACoApplicationAgent,
 )
-from nucypher.blockchain.eth.domains import TACoDomain
-from nucypher.blockchain.eth.events import ContractEventsThrottler
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters import lawful
@@ -20,6 +16,7 @@ from nucypher.characters import lawful
 
 class MetricsCollector(ABC):
     """Metrics Collector Interface."""
+
     class CollectorError(Exception):
         pass
 
@@ -44,6 +41,7 @@ class BaseMetricsCollector(MetricsCollector):
     Subclasses should initialize the self.metrics member in their initialize() method since the
     self.metrics member is used to determine whether initialize was called, and if not an exception is raised.
     """
+
     def __init__(self):
         self.metrics: Dict = None
 
@@ -105,7 +103,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "operator_address": self.ursula.operator_address,
         }
 
-        self.metrics["learning_status"].state('running' if self.ursula._learning_task.running else 'stopped')
+        self.metrics["learning_status"].state(
+            "running" if self.ursula._learning_task.running else "stopped"
+        )
         self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
         self.metrics["client_info"].info(payload)
 
@@ -190,99 +190,3 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         self.metrics["operator_start_gauge"].set(
             staking_provider_info.operator_start_timestamp
         )
-
-
-class OperatorMetricsCollector(BaseMetricsCollector):
-    """Collector for Operator specific metrics."""
-
-    def __init__(
-        self,
-        domain: TACoDomain,
-        operator_address: ChecksumAddress,
-        contract_registry: ContractRegistry,
-    ):
-        super().__init__()
-        self.domain = domain
-        self.operator_address = operator_address
-        self.contract_registry = contract_registry
-
-    def initialize(self, registry: CollectorRegistry) -> None:
-        self.metrics = {
-            "operator_eth_balance_gauge": Gauge(
-                "operator_eth_balance",
-                "Operator Ethereum balance",
-                registry=registry,
-            ),
-        }
-
-    def _collect_internal(self) -> None:
-        operator_token_actor = actors.NucypherTokenActor(
-            registry=self.contract_registry,
-            domain=self.domain,
-            checksum_address=self.operator_address,
-        )
-        self.metrics["operator_eth_balance_gauge"].set(
-            float(operator_token_actor.eth_balance)
-        )
-
-
-class EventMetricsCollector(BaseMetricsCollector):
-    """General collector for emitted events."""
-
-    def __init__(
-        self,
-        event_name: str,
-        event_args_config: Dict[str, tuple],
-        argument_filters: Dict[str, str],
-        contract_agent_class: Type[EthereumContractAgent],
-        contract_registry: ContractRegistry,
-    ):
-        super().__init__()
-        self.event_name = event_name
-        self.contract_agent_class = contract_agent_class
-        self.contract_registry = contract_registry
-
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        # this way we don't have to deal with 'latest' at all
-        self.filter_current_from_block = contract_agent.blockchain.client.block_number
-        self.filter_arguments = argument_filters
-        self.event_args_config = event_args_config
-
-    def initialize(self, registry: CollectorRegistry) -> None:
-        self.metrics = dict()
-        for arg_name in self.event_args_config:
-            metric_class, metric_name, metric_doc = self.event_args_config[arg_name]
-            metric_key = self._get_arg_metric_key(arg_name)
-            self.metrics[metric_key] = metric_class(metric_name, metric_doc, registry=registry)
-
-    def _collect_internal(self) -> None:
-        contract_agent = ContractAgency.get_agent(self.contract_agent_class, registry=self.contract_registry)
-        from_block = self.filter_current_from_block
-        to_block = contract_agent.blockchain.client.block_number
-        if from_block >= to_block:
-            # we've already checked the latest block and waiting for a new block
-            # nothing to see here
-            return
-
-        # update last block checked for the next round - from/to block range is inclusive
-        # increment before potentially long running execution to improve concurrency handling
-        self.filter_current_from_block = to_block + 1
-
-        events_throttler = ContractEventsThrottler(agent=contract_agent,
-                                                   event_name=self.event_name,
-                                                   from_block=from_block,
-                                                   to_block=to_block,
-                                                   **self.filter_arguments)
-        for event_record in events_throttler:
-            self._event_occurred(event_record.raw_event)
-
-    def _event_occurred(self, event) -> None:
-        for arg_name in self.event_args_config:
-            metric_key = self._get_arg_metric_key(arg_name)
-            if arg_name == "block_number":
-                self.metrics[metric_key].set(event["blockNumber"])
-                continue
-            self.metrics[metric_key].set(event['args'][arg_name])
-
-    def _get_arg_metric_key(self, arg_name: str):
-        return f'{self.event_name}_{arg_name}'
