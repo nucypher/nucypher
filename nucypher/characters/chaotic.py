@@ -155,7 +155,7 @@ class DKGOmniscientDecryptionClient(ThresholdDecryptionClient):
         self,
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
-        timeout: float = 10,
+        timeout: int = 15,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
@@ -229,7 +229,7 @@ class DoomedDecryptionClient(ThresholdDecryptionClient):
         self,
         encrypted_requests,
         threshold: int,
-        timeout: float = 10,
+        timeout: int = 15,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
