@@ -646,6 +646,7 @@ class Bob(Character):
         participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
         cohort: List["Ursula"],
         threshold: int,
+        timeout: int,
     ) -> Dict[
         ChecksumAddress, Union[DecryptionShareSimple, DecryptionSharePrecomputed]
     ]:
@@ -670,7 +671,9 @@ class Bob(Character):
 
         decryption_client = self._threshold_decryption_client_class(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
-            encrypted_requests=decryption_request_mapping, threshold=threshold
+            encrypted_requests=decryption_request_mapping,
+            threshold=threshold,
+            timeout=timeout,
         )
 
         if len(successes) < threshold:
@@ -724,6 +727,7 @@ class Bob(Character):
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
         peering_timeout: int = 60,
+        decryption_timeout: int = 15,
     ) -> bytes:
         ritual_id = self.get_ritual_id_from_public_key(
             public_key=threshold_message_kit.acp.public_key
@@ -757,6 +761,7 @@ class Bob(Character):
             participant_public_keys=participant_public_keys,
             cohort=ursulas,
             threshold=ritual.threshold,
+            timeout=decryption_timeout,
         )
 
         return self.__decrypt(
