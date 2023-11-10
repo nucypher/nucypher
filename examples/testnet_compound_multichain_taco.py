@@ -1,4 +1,5 @@
 import os
+
 from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth import domains
@@ -37,7 +38,7 @@ coordinator_agent = CoordinatorAgent(
     blockchain_endpoint=polygon_endpoint,
     registry=registry,
 )
-ritual_id = 3  # got this from a side channel
+ritual_id = 24  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
 # known authorized encryptor for ritual 3
