@@ -1,9 +1,10 @@
+import os
 import socket
 import ssl
 import time
 from http import HTTPStatus
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple, Union
 
 import requests
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
@@ -21,10 +22,21 @@ from nucypher.utilities.logging import Logger
 SSL_LOGGER = Logger('ssl-middleware')
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
+# It’s a good practice to set connect timeouts to slightly larger
+# than a multiple of 3, which is the default TCP packet retransmission window.
+# (https://requests.readthedocs.io/en/latest/user/advanced/#timeouts)
+MIDDLEWARE_DEFAULT_CONNECT_TIMEOUT = os.getenv(
+    "NUCYPHER_MIDDLEWARE_DEFAULT_CONNECT_TIMEOUT", default=3.05
+)
+
+MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT = os.getenv(
+    "MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT", default=4
+)
+
 
 class NucypherMiddlewareClient:
     library = requests
-    timeout = 1.2
+    timeout = MIDDLEWARE_DEFAULT_CONNECT_TIMEOUT
 
     def __init__(
         self,
@@ -41,14 +53,15 @@ class NucypherMiddlewareClient:
         self.eth_endpoint = eth_endpoint
         self.storage = storage or ForgetfulNodeStorage()  # for certificate storage
 
-    def get_certificate(self,
-                        host,
-                        port,
-                        timeout=4,
-                        retry_attempts: int = 3,
-                        retry_rate: int = 2,
-                        current_attempt: int = 0):
-
+    def get_certificate(
+        self,
+        host,
+        port,
+        timeout=MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT,
+        retry_attempts: int = 3,
+        retry_rate: int = 2,
+        current_attempt: int = 0,
+    ):
         socket.setdefaulttimeout(timeout)  # Set Socket Timeout
 
         try:
@@ -102,11 +115,22 @@ class NucypherMiddlewareClient:
             raise ValueError("You need to pass either the node or a host and port.")
         return host, port, self.library
 
+    def _determine_timeout(self, provided_timeout) -> Union[float, Tuple[float, float]]:
+        # provided timeout (could be None) is really for reading not initial connection timeout,
+        # but use as fallback for connect timeout
+        connect_timeout = self.timeout or provided_timeout
+        read_timeout = provided_timeout or self.timeout
+        if connect_timeout == read_timeout:
+            return connect_timeout
+        else:
+            return connect_timeout, read_timeout
+
     def invoke_method(self, method, url, *args, **kwargs):
         self.clean_params(kwargs)
-        if not kwargs.get("timeout"):
-            if self.timeout:
-                kwargs["timeout"] = self.timeout
+
+        timeout = self._determine_timeout(kwargs.get("timeout"))
+        kwargs["timeout"] = timeout
+
         response = method(url, *args, **kwargs)
         return response
 
@@ -117,10 +141,12 @@ class NucypherMiddlewareClient:
 
     def node_information(self, host, port):
         # The only time a node is exempt from verification - when we are first getting its info.
-        response = self.get(node_or_sprout=EXEMPT_FROM_VERIFICATION,
-                            host=host, port=port,
-                            path="public_information",
-                            timeout=2)
+        response = self.get(
+            node_or_sprout=EXEMPT_FROM_VERIFICATION,
+            host=host,
+            port=port,
+            path="public_information",
+        )
         return response.content
 
     def __getattr__(self, method_name):
@@ -292,7 +318,7 @@ class RestMiddleware:
         return response
 
     def ping(self, node):
-        response = self.client.get(node_or_sprout=node, path="ping", timeout=2)
+        response = self.client.get(node_or_sprout=node, path="ping")
         return response
 
     def get_nodes_via_rest(self,
