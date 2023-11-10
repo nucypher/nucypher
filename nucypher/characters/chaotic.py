@@ -23,21 +23,6 @@ class FakeNode:
         self.checksum_address = checksum_address
 
 
-class _ParticipantKeyDict(dict):
-    def __init__(self, threshold_request_decrypting_power, *args, **kwargs):
-        self.threshold_request_decrypting_power = threshold_request_decrypting_power
-        super().__init__(*args, **kwargs)
-
-    def __getitem__(self, _item):
-        # Everybody has the same public key at the moment.
-        fifty_fiver = (
-            self.threshold_request_decrypting_power._get_static_secret_from_ritual_id(
-                55
-            )
-        )
-        return fifty_fiver.public_key()
-
-
 class Uncoordinated:
     """
     A stand-in for some of the logic that is normally handled (and verified) by use of a Coordinator contract.
@@ -59,9 +44,16 @@ class Uncoordinated:
         self.threshold_request_decrypting_power = ThresholdRequestDecryptingPower(
             session_secret_factory=secret_factory
         )
-        self.participant_public_keys = _ParticipantKeyDict(
-            self.threshold_request_decrypting_power
+        # All participants have the same public key.
+        fifty_fiver_public_key = (
+            self.threshold_request_decrypting_power._get_static_secret_from_ritual_id(
+                55
+            ).public_key()
         )
+        self.participant_public_keys = {
+            checksum_address: fifty_fiver_public_key
+            for checksum_address in checksum_addresses
+        }
 
 
 class DKGOmniscient:
