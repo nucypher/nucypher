@@ -611,14 +611,21 @@ class Bob(Character):
             self.block_until_specific_nodes_are_known(
                 addresses=validators,
                 timeout=timeout,
-                allow_missing=0,
+                allow_missing=(ritual.dkg_size - ritual.threshold),
             )
 
         cohort = list()
         for staking_provider_address, transcript_bytes in ritual.transcripts:
+            if staking_provider_address not in self.known_nodes:
+                continue
             remote_operator = self.known_nodes[staking_provider_address]
             remote_operator.mature()
             cohort.append(remote_operator)
+
+        if len(cohort) < ritual.threshold:
+            raise Ursula.NotEnoughUrsulas(
+                f"Unable to learn about a threshold, {ritual.threshold}-of-{ritual.dkg_size} Ursulas for ritual"
+            )
 
         return cohort
 
