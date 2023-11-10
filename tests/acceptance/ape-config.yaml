@@ -12,7 +12,7 @@ dependencies:
     version: 5.0.0
 
 solidity:
-  version: 0.8.22
+  version: 0.8.23
   evm_version: paris
   import_remapping:
     - "@openzeppelin/contracts=openzeppelin/v5.0.0"
