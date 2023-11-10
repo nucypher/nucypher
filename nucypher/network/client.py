@@ -16,7 +16,7 @@ class ThresholdAccessControlClient:
         self.log = Logger(self.__class__.__name__)
 
     def _ensure_ursula_availability(
-        self, ursulas: List[ChecksumAddress], threshold: int, timeout=10
+        self, ursulas: List[ChecksumAddress], threshold: int, timeout: int
     ):
         """
         Make sure we know enough nodes;
