@@ -190,6 +190,7 @@ class PRERetrievalClient(ThresholdAccessControlClient):
         alice_verifying_key: PublicKey,
         policy_encrypting_key: PublicKey,
         bob_encrypting_key: PublicKey,
+        timeout: int,
     ) -> Dict["Capsule", "VerifiedCapsuleFrag"]:
         """
         Sends a reencryption request to a single Ursula and processes the results.
@@ -200,7 +201,9 @@ class PRERetrievalClient(ThresholdAccessControlClient):
         middleware = self._learner.network_middleware
 
         try:
-            response = middleware.reencrypt(ursula, bytes(reencryption_request))
+            response = middleware.reencrypt(
+                ursula, bytes(reencryption_request), timeout=timeout
+            )
         except NodeSeemsToBeDown as e:
             # TODO: What to do here?  Ursula isn't supposed to be down.  NRN
             message = (f"Ursula ({ursula}) seems to be down "
@@ -250,14 +253,16 @@ class PRERetrievalClient(ThresholdAccessControlClient):
         return {capsule: vcfrag for capsule, vcfrag
                 in zip(reencryption_request.capsules, verified_cfrags)}
 
-    def retrieve_cfrags(self,
-                        treasure_map: TreasureMap,
-                        retrieval_kits: Sequence[RetrievalKit],
-                        alice_verifying_key: PublicKey,  # KeyFrag signer's key
-                        bob_encrypting_key: PublicKey,  # User's public key (reencryption target)
-                        bob_verifying_key: PublicKey,
-                        **context) -> Tuple[List[RetrievalResult], List[RetrievalError]]:
-
+    def retrieve_cfrags(
+        self,
+        treasure_map: TreasureMap,
+        retrieval_kits: Sequence[RetrievalKit],
+        alice_verifying_key: PublicKey,  # KeyFrag signer's key
+        bob_encrypting_key: PublicKey,  # User's public key (reencryption target)
+        bob_verifying_key: PublicKey,
+        timeout: int = 10,
+        **context,
+    ) -> Tuple[List[RetrievalResult], List[RetrievalError]]:
         ursulas_in_map = treasure_map.destinations.keys()
 
         # TODO (#1995): when that issue is fixed, conversion is no longer needed
@@ -266,7 +271,7 @@ class PRERetrievalClient(ThresholdAccessControlClient):
         ]
 
         self._ensure_ursula_availability(
-            ursulas=ursulas_in_map, threshold=treasure_map.threshold
+            ursulas=ursulas_in_map, threshold=treasure_map.threshold, timeout=timeout
         )
 
         retrieval_plan = RetrievalPlan(treasure_map=treasure_map, retrieval_kits=retrieval_kits)
@@ -301,11 +306,14 @@ class PRERetrievalClient(ThresholdAccessControlClient):
             )
 
             try:
-                cfrags = self._request_reencryption(ursula=ursula,
-                                                    reencryption_request=reencryption_request,
-                                                    alice_verifying_key=alice_verifying_key,
-                                                    policy_encrypting_key=treasure_map.policy_encrypting_key,
-                                                    bob_encrypting_key=bob_encrypting_key)
+                cfrags = self._request_reencryption(
+                    ursula=ursula,
+                    reencryption_request=reencryption_request,
+                    alice_verifying_key=alice_verifying_key,
+                    policy_encrypting_key=treasure_map.policy_encrypting_key,
+                    bob_encrypting_key=bob_encrypting_key,
+                    timeout=timeout,
+                )
             except Exception as e:
                 exception_message = f"{e.__class__.__name__}: {e}"
                 retrieval_plan.update_errors(

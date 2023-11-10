@@ -510,6 +510,7 @@ class Bob(Character):
         alice_verifying_key: PublicKey,  # KeyFrag signer's key
         encrypted_treasure_map: EncryptedTreasureMap,
         publisher_verifying_key: Optional[PublicKey] = None,
+        timeout: int = 10,
         **context,  # TODO: dont use one context to rule them all
     ) -> List[PolicyMessageKit]:
         """
@@ -567,6 +568,7 @@ class Bob(Character):
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
             bob_verifying_key=self.stamp.as_umbral_pubkey(),
+            timeout=timeout,
             **context,
         )
 
