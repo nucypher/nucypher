@@ -39,6 +39,10 @@ repos:
     rev: 1.7.2
     hooks:
     -   id: darker
+        args: ["--check"]
+        stages: [push]
+    -   id: darker
+        stages: [commit]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: 'v0.1.4'
