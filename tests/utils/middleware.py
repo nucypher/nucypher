@@ -18,8 +18,6 @@ class BadTestUrsulas(RuntimeError):
 
 
 class _TestMiddlewareClient(NucypherMiddlewareClient):
-    timeout = None
-
     @staticmethod
     def response_cleaner(response):
         response.content = response.data
@@ -62,9 +60,11 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
         return host, port, mock_client
 
     def invoke_method(self, method, url, *args, **kwargs):
+        self.clean_params(kwargs)
+
         _cert_location = kwargs.pop("verify")  # TODO: Is this something that can be meaningfully tested?
         kwargs.pop("timeout", None)  # Just get rid of timeout; not needed for the test client.
-        response = super().invoke_method(method, url, *args, **kwargs)
+        response = method(url, *args, **kwargs)
         return response
 
     def clean_params(self, request_kwargs):
