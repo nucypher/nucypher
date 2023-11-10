@@ -35,7 +35,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         self._ensure_ursula_availability(
             ursulas=list(encrypted_requests.keys()),
             threshold=threshold,
-            timeout=timeout,
+            timeout=timeout,  # TODO this was 60s (peering timeout) before
         )
 
         def worker(

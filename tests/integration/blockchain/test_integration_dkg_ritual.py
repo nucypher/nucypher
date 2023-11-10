@@ -223,7 +223,6 @@ def test_ursula_ritualist(
                     ):
                         bob.threshold_decrypt(
                             threshold_message_kit=threshold_message_kit,
-                            peering_timeout=0,
                         )
                 print("========= UNAUTHORIZED DECRYPTION UNSUCCESSFUL =========")
 
@@ -238,7 +237,6 @@ def test_ursula_ritualist(
                     ):
                         bob.threshold_decrypt(
                             threshold_message_kit=threshold_message_kit,
-                            peering_timeout=0,
                         )
                 print("======== EXPIRED RITUAL DECRYPTION UNSUCCESSFUL ========")
 
@@ -268,7 +266,6 @@ def test_ursula_ritualist(
             ):
                 cleartext = bob.threshold_decrypt(
                     threshold_message_kit=threshold_message_kit,
-                    peering_timeout=0,
                 )
                 assert bytes(cleartext) == PLAINTEXT.encode()
 

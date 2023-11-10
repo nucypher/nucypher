@@ -603,34 +603,6 @@ class Bob(Character):
 
         return cleartexts
 
-    def resolve_cohort(
-        self, ritual: CoordinatorAgent.Ritual, timeout: int
-    ) -> List["Ursula"]:
-        if timeout > 0:
-            if not self._learning_task.running:
-                self.start_learning_loop(now=True)
-            validators = set([n[0] for n in ritual.transcripts])
-            self.block_until_specific_nodes_are_known(
-                addresses=validators,
-                timeout=timeout,
-                allow_missing=(ritual.dkg_size - ritual.threshold),
-            )
-
-        cohort = list()
-        for staking_provider_address, transcript_bytes in ritual.transcripts:
-            if staking_provider_address not in self.known_nodes:
-                continue
-            remote_operator = self.known_nodes[staking_provider_address]
-            remote_operator.mature()
-            cohort.append(remote_operator)
-
-        if len(cohort) < ritual.threshold:
-            raise Ursula.NotEnoughUrsulas(
-                f"Unable to learn about a threshold, {ritual.threshold}-of-{ritual.dkg_size} Ursulas for ritual"
-            )
-
-        return cohort
-
     @staticmethod
     def __make_decryption_request(
         ritual_id: int,
@@ -653,7 +625,6 @@ class Bob(Character):
         self,
         decryption_request: ThresholdDecryptionRequest,
         participant_public_keys: Dict[ChecksumAddress, SessionStaticKey],
-        cohort: List["Ursula"],
         threshold: int,
         timeout: int,
     ) -> Dict[
@@ -665,9 +636,10 @@ class Bob(Character):
 
         decryption_request_mapping = {}
         shared_secrets = {}
-        for ursula in cohort:
-            ursula_checksum_address = to_checksum_address(ursula.checksum_address)
-            participant_public_key = participant_public_keys[ursula_checksum_address]
+        for (
+            ursula_checksum_address,
+            participant_public_key,
+        ) in participant_public_keys.items():
             shared_secret = requester_sk.derive_shared_secret(participant_public_key)
             encrypted_decryption_request = decryption_request.encrypt(
                 shared_secret=shared_secret,
@@ -735,7 +707,6 @@ class Bob(Character):
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        peering_timeout: int = 60,
         decryption_timeout: int = 15,
     ) -> bytes:
         ritual_id = self.get_ritual_id_from_public_key(
@@ -743,12 +714,7 @@ class Bob(Character):
         )
         ritual = self.get_ritual_from_id(ritual_id=ritual_id)
 
-        if not ursulas:
-            # P2P: if the Ursulas are not provided, we need to resolve them from published records.
-            # This is a blocking operation and the ursulas must be part of the cohort.
-            # if the timeout is 0, peering will be skipped in favor if already cached peers.
-            ursulas = self.resolve_cohort(ritual=ritual, timeout=peering_timeout)
-        else:
+        if ursulas:
             for ursula in ursulas:
                 if ursula.staking_provider_address not in ritual.providers:
                     raise ValueError(
@@ -768,7 +734,6 @@ class Bob(Character):
         decryption_shares = self._get_decryption_shares(
             decryption_request=decryption_request,
             participant_public_keys=participant_public_keys,
-            cohort=ursulas,
             threshold=ritual.threshold,
             timeout=decryption_timeout,
         )
