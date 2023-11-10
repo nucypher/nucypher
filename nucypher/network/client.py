@@ -19,7 +19,7 @@ class ThresholdAccessControlClient:
         self, ursulas: List[ChecksumAddress], threshold: int, timeout=10
     ):
         """
-        Make sure we know enough nodes from the treasure map to decrypt;
+        Make sure we know enough nodes;
         otherwise block and wait for them to come online.
         """
 
