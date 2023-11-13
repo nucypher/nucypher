@@ -23,6 +23,6 @@ def test_invalid_context_parameter(var1, var2):
     # Check that parameters make sense, what about repeated variables?
     parameters = [var1, 1, 2]
 
-    # with pytest.raises(ValueError):
-    return_value_test = ReturnValueTest(comparator="==", value=var2)
-    _ = resolve_any_context_variables(parameters, return_value_test, **context)
+    with pytest.raises(ValueError):
+        return_value_test = ReturnValueTest(comparator="==", value=var2)
+        _ = resolve_any_context_variables(parameters, return_value_test, **context)
