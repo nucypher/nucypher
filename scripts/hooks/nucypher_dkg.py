@@ -1,7 +1,8 @@
-import click
-import maya
 import random
 import time
+
+import click
+import maya
 from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
@@ -9,7 +10,7 @@ from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    TACoApplicationAgent,
+    TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
@@ -161,11 +162,11 @@ def nucypher_dkg(
         blockchain_endpoint=polygon_endpoint,
     )  # type: CoordinatorAgent
 
-    application_agent = ContractAgency.get_agent(
-        agent_class=TACoApplicationAgent,
+    child_application_agent = ContractAgency.get_agent(
+        agent_class=TACoChildApplicationAgent,
         registry=registry,
-        blockchain_endpoint=eth_endpoint,
-    )  # type: TACoApplicationAgent
+        blockchain_endpoint=polygon_endpoint,
+    )  # type: TACoChildApplicationAgent
 
     #
     # Get deployer account
@@ -200,7 +201,7 @@ def nucypher_dkg(
             (
                 _,
                 staking_providers_dict,
-            ) = application_agent.get_all_active_staking_providers()
+            ) = child_application_agent.get_all_active_staking_providers()
             staking_providers = list(staking_providers_dict.keys())
 
             # sample then sort
@@ -305,7 +306,7 @@ def nucypher_dkg(
             "conditionType": ConditionType.TIME.value,
             "returnValueTest": {"value": 0, "comparator": ">"},
             "method": "blocktime",
-            "chain": application_agent.blockchain.client.chain_id,
+            "chain": child_application_agent.blockchain.client.chain_id,
         },
     }
 
@@ -368,7 +369,7 @@ def nucypher_dkg(
             )
         else:
             emitter.echo(
-                f"Enrico {enrico_account} not authorized to use DKG Ritual #{ritual_id} - expect decryption to fail",
+                f"Enrico {enrico_account} not authorized to use DKG Ritual #{ritual_id} - decryption may fail",
                 color="yellow",
             )
 
