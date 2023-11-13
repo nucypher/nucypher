@@ -1,14 +1,12 @@
 from abc import ABC, abstractmethod
+from typing import Dict
+
 from eth_typing.evm import ChecksumAddress
 from prometheus_client import Enum, Gauge, Info
 from prometheus_client.registry import CollectorRegistry
-from typing import Dict, Type
 
 import nucypher
-from nucypher.blockchain.eth.agents import (
-    ContractAgency,
-    TACoApplicationAgent,
-)
+from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters import lawful
@@ -113,28 +111,46 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 class BlockchainMetricsCollector(BaseMetricsCollector):
     """Collector for Blockchain specific metrics."""
 
-    def __init__(self, eth_endpoint: str):
+    def __init__(self, root_net_endpoint: str, child_net_endpoint: str):
         super().__init__()
-        self.eth_endpoint = eth_endpoint
+        self.root_net_endpoint = root_net_endpoint
+        self.child_net_endpoint = child_net_endpoint
 
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "eth_chain_id": Gauge(
-                "eth_chain_id", "Ethereum Chain ID", registry=registry
+            "root_net_chain_id": Gauge(
+                "root_net_chain_id", "Root network Chain ID", registry=registry
             ),
-            "eth_current_block_number": Gauge(
-                "eth_block_number",
-                "Current Ethereum block",
+            "root_net_current_block_number": Gauge(
+                "root_net_current_block_number",
+                "Root network current block",
+                registry=registry,
+            ),
+            "child_net_chain_id": Gauge(
+                "child_net_chain_id", "Child network Chain ID", registry=registry
+            ),
+            "child_net_current_block_number": Gauge(
+                "child_net_current_block_number",
+                "Child network current block",
                 registry=registry,
             ),
         }
 
     def _collect_internal(self) -> None:
-        blockchain = BlockchainInterfaceFactory.get_or_create_interface(
-            endpoint=self.eth_endpoint
+        root_blockchain = BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.root_net_endpoint
         )
-        self.metrics["eth_chain_id"].set(blockchain.client.chain_id)
-        self.metrics["eth_current_block_number"].set(blockchain.client.block_number)
+        child_blockchain = BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.child_net_endpoint
+        )
+        self.metrics["root_net_chain_id"].set(root_blockchain.client.chain_id)
+        self.metrics["root_net_current_block_number"].set(
+            root_blockchain.client.block_number
+        )
+        self.metrics["child_net_chain_id"].set(child_blockchain.client.chain_id)
+        self.metrics["child_net_current_block_number"].set(
+            child_blockchain.client.block_number
+        )
 
 
 class StakingProviderMetricsCollector(BaseMetricsCollector):

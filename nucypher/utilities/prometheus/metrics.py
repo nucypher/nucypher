@@ -156,7 +156,12 @@ def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]
     collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
 
     # Blockchain prometheus
-    collectors.append(BlockchainMetricsCollector(eth_endpoint=ursula.eth_endpoint))
+    collectors.append(
+        BlockchainMetricsCollector(
+            root_net_endpoint=ursula.eth_endpoint,
+            child_net_endpoint=ursula.polygon_endpoint,
+        )
+    )
 
     # Staking Provider prometheus
     collectors.append(
