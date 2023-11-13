@@ -112,8 +112,6 @@ def _resolve_context_variable(input: Union[Any, List[Any]], **context):
 
 
 def resolve_any_context_variables(parameters: List[Any], return_value_test, **context):
-    # TODO needs additional support for ERC1155 which has lists of values
-    # context variables can only be strings, but other types of parameters can be passed
     processed_parameters = [
         _resolve_context_variable(param, **context) for param in parameters
     ]
