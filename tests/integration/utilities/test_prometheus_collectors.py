@@ -10,7 +10,6 @@ from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.utilities.prometheus.collector import (
     BlockchainMetricsCollector,
     MetricsCollector,
-    OperatorMetricsCollector,
     StakingProviderMetricsCollector,
     UrsulaInfoMetricsCollector,
 )
@@ -89,18 +88,31 @@ def test_ursula_info_metrics_collector(ursulas):
 
 
 def test_blockchain_metrics_collector(testerchain):
-    collector = BlockchainMetricsCollector(eth_endpoint=MOCK_ETH_PROVIDER_URI)
+    collector = BlockchainMetricsCollector(
+        root_net_endpoint=MOCK_ETH_PROVIDER_URI,
+        child_net_endpoint=MOCK_ETH_PROVIDER_URI,
+    )
 
     collector_registry = CollectorRegistry()
     collector.initialize(registry=collector_registry)
     collector.collect()
 
-    metric_name = "eth_chain_id"
+    metric_name = "root_net_chain_id"
     assert metric_name in collector_registry._names_to_collectors.keys()
-    chain_id = collector_registry.get_sample_value("eth_chain_id")
+    chain_id = collector_registry.get_sample_value("root_net_chain_id")
     assert chain_id == testerchain.client.chain_id
 
-    metric_name = "eth_block_number"
+    metric_name = "root_net_current_block_number"
+    assert metric_name in collector_registry._names_to_collectors.keys()
+    block_number = collector_registry.get_sample_value(metric_name)
+    assert block_number == testerchain.get_block_number()
+
+    metric_name = "child_net_chain_id"
+    assert metric_name in collector_registry._names_to_collectors.keys()
+    chain_id = collector_registry.get_sample_value("child_net_chain_id")
+    assert chain_id == testerchain.client.chain_id
+
+    metric_name = "child_net_current_block_number"
     assert metric_name in collector_registry._names_to_collectors.keys()
     block_number = collector_registry.get_sample_value(metric_name)
     assert block_number == testerchain.get_block_number()
@@ -142,22 +154,6 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
 
     operator_start = collector_registry.get_sample_value("operator_start_timestamp")
     assert operator_start == staking_provider_info.operator_start_timestamp
-
-
-def test_operator_metrics_collector(test_registry, ursulas):
-    ursula = random.choice(ursulas)
-    collector = OperatorMetricsCollector(
-        domain=ursula.domain,
-        operator_address=ursula.operator_address,
-        contract_registry=test_registry,
-    )
-    collector_registry = CollectorRegistry()
-    collector.initialize(registry=collector_registry)
-    collector.collect()
-
-    operator_eth = collector_registry.get_sample_value("operator_eth_balance")
-    # only floats can be stored
-    assert operator_eth == float(ursula.eth_balance)
 
 
 @pytest.mark.usefixtures("mock_operator_confirmation")
