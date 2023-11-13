@@ -437,6 +437,16 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         index: int
 
     @contract_api(CONTRACT_CALL)
+    def get_min_authorization(self) -> int:
+        result = self.contract.functions.minimumAuthorization().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
+        result = self.contract.functions.authorizedStake(staking_provider).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
     def staking_provider_from_operator(
         self, operator_address: ChecksumAddress
     ) -> ChecksumAddress:
@@ -461,6 +471,20 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         staking_provider_info = self.staking_provider_info(staking_provider)
         return staking_provider_info.operator_confirmed
 
+    @contract_api(CONTRACT_CALL)
+    def get_staking_providers_population(self) -> int:
+        result = self.contract.functions.getStakingProvidersLength().call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_staking_providers(self) -> List[ChecksumAddress]:
+        """Returns a list of staking provider addresses"""
+        num_providers: int = self.get_staking_providers_population()
+        providers: List[ChecksumAddress] = [
+            self.contract.functions.stakingProviders(i).call()
+            for i in range(num_providers)
+        ]
+        return providers
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(self, start_index: int, max_results: int) -> Tuple[int, List[bytes]]:
