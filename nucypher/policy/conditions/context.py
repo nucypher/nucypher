@@ -1,5 +1,5 @@
 import re
-from typing import Any, List
+from typing import Any, List, Union
 
 from eth_account.account import Account
 from eth_account.messages import HexBytes, encode_structured_data
@@ -102,15 +102,21 @@ def get_context_value(context_variable: str, **context) -> Any:
     return value
 
 
-def resolve_any_context_variables(parameters: List[Any], return_value_test, **context):
-    processed_parameters = []
-    for p in parameters:
-        # TODO needs additional support for ERC1155 which has lists of values
-        # context variables can only be strings, but other types of parameters can be passed
-        if is_context_variable(p):
-            p = get_context_value(context_variable=p, **context)
-        processed_parameters.append(p)
+def _resolve_context_variable(input: Union[Any, List[Any]], **context):
+    if isinstance(input, list):
+        return [_resolve_context_variable(item, **context) for item in input]
+    elif is_context_variable(input):
+        return get_context_value(context_variable=input, **context)
+    else:
+        return input
 
+
+def resolve_any_context_variables(parameters: List[Any], return_value_test, **context):
+    # TODO needs additional support for ERC1155 which has lists of values
+    # context variables can only be strings, but other types of parameters can be passed
+    processed_parameters = [
+        _resolve_context_variable(param, **context) for param in parameters
+    ]
     processed_return_value_test = return_value_test.with_resolved_context(**context)
 
     return processed_parameters, processed_return_value_test
