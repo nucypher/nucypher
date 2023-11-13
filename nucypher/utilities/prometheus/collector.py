@@ -80,11 +80,6 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                 "Number of currently known nodes",
                 registry=registry,
             ),
-            "reencryption_requests_gauge": Gauge(
-                "reencryption_requests",
-                "Number of accepted work orders",
-                registry=registry,
-            ),
         }
 
     def _collect_internal(self) -> None:
