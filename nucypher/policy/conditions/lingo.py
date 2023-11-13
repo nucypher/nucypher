@@ -21,7 +21,10 @@ from marshmallow.validate import OneOf, Range
 from packaging.version import parse as parse_version
 
 from nucypher.policy.conditions.base import AccessControlCondition, _Serializable
-from nucypher.policy.conditions.context import get_context_value, is_context_variable
+from nucypher.policy.conditions.context import (
+    _resolve_context_variable,
+    is_context_variable,
+)
 from nucypher.policy.conditions.exceptions import (
     InvalidCondition,
     InvalidConditionLingo,
@@ -316,9 +319,7 @@ class ReturnValueTest:
         return result
 
     def with_resolved_context(self, **context):
-        value = self.value
-        if is_context_variable(value):
-            value = get_context_value(context_variable=value, **context)
+        value = _resolve_context_variable(self.value, **context)
         return ReturnValueTest(self.comparator, value=value, index=self.index)
 
 
