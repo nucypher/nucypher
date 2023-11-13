@@ -9,6 +9,7 @@ INVALID_CONTEXT_PARAM_NAMES = [
     ":",
     ":)",
     ":!",
+    ":superñoño",
     ":::::this//is       🍌 🍌 🍌 ",
     ":123 \"$%'+-?\n  jarl!! cobarde!!",
 ]
