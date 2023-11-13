@@ -3,13 +3,13 @@ from typing import Iterable, List, Optional
 from eth_typing import ChecksumAddress
 
 from nucypher.blockchain.eth.agents import (
+    StakerSamplingApplicationAgent,
     StakingProvidersReservoir,
-    TACoApplicationAgent,
 )
 
 
 def make_staking_provider_reservoir(
-    application_agent: TACoApplicationAgent,
+    application_agent: StakerSamplingApplicationAgent,
     exclude_addresses: Optional[Iterable[ChecksumAddress]] = None,
     include_addresses: Optional[Iterable[ChecksumAddress]] = None,
     pagination_size: Optional[int] = None,
