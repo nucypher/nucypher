@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict
 
 from eth_typing.evm import ChecksumAddress
-from prometheus_client import Enum, Gauge, Info
+from prometheus_client import Gauge, Info
 from prometheus_client.registry import CollectorRegistry
 
 import nucypher
@@ -70,10 +70,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "client_info": Info("client", "TACo node client info", registry=registry),
-            "learning_status": Enum(
-                "node_discovery_status",
-                "Learning loop status",
-                states=["starting", "running", "stopped"],
+            "discovery_status_gauge": Gauge(
+                "node_discovery_running",
+                "Node discovery loop status",
                 registry=registry,
             ),
             "known_nodes_gauge": Gauge(
@@ -101,11 +100,9 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
             "operator_address": self.ursula.operator_address,
         }
 
-        self.metrics["learning_status"].state(
-            "running" if self.ursula._learning_task.running else "stopped"
-        )
-        self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
         self.metrics["client_info"].info(payload)
+        self.metrics["discovery_status_gauge"].set(self.ursula._learning_task.running)
+        self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
 
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
