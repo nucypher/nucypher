@@ -39,6 +39,8 @@ from tests.constants import (
 )
 from tests.utils.policy import make_message_kits
 
+GET_CONTEXT_VALUE_IMPORT_PATH = "nucypher.policy.conditions.context.get_context_value"
+
 
 def _dont_validate_user_address(context_variable: str, **context):
     if context_variable == USER_ADDRESS_CONTEXT:
@@ -109,7 +111,7 @@ def test_user_address_context_variable_verification(testerchain, valid_user_addr
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_no_providers(
@@ -126,7 +128,7 @@ def test_rpc_condition_evaluation_no_providers(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_invalid_provider_for_chain(
@@ -143,7 +145,7 @@ def test_rpc_condition_evaluation_invalid_provider_for_chain(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condition, condition_providers):
@@ -158,7 +160,7 @@ def test_rpc_condition_evaluation(get_context_value_mock, testerchain, rpc_condi
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_multiple_chain_providers(
@@ -184,7 +186,7 @@ def test_rpc_condition_evaluation_multiple_chain_providers(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
@@ -213,7 +215,7 @@ def test_rpc_condition_evaluation_multiple_providers_no_valid_fallback(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
@@ -250,7 +252,7 @@ def test_rpc_condition_evaluation_multiple_providers_valid_fallback(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_no_connection_to_chain(
@@ -269,7 +271,7 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
@@ -308,7 +310,7 @@ def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_erc20_evm_condition_evaluation(
@@ -344,7 +346,7 @@ def test_erc20_evm_condition_evaluation_with_custom_context_variable(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_erc721_evm_condition_owner_evaluation(
@@ -383,7 +385,7 @@ def test_erc721_evm_condition_owner_evaluation(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_erc721_evm_condition_balanceof_evaluation(
@@ -712,7 +714,7 @@ def test_not_of_simple_compound_conditions_lingo_evaluation(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_onchain_conditions_lingo_evaluation(
@@ -727,7 +729,7 @@ def test_onchain_conditions_lingo_evaluation(
 
 
 @mock.patch(
-    "nucypher.policy.conditions.evm.get_context_value",
+    GET_CONTEXT_VALUE_IMPORT_PATH,
     side_effect=_dont_validate_user_address,
 )
 def test_not_of_onchain_conditions_lingo_evaluation(
