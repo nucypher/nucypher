@@ -1,0 +1,1 @@
+Use ``TACoChildApplication`` contract for node sampling instead of ``TACoApplication`` contract.
