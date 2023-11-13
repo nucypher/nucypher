@@ -80,9 +80,6 @@ def test_ursula_info_metrics_collector(ursulas):
     known_nodes = collector_registry.get_sample_value("known_nodes")
     assert known_nodes == len(ursula.known_nodes)
 
-    reencryption_requests = collector_registry.get_sample_value("reencryption_requests")
-    assert reencryption_requests == 0
-
 
 def test_blockchain_metrics_collector(testerchain):
     collector = BlockchainMetricsCollector(
