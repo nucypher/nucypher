@@ -22,7 +22,7 @@ def make_staking_provider_reservoir(
     without_set = set(include_addresses) | set(exclude_addresses or ())
     try:
         reservoir = application_agent.get_staking_provider_reservoir(without=without_set, pagination_size=pagination_size)
-    except TACoApplicationAgent.NotEnoughStakingProviders:
+    except application_agent.NotEnoughStakingProviders:
         # TODO: do that in `get_staking_provider_reservoir()`?
         reservoir = StakingProvidersReservoir({})
 
