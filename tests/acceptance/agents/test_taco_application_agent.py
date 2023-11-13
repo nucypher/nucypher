@@ -1,7 +1,5 @@
-import os
-
 import pytest
-from eth_utils import is_address, to_checksum_address
+from eth_utils import is_address
 
 from nucypher.blockchain.eth.agents import TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -35,6 +33,7 @@ def test_staking_providers_and_operators_relationships(
     threshold_staking,
     taco_application,
     deployer_account,
+    get_random_checksum_address,
 ):
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
     threshold_staking.setRoles(staking_provider_account, sender=deployer_account)
@@ -74,9 +73,8 @@ def test_staking_providers_and_operators_relationships(
     )
 
     # No staker-worker relationship
-    random_address = to_checksum_address(os.urandom(20))
     assert NULL_ADDRESS == taco_application_agent.get_operator_from_staking_provider(
-        staking_provider=random_address
+        staking_provider=get_random_checksum_address()
     )
 
 
@@ -103,7 +101,7 @@ def test_get_swarm(taco_application_agent, staking_providers):
 def test_sample_staking_providers(taco_application_agent):
     providers_population = taco_application_agent.get_staking_providers_population()
 
-    with pytest.raises(TACoApplicationAgent.NotEnoughStakingProviders):
+    with pytest.raises(taco_application_agent.NotEnoughStakingProviders):
         taco_application_agent.get_staking_provider_reservoir().draw(
             providers_population + 1
         )  # One more than we have deployed
