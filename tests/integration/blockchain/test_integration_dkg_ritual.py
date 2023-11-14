@@ -165,7 +165,7 @@ def test_ursula_ritualist(
             # verify that the ritual is in the correct state
             assert (
                 mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-                == mock_coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
+                == mock_coordinator_agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
             )
 
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
@@ -183,7 +183,7 @@ def test_ursula_ritualist(
             print("==================== CHECKING DKG FINALITY ====================")
 
             status = mock_coordinator_agent.get_ritual_status(ritual_id)
-            assert status == mock_coordinator_agent.Ritual.Status.FINALIZED
+            assert status == mock_coordinator_agent.Ritual.Status.ACTIVE
             for ursula in cohort:
                 assert ursula.dkg_storage.get_transcript(ritual_id) is not None
 

@@ -125,7 +125,7 @@ class MockCoordinatorAgent(MockContractAgent):
         participant.transcript = bytes(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == ritual.dkg_size:
-            ritual.status = self.RitualStatus.AWAITING_AGGREGATIONS
+            ritual.status = self.RitualStatus.DKG_AWAITING_AGGREGATIONS
             self.emit_event(
                 signal=self.Events.START_AGGREGATION_ROUND,
                 ritual_id=ritual_id,
@@ -231,15 +231,18 @@ class MockCoordinatorAgent(MockContractAgent):
         if timestamp == 0:
             return self.RitualStatus.NON_INITIATED
         elif ritual.total_aggregations == ritual.dkg_size:
-            return self.RitualStatus.FINALIZED
+            if time.time() <= ritual.end_timestamp:
+                return self.RitualStatus.ACTIVE
+            else:
+                return self.RitualStatus.EXPIRED
         elif ritual.aggregation_mismatch:
-            return self.RitualStatus.INVALID
+            return self.RitualStatus.DKG_INVALID
         elif timestamp > deadline:
-            return self.RitualStatus.TIMEOUT
+            return self.RitualStatus.DKG_TIMEOUT
         elif ritual.total_transcripts < ritual.dkg_size:
-            return self.RitualStatus.AWAITING_TRANSCRIPTS
+            return self.RitualStatus.DKG_AWAITING_TRANSCRIPTS
         elif ritual.total_aggregations < ritual.dkg_size:
-            return self.RitualStatus.AWAITING_AGGREGATIONS
+            return self.RitualStatus.DKG_AWAITING_AGGREGATIONS
         else:
             raise RuntimeError(f"Ritual {ritual_id} is in an unknown state")  # :-(
 
@@ -253,7 +256,7 @@ class MockCoordinatorAgent(MockContractAgent):
         )
 
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
-        if self.get_ritual_status(ritual_id=ritual_id) != self.RitualStatus.FINALIZED:
+        if self.get_ritual_status(ritual_id=ritual_id) != self.RitualStatus.ACTIVE:
             # TODO should we raise here instead?
             return None
 

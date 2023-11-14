@@ -392,7 +392,7 @@ class Operator(BaseActor):
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
 
         # validate the status
-        if status != CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS:
+        if status != CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS:
             self.log.debug(
                 f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
             )
@@ -466,7 +466,7 @@ class Operator(BaseActor):
         # Get the ritual and check the status from the blockchain
         # TODO potentially optimize local cache of ritual participants (#3052)
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-        if status != CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS:
+        if status != CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS:
             self.log.debug(
                 f"ritual #{ritual_id} is not waiting for aggregations; status={status}; skipping execution"
             )

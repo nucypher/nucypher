@@ -104,7 +104,7 @@ def test_initiate_ritual(
 
     assert (
         agent.get_ritual_status(ritual_id=ritual_id)
-        == agent.Ritual.Status.AWAITING_TRANSCRIPTS
+        == agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
     )
 
     ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
@@ -133,7 +133,7 @@ def test_post_transcript(agent, transcripts, transacting_powers):
 
     assert (
         agent.get_ritual_status(ritual_id=ritual_id)
-        == agent.Ritual.Status.AWAITING_AGGREGATIONS
+        == agent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
     )
 
     ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
@@ -177,7 +177,7 @@ def test_post_aggregation(
     ritual = agent.get_ritual(ritual_id)
     assert ritual.participant_public_keys == participant_public_keys
 
-    assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.FINALIZED
+    assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.ACTIVE
 
     ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
     assert bytes(ritual_dkg_key) == bytes(dkg_public_key)
