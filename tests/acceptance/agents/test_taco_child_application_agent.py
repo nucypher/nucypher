@@ -1,3 +1,5 @@
+import random
+
 import pytest
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -100,6 +102,7 @@ def test_get_staker_population(taco_child_application_agent, staking_providers):
 
 @pytest.mark.usefixtures("staking_providers", "ursulas")
 def test_sample_staking_providers(taco_child_application_agent):
+    all_staking_providers = taco_child_application_agent.get_staking_providers()
     providers_population = (
         taco_child_application_agent.get_staking_providers_population()
     )
@@ -112,6 +115,7 @@ def test_sample_staking_providers(taco_child_application_agent):
     providers = taco_child_application_agent.get_staking_provider_reservoir().draw(3)
     assert len(providers) == 3  # Three...
     assert len(set(providers)) == 3  # ...unique addresses
+    assert len(set(providers).intersection(all_staking_providers)) == 3
 
     # Same but with pagination
     providers = taco_child_application_agent.get_staking_provider_reservoir(
@@ -119,9 +123,23 @@ def test_sample_staking_providers(taco_child_application_agent):
     ).draw(3)
     assert len(providers) == 3
     assert len(set(providers)) == 3
+    assert len(set(providers).intersection(all_staking_providers)) == 3
+
+    # repeat for opposite blockchain light setting
     light = taco_child_application_agent.blockchain.is_light
     taco_child_application_agent.blockchain.is_light = not light
     providers = taco_child_application_agent.get_staking_provider_reservoir().draw(3)
     assert len(providers) == 3
     assert len(set(providers)) == 3
+    assert len(set(providers).intersection(all_staking_providers)) == 3
     taco_child_application_agent.blockchain.is_light = light
+
+    # Use exclusion list
+    exclude_providers = random.choices(all_staking_providers, k=2)  # exclude 2 ursulas
+    providers = taco_child_application_agent.get_staking_provider_reservoir(
+        without=exclude_providers, pagination_size=1
+    ).draw(3)
+    assert len(providers) == 3
+    assert len(set(providers)) == 3
+    assert len(set(providers).intersection(all_staking_providers)) == 3
+    assert len(set(providers).intersection(exclude_providers)) == 0
