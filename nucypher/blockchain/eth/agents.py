@@ -778,6 +778,11 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
+    def is_ritual_active(self, ritual_id: int) -> bool:
+        result = self.contract.functions.isRitualActive(ritual_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
     def get_participants(self, ritual_id: int) -> List[Ritual.Participant]:
         result = self.contract.functions.getParticipants(ritual_id).call()
         participants = list()
