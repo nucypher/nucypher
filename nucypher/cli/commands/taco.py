@@ -197,7 +197,6 @@ def rituals(ritual_ids, show_inactive, registry_options, general_config):
         "Active",
     ]
 
-    now = maya.now()
     rows = list()
     ritual_id_list = (
         ritual_ids if ritual_ids else range(coordinator_agent.number_of_rituals())
@@ -207,12 +206,7 @@ def rituals(ritual_ids, show_inactive, registry_options, general_config):
 
         ritual_status = coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         ritual_expiry = maya.MayaDT(epoch=ritual.end_timestamp)
-        is_ritual_active = all(
-            [
-                ritual_status == CoordinatorAgent.Ritual.Status.FINALIZED,
-                ritual_expiry > now,
-            ]
-        )
+        is_ritual_active = coordinator_agent.is_ritual_active(ritual_id=ritual_id)
         if not show_inactive and not is_ritual_active:
             continue
 

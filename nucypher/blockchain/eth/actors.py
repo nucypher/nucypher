@@ -552,15 +552,12 @@ class Operator(BaseActor):
         variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)
-        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-        if status != CoordinatorAgent.Ritual.Status.FINALIZED:
-            raise self.ActorError(f"ritual #{ritual_id} is not finalized.")
+        if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
+            raise self.ActorError(f"Ritual #{ritual_id} is not active.")
 
         nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
         if not all(transcripts):
-            raise self.ActorError(
-                f"ritual #{ritual_id} is missing transcripts"
-            )
+            raise self.ActorError(f"Ritual #{ritual_id} is missing transcripts")
 
         # TODO: consider the usage of local DKG artifact storage here #3052
         # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
@@ -596,7 +593,6 @@ class Operator(BaseActor):
             requester_public_key=requester_public_key,
         )
 
-
     def _verify_active_ritual(self, decryption_request: ThresholdDecryptionRequest):
         # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
@@ -611,11 +607,12 @@ class Operator(BaseActor):
                 f"Node not part of ritual {decryption_request.ritual_id}",
             )
 
-        # check that ritual not timed out
-        current_timestamp = self.coordinator_agent.blockchain.get_blocktime()
-        if current_timestamp > ritual.end_timestamp:
+        # check that ritual is active
+        if not self.coordinator_agent.is_ritual_active(
+            ritual_id=decryption_request.ritual_id
+        ):
             raise self.UnauthorizedRequest(
-                f"Ritual {decryption_request.ritual_id} is expired",
+                f"Ritual #{decryption_request.ritual_id} is not active",
             )
 
     def _verify_ciphertext_authorization(
