@@ -111,10 +111,10 @@ def test_perform_round_1(
     # ensure no operation performed for non-application-state
     non_application_states = [
         CoordinatorAgent.Ritual.Status.NON_INITIATED,
-        CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS,
-        CoordinatorAgent.Ritual.Status.FINALIZED,
-        CoordinatorAgent.Ritual.Status.TIMEOUT,
-        CoordinatorAgent.Ritual.Status.INVALID,
+        CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS,
+        CoordinatorAgent.Ritual.Status.ACTIVE,
+        CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
+        CoordinatorAgent.Ritual.Status.DKG_INVALID,
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
@@ -125,7 +125,7 @@ def test_perform_round_1(
 
     # set correct state
     agent.get_ritual_status = (
-        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS
+        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
     )
 
     tx_hash = ursula.perform_round_1(
@@ -209,10 +209,10 @@ def test_perform_round_2(
     # ensure no operation performed for non-application-state
     non_application_states = [
         CoordinatorAgent.Ritual.Status.NON_INITIATED,
-        CoordinatorAgent.Ritual.Status.AWAITING_TRANSCRIPTS,
-        CoordinatorAgent.Ritual.Status.FINALIZED,
-        CoordinatorAgent.Ritual.Status.TIMEOUT,
-        CoordinatorAgent.Ritual.Status.INVALID,
+        CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS,
+        CoordinatorAgent.Ritual.Status.ACTIVE,
+        CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
+        CoordinatorAgent.Ritual.Status.DKG_INVALID,
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
@@ -221,7 +221,7 @@ def test_perform_round_2(
 
     # set correct state
     agent.get_ritual_status = (
-        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.AWAITING_AGGREGATIONS
+        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
     )
 
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")

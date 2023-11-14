@@ -659,11 +659,12 @@ class CoordinatorAgent(EthereumContractAgent):
         @dataclass
         class Status:
             NON_INITIATED = 0
-            AWAITING_TRANSCRIPTS = 1
-            AWAITING_AGGREGATIONS = 2
-            TIMEOUT = 3
-            INVALID = 4
-            FINALIZED = 5
+            DKG_AWAITING_TRANSCRIPTS = 1
+            DKG_AWAITING_AGGREGATIONS = 2
+            DKG_TIMEOUT = 3
+            DKG_INVALID = 4
+            ACTIVE = 5
+            EXPIRED = 6
 
         @dataclass
         class Participant:
@@ -930,7 +931,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
-        if self.get_ritual_status(ritual_id=ritual_id) != self.Ritual.Status.FINALIZED:
+        if self.get_ritual_status(ritual_id=ritual_id) != self.Ritual.Status.ACTIVE:
             # TODO should we raise here instead?
             return None
 

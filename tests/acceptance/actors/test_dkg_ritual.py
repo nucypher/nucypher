@@ -147,7 +147,10 @@ def test_ursula_ritualist(
 
         # check that the ritual was created on-chain
         assert coordinator_agent.number_of_rituals() == RITUAL_ID + 1
-        assert coordinator_agent.get_ritual_status(RITUAL_ID) == coordinator_agent.Ritual.Status.AWAITING_TRANSCRIPTS
+        assert (
+            coordinator_agent.get_ritual_status(RITUAL_ID)
+            == coordinator_agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+        )
 
         # time travel has a side effect of mining a block so that the scanner will definitively
         # pick up ritual event
@@ -171,7 +174,10 @@ def test_ursula_ritualist(
     def block_until_dkg_finalized(_):
         """simulates the passage of time and the execution of the event scanner"""
         print("==================== BLOCKING UNTIL DKG FINALIZED ====================")
-        while coordinator_agent.get_ritual_status(RITUAL_ID) != coordinator_agent.Ritual.Status.FINALIZED:
+        while (
+            coordinator_agent.get_ritual_status(RITUAL_ID)
+            != coordinator_agent.Ritual.Status.ACTIVE
+        ):
             for ursula in cohort:
                 # this is a testing hack to make the event scanner work,
                 # normally it's called by the reactor clock in a loop
@@ -186,7 +192,7 @@ def test_ursula_ritualist(
         """Checks the finality of the DKG"""
         print("==================== CHECKING DKG FINALITY ====================")
         status = coordinator_agent.get_ritual_status(RITUAL_ID)
-        assert status == coordinator_agent.Ritual.Status.FINALIZED
+        assert status == coordinator_agent.Ritual.Status.ACTIVE
         for ursula in cohort:
             assert ursula.dkg_storage.get_transcript(RITUAL_ID) is not None
 

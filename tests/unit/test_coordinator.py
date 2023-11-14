@@ -73,7 +73,7 @@ def test_mock_coordinator_round_1(
     ritual = coordinator.rituals[0]
     assert (
         coordinator.get_ritual_status(0)
-        == MockCoordinatorAgent.RitualStatus.AWAITING_TRANSCRIPTS
+        == MockCoordinatorAgent.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
     for p in ritual.participants:
@@ -110,7 +110,7 @@ def test_mock_coordinator_round_2(
     ritual = coordinator.rituals[0]
     assert (
         coordinator.get_ritual_status(0)
-        == MockCoordinatorAgent.RitualStatus.AWAITING_AGGREGATIONS
+        == MockCoordinatorAgent.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
     for p in ritual.participants:
@@ -140,6 +140,4 @@ def test_mock_coordinator_round_2(
     assert p.decryption_request_static_key == bytes(participant_public_keys[index])
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
-    assert (
-        coordinator.get_ritual_status(0) == MockCoordinatorAgent.RitualStatus.FINALIZED
-    )
+    assert coordinator.get_ritual_status(0) == MockCoordinatorAgent.RitualStatus.ACTIVE

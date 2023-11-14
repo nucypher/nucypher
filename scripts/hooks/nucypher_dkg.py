@@ -243,7 +243,7 @@ def nucypher_dkg(
                     continue
 
                 ritual_status = coordinator_agent.get_ritual_status(initiated_ritual)
-                if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+                if ritual_status == coordinator_agent.Ritual.Status.ACTIVE:
                     # success
                     emitter.echo(
                         f"DKG Ritual #{initiated_ritual} completed after {(maya.now() - start_time).seconds}s",
@@ -252,8 +252,8 @@ def nucypher_dkg(
                     completed_rituals[initiated_ritual] = ritual_status
                 elif (
                     # failure
-                    ritual_status == coordinator_agent.Ritual.Status.TIMEOUT
-                    or ritual_status == coordinator_agent.Ritual.Status.INVALID
+                    ritual_status == coordinator_agent.Ritual.Status.DKG_TIMEOUT
+                    or ritual_status == coordinator_agent.Ritual.Status.DKG_INVALID
                 ):
                     emitter.error(
                         f"Ritual #{initiated_ritual} failed with status '{ritual_status}'"
@@ -272,7 +272,7 @@ def nucypher_dkg(
         # sort by ritual id, print results, stop script
         for r_id in sorted(completed_rituals.keys()):
             ritual_status = completed_rituals[r_id]
-            if ritual_status == coordinator_agent.Ritual.Status.FINALIZED:
+            if ritual_status == coordinator_agent.Ritual.Status.ACTIVE:
                 message = f"✓ Ritual #{r_id} successfully created"
                 color = "green"
             else:
