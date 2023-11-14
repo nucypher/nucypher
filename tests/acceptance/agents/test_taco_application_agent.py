@@ -141,7 +141,9 @@ def test_sample_staking_providers(taco_application_agent):
     assert len(set(providers).intersection(exclude_providers)) == 0
 
 
-def test_get_staking_provider_info(testerchain, taco_application_agent):
+def test_get_staking_provider_info(
+    testerchain, taco_application_agent, get_random_checksum_address
+):
     staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
     info: TACoApplicationAgent.StakingProviderInfo = (
         taco_application_agent.get_staking_provider_info(
@@ -150,4 +152,12 @@ def test_get_staking_provider_info(testerchain, taco_application_agent):
     )
     assert info.operator_start_timestamp > 0
     assert info.operator == operator_account
-    assert not info.operator_confirmed
+    assert info.operator_confirmed is False
+
+    # non-existent staker
+    info = taco_application_agent.get_staking_provider_info(
+        get_random_checksum_address()
+    )
+    assert info.operator_start_timestamp == 0
+    assert info.operator == NULL_ADDRESS
+    assert info.operator_confirmed is False
