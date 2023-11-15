@@ -113,6 +113,7 @@ def test_perform_round_1(
         CoordinatorAgent.Ritual.Status.NON_INITIATED,
         CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS,
         CoordinatorAgent.Ritual.Status.ACTIVE,
+        CoordinatorAgent.Ritual.Status.EXPIRED,
         CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
         CoordinatorAgent.Ritual.Status.DKG_INVALID,
     ]
@@ -211,6 +212,7 @@ def test_perform_round_2(
         CoordinatorAgent.Ritual.Status.NON_INITIATED,
         CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS,
         CoordinatorAgent.Ritual.Status.ACTIVE,
+        CoordinatorAgent.Ritual.Status.EXPIRED,
         CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
         CoordinatorAgent.Ritual.Status.DKG_INVALID,
     ]
