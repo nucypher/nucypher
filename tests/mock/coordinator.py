@@ -246,6 +246,10 @@ class MockCoordinatorAgent(MockContractAgent):
         else:
             raise RuntimeError(f"Ritual {ritual_id} is in an unknown state")  # :-(
 
+    def is_ritual_active(self, ritual_id: int) -> bool:
+        result = self.get_ritual_status(ritual_id)
+        return result == self.RitualStatus.ACTIVE
+
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
         for i, ritual in enumerate(self.rituals):
             if bytes(ritual.public_key) == bytes(public_key):
