@@ -233,7 +233,8 @@ def test_ursula_ritualist(
                 time_in_past = mock_coordinator_agent.blockchain.get_blocktime() - 1
                 with patch.object(ritual, "end_timestamp", time_in_past):
                     with pytest.raises(
-                        Ursula.NotEnoughUrsulas, match=f"Ritual {ritual_id} is expired"
+                        Ursula.NotEnoughUrsulas,
+                        match=f"Ritual #{ritual_id} is not active",
                     ):
                         bob.threshold_decrypt(
                             threshold_message_kit=threshold_message_kit,
