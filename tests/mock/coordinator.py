@@ -260,7 +260,8 @@ class MockCoordinatorAgent(MockContractAgent):
         )
 
     def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
-        if self.get_ritual_status(ritual_id=ritual_id) != self.RitualStatus.ACTIVE:
+        status = self.get_ritual_status(ritual_id=ritual_id)
+        if status != self.Ritual.Status.ACTIVE and status != self.Ritual.Status.EXPIRED:
             # TODO should we raise here instead?
             return None
 
