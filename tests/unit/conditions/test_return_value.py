@@ -6,6 +6,7 @@ from typing import NamedTuple
 import pytest
 from hexbytes import HexBytes
 
+from nucypher.policy.conditions.context import _resolve_context_variable
 from nucypher.policy.conditions.exceptions import ReturnValueEvaluationError
 from nucypher.policy.conditions.lingo import ReturnValueTest
 
@@ -140,6 +141,23 @@ def test_return_value_test_with_context_variable_cant_run_eval():
     test = ReturnValueTest(comparator="==", value=":fakeContextVar")
     with pytest.raises(RuntimeError):
         test.eval(0)
+
+
+def test_return_value_test_with_resolved_context():
+    test = ReturnValueTest(comparator="==", value=":foo")
+    context = {":foo": 1234}
+
+    resolved = test.with_resolved_context(**context)
+    assert resolved.comparator == test.comparator
+    assert resolved.index == test.index
+    assert resolved.value == _resolve_context_variable(test.value, **context)
+
+    test = ReturnValueTest(comparator="==", value=[42, ":foo"])
+
+    resolved = test.with_resolved_context(**context)
+    assert resolved.comparator == test.comparator
+    assert resolved.index == test.index
+    assert resolved.value == _resolve_context_variable(test.value, **context)
 
 
 def test_return_value_test_integer():
