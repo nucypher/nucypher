@@ -510,7 +510,7 @@ class Bob(Character):
         alice_verifying_key: PublicKey,  # KeyFrag signer's key
         encrypted_treasure_map: EncryptedTreasureMap,
         publisher_verifying_key: Optional[PublicKey] = None,
-        timeout: int = 10,
+        timeout: int = PRERetrievalClient.DEFAULT_RETRIEVAL_TIMEOUT,
         **context,  # TODO: dont use one context to rule them all
     ) -> List[PolicyMessageKit]:
         """
@@ -707,7 +707,7 @@ class Bob(Character):
         threshold_message_kit: ThresholdMessageKit,
         context: Optional[dict] = None,
         ursulas: Optional[List["Ursula"]] = None,
-        decryption_timeout: int = 15,
+        decryption_timeout: int = ThresholdDecryptionClient.DEFAULT_DECRYPTION_TIMEOUT,
     ) -> bytes:
         ritual_id = self.get_ritual_id_from_public_key(
             public_key=threshold_message_kit.acp.public_key

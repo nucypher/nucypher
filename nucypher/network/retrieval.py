@@ -180,6 +180,8 @@ class PRERetrievalClient(ThresholdAccessControlClient):
     Capsule frag retrieval machinery shared between Bob and Porter.
     """
 
+    DEFAULT_RETRIEVAL_TIMEOUT = 10
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -260,7 +262,7 @@ class PRERetrievalClient(ThresholdAccessControlClient):
         alice_verifying_key: PublicKey,  # KeyFrag signer's key
         bob_encrypting_key: PublicKey,  # User's public key (reencryption target)
         bob_verifying_key: PublicKey,
-        timeout: int = 10,
+        timeout: int = DEFAULT_RETRIEVAL_TIMEOUT,
         **context,
     ) -> Tuple[List[RetrievalResult], List[RetrievalError]]:
         ursulas_in_map = treasure_map.destinations.keys()

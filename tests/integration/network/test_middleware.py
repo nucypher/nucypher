@@ -52,5 +52,5 @@ def test_middleware_response_status_code_processing(
     )
     with pytest.raises(expected_exception_class):
         mock_rest_middleware.reencrypt(
-            ursula=ursula, reencryption_request_bytes=b"reencryption_request"
+            ursula=ursula, reencryption_request_bytes=b"reencryption_request", timeout=2
         )

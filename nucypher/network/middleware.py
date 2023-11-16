@@ -293,7 +293,7 @@ class RestMiddleware:
         self,
         ursula: "characters.lawful.Ursula",
         reencryption_request_bytes: bytes,
-        timeout: int = 10,
+        timeout: int,
     ):
         response = self.client.post(
             node_or_sprout=ursula,
@@ -307,7 +307,7 @@ class RestMiddleware:
         self,
         ursula: "characters.lawful.Ursula",
         decryption_request_bytes: bytes,
-        timeout: int = 15,
+        timeout: int,
     ):
         response = self.client.post(
             node_or_sprout=ursula,

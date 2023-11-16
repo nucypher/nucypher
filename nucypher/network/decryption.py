@@ -12,6 +12,8 @@ from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
 class ThresholdDecryptionClient(ThresholdAccessControlClient):
+    DEFAULT_DECRYPTION_TIMEOUT = 15
+
     class ThresholdDecryptionRequestFailed(Exception):
         """Raised when a decryption request returns a non-zero status code."""
 
@@ -27,7 +29,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         self,
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
-        timeout: int = 15,
+        timeout: int = DEFAULT_DECRYPTION_TIMEOUT,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
