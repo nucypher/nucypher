@@ -19,15 +19,19 @@ CONTEXT_REGEX = re.compile(":[a-zA-Z_][a-zA-Z0-9_]*")
 
 
 def _recover_user_address(**context) -> ChecksumAddress:
-    # Expected format:
-    # {
-    #     ":userAddress":
-    #         {
-    #             "signature": "<signature>",
-    #             "address": "<address>",
-    #             "typedData": "<a complicated EIP712 data structure>"
-    #         }
-    # }
+    """
+    Recovers a checksum address from a signed EIP712 message.
+
+    Expected format:
+    {
+        ":userAddress":
+            {
+                "signature": "<signature>",
+                "address": "<address>",
+                "typedData": "<a complicated EIP712 data structure>"
+            }
+    }
+    """
 
     # setup
     try:
@@ -102,13 +106,13 @@ def get_context_value(context_variable: str, **context) -> Any:
     return value
 
 
-def _resolve_context_variable(input: Union[Any, List[Any]], **context):
-    if isinstance(input, list):
-        return [_resolve_context_variable(item, **context) for item in input]
-    elif is_context_variable(input):
-        return get_context_value(context_variable=input, **context)
+def _resolve_context_variable(param: Union[Any, List[Any]], **context):
+    if isinstance(param, list):
+        return [_resolve_context_variable(item, **context) for item in param]
+    elif is_context_variable(param):
+        return get_context_value(context_variable=param, **context)
     else:
-        return input
+        return param
 
 
 def resolve_any_context_variables(parameters: List[Any], return_value_test, **context):
@@ -116,5 +120,4 @@ def resolve_any_context_variables(parameters: List[Any], return_value_test, **co
         _resolve_context_variable(param, **context) for param in parameters
     ]
     processed_return_value_test = return_value_test.with_resolved_context(**context)
-
     return processed_parameters, processed_return_value_test
