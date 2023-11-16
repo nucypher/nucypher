@@ -5,8 +5,8 @@ plugins:
 
 dependencies:
   - name: nucypher-contracts
-    github: cygnusv/nucypher-contracts
-    ref: states
+    github: nucypher/nucypher-contracts
+    ref: main
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 5.0.0
