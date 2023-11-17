@@ -1,7 +1,6 @@
 import random
 
 import pytest
-from eth_utils import is_address
 
 from nucypher.blockchain.eth.agents import TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -88,21 +87,12 @@ def test_get_staker_population(taco_application_agent, staking_providers):
     )
 
 
-def test_get_swarm(taco_application_agent, staking_providers):
-    swarm = taco_application_agent.swarm()
-    swarm_addresses = list(swarm)
-    assert len(swarm_addresses) == len(staking_providers) + 1
-
-    # Grab a staker address from the swarm
-    provider_addr = swarm_addresses[0]
-    assert isinstance(provider_addr, str)
-    assert is_address(provider_addr)
-
-
 @pytest.mark.usefixtures("staking_providers", "ursulas")
 def test_sample_staking_providers(taco_application_agent):
-    all_staking_providers = taco_application_agent.get_staking_providers()
+    all_staking_providers = list(taco_application_agent.get_staking_providers())
     providers_population = taco_application_agent.get_staking_providers_population()
+
+    assert len(all_staking_providers) == providers_population
 
     with pytest.raises(taco_application_agent.NotEnoughStakingProviders):
         taco_application_agent.get_staking_provider_reservoir().draw(
