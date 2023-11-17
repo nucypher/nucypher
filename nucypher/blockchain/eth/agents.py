@@ -489,14 +489,14 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_staking_providers(self) -> List[ChecksumAddress]:
-        """Returns a list of staking provider addresses"""
-        num_providers: int = self.get_staking_providers_population()
-        providers: List[ChecksumAddress] = [
-            self.contract.functions.stakingProviders(i).call()
-            for i in range(num_providers)
-        ]
-        return providers
+    def get_staking_providers(self) -> Iterable[ChecksumAddress]:
+        """Returns an iterable of staking provider addresses"""
+        num_providers = self.get_staking_providers_population()
+        for index in range(num_providers):
+            address: ChecksumAddress = self.contract.functions.stakingProviders(
+                index
+            ).call()
+            yield address
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
@@ -585,18 +585,10 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_staking_providers(self) -> List[ChecksumAddress]:
-        """Returns a list of staking provider addresses"""
-        num_providers: int = self.get_staking_providers_population()
-        providers: List[ChecksumAddress] = [
-            self.contract.functions.stakingProviders(i).call()
-            for i in range(num_providers)
-        ]
-        return providers
-
-    @contract_api(CONTRACT_CALL)
-    def swarm(self) -> Iterable[ChecksumAddress]:
-        for index in range(self.get_staking_providers_population()):
+    def get_staking_providers(self) -> Iterable[ChecksumAddress]:
+        """Returns an iterable of staking provider addresses"""
+        num_providers = self.get_staking_providers_population()
+        for index in range(num_providers):
             address: ChecksumAddress = self.contract.functions.stakingProviders(
                 index
             ).call()

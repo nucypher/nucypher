@@ -44,7 +44,7 @@ def test_staking_provider_info(
     ursulas,
     get_random_checksum_address,
 ):
-    staking_providers = taco_child_application_agent.get_staking_providers()
+    staking_providers = list(taco_child_application_agent.get_staking_providers())
 
     for ursula in ursulas:
         provider_info = taco_child_application_agent.staking_provider_info(
@@ -102,10 +102,12 @@ def test_get_staker_population(taco_child_application_agent, staking_providers):
 
 @pytest.mark.usefixtures("staking_providers", "ursulas")
 def test_sample_staking_providers(taco_child_application_agent):
-    all_staking_providers = taco_child_application_agent.get_staking_providers()
+    all_staking_providers = list(taco_child_application_agent.get_staking_providers())
     providers_population = (
         taco_child_application_agent.get_staking_providers_population()
     )
+
+    assert len(all_staking_providers) == providers_population
 
     with pytest.raises(taco_child_application_agent.NotEnoughStakingProviders):
         taco_child_application_agent.get_staking_provider_reservoir().draw(
