@@ -64,7 +64,7 @@ option_min_stake = click.option(
 option_polygon_endpoint = click.option(
     "--polygon-endpoint",
     "polygon_endpoint",
-    help="Connection URL for PRE payment method",
+    help="Connection URL for Polygon chain",
     type=click.STRING,
     required=False,
 )
