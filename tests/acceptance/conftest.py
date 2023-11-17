@@ -1,5 +1,6 @@
 import random
 
+import maya
 import pytest
 from web3 import Web3
 
@@ -49,6 +50,8 @@ DEAUTHORIZATION_DURATION = 60 * 60 * 24 * 60  # 60 days in seconds
 
 COMMITMENT_DURATION_1 = 182 * 60 * 24 * 60  # 182 days in seconds
 COMMITMENT_DURATION_2 = 2 * COMMITMENT_DURATION_1  # 365 days in seconds
+
+COMMITMENT_DEADLINE = 60 * 60 * 24 * 100  # 100 days after deploymwent
 
 # Coordinator
 TIMEOUT = 3600
@@ -161,6 +164,8 @@ def taco_application(
         REWARD_DURATION,
         DEAUTHORIZATION_DURATION,
         [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
+        # UNCOMMENT ONCE https://github.com/nucypher/nucypher-contracts/pull/185 IS MERGED
+        # maya.now().epoch + COMMITMENT_DEADLINE
     )
 
     proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
