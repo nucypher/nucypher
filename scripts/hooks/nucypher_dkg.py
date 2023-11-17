@@ -110,6 +110,13 @@ def get_transacting_power(signer: Signer):
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--access-controller",
+    "-a",
+    help="Global allow list or open access authorizer",
+    type=click.Choice([GLOBAL_ALLOW_LIST, "OpenAccessAuthorizer"]),
+    required=False,
+)
 def nucypher_dkg(
     domain,
     eth_endpoint,
@@ -120,14 +127,23 @@ def nucypher_dkg(
     num_rituals,
     ritual_duration,
     use_random_enrico,
+    access_controller,
 ):
     if ritual_id < 0:
         # if creating ritual(s)
         if signer_uri is None:
             raise click.BadOptionUsage(
-                option_name="--ritual-id, --signer",
+                option_name="--signer",
                 message=click.style(
-                    "--signer must be provided to create new ritual when --ritual-id is not provided",
+                    "--signer must be provided to create new ritual",
+                    fg="red",
+                ),
+            )
+        if access_controller is None:
+            raise click.BadOptionUsage(
+                option_name="--access-controller",
+                message=click.style(
+                    "--access-controller must be provided to create new ritual",
                     fg="red",
                 ),
             )
@@ -139,6 +155,15 @@ def nucypher_dkg(
 
     if ritual_id >= 0:
         # if re-using existing ritual
+        if access_controller:
+            raise click.BadOptionUsage(
+                option_name="--access-controller",
+                message=click.style(
+                    "--access-controller not needed since it is obtained from the Coordinator",
+                    fg="red",
+                ),
+            )
+
         if num_rituals != 1:
             raise click.BadOptionUsage(
                 option_name="--ritual-id, --num-rituals",
@@ -174,11 +199,8 @@ def nucypher_dkg(
     signer = None
     transacting_power = None
 
-    # Get GlobalAllowList contract
+    # Get AccessController contract
     blockchain = coordinator_agent.blockchain
-    allow_list = blockchain.get_contract_by_name(
-        registry=registry, contract_name=GLOBAL_ALLOW_LIST
-    )
 
     #
     # Initiate Ritual(s)
@@ -193,6 +215,10 @@ def nucypher_dkg(
         emitter.echo(
             f"Commencing DKG Ritual(s) on {domain.polygon_chain.name} using {account_address}",
             color="green",
+        )
+
+        access_controller_contract = blockchain.get_contract_by_name(
+            registry=registry, contract_name=access_controller
         )
 
         initiated_rituals = []
@@ -212,7 +238,7 @@ def nucypher_dkg(
                 providers=dkg_staking_providers,
                 authority=account_address,
                 duration=ritual_duration,
-                access_controller=allow_list.address,
+                access_controller=access_controller_contract.address,
                 transacting_power=transacting_power,
             )
             start_ritual_event = (
@@ -282,9 +308,9 @@ def nucypher_dkg(
             emitter.echo(message, color=color)
         return
     else:
-        # ensure ritual exists
-        _ = coordinator_agent.get_ritual(ritual_id)  # ensure ritual can be found
         emitter.echo(f"Reusing existing DKG Ritual #{ritual_id}", color="green")
+
+    ritual = coordinator_agent.get_ritual(ritual_id)  # ensure ritual can be found
 
     #
     # Encrypt some data
@@ -310,9 +336,7 @@ def nucypher_dkg(
         },
     }
 
-    encrypting_key = DkgPublicKey.from_bytes(
-        bytes(coordinator_agent.get_ritual(ritual_id).public_key)
-    )
+    encrypting_key = DkgPublicKey.from_bytes(bytes(ritual.public_key))
 
     private_key = None
     if not use_random_enrico:
@@ -330,19 +354,22 @@ def nucypher_dkg(
     )
     emitter.echo("-- Data encrypted --", color="green")
 
-    #
-    # Authorize Enrico to use the ritual
-    #
-    is_enrico_already_authorized = allow_list.functions.isAddressAuthorized(
-        ritual_id, enrico_account
-    ).call()
-    if is_enrico_already_authorized:
-        emitter.echo(
-            f"Enrico {enrico_account} already authorized for DKG Ritual #{ritual_id}",
-            color="green",
-        )
-    else:
-        if click.confirm(f"Do you want to authorize Enrico ('{enrico_account}')?"):
+    allow_list = blockchain.get_contract_by_name(
+        registry=registry, contract_name=GLOBAL_ALLOW_LIST
+    )
+    if ritual.access_controller == allow_list.address:
+        #
+        # Authorize Enrico to use the ritual
+        #
+        is_enrico_already_authorized = allow_list.functions.isAddressAuthorized(
+            ritual_id, enrico_account
+        ).call()
+        if is_enrico_already_authorized:
+            emitter.echo(
+                f"Enrico {enrico_account} already authorized for DKG Ritual #{ritual_id}",
+                color="green",
+            )
+        elif click.confirm(f"Do you want to authorize Enrico ('{enrico_account}')?"):
             # Obtain transacting power
             if not signer_uri:
                 emitter.echo(
@@ -369,9 +396,14 @@ def nucypher_dkg(
             )
         else:
             emitter.echo(
-                f"Enrico {enrico_account} not authorized to use DKG Ritual #{ritual_id} - decryption may fail",
+                f"Enrico {enrico_account} may/may not be authorized to use DKG Ritual #{ritual_id} - decryption may fail",
                 color="yellow",
             )
+    else:
+        emitter.echo(
+            f"No authorization checked/performed - Enrico {enrico_account} may/may not be authorized to use DKG Ritual #{ritual_id} - decryption may fail",
+            color="yellow",
+        )
 
     #
     # Get Data Decrypted
