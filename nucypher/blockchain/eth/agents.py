@@ -336,14 +336,13 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
     def get_active_staking_providers(
         self, start_index: int, max_results: int
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
-        active_staking_providers_info = self._get_active_staking_providers_raw(
-            start_index, max_results
-        )
+        (
+            total_authorized_tokens,
+            staking_providers_info,
+        ) = self._get_active_staking_providers_raw(start_index, max_results)
 
-        authorized_tokens, staking_providers = self._process_active_staker_info(
-            active_staking_providers_info
-        )
-        return authorized_tokens, staking_providers
+        staking_providers = self._process_active_staker_info(staking_providers_info)
+        return types.TuNits(total_authorized_tokens), staking_providers
 
     def get_staking_provider_reservoir(
         self,
@@ -359,12 +358,11 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
             raise self.NotEnoughStakingProviders("There are no locked tokens.")
 
         filtered_out = 0
-        if without:
-            for address in without:
-                if address in stake_provider_map:
-                    n_tokens -= stake_provider_map[address]
-                    del stake_provider_map[address]
-                    filtered_out += 1
+        for address in without or []:
+            if address in stake_provider_map:
+                n_tokens -= stake_provider_map[address]
+                del stake_provider_map[address]
+                filtered_out += 1
 
         self.log.debug(
             f"Got {len(stake_provider_map)} staking providers with {n_tokens} total tokens "
@@ -375,9 +373,8 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @staticmethod
     def _process_active_staker_info(
-        active_staking_providers_info: Tuple[int, List[bytes]]
-    ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
-        total_authorized_tokens, staking_providers_info = active_staking_providers_info
+        staking_providers_info: List[bytes],
+    ) -> Dict[ChecksumAddress, types.TuNits]:
         staking_providers = dict()
         for info in staking_providers_info:
             staking_provider_address = to_checksum_address(info[0:20])
@@ -386,7 +383,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
                 staking_provider_authorized_tokens
             )
 
-        return types.TuNits(total_authorized_tokens), staking_providers
+        return staking_providers
 
     def _get_active_stakers(self, pagination_size: Optional[int] = None):
         if pagination_size is None:
