@@ -113,7 +113,7 @@ def get_transacting_power(signer: Signer):
 @click.option(
     "--access-controller",
     "-a",
-    help="Global allow list or open access authorizer",
+    help=f"'{GLOBAL_ALLOW_LIST}' or 'OpenAccessAuthorizer' contract",
     type=click.Choice([GLOBAL_ALLOW_LIST, "OpenAccessAuthorizer"]),
     required=False,
 )
