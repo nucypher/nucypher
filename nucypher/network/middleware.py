@@ -115,11 +115,22 @@ class NucypherMiddlewareClient:
             raise ValueError("You need to pass either the node or a host and port.")
         return host, port, self.library
 
-    def _determine_timeout(self, provided_timeout) -> Union[float, Tuple[float, float]]:
-        # provided timeout (could be None) is really for reading not initial connection timeout,
-        # but use as fallback for connect timeout
-        connect_timeout = self.timeout or provided_timeout
-        read_timeout = provided_timeout or self.timeout
+    def _determine_timeout(
+        self, caller_provided_timeout: Optional[float] = None
+    ) -> Union[float, Tuple[float, float]]:
+        # Basically there are two timeouts for the `requests` library:
+        # - `connect timeout`: number of seconds Requests will wait for your client to establish
+        #                      a connection to a remote machine
+        # - `read timeout`: number of seconds the client will wait for the server to send a response
+        #
+        # If one timeout value is provided to `requests`, then the same value is used
+        # for both timeouts.
+        # When someone provides a timeout via the method call, they are really intending
+        # to specify the `read timeout`, so we use our own internal connect timeout
+        # but keep caller provided timeout as a backup since connect timeout can be overridden by
+        # subclasses and potentially set to None eg. tests).
+        connect_timeout = self.timeout or caller_provided_timeout
+        read_timeout = caller_provided_timeout or self.timeout
         if connect_timeout == read_timeout:
             return connect_timeout
         else:
