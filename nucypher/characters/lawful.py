@@ -568,8 +568,8 @@ class Bob(Character):
             alice_verifying_key=alice_verifying_key,
             bob_encrypting_key=self.public_keys(DecryptingPower),
             bob_verifying_key=self.stamp.as_umbral_pubkey(),
+            context=context,
             timeout=timeout,
-            **context,
         )
 
         # Refill message kits with newly retrieved capsule frags
