@@ -164,8 +164,7 @@ def taco_application(
         REWARD_DURATION,
         DEAUTHORIZATION_DURATION,
         [COMMITMENT_DURATION_1, COMMITMENT_DURATION_2],
-        # UNCOMMENT ONCE https://github.com/nucypher/nucypher-contracts/pull/185 IS MERGED
-        # maya.now().epoch + COMMITMENT_DEADLINE
+        maya.now().epoch + COMMITMENT_DEADLINE
     )
 
     proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
