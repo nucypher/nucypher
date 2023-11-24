@@ -1,6 +1,6 @@
 import re
 from http import HTTPStatus
-from typing import Dict, NamedTuple, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
@@ -21,9 +21,10 @@ from nucypher.utilities.logging import Logger
 __LOGGER = Logger("condition-eval")
 
 
-class EvalError(NamedTuple):
-    message: str
-    status_code: int
+class EvalError(Exception):
+    def __init__(self, message: str, status_code: int):
+        self.message = message
+        self.status_code = status_code
 
 
 def to_camelcase(s):
@@ -132,7 +133,6 @@ def evaluate_condition_lingo(
         log.warn(message)
 
     if error:
-        error = EvalError(*error)
         log.info(error.message)  # log error message
 
     return error
