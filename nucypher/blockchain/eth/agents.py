@@ -462,7 +462,7 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
     def staking_provider_from_operator(
         self, operator_address: ChecksumAddress
     ) -> ChecksumAddress:
-        result = self.contract.functions.stakingProviderFromOperator(
+        result = self.contract.functions.operatorToStakingProvider(
             operator_address
         ).call()
         return result
@@ -537,7 +537,7 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     def get_staking_provider_from_operator(
         self, operator_address: ChecksumAddress
     ) -> ChecksumAddress:
-        result = self.contract.functions.stakingProviderFromOperator(
+        result = self.contract.functions.operatorToStakingProvider(
             operator_address
         ).call()
         return result
