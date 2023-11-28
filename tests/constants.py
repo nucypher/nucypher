@@ -7,7 +7,7 @@ from random import SystemRandom
 from hexbytes import HexBytes
 from web3 import Web3
 
-from nucypher.blockchain.eth.domains import ChainInfo, TACoDomain
+from nucypher.blockchain.eth.domains import LYNX, ChainInfo, TACoDomain
 from nucypher.blockchain.eth.token import NU
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
@@ -16,9 +16,15 @@ from nucypher.config.constants import (
 )
 
 #
-#  Contracts
+#  Examples
 #
 
+TESTNET_FOR_EXAMPLES = LYNX
+RITUAL_ID_FOR_EXAMPLES = 0
+
+#
+#  Contracts
+#
 
 MOCK_STAKING_CONTRACT_NAME = "ThresholdStakingForTACoApplicationMock"
 RITUAL_TOKEN = "RitualToken"

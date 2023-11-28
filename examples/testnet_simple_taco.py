@@ -2,7 +2,6 @@ import os
 
 from nucypher_core.ferveo import DkgPublicKey
 
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
@@ -10,7 +9,11 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
 from nucypher.utilities.profiler import Profiler
-from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
+from tests.constants import (
+    DEFAULT_TEST_ENRICO_PRIVATE_KEY,
+    RITUAL_ID_FOR_EXAMPLES,
+    TESTNET_FOR_EXAMPLES,
+)
 
 ######################
 # Boring setup stuff #
@@ -21,7 +24,7 @@ GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
 eth_endpoint = os.environ["DEMO_L1_PROVIDER_URI"]
-domain = domains.LYNX
+domain = TESTNET_FOR_EXAMPLES
 
 polygon_endpoint = os.environ["DEMO_L2_PROVIDER_URI"]
 
@@ -39,10 +42,10 @@ coordinator_agent = CoordinatorAgent(
     blockchain_endpoint=polygon_endpoint,
     registry=registry,
 )
-ritual_id = 24  # got this from a side channel
+ritual_id = RITUAL_ID_FOR_EXAMPLES  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
-# known authorized encryptor for ritual 3
+# known authorized encryptor for this ritual
 signer = InMemorySigner(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY)
 enrico = Enrico(
     encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)), signer=signer
