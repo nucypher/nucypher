@@ -555,6 +555,11 @@
                             "name": "_commitmentDurationOptions",
                             "type": "uint64[]",
                             "internalType": "uint64[]"
+                        },
+                        {
+                            "name": "_commitmentDeadline",
+                            "type": "uint64",
+                            "internalType": "uint64"
                         }
                     ]
                 },
@@ -999,6 +1004,19 @@
                 },
                 {
                     "type": "function",
+                    "name": "approveAuthorizationDecrease",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "authorizationDecreaseRequested",
                     "stateMutability": "nonpayable",
                     "inputs": [
@@ -1150,6 +1168,19 @@
                 },
                 {
                     "type": "function",
+                    "name": "commitmentDeadline",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint64",
+                            "internalType": "uint64"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "commitmentDurationOption1",
                     "stateMutability": "view",
                     "inputs": [],
@@ -1228,19 +1259,6 @@
                 },
                 {
                     "type": "function",
-                    "name": "finishAuthorizationDecrease",
-                    "stateMutability": "nonpayable",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": []
-                },
-                {
-                    "type": "function",
                     "name": "getActiveStakingProviders",
                     "stateMutability": "view",
                     "inputs": [
@@ -1284,25 +1302,6 @@
                             "name": "beneficiary",
                             "type": "address",
                             "internalType": "address payable"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "getOperatorFromStakingProvider",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_stakingProvider",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
                         }
                     ]
                 },
@@ -1459,6 +1458,25 @@
                 },
                 {
                     "type": "function",
+                    "name": "operatorToStakingProvider",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "_operator",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "owner",
                     "stateMutability": "view",
                     "inputs": [],
@@ -1511,6 +1529,19 @@
                             "name": "_reward",
                             "type": "uint96",
                             "internalType": "uint96"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "registerOperator",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_operator",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
                     "outputs": []
@@ -1683,25 +1714,6 @@
                 },
                 {
                     "type": "function",
-                    "name": "stakingProviderFromOperator",
-                    "stateMutability": "view",
-                    "inputs": [
-                        {
-                            "name": "_operator",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "address"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
                     "name": "stakingProviderInfo",
                     "stateMutability": "view",
                     "inputs": [
@@ -1756,6 +1768,25 @@
                             "name": "endCommitment",
                             "type": "uint64",
                             "internalType": "uint64"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "stakingProviderToOperator",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ]
                 },
@@ -5131,20 +5162,7 @@
                 },
                 {
                     "type": "function",
-                    "name": "rootApplication",
-                    "stateMutability": "view",
-                    "inputs": [],
-                    "outputs": [
-                        {
-                            "name": "",
-                            "type": "address",
-                            "internalType": "contract ITACoChildToRoot"
-                        }
-                    ]
-                },
-                {
-                    "type": "function",
-                    "name": "stakingProviderFromOperator",
+                    "name": "operatorToStakingProvider",
                     "stateMutability": "view",
                     "inputs": [
                         {
@@ -5158,6 +5176,19 @@
                             "name": "",
                             "type": "address",
                             "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "rootApplication",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract ITACoChildToRoot"
                         }
                     ]
                 },
