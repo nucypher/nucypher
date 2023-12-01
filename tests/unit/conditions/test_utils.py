@@ -36,6 +36,7 @@ from nucypher.policy.conditions.exceptions import (
 from nucypher.policy.conditions.lingo import ConditionLingo
 from nucypher.policy.conditions.utils import (
     CamelCaseSchema,
+    ConditionEvalError,
     camel_case_to_snake,
     evaluate_condition_lingo,
     to_camelcase,
@@ -70,22 +71,23 @@ def test_evaluate_condition_exception_cases(
     ) as mocked_from_dict:
         mocked_from_dict.return_value = condition_lingo
 
-        eval_error = evaluate_condition_lingo(
-            condition_lingo=condition_lingo
-        )  # provider and context default to empty dicts
-        assert eval_error
-        assert eval_error.status_code == expected_status_code
+        with pytest.raises(ConditionEvalError) as eval_error:
+            evaluate_condition_lingo(
+                condition_lingo=condition_lingo
+            )  # provider and context default to empty dicts
+        assert eval_error.value.status_code == expected_status_code
 
 
 def test_evaluate_condition_invalid_lingo():
-    eval_error = evaluate_condition_lingo(
-        condition_lingo={
-            "version": ConditionLingo.VERSION,
-            "condition": {"dont_mind_me": "nothing_to_see_here"},
-        }
-    )  # provider and context default to empty dicts
-    assert "Invalid condition grammar" in eval_error.message
-    assert eval_error.status_code == HTTPStatus.BAD_REQUEST
+    with pytest.raises(ConditionEvalError) as eval_error:
+        evaluate_condition_lingo(
+            condition_lingo={
+                "version": ConditionLingo.VERSION,
+                "condition": {"dont_mind_me": "nothing_to_see_here"},
+            }
+        )  # provider and context default to empty dicts
+    assert "Invalid condition grammar" in eval_error.value.message
+    assert eval_error.value.status_code == HTTPStatus.BAD_REQUEST
 
 
 def test_evaluate_condition_eval_returns_false():
@@ -97,13 +99,13 @@ def test_evaluate_condition_eval_returns_false():
     ) as mocked_from_dict:
         mocked_from_dict.return_value = condition_lingo
 
-        eval_error = evaluate_condition_lingo(
-            condition_lingo=condition_lingo,
-            providers={1: Mock(spec=BaseProvider)},  # fake provider
-            context={"key": "value"},  # fake context
-        )
-        assert eval_error
-        assert eval_error.status_code == HTTPStatus.FORBIDDEN
+        with pytest.raises(ConditionEvalError) as eval_error:
+            evaluate_condition_lingo(
+                condition_lingo=condition_lingo,
+                providers={1: Mock(spec=BaseProvider)},  # fake provider
+                context={"key": "value"},  # fake context
+            )
+        assert eval_error.value.status_code == HTTPStatus.FORBIDDEN
 
 
 def test_evaluate_condition_eval_returns_true():
@@ -115,7 +117,7 @@ def test_evaluate_condition_eval_returns_true():
     ) as mocked_from_dict:
         mocked_from_dict.return_value = condition_lingo
 
-        eval_error = evaluate_condition_lingo(
+        evaluate_condition_lingo(
             condition_lingo=condition_lingo,
             providers={
                 1: Mock(spec=BaseProvider),
@@ -126,8 +128,6 @@ def test_evaluate_condition_eval_returns_true():
                 "key2": "value2",
             },  # multiple values in fake context
         )
-
-        assert eval_error is None
 
 
 @pytest.mark.parametrize(

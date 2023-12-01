@@ -1,6 +1,6 @@
 import re
 from http import HTTPStatus
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Set, Tuple
 
 from marshmallow import Schema, post_dump
 from web3.providers import BaseProvider
@@ -21,7 +21,8 @@ from nucypher.utilities.logging import Logger
 __LOGGER = Logger("condition-eval")
 
 
-class EvalError(Exception):
+class ConditionEvalError(Exception):
+    """Exception when execution condition evaluation."""
     def __init__(self, message: str, status_code: int):
         self.message = message
         self.status_code = status_code
@@ -56,10 +57,10 @@ class CamelCaseSchema(Schema):
 
 def evaluate_condition_lingo(
     condition_lingo: Lingo,
-    providers: Optional[Dict[int, BaseProvider]] = None,
+    providers: Optional[Dict[int, Set[BaseProvider]]] = None,
     context: Optional[ContextDict] = None,
     log: Logger = __LOGGER,
-) -> Optional[EvalError]:
+):
     """
     Evaluates condition lingo with the give providers and user supplied context.
     If all conditions are satisfied this function returns None.
@@ -83,44 +84,46 @@ def evaluate_condition_lingo(
             result = lingo.eval(providers=providers, **context)
             if not result:
                 # explicit condition failure
-                error = EvalError(
+                error = ConditionEvalError(
                     "Decryption conditions not satisfied", HTTPStatus.FORBIDDEN
                 )
     except ReturnValueEvaluationError as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Unable to evaluate return value: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except InvalidConditionLingo as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Invalid condition grammar: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except InvalidCondition as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Incorrect value provided for condition: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except RequiredContextVariable as e:
         # TODO: be more specific and name the missing inputs, etc
-        error = EvalError(f"Missing required inputs: {e}", HTTPStatus.BAD_REQUEST)
+        error = ConditionEvalError(
+            f"Missing required inputs: {e}", HTTPStatus.BAD_REQUEST
+        )
     except InvalidContextVariableData as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Invalid data provided for context variable: {e}",
             HTTPStatus.BAD_REQUEST,
         )
     except ContextVariableVerificationFailed as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Context variable data could not be verified: {e}",
             HTTPStatus.FORBIDDEN,
         )
     except NoConnectionToChain as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Node does not have a connection to chain ID {e.chain}",
             HTTPStatus.NOT_IMPLEMENTED,
         )
     except ConditionEvaluationFailed as e:
-        error = EvalError(
+        error = ConditionEvalError(
             f"Decryption condition not evaluated: {e}", HTTPStatus.BAD_REQUEST
         )
     except Exception as e:
@@ -129,10 +132,9 @@ def evaluate_condition_lingo(
             f"Unexpected exception while evaluating "
             f"decryption condition ({e.__class__.__name__}): {e}"
         )
-        error = EvalError(message, HTTPStatus.INTERNAL_SERVER_ERROR)
+        error = ConditionEvalError(message, HTTPStatus.INTERNAL_SERVER_ERROR)
         log.warn(message)
 
     if error:
         log.info(error.message)  # log error message
-
-    return error
+        raise error

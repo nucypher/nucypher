@@ -649,14 +649,12 @@ class Operator(BaseActor):
                 "No conditions present for ciphertext.",
             )
 
-        # evaluate the conditions for this ciphertext
-        error = evaluate_condition_lingo(
+        # evaluate the conditions for this ciphertext; raises if it fails
+        evaluate_condition_lingo(
             condition_lingo=condition_lingo,
             context=context,
             providers=self.condition_providers,
         )
-        if error:
-            raise error
 
     def _verify_decryption_request_authorization(
         self, decryption_request: ThresholdDecryptionRequest

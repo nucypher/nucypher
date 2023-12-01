@@ -21,7 +21,10 @@ from nucypher.crypto.keypairs import DecryptingKeypair
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.network.nodes import NodeSprout
 from nucypher.network.protocols import InterfaceInfo
-from nucypher.policy.conditions.utils import EvalError, evaluate_condition_lingo
+from nucypher.policy.conditions.utils import (
+    ConditionEvalError,
+    evaluate_condition_lingo,
+)
 from nucypher.utilities.logging import Logger
 
 HERE = BASE_DIR = Path(__file__).parent
@@ -164,7 +167,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response("Ritual not found", status=HTTPStatus.NOT_FOUND)
         except this_node.UnauthorizedRequest as e:
             return Response(str(e), status=HTTPStatus.UNAUTHORIZED)
-        except EvalError as e:
+        except ConditionEvalError as e:
             return Response(e.message, status=e.status_code)
         except this_node.DecryptionFailure as e:
             return Response(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
@@ -245,12 +248,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         capsules_to_process = list()
         for capsule, condition_lingo in packets:
             if condition_lingo:
-                error = evaluate_condition_lingo(
-                    condition_lingo=condition_lingo,
-                    providers=this_node.condition_providers,
-                    context=context
-                )
-                if error:
+                try:
+                    evaluate_condition_lingo(
+                        condition_lingo=condition_lingo,
+                        providers=this_node.condition_providers,
+                        context=context,
+                    )
+                except ConditionEvalError as error:
                     # TODO: This response short-circuits the entire request on falsy condition
                     #  even if other unrelated capsules (message kits) are present.
                     return Response(error.message, status=error.status_code)
