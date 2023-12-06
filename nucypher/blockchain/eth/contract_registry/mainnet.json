@@ -1,7 +1,7 @@
 {
     "1": {
         "PolygonRoot": {
-            "address": "0xEc20eD1240F8AdC50c01bdcfe1B6f878Dc0fF583",
+            "address": "0x51825d6e893c51836dC9C0EdF3867c57CD0cACB3",
             "abi": [
                 {
                     "type": "constructor",
@@ -144,8 +144,8 @@
                     "outputs": []
                 }
             ],
-            "tx_hash": "0x9ac6aac59e58438b95884feed29c75cfa98bd9776ba4689bd27f1550564fbbb1",
-            "block_number": 18622379,
+            "tx_hash": "0x6f312fa728d914beabdb6164ccc5863c869874957318f8b6d618ac5448bec55a",
+            "block_number": 18728539,
             "deployer": "0xFfFd7092685bDeeBD121D1A0FEA3c349114Cce50"
         },
         "TACoApplication": {
@@ -435,6 +435,31 @@
                             "name": "version",
                             "type": "uint64",
                             "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "ManualChildSynchronizationSent",
+                    "inputs": [
+                        {
+                            "name": "stakingProvider",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "authorized",
+                            "type": "uint96",
+                            "internalType": "uint96",
+                            "indexed": false
+                        },
+                        {
+                            "name": "operator",
+                            "type": "address",
+                            "internalType": "address",
                             "indexed": false
                         }
                     ],
@@ -1060,6 +1085,19 @@
                             "name": "_commitmentDuration",
                             "type": "uint64",
                             "internalType": "uint64"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "manualChildSynchronization",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
                     "outputs": []
@@ -3282,7 +3320,7 @@
             "deployer": "0xFfFd7092685bDeeBD121D1A0FEA3c349114Cce50"
         },
         "PolygonChild": {
-            "address": "0xa67B971011Ea3675449d8c054B243990B839afDd",
+            "address": "0x1f5C5fd6A66723fA22a778CC53263dd3FA6851E5",
             "abi": [
                 {
                     "type": "constructor",
@@ -3475,9 +3513,9 @@
                     "outputs": []
                 }
             ],
-            "tx_hash": "0x02af325b856288153717e76d3323aa8444ba28994c20ed0b313c260641115b3d",
-            "block_number": 50223971,
-            "deployer": "0xFfFd7092685bDeeBD121D1A0FEA3c349114Cce50"
+            "tx_hash": "0xad8835aa771ea9d0038a54f8065d6b0b2d3d1e592b817aa2932ce763e35f9f60",
+            "block_number": 50816123,
+            "deployer": "0x1591165F1BF8B73de7053A6BE6f239BC15076879"
         },
         "SubscriptionManager": {
             "address": "0xB0194073421192F6Cf38d72c791Be8729721A0b3",
