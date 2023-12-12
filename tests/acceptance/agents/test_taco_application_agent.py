@@ -143,6 +143,12 @@ def test_get_staking_provider_info(
     assert info.operator_start_timestamp > 0
     assert info.operator == operator_account
     assert info.operator_confirmed is False
+    assert info.authorized > 0
+    assert info.deauthorizing == 0
+    assert info.end_deauthorization == 0
+    assert info.t_reward == 0
+    assert info.reward_per_token_paid == 0
+    assert info.end_commitment == 0
 
     # non-existent staker
     info = taco_application_agent.get_staking_provider_info(
@@ -151,3 +157,9 @@ def test_get_staking_provider_info(
     assert info.operator_start_timestamp == 0
     assert info.operator == NULL_ADDRESS
     assert info.operator_confirmed is False
+    assert info.authorized == 0
+    assert info.deauthorizing == 0
+    assert info.end_deauthorization == 0
+    assert info.t_reward == 0
+    assert info.reward_per_token_paid == 0
+    assert info.end_commitment == 0

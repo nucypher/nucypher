@@ -516,7 +516,13 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     class StakingProviderInfo(NamedTuple):
         operator: ChecksumAddress
         operator_confirmed: bool
-        operator_start_timestamp: int
+        operator_start_timestamp: Timestamp
+        authorized: int
+        deauthorizing: int
+        end_deauthorization: Timestamp
+        t_reward: int
+        reward_per_token_paid: int
+        end_commitment: Timestamp
 
     class OperatorInfo(NamedTuple):
         address: ChecksumAddress
@@ -565,9 +571,8 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     def get_staking_provider_info(
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
-        # remove reserved fields
         info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return TACoApplicationAgent.StakingProviderInfo(*info[0:3])
+        return TACoApplicationAgent.StakingProviderInfo(*info)
 
     @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
