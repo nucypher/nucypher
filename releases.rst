@@ -4,6 +4,155 @@ Releases
 
 .. towncrier release notes start
 
+v7.0.3 (2023-12-11)
+-------------------
+
+Misc
+~~~~
+
+- Increase startup poll rate for checking bonding/funding from 10s to 120s. (`#3364 <https://github.com/nucypher/nucypher/issues/3364>`__)
+
+
+v7.0.2 (2023-12-07)
+-------------------
+
+
+v7.0.1 (2023-12-04)
+-------------------
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#3360 <https://github.com/nucypher/nucypher/issues/3360>`__)
+
+
+v7.0.0 (2023-12-01)
+-------------------
+
+Features
+~~~~~~~~
+
+- Basic support for polygon conditions (`#2986 <https://github.com/nucypher/nucypher/issues/2986>`__)
+- Add artifacts for new network: tapir (`#2996 <https://github.com/nucypher/nucypher/issues/2996>`__)
+- Update contract registry for lynx network (`#3000 <https://github.com/nucypher/nucypher/issues/3000>`__)
+- Allow a key to be specified for evaluating the return value (`#3002 <https://github.com/nucypher/nucypher/issues/3002>`__)
+- Bump ``nucypher-core`` to 0.6. (`#3049 <https://github.com/nucypher/nucypher/issues/3049>`__)
+- Include inventory entries for oryx. (`#3069 <https://github.com/nucypher/nucypher/issues/3069>`__)
+- Introduces support for DKG and Threshold Decryption. (`#3083 <https://github.com/nucypher/nucypher/issues/3083>`__)
+- Enables "Simple" threshold decryption variant and threshold decryption functionlity by Bob. (`#3088 <https://github.com/nucypher/nucypher/issues/3088>`__)
+- End-to-end encryption for CBD decryption requests. (`#3123 <https://github.com/nucypher/nucypher/issues/3123>`__)
+- ``TimeCondition`` now uses the timestamp of the latest block for evaluating conditions, instead of system time. System time condition evaluation is no longer supported. (`#3139 <https://github.com/nucypher/nucypher/issues/3139>`__)
+- Implement prefix notation for access control conditions with logical operators. (`#3140 <https://github.com/nucypher/nucypher/issues/3140>`__)
+- Sublcasses of Bob and Enrico which allow local, off-chain development and styling of both success and failure cases, which can be forced instead of checking conditions. (`#3143 <https://github.com/nucypher/nucypher/issues/3143>`__)
+- Add version element to condition language to allow future changes and to manage backwards compatibility. (`#3145 <https://github.com/nucypher/nucypher/issues/3145>`__)
+- Increase default timeout for ``/reencrypt`` requests to limit timeouts when multiple retrieval kits are included in a single request. (`#3153 <https://github.com/nucypher/nucypher/issues/3153>`__)
+- Reset default ferveo variant to be ``simple``. We can revisit whenever we add logic to properly deal with request failures for the ``precomputed`` variant. (`#3174 <https://github.com/nucypher/nucypher/issues/3174>`__)
+- - Support arbitrary multichain configuration for EVM-compatible blockchains for condition evaluation by ursula.
+  - Support for fallback RPC providers and multiple URI specification for a single chain ID. (`#3185 <https://github.com/nucypher/nucypher/issues/3185>`__)
+- Implement data encapsulation when encrypting data using ``ferveo`` encryption by utilizing ``ThresholdMessageKit`` and ``AccessControlPolicy``.
+  Provide framework to incorporate authorization allow logic for authorized encryptors of data for a ritual. (`#3194 <https://github.com/nucypher/nucypher/issues/3194>`__)
+- Add a mandatory condition_type field to condition schemas (`#3201 <https://github.com/nucypher/nucypher/issues/3201>`__)
+- New HTTP(S) endpoint to return a list of all the blockchains a node is currently connected to for conditions evaluation. (`#3205 <https://github.com/nucypher/nucypher/issues/3205>`__)
+- Introduces `nucypher ursula config migrate` for configuration file automation. (`#3207 <https://github.com/nucypher/nucypher/issues/3207>`__)
+- Implement functionality related to Encryptor authorization for specific ritual.
+  Obtain ritual threshold from Coordinator contract. (`#3213 <https://github.com/nucypher/nucypher/issues/3213>`__)
+- Nodes reject decryption requests for already expired rituals. (`#3279 <https://github.com/nucypher/nucypher/issues/3279>`__)
+- Added ``not`` operator functionality to ``CompoundAccessControlCondition`` so that the logical inverse of conditions can be evaluated. (`#3293 <https://github.com/nucypher/nucypher/issues/3293>`__)
+- Allow Bob / ThresholdAccessControlClient decryption and reencryption operations to specify timeouts. (`#3337 <https://github.com/nucypher/nucypher/issues/3337>`__)
+- Use ``TACoChildApplication`` contract for node sampling instead of ``TACoApplication`` contract. (`#3341 <https://github.com/nucypher/nucypher/issues/3341>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- temp workaround for Ropsten/oryx gas estimation issue (`#2943 <https://github.com/nucypher/nucypher/issues/2943>`__)
+- Show fleet state checksums as hex instead of an escaped bytestring (`#2946 <https://github.com/nucypher/nucypher/issues/2946>`__)
+- Correctly validate domain/network values provided via the ``--network`` parameter in the CLI. (`#2952 <https://github.com/nucypher/nucypher/issues/2952>`__)
+- Call `_resolve_abi` after the condition is initialized (`#3014 <https://github.com/nucypher/nucypher/issues/3014>`__)
+- Properly handle PRE request with no condition. (`#3025 <https://github.com/nucypher/nucypher/issues/3025>`__)
+- Restrict return value `key` to integer only (`#3032 <https://github.com/nucypher/nucypher/issues/3032>`__)
+- Use decoded text from failed HTTP Responses for exception messages. (`#3042 <https://github.com/nucypher/nucypher/issues/3042>`__)
+- Properly convert ritual id to bytes when being used as a seed for generating a session key. (`#3178 <https://github.com/nucypher/nucypher/issues/3178>`__)
+- Fix staking metrics in Prometheus exporter (`#3199 <https://github.com/nucypher/nucypher/issues/3199>`__)
+- Fix Prometheus import error when running Porter (`#3202 <https://github.com/nucypher/nucypher/issues/3202>`__)
+-  (`#3203 <https://github.com/nucypher/nucypher/issues/3203>`__, `#3209 <https://github.com/nucypher/nucypher/issues/3209>`__, `#3214 <https://github.com/nucypher/nucypher/issues/3214>`__)
+- ``UrsulaConfiguration`` object should not be too eager to connect to provided blockchain endpoints; if faulty then the configuration file can't be updated. (`#3282 <https://github.com/nucypher/nucypher/issues/3282>`__)
+- Fix nucypher CLI: ``ursula config ip-address`` (`#3292 <https://github.com/nucypher/nucypher/issues/3292>`__)
+- Fix issues when bytes are provided as hex for return value comparators.
+  Make condition value types more strict by using ABI to validate. (`#3303 <https://github.com/nucypher/nucypher/issues/3303>`__)
+- Address bug where context variable not properly processed when doing type checking for multi-value output. (`#3312 <https://github.com/nucypher/nucypher/issues/3312>`__)
+- Include the port in ``seeds.nucyher.network`` URL entry in dictionary of teacher nodes for mainnet. (`#3332 <https://github.com/nucypher/nucypher/issues/3332>`__)
+
+
+Improved Documentation
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Add recommendation/information about restart functionality when running a PRE node. (`#2945 <https://github.com/nucypher/nucypher/issues/2945>`__)
+- Relocates documentation to https://docs.threshold.network (https://github.com/threshold-network/threshold). (`#3311 <https://github.com/nucypher/nucypher/issues/3311>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Remove set up dependency on ``setuptools-markdown`` which is no longer needed, but caused build failures. (`#2942 <https://github.com/nucypher/nucypher/issues/2942>`__)
+- Deprecates alice, bob, and contact CLI commands. (`#2985 <https://github.com/nucypher/nucypher/issues/2985>`__)
+- Removals: 
+  - RPC servers
+  - character WebControllers
+  - unused literature
+  - unused CLI option definitions
+  - CLI helper functions for Alice, Bob, Contacts interactivity
+  - interactive Ursula mode
+  - enrico CLI commands (`#2987 <https://github.com/nucypher/nucypher/issues/2987>`__)
+- Removes LMDB Datastore (`#2988 <https://github.com/nucypher/nucypher/issues/2988>`__)
+- Removes clef and trezor signer support (`#2989 <https://github.com/nucypher/nucypher/issues/2989>`__)
+- Relocate porter to nucypher/nucypher-porter (`#2990 <https://github.com/nucypher/nucypher/issues/2990>`__)
+- Retires the Ibex and Oryx testnets (`#2998 <https://github.com/nucypher/nucypher/issues/2998>`__)
+- Deprecated "federated mode" ursulas and the --federated-only launch flag. (`#3030 <https://github.com/nucypher/nucypher/issues/3030>`__)
+- Deprecated "timelock" time condition that used system time in favor of a condition that uses block time. (`#3139 <https://github.com/nucypher/nucypher/issues/3139>`__)
+- Remove the use of infix notation for access control conditions with logical operators in favor of prefix notation. (`#3140 <https://github.com/nucypher/nucypher/issues/3140>`__)
+- removes `nucypher bond` CLI (`#3149 <https://github.com/nucypher/nucypher/issues/3149>`__)
+-  (`#3234 <https://github.com/nucypher/nucypher/issues/3234>`__)
+- Remove ``EconomicsFactory`` and ``Economics`` classes. (`#3241 <https://github.com/nucypher/nucypher/issues/3241>`__)
+- Remove ``AdjudicatorAgent`` and custom ``Dispatcher`` proxy logic. (`#3243 <https://github.com/nucypher/nucypher/issues/3243>`__)
+- Deprecate configuration config/parameters ``pre-payment-network``, ``coordinator_uri`` since the L2 network is implied based on TACo network used. (`#3262 <https://github.com/nucypher/nucypher/issues/3262>`__)
+
+
+Misc
+~~~~
+
+- Add default seed node for Oryx testnet. (`#2944 <https://github.com/nucypher/nucypher/issues/2944>`__)
+- Prometheus metrics exporter returned (`#2950 <https://github.com/nucypher/nucypher/issues/2950>`__)
+- Extends policy probationary period until August 31st, 2022. No policies may be created on the network beyond this date. (`#2952 <https://github.com/nucypher/nucypher/issues/2952>`__)
+- Cleanup of prometheus metrics collection. (`#2954 <https://github.com/nucypher/nucypher/issues/2954>`__)
+- Reworks internal blockchain connection cache to support multiple concurrent connections. (`#3137 <https://github.com/nucypher/nucypher/issues/3137>`__)
+- Ensure that nodes can be more resilient when handling events related to rituals. (`#3183 <https://github.com/nucypher/nucypher/issues/3183>`__)
+- Use a time-to-live cache for trakcing ritual participation state which gets periodically purged when ritual state is deemed stale. (`#3191 <https://github.com/nucypher/nucypher/issues/3191>`__)
+- Don't allow users to specify the FerveoVariant to use for threshold decryption. The default, simple variant, will be used. (`#3193 <https://github.com/nucypher/nucypher/issues/3193>`__)
+-  (`#3204 <https://github.com/nucypher/nucypher/issues/3204>`__, `#3210 <https://github.com/nucypher/nucypher/issues/3210>`__, `#3215 <https://github.com/nucypher/nucypher/issues/3215>`__, `#3220 <https://github.com/nucypher/nucypher/issues/3220>`__)
+- Update Ursula configuration version from 6 to 7.
+  Check operator for MATIC funding instead of ETH on startup.
+  Handle separation between mainnet root application contract and l2 child application contract. (`#3227 <https://github.com/nucypher/nucypher/issues/3227>`__)
+- Properly detect operator bonding status by using both ``TACoChildApplicationAgent`` and ``TACoApplicationAgent`` to ensure consistency. (`#3237 <https://github.com/nucypher/nucypher/issues/3237>`__)
+- Contract registries now use JSON format and support multi-chain deployments organized by nucypher "domain". (`#3261 <https://github.com/nucypher/nucypher/issues/3261>`__)
+- Since the L2 network is always implied based on the TACo network connected to, we no longer need those config/parameters across the codebase, it can be inferred.
+  Each Character now takes optional eth and polygon endpoints.
+  Remove various usages of redundant L2 values. General rename from ``[eth_]provider[_uri]`` to ``[blockchain/eth/polygon]_endpoint``. (`#3262 <https://github.com/nucypher/nucypher/issues/3262>`__)
+- Add ``tapir`` contract registry. (`#3277 <https://github.com/nucypher/nucypher/issues/3277>`__)
+- Reduce the number of times the blockchain is queried for chain id. (`#3285 <https://github.com/nucypher/nucypher/issues/3285>`__)
+- Add ``nucypher taco rituals`` CLI command to list ritual information for a TACo domain. (`#3290 <https://github.com/nucypher/nucypher/issues/3290>`__)
+- Require condition RPC endpoints for node startup (`#3318 <https://github.com/nucypher/nucypher/issues/3318>`__)
+
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#3019 <https://github.com/nucypher/nucypher/issues/3019>`__, `#3021 <https://github.com/nucypher/nucypher/issues/3021>`__, `#3022 <https://github.com/nucypher/nucypher/issues/3022>`__, `#3023 <https://github.com/nucypher/nucypher/issues/3023>`__, `#3024 <https://github.com/nucypher/nucypher/issues/3024>`__, `#3026 <https://github.com/nucypher/nucypher/issues/3026>`__, `#3028 <https://github.com/nucypher/nucypher/issues/3028>`__, `#3029 <https://github.com/nucypher/nucypher/issues/3029>`__, `#3034 <https://github.com/nucypher/nucypher/issues/3034>`__, `#3037 <https://github.com/nucypher/nucypher/issues/3037>`__, `#3040 <https://github.com/nucypher/nucypher/issues/3040>`__, `#3046 <https://github.com/nucypher/nucypher/issues/3046>`__, `#3048 <https://github.com/nucypher/nucypher/issues/3048>`__, `#3071 <https://github.com/nucypher/nucypher/issues/3071>`__, `#3126 <https://github.com/nucypher/nucypher/issues/3126>`__, `#3134 <https://github.com/nucypher/nucypher/issues/3134>`__, `#3135 <https://github.com/nucypher/nucypher/issues/3135>`__, `#3138 <https://github.com/nucypher/nucypher/issues/3138>`__, `#3152 <https://github.com/nucypher/nucypher/issues/3152>`__, `#3158 <https://github.com/nucypher/nucypher/issues/3158>`__, `#3159 <https://github.com/nucypher/nucypher/issues/3159>`__, `#3160 <https://github.com/nucypher/nucypher/issues/3160>`__, `#3162 <https://github.com/nucypher/nucypher/issues/3162>`__, `#3165 <https://github.com/nucypher/nucypher/issues/3165>`__, `#3169 <https://github.com/nucypher/nucypher/issues/3169>`__, `#3170 <https://github.com/nucypher/nucypher/issues/3170>`__, `#3171 <https://github.com/nucypher/nucypher/issues/3171>`__, `#3179 <https://github.com/nucypher/nucypher/issues/3179>`__, `#3196 <https://github.com/nucypher/nucypher/issues/3196>`__, `#3208 <https://github.com/nucypher/nucypher/issues/3208>`__, `#3216 <https://github.com/nucypher/nucypher/issues/3216>`__, `#3221 <https://github.com/nucypher/nucypher/issues/3221>`__, `#3222 <https://github.com/nucypher/nucypher/issues/3222>`__, `#3233 <https://github.com/nucypher/nucypher/issues/3233>`__, `#3238 <https://github.com/nucypher/nucypher/issues/3238>`__, `#3239 <https://github.com/nucypher/nucypher/issues/3239>`__, `#3250 <https://github.com/nucypher/nucypher/issues/3250>`__, `#3252 <https://github.com/nucypher/nucypher/issues/3252>`__, `#3254 <https://github.com/nucypher/nucypher/issues/3254>`__, `#3255 <https://github.com/nucypher/nucypher/issues/3255>`__, `#3256 <https://github.com/nucypher/nucypher/issues/3256>`__, `#3257 <https://github.com/nucypher/nucypher/issues/3257>`__, `#3258 <https://github.com/nucypher/nucypher/issues/3258>`__, `#3267 <https://github.com/nucypher/nucypher/issues/3267>`__, `#3271 <https://github.com/nucypher/nucypher/issues/3271>`__, `#3272 <https://github.com/nucypher/nucypher/issues/3272>`__, `#3274 <https://github.com/nucypher/nucypher/issues/3274>`__, `#3275 <https://github.com/nucypher/nucypher/issues/3275>`__, `#3276 <https://github.com/nucypher/nucypher/issues/3276>`__, `#3295 <https://github.com/nucypher/nucypher/issues/3295>`__, `#3298 <https://github.com/nucypher/nucypher/issues/3298>`__, `#3304 <https://github.com/nucypher/nucypher/issues/3304>`__, `#3306 <https://github.com/nucypher/nucypher/issues/3306>`__, `#3308 <https://github.com/nucypher/nucypher/issues/3308>`__, `#3309 <https://github.com/nucypher/nucypher/issues/3309>`__, `#3312 <https://github.com/nucypher/nucypher/issues/3312>`__, `#3315 <https://github.com/nucypher/nucypher/issues/3315>`__, `#3317 <https://github.com/nucypher/nucypher/issues/3317>`__, `#3321 <https://github.com/nucypher/nucypher/issues/3321>`__, `#3323 <https://github.com/nucypher/nucypher/issues/3323>`__, `#3325 <https://github.com/nucypher/nucypher/issues/3325>`__, `#3330 <https://github.com/nucypher/nucypher/issues/3330>`__, `#3334 <https://github.com/nucypher/nucypher/issues/3334>`__, `#3335 <https://github.com/nucypher/nucypher/issues/3335>`__, `#3338 <https://github.com/nucypher/nucypher/issues/3338>`__, `#3344 <https://github.com/nucypher/nucypher/issues/3344>`__, `#3345 <https://github.com/nucypher/nucypher/issues/3345>`__, `#3347 <https://github.com/nucypher/nucypher/issues/3347>`__, `#3348 <https://github.com/nucypher/nucypher/issues/3348>`__)
+- Updates to use ferveo v0.1.11. (`#3121 <https://github.com/nucypher/nucypher/issues/3121>`__)
+- Add profiling option to ``testnet_simple_taco.py`` demo. (`#3284 <https://github.com/nucypher/nucypher/issues/3284>`__)
+- Context variable names are restricted to alphanumeric characters, numbers and underscores. (`#3331 <https://github.com/nucypher/nucypher/issues/3331>`__)
+
+
 v6.1.0 (2022-05-10)
 -------------------
 

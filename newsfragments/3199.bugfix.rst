@@ -1,1 +1,0 @@
-Fix staking metrics in Prometheus exporter
