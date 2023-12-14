@@ -797,7 +797,8 @@ class Operator(BaseActor):
                             color="yellow",
                         )
 
-            time.sleep(poll_rate)
+            if not (funded and bonded):
+                time.sleep(poll_rate)
 
         coordinator_address = self.coordinator_agent.contract_address
         emitter.message(
