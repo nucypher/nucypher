@@ -1,1 +1,0 @@
-Relocates documentation to https://docs.threshold.network (https://github.com/threshold-network/threshold).

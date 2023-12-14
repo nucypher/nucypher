@@ -1,1 +1,0 @@
-Reduce the number of times the blockchain is queried for chain id.

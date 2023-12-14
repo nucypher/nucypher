@@ -1,2 +1,0 @@
-- Support arbitrary multichain configuration for EVM-compatible blockchains for condition evaluation by ursula.
-- Support for fallback RPC providers and multiple URI specification for a single chain ID.

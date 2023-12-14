@@ -1,2 +1,0 @@
-Retires the Ibex and Oryx testnets
-
