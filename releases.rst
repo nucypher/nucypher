@@ -4,6 +4,15 @@ Releases
 
 .. towncrier release notes start
 
+v7.0.4 (2023-12-15)
+-------------------
+
+Bugfixes
+~~~~~~~~
+
+- Don't needlessly block during ``block_until_ready`` on node startup if node is deemed to be bonded and funded. (`#3366 <https://github.com/nucypher/nucypher/issues/3366>`__)
+
+
 v7.0.3 (2023-12-11)
 -------------------
 

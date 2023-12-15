@@ -1,1 +1,0 @@
-Don't needlessly block during ``block_until_ready`` on node startup if node is deemed to be bonded and funded.
