@@ -259,7 +259,8 @@ class BlockchainInterface:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
-        self.configure_gas_strategy()
+        # TODO:  See #2770
+        # self.configure_gas_strategy()
 
     def configure_gas_strategy(self, gas_strategy: Optional[Callable] = None) -> None:
 
