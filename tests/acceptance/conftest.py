@@ -127,7 +127,7 @@ def ritual_token(project, deployer_account):
 
 @pytest.fixture(scope="module")
 def t_token(nucypher_dependency, deployer_account):
-    _t_token = deployer_account.deploy(nucypher_dependency.TToken, TOTAL_SUPPLY)
+    _t_token = deployer_account.deploy(nucypher_dependency.TestToken, TOTAL_SUPPLY)
     return _t_token
 
 
