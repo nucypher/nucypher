@@ -263,7 +263,7 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
     # condition providers for other unrelated chains
     providers = {
         1: mock.Mock(),  # mainnet
-        5: mock.Mock(),  # Goerli
+        11155111: mock.Mock(),  # Sepolia
     }
 
     with pytest.raises(NoConnectionToChain):

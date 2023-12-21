@@ -40,8 +40,8 @@ class MockGanacheProvider:
 
 
 class MockInfuraProvider:
-    endpoint_uri = 'wss://:@goerli.infura.io/ws/v3/1234567890987654321abcdef'
-    client_version = 'Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1'
+    endpoint_uri = "wss://:@sepolia.infura.io/ws/v3/1234567890987654321abcdef"
+    client_version = "Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1"
 
 
 class MockAlchemyProvider:
