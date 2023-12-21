@@ -34,7 +34,7 @@ def test_node_deployer(ursulas):
         assert deployer.application == ursula.rest_app
 
 
-def test_goerli_and_mumbai_as_conditions_providers(lonely_ursula_maker):
+def test_no_corresponding_condition_blockchain_provider(lonely_ursula_maker):
     INVALID_CHAIN_ID = 66775827584859395569954838  # If we eventually support a chain with this ID, heaven help us.
 
     with pytest.raises(Ursula.ActorError):

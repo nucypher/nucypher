@@ -75,7 +75,7 @@ conditions = {
             },
             {
                 "conditionType": ConditionType.RPC.value,
-                "chain": 5,
+                "chain": 11155111,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": ">", "value": 1},
