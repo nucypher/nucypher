@@ -91,7 +91,7 @@ def test_keystore_generation_defaults(tmp_path_factory):
     parent.touch(exist_ok=True)
 
     # Test
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=parent)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=parent, interactive=False)
     assert not keystore.is_unlocked        # defaults to locked
     assert keystore._Keystore__secret is KEYSTORE_LOCKED
     assert parent in keystore.keystore_path.parents  # created in the correct directory
@@ -99,7 +99,7 @@ def test_keystore_generation_defaults(tmp_path_factory):
 
 def test_keystore_invalid_password(tmpdir):
     with pytest.raises(InvalidPassword):
-        _keystore = Keystore.generate('short', keystore_dir=tmpdir)
+        _keystore = Keystore.generate('short', keystore_dir=tmpdir, interactive=False)
 
 
 def test_keystore_generate_report_interactive_false(tmpdir):
@@ -111,7 +111,7 @@ def test_keystore_generate_report_interactive_false(tmpdir):
 
 
 def test_keystore_derive_crypto_power_without_unlock(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     with pytest.raises(Keystore.Locked):
         keystore.derive_crypto_power(power_class=DecryptingPower)
 
@@ -127,7 +127,7 @@ def test_keystore_serializer():
 
 
 def test_keystore_lock_unlock(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
 
     # locked by default
     assert not keystore.is_unlocked
@@ -177,7 +177,7 @@ def test_decrypt_keystore(tmpdir, mocker):
     spy = mocker.spy(Mnemonic, 'generate')
 
     # Decrypt post-generation
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
     words = spy.spy_return
@@ -195,7 +195,7 @@ def test_decrypt_keystore(tmpdir, mocker):
 
 def test_keystore_persistence(tmpdir):
     """Regression test for keystore file persistence"""
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     path = keystore.keystore_path
     del keystore
@@ -208,7 +208,7 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     spy = mocker.spy(Mnemonic, 'generate')
 
     # Decrypt post-generation
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
     words = spy.spy_return
@@ -277,7 +277,7 @@ def test_import_custom_keystore(tmpdir):
 
 
 def test_derive_signing_power(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     signing_power = keystore.derive_crypto_power(power_class=SigningPower)
     assert signing_power.public_key().to_compressed_bytes().hex()
@@ -285,7 +285,7 @@ def test_derive_signing_power(tmpdir):
 
 
 def test_derive_decrypting_power(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     decrypting_power = keystore.derive_crypto_power(power_class=DecryptingPower)
     assert decrypting_power.public_key().to_compressed_bytes().hex()
@@ -293,7 +293,7 @@ def test_derive_decrypting_power(tmpdir):
 
 
 def test_derive_delegating_power(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     delegating_power = keystore.derive_crypto_power(power_class=DelegatingPower)
     parent_skf = SecretKeyFactory.from_secure_randomness(keystore._Keystore__secret)
@@ -306,7 +306,7 @@ def test_derive_delegating_power(tmpdir):
 
 
 def test_derive_hosting_power(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     hosting_power = keystore.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
     assert hosting_power.public_key().public_numbers()
@@ -316,7 +316,7 @@ def test_derive_hosting_power(tmpdir):
 
 
 def test_derive_threshold_request_decrypting_power(tmpdir):
-    keystore = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore, _ = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     threshold_request_decrypting_power = keystore.derive_crypto_power(
         power_class=ThresholdRequestDecryptingPower
@@ -335,3 +335,8 @@ def test_derive_threshold_request_decrypting_power(tmpdir):
         threshold_request_decrypting_power.get_pubkey_from_ritual_id(ritual_id=0)
     )
     assert bytes(public_key) != bytes(different_ritual_public_key)
+
+
+def test_keystore_wallet_generation(tmpdir, mock_write_wallet_to_file):
+    _keystore, _words = Keystore.generate(INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir, interactive=False)
+    assert mock_write_wallet_to_file.called

@@ -55,7 +55,7 @@ def test_initialize_via_cli(
 
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
-                                 input=FAKE_PASSWORD_CONFIRMED + YES,
+                                 input=FAKE_PASSWORD_CONFIRMED + YES + YES,
                                  catch_exceptions=False,
                                  env=ENV)
     assert result.exit_code == 0, result.output

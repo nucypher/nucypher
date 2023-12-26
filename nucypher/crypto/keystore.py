@@ -10,7 +10,10 @@ from secrets import token_bytes
 from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
 
 import click
+from bip44 import Wallet
 from constant_sorrow.constants import KEYSTORE_LOCKED
+from eth_account import Account
+from eth_typing import ChecksumAddress
 from mnemonic.mnemonic import Mnemonic
 from nucypher_core import SessionSecretFactory
 from nucypher_core.ferveo import Keypair
@@ -271,7 +274,7 @@ class Keystore:
             raise self.AuthenticationFailed
 
     @staticmethod
-    def __save(secret: bytes, password: str, keystore_dir: Optional[Path] = None) -> Path:
+    def __commit(secret: bytes, password: str, keystore_dir: Optional[Path] = None) -> Path:
         failures = validate_keystore_password(password)
         if failures:
             # TODO: Ensure this scope is separable from the scope containing the password
@@ -336,7 +339,7 @@ class Keystore:
             raise ValueError(
                 f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
             )
-        path = Keystore.__save(
+        path = Keystore.__commit(
             secret=key_material, password=password, keystore_dir=keystore_dir
         )
         keystore = cls(keystore_path=path)
@@ -347,28 +350,79 @@ class Keystore:
         """Restore a keystore from seed words"""
         __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __secret = bytes(__mnemonic.to_entropy(words))
-        path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
+        path = Keystore.__commit(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_path=path)
         return keystore
+
+    @classmethod
+    def _confirm_wallet(cls, address: str, derivation_path: str, filepath: Path) -> None:
+        emitter = StdoutEmitter()
+        emitter.message(f"""
+        Operator wallet generated successfully!
+        Address: {address}
+        Derivation path: {derivation_path}
+        Operator wallet filepath: {filepath.absolute()}
+        """, color="cyan")
+        if not click.confirm("Continue?"):
+            emitter.message('Aborted.', color='red')
+            raise click.Abort()
+
+    @classmethod
+    def _write_wallet(cls, filepath: Path, data: Dict) -> None:
+        if filepath.exists():
+            raise FileExistsError(f'File {filepath} already exists.')
+        with open(filepath, 'w') as f:
+            json.dump(data, f)
+
+    @staticmethod
+    def _generate_wallet(_phrase: str, _password: str, _index: int = 0) -> Tuple[ChecksumAddress, str, Path]:
+        """
+        Generate an encrypted ethereum wallet from seed words using a bip44 derivation path.
+        Uses the web3 secret storage definition for the keystore format.
+        https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
+        """
+        if not isinstance(_index, int):
+            raise TypeError('Index must be an integer.')
+        derivation_path = f"m/44'/60'/0'/0/{str(_index)}"
+        wallet = Wallet(mnemonic=_phrase, language=_MNEMONIC_LANGUAGE)
+        private_key = wallet.derive_secret_key(path=derivation_path)
+        account = Account.from_key(private_key)
+        keystore = Account.encrypt(private_key, _password)
+        filepath = Path(Keystore._DEFAULT_DIR) / "operator.json"
+        Keystore._write_wallet(filepath=filepath, data=keystore)
+        return ChecksumAddress(account.address), derivation_path, filepath
 
     @classmethod
     def generate(
             cls, password: str,
             keystore_dir: Optional[Path] = None,
             interactive: bool = True,
+            generate_wallet: bool = True,
             ) -> Union['Keystore', Tuple['Keystore', str]]:
-        """Generate a new nucypher keystore for use with characters"""
+
+        # Generate mnemonic
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __words = mnemonic.generate(strength=_ENTROPY_BITS)
         if interactive:
             cls._confirm_generate(__words)
+
+        # Generate wallet
+        if generate_wallet:
+            address, dpath, fpath = cls._generate_wallet(_phrase=__words, _password=password)
+            if interactive:
+                cls._confirm_wallet(
+                    address=address,
+                    derivation_path=dpath,
+                    filepath=fpath
+                )
+
+        # Generate keystore
         __secret = bytes(mnemonic.to_entropy(__words))
-        path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
-        keystore = cls(keystore_path=path)
+        keystore_path = cls.__commit(secret=__secret, password=password, keystore_dir=keystore_dir)
+        keystore = cls(keystore_path=keystore_path)
 
         if interactive:
             return keystore
-
         return keystore, __words
 
     @staticmethod
