@@ -119,6 +119,11 @@ def temp_dir_path():
     temp_dir.cleanup()
 
 
+@pytest.fixture(scope="function", autouse=True)
+def mock_write_wallet_to_file(mocker):
+    return mocker.patch.object(Keystore, "_write_wallet")
+
+
 #
 # Accounts
 #

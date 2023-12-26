@@ -53,11 +53,13 @@ def test_initialize_via_cli(
     if config_class == UrsulaConfiguration:
         init_args += ('--rest-host', MOCK_IP_ADDRESS)
 
-    result = click_runner.invoke(nucypher_cli,
-                                 init_args,
-                                 input=FAKE_PASSWORD_CONFIRMED + YES,
-                                 catch_exceptions=False,
-                                 env=ENV)
+    result = click_runner.invoke(
+        nucypher_cli,
+        init_args,
+        input=FAKE_PASSWORD_CONFIRMED + YES + YES,
+        catch_exceptions=False,
+        env=ENV,
+    )
     assert result.exit_code == 0, result.output
 
     # CLI Output
