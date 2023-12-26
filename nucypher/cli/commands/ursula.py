@@ -454,24 +454,8 @@ def config(general_config, config_options, config_file, force, action):
     Sub-Commands
     ~~~~~~~~~~~~~
     ip-address - automatically detect and configure the external IP address.
-    migrate    - migrate existing configuration file to the latest version.
     """
     emitter = setup_emitter(general_config, config_options.operator_address)
-
-    if not config_file:
-        if action == "migrate":
-            # This is required because normally outdated configuration files
-            # are excluded from interactive selection, making it impossible to
-            # select a configuration file that is requires a migration.
-            emitter.error(
-                "--config-file <FILEPATH> is required to run a configuration file migration."
-            )
-            return click.Abort()
-        config_file = select_config_file(
-            emitter=emitter,
-            checksum_address=config_options.operator_address,
-            config_class=UrsulaConfiguration,
-        )
     if action == "ip-address":
         rest_host = collect_operator_ip_address(
             emitter=emitter,
@@ -480,48 +464,49 @@ def config(general_config, config_options, config_file, force, action):
             eth_endpoint=config_options.eth_endpoint,
         )
         config_options.rest_host = rest_host
-    elif action == "migrate":
-        for jump, migration in MIGRATIONS.items():
-            old, new = jump
-            emitter.message(f"Checking migration {old} -> {new}")
-            if not migration:
-                emitter.echo(
-                    f"Migration {old} -> {new} not found.",
-                    color="yellow",
-                    verbosity=1,
-                )
-                continue  # no migration script
-            try:
-                migration(config_file)
-                emitter.echo(
-                    f"Successfully ran migration {old} -> {new}",
-                    color="green",
-                    verbosity=1,
-                )
-
-            except WrongConfigurationVersion:
-                emitter.echo(
-                    f"Migration {old} -> {new} not required.",
-                    color="yellow",
-                    verbosity=1,
-                )
-                continue  # already migrated
-
-            except InvalidMigration as e:
-                emitter.error(f"Migration {old} -> {new} failed: {str(e)}")
-                return click.Abort()
-
-        emitter.echo("Done! ✨", color="green", verbosity=1)
-        return  # Don't run the rest of the command
-
-    elif action:
-        emitter.error(f'"{action}" is not a valid command.')
-        raise click.Abort()
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,
                                 filepath=config_file,
                                 updates=updates)
+
+
+@ursula.command()
+@group_config_options
+@option_config_file
+@group_general_config
+def migrate(general_config, config_options, config_file):
+    emitter = setup_emitter(general_config, config_options.operator_address)
+
+    for jump, migration in MIGRATIONS.items():
+        old, new = jump
+        emitter.message(f"Checking migration {old} -> {new}")
+        if not migration:
+            emitter.echo(
+                f"Migration {old} -> {new} not found.",
+                color="yellow",
+                verbosity=1,
+            )
+            continue  # no migration script
+        try:
+            migration(config_file)
+            emitter.echo(
+                f"Successfully ran migration {old} -> {new}",
+                color="green",
+                verbosity=1,
+            )
+
+        except WrongConfigurationVersion:
+            emitter.echo(
+                f"Migration {old} -> {new} not required.",
+                color="yellow",
+                verbosity=1,
+            )
+            continue  # already migrated
+
+        except InvalidMigration as e:
+            emitter.error(f"Migration {old} -> {new} failed: {str(e)}")
+            return click.Abort()
 
 
 def _pre_launch_warnings(emitter, dev, force):
