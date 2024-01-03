@@ -20,6 +20,7 @@ from nucypher_core.ferveo import Keypair
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.crypto.constants import _ENTROPY_BITS, _MNEMONIC_LANGUAGE
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
     SecretBoxAuthenticationError,
@@ -52,11 +53,6 @@ _TLS_INFO = __INFO_BASE + b"tls"
 
 # Wrapping key
 _SALT_SIZE = 32
-
-# Mnemonic
-_ENTROPY_BITS = 256
-_WORD_COUNT = 24
-_MNEMONIC_LANGUAGE = "english"
 
 # Keystore File
 FILE_ENCODING = 'utf-8'
@@ -228,6 +224,8 @@ class Keystore:
     # Filepath
     _DIR_NAME = "keystore"
     _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / _DIR_NAME
+    _DEFAULT_WALLET_FILEPATH = _DEFAULT_DIR / "operator.json"
+
     _DELIMITER = '-'
     _SUFFIX = 'priv'
 

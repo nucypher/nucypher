@@ -39,7 +39,6 @@ from nucypher.config.constants import (
     TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.ferveo import dkg
-from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.auth.evm import EvmAuth
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
@@ -121,7 +120,7 @@ def temp_dir_path():
 
 @pytest.fixture(scope="function", autouse=True)
 def mock_write_wallet_to_file(mocker):
-    return mocker.patch.object(Keystore, "_write_wallet")
+    return mocker.patch("nucypher.crypto.utils._write_wallet")
 
 
 #
@@ -568,7 +567,7 @@ def mock_teacher_nodes(mocker):
 @pytest.fixture(autouse=True)
 def disable_interactive_keystore_generation(mocker):
     # Do not notify or confirm mnemonic seed words during tests normally
-    mocker.patch.object(Keystore, "_confirm_generate")
+    mocker.patch("nucypher.crypto.utils._confirm_generate")
 
 
 #

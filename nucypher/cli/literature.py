@@ -57,7 +57,7 @@ Please provide a password to encrypt your node's private keys.
 Do not forget this password. Ideally generate and store this password using a password manager.
 """
 
-COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"
+COLLECT_ETH_PASSWORD = "Enter ethereum account password"
 COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keystore password'
 GENERIC_PASSWORD_PROMPT = "Enter password"
 DECRYPTING_CHARACTER_KEYSTORE = 'Authenticating {name}'
