@@ -36,14 +36,15 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
     emitter.message("Generated keystore", color="green")
     emitter.message(
         f"""
-    
-Public Key:   {maybe_public_key}
-Path to Keystore: {new_configuration.keystore_dir}
+Operator Address:   {new_configuration.wallet_address}
+Network Public Key:   {maybe_public_key}
+Keystore Directory: {new_configuration.keystore_dir}
 
-- You can share your public key with anyone. Others need it to interact with you.
-- Never share secret keys with anyone! 
-- Backup your keystore! Character keys are required to interact with the protocol!
-- Remember your password! Without the password, it's impossible to decrypt the key!
+- Never share your mnemonic with anyone! 
+- Secure your mnemonic.  Without it, you *cannot* recover your keys in the event of data loss.
+- Regularly backup your keystore directory. This will allow you to recover your keys in the event of data loss.
+- Secure your password. Without the password, you will be unable to launch your node.
+- The Operator Address must be funded and bonded with a stake in order to run a node.
 
 """
     )
@@ -63,7 +64,7 @@ Path to Keystore: {new_configuration.keystore_dir}
     if character_name == 'ursula':
         hint = '''
 * Review configuration  -> nucypher ursula config
-* Start working         -> nucypher ursula run
+* Launch node           -> nucypher ursula run
 '''
 
     else:

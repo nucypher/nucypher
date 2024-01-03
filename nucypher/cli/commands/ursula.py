@@ -15,15 +15,12 @@ from nucypher.cli.actions.configure import (
     perform_startup_ip_check,
 )
 from nucypher.cli.actions.select import (
-    select_client_account,
-    select_config_file,
     select_domain,
 )
 from nucypher.cli.config import group_general_config
 from nucypher.cli.literature import (
     DEVELOPMENT_MODE_WARNING,
     FORCE_MODE_WARNING,
-    SELECT_OPERATOR_ACCOUNT,
 )
 from nucypher.cli.options import (
     group_options,
@@ -54,6 +51,7 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
+    DEFAULT_CONFIG_ROOT,
 )
 from nucypher.config.migrations import MIGRATIONS
 from nucypher.config.migrations.common import (
@@ -63,8 +61,10 @@ from nucypher.config.migrations.common import (
 from nucypher.crypto.keystore import Keystore
 from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 
+DEFAULT_CONFIG_FILEPATH = DEFAULT_CONFIG_ROOT / "ursula.json"
 
-class UrsulaConfigOptions:
+
+class UrsulaInitOptions:
 
     __option_name__ = "config_options"
 
@@ -82,6 +82,7 @@ class UrsulaConfigOptions:
         gas_strategy: str,
         max_gas_price: int,  # gwei
         signer_uri: str,
+        wallet_filepath: Path,
         lonely: bool,
         polygon_endpoint: str,
         pre_payment_method: str,
@@ -89,6 +90,7 @@ class UrsulaConfigOptions:
 
         self.eth_endpoint = eth_endpoint
         self.signer_uri = signer_uri
+        self.wallet_filepath = wallet_filepath
         self.operator_address = operator_address
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
@@ -114,6 +116,7 @@ class UrsulaConfigOptions:
                 registry_filepath=self.registry_filepath,
                 eth_endpoint=self.eth_endpoint,
                 signer_uri=self.signer_uri,
+                wallet_filepath=UrsulaConfiguration.DEFAULT_WALLET_FILEPATH,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
                 operator_address=self.operator_address,
@@ -124,9 +127,7 @@ class UrsulaConfigOptions:
             )
         else:
             if not config_file:
-                config_file = select_config_file(emitter=emitter,
-                                                 checksum_address=self.operator_address,
-                                                 config_class=UrsulaConfiguration)
+                config_file = DEFAULT_CONFIG_FILEPATH
             try:
                 return UrsulaConfiguration.from_configuration_file(
                     emitter=emitter,
@@ -135,6 +136,7 @@ class UrsulaConfigOptions:
                     registry_filepath=self.registry_filepath,
                     eth_endpoint=self.eth_endpoint,
                     signer_uri=self.signer_uri,
+                    wallet_filepath=self.wallet_filepath,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
                     rest_host=self.rest_host,
@@ -151,21 +153,25 @@ class UrsulaConfigOptions:
                 # TODO: Exit codes (not only for this, but for other exceptions)
                 return click.get_current_context().exit(1)
 
+    @staticmethod
+    def _check_for_existing_config(self, config_root, force):
+        if not config_root:
+            config_root = Path(DEFAULT_CONFIG_ROOT)
+        existing_config_files = config_root.exists() and any(config_root.iterdir())
+        if existing_config_files and not force:
+            raise click.FileError(
+                str(config_root),
+                hint="There is an existing configuration at the default location. "
+                     "Use --config-root to specify a custom location or use --force to "
+                     "overwrite existing configuration.",
+            )
+
     def generate_config(self, emitter, config_root, force, key_material):
 
+        self._check_for_existing_config(self, config_root, force)
         if self.dev:
             raise RuntimeError(
                 "Persistent configurations cannot be created in development mode."
-            )
-
-        if not self.operator_address:
-            prompt = SELECT_OPERATOR_ACCOUNT
-            self.operator_address = select_client_account(
-                emitter=emitter,
-                prompt=prompt,
-                domain=self.domain,
-                polygon_endpoint=self.polygon_endpoint,
-                signer_uri=self.signer_uri,
             )
 
         # Resolve rest host
@@ -178,8 +184,11 @@ class UrsulaConfigOptions:
             )
 
         return UrsulaConfiguration.generate(
-            password=get_nucypher_password(emitter=emitter, confirm=True),
             key_material=bytes.fromhex(key_material) if key_material else None,
+            keystore_password=get_nucypher_password(emitter=emitter, confirm=True),
+            wallet_password=get_client_password(envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, confirm=True),
+            wallet_filepath=self.wallet_filepath,
+            signer_uri=self.signer_uri,
             config_root=config_root,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
@@ -187,7 +196,6 @@ class UrsulaConfigOptions:
             operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             eth_endpoint=self.eth_endpoint,
-            signer_uri=self.signer_uri,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
             poa=self.poa,
@@ -219,9 +227,14 @@ class UrsulaConfigOptions:
 
 group_config_options = group_options(
     # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
-    UrsulaConfigOptions,
+    UrsulaInitOptions,
     eth_endpoint=option_eth_endpoint(),
     signer_uri=option_signer_uri,
+    wallet_filepath=click.option(
+        "--wallet-filepath", "-w",
+        help="The filepath to the operator wallet (web3 secret storage format))",
+        type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
+    ),
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
     operator_address=click.option(
@@ -254,7 +267,7 @@ class UrsulaCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options: UrsulaConfigOptions, teacher_uri, min_stake):
+    def __init__(self, config_options: UrsulaInitOptions, teacher_uri, min_stake):
         self.config_options = config_options
         self.teacher_uri = teacher_uri
         self.min_stake = min_stake
@@ -265,7 +278,6 @@ class UrsulaCharacterOptions:
         __password = None
         if password_required:
             __password = get_client_password(
-                checksum_address=ursula_config.operator_address,
                 envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
             )
 

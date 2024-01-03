@@ -1,14 +1,21 @@
+import json
+from pathlib import Path
 from secrets import SystemRandom
-from typing import Union
+from typing import Union, Dict, Tuple
 
+import click
+from bip44 import Wallet
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_hash.auto import keccak
 from eth_keys import KeyAPI as EthKeyAPI
+from eth_typing import ChecksumAddress
 from eth_utils.address import to_checksum_address
+from mnemonic import Mnemonic
 from nucypher_core.umbral import PublicKey
 
 from nucypher.crypto.signing import SignatureStamp
+from nucypher.utilities.emitters import StdoutEmitter
 
 SYSTEM_RAND = SystemRandom()
 
@@ -89,3 +96,68 @@ def verify_eip_191(address: str, message: bytes, signature: bytes) -> bool:
     recovered_address = recover_address_eip_191(message=message, signature=signature)
     signature_is_valid = recovered_address == to_checksum_address(address)
     return signature_is_valid
+
+
+def _confirm_generate(__words: str) -> None:
+    """
+    Inform the caller of new keystore seed words generation the console
+    and optionally perform interactive confirmation.
+    """
+
+    # notification
+    emitter = StdoutEmitter()
+    emitter.message(
+        "Backup your seed words, you will not be able to view them again.\n"
+    )
+    emitter.message(f"{__words}\n", color="cyan")
+    if not click.confirm("Have you backed up your seed phrase?"):
+        emitter.message('Keystore generation aborted.', color='red')
+        raise click.Abort()
+    click.clear()
+
+    # confirmation
+    __response = click.prompt("Confirm seed words")
+    if __response != __words:
+        raise ValueError('Incorrect seed word confirmation. No keystore has been created, try again.')
+    click.clear()
+
+
+def _generate_mnemonic(entropy: int, language: str, interactive: bool) -> str:
+    mnemonic = Mnemonic(language=language)
+    __words = mnemonic.generate(strength=entropy)
+    if interactive:
+        _confirm_generate(__words)
+    return __words
+
+
+def _write_wallet(filepath: Path, data: Dict) -> None:
+    if filepath.exists():
+        raise FileExistsError(f'File {filepath} already exists.')
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    with open(filepath, 'w') as f:
+        json.dump(data, f)
+
+
+def _generate_wallet(
+        phrase: str,
+        language: str,
+        password: str,  # TODO: Use a unique password
+        filepath: Path,
+        index: int = 0,
+
+) -> Tuple[ChecksumAddress, str, Path]:
+    """
+    Generate an encrypted ethereum wallet from seed words using a bip44 derivation path.
+    Uses the web3 secret storage definition for the keystore format.
+    https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
+    """
+    if not isinstance(index, int):
+        raise TypeError('Index must be an integer.')
+    derivation_path = f"m/44'/60'/0'/0/{str(index)}"
+    wallet = Wallet(mnemonic=phrase, language=language)
+    private_key = wallet.derive_secret_key(path=derivation_path)
+    account = Account.from_key(private_key)
+    keystore = Account.encrypt(private_key, password)
+    _write_wallet(filepath=filepath, data=keystore)
+    return ChecksumAddress(account.address), derivation_path, filepath
+

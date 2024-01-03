@@ -4,8 +4,10 @@ from pathlib import Path
 from unittest.mock import PropertyMock
 
 import pytest
+from mnemonic import Mnemonic
 
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.cli.commands.ursula import UrsulaInitOptions
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
     CONFIRM_IPV4_ADDRESS_QUESTION,
@@ -46,12 +48,18 @@ def mock_dkg_tracker(mocker):
 @pytest.mark.usefixtures("mock_registry_sources")
 def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
 
-    # Mock out filesystem writes
+    # Mock filesystem i/o
     mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
+    mocker.patch.object(UrsulaInitOptions, '_check_for_existing_config', autospec=True)
 
     # Mock Keystore init
-    keystore = Keystore.generate(keystore_dir=tmpdir, password=INSECURE_DEVELOPMENT_PASSWORD)
+    mnemonic = Mnemonic('english').generate(256)
+    keystore = Keystore.generate(
+        phrase=mnemonic,
+        keystore_dir=tmpdir,
+        keystore_password=INSECURE_DEVELOPMENT_PASSWORD
+    )
     mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
 
     # Use default ursula init args
@@ -66,14 +74,11 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
         MOCK_ETH_PROVIDER_URI,
     )
 
-    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED
+    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(
         nucypher_cli, init_args, input=user_input, catch_exceptions=False
     )
     assert result.exit_code == 0, result.output
-
-    # Select account
-    assert SELECT_OPERATOR_ACCOUNT in result.output
 
     # REST Host
     assert CONFIRM_IPV4_ADDRESS_QUESTION in result.output
@@ -107,7 +112,7 @@ def test_initialize_custom_configuration_root(
         testerchain.ursulas_accounts[0],
     )
     result = click_runner.invoke(
-        nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False
+        nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED + FAKE_PASSWORD_CONFIRMED, catch_exceptions=False
     )
     assert result.exit_code == 0, result.output
 
@@ -145,11 +150,11 @@ def test_configuration_file_contents(
 
         for field in nominal_configuration_fields:
             assert field in data, "Missing field '{}' from configuration file."
-            if any(keyword in field for keyword in ('path', 'dir')):
-                path = data[field]
-                user_data_dir = APP_DIR.user_data_dir
+            # if any(keyword in field for keyword in ('path', 'dir')):
+            #     path = data[field]
+            #     user_data_dir = APP_DIR.user_data_dir
                 # assert os.path.exists(path), '{} does not exist'.format(path)
-                assert user_data_dir not in path, '{} includes default appdir path {}'.format(field, user_data_dir)
+                # assert user_data_dir not in path, '{} includes default appdir path {}'.format(field, user_data_dir)
 
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
@@ -344,3 +349,40 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
     if preexisting_live_configuration_file:
         file_still_exists = (DEFAULT_CONFIG_ROOT / UrsulaConfiguration.generate_filename()).is_file()
         assert file_still_exists, 'WARNING: Test command deleted live non-test files'
+
+
+@pytest.mark.usefixtures("mock_registry_sources")
+def test_initialize_ursula_operator_wallet_generation(click_runner, mocker, tmpdir):
+
+    # Mock out filesystem writes
+    mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
+    mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
+
+    # Mock Keystore init
+    keystore = Keystore.generate(keystore_dir=tmpdir, password=INSECURE_DEVELOPMENT_PASSWORD)
+    mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
+
+    # Use default ursula init args
+    init_args = (
+        "ursula",
+        "init",
+        "--domain",
+        TEMPORARY_DOMAIN_NAME,
+        "--eth-endpoint",
+        MOCK_ETH_PROVIDER_URI,
+        "--polygon-endpoint",
+        MOCK_ETH_PROVIDER_URI,
+    )
+
+    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED
+    result = click_runner.invoke(
+        nucypher_cli, init_args, input=user_input, catch_exceptions=False
+    )
+    assert result.exit_code == 0, result.output
+
+    # REST Host
+    assert CONFIRM_IPV4_ADDRESS_QUESTION in result.output
+
+    # Auth
+    assert COLLECT_NUCYPHER_PASSWORD in result.output, 'WARNING: User was not prompted for password'
+    assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'

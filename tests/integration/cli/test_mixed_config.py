@@ -8,7 +8,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    TEMPORARY_DOMAIN_NAME,
+    TEMPORARY_DOMAIN_NAME, NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
 )
 from nucypher.crypto.keystore import InvalidPassword
 from tests.constants import (
@@ -77,7 +77,7 @@ def test_corrupted_configuration(
     )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
-    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: ''}
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: '', NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: ''}
 
     with pytest.raises(InvalidPassword):
         result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -96,7 +96,7 @@ def test_corrupted_configuration(
     assert not path.exists()
 
     mocker.patch.object(LocalRegistrySource, "get", return_value=dict())
-    mock_registry_filepath = custom_filepath / "mock_registry.json"
+    mock_registry_filepath = Path("mock_registry.json")
     mock_registry_filepath.touch()
 
     # Attempt installation again, with full args
@@ -119,7 +119,10 @@ def test_corrupted_configuration(
         str(custom_filepath.absolute()),
     )
 
-    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {
+        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+        NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    }
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0, result.output
 

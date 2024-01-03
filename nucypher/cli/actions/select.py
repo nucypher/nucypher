@@ -151,19 +151,19 @@ def select_config_file(emitter: StdoutEmitter,
     parsed_config_files = list()
     parsed_addresses_and_filenames = list()
     # parse configuration files for checksum address values
-    for fp in config_files:
-        try:
-            config_checksum_address = config_class.address_from_filepath(fp)
-            if checksum_address and config_checksum_address == checksum_address:
+    # for fp in config_files:
+    #     try:
+            # config_checksum_address = config_class.address_from_filepath(fp)
+            # if checksum_address and config_checksum_address == checksum_address:
                 # matching configuration file found, no need to continue - return filepath
-                return fp
+                # return fp
 
-            parsed_config_files.append(fp)
-            parsed_addresses_and_filenames.append([config_checksum_address, Path(fp).name])  # store checksum & filename
-        except config_class.OldVersion:
+            # parsed_config_files.append(fp)
+            # parsed_addresses_and_filenames.append([config_checksum_address, Path(fp).name])  # store checksum & filename
+        # except config_class.OldVersion:
             # no use causing entire usage to crash if file can't be used anyway - inform the user; they can
             # decide for themself
-            emitter.echo(IGNORE_OLD_CONFIGURATION.format(config_file=fp), color='yellow')
+            # emitter.echo(IGNORE_OLD_CONFIGURATION.format(config_file=fp), color='yellow')
 
     if checksum_address:
         # shouldn't get here if checksum address was specified and corresponding file found
