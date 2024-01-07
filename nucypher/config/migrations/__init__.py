@@ -1,5 +1,6 @@
 from collections import OrderedDict
 
+from .configuration_migration_v8_to_v9 import configuration_v8_to_v9
 from .configuration_v1_to_v2 import configuration_v1_to_v2
 from .configuration_v3_to_v4 import configuration_v3_to_v4
 from .configuration_v4_to_v5 import configuration_v4_to_v5
