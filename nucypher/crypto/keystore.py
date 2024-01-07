@@ -249,9 +249,9 @@ class Keystore:
     class AuthenticationFailed(RuntimeError):
         pass
 
-    def __init__(self, keystore_path: Path):
-        self.keystore_path = keystore_path
-        self.__created, self.__id = _parse_path(keystore_path)
+    def __init__(self, keystore_filepah: Path):
+        self.keystore_filepah = keystore_filepah
+        self.__created, self.__id = _parse_path(keystore_filepah)
         self.__secret = KEYSTORE_LOCKED
 
     def __decrypt_keystore(self, path: Path, password: str) -> bool:
@@ -286,7 +286,7 @@ class Keystore:
         # Generate paths
         keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
         os.makedirs(abspath(keystore_dir), exist_ok=True, mode=0o700)
-        keystore_path = generate_keystore_filepath(parent=keystore_dir, id=keystore_id)
+        keystore_filepah = generate_keystore_filepath(parent=keystore_dir, id=keystore_id)
 
         # Encrypt secret
         __password_salt = token_bytes(_SALT_SIZE)
@@ -304,12 +304,12 @@ class Keystore:
                                               wrapper_salt=__wrapper_salt)
 
         _write_keystore(
-            path=keystore_path,
+            path=keystore_filepah,
             payload=keystore_payload,
             serializer=_serialize_keystore
         )
 
-        return keystore_path
+        return keystore_filepah
 
     #
     # Public API
@@ -318,7 +318,7 @@ class Keystore:
     @classmethod
     def load(cls, id: str, keystore_dir: Path = _DEFAULT_DIR) -> 'Keystore':
         filepath = generate_keystore_filepath(parent=keystore_dir, id=id)
-        instance = cls(keystore_path=filepath)
+        instance = cls(keystore_filepah=filepath)
         return instance
 
     @classmethod
@@ -341,7 +341,7 @@ class Keystore:
         path = Keystore.__commit(
             secret=key_material, password=password, keystore_dir=keystore_dir
         )
-        keystore = cls(keystore_path=path)
+        keystore = cls(keystore_filepah=path)
         return keystore
 
     @classmethod
@@ -350,7 +350,7 @@ class Keystore:
         __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __secret = bytes(__mnemonic.to_entropy(words))
         path = Keystore.__commit(secret=__secret, password=password, keystore_dir=keystore_dir)
-        keystore = cls(keystore_path=path)
+        keystore = cls(keystore_filepah=path)
         return keystore
 
     @classmethod
@@ -362,12 +362,12 @@ class Keystore:
             ):
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __secret = bytes(mnemonic.to_entropy(phrase))
-        keystore_path = cls.__commit(
+        keystore_filepah = cls.__commit(
             secret=__secret,
             password=password,
             keystore_dir=keystore_dir
         )
-        keystore = cls(keystore_path=keystore_path)
+        keystore = cls(keystore_filepah=keystore_filepah)
         return keystore
 
     @property
@@ -382,7 +382,7 @@ class Keystore:
         self.__secret = KEYSTORE_LOCKED
 
     def unlock(self, password: str) -> None:
-        self.__decrypt_keystore(path=self.keystore_path, password=password)
+        self.__decrypt_keystore(path=self.keystore_filepah, password=password)
 
     def derive_crypto_power(self,
                             power_class: ClassVar[CryptoPowerUp],

@@ -89,7 +89,7 @@ def recover_keystore(emitter) -> None:
         emitter.message(f'Invalid mnemonic - Number of words must be {str(_WORD_COUNT)}, but only got {word_count}')
     __password = get_nucypher_password(emitter=emitter, confirm=True)
     keystore = Keystore.restore(words=__words, password=__password)
-    emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_path}', color='green')
+    emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_filepah}', color='green')
 
     if not click.confirm('Do you want to generate an ethereum wallet from these words?'):
         return

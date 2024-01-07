@@ -340,7 +340,7 @@ class CharacterConfiguration(BaseConfiguration):
         "gas_strategy",
         "max_gas_price",  # gwei
         "signer_uri",
-        "keystore_path",
+        "keystore_filepah",
         "wallet_filepath",
     )
 
@@ -352,7 +352,7 @@ class CharacterConfiguration(BaseConfiguration):
         dev_mode: bool = False,
         crypto_power: Optional[CryptoPower] = None,
         keystore: Optional[Keystore] = None,
-        keystore_path: Optional[Path] = None,
+        keystore_filepah: Optional[Path] = None,
         domain: str = DEFAULT_DOMAIN,
         network_middleware: Optional[RestMiddleware] = None,
         lonely: bool = False,
@@ -380,16 +380,10 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Keystore
         self.crypto_power = crypto_power
-        if keystore_path and not keystore:
-            keystore = Keystore(keystore_path=keystore_path)
-        self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(
-            False
-        )
-        self.keystore_dir = (
-            Path(keystore.keystore_path).parent
-            if keystore
-            else UNINITIALIZED_CONFIGURATION
-        )
+        if keystore_filepah and not keystore:
+            keystore = Keystore(keystore_filepah=keystore_filepah)
+        self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(False)
+        self.keystore_dir = Path(keystore.keystore_filepah).parent if keystore else UNINITIALIZED_CONFIGURATION
 
         # Wallet
         self.wallet = wallet
@@ -624,9 +618,9 @@ class CharacterConfiguration(BaseConfiguration):
 
     def static_payload(self) -> dict:
         """JSON-Exported static configuration values for initializing Ursula"""
-        keystore_path = str(self.keystore.keystore_path) if self.keystore else None
+        keystore_filepah = str(self.keystore.keystore_filepah) if self.keystore else None
         payload = dict(
-            keystore_path=keystore_path,
+            keystore_filepah=keystore_filepah,
             domain=str(self.domain),
         )
 
