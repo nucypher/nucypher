@@ -20,9 +20,15 @@ from tests.constants import (
 from tests.utils.ursula import select_test_port, start_pytest_ursula_services
 
 
-@mock.patch('glob.glob', return_value=list())
-def test_missing_configuration_file(_default_filepath_mock, click_runner):
-    cmd_args = ("ursula", "run", "--domain", TEMPORARY_DOMAIN_NAME)
+def test_missing_configuration_file(click_runner):
+    cmd_args = (
+        "ursula",
+        "run",
+        "--host",
+        '255.32.54.32',
+        "--domain",
+        TEMPORARY_DOMAIN_NAME,
+    )
     result = click_runner.invoke(nucypher_cli, cmd_args, catch_exceptions=False)
     assert result.exit_code != 0
     configuration_type = UrsulaConfiguration.NAME
@@ -39,7 +45,7 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         "ursula",
         "run",  # Stat Ursula Command
         "--debug",  # Display log output; Do not attach console
-        "--rest-port",
+        "--port",
         deploy_port,  # Network Port
         "--dev",  # Run in development mode (ephemeral node)
         "--dry-run",  # Disable twisted reactor in subprocess
@@ -82,7 +88,7 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain, mocker):
             "ursula",
             "run",
             "--debug",  # Display log output; Do not attach console
-            "--rest-port",
+            "--port",
             deploy_port,  # Network Port
             "--peer",
             peer_uri,

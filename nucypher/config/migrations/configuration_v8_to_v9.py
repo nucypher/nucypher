@@ -36,17 +36,26 @@ def __migration(config: Dict) -> Dict:
     try:
         signer_uri = config["signer_uri"]
     except KeyError:
-        raise ValueError("Invalid configuration: no signer_uri")
+        raise ValueError("Invalid configuration: missing signer_uri")
     prefix = "keystore://"
     config["wallet_filepath"] = signer_uri.lstrip(prefix)
     del config["signer_uri"]
 
     # keystore_path -> keystore_filepath
     try:
-        config["keystore_filepath"] = config["keystore_filepath"]
+        config["keystore_filepath"] = config["keystore_path"]
     except KeyError:
-        raise ValueError("Invalid configuration: no keystore_filepath")
-    del config["keystore_filepath"]
+        raise ValueError("Invalid configuration: missing keystore_filepath")
+    del config["keystore_path"]
+
+    # rest_host, rest_port -> host, port
+    try:
+        config["host"] = config["rest_host"]
+        config["port"] = config["rest_port"]
+    except KeyError:
+        raise ValueError("Invalid configuration: missing rest_host or rest_port")
+    del config["rest_host"]
+    del config["rest_port"]
 
     return config
 

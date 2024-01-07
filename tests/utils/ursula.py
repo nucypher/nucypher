@@ -81,7 +81,7 @@ def make_ursulas(
     ), quantity):
 
         ursula = ursula_config.produce(
-            rest_port=select_test_port(),
+            port=select_test_port(),
             wallet=operator,
             **ursula_overrides
         )

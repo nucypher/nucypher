@@ -101,9 +101,9 @@ def test_initialize_custom_configuration(
         TEMPORARY_DOMAIN_NAME,
         "--config-root",
         str(custom_filepath.absolute()),
-        "--rest-host",
+        "--host",
         MOCK_IP_ADDRESS,
-        "--rest-port",
+        "--port",
         deploy_port,
         "--eth-endpoint",
         MOCK_ETH_PROVIDER_URI,
@@ -236,12 +236,12 @@ def test_ursula_config_ip_address_manually_inserted(
             )
 
         assert (
-            data["rest_host"] == ip_address
+            data["host"] == ip_address
         ), "IP address not updated in configuration file"
 
     assert result.exit_code == 0, result.output
     assert (
-        f'"rest_host": "{ip_address}"' in result.output
+        f'"host": "{ip_address}"' in result.output
     ), "IP address not updated in command output"
 
 
@@ -257,7 +257,7 @@ def test_ursula_config_ip_address_detected(click_runner, custom_filepath: Path):
         "config",
         "--config-file",
         str(custom_config_filepath.absolute()),
-        "--rest-host",
+        "--host",
         ip_address,
     )
 
@@ -267,7 +267,7 @@ def test_ursula_config_ip_address_detected(click_runner, custom_filepath: Path):
 
     # check the IP address has been set
     assert (
-        f'"rest_host": "{ip_address}"' in config_result.output
+        f'"host": "{ip_address}"' in config_result.output
     ), "IP address not updated in command output"
 
     # set the automatically detected IP address in config file
@@ -296,12 +296,12 @@ def test_ursula_config_ip_address_detected(click_runner, custom_filepath: Path):
             )
 
         assert (
-            data["rest_host"] == MOCK_IP_ADDRESS
+            data["host"] == MOCK_IP_ADDRESS
         ), "IP address not updated in configuration file"
 
     assert result.exit_code == 0, result.output
     assert (
-        f'"rest_host": "{MOCK_IP_ADDRESS}"' in result.output
+        f'"host": "{MOCK_IP_ADDRESS}"' in result.output
     ), "IP address not updated in command output"
 
 

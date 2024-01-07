@@ -28,28 +28,28 @@ class UrsulaConfiguration(CharacterConfiguration):
     # Wallet
     MNEMONIC_KEYSTORE = True
     WALLET_FILEPATH_ENVVAR = NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD
-    DEFAULT_WALLET_FILEPATH = Keystore._DEFAULT_DIR / 'operator.json'
+    DEFAULT_WALLET_FILEPATH_STEM = 'keystore/operator.json'
 
     def __init__(
         self,
         dev_mode: bool = False,
-        rest_host: Optional[str] = None,
-        rest_port: Optional[int] = None,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
         condition_blockchain_endpoints: Optional[Dict[str, List[str]]] = None,
         *args, **kwargs,
-    ) -> None:
+    ):
 
         if dev_mode:
-            rest_host = rest_host or self.DEFAULT_DEVELOPMENT_REST_HOST
-            rest_port = rest_port or self.DEFAULT_DEVELOPMENT_REST_PORT
+            host = host or self.DEFAULT_DEVELOPMENT_REST_HOST
+            port = port or self.DEFAULT_DEVELOPMENT_REST_PORT
         else:
-            if not rest_host:
-                raise ValueError("rest_host is required for live nodes.")
-            rest_port = rest_port or self.DEFAULT_REST_PORT
+            if not host:
+                raise ValueError("host is required for live nodes.")
+            port = port or self.DEFAULT_REST_PORT
 
-        self.rest_port = rest_port
-        self.rest_host = rest_host
+        self.port = port
+        self.host = host
         self.certificate = certificate
 
         super().__init__(dev_mode=dev_mode, *args, **kwargs)
@@ -95,8 +95,8 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def static_payload(self) -> dict:
         payload = dict(
-            rest_host=self.rest_host,
-            rest_port=self.rest_port,
+            host=self.host,
+            port=self.port,
             wallet_filepath=self.wallet_filepath,
             condition_blockchain_endpoints=self.condition_blockchain_endpoints,
         )

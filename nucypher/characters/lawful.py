@@ -760,8 +760,8 @@ class Ursula(Teacher, Character, Operator):
     def __init__(
         self,
         *,
-        rest_host: str,
-        rest_port: int,
+        host: str,
+        port: int,
         domain: str,
         is_peer: bool = False,
         certificate: Optional[Certificate] = None,
@@ -851,7 +851,8 @@ class Ursula(Teacher, Character, Operator):
             self._substantiate_stamp()
 
             # Server
-            self.rest_server = self._make_local_server(host=rest_host, port=rest_port)
+            self.rest_server = self._make_local_server(host=host, port=port)
+
             certificate = self._crypto_power.power_ups(
                 TLSHostingPower
             ).keypair.certificate
@@ -863,7 +864,7 @@ class Ursula(Teacher, Character, Operator):
 
             # Peer HTTP Server
             # TODO: Use InterfaceInfo only
-            self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
+            self.rest_server = ProxyRESTServer(host=host, port=port)
 
         # Teacher (All Modes)
         Teacher.__init__(self, certificate=certificate)
@@ -912,8 +913,8 @@ class Ursula(Teacher, Character, Operator):
     def _make_local_server(self, host, port) -> ProxyRESTServer:
         rest_app = make_rest_app(this_node=self)
         rest_server = ProxyRESTServer(
-            rest_host=host,
-            rest_port=port,
+            host=host,
+            port=port,
             rest_app=rest_app,
             hosting_power=self.__get_hosting_power(host=host),
         )
@@ -1128,7 +1129,7 @@ class Ursula(Teacher, Character, Operator):
         Essentially another deserialization method, but this one doesn't reconstruct a complete
         node from bytes; instead it's just enough to connect to and verify a node.
         """
-        seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
+        seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.host}:{seednode_metadata.port}"
         return cls.from_seed_and_stake_info(uri=seed_uri, *args, **kwargs)
 
     @classmethod

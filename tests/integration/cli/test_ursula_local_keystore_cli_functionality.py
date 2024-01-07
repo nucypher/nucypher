@@ -35,7 +35,7 @@ def test_ursula_init_with_local_keystore_wallet(
 ):
     custom_filepath = temp_dir_path
     custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
-    worker_account, password, mock_keystore_filepah = mock_account_password_keystore
+    worker_account, password, mock_keystore_filepath = mock_account_password_keystore
 
     mocker.patch.object(UrsulaConfigOptions, '_check_for_existing_config', autospec=True)
 
@@ -57,9 +57,9 @@ def test_ursula_init_with_local_keystore_wallet(
         testerchain.endpoint,
         "--polygon-endpoint",
         testerchain.endpoint,
-        "--rest-host",
+        "--host",
         MOCK_IP_ADDRESS,
-        "--rest-port",
+        "--port",
         deploy_port,
         "--config-root",
         str(custom_filepath.absolute()),

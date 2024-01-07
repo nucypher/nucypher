@@ -59,13 +59,13 @@ class ProxyRESTServer:
     log = Logger("network-server")
 
     def __init__(self,
-                 rest_host: str,
-                 rest_port: int,
+                 host: str,
+                 port: int,
                  hosting_power=None,
                  rest_app=None
                  ) -> None:
 
-        self.rest_interface = InterfaceInfo(host=rest_host, port=rest_port)
+        self.rest_interface = InterfaceInfo(host=host, port=port)
         if rest_app:  # if is me
             self.rest_app = rest_app
         else:

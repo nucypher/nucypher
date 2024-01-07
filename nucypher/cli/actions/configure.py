@@ -141,7 +141,7 @@ def collect_operator_ip_address(
 
     # Confirmation
     if not force:
-        if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(rest_host=ip)):
+        if not click.confirm(CONFIRM_URSULA_IPV4_ADDRESS.format(host=ip)):
             ip = click.prompt(COLLECT_URSULA_IPV4_ADDRESS, type=OPERATOR_IP)
     else:
         emitter.message(f"Using auto-detected IP address {ip}")
@@ -158,24 +158,24 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
     try:
         external_ip = determine_external_ip_address(
             domain=ursula.domain,
-            seed_nodes=ursula.peers,
+            peers=ursula.peers,
             eth_endpoint=ursula.eth_endpoint,
         )
     except UnknownIPAddress:
         message = 'Cannot automatically determine external IP address'
         emitter.message(message)
         return  # TODO: crash, or not to crash... that is the question
-    rest_host = ursula.rest_interface.host
+    host = ursula.rest_interface.host
     try:
-        validate_operator_ip(ip=rest_host)
+        validate_operator_ip(ip=host)
     except InvalidOperatorIP:
-        message = f'{rest_host} is not a valid or permitted operator IP address.  Set the correct external IP then try again\n' \
+        message = f'{host} is not a valid or permitted operator IP address.  Set the correct external IP then try again\n' \
                   f'automatic configuration -> nucypher ursula config ip-address\n' \
-                  f'manual configuration    -> nucypher ursula config --rest-host <IP ADDRESS>'
+                  f'manual configuration    -> nucypher ursula config --host <IP ADDRESS>'
         emitter.message(message)
         return
 
-    ip_mismatch = external_ip != rest_host
+    ip_mismatch = external_ip != host
     if ip_mismatch and not force:
         error = f"\nx External IP address ({external_ip}) does not match configuration ({ursula.rest_interface.host}).\n"
         hint = (

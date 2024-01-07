@@ -168,8 +168,8 @@ class NodeSprout:
         return characters.lawful.Ursula(
             is_peer=True,
             crypto_power=crypto_power,
-            rest_host=self._metadata_payload.host,
-            rest_port=self._metadata_payload.port,
+            host=self._metadata_payload.host,
+            port=self._metadata_payload.port,
             domain=self._metadata_payload.domain,
             timestamp=self.timestamp,
             certificate=tls_certificate,

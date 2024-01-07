@@ -54,7 +54,7 @@ def test_ursula_operator_confirmation(
     # make an ursula.
     ursula = ursula_test_config.produce(
         wallet=operator_wallet,
-        rest_port=select_test_port()
+        port=select_test_port()
     )
 
     # now the worker has a staking provider

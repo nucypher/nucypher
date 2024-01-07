@@ -39,7 +39,7 @@ def mnemonic():
     return _mnemonic.generate(strength=_ENTROPY_BITS)
 
 
-def test_invalid_keystore_filepah_parts(tmp_path, tmp_path_factory):
+def test_invalid_keystore_filepath_parts(tmp_path, tmp_path_factory):
 
     # Setup
     not_hex = 'h' + ''.join(random.choice(string.ascii_letters) for _ in range(Keystore._ID_SIZE))
@@ -84,11 +84,11 @@ def test_keystore_instantiation_defaults(tmp_path_factory):
 
     # Test
     keystore = Keystore(path)
-    assert keystore.keystore_filepah == path  # retains the correct keystore path
+    assert keystore.keystore_filepath == path  # retains the correct keystore path
     assert keystore.id == keystore_id      # accurately parses filename for ID
     assert not keystore.is_unlocked        # defaults to locked
     assert keystore._Keystore__secret is KEYSTORE_LOCKED
-    assert parent in keystore.keystore_filepah.parents  # created in the correct directory
+    assert parent in keystore.keystore_filepath.parents  # created in the correct directory
 
 
 def test_keystore_generation_defaults(tmp_path_factory, mnemonic):
@@ -105,7 +105,7 @@ def test_keystore_generation_defaults(tmp_path_factory, mnemonic):
     )
     assert not keystore.is_unlocked        # defaults to locked
     assert keystore._Keystore__secret is KEYSTORE_LOCKED
-    assert parent in keystore.keystore_filepah.parents  # created in the correct directory
+    assert parent in keystore.keystore_filepath.parents  # created in the correct directory
 
 
 def test_keystore_invalid_password(tmpdir, mnemonic):
@@ -211,10 +211,10 @@ def test_decrypt_keystore(tmpdir, mocker):
     assert keystore._Keystore__secret == secret
 
     # Decrypt from keystore file
-    keystore_filepah = keystore.keystore_filepah
+    keystore_filepath = keystore.keystore_filepath
     del words
     del keystore
-    keystore = Keystore(keystore_filepah=keystore_filepah)
+    keystore = Keystore(keystore_filepath=keystore_filepath)
     keystore.unlock(INSECURE_DEVELOPMENT_PASSWORD)
     assert keystore._Keystore__secret == secret
 
@@ -227,7 +227,7 @@ def test_keystore_persistence(tmpdir, mnemonic):
         keystore_dir=tmpdir
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-    path = keystore.keystore_filepah
+    path = keystore.keystore_filepath
     del keystore
     assert path.exists()
 
@@ -248,17 +248,17 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
     assert spy.call_count == 0
     secret = bytes(mnemonic.to_entropy(words))
-    keystore_filepah = keystore.keystore_filepah
+    keystore_filepath = keystore.keystore_filepath
 
     # remove local and disk references, simulating a
     # lost keystore or forgotten password.
     del keystore
-    os.unlink(keystore_filepah)
+    os.unlink(keystore_filepath)
 
     # prove the keystore is lost or missing
-    assert not keystore_filepah.exists()
+    assert not keystore_filepath.exists()
     with pytest.raises(Keystore.NotFound):
-        _keystore = Keystore(keystore_filepah=keystore_filepah)
+        _keystore = Keystore(keystore_filepath=keystore_filepath)
 
     # Restore with user-supplied words and a new password
     keystore = Keystore.restore(words=words, password='ANewHope')
@@ -302,11 +302,11 @@ def test_import_custom_keystore(tmpdir):
     assert keystore._Keystore__secret == custom_secret
     keystore.lock()
 
-    path = keystore.keystore_filepah
+    path = keystore.keystore_filepath
     del keystore
 
     # Restore custom secret from encrypted keystore file
-    keystore = Keystore(keystore_filepah=path)
+    keystore = Keystore(keystore_filepath=path)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     assert keystore._Keystore__secret == custom_secret
 

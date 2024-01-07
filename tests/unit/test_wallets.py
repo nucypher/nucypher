@@ -117,8 +117,8 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path, 
 
 
 def test_create_wallet_from_keystore_file(mock_account, mock_keystore):
-    mock_keystore_filepah = mock_keystore / MOCK_KEYFILE_NAME
-    signer = Wallet.from_keystore(mock_keystore_filepah, password=INSECURE_DEVELOPMENT_PASSWORD)
+    mock_keystore_filepath = mock_keystore / MOCK_KEYFILE_NAME
+    signer = Wallet.from_keystore(mock_keystore_filepath, password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(signer.address)
 
 

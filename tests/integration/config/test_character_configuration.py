@@ -108,7 +108,7 @@ def test_default_character_configuration_preservation(
     assert not expected_filepath.exists()
 
     if configuration_class == UrsulaConfiguration:
-        # special case for rest_host & dev mode use keystore
+        # special case for host & dev mode use keystore
         keystore = Keystore.from_mnemonic(
             phrase=ReservedTestAccountManager._MNEMONIC,
             password=INSECURE_DEVELOPMENT_PASSWORD,
@@ -118,7 +118,7 @@ def test_default_character_configuration_preservation(
         character_config = configuration_class(
             eth_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=domain,
-            rest_host=MOCK_IP_ADDRESS,
+            host=MOCK_IP_ADDRESS,
             polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             keystore=keystore,
         )

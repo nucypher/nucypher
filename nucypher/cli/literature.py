@@ -59,6 +59,6 @@ REPEAT_FOR_CONFIRMATION = "Repeat for confirmation:"
 # Networking
 CONFIRM_IPV4_ADDRESS_QUESTION = "Is this the public-facing address of Ursula?"
 CONFIRM_URSULA_IPV4_ADDRESS = (
-    "Detected IPv4 address ({rest_host}) - " + CONFIRM_IPV4_ADDRESS_QUESTION
+    "Detected IPv4 address ({host}) - " + CONFIRM_IPV4_ADDRESS_QUESTION
 )
 COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address"

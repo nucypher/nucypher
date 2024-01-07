@@ -48,9 +48,9 @@ def test_ursula_and_wallet_integration(
         TEST_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
-        "--rest-host",
+        "--host",
         MOCK_IP_ADDRESS,
-        "--rest-port",
+        "--port",
         deploy_port,
         # The bit we are testing for here
         "--wallet-filepath",

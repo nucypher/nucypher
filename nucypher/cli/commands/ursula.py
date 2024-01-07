@@ -33,10 +33,8 @@ from nucypher.cli.options import (
     option_force,
     option_gas_strategy,
     option_key_material,
-    option_light,
     option_lonely,
     option_max_gas_price,
-    option_poa,
     option_polygon_endpoint,
     option_pre_payment_method,
     option_registry_filepath,
@@ -69,13 +67,11 @@ class UrsulaConfigOptions:
     def __init__(
         self,
         eth_endpoint: str,
-        rest_host: str,
-        rest_port: int,
+        host: str,
+        port: int,
         domain: str,
         registry_filepath: Path,
         dev: bool,
-        poa: bool,
-        light: bool,
         gas_strategy: str,
         max_gas_price: int,  # gwei
         wallet_filepath: Path,
@@ -86,13 +82,11 @@ class UrsulaConfigOptions:
 
         self.eth_endpoint = eth_endpoint
         self.wallet_filepath = wallet_filepath
-        self.rest_host = rest_host
-        self.rest_port = rest_port  # FIXME: not used in generate()
+        self.host = host
+        self.port = port
         self.domain = domain
         self.registry_filepath = registry_filepath
         self.dev = dev
-        self.poa = poa
-        self.light = light
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
         self.lonely = lonely
@@ -107,11 +101,11 @@ class UrsulaConfigOptions:
                 domain=TEMPORARY_DOMAIN_NAME,
                 registry_filepath=self.registry_filepath,
                 eth_endpoint=self.eth_endpoint,
-                wallet_filepath=UrsulaConfiguration.DEFAULT_WALLET_FILEPATH,
+                wallet_filepath=self.wallet_filepath,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
-                rest_host=self.rest_host,
-                rest_port=self.rest_port,
+                host=self.host,
+                port=self.port,
                 pre_payment_method=self.pre_payment_method,
                 polygon_endpoint=self.polygon_endpoint,
             )
@@ -128,8 +122,8 @@ class UrsulaConfigOptions:
                     wallet_filepath=self.wallet_filepath,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
-                    rest_host=self.rest_host,
-                    rest_port=self.rest_port,
+                    host=self.host,
+                    port=self.port,
                     pre_payment_method=self.pre_payment_method,
                     polygon_endpoint=self.polygon_endpoint,
                 )
@@ -162,8 +156,8 @@ class UrsulaConfigOptions:
             )
 
         # Resolve rest host
-        if not self.rest_host:
-            self.rest_host = collect_operator_ip_address(
+        if not self.host:
+            self.host = collect_operator_ip_address(
                 emitter,
                 domain=self.domain,
                 force=force,
@@ -176,8 +170,8 @@ class UrsulaConfigOptions:
             wallet_password=get_wallet_password(envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, confirm=True),
             wallet_filepath=self.wallet_filepath,
             config_root=config_root,
-            rest_host=self.rest_host,
-            rest_port=self.rest_port,
+            host=self.host,
+            port=self.port,
             domain=self.domain,
             registry_filepath=self.registry_filepath,
             eth_endpoint=self.eth_endpoint,
@@ -189,8 +183,8 @@ class UrsulaConfigOptions:
 
     def get_updates(self) -> dict:
         payload = dict(
-            rest_host=self.rest_host,
-            rest_port=self.rest_port,
+            host=self.host,
+            port=self.port,
             domain=self.domain,
             registry_filepath=self.registry_filepath,
             eth_endpoint=self.eth_endpoint,
@@ -215,20 +209,18 @@ group_config_options = group_options(
     ),
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
-    rest_host=click.option(
-        "--rest-host",
+    host=click.option(
+        "--host",
         help="The host IP address to run Ursula network services on",
         type=OPERATOR_IP,
     ),
-    rest_port=click.option(
-        "--rest-port",
+    port=click.option(
+        "--port",
         help="The host port to run Ursula network services on",
         type=NETWORK_PORT,
     ),
     domain=option_domain(),
     registry_filepath=option_registry_filepath,
-    poa=option_poa,
-    light=option_light,
     dev=option_dev,
     lonely=option_lonely,
     polygon_endpoint=option_polygon_endpoint,
@@ -429,13 +421,13 @@ def config(general_config, config_options, config_file, force, action):
     """
     emitter = setup_emitter(general_config, )
     if action == "ip-address":
-        rest_host = collect_operator_ip_address(
+        host = collect_operator_ip_address(
             emitter=emitter,
             domain=config_options.domain,
             force=force,
             eth_endpoint=config_options.eth_endpoint,
         )
-        config_options.rest_host = rest_host
+        config_options.host = host
     updates = config_options.get_updates()
     get_or_update_configuration(emitter=emitter,
                                 config_class=UrsulaConfiguration,

@@ -40,9 +40,9 @@ def assemble(
     return base_test_params
 
 
-def make_ursula_test_configuration(rest_port: int = select_test_port(), **assemble_kwargs) -> UrsulaConfiguration:
+def make_ursula_test_configuration(port: int = select_test_port(), **assemble_kwargs) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
-    ursula_config = UrsulaConfiguration(**test_params, rest_port=rest_port)
+    ursula_config = UrsulaConfiguration(**test_params, port=port)
     return ursula_config
 
 

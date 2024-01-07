@@ -29,7 +29,7 @@ DEFAULT_LOG_FILENAME = "nucypher.log"
 DEFAULT_JSON_LOG_FILENAME = "nucypher.json"
 
 # Static Seednodes
-SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'rest_host', 'rest_port'])
+SeednodeMetadata = namedtuple('seednode', ['checksum_address', 'host', 'port'])
 
 # Sentry (Add your public key and user ID below)
 NUCYPHER_SENTRY_PUBLIC_KEY = ""

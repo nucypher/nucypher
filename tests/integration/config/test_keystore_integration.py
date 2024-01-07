@@ -91,8 +91,8 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         keystore=keystore,
-        rest_host=LOOPBACK_ADDRESS,
-        rest_port=12345,
+        host=LOOPBACK_ADDRESS,
+        port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
         wallet=Wallet.random(),
@@ -116,8 +116,8 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
 
     ursula = Ursula(
         keystore=keystore,
-        rest_host=LOOPBACK_ADDRESS,
-        rest_port=12345,
+        host=LOOPBACK_ADDRESS,
+        port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
         wallet=Wallet.random(),

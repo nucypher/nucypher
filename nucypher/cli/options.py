@@ -49,9 +49,6 @@ option_key_material = click.option(
 option_max_gas_price = click.option(
     "--max-gas-price", help="Maximum acceptable gas price (in GWEI)", type=GWEI
 )
-option_light = click.option(
-    "--light", help="Indicate that node is light", is_flag=True, default=None
-)
 option_lonely = click.option(
     "--lonely", help="Do not connect to seednodes", is_flag=True
 )
@@ -67,9 +64,6 @@ option_pre_payment_method = click.option(
     help="PRE payment method name",
     type=PRE_PAYMENT_METHOD_CHOICES,
     required=False,
-)
-option_poa = click.option(
-    "--poa/--disable-poa", help="Inject POA middleware", is_flag=True, default=None
 )
 option_registry_filepath = click.option(
     "--registry-filepath",

@@ -183,14 +183,9 @@ class BaseConfiguration(ABC):
         Generates a filepath for saving to writing to a configuration file.
 
         Default behavior *avoids* overwriting an existing configuration file:
-
-        - The filepath exists and a filename `modifier` is not provided, then `FileExistsError` will be raised.
-        - The modified filepath exists, then `FileExistsError` will be raised.
-
         To allow re-generation of an existing filepath, set `override` to True.
 
         :param filepath: A custom filepath to use for configuration.
-        :param modifier: A unique string to modify the filename if the file already exists.
         :param override: Allow generation of an existing filepath.
         :return: The generated filepath.
 
@@ -318,7 +313,7 @@ class CharacterConfiguration(BaseConfiguration):
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
     TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
     WALLET_FILEPATH_ENVVAR = 'NUCYPHER_WALLET_PASSWORD'
-    DEFAULT_WALLET_FILEPATH = Keystore._DEFAULT_DIR / 'wallet.json'
+    DEFAULT_WALLET_FILEPATH_STEM = 'keystore/wallet.json'
 
     # When we begin to support other threshold schemes,
     # this will be one of the concepts that makes us want a factory.  #571
@@ -333,14 +328,12 @@ class CharacterConfiguration(BaseConfiguration):
     # Fields specified here are *not* passed into the Character's constructor
     # and can be understood as configuration fields only.
     _CONFIG_FIELDS = (
-        "config_root",
-        "poa",
-        "light",
-        "registry_filepath",
         "gas_strategy",
-        "max_gas_price",  # gwei
-        "signer_uri",
-        "keystore_filepah",
+        "max_gas_price",
+        "config_root",
+        "filepath",
+        "registry_filepath",
+        "keystore_filepath",
         "wallet_filepath",
     )
 
@@ -352,7 +345,7 @@ class CharacterConfiguration(BaseConfiguration):
         dev_mode: bool = False,
         crypto_power: Optional[CryptoPower] = None,
         keystore: Optional[Keystore] = None,
-        keystore_filepah: Optional[Path] = None,
+        keystore_filepath: Optional[Path] = None,
         domain: str = DEFAULT_DOMAIN,
         network_middleware: Optional[RestMiddleware] = None,
         lonely: bool = False,
@@ -368,26 +361,33 @@ class CharacterConfiguration(BaseConfiguration):
         registry_filepath: Optional[Path] = None,
     ):
         self.emitter = emitter
-
         self.log = Logger(self.__class__.__name__)
+
+        # Configuration
+        self.__dev_mode = dev_mode
+        self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
+        self.config_root = UNINITIALIZED_CONFIGURATION
 
         # This constant is used to signal that a path can be generated if one is not provided.
         UNINITIALIZED_CONFIGURATION.bool_value(False)
 
         # Identity
-        # NOTE: NodeConfigurations can only be used with Self-Characters
+        # NOTE: This API can only be used with Self-Characters
         self.is_peer = False
 
         # Keystore
         self.crypto_power = crypto_power
-        if keystore_filepah and not keystore:
-            keystore = Keystore(keystore_filepah=keystore_filepah)
+        if keystore_filepath and not keystore:
+            keystore = Keystore(keystore_filepath=keystore_filepath)
         self.__keystore = self.__keystore = keystore or NO_KEYSTORE_ATTACHED.bool_value(False)
-        self.keystore_dir = Path(keystore.keystore_filepah).parent if keystore else UNINITIALIZED_CONFIGURATION
+        self.keystore_dir = Path(keystore.keystore_filepath).parent if keystore else UNINITIALIZED_CONFIGURATION
 
         # Wallet
         self.wallet = wallet
-        self.wallet_filepath = Path(wallet_filepath or self.DEFAULT_WALLET_FILEPATH)
+        if not wallet_filepath:
+            _parent = Path(config_root or self.DEFAULT_CONFIG_ROOT)
+            wallet_filepath = _parent / self.DEFAULT_WALLET_FILEPATH_STEM
+        self.wallet_filepath = wallet_filepath
 
         # Contract Registry
         if registry and registry_filepath:
@@ -410,11 +410,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.domain = domains.get_domain(str(domain))
         self.peers = seed_nodes or set()  # handpicked
         self.lonely = lonely
-
-        # Configuration
-        self.__dev_mode = dev_mode
-        self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
-        self.config_root = UNINITIALIZED_CONFIGURATION
 
         #
         # Decentralized
@@ -618,9 +613,9 @@ class CharacterConfiguration(BaseConfiguration):
 
     def static_payload(self) -> dict:
         """JSON-Exported static configuration values for initializing Ursula"""
-        keystore_filepah = str(self.keystore.keystore_filepah) if self.keystore else None
+        keystore_filepath = str(self.keystore.keystore_filepath) if self.keystore else None
         payload = dict(
-            keystore_filepah=keystore_filepah,
+            keystore_filepath=keystore_filepath,
             domain=str(self.domain),
         )
 
