@@ -7,5 +7,5 @@ NodeSeemsToBeDown = (
     requests.exceptions.ReadTimeout,
     requests.exceptions.ConnectTimeout,
     socket.gaierror,
-    ConnectionRefusedError
+    ConnectionRefusedError,
 )

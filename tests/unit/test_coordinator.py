@@ -12,13 +12,13 @@ DKG_SIZE = 4
 
 
 @pytest.fixture(scope='module')
-def nodes_transacting_powers():
+def nodes_wallets():
     accounts = OrderedDict()
     for _ in range(DKG_SIZE):
         account = Account.create()
-        mock_transacting_power = Mock()
-        mock_transacting_power.account = account.address
-        accounts[account.address] = mock_transacting_power
+        mock_wallet = Mock()
+        mock_wallet.address = account.address
+        accounts[account.address] = mock_wallet
     return accounts
 
 
@@ -33,20 +33,20 @@ def test_mock_coordinator_creation(coordinator):
 
 def test_mock_coordinator_initiation(
     mocker,
-    nodes_transacting_powers,
+    nodes_wallets,
     coordinator,
     random_address,
     get_random_checksum_address,
 ):
     assert len(coordinator.rituals) == 0
-    mock_transacting_power = mocker.Mock()
-    mock_transacting_power.account = random_address
+    mock_wallet = mocker.Mock()
+    mock_wallet.address = random_address
     coordinator.initiate_ritual(
-        providers=list(nodes_transacting_powers.keys()),
-        authority=mock_transacting_power.account,
+        providers=list(nodes_wallets.keys()),
+        authority=mock_wallet.address,
         duration=1,
         access_controller=get_random_checksum_address(),
-        transacting_power=mock_transacting_power,
+        wallet=mock_wallet,
     )
     assert len(coordinator.rituals) == 1
 
@@ -63,12 +63,12 @@ def test_mock_coordinator_initiation(
     signal_type, signal_data = signal
     assert signal_type == MockCoordinatorAgent.Events.START_RITUAL
     assert signal_data["ritual_id"] == 0
-    assert signal_data["authority"] == mock_transacting_power.account
-    assert set(signal_data["participants"]) == nodes_transacting_powers.keys()
+    assert signal_data["authority"] == mock_wallet.address
+    assert set(signal_data["participants"]) == nodes_wallets.keys()
 
 
 def test_mock_coordinator_round_1(
-    nodes_transacting_powers, coordinator, random_transcript
+    nodes_wallets, coordinator, random_transcript
 ):
     ritual = coordinator.rituals[0]
     assert (
@@ -79,19 +79,19 @@ def test_mock_coordinator_round_1(
     for p in ritual.participants:
         assert p.transcript == bytes()
 
-    for index, node_address in enumerate(nodes_transacting_powers):
+    for index, node_address in enumerate(nodes_wallets):
         transcript = random_transcript
 
         coordinator.post_transcript(
             ritual_id=0,
             transcript=transcript,
-            transacting_power=nodes_transacting_powers[node_address]
+            wallet=nodes_wallets[node_address]
         )
 
         performance = ritual.participants[index]
         assert performance.transcript == bytes(transcript)
 
-        if index == len(nodes_transacting_powers) - 1:
+        if index == len(nodes_wallets) - 1:
             assert len(coordinator.EVENTS) == 2
 
     timestamp, signal = list(coordinator.EVENTS.items())[1]
@@ -101,7 +101,7 @@ def test_mock_coordinator_round_1(
 
 
 def test_mock_coordinator_round_2(
-    nodes_transacting_powers,
+    nodes_wallets,
     coordinator,
     aggregated_transcript,
     dkg_public_key,
@@ -117,17 +117,17 @@ def test_mock_coordinator_round_2(
         assert p.transcript == bytes(random_transcript)
 
     participant_public_keys = []
-    for index, node_address in enumerate(nodes_transacting_powers):
+    for index, node_address in enumerate(nodes_wallets):
         participant_public_key = SessionStaticSecret.random().public_key()
         coordinator.post_aggregation(
             ritual_id=0,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
             participant_public_key=participant_public_key,
-            transacting_power=nodes_transacting_powers[node_address]
+            wallet=nodes_wallets[node_address]
         )
         participant_public_keys.append(participant_public_key)
-        if index == len(nodes_transacting_powers) - 1:
+        if index == len(nodes_wallets) - 1:
             assert len(coordinator.EVENTS) == 2
 
     assert ritual.aggregated_transcript == bytes(aggregated_transcript)

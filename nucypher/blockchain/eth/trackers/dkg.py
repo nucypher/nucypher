@@ -438,5 +438,5 @@ class ActiveRitualTracker:
 
         end_block = self.scanner.get_suggested_scan_end_block()
         self.__scan(
-            suggested_start_block, end_block, self.operator.transacting_power.account
+            suggested_start_block, end_block, self.operator.wallet.address
         )

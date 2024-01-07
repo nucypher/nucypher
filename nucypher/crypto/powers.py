@@ -1,9 +1,7 @@
 import inspect
 from typing import List, Optional, Tuple, Union
 
-from eth_account._utils.signing import to_standard_signature_bytes
 from eth_typing.evm import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
@@ -26,8 +24,6 @@ from nucypher_core.ferveo import (
 )
 from nucypher_core.umbral import PublicKey, SecretKey, SecretKeyFactory, generate_kfrags
 
-from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.crypto import keypairs
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.keypairs import (
@@ -47,9 +43,6 @@ class NoSigningPower(PowerUpError):
 
 
 class NoDecryptingPower(PowerUpError):
-    pass
-
-class NoTransactingPower(PowerUpError):
     pass
 
 class NoRitualisticPower(PowerUpError):
@@ -113,97 +106,6 @@ class CryptoPowerUp:
 
     def activate(self, *args, **kwargs):
         return
-
-
-class TransactingPower(CryptoPowerUp):
-    """
-    The power to sign ethereum transactions as the custodian of a private key through a signing backend.
-    """
-
-    not_found_error = NoTransactingPower
-
-    class AccountLocked(PowerUpError):
-        """Raised when signing cannot be performed due to a locked account"""
-        pass
-
-    @validate_checksum_address
-    def __init__(self,
-                 account: ChecksumAddress,
-                 signer: Signer,
-                 password: str = None,
-                 cache: bool = False):
-        """
-        Instantiates a TransactingPower for the given checksum_address.
-        """
-
-        # Auth
-        if not signer:
-            raise ValueError('signer is required to init a TransactingPower.')
-        self._signer = signer
-        self.__account = account
-        self.__password = password
-
-        # Config
-        self.__blockchain = None
-        self.__cache = cache
-        self.__activated = False
-
-    def __enter__(self):
-        return self.unlock()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        return self.lock_account()
-
-    def __eq__(self, other):
-        if not isinstance(other, TransactingPower):
-            return False
-        result = bool(self.account == other.account)
-        return result
-
-    #
-    # Properties
-    #
-
-    @property
-    def account(self) -> ChecksumAddress:
-        return self.__account
-
-    @property
-    def is_device(self) -> bool:
-        return self._signer.is_device(account=self.__account)
-
-    #
-    # Power
-    #
-
-    def activate(self, password: str = None) -> None:
-        """Called during power consumption"""
-        self.unlock(password=password)
-        if self.__cache is False:
-            self.__password = None
-
-    def lock_account(self) -> None:
-        self._signer.lock_account(account=self.__account)
-
-    def unlock(self, password: str = None, duration: int = None) -> bool:
-        """Unlocks the account with provided or cached password."""
-        password = password or self.__password
-        result = self._signer.unlock_account(self.__account,
-                                             password=password,
-                                             duration=duration)
-        return result
-
-    def sign_message(self, message: bytes) -> bytes:
-        """Signs the message with the private key of the TransactingPower."""
-        signature = self._signer.sign_message(account=self.__account, message=message)
-
-        # This signature will need to be passed to Rust, so we are cleaning the chain identifier
-        # from the recovery byte, bringing it to the standard choice of {0, 1}.
-        return to_standard_signature_bytes(signature)
-
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
-        """Signs the transaction with the private key of the TransactingPower."""
-        return self._signer.sign_transaction(transaction_dict=transaction_dict)
 
 
 class KeyPairBasedPower(CryptoPowerUp):

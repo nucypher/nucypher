@@ -3,9 +3,10 @@ from unittest import mock
 from unittest.mock import Mock, patch
 
 from eth_tester.exceptions import ValidationError
+from eth_utils import to_canonical_address
 from nucypher_core import NodeMetadata
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower
@@ -64,17 +65,17 @@ class Vladimir(Ursula):
             new_callable=mock.PropertyMock(return_value=eth_blockchain.client.chain_id),
         )
 
+        vlads_wallet = Wallet.from_key(cls.fraud_key)
+
         vladimir = cls(
-            is_me=True,
+            is_peer=False,
             crypto_power=crypto_power,
             domain=TEMPORARY_DOMAIN_NAME,
             rest_host=target_ursula.rest_interface.host,
             rest_port=target_ursula.rest_interface.port,
             certificate=target_ursula.certificate,
             network_middleware=cls.network_middleware,
-            checksum_address=cls.fraud_address,
-            operator_address=cls.fraud_address,
-            signer=Web3Signer(eth_blockchain.client),
+            wallet=vlads_wallet,
             eth_endpoint=eth_blockchain.endpoint,
             polygon_endpoint=polygon_blockchain.endpoint,
             pre_payment_method=bogus_pre_payment_method,
@@ -94,8 +95,9 @@ class Vladimir(Ursula):
         # so it should work regardless of the binary format.
 
         # Our basic replacement. We want to impersonate the target Ursula.
+        vladimir._staking_provider_address = vlads_wallet.address
         metadata_bytes = metadata_bytes.replace(bytes(metadata.payload.staking_provider_address),
-                                                vladimir.canonical_address)
+                                                to_canonical_address(vladimir.staking_provider_address))
 
         # Use our own verifying key
         if substitute_verifying_key:
@@ -149,7 +151,7 @@ class Amonia(Alice):
         def what_do_you_mean_you_dont_tip(policy, *args, **kwargs):
             return b"He convinced me, gimme back my $"
 
-        with patch("nucypher.policy.policies.BlockchainPolicy._publish", what_do_you_mean_you_dont_tip):
+        with patch("nucypher.policy.policies.Policy._publish", what_do_you_mean_you_dont_tip):
             return super().grant(*args, **kwargs)
 
     def circumvent_safegaurds_and_grant_without_paying(self, *args, **kwargs):

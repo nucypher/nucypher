@@ -42,7 +42,7 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 
 
 def test_corrupted_configuration(
-    click_runner, custom_filepath, testerchain, test_registry, mocker
+    click_runner, custom_filepath, accounts, test_registry, mocker
 ):
     #
     # Setup
@@ -53,7 +53,7 @@ def test_corrupted_configuration(
         shutil.rmtree(custom_filepath, ignore_errors=True)
     assert not custom_filepath.exists()
 
-    alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staking_provider, *all_yall = accounts.unassigned_wallets
 
     #
     # Chaos
@@ -66,8 +66,6 @@ def test_corrupted_configuration(
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
-        "--operator-address",
-        another_ursula,
         "--domain",
         TEMPORARY_DOMAIN_NAME,
         "--rest-host",
@@ -91,8 +89,8 @@ def test_corrupted_configuration(
     keystore = custom_filepath / 'keystore'
     assert not keystore.exists()
 
-    known_nodes = 'known_nodes'
-    path = custom_filepath / known_nodes
+    peers = 'peers'
+    path = custom_filepath / peers
     assert not path.exists()
 
     mocker.patch.object(LocalRegistrySource, "get", return_value=dict())
@@ -109,8 +107,6 @@ def test_corrupted_configuration(
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
-        "--operator-address",
-        another_ursula,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--registry-filepath",

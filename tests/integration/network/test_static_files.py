@@ -11,15 +11,14 @@ from tests.utils.ursula import make_ursulas
 
 
 @pytest_twisted.inlineCallbacks
-def test_ursula_serves_statics(ursula_test_config, testerchain):
+def test_ursula_serves_statics(ursula_test_config, accounts):
     with tempfile.TemporaryDirectory() as STATICS_DIR:
         os.environ['NUCYPHER_STATIC_FILES_ROOT'] = str(STATICS_DIR)
 
         node = make_ursulas(
+            accounts=accounts,
             ursula_config=ursula_test_config,
             quantity=1,
-            staking_provider_addresses=testerchain.stake_providers_accounts,
-            operator_addresses=testerchain.ursulas_accounts,
         ).pop()
         node_deployer = node.get_deployer()
 

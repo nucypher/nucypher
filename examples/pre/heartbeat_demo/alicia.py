@@ -25,7 +25,7 @@ from pathlib import Path
 import maya
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.ethereum import connect_web3_provider
@@ -49,8 +49,7 @@ try:
     L2_PROVIDER = os.environ["DEMO_L2_PROVIDER_URI"]
 
     # Replace with wallet filepath.
-    WALLET_FILEPATH = os.environ["DEMO_L2_WALLET_FILEPATH"]
-    SIGNER_URI = f"keystore://{WALLET_FILEPATH}"
+    WALLET_FILEPATH = Path(os.environ["DEMO_L2_WALLET_FILEPATH"])
 
     # Replace with alice's ethereum address
     ALICE_ADDRESS = os.environ["DEMO_ALICE_ADDRESS"]
@@ -76,11 +75,10 @@ connect_web3_provider(
 # Setup and unlock alice's ethereum wallet.
 # WARNING: Never give your mainnet password or mnemonic phrase to anyone.
 # Do not use mainnet keys, create a dedicated software wallet to use for this demo.
-wallet = Signer.from_signer_uri(SIGNER_URI)
 password = os.environ.get("DEMO_ALICE_PASSWORD") or getpass(
     f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): "
 )
-wallet.unlock_account(account=ALICE_ADDRESS, password=password)
+wallet = Wallet.from_keystore(path=WALLET_FILEPATH, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(
@@ -89,8 +87,7 @@ pre_payment_method = SubscriptionManagerPayment(
 
 # This is Alicia.
 alicia = Alice(
-    checksum_address=ALICE_ADDRESS,
-    signer=wallet,
+    wallet=wallet,
     domain=TACO_DOMAIN,
     eth_endpoint=L1_PROVIDER,
     polygon_endpoint=L2_PROVIDER,
@@ -101,7 +98,7 @@ alicia = Alice(
 alice_verifying_key = alicia.stamp.as_umbral_pubkey()
 
 # Let's get to learn about the TACo nodes on the Threshold Network
-alicia.start_learning_loop(now=True)
+alicia.start_peering(now=True)
 
 # At this point, Alicia is fully operational and can create policies.
 # The Policy Label is a bytestring that categorizes the data that Alicia wants to share.

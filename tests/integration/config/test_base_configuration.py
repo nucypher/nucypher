@@ -1,5 +1,3 @@
-
-
 import json
 import shutil
 from pathlib import Path
@@ -16,7 +14,6 @@ from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 configuration_name = 'something'
 expected_extension = 'json'
 configuration_value = 're-emerging llamas'
-modifier = '1'
 manual_expected_default_filepath = Path('/', 'tmp', 'something.json')
 manual_expected_modified_filepath = Path('/', 'tmp', 'something-1.json')
 
@@ -125,23 +122,6 @@ def test_configuration_filepath_utilities():
     restorable_item = RestorableTestItem(item=configuration_value)  # <-- CREATE
     restorable_item.to_configuration_file()
 
-    #
-    # Instance-scoped
-    #
-
-    # Ensure filename and filepath construction accuracy
-    expected_modified_filename = f'{RestorableTestItem.NAME}-{modifier}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
-    modified_filename = restorable_item.generate_filename(modifier=modifier)
-    assert modified_filename == expected_modified_filename
-
-    expected_modified_filepath = RestorableTestItem.DEFAULT_CONFIG_ROOT / expected_modified_filename
-    modified_filepath = restorable_item.generate_filepath(override=False, modifier=modifier)
-    assert modified_filepath == expected_modified_filepath
-
-    # Ensure Positive Override Control
-    filepath = restorable_item.to_configuration_file(override=False, modifier=modifier)
-    assert filepath == expected_modified_filepath
-
 
 def test_configuration_preservation():
 
@@ -150,6 +130,10 @@ def test_configuration_preservation():
 
     expected_default_filename = f'{RestorableTestItem.NAME}.{RestorableTestItem._CONFIG_FILE_EXTENSION}'
     expected_default_filepath = RestorableTestItem.DEFAULT_CONFIG_ROOT / expected_default_filename
+
+    # remove the file if it exists
+    if expected_default_filepath.exists():
+        expected_default_filepath.unlink()
 
     # Serialize
     assert restorable_item.serialize()

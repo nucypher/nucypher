@@ -1,7 +1,4 @@
-
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 from tests.utils.ursula import select_test_port
 
@@ -15,21 +12,22 @@ def log(message):
 
 def test_ursula_operator_confirmation(
     ursula_test_config,
-    testerchain,
+    accounts,
     threshold_staking,
     taco_application_agent,
     taco_child_application_agent,
     test_registry,
     deployer_account,
 ):
-    staking_provider = testerchain.stake_provider_account(0)
-    operator_address = testerchain.ursula_account(0)
+    staking_provider_wallet = accounts.provider_wallet(0)
+    operator_wallet = accounts.ursula_wallet(0)
+    operator_address = operator_wallet.address
     min_authorization = taco_application_agent.get_min_authorization()
 
     # make an staking_providers and some stakes
-    threshold_staking.setRoles(staking_provider, sender=deployer_account)
+    threshold_staking.setRoles(staking_provider_wallet.address, sender=deployer_account)
     threshold_staking.authorizationIncreased(
-        staking_provider,
+        staking_provider_wallet.address,
         0,
         min_authorization,
         sender=deployer_account,
@@ -47,23 +45,20 @@ def test_ursula_operator_confirmation(
     assert taco_application_agent.is_operator_confirmed(operator_address) is False
     assert taco_child_application_agent.is_operator_confirmed(operator_address) is False
 
-    # bond this operator
-    tpower = TransactingPower(
-        account=staking_provider, signer=Web3Signer(testerchain.client)
-    )
     taco_application_agent.bond_operator(
-        staking_provider=staking_provider,
+        staking_provider=staking_provider_wallet.address,
         operator=operator_address,
-        transacting_power=tpower,
+        wallet=staking_provider_wallet,
     )
 
     # make an ursula.
     ursula = ursula_test_config.produce(
-        operator_address=operator_address, rest_port=select_test_port()
+        wallet=operator_wallet,
+        rest_port=select_test_port()
     )
 
     # now the worker has a staking provider
-    assert ursula.get_staking_provider_address() == staking_provider
+    assert ursula.get_staking_provider_address() == staking_provider_wallet.address
 
     # confirmed once ursula has set provider public key
     ursula.set_provider_public_key()

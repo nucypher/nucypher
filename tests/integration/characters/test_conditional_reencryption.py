@@ -4,6 +4,7 @@ import pytest
 from nucypher_core import Conditions
 
 from nucypher.characters.lawful import Ursula
+from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.conditions.exceptions import (
     ConditionEvaluationFailed,
     ContextVariableVerificationFailed,
@@ -31,8 +32,8 @@ def test_single_retrieve_with_truthy_conditions(enacted_policy, bob, ursulas, mo
 
     reencrypt_spy = mocker.spy(Ursula, '_reencrypt')
 
-    bob.remember_node(ursulas[0])
-    bob.start_learning_loop()
+    bob.remember_peer(ursulas[0])
+    bob.start_peering()
 
     conditions = {
         "version": ConditionLingo.VERSION,
@@ -90,11 +91,11 @@ def test_single_retrieve_with_falsy_conditions(enacted_policy, bob, ursulas, moc
         )
     )
 
-    bob.start_learning_loop()
+    bob.start_peering()
 
     message_kits = [MessageKit(enacted_policy.public_key, b"radio", conditions)]
 
-    with pytest.raises(Ursula.NotEnoughUrsulas):
+    with pytest.raises(RestMiddleware.Unauthorized):
         bob.retrieve_and_decrypt(
             message_kits=message_kits,
             **_policy_info_kwargs(enacted_policy),
@@ -130,7 +131,6 @@ def test_middleware_handling_of_failed_condition_responses(
     mocker,
     enacted_policy,
     bob,
-    mock_rest_middleware,
 ):
     # we use a failed condition for reencryption to test conversion of response codes to middleware exceptions
     from nucypher_core import MessageKit
@@ -152,7 +152,7 @@ def test_middleware_handling_of_failed_condition_responses(
         )
     )
 
-    bob.start_learning_loop()
+    bob.start_peering()
 
     message_kits = [MessageKit(enacted_policy.public_key, b"radio", conditions)]
 
@@ -169,7 +169,7 @@ def test_middleware_handling_of_failed_condition_responses(
         side_effect=eval_failure_exception_class(exception_parameter),
     )
 
-    with pytest.raises(Ursula.NotEnoughUrsulas):
+    with pytest.raises(middleware_exception_class):
         # failed retrieval because of failed exception
         bob.retrieve_and_decrypt(
             message_kits=message_kits,

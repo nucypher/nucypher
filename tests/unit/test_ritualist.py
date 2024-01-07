@@ -1,8 +1,7 @@
 import pytest
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import RitualisticPower, TransactingPower
+from nucypher.crypto.powers import RitualisticPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
 
@@ -33,25 +32,23 @@ def cohort(ursulas):
 
 
 @pytest.fixture(scope="module")
-def transacting_power(testerchain, alice):
-    return TransactingPower(
-        account=alice.transacting_power.account, signer=Web3Signer(testerchain.client)
-    )
+def wallet(accounts, alice):
+    return accounts.alice_wallet
 
 
 def test_initiate_ritual(
-    agent: CoordinatorAgent, cohort, transacting_power, get_random_checksum_address
+    agent: CoordinatorAgent, cohort, wallet, get_random_checksum_address
 ):
     # any value will do
     global_allow_list = get_random_checksum_address()
 
     duration = 100
     receipt = agent.initiate_ritual(
-        authority=transacting_power.account,
+        authority=wallet.address,
         access_controller=global_allow_list,
         providers=cohort,
         duration=duration,
-        transacting_power=transacting_power,
+        wallet=wallet,
     )
 
     participants = [
@@ -64,8 +61,8 @@ def test_initiate_ritual(
     init_timestamp = 123456
     end_timestamp = init_timestamp + duration
     ritual = CoordinatorAgent.Ritual(
-        initiator=transacting_power.account,
-        authority=transacting_power.account,
+        initiator=wallet.address,
+        authority=wallet.address,
         access_controller=global_allow_list,
         dkg_size=4,
         threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(dkg_size=4),
@@ -91,9 +88,9 @@ def test_perform_round_1(
     get_random_checksum_address,
 ):
     participants = dict()
-    for checksum_address in cohort:
-        participants[checksum_address] = CoordinatorAgent.Ritual.Participant(
-            provider=checksum_address,
+    for staking_provider_address in cohort:
+        participants[staking_provider_address] = CoordinatorAgent.Ritual.Participant(
+            provider=staking_provider_address,
         )
 
     init_timestamp = 123456
@@ -176,7 +173,7 @@ def test_perform_round_1(
 def test_perform_round_2(
     ursula,
     cohort,
-    transacting_power,
+        wallet,
     agent,
     mocker,
     random_transcript,
@@ -195,8 +192,8 @@ def test_perform_round_2(
     end_timestamp = init_timestamp + 100
 
     ritual = CoordinatorAgent.Ritual(
-        initiator=transacting_power.account,
-        authority=transacting_power.account,
+        initiator=wallet.address,
+        authority=wallet.address,
         access_controller=get_random_checksum_address(),
         dkg_size=len(cohort),
         threshold=MockCoordinatorAgent.get_threshold_for_ritual_size(

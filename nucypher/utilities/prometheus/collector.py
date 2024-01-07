@@ -80,8 +80,8 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
                 "Node discovery loop status",
                 registry=registry,
             ),
-            "known_nodes": Gauge(
-                "known_nodes",
+            "peers": Gauge(
+                "peers",
                 "Number of currently known nodes",
                 registry=registry,
             ),
@@ -102,7 +102,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
 
         self.metrics["client_info"].info(payload)
         self.metrics["node_discovery_running"].set(self.ursula._learning_task.running)
-        self.metrics["known_nodes"].set(len(self.ursula.known_nodes))
+        self.metrics["peers"].set(len(self.ursula.known_nodes))
 
 
 class BlockchainMetricsCollector(BaseMetricsCollector):

@@ -1,5 +1,5 @@
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.signers import InMemorySigner
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
@@ -7,7 +7,7 @@ from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 plaintext = b"paz al amanecer"
 THIS_IS_NOT_A_TRINKET = 55  # sometimes called "public key"
 
-signer = InMemorySigner()
+signer = InMemoryWallet()
 enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET, signer=signer)
 bob = ThisBobAlwaysDecrypts(domain=domains.LYNX, eth_endpoint="Nowhere")
 

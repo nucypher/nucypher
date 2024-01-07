@@ -7,19 +7,18 @@ import pytest
 from mnemonic import Mnemonic
 
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
-from nucypher.cli.commands.ursula import UrsulaInitOptions
+from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.cli.commands.ursula import UrsulaConfigOptions
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
     CONFIRM_IPV4_ADDRESS_QUESTION,
     REPEAT_FOR_CONFIRMATION,
-    SELECT_OPERATOR_ACCOUNT,
     SUCCESSFUL_DESTRUCTION,
 )
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
-    APP_DIR,
     DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
@@ -34,6 +33,7 @@ from tests.constants import (
     NO_ENTER,
     YES_ENTER,
 )
+from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.ursula import select_test_port
 
 
@@ -49,16 +49,16 @@ def mock_dkg_tracker(mocker):
 def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
 
     # Mock filesystem i/o
-    mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
+    # mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
-    mocker.patch.object(UrsulaInitOptions, '_check_for_existing_config', autospec=True)
+    mocker.patch.object(UrsulaConfigOptions, '_check_for_existing_config', autospec=True)
 
     # Mock Keystore init
     mnemonic = Mnemonic('english').generate(256)
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
         keystore_dir=tmpdir,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD
+        password=INSECURE_DEVELOPMENT_PASSWORD
     )
     mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
 
@@ -88,11 +88,12 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
     assert REPEAT_FOR_CONFIRMATION in result.output, 'User was not prompted to confirm password'
 
 
-def test_initialize_custom_configuration_root(
+def test_initialize_custom_configuration(
     click_runner, custom_filepath: Path, testerchain
 ):
     deploy_port = select_test_port()
-    # Use a custom local filepath for configuration
+
+    # Use a custom local filepaths for configuration
     init_args = (
         "ursula",
         "init",
@@ -108,8 +109,6 @@ def test_initialize_custom_configuration_root(
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
-        "--operator-address",
-        testerchain.ursulas_accounts[0],
     )
     result = click_runner.invoke(
         nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED + FAKE_PASSWORD_CONFIRMED, catch_exceptions=False
@@ -182,10 +181,12 @@ def test_ursula_view_configuration(custom_filepath: Path, click_runner, nominal_
 
 
 @pytest.mark.usefixtures("mock_funding_and_bonding")
-def test_run_ursula_from_config_file(custom_filepath: Path, click_runner):
+def test_run_ursula_from_config_file(custom_filepath: Path, click_runner, mocker, accounts):
     # Ensure the configuration file still exists
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
+
+    mocker.patch.object(Wallet, 'from_keystore', return_value=accounts.ursula_wallet(0), autospec=True)
 
     # Run Ursula
     run_args = ('ursula', 'run',
@@ -355,11 +356,16 @@ def test_ursula_destroy_configuration(custom_filepath, click_runner):
 def test_initialize_ursula_operator_wallet_generation(click_runner, mocker, tmpdir):
 
     # Mock out filesystem writes
-    mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
+    # mocker.patch.object(UrsulaConfiguration, 'initialize', autospec=True)
     mocker.patch.object(UrsulaConfiguration, 'to_configuration_file', autospec=True)
+    mocker.patch.object(UrsulaConfigOptions, '_check_for_existing_config', autospec=True)
 
     # Mock Keystore init
-    keystore = Keystore.generate(keystore_dir=tmpdir, password=INSECURE_DEVELOPMENT_PASSWORD)
+    keystore = Keystore.from_mnemonic(
+        phrase=ReservedTestAccountManager._MNEMONIC,
+        keystore_dir=tmpdir,
+        password=INSECURE_DEVELOPMENT_PASSWORD
+    )
     mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
 
     # Use default ursula init args
@@ -374,7 +380,7 @@ def test_initialize_ursula_operator_wallet_generation(click_runner, mocker, tmpd
         MOCK_ETH_PROVIDER_URI,
     )
 
-    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED
+    user_input = "0\n" + YES_ENTER + FAKE_PASSWORD_CONFIRMED + FAKE_PASSWORD_CONFIRMED
     result = click_runner.invoke(
         nucypher_cli, init_args, input=user_input, catch_exceptions=False
     )

@@ -89,10 +89,10 @@ class Policy:
         self, address: ChecksumAddress, network_middleware: RestMiddleware
     ) -> "characters.lawful.Ursula":
         # Handles edge case when provided address is not a known peer.
-        if address not in self.publisher.known_nodes:
+        if address not in self.publisher.peers:
             raise RuntimeError(f"{address} is not a known peer")
 
-        ursula = self.publisher.known_nodes[address]
+        ursula = self.publisher.peers[address]
         response = network_middleware.ping(node=ursula)
         status_code = response.status_code
 
@@ -112,7 +112,7 @@ class Policy:
         ursulas = ursulas or []
         handpicked_addresses = [ChecksumAddress(ursula.checksum_address) for ursula in ursulas]
 
-        self.publisher.block_until_number_of_known_nodes_is(self.shares, learn_on_this_thread=True, eager=True)
+        self.publisher.block_until_number_of_peers_is(self.shares, learn_on_this_thread=True, eager=True)
         reservoir = self._make_reservoir(handpicked_addresses)
         if len(reservoir) < self.shares:
             raise self.NotEnoughUrsulas(

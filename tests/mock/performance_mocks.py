@@ -9,11 +9,11 @@ from tests.mock.serials import good_serials
 mock_message_verification = patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None)
 
 
-def fake_keep_learning(selfish, learner=None, *args, **kwargs):
+def fake_keep_peering(selfish, learner=None, *args, **kwargs):
     return None
 
 
-mock_keep_learning = patch('nucypher.network.nodes.Learner.keep_learning_about_nodes', new=fake_keep_learning)
+mock_continue_peering = patch('nucypher.network.nodes.Learner.continue_peering', new=fake_keep_peering)
 
 mock_record_fleet_state = patch("nucypher.acumen.perception.FleetSensor.record_fleet_state",
                                 new=lambda *args, **kwargs: None)
@@ -35,6 +35,7 @@ class NotAPublicKey:
 
     _umbral_pubkey_from_bytes = PublicKey.from_compressed_bytes
 
+    @staticmethod
     def _tick():
         for serial in good_serials:
             yield serial
@@ -118,7 +119,7 @@ def do_not_create_cert(*args, **kwargs):
 
 
 def simple_remember(ursula, node, *args, **kwargs):
-    ursula.known_nodes.record_node(node)
+    ursula.peers.record_node(node)
 
 
 class NotARestApp:
@@ -182,31 +183,8 @@ mock_cert_generation = patch("nucypher.crypto.tls.generate_self_signed_certifica
 mock_rest_app_creation = patch("nucypher.characters.lawful.make_rest_app",
                                new=NotARestApp.create)
 
-mock_remember_node = patch("nucypher.characters.lawful.Ursula.remember_node", new=simple_remember)
+mock_remember_peer = patch("nucypher.characters.lawful.Ursula.remember_peer", new=simple_remember)
 mock_verify_node = patch("nucypher.characters.lawful.Ursula.verify_node", new=VerificationTracker.fake_verify_node)
 
 mock_metadata_validation = patch("nucypher.network.nodes.Teacher.validate_metadata",
                                  new=VerificationTracker.fake_verify_metadata)
-
-
-@contextmanager
-def mock_secret_source(*args, **kwargs):
-    with patch("nucypher.crypto.keypairs.Keypair._private_key_source", new=lambda *args, **kwargs: NotAPrivateKey()):
-        with patch("nucypher.crypto.keypairs.Signer", new=lambda *args, **kwargs: NotASigner(*args, **kwargs)):
-            yield
-    NotAPublicKey.reset()
-
-
-def _determine_good_serials(start, end):
-    """
-    Figure out which serials are good to use in mocks because they won't result in non-viable public keys.
-    """
-    good_serials = []
-    for i in range(start, end):
-        try:
-            NotAPublicKey.from_int(i).i_want_to_be_a_real_boy()
-        except Exception:
-            continue
-        else:
-            good_serials.append(i)
-    return good_serials

@@ -55,12 +55,6 @@ option_light = click.option(
 option_lonely = click.option(
     "--lonely", help="Do not connect to seednodes", is_flag=True
 )
-option_min_stake = click.option(
-    "--min-stake",
-    help="The minimum stake the teacher must have to be locally accepted.",
-    type=STAKED_TOKENS_RANGE,
-    default=MIN_AUTHORIZATION,
-)
 option_polygon_endpoint = click.option(
     "--polygon-endpoint",
     "polygon_endpoint",
@@ -82,11 +76,10 @@ option_registry_filepath = click.option(
     help="Custom contract registry filepath",
     type=EXISTING_READABLE_FILE,
 )
-option_signer_uri = click.option("--signer", "signer_uri", "-S", default=None, type=str)
-option_teacher_uri = click.option(
-    "--teacher",
-    "teacher_uri",
-    help="An Ursula URI to start learning from (seednode)",
+option_peer_uri = click.option(
+    "--peer",
+    "peer_uri",
+    help="An Ursula URI to start peering from (seednode)",
     type=click.STRING,
 )
 _option_middleware = click.option(

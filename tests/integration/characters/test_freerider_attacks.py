@@ -1,23 +1,26 @@
-
-
-
 import datetime
 
 import maya
 import pytest
 
-from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.characters.lawful import Enrico
 from nucypher.characters.unlawful import Amonia
+from nucypher.network.middleware import RestMiddleware
+from nucypher.policy.payment import SubscriptionManagerPayment
 
 
-@pytest.mark.skip("FIXME - DISABLED FOR TDEC ADAPTATION DEVELOPMENT")
 def test_try_to_post_free_service_by_hacking_enact(
-    ursulas, alice, bob, testerchain
+    alice, bob, testerchain, mocker
 ):
     """
     This time we won't rely on the tabulation in Alice's enact() to catch the problem.
     """
+
+    # since the testercahin in this suite is not a real blockchain, we need to mock the verify method
+    mocker.patch.object(SubscriptionManagerPayment, "verify", return_value=False)
+
     amonia = Amonia.from_lawful_alice(alice)
+
     # Set up the policy details
     shares = 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=35)
@@ -32,9 +35,7 @@ def test_try_to_post_free_service_by_hacking_enact(
     plaintext = b"A crafty campaign"
     message_kit = enrico.encrypt_for_pre(plaintext)
 
-    with pytest.raises(
-        Ursula.NotEnoughUrsulas
-    ):  # Return a more descriptive request error?
+    with pytest.raises(RestMiddleware.PaymentRequired):
         bob.retrieve_and_decrypt(
             [message_kit],
             alice_verifying_key=amonia.stamp.as_umbral_pubkey(),

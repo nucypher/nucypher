@@ -158,7 +158,7 @@ def perform_startup_ip_check(emitter: StdoutEmitter, ursula: Ursula, force: bool
     try:
         external_ip = determine_external_ip_address(
             domain=ursula.domain,
-            known_nodes=ursula.known_nodes,
+            seed_nodes=ursula.peers,
             eth_endpoint=ursula.eth_endpoint,
         )
     except UnknownIPAddress:

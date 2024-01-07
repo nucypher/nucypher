@@ -1,28 +1,15 @@
 from typing import Union
-from urllib.parse import urlparse
 
 from eth_tester import EthereumTester, PyEVMBackend
 from eth_tester.backends.mock.main import MockBackend
-from web3 import HTTPProvider, IPCProvider, WebsocketProvider
+from web3 import HTTPProvider
 from web3.providers import BaseProvider
 from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.exceptions import DevelopmentInstallationRequired
 
 
-class ProviderError(Exception):
-    pass
-
-
-def _get_IPC_provider(endpoint) -> BaseProvider:
-    uri_breakdown = urlparse(endpoint)
-    from nucypher.blockchain.eth.interfaces import BlockchainInterface
-    return IPCProvider(ipc_path=uri_breakdown.path,
-                       timeout=BlockchainInterface.TIMEOUT,
-                       request_kwargs={'timeout': BlockchainInterface.TIMEOUT})
-
-
-def _get_HTTP_provider(endpoint) -> BaseProvider:
+def _get_http_provider(endpoint) -> BaseProvider:
     from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
     return HTTPProvider(
@@ -31,35 +18,16 @@ def _get_HTTP_provider(endpoint) -> BaseProvider:
     )
 
 
-def _get_websocket_provider(endpoint) -> BaseProvider:
-    from nucypher.blockchain.eth.interfaces import BlockchainInterface
-
-    return WebsocketProvider(
-        endpoint_uri=endpoint,
-        websocket_kwargs={"timeout": BlockchainInterface.TIMEOUT},
-    )
-
-
-def _get_auto_provider(endpoint) -> BaseProvider:
-    from web3.auto import w3
-    # how-automated-detection-works: https://web3py.readthedocs.io/en/latest/providers.html
-    connected = w3.isConnected()
-    if not connected:
-        raise ProviderError('Cannot auto-detect node.  Provide a full URI instead.')
-    return w3.provider
-
-
 def _get_pyevm_test_backend() -> PyEVMBackend:
     try:
         # TODO: Consider packaged support of --dev mode with testerchain
-        from tests.constants import NUMBER_OF_ETH_TEST_ACCOUNTS, PYEVM_GAS_LIMIT
+        from tests.constants import PYEVM_GAS_LIMIT
     except ImportError:
         raise DevelopmentInstallationRequired(importable_name='tests.constants')
 
-    # Initialize
     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
-    pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
+    pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=10)
     return pyevm_backend
 
 
@@ -82,8 +50,3 @@ def _get_mock_test_provider(endpoint) -> BaseProvider:
     mock_backend = MockBackend()
     provider = _get_ethereum_tester(test_backend=mock_backend)
     return provider
-
-
-def _get_tester_ganache(endpoint=None) -> BaseProvider:
-    endpoint_uri = endpoint or "http://localhost:7545"
-    return HTTPProvider(endpoint_uri=endpoint_uri)

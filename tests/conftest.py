@@ -4,17 +4,13 @@ import pytest
 from eth_utils.crypto import keccak
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.crypto.powers import TransactingPower
+
 from nucypher.network.nodes import Learner
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (
     MOCK_IP_ADDRESS,
     TESTERCHAIN_CHAIN_ID,
 )
-
-# Don't re-lock accounts in the background while making commitments
-LOCK_FUNCTION = TransactingPower.lock_account
-TransactingPower.lock_account = lambda *a, **k: True
 
 # Global test character cache
 global_mutable_where_everybody = defaultdict(list)
@@ -106,7 +102,7 @@ def check_character_state_after_test(request):
                 failure_message += learner._crashed.getBriefTraceback()
             pytest.fail(f"Some learners crashed:{failure_message}")
 
-        still_running = [learner for learner in test_learners if learner._learning_task.running]
+        still_running = [learner for learner in test_learners if learner._peering_task.running]
 
         if any(still_running):
             offending_tests = set()

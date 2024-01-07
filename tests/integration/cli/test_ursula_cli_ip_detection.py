@@ -2,6 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.cli.commands import ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -28,7 +29,7 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
         ursula, "get_nucypher_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
     )
     mocker.patch.object(
-        ursula, "get_client_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
+        ursula, "get_wallet_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
     )
 
     args = (
@@ -106,14 +107,14 @@ def test_ursula_run_ip_checkup(
     # Mock Teacher Resolution
     from nucypher.characters.lawful import Ursula
 
-    teacher = ursulas[0]
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+    peer = ursulas[0]
+    mocker.patch.object(Ursula, 'from_peer_uri', return_value=peer)
 
     # Mock worker qualification
     staking_provider = ursulas[1]
 
     def set_staking_provider_address(operator, *args, **kwargs):
-        operator.checksum_address = staking_provider.checksum_address
+        operator._staking_provider_address = staking_provider.checksum_address
         return True
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
@@ -123,10 +124,14 @@ def test_ursula_run_ip_checkup(
         UrsulaConfiguration, "from_configuration_file", return_value=ursula_test_config
     )
 
-    # Setup
-    teacher = ursulas[2]
+    mocker.patch.object(
+        Wallet, "from_keystore", return_value=testerchain.accounts.ursula_wallet(0)
+    )
 
-    # manual teacher
+    # Setup
+    peer = ursulas[2]
+
+    # manual peer
     run_args = (
         "ursula",
         "run",
@@ -134,15 +139,15 @@ def test_ursula_run_ip_checkup(
         "--debug",
         "--config-file",
         str(tempfile_path.absolute()),
-        "--teacher",
-        teacher.rest_url(),
+        "--peer",
+        peer.rest_url(),
     )
     result = click_runner.invoke(
         nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED
     )
     assert result.exit_code == 0, result.output
 
-    # default teacher
+    # default peer
     run_args = (
         "ursula",
         "run",

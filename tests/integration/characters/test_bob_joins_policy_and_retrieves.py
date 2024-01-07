@@ -10,8 +10,8 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
 )
+from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -20,7 +20,7 @@ def test_bob_full_retrieve_flow(
 ):
 
     for ursula in ursulas:
-        bob.remember_node(ursula)
+        bob.remember_peer(ursula)
 
     # The side channel delivers all that Bob needs at this point:
     # - A single MessageKit, containing a Capsule
@@ -48,19 +48,20 @@ def test_bob_retrieves(alice, ursulas):
     # Bob becomes
     bob = Bob(
         domain=TEMPORARY_DOMAIN_NAME,
-        start_learning_now=True,
+        start_peering_now=True,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
-        abort_on_learning_error=True,
-        known_nodes=a_couple_of_ursulas,
+        abort_on_peering_error=True,
+        peering_on_same_thread=True,
+        seed_nodes=a_couple_of_ursulas,
     )
 
     # Bob has only connected to - at most - 2 nodes.
-    assert sum(node.verified_node for node in bob.known_nodes) <= 2
+    assert sum(node.verified_node for node in bob.peers) <= 2
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
-    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN - 2
+    shares = ReservedTestAccountManager.NUMBER_OF_URSULAS_IN_TESTS - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     policy = alice.grant(
@@ -118,8 +119,8 @@ def test_bob_retrieves_with_treasure_map(
     alice_verifying_key = enacted_policy.publisher_verifying_key
 
     # Teach Bob about the network
-    bob.remember_node(list(ursulas)[0])
-    bob.learn_from_teacher_node(eager=True)
+    bob.remember_peer(list(ursulas)[0])
+    bob.learn_from_peer(eager=True)
 
     # Deserialized treasure map
     text1 = bob.retrieve_and_decrypt(
@@ -130,8 +131,6 @@ def test_bob_retrieves_with_treasure_map(
     assert text1 == [b'Welcome to flippering number 1.']
 
 
-# TODO: #2813 Without kfrag and arrangement storage by nodes,
-@pytest.mark.skip()
 def test_bob_retrieves_too_late(bob, ursulas, enacted_policy, capsule_side_channel):
     clock = Clock()
     clock.advance(time.time())

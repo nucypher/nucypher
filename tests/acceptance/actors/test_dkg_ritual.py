@@ -9,7 +9,7 @@ from twisted.internet.threads import deferToThread
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -102,18 +102,25 @@ def cohort(ursulas):
 
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
+    bond_operators,
     condition,
-    testerchain,
+    accounts,
     coordinator_agent,
     global_allow_list,
     cohort,
     initiator,
     bob,
     ritual_token,
-    accounts,
+    testerchain,
+    test_registry,
 ):
     """Tests the DKG and the encryption/decryption of a message"""
-    signer = Web3Signer(client=testerchain.client)
+
+    enrico_wallet = accounts.unassigned_wallets[0]
+
+    # #TODO: This is a hack to handle two wallet types in the same test
+    initiator_account = accounts.ape_accounts[1]
+    initiator_wallet = Wallet.from_key(initiator_account.private_key)
 
     # Round 0 - Initiate the ritual
     def initialize():
@@ -128,15 +135,15 @@ def test_ursula_ritualist(
         ritual_token.approve(
             coordinator_agent.contract_address,
             amount,
-            sender=accounts[initiator.transacting_power.account],
+            sender=initiator_account,
         )
 
         receipt = coordinator_agent.initiate_ritual(
             providers=cohort_staking_provider_addresses,
-            authority=initiator.transacting_power.account,
+            authority=initiator.wallet.address,
             duration=DURATION,
             access_controller=global_allow_list.address,
-            transacting_power=initiator.transacting_power,
+            wallet=initiator_wallet,
         )
         return receipt
 
@@ -153,9 +160,8 @@ def test_ursula_ritualist(
             == coordinator_agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
         )
 
-        # time travel has a side effect of mining a block so that the scanner will definitively
-        # pick up ritual event
-        # TODO is there a better strategy
+        # time travel has a side effect of mining a block so that the
+        # scanner will definitively pick up ritual event
         testerchain.time_travel(seconds=1)
 
         for ursula in cohort:
@@ -212,7 +218,7 @@ def test_ursula_ritualist(
         plaintext = PLAINTEXT.encode()
 
         # create Enrico
-        enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+        enrico = Enrico(encrypting_key=encrypting_key, wallet=enrico_wallet)
 
         # encrypt
         print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
@@ -226,7 +232,7 @@ def test_ursula_ritualist(
         """Attempts to decrypt a message before Enrico is authorized to use the ritual"""
         print("======== DKG DECRYPTION UNAUTHORIZED ENCRYPTION ========")
         # ritual_id, ciphertext, conditions are obtained from the side channel
-        bob.start_learning_loop(now=True)
+        bob.start_peering(now=True)
         with pytest.raises(
             Ursula.NotEnoughUrsulas,
             match=f"Encrypted data not authorized for ritual {RITUAL_ID}",
@@ -251,13 +257,13 @@ def test_ursula_ritualist(
         # authorize Enrico to encrypt for ritual
         global_allow_list.authorize(
             RITUAL_ID,
-            [signer.accounts[0]],
-            sender=accounts[initiator.transacting_power.account],
+            [enrico_wallet.address],
+            sender=initiator_account,
         )
 
         print("==================== DKG DECRYPTION ====================")
         # ritual_id, ciphertext, conditions are obtained from the side channel
-        bob.start_learning_loop(now=True)
+        bob.start_peering(now=True)
         cleartext = bob.threshold_decrypt(
             threshold_message_kit=threshold_message_kit,
         )

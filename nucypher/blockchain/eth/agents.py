@@ -50,11 +50,11 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
 )
-from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import Logger
 
 
@@ -153,27 +153,27 @@ class NucypherTokenAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def increase_allowance(
         self,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         spender_address: ChecksumAddress,
         increase: types.NuNits,
     ) -> TxReceipt:
         """Increase the allowance of a spender address funded by a sender address"""
         contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, increase)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+                                                              wallet=wallet)
         return receipt
 
     @contract_api(TRANSACTION)
     def decrease_allowance(
         self,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         spender_address: ChecksumAddress,
         decrease: types.NuNits,
     ) -> TxReceipt:
         """Decrease the allowance of a spender address funded by a sender address"""
         contract_function: ContractFunction = self.contract.functions.decreaseAllowance(spender_address, decrease)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+                                                              wallet=wallet)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -181,16 +181,16 @@ class NucypherTokenAgent(EthereumContractAgent):
         self,
         amount: types.NuNits,
         spender_address: ChecksumAddress,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
     ) -> TxReceipt:
         """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
-        self._validate_zero_allowance(amount, spender_address, transacting_power)
+        self._validate_zero_allowance(amount, spender_address, wallet)
 
         payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
         contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
                                                               payload=payload,
-                                                              transacting_power=transacting_power)
+                                                              wallet=wallet)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -198,12 +198,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         self,
         amount: types.NuNits,
         target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
     ) -> TxReceipt:
         """Transfer an amount of tokens from the sender address to the target address."""
         contract_function: ContractFunction = self.contract.functions.transfer(target_address, amount)
         receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+                                                              wallet=wallet)
         return receipt
 
     @contract_api(TRANSACTION)
@@ -211,25 +211,25 @@ class NucypherTokenAgent(EthereumContractAgent):
         self,
         amount: types.NuNits,
         target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         call_data: bytes = b"",
         gas_limit: Optional[Wei] = None,
     ) -> TxReceipt:
-        self._validate_zero_allowance(amount, target_address, transacting_power)
+        self._validate_zero_allowance(amount, target_address, wallet)
 
         payload = None
         if gas_limit:  # TODO: Gas management - #842
             payload = {'gas': gas_limit}
         approve_and_call: ContractFunction = self.contract.functions.approveAndCall(target_address, amount, call_data)
         approve_and_call_receipt: TxReceipt = self.blockchain.send_transaction(contract_function=approve_and_call,
-                                                                               transacting_power=transacting_power,
+                                                                               wallet=wallet,
                                                                                payload=payload)
         return approve_and_call_receipt
 
-    def _validate_zero_allowance(self, amount, target_address, transacting_power):
+    def _validate_zero_allowance(self, amount, target_address, wallet):
         if amount == 0:
             return
-        current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
+        current_allowance = self.get_allowance(owner=wallet.address, spender=target_address)
         if current_allowance != 0:
             raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
 
@@ -278,13 +278,13 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     @contract_api(TRANSACTION)
     def create_policy(self,
                       policy_id: bytes,
-                      transacting_power: TransactingPower,
+                      wallet: Wallet,
                       size: int,
                       start_timestamp: Timestamp,
                       end_timestamp: Timestamp,
                       value: Wei,
                       owner_address: Optional[ChecksumAddress] = None) -> TxReceipt:
-        owner_address = owner_address or transacting_power.account
+        owner_address = owner_address or wallet.address
         payload: TxParams = {'value': value}
         contract_function: ContractFunction = self.contract.functions.createPolicy(
             policy_id,
@@ -296,7 +296,7 @@ class SubscriptionManagerAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             payload=payload,
-            transacting_power=transacting_power
+            wallet=wallet
         )
         return receipt
 
@@ -387,11 +387,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     def _get_active_stakers(self, pagination_size: Optional[int] = None):
         if pagination_size is None:
-            pagination_size = (
-                self.DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE
-                if self.blockchain.is_light
-                else self.DEFAULT_PROVIDERS_PAGINATION_SIZE
-            )
+            pagination_size = self.DEFAULT_PROVIDERS_PAGINATION_SIZE
             self.log.debug(f"Defaulting to pagination size {pagination_size}")
         elif pagination_size < 0:
             raise ValueError("Pagination size must be >= 0")
@@ -610,11 +606,11 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     #
 
     @contract_api(TRANSACTION)
-    def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, wallet: Wallet) -> TxReceipt:
         """For use by threshold operator accounts only."""
         contract_function: ContractFunction = self.contract.functions.bondOperator(staking_provider, operator)
         receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+                                                   wallet=wallet)
         return receipt
 
 
@@ -847,13 +843,13 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def set_provider_public_key(
-        self, public_key: FerveoPublicKey, transacting_power: TransactingPower
+        self, public_key: FerveoPublicKey, wallet: Wallet
     ) -> TxReceipt:
         contract_function = self.contract.functions.setProviderPublicKey(
             self.G2Point.from_public_key(public_key)
         )
         receipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
+            contract_function=contract_function, wallet=wallet
         )
         return receipt
 
@@ -864,13 +860,13 @@ class CoordinatorAgent(EthereumContractAgent):
         authority: ChecksumAddress,
         duration: int,
         access_controller: ChecksumAddress,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
     ) -> TxReceipt:
         contract_function: ContractFunction = self.contract.functions.initiateRitual(
             providers, authority, duration, access_controller
         )
         receipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
+            contract_function=contract_function, wallet=wallet
         )
         return receipt
 
@@ -879,7 +875,7 @@ class CoordinatorAgent(EthereumContractAgent):
         self,
         ritual_id: int,
         transcript: Transcript,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         fire_and_forget: bool = False,
     ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
@@ -887,7 +883,7 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
-            transacting_power=transacting_power,
+            wallet=wallet,
             fire_and_forget=fire_and_forget,
         )
         return receipt
@@ -899,7 +895,7 @@ class CoordinatorAgent(EthereumContractAgent):
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         fire_and_forget: bool = False,
     ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
@@ -911,7 +907,7 @@ class CoordinatorAgent(EthereumContractAgent):
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             gas_estimation_multiplier=1.4,
-            transacting_power=transacting_power,
+            wallet=wallet,
             fire_and_forget=fire_and_forget,
         )
         return receipt

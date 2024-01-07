@@ -7,6 +7,7 @@ import click
 from bip44 import Wallet
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
+from eth_account.signers.local import LocalAccount
 from eth_hash.auto import keccak
 from eth_keys import KeyAPI as EthKeyAPI
 from eth_typing import ChecksumAddress
@@ -141,11 +142,11 @@ def _write_wallet(filepath: Path, data: Dict) -> None:
 def _generate_wallet(
         phrase: str,
         language: str,
-        password: str,  # TODO: Use a unique password
+        password: str,
         filepath: Path,
         index: int = 0,
 
-) -> Tuple[ChecksumAddress, str, Path]:
+) -> Tuple[LocalAccount, str, Path]:
     """
     Generate an encrypted ethereum wallet from seed words using a bip44 derivation path.
     Uses the web3 secret storage definition for the keystore format.
@@ -159,5 +160,5 @@ def _generate_wallet(
     account = Account.from_key(private_key)
     keystore = Account.encrypt(private_key, password)
     _write_wallet(filepath=filepath, data=keystore)
-    return ChecksumAddress(account.address), derivation_path, filepath
+    return account, derivation_path, filepath
 

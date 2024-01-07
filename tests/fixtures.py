@@ -13,15 +13,14 @@ import maya
 import pytest
 from click.testing import CliRunner
 from eth_account import Account
+from eth_account.signers.local import LocalAccount
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from twisted.internet.task import Clock
 from web3 import Web3
 
 import tests
-from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
@@ -31,7 +30,6 @@ from nucypher.config.characters import (
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
-from nucypher.crypto.keystore import Keystore
 from nucypher.network.nodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
@@ -52,19 +50,20 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID,
+    TESTERCHAIN_CHAIN_ID, TEST_POLYGON_PROVIDER_URI,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,
     mock_cert_loading,
-    mock_keep_learning,
+    mock_continue_peering,
     mock_message_verification,
     mock_record_fleet_state,
-    mock_remember_node,
+    mock_remember_peer,
     mock_rest_app_creation,
     mock_verify_node,
 )
+from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -81,6 +80,14 @@ test_logger = Logger("test-logger")
 
 # defer.setDebugging(True)
 
+
+@pytest.fixture(scope='session')
+def monkeysession():
+    from _pytest.monkeypatch import MonkeyPatch
+
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
 
 #
 # Temporary
@@ -103,13 +110,37 @@ def temp_dir_path():
     temp_dir.cleanup()
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_write_wallet_to_file(mocker):
-    return mocker.patch('nucypher.crypto.utils._write_wallet')
 
 #
 # Accounts
 #
+
+
+@pytest.fixture(scope="session", autouse=True)
+def accounts():
+    """a la ape"""
+    return ReservedTestAccountManager()
+
+
+@pytest.fixture(scope='function', autouse=True)
+def mock_write_wallet_to_file(mocker):
+    return mocker.patch('nucypher.crypto.utils._write_wallet')
+
+
+@pytest.fixture(scope="session", autouse=True)
+def intercept_wallet_generation(accounts, monkeysession):
+    def _generate_wallet(*_args, **_kwargs) -> Tuple[LocalAccount, str, Path]:
+        result = (
+            accounts.unassigned_wallets[0].__Wallet__account,
+            '0/1/2/3/4',
+            Path('/not/so/random/path.json')
+        )
+        return result
+
+    monkeysession.setattr(
+        'nucypher.crypto.utils._generate_wallet',
+        _generate_wallet
+    )
 
 
 @pytest.fixture(scope="module")
@@ -129,13 +160,12 @@ def random_address(random_account):
 
 
 @pytest.fixture(scope="module")
-def ursula_test_config(test_registry, temp_dir_path, testerchain):
+def ursula_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
-        operator_address=testerchain.ursulas_accounts.pop(),
     )
     yield config
     config.cleanup()
@@ -144,24 +174,24 @@ def ursula_test_config(test_registry, temp_dir_path, testerchain):
 
 
 @pytest.fixture(scope="module")
-def alice_test_config(ursulas, testerchain, test_registry):
+def alice_test_config(test_registry, ursulas):
     config = make_alice_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
-        polygon_endpoint=TEST_ETH_PROVIDER_URI,
-        known_nodes=ursulas,
-        checksum_address=testerchain.alice_account,
+        polygon_endpoint=TEST_POLYGON_PROVIDER_URI,
         test_registry=test_registry,
+        seed_nodes=ursulas,
     )
     yield config
     config.cleanup()
 
 
 @pytest.fixture(scope="module")
-def bob_test_config(testerchain, test_registry):
+def bob_test_config(test_registry, ursulas):
     config = make_bob_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
+        polygon_endpoint=TEST_POLYGON_PROVIDER_URI,
         test_registry=test_registry,
-        checksum_address=testerchain.bob_account,
+        seed_nodes=ursulas,
     )
     yield config
     config.cleanup()
@@ -256,30 +286,34 @@ def random_policy_label():
 #
 
 @pytest.fixture(scope="module")
-def alice(alice_test_config, ursulas, testerchain):
-    alice = alice_test_config.produce()
+def alice(alice_test_config, ursulas, accounts):
+    alice = alice_test_config.produce(
+        wallet=accounts.alice_wallet,
+        seed_nodes=ursulas
+    )
     yield alice
     alice.disenchant()
 
 
 @pytest.fixture(scope="module")
-def bob(bob_test_config, testerchain):
+def bob(bob_test_config, accounts, ursulas):
     bob = bob_test_config.produce(
-        polygon_endpoint=TEST_ETH_PROVIDER_URI,
+        wallet=accounts.bob_wallet,
+        seed_nodes=ursulas
     )
     yield bob
     bob.disenchant()
 
 
 @pytest.fixture(scope="function")
-def lonely_ursula_maker(ursula_test_config, testerchain):
+def lonely_ursula_maker(ursula_test_config):
     class _PartialUrsulaMaker:
         _partial = partial(
             make_ursulas,
             ursula_config=ursula_test_config,
             know_each_other=False,
-            staking_provider_addresses=testerchain.stake_providers_accounts,
-            operator_addresses=testerchain.ursulas_accounts,
+            lonely=True,
+            start_peering_now=False,
         )
         _made = []
 
@@ -318,16 +352,9 @@ def mock_testerchain() -> MockBlockchain:
 
 
 @pytest.fixture()
-def light_ursula(temp_dir_path, random_account, mocker):
-    mocker.patch.object(
-        KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
-    )
+def light_ursula(temp_dir_path, random_account, accounts):
     pre_payment_method = SubscriptionManagerPayment(
         blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME
-    )
-
-    mocker.patch.object(
-        Operator, "get_staking_provider_address", return_value=random_account.address
     )
 
     ursula = Ursula(
@@ -335,13 +362,14 @@ def light_ursula(temp_dir_path, random_account, mocker):
         rest_port=select_test_port(),
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        checksum_address=random_account.address,
-        operator_address=random_account.address,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-        signer=KeystoreSigner(path=temp_dir_path),
+        wallet=accounts.ursula_wallet(0),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: [MOCK_ETH_PROVIDER_URI]},
+        lonely=True,
     )
+
+    ursula._staking_provider_address = accounts.provider_wallet(0).address
     return ursula
 
 
@@ -383,12 +411,12 @@ def get_random_checksum_address():
 
 
 @pytest.fixture(scope="module")
-def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
+def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, accounts):
     mocks = (
         mock_cert_loading,
         mock_rest_app_creation,
         mock_cert_generation,
-        mock_remember_node,
+        mock_remember_peer,
         mock_message_verification,
         )
 
@@ -397,9 +425,6 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
     except AttributeError:
         quantity = 5000  # Bigass fleet by default; that's kinda the point.
 
-    staking_addresses = (to_checksum_address('0x' + os.urandom(20).hex()) for _ in range(5000))
-    operator_addresses = (to_checksum_address('0x' + os.urandom(20).hex()) for _ in range(5000))
-
     with GlobalLoggerSettings.pause_all_logging_while():
         with contextlib.ExitStack() as stack:
 
@@ -407,11 +432,10 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
                 stack.enter_context(mock)
 
             _ursulas = make_ursulas(
+                accounts=accounts,
                 ursula_config=ursula_test_config,
                 quantity=quantity,
                 know_each_other=False,
-                staking_provider_addresses=staking_addresses,
-                operator_addresses=operator_addresses,
             )
             all_ursulas = {u.checksum_address: u for u in _ursulas}
 
@@ -419,8 +443,8 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
                 # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
                 # It only needs to see whatever public info we can normally get via REST.
                 # Also sharing mutable Ursulas like that can lead to unpredictable results.
-                ursula.known_nodes.current_state._nodes = all_ursulas
-                ursula.known_nodes.current_state.checksum = b"This is a fleet state checksum..".hex()
+                ursula.peers.current_state._nodes = all_ursulas
+                ursula.peers.current_state.checksum = b"This is a fleet state checksum..".hex()
 
     yield _ursulas
 
@@ -438,20 +462,21 @@ def highperf_mocked_alice(
         dev_mode=True,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
-        checksum_address=testerchain.alice_account,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
             eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
-        abort_on_learning_error=True,
-        save_metadata=False,
-        reload_metadata=False,
     )
 
-    with mock_verify_node, mock_message_verification, mock_keep_learning:
-        alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
+    with mock_verify_node, mock_message_verification, mock_continue_peering:
+        alice = config.produce(
+            seed_nodes=list(fleet_of_highperf_mocked_ursulas)[:1],
+            abort_on_peering_error=True,
+            save_metadata=False,
+        )
     yield alice
     # TODO: Where does this really, truly belong?
-    alice._learning_task.stop()
+    if alice._peering_task.running:
+        alice._peering_task.stop()
 
 
 @pytest.fixture(scope="module")
@@ -463,15 +488,17 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
         network_middleware=MockRestMiddlewareForLargeFleetTests(
             eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
-        abort_on_learning_error=True,
-        save_metadata=False,
-        reload_metadata=False,
     )
 
-    with mock_verify_node, mock_record_fleet_state, mock_keep_learning:
-        bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
+    with mock_verify_node, mock_record_fleet_state, mock_continue_peering:
+        bob = config.produce(
+            seed_nodes=list(fleet_of_highperf_mocked_ursulas)[:1],
+            abort_on_peering_error=True,
+            save_metadata=False,
+            reload_metadata=False,
+        )
     yield bob
-    bob._learning_task.stop()
+    bob._peering_task.stop()
     return bob
 
 
@@ -534,7 +561,7 @@ def worker_configuration_file_location(custom_filepath) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def mock_teacher_nodes(mocker):
+def mock_peers(mocker):
     mock_nodes = tuple(u.rest_url() for u in MOCK_KNOWN_URSULAS_CACHE.values())[0:2]
     mocker.patch.dict(TEACHER_NODES, {TEMPORARY_DOMAIN: mock_nodes}, clear=True)
 
@@ -680,21 +707,21 @@ def control_time():
     return clock
 
 
+@pytest.mark.usefixtures("bond_operators", )
 @pytest.fixture(scope="module")
-def ursulas(testerchain, ursula_test_config, staking_providers):
+def ursulas(ursula_test_config, accounts, bond_operators):
     if MOCK_KNOWN_URSULAS_CACHE:
-        # TODO: Is this a safe assumption / test behaviour?
-        # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
     _ursulas = make_ursulas(
+        accounts=accounts,
         ursula_config=ursula_test_config,
-        staking_provider_addresses=testerchain.stake_providers_accounts,
-        operator_addresses=testerchain.ursulas_accounts,
         know_each_other=True,
+        peering_on_same_thread=False,
     )
     for u in _ursulas:
-        u.synchronous_query_timeout = .01  # We expect to never have to wait for content that is actually on-chain during tests.
+        # We expect to never have to wait for content that is actually on-chain during tests.
+        u.synchronous_query_timeout = .01
 
     _ports_to_remove = [ursula.rest_interface.port for ursula in _ursulas]
     yield _ursulas

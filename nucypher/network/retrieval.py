@@ -287,10 +287,10 @@ class PRERetrievalClient(ThresholdAccessControlClient):
             # TODO (#1995): when that issue is fixed, conversion is no longer needed
             ursula_checksum_address = to_checksum_address(bytes(work_order.ursula_address))
 
-            if ursula_checksum_address not in self._learner.known_nodes:
+            if ursula_checksum_address not in self._learner.peers:
                 continue
 
-            ursula = self._learner.known_nodes[ursula_checksum_address]
+            ursula = self._learner.peers[ursula_checksum_address]
 
             try:
                 request_context_string = json.dumps(context)

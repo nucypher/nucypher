@@ -26,20 +26,20 @@ def test_all_ursulas_know_about_all_other_ursulas(ursulas, test_registry):
             if address == propagating_ursula.checksum_address:
                 continue
             else:
-                assert address in propagating_ursula.known_nodes.addresses(), "{} did not know about {}". \
+                assert address in propagating_ursula.peers.addresses(), "{} did not know about {}". \
                     format(propagating_ursula, Nickname.from_seed(address))
 
 
 def test_alice_finds_ursula_via_rest(alice, ursulas):
     # Imagine alice knows of nobody.
-    alice._Learner__known_nodes = FleetSensor(domain=TEMPORARY_DOMAIN_NAME)
+    alice._Learner__peers = FleetSensor(domain=TEMPORARY_DOMAIN_NAME)
 
-    alice.remember_node(ursulas[0])
-    alice.learn_from_teacher_node()
-    assert len(alice.known_nodes) == len(ursulas)
+    alice.remember_peer(ursulas[0])
+    alice.learn_from_peer()
+    assert len(alice.peers) == len(ursulas)
 
     for ursula in ursulas:
-        assert ursula in alice.known_nodes
+        assert ursula in alice.peers
 
 
 @pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
@@ -68,7 +68,7 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
 
     # This Ursula is totally legit...
     ursula_whom_vladimir_will_imitate.verify_node(
-        MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
+        MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI).client
     )
 
     globalLogPublisher.addObserver(warning_trapper)
@@ -79,25 +79,25 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     assert len(warnings) == 0
 
     # ...but now, Ursula will now try to learn about Vladimir on a different thread.
-    other_ursula.block_until_specific_nodes_are_known([vladimir.checksum_address])
-    vladimir_as_learned = other_ursula.known_nodes[vladimir.checksum_address]
+    other_ursula.block_until_specific_nodes_are_known([vladimir.staking_provider_address])
+    vladimir_as_learned = other_ursula.peers[vladimir.staking_provider_address]
 
-    # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the teacher.
-    other_ursula._current_teacher_node = vladimir_as_learned
+    # OK, so cool, let's see what happens when Ursula tries to learn with Vlad as the peer.
+    other_ursula._current_peer = vladimir_as_learned
 
     globalLogPublisher.addObserver(warning_trapper)
-    other_ursula.learn_from_teacher_node()
+    other_ursula.learn_from_peer()
     globalLogPublisher.removeObserver(warning_trapper)
 
     # Indeed, Ursula noticed that something was up.
     assert len(warnings) == 1
     warning = warnings[0]['log_format']
-    assert "Teacher " + str(vladimir_as_learned) + " is invalid" in warning
-    assert "Metadata signature is invalid" in warning  # TODO: Cleanup logging templates
+    assert "Peer " + str(vladimir_as_learned.checksum_address) + " is invalid" in warning
+    assert "Metadata signature is invalid" in warning
 
     # TODO (#567)
-    # ...and booted him from known_nodes
-    # assert vladimir not in other_ursula.known_nodes
+    # ...and booted him from peers
+    # assert vladimir not in other_ursula.peers
 
 
 @pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
@@ -111,11 +111,11 @@ def test_alice_refuses_to_select_node_unless_ursula_is_valid(
                                            substitute_verifying_key=True,
                                            sign_metadata=True)
 
-    # Ideally, a fishy node will be present in `known_nodes`,
+    # Ideally, a fishy node will be present in `peers`,
     # This tests the case when it became fishy after discovering it
     # but before being selected for a policy.
-    alice.known_nodes.record_node(vladimir)
-    alice.known_nodes.record_fleet_state()
+    alice.peers.record_node(vladimir)
+    alice.peers.record_fleet_state()
 
     # unmock the ping endpoint on mock rest middleware for this test.
     MockRestMiddleware.ping = RestMiddleware.ping

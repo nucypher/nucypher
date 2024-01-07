@@ -14,7 +14,8 @@ from nucypher_core.ferveo import (
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.crypto.powers import TransactingPower
+from nucypher.blockchain.eth.wallets import Wallet
+
 from tests.mock.agents import MockContractAgent
 from tests.mock.interfaces import MockBlockchain
 
@@ -81,13 +82,13 @@ class MockCoordinatorAgent(MockContractAgent):
         authority: ChecksumAddress,
         duration: int,
         access_controller: ChecksumAddress,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
     ) -> TxReceipt:
         ritual_id = len(self.rituals)
         init_timestamp = int(time.time_ns())
         end_timestamp = init_timestamp + duration
         ritual = self.Ritual(
-            initiator=transacting_power.account,
+            initiator=wallet.address,
             authority=authority,
             access_controller=access_controller,
             init_timestamp=init_timestamp,
@@ -111,15 +112,15 @@ class MockCoordinatorAgent(MockContractAgent):
         self,
         ritual_id: int,
         transcript: Transcript,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         fire_and_forget: bool = False,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
-        operator_address = transacting_power.account
+        operator_address = wallet.address
         # either mapping is populated or just assume provider same as operator for testing
         provider = (
             self._get_staking_provider_from_operator(operator=operator_address)
-            or transacting_power.account
+            or wallet.address
         )
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.transcript = bytes(transcript)
@@ -141,15 +142,15 @@ class MockCoordinatorAgent(MockContractAgent):
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         fire_and_forget: bool = False,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
-        operator_address = transacting_power.account
+        operator_address = wallet.address
         # either mapping is populated or just assume provider same as operator for testing
         provider = (
             self._get_staking_provider_from_operator(operator=operator_address)
-            or transacting_power.account
+            or wallet.address
         )
         participant = self.get_participant_from_provider(ritual_id, provider)
         participant.aggregated = True
@@ -174,13 +175,13 @@ class MockCoordinatorAgent(MockContractAgent):
         return staking_provider in self._participant_keys_history
 
     def set_provider_public_key(
-        self, public_key: FerveoPublicKey, transacting_power: TransactingPower
+        self, public_key: FerveoPublicKey, wallet: Wallet
     ) -> TxReceipt:
-        operator_address = transacting_power.account
+        operator_address = wallet.address
         # either mapping is populated or just assume provider same as operator for testing
         provider_address = (
             self._get_staking_provider_from_operator(operator=operator_address)
-            or transacting_power.account
+            or wallet.address
         )
 
         participant_keys = self._participant_keys_history.get(provider_address)

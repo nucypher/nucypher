@@ -1,8 +1,4 @@
-from unittest.mock import ANY
-
 import pytest
-from cryptography.hazmat.primitives.serialization import Encoding
-from flask import Flask
 from nucypher_core import (
     SessionStaticSecret,
     ThresholdDecryptionRequest,
@@ -10,7 +6,7 @@ from nucypher_core import (
 )
 from nucypher_core.umbral import SecretKey, Signer
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo.dkg import FerveoVariant
@@ -19,9 +15,7 @@ from nucypher.crypto.powers import (
     DecryptingPower,
     DelegatingPower,
     ThresholdRequestDecryptingPower,
-    TLSHostingPower,
 )
-from nucypher.network.server import ProxyRESTServer
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
@@ -30,12 +24,13 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.matchers import IsType
+from tests.utils.blockchain import ReservedTestAccountManager
 
 
 def test_generate_alice_keystore(temp_dir_path):
 
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
+        phrase=ReservedTestAccountManager._MNEMONIC,
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path
     )
@@ -67,9 +62,10 @@ def test_generate_alice_keystore(temp_dir_path):
 
 @pytest.mark.usefixtures("mock_registry_sources")
 def test_characters_use_keystore(temp_dir_path, testerchain):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
+        phrase=ReservedTestAccountManager._MNEMONIC,
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        keystore_dir=temp_dir_path
+        keystore_dir=temp_dir_path / 'keystore'
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -78,85 +74,39 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
     )
 
     alice = Alice(
-        start_learning_now=False,
+        start_peering_now=False,
         keystore=keystore,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-        checksum_address=testerchain.alice_account,
         pre_payment_method=pre_payment_method,
     )
     Bob(
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
-        start_learning_now=False,
+        start_peering_now=False,
         keystore=keystore,
         domain=TEMPORARY_DOMAIN_NAME,
     )
     Ursula(
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-        start_learning_now=False,
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
         rest_port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        operator_address=testerchain.ursulas_accounts[0],
-        signer=Web3Signer(testerchain.client),
+        wallet=Wallet.random(),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
     )
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 
 
-@pytest.mark.skip('Do we really though?')
-def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
-    keystore = Keystore.generate(
-        password=INSECURE_DEVELOPMENT_PASSWORD,
-        keystore_dir=temp_dir_path
-    )
-    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
-
-    rest_port = 12345
-
-    ursula = Ursula(
-        start_learning_now=False,
-        keystore=keystore,
-        rest_host=LOOPBACK_ADDRESS,
-        rest_port=rest_port,
-        domain=TEMPORARY_DOMAIN_NAME,
-    )
-
-    assert ursula.keystore is keystore
-    assert ursula.certificate == ursula._crypto_power.power_ups(TLSHostingPower).keypair.certificate
-
-    original_certificate_bytes = ursula.certificate.public_bytes(encoding=Encoding.DER)
-    ursula.disenchant()
-    del ursula
-
-    spy_rest_server_init = mocker.spy(ProxyRESTServer, "__init__")
-    recreated_ursula = Ursula(
-        start_learning_now=False,
-        keystore=keystore,
-        rest_host=LOOPBACK_ADDRESS,
-        rest_port=rest_port,
-        domain=TEMPORARY_DOMAIN_NAME,
-    )
-
-    assert recreated_ursula.keystore is keystore
-    assert recreated_ursula.certificate.public_bytes(encoding=Encoding.DER) == original_certificate_bytes
-    tls_hosting_power = recreated_ursula._crypto_power.power_ups(TLSHostingPower)
-    spy_rest_server_init.assert_called_once_with(ANY,  # self
-                                                 rest_host=LOOPBACK_ADDRESS,
-                                                 rest_port=rest_port,
-                                                 rest_app=IsType(Flask),
-                                                 hosting_power=tls_hosting_power)
-    recreated_ursula.disenchant()
-
-
 @pytest.mark.usefixtures("mock_sign_message")
 def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
-    keystore = Keystore.generate(
-        password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
+    keystore = Keystore.from_mnemonic(
+        phrase=ReservedTestAccountManager._MNEMONIC,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        keystore_dir=temp_dir_path / 'llamas'
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 
@@ -165,14 +115,12 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     )
 
     ursula = Ursula(
-        start_learning_now=False,
         keystore=keystore,
         rest_host=LOOPBACK_ADDRESS,
         rest_port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        operator_address=testerchain.ursulas_accounts[0],
-        signer=Web3Signer(testerchain.client),
+        wallet=Wallet.random(),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
@@ -192,8 +140,8 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     }
 
     # create enrico
-    signer = Web3Signer(client=testerchain.client)
-    enrico = Enrico(encrypting_key=dkg_public_key, signer=signer)
+    wallet = Wallet.random()
+    enrico = Enrico(encrypting_key=dkg_public_key, wallet=wallet)
 
     # encrypt
     threshold_message_kit = enrico.encrypt_for_dkg(

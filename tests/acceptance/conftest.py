@@ -14,8 +14,8 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
+from nucypher.blockchain.eth.wallets import Wallet
+
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
 from tests.constants import (
@@ -26,7 +26,7 @@ from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.blockchain import TesterBlockchain
+from tests.utils.blockchain import TesterBlockchain, ReservedTestAccountManager
 from tests.utils.registry import ApeRegistrySource
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
@@ -40,7 +40,7 @@ test_logger = Logger("acceptance-test-logger")
 TOTAL_SUPPLY = Web3.to_wei(11_000_000_000, "ether")
 NU_TOTAL_SUPPLY = Web3.to_wei(
     1_000_000_000, "ether"
-)  # TODO NU(1_000_000_000, 'NU').to_units()
+)
 
 # TACo Application
 MIN_AUTHORIZATION = Web3.to_wei(40_000, "ether")
@@ -78,9 +78,14 @@ def monkeymodule():
 #
 
 
+@pytest.fixture(scope="session")
+def accounts():
+    return ReservedTestAccountManager()
+
+
 @pytest.fixture(scope="module")
 def deployer_account(accounts):
-    return accounts[0]
+    return accounts.ape_accounts[0]
 
 
 @pytest.fixture(scope="module")
@@ -88,7 +93,7 @@ def initiator(testerchain, alice, ritual_token, deployer_account):
     """Returns the Initiator, funded with RitualToken"""
     # transfer ritual token to alice (initiator)
     ritual_token.transfer(
-        alice.transacting_power.account,
+        alice.wallet.address,
         Web3.to_wei(1, "ether"),
         sender=deployer_account,
     )
@@ -300,7 +305,7 @@ def test_registry(deployed_contracts, module_mocker):
 
 
 @pytest.mark.usefixtures("test_registry")
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def testerchain(project) -> TesterBlockchain:
     # Extract the web3 provider containing EthereumTester from the ape project's chain manager
     provider = project.chain_manager.provider.web3.provider
@@ -315,42 +320,38 @@ def testerchain(project) -> TesterBlockchain:
 
 
 @pytest.fixture(scope="module")
-def staking_providers(
+def bond_operators(
     deployer_account,
     accounts,
-    testerchain,
     threshold_staking,
     taco_application,
 ):
     minimum_stake = taco_application.minimumAuthorization()
 
-    staking_providers = list()
-    for provider_address, operator_address in zip(
-        testerchain.stake_providers_accounts, testerchain.ursulas_accounts
-    ):
-        provider_power = TransactingPower(
-            account=provider_address, signer=Web3Signer(testerchain.client)
-        )
-        provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+    for i in range(0, len(accounts.stake_provider_wallets)):
+        provider_wallet = accounts.stake_provider_wallets[i]
+        operator_wallet = accounts.ursula_wallets[i]
 
         # for a random amount
         amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
 
         # initialize threshold stake via threshold staking (permission-less mock)
-        threshold_staking.setRoles(provider_address, sender=deployer_account)
+        threshold_staking.setRoles(
+            provider_wallet.address,
+            sender=deployer_account
+        )
 
         threshold_staking.authorizationIncreased(
-            provider_address, 0, amount, sender=deployer_account
+            provider_wallet.address,
+            0, amount,
+            sender=deployer_account
         )
 
+        sender = accounts.ape_accounts[accounts.accounts.index(provider_wallet)]
+        assert sender.address == provider_wallet.address
         taco_application.bondOperator(
-            provider_address, operator_address, sender=accounts[provider_address]
+            provider_wallet.address, operator_wallet.address, sender=sender
         )
-
-        # track
-        staking_providers.append(provider_address)
-
-    yield staking_providers
 
 
 #

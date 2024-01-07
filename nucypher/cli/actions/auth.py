@@ -5,6 +5,7 @@ import click
 from constant_sorrow.constants import NO_PASSWORD
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
@@ -31,7 +32,7 @@ def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str 
 
 
 @validate_checksum_address
-def get_client_password(envvar: str = None, confirm: bool = False) -> str:
+def get_wallet_password(envvar: str = None, confirm: bool = False) -> str:
     """Interactively collect an ethereum wallet password"""
     client_password = get_password_from_prompt(prompt=COLLECT_ETH_PASSWORD,
                                                envvar=envvar,
@@ -39,25 +40,14 @@ def get_client_password(envvar: str = None, confirm: bool = False) -> str:
     return client_password
 
 
-def unlock_signer_account(config: CharacterConfiguration, json_ipc: bool) -> None:
-
-    # TODO: Remove this block after deprecating 'operator_address'
-    from nucypher.config.characters import UrsulaConfiguration
-    if isinstance(config, UrsulaConfiguration):
-        account = config.operator_address
-    else:
-        account = config.checksum_address
-
+def unlock_wallet(config: CharacterConfiguration) -> None:
     eth_password_is_needed = (
-        not config.signer.is_device(account=account) and not config.dev_mode
+            not config.dev_mode,
     )
-
     __password = None
     if eth_password_is_needed:
-        if json_ipc and not os.environ.get(config.SIGNER_ENVVAR):
-            raise ValueError(f'{config.SIGNER_ENVVAR} is required to use JSON IPC mode.')
-        __password = get_client_password(checksum_address=account, envvar=config.SIGNER_ENVVAR)
-    config.signer.unlock_account(account=config.checksum_address, password=__password)
+        __password = get_wallet_password(envvar=config.WALLET_FILEPATH_ENVVAR)
+    config.unlock_wallet(password=__password)
 
 
 def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR_KEYSTORE_PASSWORD) -> str:
@@ -106,12 +96,12 @@ def recover_keystore(emitter) -> None:
 
     index = click.prompt('Enter index of wallet to use', type=int, default=0)
     filepath = click.prompt('Enter filepath to save wallet', type=Path, default=Keystore._DEFAULT_DIR / 'operator.json')
-    address, dpath, fpath = _generate_wallet(
+    account, dpath, fpath = _generate_wallet(
         phrase=__words,
         language=language,
-        password=get_client_password(envvar=NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, confirm=True),
+        password=get_wallet_password(envvar=NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, confirm=True),
         filepath=filepath,
         index=index,
     )
-    emitter.message(f'Generated ethereum wallet {address} to \n {fpath}', color='green')
+    emitter.message(f'Generated ethereum wallet {account.address} to \n {fpath}', color='green')
 

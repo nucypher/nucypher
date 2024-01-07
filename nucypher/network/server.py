@@ -110,14 +110,14 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         return response
 
     @rest_app.route('/node_metadata', methods=["GET"])
-    def all_known_nodes():
+    def all_peers():
         headers = {'Content-Type': 'application/octet-stream'}
-        if this_node._learning_deferred is not RELAX and not this_node._learning_task.running:
+        if this_node._peering_deferred is not RELAX and not this_node._peering_task.running:
             # Learn when learned about
-            this_node.start_learning_loop()
+            this_node.start_peering()
 
         # All known nodes + this node
-        response_bytes = this_node.bytestring_of_known_nodes()
+        response_bytes = this_node.bytestring_of_peers()
         return Response(response_bytes, headers=headers)
 
     @rest_app.route('/node_metadata', methods=["POST"])
@@ -132,11 +132,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
         # If these nodes already have the same fleet state, no exchange is necessary.
 
-        if metadata_request.fleet_state_checksum == this_node.known_nodes.checksum:
+        if metadata_request.fleet_state_checksum == this_node.peers.checksum:
             # log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))  # 1712
             headers = {'Content-Type': 'application/octet-stream'}
             # No nodes in the response: same fleet state
-            response_payload = MetadataResponsePayload(timestamp_epoch=this_node.known_nodes.timestamp.epoch,
+            response_payload = MetadataResponsePayload(timestamp_epoch=this_node.peers.timestamp.epoch,
                                                        announce_nodes=[])
             response = MetadataResponse(this_node.stamp.as_umbral_signer(),
                                         response_payload)
@@ -150,12 +150,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                     # inconsistent metadata
                     pass
                 else:
-                    this_node.remember_node(NodeSprout(metadata))
+                    this_node.remember_peer(NodeSprout(metadata))
 
         # TODO: generate a new fleet state here?
 
         # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
-        return all_known_nodes()
+        return all_peers()
 
     @rest_app.route("/condition_chains", methods=["GET"])
     def condition_chains():
@@ -317,8 +317,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     @rest_app.route('/status/', methods=['GET'])
     def status():
         return_json = request.args.get('json') == 'true'
-        omit_known_nodes = request.args.get('omit_known_nodes') == 'true'
-        status_info = this_node.status_info(omit_known_nodes=omit_known_nodes)
+        omit_peers = request.args.get('omit_peers') == 'true'
+        status_info = this_node.status_info(omit_peers=omit_peers)
         if return_json:
             return jsonify(status_info.to_json())
         headers = {"Content-Type": "text/html", "charset": "utf-8"}

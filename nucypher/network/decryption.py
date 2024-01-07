@@ -58,7 +58,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             encrypted_request = encrypted_requests[ursula_address]
 
             try:
-                node_or_sprout = self._learner.known_nodes[ursula_address]
+                node_or_sprout = self._learner.peers[ursula_address]
                 node_or_sprout.mature()
                 response = (
                     self._learner.network_middleware.get_encrypted_decryption_share(

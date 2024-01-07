@@ -1,5 +1,6 @@
 import pytest
 
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Character
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower, NoSigningPower, SigningPower
@@ -20,9 +21,9 @@ def test_actor_without_signing_power_cannot_sign():
     cannot_sign = CryptoPower(power_ups=[])
     non_signer = Character(
         crypto_power=cannot_sign,
-        start_learning_now=False,
         domain=TEMPORARY_DOMAIN,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        lonely=True,
     )
 
     # The non-signer's stamp doesn't work for signing...
@@ -43,15 +44,14 @@ def test_actor_with_signing_power_can_sign():
     message = b"Llamas."
 
     signer = Character(
-        crypto_power_ups=[SigningPower],
-        is_me=True,
-        start_learning_now=False,
+        crypto_power=CryptoPower(power_ups=[SigningPower]),
         domain=TEMPORARY_DOMAIN,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        lonely=True,
     )
     stamp_of_the_signer = signer.stamp
 
-    # We can use the signer's stamp to sign a message (since the signer is_me)...
+    # We can use the signer's stamp to sign a message (since the signer is local)...
     signature = stamp_of_the_signer(message)
 
     # ...or to get the signer's public key for verification purposes.
@@ -61,7 +61,7 @@ def test_actor_with_signing_power_can_sign():
     assert verification is True
 
 
-def test_anybody_can_verify(random_address):
+def test_anybody_can_verify(test_registry):
     """
     In the last example, we used the lower-level Crypto API to verify the signature.
 
@@ -69,18 +69,20 @@ def test_anybody_can_verify(random_address):
     """
     # Alice can sign by default, by dint of her _default_crypto_powerups.
     alice = Alice(
-        start_learning_now=False,
         domain=TEMPORARY_DOMAIN_NAME,
-        checksum_address=random_address,
         pre_payment_method=FreeReencryptions(),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        registry=test_registry,
+        wallet=Wallet.random(),
+        lonely=True,
+
     )
 
     # So, our story is fairly simple: an everyman meets Alice.
     somebody = Character(
-        start_learning_now=False,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        lonely=True,
     )
 
     # Alice signs a message.
@@ -102,7 +104,10 @@ def test_anybody_can_verify(random_address):
 
     somebody.verify_from(hearsay_alice, message, signature)
 
-    hearsay_alice = Character.from_public_keys(verifying_key=alice_pubkey_bytes)
+    hearsay_alice = Character.from_public_keys(
+        verifying_key=alice_pubkey_bytes,
+        lonely=True,
+    )
 
     somebody.verify_from(hearsay_alice, message, signature)
     alice.disenchant()

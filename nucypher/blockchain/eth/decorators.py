@@ -1,8 +1,5 @@
-
-
 import functools
 import inspect
-from datetime import datetime
 from typing import Callable, Optional, TypeVar, Union
 
 import eth_utils
@@ -26,6 +23,8 @@ ContractInterfaces = Union[
 ContractReturnValue = TypeVar(
     "ContractReturnValue", bound=Union[TxReceipt, Wei, int, str, bool]
 )
+
+COLLECT_CONTRACT_API = True
 
 
 __VERIFIED_ADDRESSES = set()
@@ -94,35 +93,6 @@ def validate_checksum_address(func: Callable) -> Callable:
             return func(*args, **kwargs)
 
     return wrapped
-
-
-def only_me(func: Callable) -> Callable:
-    """Decorator to enforce invocation of permissioned actor methods"""
-    @functools.wraps(func)
-    def wrapped(actor=None, *args, **kwargs):
-        if not actor.is_me:
-            raise actor.ActorError("You are not {}".format(actor.__class.__.__name__))
-        return func(actor, *args, **kwargs)
-    return wrapped
-
-
-def save_receipt(actor_method) -> Callable:  # TODO: rename to "save_result"?
-    """Decorator to save the result of a function with a timestamp"""
-    @functools.wraps(actor_method)
-    def wrapped(self, *args, **kwargs) -> dict:
-        receipt_or_txhash = actor_method(self, *args, **kwargs)
-        self._saved_receipts.append((datetime.utcnow(), receipt_or_txhash))
-        return receipt_or_txhash
-    return wrapped
-
-
-#
-# Contract Function Handling
-#
-
-
-# TODO: Auto disable collection in prod (detect test package?)
-COLLECT_CONTRACT_API = True
 
 
 def contract_api(interface: Optional[ContractInterfaces] = UNKNOWN_CONTRACT_INTERFACE) -> Callable:

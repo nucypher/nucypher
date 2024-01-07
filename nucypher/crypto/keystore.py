@@ -302,7 +302,12 @@ class Keystore:
         keystore_payload = _assemble_keystore(encrypted_secret=encrypted_secret,
                                               password_salt=__password_salt,
                                               wrapper_salt=__wrapper_salt)
-        _write_keystore(path=keystore_path, payload=keystore_payload, serializer=_serialize_keystore)
+
+        _write_keystore(
+            path=keystore_path,
+            payload=keystore_payload,
+            serializer=_serialize_keystore
+        )
 
         return keystore_path
 
@@ -349,23 +354,21 @@ class Keystore:
         return keystore
 
     @classmethod
-    def generate(
+    def from_mnemonic(
             cls,
             phrase: str,
-            keystore_password: str,
+            password: str,
             keystore_dir: Optional[Path] = None,
             ):
         mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
         __secret = bytes(mnemonic.to_entropy(phrase))
         keystore_path = cls.__commit(
             secret=__secret,
-            password=keystore_password,
+            password=password,
             keystore_dir=keystore_dir
         )
         keystore = cls(keystore_path=keystore_path)
         return keystore
-
-
 
     @property
     def id(self) -> str:

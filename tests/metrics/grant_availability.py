@@ -23,7 +23,7 @@ from web3 import Web3
 from web3.types import Wei
 
 from nucypher.blockchain.eth.domains import LYNX
-from nucypher.blockchain.eth.signers import Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.network.nodes import TEACHER_NODES
@@ -35,20 +35,20 @@ from nucypher.utilities.logging import GlobalLoggerSettings
 # In order to use this script, you must configure a wallet for alice
 ADDRESS_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_ADDRESS'
 PASSWORD_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PASSWORD'
-SIGNER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_KEYFILE_PATH'
+WALLET_FILEPATH_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_KEYFILE_PATH'
 PROVIDER_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_PROVIDER'
 POLYGON_ENVVAR: str = 'NUCYPHER_GRANT_METRICS_POLYGON_PROVIDER'
 
 try:
     ALICE_ADDRESS: ChecksumAddress = os.environ[ADDRESS_ENVVAR]
     SIGNER_PASSWORD: str = os.environ[PASSWORD_ENVVAR]
-    SIGNER_URI: str = os.environ[SIGNER_ENVVAR]
+    WALLET_FILEPATH: str = os.environ[WALLET_FILEPATH_ENVVAR]
     ETHEREUM_PROVIDER_URI: str = os.environ[PROVIDER_ENVVAR]
     POLYGON_PROVIDER_URI: str = os.environ[POLYGON_ENVVAR]
 except KeyError:
     message = f'{ADDRESS_ENVVAR}, ' \
               f'{PROVIDER_ENVVAR}, ' \
-              f'{SIGNER_ENVVAR} and ' \
+              f'{WALLET_FILEPATH_ENVVAR} and ' \
               f'{PASSWORD_ENVVAR} ' \
               f'are required to run grant availability metrics.'
     raise RuntimeError(message)
@@ -150,7 +150,7 @@ def collect(alice: Alice,
             i += 1  # continue
 
 
-def make_alice(known_nodes: Optional[Set[Ursula]] = None):
+def make_alice(peers: Optional[Set[Ursula]] = None):
     """Initializes a new 'persistent alice configuration' for grant metrics collection."""
 
     # This is Alice's PRE payment method.
@@ -158,19 +158,17 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
         domain=TACO_DOMAIN, blockchain_endpoint=POLYGON_PROVIDER_URI
     )
 
-    wallet = Signer.from_signer_uri(f'keystore://{SIGNER_URI}')
+    wallet = Wallet.from_keystore(path=WALLET_FILEPATH)
     wallet.unlock_account(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
 
     alice_config = AliceConfiguration(
         eth_endpoint=ETHEREUM_PROVIDER_URI,
         polygon_endpoint=POLYGON_PROVIDER_URI,
-        checksum_address=ALICE_ADDRESS,
-        signer_uri=f'keystore://{SIGNER_URI}',
         config_root=TEMP_ALICE_DIR,
         domain=TACO_DOMAIN,
-        known_nodes=known_nodes,
-        start_learning_now=False,
-        learn_on_same_thread=True,
+        seed_nodes=peers,
+        start_peering_now=False,
+        peering_on_same_thread=True,
         gas_strategy=GAS_STRATEGY,
         max_gas_price=MAX_GAS_PRICE,
     )
@@ -178,7 +176,7 @@ def make_alice(known_nodes: Optional[Set[Ursula]] = None):
     alice_config.initialize(password=INSECURE_PASSWORD)
     alice_config.keystore.unlock(password=INSECURE_PASSWORD)
     alice = alice_config.produce(pre_payment_method=pre_payment_method, signer=wallet)
-    alice.start_learning_loop(now=True)
+    alice.start_peering(now=True)
     return alice
 
 
@@ -197,7 +195,7 @@ def aggregate_nodes(eth_endpoint: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     if DEFAULT_SEEDNODE_URIS:
         for uri in DEFAULT_SEEDNODE_URIS:
             ursula = Ursula.from_seed_and_stake_info(
-                seed_uri=uri, eth_endpoint=eth_endpoint
+                uri=uri, eth_endpoint=eth_endpoint
             )
             seednodes.add(ursula)
 
@@ -205,7 +203,7 @@ def aggregate_nodes(eth_endpoint: str) -> Tuple[Set[Ursula], Set[Ursula]]:
     if HANDPICKED_URSULA_URIS:
         for uri in HANDPICKED_URSULA_URIS:
             ursula = Ursula.from_seed_and_stake_info(
-                seed_uri=uri, eth_endpoint=eth_endpoint
+                uri=uri, eth_endpoint=eth_endpoint
             )
             ursulas.add(ursula)
 
@@ -215,5 +213,5 @@ def aggregate_nodes(eth_endpoint: str) -> Tuple[Set[Ursula], Set[Ursula]]:
 if __name__ == '__main__':
     setup()
     seednodes, ursulas = aggregate_nodes(eth_endpoint=ETHEREUM_PROVIDER_URI)
-    alice = make_alice(known_nodes=seednodes)
+    alice = make_alice(seed_nodes=seednodes)
     collect(alice=alice, ursulas=ursulas)

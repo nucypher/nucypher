@@ -1,6 +1,5 @@
 import math
 import pprint
-from pathlib import Path
 from typing import Callable, Dict, NamedTuple, Optional, Union
 from urllib.parse import urlparse
 
@@ -29,16 +28,13 @@ from web3.types import TxReceipt
 from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
-    _get_auto_provider,
-    _get_HTTP_provider,
-    _get_IPC_provider,
+    _get_http_provider,
     _get_mock_test_provider,
     _get_pyevm_test_provider,
-    _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
-from nucypher.crypto.powers import TransactingPower
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
     WEB3_GAS_STRATEGIES,
@@ -133,84 +129,16 @@ class BlockchainInterface:
 
     def __init__(
         self,
-        emitter=None,  # TODO # 1754
-        poa: bool = None,
-        light: bool = False,
         endpoint: str = NO_BLOCKCHAIN_CONNECTION,
         provider: BaseProvider = NO_BLOCKCHAIN_CONNECTION,
         gas_strategy: Optional[Union[str, Callable]] = None,
         max_gas_price: Optional[int] = None,
     ):
-        """
-        TODO: #1502 - Move to API docs.
-
-         Filesystem          Configuration           Node              Client                  EVM
-        ================ ====================== =============== =====================  ===========================
-
-         Solidity Files -- SolidityCompiler -                      --- HTTPProvider ------ ...
-                                            |                    |
-                                            |                    |
-                                            |                    |
-                                            - *BlockchainInterface* -- IPCProvider ----- External EVM (geth, parity...)
-                                                       |         |
-                                                       |         |
-                                                 TestProvider ----- EthereumTester -------------
-                                                                                                |
-                                                                                                |
-                                                                                        PyEVM (Development Chain)
-
-         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-         Runtime Files --                 --BlockchainInterface ----> Registry
-                        |                |             ^
-                        |                |             |
-                        |                |             |
-         Key Files ------ CharacterConfiguration     Agent                          ... (Contract API)
-                        |                |             ^
-                        |                |             |
-                        |                |             |
-                        |                |           Actor                          ...Blockchain-Character API)
-                        |                |             ^
-                        |                |             |
-                        |                |             |
-         Config File ---                  --------- Character                       ... (Public API)
-                                                       ^
-                                                       |
-                                                     Human
-
-
-        The Blockchain is the junction of the solidity compiler, a contract registry, and a collection of
-        web3 network providers as a means of interfacing with the ethereum blockchain to execute
-        or deploy contract code on the network.
-
-
-        Compiler and Registry Usage
-        -----------------------------
-
-        Contracts are freshly re-compiled if an instance of SolidityCompiler is passed; otherwise,
-        The registry will read contract data saved to disk that is be used to retrieve contact address and op-codes.
-        Optionally, A registry instance can be passed instead.
-
-
-        Provider Usage
-        ---------------
-        https: // github.com / ethereum / eth - tester     # available-backends
-
-
-        * HTTP Provider - Web3 HTTP provider, typically JSON RPC 2.0 over HTTP
-        * Websocket Provider - Web3 WS provider, typically JSON RPC 2.0 over WS, supply endpoint uri and websocket=True
-        * IPC Provider - Web3 File based IPC provider transported over standard I/O
-        * Custom Provider - A pre-initialized web3.py provider instance to attach to this interface
-
-        """
-
         self.log = Logger('Blockchain')
-        self.poa = poa
         self.endpoint = endpoint
         self._provider = provider
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
-        self.is_light = light
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
@@ -222,17 +150,11 @@ class BlockchainInterface:
         r = "{name}({uri})".format(name=self.__class__.__name__, uri=self.endpoint)
         return r
 
+    def get_block_number(self) -> int:
+        return self.client.block_number
+
     def get_blocktime(self):
         return self.client.get_blocktime()
-
-    @property
-    def is_connected(self) -> bool:
-        """
-        https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
-        """
-        if self.client is NO_BLOCKCHAIN_CONNECTION:
-            return False
-        return self.client.is_connected
 
     @classmethod
     def get_gas_strategy(cls, gas_strategy: Union[str, Callable] = None) -> Callable:
@@ -246,16 +168,25 @@ class BlockchainInterface:
                 gas_strategy = cls.GAS_STRATEGIES[cls.DEFAULT_GAS_STRATEGY]
         return gas_strategy
 
+    @property
+    def is_connected(self) -> bool:
+        """
+        https://web3py.readthedocs.io/en/stable/__provider.html#examples-using-automated-detection
+        """
+        if self.client is NO_BLOCKCHAIN_CONNECTION:
+            return False
+        return self.client.is_connected
+
     def attach_middleware(self):
         chain_id = int(self.client.chain_id)
-        self.poa = chain_id in POA_CHAINS
+        is_poa = chain_id in POA_CHAINS
 
         self.log.debug(
-            f"Blockchain: {self.client.chain_name} (chain_id={chain_id}, poa={self.poa})"
+            f"Blockchain: {self.client.chain_name} (chain_id={chain_id}, poa={is_poa})"
         )
 
         # For use with Proof-Of-Authority test-blockchains
-        if self.poa is True:
+        if is_poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
 
@@ -350,24 +281,10 @@ class BlockchainInterface:
 
             else:
                 providers = {
-                    'auto': _get_auto_provider,
-                    'ipc': _get_IPC_provider,
-                    'file': _get_IPC_provider,
-                    'ws': _get_websocket_provider,
-                    'wss': _get_websocket_provider,
-                    'http': _get_HTTP_provider,
-                    'https': _get_HTTP_provider,
+                    'http': _get_http_provider,
+                    'https': _get_http_provider,
                 }
                 provider_scheme = uri_breakdown.scheme
-
-            # auto-detect for file based ipc
-            if not provider_scheme:
-                if Path(endpoint).is_file():
-                    # file is available - assume ipc/file scheme
-                    provider_scheme = "file"
-                    self.log.info(
-                        f"Auto-detected provider scheme as 'file://' for provider {endpoint}"
-                    )
 
             try:
                 self._provider = providers[provider_scheme](endpoint)
@@ -391,18 +308,19 @@ class BlockchainInterface:
         Re-raising error handler and context manager for transaction broadcast or
         build failure events at the interface layer. This method is a last line of defense
         against unhandled exceptions caused by transaction failures and must raise an exception.
-        # TODO: #1504 - Additional Handling of validation failures (gas limits, invalid fields, etc.)
         """
 
         response = exception.args[0]
 
-        # Assume this error is formatted as an RPC response
         try:
+            # Assume this error is formatted as an RPC response
             code = int(response['code'])
             message = response['message']
+        except TypeError:
+            # If not, assume this is a generic exception
+            code = cls.TransactionFailed.IPC_CODE
+            message = str(response)
         except Exception:
-            # TODO: #1504 - Try even harder to determine if this is insufficient funds causing the issue,
-            #               This may be best handled at the agent or actor layer for registry and token interactions.
             # Worst case scenario - raise the exception held in context implicitly
             raise exception
 
@@ -514,7 +432,7 @@ class BlockchainInterface:
 
     def sign_and_broadcast_transaction(
         self,
-        transacting_power: TransactingPower,
+        wallet: Wallet,
         transaction_dict: Dict,
         transaction_name: str = "",
         confirmations: int = 0,
@@ -529,19 +447,8 @@ class BlockchainInterface:
         otherwise return the transaction receipt.
 
         """
-        #
-        # Setup
-        #
 
-        # TODO # 1754 - Move this to singleton - I do not approve... nor does Bogdan?
         emitter = StdoutEmitter()
-
-        #
-        # Sign
-        #
-
-        # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        
         try:
             # post-london fork transactions (Type 2)
             max_unit_price = transaction_dict['maxFeePerGas']
@@ -555,15 +462,12 @@ class BlockchainInterface:
         max_cost_wei = max_unit_price * transaction_dict['gas']
         max_cost = Web3.from_wei(max_cost_wei, 'ether')
 
-        if transacting_power.is_device:
-            emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
-                            f'({max_cost} ETH @ {max_price_gwei} gwei)',
-                            color='yellow')
-        signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
+        signed_raw_transaction = wallet.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
+
         emitter.message(f'Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
                         color='yellow')
         try:
@@ -616,7 +520,7 @@ class BlockchainInterface:
     @validate_checksum_address
     def send_transaction(self,
                          contract_function: Union[ContractFunction, ContractConstructor],
-                         transacting_power: TransactingPower,
+                         wallet: Wallet,
                          payload: dict = None,
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
@@ -635,7 +539,7 @@ class BlockchainInterface:
             use_pending_nonce = replace  # TODO: #2385
 
         transaction = self.build_contract_transaction(contract_function=contract_function,
-                                                      sender_address=transacting_power.account,
+                                                      sender_address=wallet.address,
                                                       payload=payload,
                                                       transaction_gas_limit=transaction_gas_limit,
                                                       gas_estimation_multiplier=gas_estimation_multiplier,
@@ -647,7 +551,7 @@ class BlockchainInterface:
         except AttributeError:
             transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
 
-        txhash_or_receipt = self.sign_and_broadcast_transaction(transacting_power=transacting_power,
+        txhash_or_receipt = self.sign_and_broadcast_transaction(wallet=wallet,
                                                                 transaction_dict=transaction,
                                                                 transaction_name=transaction_name,
                                                                 confirmations=confirmations,
@@ -674,9 +578,7 @@ Interfaces = Union[BlockchainInterface]
 
 
 class BlockchainInterfaceFactory:
-    """
-    Canonical source of bound blockchain interfaces.
-    """
+    """Canonical source of bound blockchain interfaces."""
 
     _instance = None
     _interfaces = dict()

@@ -5,7 +5,6 @@ from queue import Queue
 from typing import (
     Any,
     Dict,
-    Iterable,
     List,
     NamedTuple,
     Optional,
@@ -22,7 +21,7 @@ from constant_sorrow.constants import (
     NOT_SIGNED,
     PUBLIC_ONLY,
     READY,
-    STRANGER_ALICE,
+    STRANGER_ALICE
 )
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
@@ -75,14 +74,12 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
-    TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
-from nucypher.blockchain.eth.signers import Signer
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.banners import (
     ALICE_BANNER,
     BOB_BANNER,
@@ -99,7 +96,6 @@ from nucypher.crypto.powers import (
     SigningPower,
     ThresholdRequestDecryptingPower,
     TLSHostingPower,
-    TransactingPower,
 )
 from nucypher.crypto.utils import keccak_digest
 from nucypher.network.decryption import ThresholdDecryptionClient
@@ -129,76 +125,54 @@ class Alice(Character, actors.PolicyAuthor):
 
     def __init__(
         self,
-        # Mode
-        is_me: bool = True,
+        is_peer: bool = False,
         eth_endpoint: str = None,
-        signer=None,
-        # Ownership
-        checksum_address: Optional[ChecksumAddress] = None,
-        # M of N
         threshold: Optional[int] = None,
         shares: Optional[int] = None,
-        # Policy Value
         rate: int = None,
         duration: int = None,
         pre_payment_method: PaymentMethod = None,
-        # Policy Storage
         store_policy_credentials: bool = None,
-        # Middleware
-        timeout: int = 10,  # seconds  # TODO: configure  NRN
+        timeout: int = 10,  # seconds
         network_middleware: RestMiddleware = None,
-        *args,
-        **kwargs,
+        *args, **kwargs,
     ):
+        self.log = Logger(self.__class__.__name__)
+
         #
         # Fallback Policy Values
         #
 
         self.timeout = timeout
 
-        if is_me:
+        if is_peer:
+            self.threshold = STRANGER_ALICE
+            self.shares = STRANGER_ALICE
+        else:
             self.threshold = threshold
             self.shares = shares
 
             self._policy_queue = Queue()
             self._policy_queue.put(READY)
-        else:
-            self.threshold = STRANGER_ALICE
-            self.shares = STRANGER_ALICE
 
         Character.__init__(
             self,
-            known_node_class=Ursula,
-            is_me=is_me,
+            is_peer=is_peer,
             eth_endpoint=eth_endpoint,
-            checksum_address=checksum_address,
             network_middleware=network_middleware,
-            *args,
-            **kwargs,
+            include_self_in_the_state=False,
+            *args, **kwargs,
         )
 
-        if is_me:  # TODO: #289
-            blockchain = BlockchainInterfaceFactory.get_interface(
-                endpoint=self.eth_endpoint
-            )
-            signer = signer or Web3Signer(
-                blockchain.client
-            )  # fallback to web3 provider by default for Alice.
-            self.transacting_power = TransactingPower(
-                account=checksum_address, signer=signer
-            )
-            self._crypto_power.consume_power_up(self.transacting_power)
+        if not is_peer:
             actors.PolicyAuthor.__init__(
                 self,
-                domain=self.domain,
-                transacting_power=self.transacting_power,
-                registry=self.registry,
                 eth_endpoint=eth_endpoint,
+                domain=self.domain,
+                registry=self.registry,
+                wallet=self.wallet
             )
 
-        self.log = Logger(self.__class__.__name__)
-        if is_me:
-            # Policy Payment
             if not pre_payment_method:
                 raise ValueError(
                     "pre_payment_method is a required argument for a local Alice."
@@ -214,6 +188,12 @@ class Alice(Character, actors.PolicyAuthor):
 
             self.log.info(self.banner)
 
+    @property
+    def checksum_address(self) -> str:
+        if not self.wallet:
+            raise AttributeError("No wallet attached to this Character.")
+        return self.wallet.address
+
     def add_active_policy(self, active_policy):
         """
         Adds a Policy object that is active on the TACo network to Alice's
@@ -228,13 +208,8 @@ class Alice(Character, actors.PolicyAuthor):
     ) -> List:
         """
         Generates re-encryption key frags ("KFrags") and returns them.
-
         These KFrags can be used by Ursula to re-encrypt a Capsule for Bob so
         that he can activate the Capsule.
-
-        :param bob: Bob instance which will be able to decrypt messages re-encrypted with these kfrags.
-        :param m: Minimum number of kfrags needed to activate a Capsule.
-        :param n: Total number of kfrags to generate
         """
 
         bob_encrypting_key = bob.public_keys(DecryptingPower)
@@ -338,7 +313,6 @@ class Alice(Character, actors.PolicyAuthor):
         timeout: int = None,
         **policy_params,
     ):
-        timeout = timeout or self.timeout
 
         #
         # Policy Creation
@@ -347,7 +321,7 @@ class Alice(Character, actors.PolicyAuthor):
         if ursulas:
             # This might be the first time alice learns about the handpicked Ursulas.
             for handpicked_ursula in ursulas:
-                self.remember_node(node=handpicked_ursula)
+                self.remember_peer(node=handpicked_ursula)
 
         policy = self.create_policy(bob=bob, label=label, **policy_params)
         self._check_grant_requirements(policy=policy)
@@ -382,9 +356,6 @@ class Alice(Character, actors.PolicyAuthor):
 
         if onchain:
             pass
-            # TODO: Decouple onchain revocation from SubscriptionManager or deprecate.
-            # receipt = self.policy_agent.revoke_policy(policy_id=bytes(policy.hrac),
-            #                                           transacting_power=self._crypto_power.power_ups(TransactingPower))
 
         if offchain:
             """
@@ -400,11 +371,11 @@ class Alice(Character, actors.PolicyAuthor):
                     policy.revocation_kit.revokable_addresses,
                     allow_missing=(policy.shares - revocation_threshold),
                 )
-            except self.NotEnoughTeachers:
+            except self.NotEnoughPeers:
                 raise  # TODO  NRN
 
             for node_id in policy.revocation_kit.revokable_addresses:
-                ursula = self.known_nodes[node_id]
+                ursula = self.peers[node_id]
                 revocation = policy.revocation_kit[node_id]
                 try:
                     response = self.network_middleware.request_revocation(
@@ -456,8 +427,8 @@ class Bob(Character):
 
     def __init__(
         self,
-        is_me: bool = True,
-        verify_node_bonding: bool = False,
+        is_peer: bool = False,
+        verify_peer_bonding: bool = False,
         eth_endpoint: str = None,
         polygon_endpoint: str = None,
         *args,
@@ -465,13 +436,12 @@ class Bob(Character):
     ) -> None:
         Character.__init__(
             self,
-            is_me=is_me,
-            known_node_class=Ursula,
-            verify_node_bonding=verify_node_bonding,
+            is_peer=is_peer,
+            verify_peer_bonding=verify_peer_bonding,
             eth_endpoint=eth_endpoint,
             polygon_endpoint=polygon_endpoint,
-            *args,
-            **kwargs,
+            include_self_in_the_state=False,
+            *args, **kwargs,
         )
 
         coordinator_agent = None
@@ -489,8 +459,14 @@ class Bob(Character):
         self._treasure_maps: Dict[int, TreasureMap] = {}
 
         self.log = Logger(self.__class__.__name__)
-        if is_me:
+        if not is_peer:
             self.log.info(self.banner)
+
+    @property
+    def checksum_address(self) -> str:
+        if not self.wallet:
+            raise AttributeError("No wallet attached to this Character.")
+        return self.wallet.address
 
     def _decrypt_treasure_map(
         self,
@@ -718,7 +694,7 @@ class Bob(Character):
                     raise ValueError(
                         f"{ursula} ({ursula.staking_provider_address}) is not part of the cohort"
                     )
-                self.remember_node(ursula)
+                self.remember_peer(ursula)
 
         variant = self._default_dkg_variant
 
@@ -772,7 +748,7 @@ class Ursula(Teacher, Character, Operator):
         # TLSHostingPower  # Still considered a default for Ursula, but needs the host context
     ]
 
-    class NotEnoughUrsulas(Learner.NotEnoughTeachers):
+    class NotEnoughUrsulas(Learner.NotEnoughPeers):
         """
         All Characters depend on knowing about enough Ursulas to perform their role.
         This exception is raised when a piece of logic can't proceed without more Ursulas.
@@ -783,64 +759,85 @@ class Ursula(Teacher, Character, Operator):
 
     def __init__(
         self,
-        # Ursula
+        *,
         rest_host: str,
         rest_port: int,
         domain: str,
-        is_me: bool = True,
+        is_peer: bool = False,
         certificate: Optional[Certificate] = None,
         metadata: Optional[NodeMetadata] = None,
-        # Blockchain
-        checksum_address: Optional[ChecksumAddress] = None,
-        operator_address: Optional[ChecksumAddress] = None,
-        client_password: Optional[str] = None,
-        transacting_power: Optional[TransactingPower] = None,
+        wallet: Optional[Wallet] = None,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
         condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
         pre_payment_method: Optional[Union[PaymentMethod, ContractPayment]] = None,
-        # Character
-        abort_on_learning_error: bool = False,
         crypto_power=None,
-        known_nodes: Iterable[Teacher] = None,
-        **character_kwargs,
+        **character_kwargs
     ):
+        """
+        Resolves the operator address of a local node or a peer.
+
+        The reason for the fork here is the difference in available
+        information between a local node vs. a peer.
+
+        A local node knows its owm operator address from its wallet,
+        but doesn't yet know its own bonded staking provider address.
+
+        We know the staking provider address of a peer from its metadata
+        but don't yet know it's bonded operator address.
+        """
+        if is_peer:
+            if wallet:
+                raise ValueError("A peer node cannot have a wallet.")
+            if not metadata:
+                raise ValueError("'metadata' is a required parameter for a peer node.")
+            staking_provider_address = to_checksum_address(bytes(metadata.payload.staking_provider_address))
+            operator_address = to_checksum_address(bytes(metadata.payload.derive_operator_address()))
+        else:
+            if not wallet:
+                raise ValueError(
+                    "A local node must have a wallet.  "
+                    "If you're using the config API, try calling unlock_wallet."
+                )
+            staking_provider_address = None
+            operator_address = wallet.address
+            if metadata:
+                raise ValueError("A local node must generate its own metadata.")
+
+        # This must before Character.__init__ because it interacts with peering
+        self._metadata = metadata
+
+        # This will be set from the metadata payload if this Ursula is a peer (above),
+        # or read from the application smart contract if it's a local node.
+        self._staking_provider_address = staking_provider_address
+
+        # This will be set from the metadata payload if this Ursula is a peer,
+        # or from the configured operator wallet is it's a local node in block_until_ready.
+        self.__operator_address = operator_address
+
         Character.__init__(
             self,
-            is_me=is_me,
-            checksum_address=checksum_address,
-            crypto_power=crypto_power,
-            abort_on_learning_error=abort_on_learning_error,
-            known_nodes=known_nodes,
+            is_peer=is_peer,
             domain=domain,
-            known_node_class=Ursula,
-            include_self_in_the_state=True,
             eth_endpoint=eth_endpoint,
             polygon_endpoint=polygon_endpoint,
+            crypto_power=crypto_power,
+            wallet=wallet,
             **character_kwargs,
         )
 
-        if is_me:
-            if metadata:
-                raise ValueError("A local node must generate its own metadata.")
-            self._metadata = None
-
+        if not is_peer:
             try:
-                pre_payment_method: ContractPayment
-                self.__operator_address = operator_address
                 Operator.__init__(
                     self,
                     domain=self.domain,
                     registry=self.registry,
-                    signer=self.signer,
+                    wallet=self.wallet,
                     crypto_power=self._crypto_power,
-                    operator_address=operator_address,
                     eth_endpoint=eth_endpoint,
                     polygon_endpoint=polygon_endpoint,
                     pre_payment_method=pre_payment_method,
-                    client_password=client_password,
                     condition_blockchain_endpoints=condition_blockchain_endpoints,
-                    transacting_power=transacting_power,
                 )
 
             except Exception:
@@ -850,6 +847,7 @@ class Ursula(Teacher, Character, Operator):
                 raise
 
             # Use this power to substantiate the stamp
+            # This sets self.__operator_signature and self.__operator_address
             self._substantiate_stamp()
 
             # Server
@@ -861,24 +859,20 @@ class Ursula(Teacher, Character, Operator):
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
 
-            self.log.info(self.banner.format(self.nickname))
-
         else:
+
             # Peer HTTP Server
             # TODO: Use InterfaceInfo only
             self.rest_server = ProxyRESTServer(rest_host=rest_host, rest_port=rest_port)
-            self._metadata = metadata
-            self.__operator_address = None
 
         # Teacher (All Modes)
         Teacher.__init__(self, certificate=certificate)
         self._prometheus_metrics_tracker = None
 
     def _substantiate_stamp(self):
-        transacting_power = self.transacting_power
-        signature = transacting_power.sign_message(message=bytes(self.stamp))
+        signature = self.wallet.sign_message(message=bytes(self.stamp))
         self.__operator_signature = signature
-        self.__operator_address = transacting_power.account
+        self.__operator_address = self.wallet.address
         message = f"Created decentralized identity evidence: {self.__operator_signature[:10].hex()}"
         self.log.debug(message)
 
@@ -888,20 +882,11 @@ class Ursula(Teacher, Character, Operator):
 
     @property
     def operator_address(self):
-        # TODO (#2875): The reason for the fork here is the difference in available information
-        # for local and remote nodes.
-        # The local node knows its operator address, but doesn't yet know the staker address.
-        # For the remote node, we know its staker address (from the metadata),
-        # but don't know the worker address.
-        # Can this be resolved more elegantly?
-        if getattr(self, "is_me", False):
-            return self._local_operator_address()
-        else:
-            if not self.__operator_address:
-                address = self.metadata().payload.derive_operator_address()
-                operator_address = to_checksum_address(bytes(address))
-                self.__operator_address = operator_address
-            return self.__operator_address
+        return self.__operator_address
+
+    @property
+    def checksum_address(self):
+        return self._staking_provider_address
 
     def __get_hosting_power(self, host: str) -> TLSHostingPower:
         try:
@@ -970,7 +955,7 @@ class Ursula(Teacher, Character, Operator):
             emitter.message("Starting services", color="yellow")
 
         if discovery and not self.lonely:
-            self.start_learning_loop(now=eager)
+            self.start_peering(now=eager)
             if emitter:
                 emitter.message(f"✓ Node Discovery ({self.domain})", color="green")
 
@@ -1044,7 +1029,7 @@ class Ursula(Teacher, Character, Operator):
         with contextlib.suppress(
             AttributeError
         ):  # TODO: Is this acceptable here, what are alternatives?
-            self.stop_learning_loop()
+            self.stop_peering()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
             if self._prometheus_metrics_tracker:
@@ -1093,11 +1078,10 @@ class Ursula(Teacher, Character, Operator):
         # TODO: should this be a method of Teacher?
         timestamp = maya.now()
 
-        # TODO: federated mode is gone, but for some reason a node may still not have
-        # an operator signature created. Fill in a dummy value for now.
-        operator_signature = self.operator_signature or (b"0" * 64 + b"\x00")
+        if not self.operator_signature:
+            raise RuntimeError("No operator signature attached")
+        operator_signature = RecoverableSignature.from_be_bytes(self.operator_signature)
 
-        operator_signature = RecoverableSignature.from_be_bytes(operator_signature)
         ferveo_public_key = self.public_keys(RitualisticPower)
         payload = NodeMetadataPayload(
             staking_provider_address=Address(self.canonical_address),
@@ -1145,14 +1129,12 @@ class Ursula(Teacher, Character, Operator):
         node from bytes; instead it's just enough to connect to and verify a node.
         """
         seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
-        return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
-
+        return cls.from_seed_and_stake_info(uri=seed_uri, *args, **kwargs)
 
     @classmethod
-    def from_teacher_uri(
+    def from_peer_uri(
         cls,
-        teacher_uri: str,
-        min_stake: int,
+        peer_uri: str,
         eth_endpoint: str,
         registry: ContractRegistry = None,
         network_middleware: RestMiddleware = None,
@@ -1162,14 +1144,13 @@ class Ursula(Teacher, Character, Operator):
         def __attempt(attempt=1, interval=retry_interval) -> Ursula:
             if attempt >= retry_attempts:
                 raise ConnectionRefusedError(
-                    "Host {} Refused Connection".format(teacher_uri)
+                    "Host {} Refused Connection".format(peer_uri)
                 )
 
             try:
-                teacher = cls.from_seed_and_stake_info(
-                    seed_uri=teacher_uri,
+                peer = cls.from_seed_and_stake_info(
+                    uri=peer_uri,
                     eth_endpoint=eth_endpoint,
-                    minimum_stake=min_stake,
                     network_middleware=network_middleware,
                     registry=registry,
                 )
@@ -1184,17 +1165,16 @@ class Ursula(Teacher, Character, Operator):
                 time.sleep(interval)
                 return __attempt(attempt=attempt + 1)
             else:
-                return teacher
+                return peer
 
         return __attempt()
 
     @classmethod
     def from_seed_and_stake_info(
         cls,
-        seed_uri: str,
+        uri: str,
         eth_endpoint: str,
         registry: ContractRegistry = None,
-        minimum_stake: int = 0,
         network_middleware: RestMiddleware = None,
     ) -> Union["Ursula", "NodeSprout"]:
         if network_middleware is None:
@@ -1203,7 +1183,7 @@ class Ursula(Teacher, Character, Operator):
             )
 
         # Parse node URI
-        host, port, staking_provider_address = parse_node_uri(seed_uri)
+        host, port, staking_provider_address = parse_node_uri(uri)
 
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
@@ -1211,21 +1191,6 @@ class Ursula(Teacher, Character, Operator):
             port=port,
             network_middleware=network_middleware,
         )
-
-        # Check the node's stake (optional)
-        if minimum_stake > 0 and staking_provider_address:
-            application_agent = ContractAgency.get_agent(
-                TACoApplicationAgent,
-                blockchain_endpoint=eth_endpoint,
-                registry=registry,
-            )
-            seednode_stake = application_agent.get_authorized_stake(
-                staking_provider=staking_provider_address
-            )
-            if seednode_stake < minimum_stake:
-                raise Learner.NotATeacher(
-                    f"{staking_provider_address} is staking less than the specified minimum stake value ({minimum_stake})."
-                )
 
         return potential_seed_node
 
@@ -1245,7 +1210,7 @@ class Ursula(Teacher, Character, Operator):
         rest_app_on_server = self.rest_server.rest_app
 
         if rest_app_on_server is PUBLIC_ONLY or not rest_app_on_server:
-            m = "This Ursula doesn't have a REST app attached. If you want one, init with is_me and attach_server."
+            m = "This Ursula doesn't have a REST app attached."
             raise PowerUpError(m)
         else:
             return rest_app_on_server
@@ -1280,19 +1245,19 @@ class Ursula(Teacher, Character, Operator):
             signer=self.stamp.as_umbral_signer(), capsules_and_vcfrags=results
         )
 
-    def status_info(self, omit_known_nodes: bool = False) -> "LocalUrsulaStatus":
+    def status_info(self, omit_peers: bool = False) -> "LocalUrsulaStatus":
         domain = self.domain
         version = nucypher.__version__
 
-        fleet_state = self.known_nodes.latest_state()
-        previous_fleet_states = self.known_nodes.previous_states(4)
+        fleet_state = self.peers.latest_state()
+        previous_fleet_states = self.peers.previous_states(4)
 
-        if not omit_known_nodes:
-            known_nodes_info = [
-                self.known_nodes.status_info(node) for node in self.known_nodes
+        if not omit_peers:
+            peers_info = [
+                self.peers.status_info(node) for node in self.peers
             ]
         else:
-            known_nodes_info = None
+            peers_info = None
 
         balance_eth = float(self.eth_balance)
 
@@ -1306,7 +1271,7 @@ class Ursula(Teacher, Character, Operator):
             version=version,
             fleet_state=fleet_state,
             previous_fleet_states=previous_fleet_states,
-            known_nodes=known_nodes_info,
+            peers=peers_info,
             balance_eth=balance_eth,
             block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
         )
@@ -1343,15 +1308,15 @@ class LocalUrsulaStatus(NamedTuple):
     version: str
     fleet_state: ArchivedFleetState
     previous_fleet_states: List[ArchivedFleetState]
-    known_nodes: Optional[List[RemoteUrsulaStatus]]
+    peers: Optional[List[RemoteUrsulaStatus]]
     balance_eth: float
     block_height: int
 
     def to_json(self) -> Dict[str, Any]:
-        if self.known_nodes is None:
-            known_nodes_json = None
+        if self.peers is None:
+            peers_json = None
         else:
-            known_nodes_json = [status.to_json() for status in self.known_nodes]
+            peers_json = [status.to_json() for status in self.peers]
         return dict(
             nickname=self.nickname.to_json(),
             staker_address=self.staker_address,
@@ -1364,7 +1329,7 @@ class LocalUrsulaStatus(NamedTuple):
             previous_fleet_states=[
                 state.to_json() for state in self.previous_fleet_states
             ],
-            known_nodes=known_nodes_json,
+            seed_nodes=peers_json,
             balance_eth=self.balance_eth,
             block_height=self.block_height,
         )
@@ -1378,9 +1343,9 @@ class Enrico:
     def __init__(
         self,
         encrypting_key: Union[PublicKey, DkgPublicKey],
-        signer: Optional[Signer] = None,
+        wallet: Optional[Wallet] = None,
     ):
-        self.signer = signer
+        self.wallet = wallet
         self._encrypting_key = encrypting_key
         self.log = Logger(f"{self.__class__.__name__}-{encrypting_key}")
         self.log.info(self.banner.format(encrypting_key))
@@ -1403,7 +1368,7 @@ class Enrico:
         plaintext: bytes,
         conditions: Lingo,
     ) -> ThresholdMessageKit:
-        if not self.signer:
+        if not self.wallet:
             raise TypeError("This Enrico doesn't have a signer.")
 
         condition_lingo = ConditionLingo.from_dict(conditions)
@@ -1417,8 +1382,9 @@ class Enrico:
         # authentication message for TACo
         header_hash = keccak_digest(bytes(ciphertext.header))
         authorization = bytes(
-            self.signer.sign_message(
-                message=header_hash, account=self.signer.accounts[0]
+            self.wallet.sign_message(
+                message=header_hash,
+                standardize=False  # TODO: Investigate why this is necessary
             )
         )
 
@@ -1444,3 +1410,9 @@ class Enrico:
                 "This Enrico doesn't know which policy encrypting key he used.  Oh well."
             )
         return self._encrypting_key
+
+    @property
+    def checksum_address(self) -> str:
+        if not self.wallet:
+            raise AttributeError("No wallet attached to this Character.")
+        return self.wallet.address

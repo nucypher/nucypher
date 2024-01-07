@@ -36,7 +36,7 @@ def paint_new_installation_help(emitter, new_configuration, filepath):
     emitter.message("Generated keystore", color="green")
     emitter.message(
         f"""
-Operator Address:   {new_configuration.wallet_address}
+Operator Address:   {new_configuration.wallet.address}
 Network Public Key:   {maybe_public_key}
 Keystore Directory: {new_configuration.keystore_dir}
 

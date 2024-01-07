@@ -5,7 +5,7 @@ from nucypher.network.nodes import TEACHER_NODES
 
 
 @pytest.fixture(autouse=True)
-def mock_teacher_nodes(mocker):
+def mock_peers(mocker):
     # override fixture which mocks TEACHER_NODES
     yield
 
@@ -16,7 +16,7 @@ def test_registry(module_mocker):
     yield
 
 
-def test_default_teacher_seednodes_defined():
+def test_default_peer_seednodes_defined():
     for name, domain in domains.SUPPORTED_DOMAINS.items():
-        teacher_nodes = TEACHER_NODES[domain]
-        assert len(teacher_nodes) > 0
+        peers = TEACHER_NODES[domain]
+        assert len(peers) > 0

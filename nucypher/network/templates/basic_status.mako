@@ -189,10 +189,10 @@ def character_span(character):
         </tr>
     </table>
 
-    %if status_info.known_nodes is not None:
+    %if status_info.peers is not None:
     <%
-        verified_nodes = [node_status for node_status in status_info.known_nodes if node_status.verified]
-        unverified_nodes = [node_status for node_status in status_info.known_nodes if not node_status.verified]
+        verified_nodes = [node_status for node_status in status_info.peers if node_status.verified]
+        unverified_nodes = [node_status for node_status in status_info.peers if not node_status.verified]
     %>
     %for node_set, qualifier in [(verified_nodes, "verified"), (unverified_nodes, "unverified")]:
     <h3>${len(node_set)} ${qualifier} ${"node" if len(node_set) == 1 else "nodes"}:</h3>

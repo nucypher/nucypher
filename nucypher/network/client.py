@@ -26,11 +26,11 @@ class ThresholdAccessControlClient:
         # OK, so we're going to need to do some network activity for this retrieval.
         # Let's make sure we've seeded.
         if not self._learner.done_seeding:
-            self._learner.learn_from_teacher_node()
+            self._learner.learn_from_peer()
 
-        all_known_ursulas = self._learner.known_nodes.addresses()
+        all_known_ursulas = self._learner.peers.addresses()
 
-        # Push all unknown Ursulas from the map in the queue for learning
+        # Push all unknown Ursulas from the map in the queue for peering
         unknown_ursulas = ursulas - all_known_ursulas
 
         # If we know enough to decrypt, we can proceed.

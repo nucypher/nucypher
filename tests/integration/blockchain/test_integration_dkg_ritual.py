@@ -10,9 +10,8 @@ from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Enrico, Ursula
-from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -42,11 +41,6 @@ PARAMS = [  # dkg_size, ritual_id, variant
     (2, 3, FerveoVariant.Simple),
     (5, 4, FerveoVariant.Simple),
     (8, 5, FerveoVariant.Simple),
-    # TODO: slow and need additional accounts for testing
-    # (16, 6, FerveoVariant.Precomputed),
-    # (16, 7, FerveoVariant.Simple),
-    # (32, 8, FerveoVariant.Precomputed),
-    # (32, 9, FerveoVariant.Simple),
 ]
 
 BLOCKS = list(reversed(range(1, 1000)))
@@ -56,25 +50,19 @@ COORDINATOR = MockCoordinatorAgent(MockBlockchain())
 @pytest.fixture(scope="function", autouse=True)
 def mock_coordinator_agent(testerchain, mock_contract_agency):
     mock_contract_agency._MockContractAgency__agents[CoordinatorAgent] = COORDINATOR
-
     yield COORDINATOR
     COORDINATOR.reset()
 
 
 @pytest.fixture(scope="function")
-def cohort(ursulas, mock_coordinator_agent):
+def cohort(ursulas, mock_coordinator_agent, accounts):
     """Creates a cohort of Ursulas"""
+    mock_coordinator_agent._operator_to_staking_provider.update(
+        accounts.operator_to_provider
+    )
     for u in ursulas:
-        # set mapping in coordinator agent
-        mock_coordinator_agent._add_operator_to_staking_provider_mapping(
-            {u.operator_address: u.checksum_address}
-        )
-        mock_coordinator_agent.set_provider_public_key(
-            u.public_keys(RitualisticPower), u.transacting_power
-        )
         u.coordinator_agent = mock_coordinator_agent
         u.ritual_tracker.coordinator_agent = mock_coordinator_agent
-
     return ursulas
 
 
@@ -156,10 +144,10 @@ def test_ursula_ritualist(
             cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
             mock_coordinator_agent.initiate_ritual(
                 providers=cohort_staking_provider_addresses,
-                authority=alice.transacting_power.account,
+                authority=alice.wallet.address,
                 duration=1,
                 access_controller=get_random_checksum_address(),
-                transacting_power=alice.transacting_power,
+                wallet=alice.wallet,
             )
             assert mock_coordinator_agent.number_of_rituals() == ritual_id + 1
 
@@ -202,8 +190,8 @@ def test_ursula_ritualist(
             plaintext = PLAINTEXT.encode()
 
             # create Enrico
-            signer = Web3Signer(client=testerchain.client)
-            enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+            wallet = Wallet.random()
+            enrico = Enrico(encrypting_key=encrypting_key, wallet=wallet)
 
             # encrypt
             print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")
@@ -245,7 +233,7 @@ def test_ursula_ritualist(
                 print("======== EXPIRED RITUAL DECRYPTION UNSUCCESSFUL ========")
 
             # run failure test cases
-            bob.start_learning_loop(now=True)
+            bob.start_peering(now=True)
             # mock the use of non-default variants since it can no longer be specified
             with patch.object(
                 bob,
@@ -260,7 +248,7 @@ def test_ursula_ritualist(
         def decrypt(threshold_message_kit):
             """Decrypts a message and checks that it matches the original plaintext"""
             print("==================== DKG DECRYPTION ====================")
-            bob.start_learning_loop(now=True)
+            bob.start_peering(now=True)
 
             # mock the use of non-default variants since it can no longer be specified
             with patch.object(

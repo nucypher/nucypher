@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 from eth_account import Account
 
-from nucypher.blockchain.eth.signers import KeystoreSigner
+from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.cli.commands.ursula import UrsulaConfigOptions
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -13,7 +14,7 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
-from tests.constants import MOCK_IP_ADDRESS
+from tests.constants import MOCK_IP_ADDRESS, INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.ursula import select_test_port
 
 
@@ -28,44 +29,43 @@ def mock_account_password_keystore(tmp_path_factory):
     return account, password, keystore
 
 
-@pytest.mark.usefixtures(
-    "mock_registry_sources", "monkeypatch_get_staking_provider_from_operator"
-)
-def test_ursula_init_with_local_keystore_signer(
+@pytest.mark.usefixtures("mock_registry_sources",)
+def test_ursula_init_with_local_keystore_wallet(
     click_runner, temp_dir_path, mocker, testerchain, mock_account_password_keystore
 ):
     custom_filepath = temp_dir_path
     custom_config_filepath = temp_dir_path / UrsulaConfiguration.generate_filename()
     worker_account, password, mock_keystore_path = mock_account_password_keystore
-    mock_signer_uri = f'keystore://{mock_keystore_path}'
 
-    # Good signer...
-    pre_config_signer = KeystoreSigner.from_signer_uri(uri=mock_signer_uri, testnet=True)
+    mocker.patch.object(UrsulaConfigOptions, '_check_for_existing_config', autospec=True)
+
+    # Good wallet...
+    random_wallet = Wallet.random()
+    wallet_filepath = random_wallet.to_keystore(
+        path=custom_filepath / 'test.json',
+        password=password
+    )
 
     deploy_port = select_test_port()
 
     init_args = (
         "ursula",
         "init",
-        # Layer 1
         "--domain",
         TEMPORARY_DOMAIN_NAME,
         "--eth-endpoint",
         testerchain.endpoint,
-        # Layer 2
         "--polygon-endpoint",
         testerchain.endpoint,
         "--rest-host",
         MOCK_IP_ADDRESS,
         "--rest-port",
         deploy_port,
-        "--operator-address",
-        worker_account.address,
         "--config-root",
         str(custom_filepath.absolute()),
         # The bit we are testing here
-        "--signer",
-        mock_signer_uri,
+        "--wallet-filepath",
+        wallet_filepath,
     )
 
     cli_env = {
@@ -82,26 +82,20 @@ def test_ursula_init_with_local_keystore_signer(
     with open(custom_config_filepath, 'r') as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
-        assert config_data['signer_uri'] == mock_signer_uri,\
-            "Keystore URI was not correctly included in configuration file"
+        assert config_data['wallet_filepath'] == str(wallet_filepath.absolute()),  \
+            "Wallet filepath was not correctly included in configuration file"
 
     # Recreate a configuration with the signer URI preserved
     ursula_config = UrsulaConfiguration.from_configuration_file(custom_config_filepath, config_root=custom_filepath)
-    assert ursula_config.signer_uri == mock_signer_uri
+    assert ursula_config.wallet_filepath == wallet_filepath
 
     # Mock decryption of web3 client keystore
     mocker.patch.object(Account, 'decrypt', return_value=worker_account.key)
     ursula_config.keystore.unlock(password=password)
+    ursula_config.unlock_wallet(password=password)
 
     # Produce an ursula with a Keystore signer correctly derived from the signer URI, and don't do anything else!
     ursula = ursula_config.produce()
-    ursula.signer.unlock_account(account=worker_account.address, password=password)
 
     # Verify the keystore path is still preserved
-    assert isinstance(ursula.signer, KeystoreSigner)
-    assert isinstance(ursula.signer.path, Path), "Use pathlib.Path"
-    assert ursula.signer.path.absolute() == mock_keystore_path.absolute()
-
-    # Show that we can produce the exact same signer as pre-config...
-    assert pre_config_signer.path == ursula.signer.path
-    ursula.stop()
+    assert isinstance(ursula.wallet, Wallet)

@@ -1,5 +1,4 @@
 import json
-import re
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path
@@ -15,7 +14,7 @@ from constant_sorrow.constants import (
     UNKNOWN_VERSION,
 )
 from eth_typing import ChecksumAddress
-from eth_utils.address import is_checksum_address, to_checksum_address
+from eth_utils.address import to_checksum_address
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -23,7 +22,7 @@ from nucypher.blockchain.eth.registry import (
     ContractRegistry,
     LocalRegistrySource,
 )
-from nucypher.blockchain.eth.signers import Signer, KeystoreSigner
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
 from nucypher.config.util import cast_paths_from
@@ -179,12 +178,7 @@ class BaseConfiguration(ABC):
         default_path = (config_root or cls.DEFAULT_CONFIG_ROOT) / filename
         return default_path
 
-    def generate_filepath(
-        self,
-        filepath: Optional[Path] = None,
-        modifier: str = None,
-        override: bool = False,
-    ) -> Path:
+    def generate_filepath(self, filepath: Optional[Path] = None, override: bool = False) -> Path:
         """
         Generates a filepath for saving to writing to a configuration file.
 
@@ -205,21 +199,14 @@ class BaseConfiguration(ABC):
             filename = self.generate_filename()
             filepath = self.config_root / filename
         if filepath.exists() and not override:
-            if not modifier:
-                raise FileExistsError(
-                    f"{filepath} exists and no filename modifier supplied."
-                )
-            filename = self.generate_filename(modifier=modifier)
-            filepath = self.config_root / filename
+            raise FileExistsError(f"{filepath} exists.")
         self.filepath = filepath
         return filepath
 
     def _ensure_config_root_exists(self) -> None:
         """
         Before writing to a configuration file, ensures that
-        self.config_root exists on the filesystem.
-
-        :return: None.
+        self.config_root directory exists on the local filesystem.
         """
         if not self.config_root.exists():
             try:
@@ -238,15 +225,8 @@ class BaseConfiguration(ABC):
             )
         return result
 
-    def to_configuration_file(
-        self,
-        filepath: Optional[Path] = None,
-        modifier: str = None,
-        override: bool = False,
-    ) -> Path:
-        filepath = self.generate_filepath(
-            filepath=filepath, modifier=modifier, override=override
-        )
+    def to_configuration_file(self, filepath: Optional[Path] = None, override: bool = False) -> Path:
+        filepath = self.generate_filepath(filepath=filepath, override=override)
         self._ensure_config_root_exists()
         filepath = self._write_configuration_file(filepath=filepath, override=override)
         return filepath
@@ -336,12 +316,13 @@ class CharacterConfiguration(BaseConfiguration):
     MNEMONIC_KEYSTORE = False
     DEFAULT_DOMAIN = domains.DEFAULT_DOMAIN
     DEFAULT_NETWORK_MIDDLEWARE = RestMiddleware
-    TEMP_CONFIGURATION_DIR_PREFIX = "tmp-nucypher"
-    SIGNER_ENVVAR = None
+    TEMP_CONFIGURATION_DIR_PREFIX = 'tmp-nucypher'
+    WALLET_FILEPATH_ENVVAR = 'NUCYPHER_WALLET_PASSWORD'
+    DEFAULT_WALLET_FILEPATH = Keystore._DEFAULT_DIR / 'wallet.json'
 
     # When we begin to support other threshold schemes,
     # this will be one of the concepts that makes us want a factory.  #571
-    known_node_class = Ursula
+    peer_class = Ursula
 
     # Gas
     DEFAULT_GAS_STRATEGY = "fast"
@@ -365,43 +346,24 @@ class CharacterConfiguration(BaseConfiguration):
 
     def __init__(
         self,
-        # Base
         emitter=None,
         config_root: Optional[Path] = None,
         filepath: Optional[Path] = None,
-        # Mode
         dev_mode: bool = False,
-        # Identity
-        checksum_address: Optional[str] = None,
         crypto_power: Optional[CryptoPower] = None,
-        # Keystore
         keystore: Optional[Keystore] = None,
         keystore_path: Optional[Path] = None,
-        # Learner
-        learn_on_same_thread: bool = False,
-        abort_on_learning_error: bool = False,
-        start_learning_now: bool = True,
-        # Network
         domain: str = DEFAULT_DOMAIN,
         network_middleware: Optional[RestMiddleware] = None,
         lonely: bool = False,
-        # Node Storage
-        known_nodes: Optional[set] = None,
-        reload_metadata: bool = True,
-        save_metadata: bool = True,
-        # Blockchain
-        poa: Optional[bool] = None,
-        light: bool = False,
+        seed_nodes: Optional[set] = None,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
         gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
         max_gas_price: Optional[int] = None,
-        signer_uri: Optional[str] = None,
+        wallet: Optional[Wallet] = None,
         wallet_filepath: Optional[Path] = None,
-        # Payments
-        # TODO: Resolve code prefixing below, possibly with the use of nested configuration fields
         pre_payment_method: Optional[str] = None,
-        # Registries
         registry: Optional[ContractRegistry] = None,
         registry_filepath: Optional[Path] = None,
     ):
@@ -414,8 +376,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Identity
         # NOTE: NodeConfigurations can only be used with Self-Characters
-        self.is_me = True
-        self.checksum_address = checksum_address
+        self.is_peer = False
 
         # Keystore
         self.crypto_power = crypto_power
@@ -429,6 +390,10 @@ class CharacterConfiguration(BaseConfiguration):
             if keystore
             else UNINITIALIZED_CONFIGURATION
         )
+
+        # Wallet
+        self.wallet = wallet
+        self.wallet_filepath = Path(wallet_filepath or self.DEFAULT_WALLET_FILEPATH)
 
         # Contract Registry
         if registry and registry_filepath:
@@ -444,19 +409,12 @@ class CharacterConfiguration(BaseConfiguration):
         self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
-        self.poa = poa
-        self.is_light = light
         self.eth_endpoint = eth_endpoint or NO_BLOCKCHAIN_CONNECTION
         self.polygon_endpoint = polygon_endpoint or NO_BLOCKCHAIN_CONNECTION
 
         # Learner
         self.domain = domains.get_domain(str(domain))
-        self.learn_on_same_thread = learn_on_same_thread
-        self.abort_on_learning_error = abort_on_learning_error
-        self.start_learning_now = start_learning_now
-        self.save_metadata = save_metadata
-        self.reload_metadata = reload_metadata
-        self.known_nodes = known_nodes or set()  # handpicked
+        self.peers = seed_nodes or set()  # handpicked
         self.lonely = lonely
 
         # Configuration
@@ -473,7 +431,7 @@ class CharacterConfiguration(BaseConfiguration):
 
         if not self.registry:
             if not self.registry_filepath:
-                self.log.info("Fetching latest registry from source.")
+                self.log.info("Fetching latest registry from remote source.")
                 self.registry = ContractRegistry.from_latest_publication(
                     domain=self.domain
                 )
@@ -482,23 +440,11 @@ class CharacterConfiguration(BaseConfiguration):
                     domain=self.domain, filepath=self.registry_filepath
                 )
                 self.registry = ContractRegistry(source=source)
-                self.log.info(f"Using local registry ({self.registry}).")
+                self.log.info(f"Using local registry source ({self.registry}).")
 
         #
         # Onchain Payments & Policies
         #
-
-        self._wallet_filepath = wallet_filepath or None
-        self.signer_uri = signer_uri or None
-
-        if self._wallet_filepath and self.signer_uri:
-            raise ValueError("Cannot specify both a signer URI and a wallet filepath.")
-        if signer_uri:
-            self.signer_uri = signer_uri
-            self._wallet_filepath = None
-        if wallet_filepath:
-            self._wallet_filepath = Path(wallet_filepath).absolute()
-            self.signer_uri = f"{KeystoreSigner.uri_scheme()}://{wallet_filepath}"
 
         # FIXME: Enforce this for Ursula/Alice but not Bob?
         from nucypher.config.characters import BobConfiguration
@@ -513,8 +459,9 @@ class CharacterConfiguration(BaseConfiguration):
 
             self.initialize(
                 keystore_password=DEVELOPMENT_CONFIGURATION,
-                generate_wallet=False
+                wallet_password=DEVELOPMENT_CONFIGURATION,
             )
+
         else:
             self.__temp_dir = LIVE_CONFIGURATION
             self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
@@ -539,8 +486,6 @@ class CharacterConfiguration(BaseConfiguration):
                 if not is_initialized:
                     BlockchainInterfaceFactory.initialize_interface(
                         endpoint=endpoint,
-                        poa=self.poa,
-                        light=self.is_light,
                         emitter=self.emitter,
                         gas_strategy=self.gas_strategy,
                         max_gas_price=self.max_gas_price,
@@ -553,15 +498,16 @@ class CharacterConfiguration(BaseConfiguration):
     def __call__(self, **character_kwargs):
         return self.produce(**character_kwargs)
 
-    @property
-    def signer(self):
-        return Signer.from_signer_uri(
-            self.signer_uri, testnet=self.domain.is_testnet
+    def unlock_wallet(self, password: str) -> None:
+        """Unlock the wallet with the given password."""
+        self.wallet = Wallet.from_keystore(
+            path=self.wallet_filepath,
+            password=password,
         )
 
     @property
     def wallet_address(self) -> ChecksumAddress:
-        with open(self._wallet_filepath, 'r') as f:
+        with open(self.wallet_filepath, 'r') as f:
             keyfile_json = json.load(f)
         return to_checksum_address(keyfile_json['address'])
 
@@ -571,36 +517,6 @@ class CharacterConfiguration(BaseConfiguration):
 
     def attach_keystore(self, keystore: Keystore) -> None:
         self.__keystore = keystore
-
-    @classmethod
-    def address_from_filepath(cls, filepath: Path) -> str:
-        pattern = re.compile(
-            r"""
-                             (^\w+)-
-                             (0x{1}           # Then, 0x the start of the string, exactly once
-                             [0-9a-fA-F]{40}) # Followed by exactly 40 hex chars
-                             """,
-            re.VERBOSE,
-        )
-
-        filename = filepath.name
-        match = pattern.match(filename)
-
-        if match:
-            character_name, checksum_address = match.groups()
-        else:
-            # Extract from default by "peeking" inside the configuration file.
-            default_name = cls.generate_filename()
-            if filename == default_name:
-                checksum_address = cls.peek(filepath=filepath, field="checksum_address")
-            else:
-                raise ValueError(f"Cannot extract checksum from filepath '{filepath}'")
-
-        if not is_checksum_address(checksum_address):
-            raise RuntimeError(
-                f"Invalid checksum address detected in configuration file at '{filepath}'."
-            )
-        return checksum_address
 
     def update(self, **kwargs) -> None:
         """
@@ -615,17 +531,15 @@ class CharacterConfiguration(BaseConfiguration):
     def generate(
             cls,
             keystore_password: str,
-            wallet_password: str = None,
+            wallet_password: str,
             key_material: Optional[bytes] = None,
             *args, **kwargs
     ):
-        """Shortcut: Hook-up a new initial installation and configuration."""
         node_config = cls(dev_mode=False, *args, **kwargs)
         node_config.initialize(
             key_material=key_material,
             keystore_password=keystore_password,
             wallet_password=wallet_password,
-            generate_wallet=bool(wallet_password),
         )
         return node_config
 
@@ -718,8 +632,6 @@ class CharacterConfiguration(BaseConfiguration):
 
         # Optional values (mode)
         if self.eth_endpoint:
-            if not self.signer_uri:
-                self.signer_uri = self.eth_endpoint
             payload.update(
                 dict(eth_endpoint=self.eth_endpoint,)
             )
@@ -746,26 +658,18 @@ class CharacterConfiguration(BaseConfiguration):
         """
         payload = dict(
             registry=self.registry,
-            signer=self.signer,
+            wallet=self.wallet,
             network_middleware=self.network_middleware
             or self.DEFAULT_NETWORK_MIDDLEWARE(),
-            known_nodes=self.known_nodes,
+            seed_nodes=self.peers,
             keystore=self.keystore,
             crypto_power_ups=self.derive_node_power_ups(),
         )
 
         return payload
 
-    def generate_filepath(
-        self,
-        filepath: Optional[Path] = None,
-        modifier: str = None,
-        override: bool = False,
-    ) -> Path:
-        modifier = modifier or self.checksum_address
-        filepath = super().generate_filepath(
-            filepath=filepath, modifier=modifier, override=override
-        )
+    def generate_filepath(self, filepath: Optional[Path] = None, override: bool = False) -> Path:
+        filepath = super().generate_filepath(filepath=filepath, override=override)
         return filepath
 
     @property
@@ -796,7 +700,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
-        if self.is_me and not self.dev_mode:
+        if not self.is_peer and not self.dev_mode:
             for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
                 power_up = self.keystore.derive_crypto_power(power_class)
                 power_ups.append(power_up)
@@ -805,13 +709,10 @@ class CharacterConfiguration(BaseConfiguration):
     def initialize(
             self,
             keystore_password: str,
-            generate_wallet: bool = True,
-            wallet_password: Optional[str] = None,
+            wallet_password: Optional[str],
             key_material: Optional[bytes] = None
     ) -> Path:
         """Initialize a new configuration and write installation files to disk."""
-        if generate_wallet and not wallet_password:
-            raise ValueError("Cannot generate wallet without a wallet password.")
 
         # Development
         if self.dev_mode:
@@ -819,6 +720,7 @@ class CharacterConfiguration(BaseConfiguration):
                 prefix=self.TEMP_CONFIGURATION_DIR_PREFIX
             )
             self.config_root = Path(self.__temp_dir.name)
+            self.wallet = Wallet.random()
 
         # Persistent
         else:
@@ -827,8 +729,8 @@ class CharacterConfiguration(BaseConfiguration):
                 key_material=key_material,
                 keystore_password=keystore_password,
                 wallet_password=wallet_password,
-                generate_wallet=generate_wallet,
             )
+
         self._cache_runtime_filepaths()
 
         # Validate
@@ -843,39 +745,43 @@ class CharacterConfiguration(BaseConfiguration):
     def keygen(
             self,
             keystore_password: str,
-            generate_wallet: bool = True,
-            wallet_password: Optional[str] = None,
+            wallet_password: Optional[str],
             key_material: Optional[bytes] = None
     ) -> Keystore:
         if key_material:
-            self.__keystore = Keystore.import_secure(key_material=key_material,
-                                                     password=keystore_password,
-                                                     keystore_dir=self.keystore_dir)
+            self.__keystore = Keystore.import_secure(
+                keystore_dir=self.keystore_dir,
+                key_material=key_material,
+                password=keystore_password,
+            )
         else:
-
             __words = _generate_mnemonic(
                 entropy=_ENTROPY_BITS,
                 language=_MNEMONIC_LANGUAGE,
                 interactive=True
             )
 
-            self.__keystore = Keystore.generate(
+            self.__keystore = Keystore.from_mnemonic(
                 phrase=__words,
-                keystore_password=keystore_password,
+                password=keystore_password,
                 keystore_dir=self.keystore_dir,
             )
 
-            if generate_wallet:
-                if not wallet_password:
-                    raise ValueError("Cannot generate wallet without a wallet password.")
-                address, _dpath, _fpath = _generate_wallet(
-                    phrase=__words,
-                    language=_MNEMONIC_LANGUAGE,
-                    password=wallet_password,
-                    filepath=Keystore._DEFAULT_WALLET_FILEPATH,
-                    index=0,
-                )
-                self._wallet_filepath = _fpath
+            if not self.wallet:
+                if self.wallet_filepath.exists():
+                    # This is an existing keystore, so we need to load the wallet.
+                    # We'll decrypt the wallet with the keystore password here to ensure it's correct.
+                    self.wallet = Wallet.from_keystore(self.wallet_filepath, password=wallet_password)
+                else:
+                    # This is a new keystore without an ethereum wallet, so we need to generate a wallet.
+                    self.wallet, _dpath, self.wallet_filepath = _generate_wallet(
+                        filepath=self.wallet_filepath,
+                        phrase=__words,
+                        language=_MNEMONIC_LANGUAGE,
+                        password=wallet_password,
+                        index=0,
+                    )
+
         return self.keystore
     def configure_pre_payment_method(self):
         # TODO: finalize config fields

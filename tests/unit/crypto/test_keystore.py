@@ -98,9 +98,9 @@ def test_keystore_generation_defaults(tmp_path_factory, mnemonic):
     parent.touch(exist_ok=True)
 
     # Test
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=parent
     )
     assert not keystore.is_unlocked        # defaults to locked
@@ -110,12 +110,12 @@ def test_keystore_generation_defaults(tmp_path_factory, mnemonic):
 
 def test_keystore_invalid_password(tmpdir, mnemonic):
     with pytest.raises(InvalidPassword):
-        _keystore = Keystore.generate(keystore_password='short', keystore_dir=tmpdir, phrase=mnemonic)
+        _keystore = Keystore.from_mnemonic(password='short', keystore_dir=tmpdir, phrase=mnemonic)
 
 
 def test_keystore_generate_report_interactive_false(tmpdir, mnemonic):
-    _keystore = Keystore.generate(
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+    _keystore = Keystore.from_mnemonic(
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir,
         phrase=mnemonic
       )
@@ -123,9 +123,9 @@ def test_keystore_generate_report_interactive_false(tmpdir, mnemonic):
 
 
 def test_keystore_derive_crypto_power_without_unlock(tmpdir, mnemonic):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
     with pytest.raises(Keystore.Locked):
@@ -143,9 +143,9 @@ def test_keystore_serializer():
 
 
 def test_keystore_lock_unlock(tmpdir, mnemonic):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
 
@@ -201,9 +201,9 @@ def test_decrypt_keystore(tmpdir, mocker):
     spy = mocker.spy(Mnemonic, 'generate')
 
     # Decrypt post-generation
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=words,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -221,9 +221,9 @@ def test_decrypt_keystore(tmpdir, mocker):
 
 def test_keystore_persistence(tmpdir, mnemonic):
     """Regression test for keystore file persistence"""
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -239,9 +239,9 @@ def test_restore_keystore_from_mnemonic(tmpdir, mocker):
     spy = mocker.spy(Mnemonic, 'generate')
 
     # Decrypt post-generation
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=words,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -312,7 +312,7 @@ def test_import_custom_keystore(tmpdir):
 
 
 def test_derive_signing_power(tmpdir, mnemonic):
-    keystore = Keystore.generate(phrase=mnemonic, keystore_password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore = Keystore.from_mnemonic(phrase=mnemonic, password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     signing_power = keystore.derive_crypto_power(power_class=SigningPower)
     assert signing_power.public_key().to_compressed_bytes().hex()
@@ -320,9 +320,9 @@ def test_derive_signing_power(tmpdir, mnemonic):
 
 
 def test_derive_decrypting_power(tmpdir, mnemonic):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -332,9 +332,9 @@ def test_derive_decrypting_power(tmpdir, mnemonic):
 
 
 def test_derive_delegating_power(tmpdir, mnemonic):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir
+        password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir
     )
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     delegating_power = keystore.derive_crypto_power(power_class=DelegatingPower)
@@ -348,9 +348,9 @@ def test_derive_delegating_power(tmpdir, mnemonic):
 
 
 def test_derive_hosting_power(tmpdir, mnemonic):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+        password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     hosting_power = keystore.derive_crypto_power(power_class=TLSHostingPower, host=LOOPBACK_ADDRESS)
     assert hosting_power.public_key().public_numbers()
@@ -360,9 +360,9 @@ def test_derive_hosting_power(tmpdir, mnemonic):
 
 
 def test_derive_threshold_request_decrypting_power(tmpdir, mnemonic):
-    keystore = Keystore.generate(
+    keystore = Keystore.from_mnemonic(
         phrase=mnemonic,
-        keystore_password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+        password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
     keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     threshold_request_decrypting_power = keystore.derive_crypto_power(
         power_class=ThresholdRequestDecryptingPower

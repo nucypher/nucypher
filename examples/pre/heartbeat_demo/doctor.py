@@ -12,7 +12,7 @@ from nucypher_core.umbral import PublicKey
 from nucypher.blockchain.eth import domains
 from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.crypto.powers import DecryptingPower, SigningPower
+from nucypher.crypto.powers import DecryptingPower, SigningPower, CryptoPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 ######################
@@ -45,7 +45,7 @@ print("Creating the Doctor ...")
 
 doctor = Bob(
     domain=TACO_DOMAIN,
-    crypto_power_ups=power_ups,
+    crypto_power=CryptoPower(power_ups=power_ups),
     eth_endpoint=L1_PROVIDER,
 )
 

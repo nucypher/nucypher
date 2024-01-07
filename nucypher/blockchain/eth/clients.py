@@ -166,10 +166,6 @@ class EthereumClient:
             cls.GETH: GethClient,
             cls.BOR: BorClient,
 
-            # Parity
-            cls.PARITY: ParityClient,
-            cls.ALT_PARITY: ParityClient,
-
             # Test Clients
             cls.GANACHE: GanacheClient,
             cls.ETHEREUM_TESTER: EthereumTesterClient,
@@ -468,26 +464,6 @@ class GethClient(EthereumClient):
 
 class BorClient(GethClient):
     """Geth to Bor adapter"""
-
-
-class ParityClient(EthereumClient):
-
-    @property
-    def peers(self) -> list:
-        """
-        TODO: Look for web3.py support for Parity Peers endpoint
-        """
-        return self.w3.manager.request_blocking("parity_netPeers", [])
-
-    def new_account(self, password: str) -> str:
-        new_account = self.w3.parity.personal.new_account(password)
-        return to_checksum_address(new_account)  # cast and validate
-
-    def unlock_account(self, account, password, duration: int = None) -> bool:
-        return self.w3.parity.personal.unlock_account(account, password, duration)
-
-    def lock_account(self, account):
-        return self.w3.parity.personal.lock_account(account)
 
 
 class GanacheClient(EthereumClient):

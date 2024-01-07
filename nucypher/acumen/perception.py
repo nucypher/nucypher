@@ -335,7 +335,7 @@ class FleetSensor:
     def shuffled(self):
         return self._current_state.shuffled()
 
-    def mark_as(self, label: Exception, node: "characters.lawful.Ursula"):
+    def mark_for_removal(self, label: Exception, node: "characters.lawful.Ursula"):
         # TODO: for now we're not using `label` in any way, so we're just ignoring it
         self._nodes_to_remove.add(node.checksum_address)
 

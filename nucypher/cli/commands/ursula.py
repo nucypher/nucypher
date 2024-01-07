@@ -3,7 +3,7 @@ from pathlib import Path
 import click
 
 from nucypher.cli.actions.auth import (
-    get_client_password,
+    get_wallet_password,
     get_nucypher_password,
     recover_keystore,
 )
@@ -36,16 +36,14 @@ from nucypher.cli.options import (
     option_light,
     option_lonely,
     option_max_gas_price,
-    option_min_stake,
     option_poa,
     option_polygon_endpoint,
     option_pre_payment_method,
     option_registry_filepath,
-    option_signer_uri,
-    option_teacher_uri,
+    option_peer_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
-from nucypher.cli.types import EIP55_CHECKSUM_ADDRESS, NETWORK_PORT, OPERATOR_IP
+from nucypher.cli.types import NETWORK_PORT, OPERATOR_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -64,14 +62,13 @@ from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
 DEFAULT_CONFIG_FILEPATH = DEFAULT_CONFIG_ROOT / "ursula.json"
 
 
-class UrsulaInitOptions:
+class UrsulaConfigOptions:
 
     __option_name__ = "config_options"
 
     def __init__(
         self,
         eth_endpoint: str,
-        operator_address: str,
         rest_host: str,
         rest_port: int,
         domain: str,
@@ -81,7 +78,6 @@ class UrsulaInitOptions:
         light: bool,
         gas_strategy: str,
         max_gas_price: int,  # gwei
-        signer_uri: str,
         wallet_filepath: Path,
         lonely: bool,
         polygon_endpoint: str,
@@ -89,9 +85,7 @@ class UrsulaInitOptions:
     ):
 
         self.eth_endpoint = eth_endpoint
-        self.signer_uri = signer_uri
         self.wallet_filepath = wallet_filepath
-        self.operator_address = operator_address
         self.rest_host = rest_host
         self.rest_port = rest_port  # FIXME: not used in generate()
         self.domain = domain
@@ -111,15 +105,11 @@ class UrsulaInitOptions:
                 emitter=emitter,
                 dev_mode=True,
                 domain=TEMPORARY_DOMAIN_NAME,
-                poa=self.poa,
-                light=self.light,
                 registry_filepath=self.registry_filepath,
                 eth_endpoint=self.eth_endpoint,
-                signer_uri=self.signer_uri,
                 wallet_filepath=UrsulaConfiguration.DEFAULT_WALLET_FILEPATH,
                 gas_strategy=self.gas_strategy,
                 max_gas_price=self.max_gas_price,
-                operator_address=self.operator_address,
                 rest_host=self.rest_host,
                 rest_port=self.rest_port,
                 pre_payment_method=self.pre_payment_method,
@@ -135,14 +125,11 @@ class UrsulaInitOptions:
                     domain=self.domain,
                     registry_filepath=self.registry_filepath,
                     eth_endpoint=self.eth_endpoint,
-                    signer_uri=self.signer_uri,
                     wallet_filepath=self.wallet_filepath,
                     gas_strategy=self.gas_strategy,
                     max_gas_price=self.max_gas_price,
                     rest_host=self.rest_host,
                     rest_port=self.rest_port,
-                    poa=self.poa,
-                    light=self.light,
                     pre_payment_method=self.pre_payment_method,
                     polygon_endpoint=self.polygon_endpoint,
                 )
@@ -186,20 +173,16 @@ class UrsulaInitOptions:
         return UrsulaConfiguration.generate(
             key_material=bytes.fromhex(key_material) if key_material else None,
             keystore_password=get_nucypher_password(emitter=emitter, confirm=True),
-            wallet_password=get_client_password(envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, confirm=True),
+            wallet_password=get_wallet_password(envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD, confirm=True),
             wallet_filepath=self.wallet_filepath,
-            signer_uri=self.signer_uri,
             config_root=config_root,
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             domain=self.domain,
-            operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             eth_endpoint=self.eth_endpoint,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
-            poa=self.poa,
-            light=self.light,
             pre_payment_method=self.pre_payment_method,
             polygon_endpoint=self.polygon_endpoint,
         )
@@ -209,15 +192,11 @@ class UrsulaInitOptions:
             rest_host=self.rest_host,
             rest_port=self.rest_port,
             domain=self.domain,
-            operator_address=self.operator_address,
             registry_filepath=self.registry_filepath,
             eth_endpoint=self.eth_endpoint,
-            signer_uri=self.signer_uri,
+            wallet_filepath=self.wallet_filepath,
             gas_strategy=self.gas_strategy,
             max_gas_price=self.max_gas_price,
-            poa=self.poa,
-            light=self.light,
-            pre_payment_method=self.pre_payment_method,
             polygon_endpoint=self.polygon_endpoint,
         )
         # Depends on defaults being set on Configuration classes, filtrates None values
@@ -227,21 +206,15 @@ class UrsulaInitOptions:
 
 group_config_options = group_options(
     # NOTE: Don't set defaults here or they will be applied to config updates. Use the Config API.
-    UrsulaInitOptions,
+    UrsulaConfigOptions,
     eth_endpoint=option_eth_endpoint(),
-    signer_uri=option_signer_uri,
     wallet_filepath=click.option(
         "--wallet-filepath", "-w",
-        help="The filepath to the operator wallet (web3 secret storage format))",
+        help="The filepath to an encrypted ethereum software wallet in web3 secret storage format.",
         type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True),
     ),
     gas_strategy=option_gas_strategy,
     max_gas_price=option_max_gas_price,
-    operator_address=click.option(
-        "--operator-address",
-        help="Run with the specified operator address",
-        type=EIP55_CHECKSUM_ADDRESS,
-    ),
     rest_host=click.option(
         "--rest-host",
         help="The host IP address to run Ursula network services on",
@@ -267,33 +240,21 @@ class UrsulaCharacterOptions:
 
     __option_name__ = 'character_options'
 
-    def __init__(self, config_options: UrsulaInitOptions, teacher_uri, min_stake):
+    def __init__(self, config_options: UrsulaConfigOptions, peer_uri):
         self.config_options = config_options
-        self.teacher_uri = teacher_uri
-        self.min_stake = min_stake
+        self.peer_uri = peer_uri
 
-    def create_character(self, emitter, config_file, json_ipc, load_seednodes=True):
+    def create_character(self, emitter, config_file):
         ursula_config = self.config_options.create_config(emitter, config_file)
-        password_required = all((not self.config_options.dev, not json_ipc))
-        __password = None
-        if password_required:
-            __password = get_client_password(
-                envvar=NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
-            )
 
         try:
             URSULA = make_cli_character(
                 character_config=ursula_config,
                 emitter=emitter,
                 eth_endpoint=ursula_config.eth_endpoint,
-                min_stake=self.min_stake,
-                teacher_uri=self.teacher_uri,
-                unlock_keystore=not self.config_options.dev,
-                client_password=__password,
-                unlock_signer=False,  # Ursula's unlock is managed separately using client_password.
+                peer_uri=self.peer_uri,
+                unlock=not self.config_options.dev,
                 lonely=self.config_options.lonely,
-                start_learning_now=load_seednodes,
-                json_ipc=json_ipc,
             )
             return ursula_config, URSULA
 
@@ -306,8 +267,7 @@ class UrsulaCharacterOptions:
 group_character_options = group_options(
     UrsulaCharacterOptions,
     config_options=group_config_options,
-    teacher_uri=option_teacher_uri,
-    min_stake=option_min_stake
+    peer_uri=option_peer_uri,
 )
 
 
@@ -324,7 +284,7 @@ def ursula():
 @option_key_material
 def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config)
     _pre_launch_warnings(emitter, dev=None, force=force)
     if not config_root:
         config_root = general_config.config_root
@@ -363,7 +323,7 @@ def init(general_config, config_options, force, config_root, key_material):
 def recover(general_config, config_options):
     # TODO: Combine with work in PR #2682
     # TODO: Integrate regeneration of configuration files
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config, )
     recover_keystore(emitter=emitter)
 
 
@@ -374,7 +334,7 @@ def recover(general_config, config_options):
 @group_general_config
 def destroy(general_config, config_options, config_file, force):
     """Delete Ursula node configuration."""
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config, )
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
@@ -435,7 +395,7 @@ def run(
         )
 
     ursula_config, URSULA = character_options.create_character(
-        emitter=emitter, config_file=config_file, json_ipc=general_config.json_ipc
+        emitter=emitter, config_file=config_file,
     )
 
     if ip_checkup and not (dev_mode or lonely):
@@ -467,7 +427,7 @@ def config(general_config, config_options, config_file, force, action):
     ~~~~~~~~~~~~~
     ip-address - automatically detect and configure the external IP address.
     """
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config, )
     if action == "ip-address":
         rest_host = collect_operator_ip_address(
             emitter=emitter,
@@ -488,7 +448,7 @@ def config(general_config, config_options, config_file, force, action):
 @option_config_file
 @group_general_config
 def migrate(general_config, config_options, config_file):
-    emitter = setup_emitter(general_config, config_options.operator_address)
+    emitter = setup_emitter(general_config, )
 
     for jump, migration in MIGRATIONS.items():
         old, new = jump

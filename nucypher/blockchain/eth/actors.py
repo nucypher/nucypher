@@ -7,6 +7,7 @@ from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
+from eth_utils import to_canonical_address, to_checksum_address
 from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
@@ -28,7 +29,6 @@ from nucypher_core.ferveo import (
 from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
-from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -41,15 +41,14 @@ from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import truncate_checksum_address
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
     ThresholdRequestDecryptingPower,
-    TransactingPower,
 )
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
@@ -72,42 +71,11 @@ class BaseActor:
         self,
         domain: TACoDomain,
         registry: ContractRegistry,
-        transacting_power: Optional[TransactingPower] = None,
-        checksum_address: Optional[ChecksumAddress] = None,
+        wallet: Wallet
     ):
-        if not (bool(checksum_address) ^ bool(transacting_power)):
-            error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
-            raise ValueError(error)
-
-        try:
-            parent_address = self.checksum_address
-            if checksum_address is not None:
-                if parent_address != checksum_address:
-                    raise ValueError(f"Can't have two different ethereum addresses. "
-                                     f"Got {parent_address} and {checksum_address}.")
-        except AttributeError:
-            if transacting_power:
-                self.checksum_address = transacting_power.account
-            else:
-                self.checksum_address = checksum_address
-
-        self.transacting_power = transacting_power
+        self.wallet = wallet
         self.registry = registry
         self.domain = domain
-        self._saved_receipts = list()  # track receipts of transmitted transactions
-
-    def __repr__(self):
-        class_name = self.__class__.__name__
-        r = "{}(address='{}')"
-        r = r.format(class_name, self.checksum_address)
-        return r
-
-    def __eq__(self, other) -> bool:
-        """Actors are equal if they have the same address."""
-        try:
-            return bool(self.checksum_address == other.checksum_address)
-        except AttributeError:
-            return False
 
     @property
     def eth_balance(self) -> Decimal:
@@ -118,17 +86,7 @@ class BaseActor:
 
     @property
     def wallet_address(self):
-        return self.checksum_address
-
-
-class NucypherTokenActor(BaseActor):
-    """
-    Actor to interface with the NuCypherToken contract
-    """
-
-    def __init__(self, registry: ContractRegistry, **kwargs):
-        super().__init__(registry=registry, **kwargs)
-        self.__token_agent = None
+        return self.wallet.address
 
 
 class Operator(BaseActor):
@@ -154,13 +112,8 @@ class Operator(BaseActor):
         eth_endpoint: str,
         polygon_endpoint: str,
         pre_payment_method: ContractPayment,
-        transacting_power: TransactingPower,
-        signer: Signer = None,
         crypto_power: CryptoPower = None,
-        client_password: str = None,
-        operator_address: Optional[ChecksumAddress] = None,
         condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
-        publish_finalization: bool = True,  # TODO: Remove this
         *args,
         **kwargs,
     ):
@@ -172,27 +125,11 @@ class Operator(BaseActor):
         if not pre_payment_method:
             raise ValueError("PRE payment method is required to init an operator.")
 
-        if not transacting_power:
-            transacting_power = TransactingPower(
-                account=operator_address,
-                password=client_password,
-                signer=signer,
-                cache=True,
-            )
-
-        # We pass the newly instantiated TransactingPower into consume_power_up here, even though it's accessible
-        # on the instance itself (being composed in the __init__ of the base class, which we will call shortly)
-        # because, given the need for initialization context, it's far less melodramatic
-        # to do it here, and it's still available via the public crypto powers API.
-        crypto_power.consume_power_up(transacting_power)
-
         self.pre_payment_method = pre_payment_method
         self._operator_bonded_tracker = OperatorBondedTracker(ursula=self)
 
-        super().__init__(transacting_power=transacting_power, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.log = Logger("operator")
-
-        self.__staking_provider_address = None  # set by block_until_ready
 
         self.application_agent = ContractAgency.get_agent(
             TACoApplicationAgent,
@@ -218,11 +155,9 @@ class Operator(BaseActor):
             operator=self,
         )
 
-        self.publish_finalization = (
-            publish_finalization  # publish the DKG final key if True
-        )
         # TODO: #3052 stores locally generated public DKG artifacts
         self.dkg_storage = DKGStorage()
+
         self.ritual_power = crypto_power.power_ups(
             RitualisticPower
         )  # ferveo material contained within
@@ -234,14 +169,23 @@ class Operator(BaseActor):
             condition_blockchain_endpoints
         )
 
-    def set_provider_public_key(self) -> Union[TxReceipt, None]:
+    @property
+    def canonical_address(self):
+        # TODO: This is wasteful.  #1995
+        return to_canonical_address(str(self._staking_provider_address))
+
+    @property
+    def checksum_address(self):
+        return to_checksum_address(self._staking_provider_address)
+
+    def set_provider_public_key(self, force: bool = False) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
         node_global_ferveo_key_set = self.coordinator_agent.is_provider_public_key_set(
             self.staking_provider_address
         )
         if not node_global_ferveo_key_set:
             receipt = self.coordinator_agent.set_provider_public_key(
-                self.ritual_power.public_key(), transacting_power=self.transacting_power
+                self.ritual_power.public_key(), wallet=self.wallet
             )
             return receipt
 
@@ -336,7 +280,7 @@ class Operator(BaseActor):
         tx_hash = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
-            transacting_power=self.transacting_power,
+            wallet=self.wallet,
             fire_and_forget=True,
         )
         return tx_hash
@@ -357,7 +301,7 @@ class Operator(BaseActor):
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             participant_public_key=participant_public_key,
-            transacting_power=self.transacting_power,
+            wallet=self.wallet,
             fire_and_forget=True,
         )
         return tx_hash
@@ -370,12 +314,12 @@ class Operator(BaseActor):
         timestamp: int,
     ) -> Optional[HexBytes]:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
-        if self.checksum_address not in participants:
-            # should never get here
+        if self.staking_provider_address not in participants:
+            # If this node and the network are in proper working order, this branch should never happen
             self.log.error(
                 f"Not part of ritual {ritual_id}; no need to submit transcripts"
             )
-            raise self.RitualError(
+            raise Operator.UnauthorizedRequest(
                 f"Not part of ritual {ritual_id}; don't post transcript"
             )
 
@@ -391,11 +335,11 @@ class Operator(BaseActor):
 
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant_from_provider(
-            ritual_id=ritual_id, provider=self.checksum_address
+            ritual_id=ritual_id, provider=self.staking_provider_address
         )
         if participant.transcript:
             self.log.debug(
-                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}; skipping execution"
+                f"Operator {self.wallet.address} has already posted a transcript for ritual {ritual_id}; skipping execution"
             )
             return None
 
@@ -409,8 +353,8 @@ class Operator(BaseActor):
                 txhash = pending_tx
             txhash = bytes(txhash).hex()
             self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {txhash} "
-                f"for posting transcript for ritual {ritual_id}; skipping execution"
+                f"Node {self.wallet.address} has pending tx {txhash} for posting transcript "
+                f"for ritual {ritual_id}; skipping execution"
             )
             return None
 
@@ -433,7 +377,7 @@ class Operator(BaseActor):
                 nodes=nodes,
                 threshold=ritual.threshold,
                 shares=ritual.shares,
-                checksum_address=self.checksum_address,
+                checksum_address=self.staking_provider_address,
                 ritual_id=ritual_id
             )
         except Exception as e:
@@ -452,7 +396,7 @@ class Operator(BaseActor):
 
         arrival = ritual.total_transcripts + 1
         self.log.debug(
-            f"{self.transacting_power.account[:8]} submitted a transcript for "
+            f"{self.wallet.address[:8]} submitted a transcript for "
             f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) with authority {authority}."
         )
         return tx_hash
@@ -475,7 +419,7 @@ class Operator(BaseActor):
         )
         if participant.aggregated:
             self.log.debug(
-                f"Node {self.transacting_power.account} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
+                f"Node {self.wallet.address} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
             )
             return None
 
@@ -486,12 +430,12 @@ class Operator(BaseActor):
         )
         if pending_tx:
             self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting aggregated transcript for ritual {ritual_id}; skipping execution"
+                f"Node {self.wallet.address} has pending tx {pending_tx} for posting aggregated transcript for ritual {ritual_id}; skipping execution"
             )
             return None
 
         self.log.debug(
-            f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
+            f"{self.wallet.address[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
@@ -538,7 +482,7 @@ class Operator(BaseActor):
 
         # logging
         self.log.debug(
-            f"{self.transacting_power.account[:8]} aggregated a transcript for "
+            f"{self.wallet.address[:8]} aggregated a transcript for "
             f"DKG ritual #{ritual_id} ({total}/{len(ritual.providers)})"
         )
         if total >= len(ritual.providers):
@@ -703,32 +647,21 @@ class Operator(BaseActor):
         )
         return encrypted_response
 
-    def _local_operator_address(self):
-        return self.__operator_address
-
-    @property
-    def wallet_address(self):
-        return self.operator_address
-
     @property
     def staking_provider_address(self) -> ChecksumAddress:
-        if not self.__staking_provider_address:
-            self.__staking_provider_address = self.get_staking_provider_address()
-        return self.__staking_provider_address
+        return self._staking_provider_address
 
     def get_staking_provider_address(self) -> ChecksumAddress:
-        self.__staking_provider_address = (
+        self._staking_provider_address = (
             self.child_application_agent.staking_provider_from_operator(
-                self.operator_address
+                self.wallet.address
             )
         )
-        self.checksum_address = self.__staking_provider_address
-        self.nickname = Nickname.from_seed(self.checksum_address)
-        return self.__staking_provider_address
+        return self._staking_provider_address
 
     @property
     def is_confirmed(self) -> bool:
-        return self.child_application_agent.is_operator_confirmed(self.operator_address)
+        return self.child_application_agent.is_operator_confirmed(self.wallet.address)
 
     def block_until_ready(self, poll_rate: int = None, timeout: int = None):
         emitter = StdoutEmitter()
@@ -753,17 +686,17 @@ class Operator(BaseActor):
 
             if not funded:
                 # check for funds
-                matic_balance = taco_child_client.get_balance(self.operator_address)
+                matic_balance = taco_child_client.get_balance(self.wallet.address)
                 if matic_balance:
                     # funds found
                     funded, balance = True, Web3.from_wei(matic_balance, "ether")
                     emitter.message(
-                        f"✓ Operator {self.operator_address} is funded with {balance} MATIC",
+                        f"✓ Operator {self.wallet.address} is funded with {balance} MATIC",
                         color="green",
                     )
                 else:
                     emitter.message(
-                        f"! Operator {self.operator_address} is not funded with MATIC",
+                        f"! Operator {self.wallet.address} is not funded with MATIC",
                         color="yellow",
                     )
 
@@ -771,12 +704,12 @@ class Operator(BaseActor):
                 # check root
                 taco_root_bonded_address = (
                     self.application_agent.get_staking_provider_from_operator(
-                        self.operator_address
+                        self.wallet.address
                     )
                 )
                 if taco_root_bonded_address == NULL_ADDRESS:
                     emitter.message(
-                        f"! Operator {self.operator_address} is not bonded to a staking provider",
+                        f"! Operator {self.wallet.address} is not bonded to a staking provider",
                         color="yellow",
                     )
                 else:
@@ -785,7 +718,7 @@ class Operator(BaseActor):
                     if taco_child_bonded_address == taco_root_bonded_address:
                         bonded = True
                         emitter.message(
-                            f"✓ Operator {self.operator_address} is bonded to staking provider {self.staking_provider_address}",
+                            f"✓ Operator {self.wallet.address} is bonded to staking provider {self.checksum_address}",
                             color="green",
                         )
                     else:
@@ -831,7 +764,7 @@ class Operator(BaseActor):
         return func
 
 
-class PolicyAuthor(NucypherTokenActor):
+class PolicyAuthor(BaseActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
 
     def __init__(self, eth_endpoint: str, *args, **kwargs):

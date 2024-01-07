@@ -8,23 +8,22 @@ from nucypher.network.middleware import RestMiddleware
 from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
-def test_proper_seed_node_instantiation(lonely_ursula_maker):
-    _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1)
+def test_proper_seed_node_instantiation(lonely_ursula_maker, accounts):
+    _lonely_ursula_maker = partial(lonely_ursula_maker, quantity=1, accounts=accounts)
     firstula = _lonely_ursula_maker(domain=TEMPORARY_DOMAIN_NAME).pop()
-    firstula_as_seed_node = firstula.seed_node_metadata()
     any_other_ursula = _lonely_ursula_maker(
-        seed_nodes=[firstula_as_seed_node], domain=TEMPORARY_DOMAIN_NAME
+        seed_nodes=[firstula], domain=TEMPORARY_DOMAIN_NAME, start_peering_now=False
     ).pop()
 
-    assert not any_other_ursula.known_nodes
-    any_other_ursula.start_learning_loop(now=True)
-    assert firstula in any_other_ursula.known_nodes
+    assert not any_other_ursula.peers
+    any_other_ursula.start_peering(now=True)
+    assert firstula in any_other_ursula.peers
 
 
 @pt.inlineCallbacks
-def test_get_cert_from_running_seed_node(lonely_ursula_maker):
+def test_get_cert_from_running_seed_node(lonely_ursula_maker, accounts):
 
-    firstula = lonely_ursula_maker().pop()
+    firstula = lonely_ursula_maker(accounts=accounts).pop()
     node_deployer = firstula.get_deployer()
 
     node_deployer.addServices()
@@ -33,16 +32,16 @@ def test_get_cert_from_running_seed_node(lonely_ursula_maker):
 
     certificate_as_deployed = node_deployer.cert.to_cryptography()
 
-    firstula_as_seed_node = firstula.seed_node_metadata()
     any_other_ursula = lonely_ursula_maker(
-        seed_nodes=[firstula_as_seed_node],
+        accounts=accounts,
+        seed_nodes=[firstula],
         network_middleware=RestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
     ).pop()
-    assert not any_other_ursula.known_nodes
+    assert not any_other_ursula.peers
 
     yield deferToThread(lambda: any_other_ursula.load_seednodes(record_fleet_state=True))
-    assert firstula in any_other_ursula.known_nodes
+    assert firstula in any_other_ursula.peers
 
-    firstula_as_learned = any_other_ursula.known_nodes[firstula.checksum_address]
+    firstula_as_learned = any_other_ursula.peers[firstula.checksum_address]
     firstula_as_learned.mature()
     assert certificate_as_deployed == firstula_as_learned.certificate

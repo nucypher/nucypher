@@ -21,22 +21,21 @@ from nucypher.blockchain.eth.interfaces import (
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
-from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.crypto.powers import TransactingPower
+
 from nucypher.network.nodes import Teacher
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
     MOCK_KEYSTORE_PATH,
-    NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS,
     TEMPORARY_DOMAIN,
     TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
+from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.registry import MockRegistrySource, mock_registry_sources
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
@@ -49,14 +48,14 @@ def pytest_addhooks(pluginmanager):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_sample_reservoir(testerchain, mock_contract_agency):
+def mock_sample_reservoir(accounts, mock_contract_agency):
     def mock_reservoir(
         without: Optional[Iterable[ChecksumAddress]] = None, *args, **kwargs
     ):
         addresses = {
-            address: 1
-            for address in testerchain.stake_providers_accounts
-            if address not in without
+            wallet.address: 1
+            for wallet in accounts.stake_provider_wallets
+            if wallet.address not in without
         }
         return StakingProvidersReservoir(addresses)
 
@@ -67,7 +66,7 @@ def mock_sample_reservoir(testerchain, mock_contract_agency):
 @pytest.fixture(scope="function")
 def mock_sign_message(mocker):
     mocked_sign_message = mocker.patch.object(
-        Web3Signer, "sign_message", return_value=os.urandom(32)
+        Wallet, "sign_message", return_value=os.urandom(32)
     )
     return mocked_sign_message
 
@@ -164,13 +163,13 @@ def agency(mock_contract_agency):
 
 @pytest.fixture(scope="function")
 def mock_funding_and_bonding(
-    testerchain, mocker, mock_taco_application_agent, mock_taco_child_application_agent
+    accounts, mocker, mock_taco_application_agent, mock_taco_child_application_agent
 ):
     # funding
     mocker.patch.object(EthereumClient, "get_balance", return_value=1)
 
     # bonding
-    staking_provider = testerchain.stake_providers_accounts[0]
+    staking_provider = accounts.stake_provider_wallets[0].address
     mock_taco_application_agent.get_staking_provider_from_operator.return_value = (
         staking_provider
     )
@@ -182,7 +181,7 @@ def mock_funding_and_bonding(
 @pytest.fixture(scope="module")
 def mock_accounts():
     accounts = dict()
-    for i in range(NUMBER_OF_MOCK_KEYSTORE_ACCOUNTS):
+    for i in range(ReservedTestAccountManager.NUMBER_OF_URSULAS_IN_TESTS):
         account = Account.create()
         filename = KEYFILE_NAME_TEMPLATE.format(month=i + 1, address=account.address)
         accounts[filename] = account
@@ -229,14 +228,14 @@ def patch_keystore(mock_accounts, monkeypatch, mocker):
         return account.address, dict(version=3, address=account.address)
 
     mocker.patch('pathlib.Path.iterdir', return_value=[Path(key) for key in mock_accounts.keys()])
-    monkeypatch.setattr(KeystoreSigner, '_KeystoreSigner__read_keystore', successful_mock_keyfile_reader)
+    monkeypatch.setattr(Wallet, '_Wallet__read_keystore', successful_mock_keyfile_reader)
     yield
-    monkeypatch.delattr(KeystoreSigner, '_KeystoreSigner__read_keystore')
+    monkeypatch.delattr(Wallet, '_Wallet__read_keystore')
 
 
 @pytest.fixture(scope='function')
 def mock_keystore(mocker):
-    mocker.patch.object(KeystoreSigner, '_KeystoreSigner__read_keystore')
+    mocker.patch.object(Wallet, '_Wallet__read_keystore')
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -247,11 +246,6 @@ def mock_substantiate_stamp(module_mocker, monkeymodule):
     module_mocker.patch.object(Teacher, "validate_operator")
 
 
-@pytest.fixture(scope="module", autouse=True)
-def mock_transacting_power(module_mocker, monkeymodule):
-    module_mocker.patch.object(TransactingPower, "unlock")
-
-
 @pytest.fixture(scope="module")
 def real_operator_get_staking_provider_address():
     _real_get_staking_provider_address = Operator.get_staking_provider_address
@@ -260,12 +254,13 @@ def real_operator_get_staking_provider_address():
 
 @pytest.mark.usefixtures("monkeymodule")
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(real_operator_get_staking_provider_address, testerchain):
+def bond_operators(real_operator_get_staking_provider_address, accounts):
     def faked(self, *args, **kwargs):
-        return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
+        return accounts.stake_provider_wallets[
+            accounts.ursula_wallets.index(self.wallet)
+        ].address
 
     Operator.get_staking_provider_address = faked
-    return testerchain.stake_providers_accounts
 
 
 @pytest.fixture(scope="module")
@@ -273,7 +268,7 @@ def monkeypatch_get_staking_provider_from_operator(monkeymodule):
     monkeymodule.setattr(
         Operator,
         "get_staking_provider_address",
-        lambda self: self.transacting_power.account,
+        lambda self: self.wallet.address,
     )
 
 
