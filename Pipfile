@@ -9,6 +9,7 @@ python_version = "3"
 [packages]
 nucypher-core = "==0.13.0"
 # Cryptography
+bip44 = "*"
 cryptography = ">=3.2"
 mnemonic = "*"
 pynacl = ">=1.4.0"
