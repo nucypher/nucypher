@@ -9,7 +9,6 @@ from twisted.internet.threads import deferToThread
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
@@ -21,6 +20,7 @@ from nucypher.policy.conditions.lingo import (
 )
 from nucypher.policy.conditions.time import TimeCondition
 from tests.constants import TEST_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
+from tests.utils.blockchain import TestAccount
 
 # constants
 DKG_SIZE = 4
@@ -120,7 +120,7 @@ def test_ursula_ritualist(
 
     # #TODO: This is a hack to handle two wallet types in the same test
     initiator_account = accounts.ape_accounts[1]
-    initiator_wallet = Wallet.from_key(initiator_account.private_key)
+    initiator_wallet = TestAccount.from_key(initiator_account.private_key)
 
     # Round 0 - Initiate the ritual
     def initialize():

@@ -1,7 +1,7 @@
 import pytest
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.wallets import Wallet
+from tests.utils.blockchain import TestAccount
 from nucypher.characters.chaotic import (
     NiceGuyEddie,
     ThisBobAlwaysDecrypts,
@@ -19,7 +19,7 @@ from tests.constants import (
 def _attempt_decryption(BobClass, plaintext, testerchain, peers):
     trinket = 80  # Doesn't matter.
 
-    wallet = Wallet.random()
+    wallet = TestAccount.random()
     enrico = NiceGuyEddie(encrypting_key=trinket, wallet=wallet)
     bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
@@ -52,14 +52,12 @@ def _attempt_decryption(BobClass, plaintext, testerchain, peers):
     return decrypted_cleartext
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 def test_user_controls_success(testerchain, ursulas):
     plaintext = b"ever thus to deadbeats"
     result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, testerchain, ursulas)
     assert bytes(result) == bytes(plaintext)
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 def test_user_controls_failure(testerchain, ursulas):
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas):

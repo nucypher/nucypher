@@ -53,7 +53,6 @@ class RestorableTestItem(BaseConfiguration):
 
 
 def test_base_configuration_defaults():
-    assert BaseConfiguration.DEFAULT_CONFIG_ROOT == DEFAULT_CONFIG_ROOT
     assert BaseConfiguration.NAME == NotImplemented
     assert BaseConfiguration._CONFIG_FILE_EXTENSION == expected_extension
 

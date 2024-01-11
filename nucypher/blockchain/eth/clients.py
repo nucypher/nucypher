@@ -1,14 +1,11 @@
-import os
 import time
 from functools import cached_property
 from typing import Union
 
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber, ChecksumAddress
-from eth_utils import to_canonical_address, to_checksum_address
+from eth_utils import to_checksum_address
 from web3 import Web3
 from web3._utils.threads import Timeout
 from web3.contract.contract import Contract
@@ -496,55 +493,4 @@ class AlchemyClient(EthereumClient):
 
 class EthereumTesterClient(EthereumClient):
     is_local = True
-
-    def unlock_account(self, account, password, duration: int = None) -> bool:
-        """Returns True if the testing backend keystore has control of the given address."""
-        account = to_checksum_address(account)
-        keystore_accounts = self.w3.provider.ethereum_tester.get_accounts()
-        if account in keystore_accounts:
-            return True
-        else:
-            return self.w3.provider.ethereum_tester.unlock_account(account=account,
-                                                                   password=password,
-                                                                   unlock_seconds=duration)
-
-    def lock_account(self, account) -> bool:
-        """Returns True if the testing backend keystore has control of the given address."""
-        account = to_canonical_address(account)
-        keystore_accounts = self.w3.provider.ethereum_tester.backend.get_accounts()
-        if account in keystore_accounts:
-            return True
-        else:
-            return self.w3.provider.ethereum_tester.lock_account(account=account)
-
-    def new_account(self, password: str) -> str:
-        insecure_account = self.w3.provider.ethereum_tester.add_account(private_key=os.urandom(32).hex(),
-                                                                        password=password)
-        return insecure_account
-
-    def __get_signing_key(self, account: bytes):
-        """Get signing key of test account"""
-        account = to_canonical_address(account)
-        try:
-            signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[account]._raw_key
-        except KeyError:
-            raise self.UnknownAccount(account)
-        return signing_key
-
-    def sign_transaction(self, transaction_dict: dict) -> bytes:
-        # Sign using a local private key
-        address = to_canonical_address(transaction_dict['from'])
-        signing_key = self.__get_signing_key(account=address)
-        signed_transaction = self.w3.eth.account.sign_transaction(transaction_dict, private_key=signing_key)
-        rlp_transaction = signed_transaction.rawTransaction
-        return rlp_transaction
-
-    def sign_message(self, account: str, message: bytes) -> str:
-        """Sign, EIP-191 (Geth) Style"""
-        signing_key = self.__get_signing_key(account=account)
-        signable_message = encode_defunct(primitive=message)
-        signature_and_stuff = Account.sign_message(signable_message=signable_message, private_key=signing_key)
-        return signature_and_stuff['signature']
-
-    def parse_transaction_data(self, transaction):
-        return transaction.data  # See https://github.com/ethereum/eth-tester/issues/173
+    pass

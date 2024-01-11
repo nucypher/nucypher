@@ -25,6 +25,7 @@ from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
@@ -34,7 +35,6 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
     WEB3_GAS_STRATEGIES,
@@ -432,7 +432,7 @@ class BlockchainInterface:
 
     def sign_and_broadcast_transaction(
         self,
-        wallet: Wallet,
+        wallet: LocalAccount,
         transaction_dict: Dict,
         transaction_name: str = "",
         confirmations: int = 0,
@@ -520,7 +520,7 @@ class BlockchainInterface:
     @validate_checksum_address
     def send_transaction(self,
                          contract_function: Union[ContractFunction, ContractConstructor],
-                         wallet: Wallet,
+                         wallet: LocalAccount,
                          payload: dict = None,
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337

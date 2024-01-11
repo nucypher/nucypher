@@ -32,7 +32,7 @@ def cohort(ursulas):
 
 
 @pytest.fixture(scope="module")
-def wallet(accounts, alice):
+def wallet(accounts):
     return accounts.alice_wallet
 
 

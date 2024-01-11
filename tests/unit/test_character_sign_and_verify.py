@@ -1,12 +1,12 @@
 import pytest
 
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Character
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower, NoSigningPower, SigningPower
 from nucypher.crypto.signing import InvalidSignature
 from nucypher.policy.payment import FreeReencryptions
 from tests.constants import MOCK_ETH_PROVIDER_URI, TEMPORARY_DOMAIN
+from tests.utils.blockchain import TestAccount
 
 """
 Chapter 1: SIGNING
@@ -73,7 +73,7 @@ def test_anybody_can_verify(test_registry):
         pre_payment_method=FreeReencryptions(),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         registry=test_registry,
-        wallet=Wallet.random(),
+        wallet=TestAccount.random(),
         lonely=True,
 
     )

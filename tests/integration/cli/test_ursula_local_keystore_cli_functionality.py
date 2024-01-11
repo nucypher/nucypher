@@ -1,11 +1,9 @@
 import json
 import secrets
-from pathlib import Path
 
 import pytest
-from eth_account import Account
 
-from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.cli.commands.ursula import UrsulaConfigOptions
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -14,7 +12,8 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
-from tests.constants import MOCK_IP_ADDRESS, INSECURE_DEVELOPMENT_PASSWORD
+from tests.constants import MOCK_IP_ADDRESS
+from tests.utils.blockchain import TestAccount
 from tests.utils.ursula import select_test_port
 
 
@@ -23,7 +22,7 @@ def mock_account_password_keystore(tmp_path_factory):
     """Generate a random keypair & password and create a local keystore"""
     keystore = tmp_path_factory.mktemp('keystore', numbered=True)
     password = secrets.token_urlsafe(12)
-    account = Account.create()
+    account = TestAccount.random()
     path = keystore / f'{account.address}'
     json.dump(account.encrypt(password), open(path, 'x+t'))
     return account, password, keystore
@@ -40,11 +39,17 @@ def test_ursula_init_with_local_keystore_wallet(
     mocker.patch.object(UrsulaConfigOptions, '_check_for_existing_config', autospec=True)
 
     # Good wallet...
-    random_wallet = Wallet.random()
+    random_wallet = TestAccount.random()
+    path = custom_filepath / 'test.json'
+
     wallet_filepath = random_wallet.to_keystore(
-        path=custom_filepath / 'test.json',
+        path=path,
         password=password
     )
+
+    # the actual filesystem write is mocked in tests, but we still need to create the file
+    # in order to pass the `--wallet-filepath` option since it is checked for existence
+    path.touch(exist_ok=True)
 
     deploy_port = select_test_port()
 
@@ -90,7 +95,6 @@ def test_ursula_init_with_local_keystore_wallet(
     assert ursula_config.wallet_filepath == wallet_filepath
 
     # Mock decryption of web3 client keystore
-    mocker.patch.object(Account, 'decrypt', return_value=worker_account.key)
     ursula_config.keystore.unlock(password=password)
     ursula_config.unlock_wallet(password=password)
 
@@ -98,4 +102,5 @@ def test_ursula_init_with_local_keystore_wallet(
     ursula = ursula_config.produce()
 
     # Verify the keystore path is still preserved
-    assert isinstance(ursula.wallet, Wallet)
+    assert isinstance(ursula.wallet, LocalAccount)
+    path.unlink()

@@ -3,7 +3,7 @@ from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import Keypair
 
-from nucypher.blockchain.eth.wallets import Wallet
+from tests.utils.blockchain import TestAccount
 from nucypher.crypto.utils import verify_eip_191
 
 
@@ -35,7 +35,7 @@ def test_sign_transaction(accounts, test_registry, testerchain):
 
 
 def test_wallet_sign_message():
-    wallet = Wallet.random()
+    wallet = TestAccount.random()
 
     # Sign
     data_to_sign = b'Premium Select Luxury Pencil Holder'
@@ -46,14 +46,14 @@ def test_wallet_sign_message():
     assert is_verified is True
 
     # Test invalid address/pubkey pair
-    is_verified = verify_eip_191(address=Wallet.random().address,
+    is_verified = verify_eip_191(address=TestAccount.random().address,
                                  message=data_to_sign,
                                  signature=signature)
     assert is_verified is False
 
 
 def test_wallet_sign_transaction(testerchain, accounts):
-    wallet = Wallet.random()
+    wallet = TestAccount.random()
 
     transaction_dict = {'nonce': testerchain.client.w3.eth.get_transaction_count(wallet.address),
                         'gasPrice': testerchain.client.w3.eth.gas_price,
@@ -80,7 +80,7 @@ def test_wallet_sign_transaction(testerchain, accounts):
 
 
 def test_wallet_sign_agent_transaction(testerchain, accounts, coordinator_agent):
-    wallet = Wallet.random()
+    wallet = TestAccount.random()
 
     public_key = Keypair.random().public_key()
     g2_point = coordinator_agent.G2Point.from_public_key(public_key)

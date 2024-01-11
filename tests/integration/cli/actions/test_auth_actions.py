@@ -1,12 +1,9 @@
-
-
 import os
 
 import pytest
 from constant_sorrow.constants import NO_PASSWORD
-from mnemonic.mnemonic import Mnemonic
+from eth_account.hdaccount import Mnemonic
 
-from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
 from nucypher.cli.actions.auth import (
     get_wallet_password,
     get_nucypher_password,
@@ -26,7 +23,6 @@ from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.passwords import SecretBoxAuthenticationError
 from nucypher.utilities.emitters import StdoutEmitter
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
-from tests.utils.blockchain import ReservedTestAccountManager
 
 
 @pytest.mark.parametrize('confirm', (True, False))
@@ -99,7 +95,7 @@ def test_unlock_nucypher_keystore_invalid_password(
                         return_value=False,
                         new_callable=mocker.PropertyMock)
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
@@ -131,7 +127,7 @@ def test_unlock_nucypher_keystore_dev_mode(
                         return_value=True,
                         new_callable=mocker.PropertyMock)
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )
@@ -154,7 +150,7 @@ def test_unlock_nucypher_keystore_dev_mode(
 
 
 def test_unlock_nucypher_keystore(
-    mocker, test_emitter, capsys, alice_test_config, patch_keystore, tmpdir
+    mocker, test_emitter, capsys, alice_test_config, tmpdir
 ):
 
     # Setup
@@ -166,7 +162,7 @@ def test_unlock_nucypher_keystore(
                         new_callable=mocker.PropertyMock)
     mocker.patch.object(Mnemonic, 'detect_language', return_value='english')
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=tmpdir
     )

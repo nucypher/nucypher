@@ -5,7 +5,7 @@ import click
 from constant_sorrow.constants import NO_PASSWORD
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
-from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,
@@ -15,10 +15,9 @@ from nucypher.cli.literature import (
 )
 from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import NUCYPHER_ENVVAR_KEYSTORE_PASSWORD
+from nucypher.crypto import mnemonic
 from nucypher.crypto.keystore import Keystore
-from nucypher.crypto.utils import _generate_wallet
 from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.crypto.constants import _MNEMONIC_LANGUAGE, _WORD_COUNT
 
 
 def get_password_from_prompt(prompt: str = GENERIC_PASSWORD_PROMPT, envvar: str = None, confirm: bool = False) -> str:
@@ -78,15 +77,15 @@ def recover_keystore(emitter) -> None:
                     'You will need to provide the entire mnemonic (space seperated) in the correct '
                     'order and choose a new password.', color='cyan')
     click.confirm('Do you want to continue', abort=True)
-    language = click.prompt('Enter language of mnemonic', type=str, default=_MNEMONIC_LANGUAGE)
+    language = click.prompt('Enter language of mnemonic', type=str, default=mnemonic._LANGUAGE)
 
     __words = click.prompt("Enter mnemonic words",
                            hide_input=True,
                            type=str)
 
     word_count = len(__words.split())
-    if word_count != _WORD_COUNT:
-        emitter.message(f'Invalid mnemonic - Number of words must be {str(_WORD_COUNT)}, but only got {word_count}')
+    if word_count != mnemonic._WORD_COUNT:
+        emitter.message(f'Invalid mnemonic - Number of words must be {str(mnemonic._WORD_COUNT)}, but only got {word_count}')
     __password = get_nucypher_password(emitter=emitter, confirm=True)
     keystore = Keystore.restore(words=__words, password=__password)
     emitter.message(f'Recovered nucypher keystore {keystore.id} to \n {keystore.keystore_filepath}', color='green')
@@ -96,12 +95,10 @@ def recover_keystore(emitter) -> None:
 
     index = click.prompt('Enter index of wallet to use', type=int, default=0)
     filepath = click.prompt('Enter filepath to save wallet', type=Path, default=Keystore._DEFAULT_DIR / 'operator.json')
-    account, dpath, fpath = _generate_wallet(
-        phrase=__words,
-        language=language,
+    account, fpath = LocalAccount.from_mnemonic(
+        mnemonic=__words,
         password=get_wallet_password(envvar=NUCYPHER_ENVVAR_KEYSTORE_PASSWORD, confirm=True),
         filepath=filepath,
-        index=index,
     )
     emitter.message(f'Generated ethereum wallet {account.address} to \n {fpath}', color='green')
 

@@ -13,8 +13,8 @@ from nucypher.blockchain.eth.agents import (
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.wallets import Wallet, Wallet
-from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.blockchain.eth.accounts import Account, Account
+from nucypher.blockchain.eth.accounts import Account
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.emitters import StdoutEmitter
@@ -26,7 +26,7 @@ GlobalLoggerSettings.start_console_logging()
 emitter = StdoutEmitter(verbosity=2)
 
 
-def get_wallet(signer: Wallet):
+def get_wallet(signer: Account):
     account_address = signer.accounts[0]
     emitter.echo(
         f"Using {account_address} for initiation/authorization for DKG Ritual",
@@ -37,7 +37,7 @@ def get_wallet(signer: Wallet):
         "Enter your keystore password", confirmation_prompt=False, hide_input=True
     )
     signer.unlock_account(account=account_address, password=password)
-    wallet = Wallet(signer=signer, account=account_address)
+    wallet = Account(signer=signer, account=account_address)
 
     return wallet
 
@@ -199,7 +199,7 @@ def nucypher_dkg(
     #
     if ritual_id < 0:
         # Obtain transacting power
-        signer = Wallet.from_keystore(path=wallet, password=password)
+        signer = Account.from_keystore(path=wallet, password=password)
         account_address = signer.accounts[0]
         wallet = get_wallet(signer=signer)
 
@@ -370,7 +370,7 @@ def nucypher_dkg(
                 return click.Abort()
 
             if not signer:
-                signer = Wallet.from_keystore(path=wallet_filepath, password=password)
+                signer = Account.from_keystore(path=wallet_filepath, password=password)
 
             if not wallet:
                 wallet = get_wallet(signer)

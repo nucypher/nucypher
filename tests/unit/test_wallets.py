@@ -3,14 +3,15 @@ import shutil
 
 import pytest
 from cytoolz.dicttoolz import assoc
-from eth_account import Account
+from eth_account.account import Account as EthAccount
 from eth_account._utils.legacy_transactions import Transaction
 from eth_utils.address import to_checksum_address, is_checksum_address
 from hexbytes.main import HexBytes
 
+from nucypher.blockchain.eth.accounts import InvalidKeystore, LocalAccount
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
-from nucypher.blockchain.eth.wallets import Wallet
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
+from tests.utils.blockchain import TestAccount
 
 # Example keystore filename
 MOCK_KEYFILE_NAME = 'UTC--2019-12-04T05-39-04.006429310Z--0xdeadbeef'
@@ -28,27 +29,9 @@ TRANSACTION_DICT = {
 
 
 @pytest.fixture(scope='module')
-def mock_key():
-    test_key = Account.create(extra_entropy='M*A*S*H* DIWOKNECNECENOE#@!')
-    return test_key
-
-
-@pytest.fixture(scope='module')
-def mock_account(mock_key):
-    account = Account.from_key(private_key=mock_key.key)
+def wallet():
+    account = TestAccount.random()
     return account
-
-
-@pytest.fixture(scope='module')
-def mock_encrypted_key(mock_account):
-    encrypted_key = mock_account.encrypt(INSECURE_DEVELOPMENT_PASSWORD)
-    return encrypted_key
-
-
-@pytest.fixture(scope="function")
-def wallet(mock_account):
-    _wallet = Wallet(account=mock_account)
-    return _wallet
 
 
 @pytest.fixture(scope="function")
@@ -58,33 +41,29 @@ def address(wallet):
 
 
 @pytest.fixture(scope='module')
-def mock_keystore(mock_account, tmp_path_factory):
+def mock_keystore(wallet, tmp_path_factory):
     keystore = tmp_path_factory.mktemp('keystore')
-    json.dump(
-        mock_account.encrypt(INSECURE_DEVELOPMENT_PASSWORD),
-        open(keystore / MOCK_KEYFILE_NAME, 'x+t')
-    )
-    return keystore
+    filepath = keystore / MOCK_KEYFILE_NAME
+    wallet.to_keystore(path=filepath, password=INSECURE_DEVELOPMENT_PASSWORD)
+    return filepath
 
 
-@pytest.fixture(scope='module')
-def unknown_address():
-    address = Account.create().address
-    return address
+def test_invalid_keystore(tmp_path, capture_wallets):
+    with pytest.raises(FileNotFoundError) as e:
+        LocalAccount.from_keystore(tmp_path.absolute() / "nonexistent", INSECURE_DEVELOPMENT_PASSWORD)
 
-
-def test_invalid_keystore(tmp_path):
-    with pytest.raises(Wallet.InvalidKeystore) as e:
-        Wallet.from_keystore(tmp_path.absolute() / "nonexistent", INSECURE_DEVELOPMENT_PASSWORD)
-
+    # simulate a file with invalid JSON
     empty_path = tmp_path / 'empty_file'
-    open(empty_path, 'x+t').close()
-    with pytest.raises(Wallet.InvalidKeystore, match=
-        'Invalid JSON in keyfile at') as e:
-        Wallet.from_keystore(empty_path, INSECURE_DEVELOPMENT_PASSWORD)
+    capture_wallets[empty_path] = ''
+
+    with pytest.raises(InvalidKeystore, match=
+        'Invalid JSON in wallet keystore at') as e:
+        LocalAccount.from_keystore(empty_path, INSECURE_DEVELOPMENT_PASSWORD)
 
 
-def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path, mock_encrypted_key):
+def test_signer_reads_keystore_from_disk(temp_dir_path, capture_wallets):
+
+    mock_encrypted_key = EthAccount.create().encrypt(INSECURE_DEVELOPMENT_PASSWORD)
 
     # Test reading a keyfile from the disk via KeystoreSigner since
     # it is mocked for the rest of this test module
@@ -97,13 +76,10 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path, 
 
         wallet_filepath = tmp_keystore / 'test.json'
 
-        mock_keyfile_path = tmp_keystore / MOCK_KEYFILE_NAME
-        mock_keyfile_path.touch(exist_ok=True)
+        # this is a filesystem write
+        capture_wallets[wallet_filepath] = json.dumps(mock_encrypted_key)
 
-        with open(wallet_filepath, 'w') as fake_keyfile:
-            fake_keyfile.write(json.dumps(mock_encrypted_key))
-
-        wallet = Wallet.from_keystore(
+        wallet = LocalAccount.from_keystore(
             path=wallet_filepath,
             password=INSECURE_DEVELOPMENT_PASSWORD
         )
@@ -116,25 +92,19 @@ def test_signer_reads_keystore_from_disk(mock_account, mock_key, temp_dir_path, 
             shutil.rmtree(fake_ethereum, ignore_errors=True)
 
 
-def test_create_wallet_from_keystore_file(mock_account, mock_keystore):
-    mock_keystore_filepath = mock_keystore / MOCK_KEYFILE_NAME
-    signer = Wallet.from_keystore(mock_keystore_filepath, password=INSECURE_DEVELOPMENT_PASSWORD)
+def test_create_wallet_from_keystore_file(mock_keystore):
+    mock_keystore_filepath = mock_keystore
+    signer = LocalAccount.from_keystore(mock_keystore_filepath, password=INSECURE_DEVELOPMENT_PASSWORD)
     assert is_checksum_address(signer.address)
 
 
-def test_wallet_sign_message(mocker, wallet, mock_account, mock_key):
-
-    # unlock
-    mock_decrypt = mocker.patch.object(Account, 'decrypt', autospec=True)
-    mock_decrypt.return_value = mock_key.key
-
-    # sign message
+def test_wallet_sign_message(mocker, wallet):
     message = b'A million tiny bubbles exploding'
     signature = wallet.sign_message(message=message)
     assert len(signature) == LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 
 
-def test_wallet_sign_transaction(wallet, mock_account):
+def test_wallet_sign_transaction(wallet):
     transaction_dict = assoc(TRANSACTION_DICT, 'from', value=wallet.address)
     signed_transaction = wallet.sign_transaction(transaction_dict=transaction_dict)
     assert isinstance(signed_transaction, HexBytes)

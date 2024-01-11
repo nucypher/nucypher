@@ -4,10 +4,10 @@ from pathlib import Path
 from unittest.mock import PropertyMock
 
 import pytest
-from mnemonic import Mnemonic
+from eth_account.hdaccount import Mnemonic
 
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.cli.commands.ursula import UrsulaConfigOptions
 from nucypher.cli.literature import (
     COLLECT_NUCYPHER_PASSWORD,
@@ -54,13 +54,18 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
     mocker.patch.object(UrsulaConfigOptions, '_check_for_existing_config', autospec=True)
 
     # Mock Keystore init
-    mnemonic = Mnemonic('english').generate(256)
+    mnemonic = Mnemonic('english').generate(24)
     keystore = Keystore.from_mnemonic(
-        phrase=mnemonic,
+        mnemonic=mnemonic,
         keystore_dir=tmpdir,
         password=INSECURE_DEVELOPMENT_PASSWORD
     )
-    mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
+    mocker.patch.object(
+        CharacterConfiguration,
+        'keystore',
+        return_value=keystore,
+        new_callable=PropertyMock
+    )
 
     # Use default ursula init args
     init_args = (
@@ -186,7 +191,12 @@ def test_run_ursula_from_config_file(custom_filepath: Path, click_runner, mocker
     custom_config_filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     assert custom_config_filepath.is_file(), 'Configuration file does not exist'
 
-    mocker.patch.object(Wallet, 'from_keystore', return_value=accounts.ursula_wallet(0), autospec=True)
+    mocker.patch.object(
+        LocalAccount,
+        'from_keystore',
+        return_value=accounts.ursula_wallet(0),
+        autospec=True
+    )
 
     # Run Ursula
     run_args = ('ursula', 'run',
@@ -362,11 +372,16 @@ def test_initialize_ursula_operator_wallet_generation(click_runner, mocker, tmpd
 
     # Mock Keystore init
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         keystore_dir=tmpdir,
         password=INSECURE_DEVELOPMENT_PASSWORD
     )
-    mocker.patch.object(CharacterConfiguration, 'keystore', return_value=keystore, new_callable=PropertyMock)
+    mocker.patch.object(
+        CharacterConfiguration,
+        'keystore',
+        return_value=keystore,
+        new_callable=PropertyMock
+    )
 
     # Use default ursula init args
     init_args = (

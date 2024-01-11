@@ -7,16 +7,16 @@ from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union, Type
 
 from constant_sorrow.constants import KEYSTORE_LOCKED
-from mnemonic.mnemonic import Mnemonic
+from eth_account.hdaccount import Mnemonic
 from nucypher_core import SessionSecretFactory
 from nucypher_core.ferveo import Keypair
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.constants import _ENTROPY_BITS, _MNEMONIC_LANGUAGE
+from nucypher.crypto.mnemonic import _LANGUAGE
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
 from nucypher.crypto.passwords import (
     SecretBoxAuthenticationError,
@@ -219,7 +219,6 @@ class Keystore:
 
     # Filepath
     _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / 'keystore'
-    _DEFAULT_WALLET_FILEPATH = _DEFAULT_DIR / 'operator.json'
 
     _DELIMITER = '-'
     _SUFFIX = 'priv'
@@ -275,12 +274,17 @@ class Keystore:
             #       to help avoid unintentional logging of the password.
             raise InvalidPassword(''.join(failures))
 
+        if len(secret) != SecretKeyFactory.seed_size():
+            raise ValueError(
+                f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
+            )
+
         # Derive verifying key (for use as ID)
         signing_key = SecretKeyFactory.from_secure_randomness(secret).make_key(
             _SIGNING_INFO
         )
         keystore_id = (
-            signing_key.public_key().to_compressed_bytes().hex()[: Keystore._ID_SIZE]
+            signing_key.public_key().to_compressed_bytes().hex()[:Keystore._ID_SIZE]
         )
 
         # Generate paths
@@ -334,34 +338,22 @@ class Keystore:
             "and can recover it. No mnemonic will be generated.\n",
             color="yellow",
         )
-        if len(key_material) != SecretKeyFactory.seed_size():
-            raise ValueError(
-                f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
-            )
         path = Keystore.__commit(
-            secret=key_material, password=password, keystore_dir=keystore_dir
+            secret=key_material,
+            password=password,
+            keystore_dir=keystore_dir
         )
-        keystore = cls(keystore_filepath=path)
-        return keystore
-
-    @classmethod
-    def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
-        """Restore a keystore from seed words"""
-        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __secret = bytes(__mnemonic.to_entropy(words))
-        path = Keystore.__commit(secret=__secret, password=password, keystore_dir=keystore_dir)
         keystore = cls(keystore_filepath=path)
         return keystore
 
     @classmethod
     def from_mnemonic(
             cls,
-            phrase: str,
+            mnemonic: str,
             password: str,
-            keystore_dir: Optional[Path] = None,
-            ):
-        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __secret = bytes(mnemonic.to_entropy(phrase))
+            keystore_dir: Optional[Path] = None):
+        __seed = Mnemonic(_LANGUAGE).to_seed(mnemonic)
+        __secret = __seed[:SecretKeyFactory.seed_size()]
         keystore_filepath = cls.__commit(
             secret=__secret,
             password=password,
@@ -385,7 +377,7 @@ class Keystore:
         self.__decrypt_keystore(path=self.keystore_filepath, password=password)
 
     def derive_crypto_power(self,
-                            power_class: ClassVar[CryptoPowerUp],
+                            power_class: Type[CryptoPowerUp],
                             *power_args, **power_kwargs
                             ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
 
@@ -397,6 +389,7 @@ class Keystore:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower"
             raise TypeError(failure_message)
         else:
+
             __skf = SecretKeyFactory.from_secure_randomness(self.__secret)
 
         if power_class is TLSHostingPower:  # TODO: something more elegant?

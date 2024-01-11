@@ -29,6 +29,7 @@ from nucypher_core.ferveo import (
 from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
@@ -44,7 +45,6 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
 from nucypher.blockchain.eth.utils import truncate_checksum_address
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.crypto.powers import (
     CryptoPower,
     RitualisticPower,
@@ -71,7 +71,7 @@ class BaseActor:
         self,
         domain: TACoDomain,
         registry: ContractRegistry,
-        wallet: Wallet
+        wallet: LocalAccount
     ):
         self.wallet = wallet
         self.registry = registry

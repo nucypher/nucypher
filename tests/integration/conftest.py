@@ -21,21 +21,18 @@ from nucypher.blockchain.eth.interfaces import (
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
-
 from nucypher.network.nodes import Teacher
 from tests.constants import (
     KEYFILE_NAME_TEMPLATE,
-    MOCK_KEYSTORE_PATH,
     TEMPORARY_DOMAIN,
     TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.io import MockStdinWrapper
-from tests.utils.blockchain import ReservedTestAccountManager
+from tests.utils.blockchain import ReservedTestAccountManager, TestAccount
 from tests.utils.registry import MockRegistrySource, mock_registry_sources
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,
@@ -61,14 +58,6 @@ def mock_sample_reservoir(accounts, mock_contract_agency):
 
     mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     mock_agent.get_staking_provider_reservoir = mock_reservoir
-
-
-@pytest.fixture(scope="function")
-def mock_sign_message(mocker):
-    mocked_sign_message = mocker.patch.object(
-        Wallet, "sign_message", return_value=os.urandom(32)
-    )
-    return mocked_sign_message
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -182,7 +171,7 @@ def mock_funding_and_bonding(
 def mock_accounts():
     accounts = dict()
     for i in range(ReservedTestAccountManager.NUMBER_OF_URSULAS_IN_TESTS):
-        account = Account.create()
+        account = TestAccount.random()
         filename = KEYFILE_NAME_TEMPLATE.format(month=i + 1, address=account.address)
         accounts[filename] = account
     return accounts
@@ -209,33 +198,6 @@ def operator_address(operator_account):
 def custom_config_filepath(custom_filepath: Path):
     filepath = custom_filepath / UrsulaConfiguration.generate_filename()
     return filepath
-
-
-@pytest.fixture(scope='function')
-def patch_keystore(mock_accounts, monkeypatch, mocker):
-    def successful_mock_keyfile_reader(_keystore, path):
-
-        # Ensure the absolute path is passed to the keyfile reader
-        assert MOCK_KEYSTORE_PATH in path
-        full_path = path
-        del path
-
-        for filename, account in mock_accounts.items():  # Walk the mock filesystem
-            if filename in full_path:
-                break
-        else:
-            raise FileNotFoundError(f"No such file {full_path}")
-        return account.address, dict(version=3, address=account.address)
-
-    mocker.patch('pathlib.Path.iterdir', return_value=[Path(key) for key in mock_accounts.keys()])
-    monkeypatch.setattr(Wallet, '_Wallet__read_keystore', successful_mock_keyfile_reader)
-    yield
-    monkeypatch.delattr(Wallet, '_Wallet__read_keystore')
-
-
-@pytest.fixture(scope='function')
-def mock_keystore(mocker):
-    mocker.patch.object(Wallet, '_Wallet__read_keystore')
 
 
 @pytest.fixture(scope="module", autouse=True)

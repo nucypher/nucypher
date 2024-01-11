@@ -6,13 +6,13 @@ from eth_tester.exceptions import ValidationError
 from eth_utils import to_canonical_address
 from nucypher_core import NodeMetadata
 
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower
 from nucypher.exceptions import DevelopmentInstallationRequired
 from nucypher.policy.payment import FreeReencryptions
 from tests.constants import TESTERCHAIN_CHAIN_ID
+from tests.utils.blockchain import TestAccount
 
 
 class Vladimir(Ursula):
@@ -65,7 +65,7 @@ class Vladimir(Ursula):
             new_callable=mock.PropertyMock(return_value=eth_blockchain.client.chain_id),
         )
 
-        vlads_wallet = Wallet.from_key(cls.fraud_key)
+        vlads_wallet = TestAccount.from_key(cls.fraud_key)
 
         vladimir = cls(
             is_peer=False,

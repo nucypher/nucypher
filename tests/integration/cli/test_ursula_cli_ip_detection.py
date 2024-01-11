@@ -2,7 +2,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
-from nucypher.blockchain.eth.wallets import Wallet
+from tests.utils.blockchain import TestAccount, LocalAccount
 from nucypher.cli.commands import ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -30,6 +30,9 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
     )
     mocker.patch.object(
         ursula, "get_wallet_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
+    )
+    mocker.patch.object(
+        LocalAccount, "from_keystore", return_value=TestAccount.random()
     )
 
     args = (
@@ -125,7 +128,7 @@ def test_ursula_run_ip_checkup(
     )
 
     mocker.patch.object(
-        Wallet, "from_keystore", return_value=testerchain.accounts.ursula_wallet(0)
+        LocalAccount, "from_keystore", return_value=testerchain.accounts.ursula_wallet(0)
     )
 
     # Setup

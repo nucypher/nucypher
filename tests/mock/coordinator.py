@@ -13,8 +13,8 @@ from nucypher_core.ferveo import (
 )
 from web3.types import TxReceipt
 
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.wallets import Wallet
 
 from tests.mock.agents import MockContractAgent
 from tests.mock.interfaces import MockBlockchain
@@ -82,7 +82,7 @@ class MockCoordinatorAgent(MockContractAgent):
         authority: ChecksumAddress,
         duration: int,
         access_controller: ChecksumAddress,
-        wallet: Wallet,
+        wallet: LocalAccount,
     ) -> TxReceipt:
         ritual_id = len(self.rituals)
         init_timestamp = int(time.time_ns())
@@ -112,7 +112,7 @@ class MockCoordinatorAgent(MockContractAgent):
         self,
         ritual_id: int,
         transcript: Transcript,
-        wallet: Wallet,
+        wallet: LocalAccount,
         fire_and_forget: bool = False,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
@@ -142,7 +142,7 @@ class MockCoordinatorAgent(MockContractAgent):
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
-        wallet: Wallet,
+        wallet: LocalAccount,
         fire_and_forget: bool = False,
     ) -> TxReceipt:
         ritual = self.rituals[ritual_id]
@@ -175,7 +175,7 @@ class MockCoordinatorAgent(MockContractAgent):
         return staking_provider in self._participant_keys_history
 
     def set_provider_public_key(
-        self, public_key: FerveoPublicKey, wallet: Wallet
+        self, public_key: FerveoPublicKey, wallet: LocalAccount
     ) -> TxReceipt:
         operator_address = wallet.address
         # either mapping is populated or just assume provider same as operator for testing

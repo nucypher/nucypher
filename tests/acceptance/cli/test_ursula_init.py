@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -35,6 +35,9 @@ def test_ursula_and_wallet_integration(
     wallet = testerchain.accounts.ursula_wallet(0)
     wallet.to_keystore(mock_wallet_path.absolute(), password=wallet_password)
 
+    # the actual filesystem write is mocked in tests, but we still need to create the file
+    mock_wallet_path.touch(exist_ok=True)
+
     deploy_port = select_test_port()
 
     init_args = (
@@ -67,13 +70,13 @@ def test_ursula_and_wallet_integration(
     )
     assert result.exit_code == 0, result.stdout
 
-    # Inspect the configuration file for the signer URI
+    # Inspect the configuration file for the wallet filepath
     with open(ursula_config_path, "r") as config_file:
         raw_config_data = config_file.read()
         config_data = json.loads(raw_config_data)
         assert (
             config_data["wallet_filepath"] == str(mock_wallet_path.absolute())
-        ), "Keystore URI was not correctly included in configuration file"
+        ), "Wallet filepath was not correctly included in configuration file"
 
     # Recreate a configuration with the signer URI preserved
     ursula_config = UrsulaConfiguration.from_configuration_file(ursula_config_path)
@@ -86,8 +89,8 @@ def test_ursula_and_wallet_integration(
 
     try:
         # Verify the keystore path is still preserved
-        assert isinstance(ursula.wallet, Wallet)
-        assert isinstance(ursula_config.wallet_filepath, Path), "Use Path"
+        assert isinstance(ursula.wallet, LocalAccount)
+        assert isinstance(ursula_config.wallet_filepath, Path), "Use pathlib.Path"
         assert ursula_config.wallet_filepath.absolute() == mock_wallet_path.absolute()
 
         # Show that we can produce the exact same signer as pre-config...

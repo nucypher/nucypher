@@ -1,4 +1,5 @@
 import pytest
+from eth_account.hdaccount import Mnemonic
 from nucypher_core import (
     SessionStaticSecret,
     ThresholdDecryptionRequest,
@@ -6,7 +7,6 @@ from nucypher_core import (
 )
 from nucypher_core.umbral import SecretKey, Signer
 
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Alice, Bob, Enrico, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo.dkg import FerveoVariant
@@ -24,13 +24,13 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.blockchain import ReservedTestAccountManager
+from tests.utils.blockchain import TestAccount
 
 
 def test_generate_alice_keystore(temp_dir_path):
 
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path
     )
@@ -63,7 +63,7 @@ def test_generate_alice_keystore(temp_dir_path):
 @pytest.mark.usefixtures("mock_registry_sources")
 def test_characters_use_keystore(temp_dir_path, testerchain):
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path / 'keystore'
     )
@@ -95,16 +95,15 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        wallet=Wallet.random(),
+        wallet=TestAccount.random(),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
     )
     alice.disenchant()  # To stop Alice's publication threadpool.  TODO: Maybe only start it at first enactment?
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     keystore = Keystore.from_mnemonic(
-        phrase=ReservedTestAccountManager._MNEMONIC,
+        mnemonic=Mnemonic('english').generate(24),
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path / 'llamas'
     )
@@ -120,7 +119,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        wallet=Wallet.random(),
+        wallet=TestAccount.random(),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
@@ -140,7 +139,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
     }
 
     # create enrico
-    wallet = Wallet.random()
+    wallet = TestAccount.random()
     enrico = Enrico(encrypting_key=dkg_public_key, wallet=wallet)
 
     # encrypt

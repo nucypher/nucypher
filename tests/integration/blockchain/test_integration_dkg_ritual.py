@@ -10,12 +10,12 @@ from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
+from tests.utils.blockchain import TestAccount
 
 # The message to encrypt and its conditions
 PLAINTEXT = "peace at dawn"
@@ -110,7 +110,6 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
         )
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 @pytest.mark.parametrize("dkg_size, ritual_id, variant", PARAMS)
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
@@ -190,7 +189,7 @@ def test_ursula_ritualist(
             plaintext = PLAINTEXT.encode()
 
             # create Enrico
-            wallet = Wallet.random()
+            wallet = TestAccount.random()
             enrico = Enrico(encrypting_key=encrypting_key, wallet=wallet)
 
             # encrypt

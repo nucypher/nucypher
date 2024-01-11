@@ -14,13 +14,10 @@ from nucypher.blockchain.eth.agents import (
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry, RegistrySourceManager
-from nucypher.blockchain.eth.wallets import Wallet
-
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.utilities.logging import Logger
 from tests.constants import (
     BONUS_TOKENS_FOR_TESTS,
-    INSECURE_DEVELOPMENT_PASSWORD,
     MIN_OPERATOR_SECONDS,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,

@@ -12,17 +12,18 @@ from unittest.mock import PropertyMock
 import maya
 import pytest
 from click.testing import CliRunner
-from eth_account import Account
-from eth_account.signers.local import LocalAccount
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from twisted.internet.task import Clock
 from web3 import Web3
 
 import tests
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.cli.config import GroupGeneralConfig
+from nucypher.config.base import BaseConfiguration
 from nucypher.config.characters import (
     AliceConfiguration,
     BobConfiguration,
@@ -63,7 +64,7 @@ from tests.mock.performance_mocks import (
     mock_rest_app_creation,
     mock_verify_node,
 )
-from tests.utils.blockchain import ReservedTestAccountManager
+from tests.utils.blockchain import ReservedTestAccountManager, TestAccount
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -111,6 +112,15 @@ def temp_dir_path():
 
 
 
+@pytest.fixture(scope='session', autouse=True)
+def mock_default_config_root(monkeysession, session_mocker):
+    path = Path('/tmp/nucypher-test-config-root')
+    session_mocker.patch('nucypher.config.constants.DEFAULT_CONFIG_ROOT', path)
+    session_mocker.patch.object(GroupGeneralConfig, 'config_root', path)
+    monkeysession.setenv('NUCYPHER_CONFIG_ROOT', str(path.absolute()))
+    monkeysession.setattr(BaseConfiguration, "DEFAULT_CONFIG_ROOT", path)
+
+
 #
 # Accounts
 #
@@ -122,31 +132,32 @@ def accounts():
     return ReservedTestAccountManager()
 
 
-@pytest.fixture(scope='function', autouse=True)
-def mock_write_wallet_to_file(mocker):
-    return mocker.patch('nucypher.crypto.utils._write_wallet')
+@pytest.fixture(scope='module', autouse=True)
+def capture_wallets():
+    return dict()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def intercept_wallet_generation(accounts, monkeysession):
-    def _generate_wallet(*_args, **_kwargs) -> Tuple[LocalAccount, str, Path]:
-        result = (
-            accounts.unassigned_wallets[0].__Wallet__account,
-            '0/1/2/3/4',
-            Path('/not/so/random/path.json')
-        )
-        return result
+@pytest.fixture(scope='module', autouse=True)
+def mock_write_wallet_to_file(monkeymodule, capture_wallets):
+    def write(filepath, data):
+        capture_wallets[filepath] = data
+    monkeymodule.setattr(LocalAccount, '_write', write)
 
-    monkeysession.setattr(
-        'nucypher.crypto.utils._generate_wallet',
-        _generate_wallet
-    )
+
+@pytest.fixture(scope='module', autouse=True)
+def mock_read_wallet_keystore(monkeymodule, capture_wallets):
+    def read(filepath):
+        try:
+            return capture_wallets[filepath]
+        except KeyError:
+            raise FileNotFoundError
+    monkeymodule.setattr(LocalAccount, '_read', read)
 
 
 @pytest.fixture(scope="module")
 def random_account():
-    key = Account.create(extra_entropy="lamborghini mercy")
-    account = Account.from_key(private_key=key.key)
+    key = TestAccount.random(extra_entropy="lamborghini mercy")
+    account = TestAccount.from_key(private_key=key.key)
     return account
 
 
@@ -569,7 +580,7 @@ def mock_peers(mocker):
 @pytest.fixture(autouse=True)
 def disable_interactive_keystore_generation(mocker):
     # Do not notify or confirm mnemonic seed words during tests normally
-    mocker.patch('nucypher.crypto.utils._confirm_generate')
+    mocker.patch('nucypher.crypto.mnemonic._confirm')
 
 
 #

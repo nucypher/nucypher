@@ -6,9 +6,9 @@ from nucypher_core.umbral import PublicKey
 
 from nucypher.acumen.nicknames import Nickname
 from nucypher.blockchain.eth import domains
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import (
@@ -36,7 +36,7 @@ class Character(Learner):
         is_peer: bool = False,
         eth_endpoint: str = None,
         polygon_endpoint: str = None,
-        wallet: Wallet = None,
+        wallet: LocalAccount = None,
         registry: ContractRegistry = None,
         keystore: Keystore = None,
         network_middleware: RestMiddleware = None,

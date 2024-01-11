@@ -17,22 +17,22 @@ from eth_typing import ChecksumAddress
 from eth_utils.address import to_checksum_address
 
 from nucypher.blockchain.eth import domains
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
     LocalRegistrySource,
 )
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
 from nucypher.config.util import cast_paths_from
-from nucypher.crypto.constants import _MNEMONIC_LANGUAGE, _ENTROPY_BITS
+from nucypher.crypto import mnemonic
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
-from nucypher.crypto.utils import _generate_wallet, _generate_mnemonic
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.logging import Logger
+from tests.utils.blockchain import TestAccount
 
 
 class BaseConfiguration(ABC):
@@ -354,7 +354,7 @@ class CharacterConfiguration(BaseConfiguration):
         polygon_endpoint: Optional[str] = None,
         gas_strategy: Union[Callable, str] = DEFAULT_GAS_STRATEGY,
         max_gas_price: Optional[int] = None,
-        wallet: Optional[Wallet] = None,
+        wallet: Optional[LocalAccount] = None,
         wallet_filepath: Optional[Path] = None,
         pre_payment_method: Optional[str] = None,
         registry: Optional[ContractRegistry] = None,
@@ -489,7 +489,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def unlock_wallet(self, password: str) -> None:
         """Unlock the wallet with the given password."""
-        self.wallet = Wallet.from_keystore(
+        self.wallet = LocalAccount.from_keystore(
             path=self.wallet_filepath,
             password=password,
         )
@@ -709,7 +709,7 @@ class CharacterConfiguration(BaseConfiguration):
                 prefix=self.TEMP_CONFIGURATION_DIR_PREFIX
             )
             self.config_root = Path(self.__temp_dir.name)
-            self.wallet = Wallet.random()
+            self.wallet = TestAccount.random()
 
         # Persistent
         else:
@@ -744,14 +744,10 @@ class CharacterConfiguration(BaseConfiguration):
                 password=keystore_password,
             )
         else:
-            __words = _generate_mnemonic(
-                entropy=_ENTROPY_BITS,
-                language=_MNEMONIC_LANGUAGE,
-                interactive=True
-            )
+            __mnemonic = mnemonic._generate(interactive=True)
 
             self.__keystore = Keystore.from_mnemonic(
-                phrase=__words,
+                mnemonic=__mnemonic,
                 password=keystore_password,
                 keystore_dir=self.keystore_dir,
             )
@@ -760,15 +756,16 @@ class CharacterConfiguration(BaseConfiguration):
                 if self.wallet_filepath.exists():
                     # This is an existing keystore, so we need to load the wallet.
                     # We'll decrypt the wallet with the keystore password here to ensure it's correct.
-                    self.wallet = Wallet.from_keystore(self.wallet_filepath, password=wallet_password)
+                    self.wallet = LocalAccount.from_keystore(
+                        path=self.wallet_filepath,
+                        password=wallet_password
+                    )
                 else:
                     # This is a new keystore without an ethereum wallet, so we need to generate a wallet.
-                    self.wallet, _dpath, self.wallet_filepath = _generate_wallet(
+                    self.wallet, self.wallet_filepath = LocalAccount.from_mnemonic(
                         filepath=self.wallet_filepath,
-                        phrase=__words,
-                        language=_MNEMONIC_LANGUAGE,
+                        mnemonic=__mnemonic,
                         password=wallet_password,
-                        index=0,
                     )
 
         return self.keystore

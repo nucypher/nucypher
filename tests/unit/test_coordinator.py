@@ -2,11 +2,11 @@ from collections import OrderedDict
 from unittest.mock import Mock
 
 import pytest
-from eth_account import Account
 from nucypher_core import SessionStaticSecret
 
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
+from tests.utils.blockchain import TestAccount
 
 DKG_SIZE = 4
 
@@ -15,7 +15,7 @@ DKG_SIZE = 4
 def nodes_wallets():
     accounts = OrderedDict()
     for _ in range(DKG_SIZE):
-        account = Account.create()
+        account = TestAccount.random()
         mock_wallet = Mock()
         mock_wallet.address = account.address
         accounts[account.address] = mock_wallet

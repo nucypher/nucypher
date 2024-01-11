@@ -8,6 +8,7 @@ import click
 
 from nucypher.cli.options import group_options
 from nucypher.cli.utils import get_env_bool
+from nucypher.config.base import BaseConfiguration
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT, NUCYPHER_SENTRY_ENDPOINT
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
@@ -19,7 +20,7 @@ class GroupGeneralConfig:
     verbosity = 0
 
     # Environment Variables
-    config_root = DEFAULT_CONFIG_ROOT
+    config_root = BaseConfiguration.DEFAULT_CONFIG_ROOT
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
     log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", False)
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)

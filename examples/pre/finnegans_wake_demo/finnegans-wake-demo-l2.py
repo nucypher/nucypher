@@ -6,7 +6,7 @@ from pathlib import Path
 import maya
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.blockchain.eth.accounts import Account
 from nucypher.characters.lawful import Alice, Bob
 from nucypher.characters.lawful import Enrico as Enrico
 from nucypher.crypto.powers import DecryptingPower, SigningPower
@@ -76,7 +76,7 @@ connect_web3_provider(blockchain_endpoint=L2_PROVIDER)
 password = os.environ.get("DEMO_ALICE_PASSWORD") or getpass(
     f"Enter password to unlock Alice's wallet ({ALICE_ADDRESS[:8]}): "
 )
-wallet = Wallet.from_keystore(path=WALLET_FILEPATH, password=password)
+wallet = Account.from_keystore(path=WALLET_FILEPATH, password=password)
 
 # This is Alice's PRE payment method.
 pre_payment_method = SubscriptionManagerPayment(

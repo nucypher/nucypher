@@ -70,6 +70,7 @@ import nucypher
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import ArchivedFleetState, RemoteUrsulaStatus
 from nucypher.blockchain.eth import actors
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
@@ -79,7 +80,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
-from nucypher.blockchain.eth.wallets import Wallet
 from nucypher.characters.banners import (
     ALICE_BANNER,
     BOB_BANNER,
@@ -766,7 +766,7 @@ class Ursula(Teacher, Character, Operator):
         is_peer: bool = False,
         certificate: Optional[Certificate] = None,
         metadata: Optional[NodeMetadata] = None,
-        wallet: Optional[Wallet] = None,
+        wallet: Optional[LocalAccount] = None,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
         condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
@@ -1344,7 +1344,7 @@ class Enrico:
     def __init__(
         self,
         encrypting_key: Union[PublicKey, DkgPublicKey],
-        wallet: Optional[Wallet] = None,
+        wallet: Optional[LocalAccount] = None,
     ):
         self.wallet = wallet
         self._encrypting_key = encrypting_key

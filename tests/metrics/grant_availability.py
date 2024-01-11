@@ -23,7 +23,7 @@ from web3 import Web3
 from web3.types import Wei
 
 from nucypher.blockchain.eth.domains import LYNX
-from nucypher.blockchain.eth.wallets import Wallet
+from nucypher.blockchain.eth.accounts import Account
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.network.nodes import TEACHER_NODES
@@ -158,7 +158,7 @@ def make_alice(peers: Optional[Set[Ursula]] = None):
         domain=TACO_DOMAIN, blockchain_endpoint=POLYGON_PROVIDER_URI
     )
 
-    wallet = Wallet.from_keystore(path=WALLET_FILEPATH)
+    wallet = Account.from_keystore(path=WALLET_FILEPATH)
     wallet.unlock_account(account=ALICE_ADDRESS, password=SIGNER_PASSWORD)
 
     alice_config = AliceConfiguration(

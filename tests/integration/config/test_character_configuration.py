@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
+from eth_account.hdaccount import Mnemonic
 from eth_utils import is_checksum_address
 from nucypher_core.umbral import SecretKey
 
@@ -19,7 +20,6 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     MOCK_IP_ADDRESS,
 )
-from tests.utils.blockchain import ReservedTestAccountManager
 
 # Main Cast
 configurations = (AliceConfiguration, BobConfiguration, UrsulaConfiguration)
@@ -110,7 +110,7 @@ def test_default_character_configuration_preservation(
     if configuration_class == UrsulaConfiguration:
         # special case for host & dev mode use keystore
         keystore = Keystore.from_mnemonic(
-            phrase=ReservedTestAccountManager._MNEMONIC,
+            mnemonic=Mnemonic('english').generate(24),
             password=INSECURE_DEVELOPMENT_PASSWORD,
             keystore_dir=tmpdir
         )

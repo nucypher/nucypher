@@ -1,17 +1,17 @@
 from itertools import islice
-from typing import Union, Iterator, List
+from typing import Union, List
 
 import maya
 from ape.api import AccountAPI
 from ape.managers.accounts import TestAccountManager
+from eth_account import Account as EthAccount
+from eth_keys.datatypes import PrivateKey
 from hexbytes import HexBytes
 from web3.types import TxReceipt
-
+from eth_account.signers.local import LocalAccount as EthLocalAccount
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
-from nucypher.blockchain.eth.wallets import Wallet
-from nucypher.crypto.utils import _generate_mnemonic
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
-from nucypher.utilities.logging import Logger
 from tests.constants import TEST_ETH_PROVIDER_URI
 
 
@@ -19,13 +19,20 @@ def free_gas_price_strategy(w3, transaction_params=None):
     return None
 
 
-class ReservedTestAccountManager(TestAccountManager):
+class TestAccount(LocalAccount):
 
-    _MNEMONIC = _generate_mnemonic(
-        entropy=256,
-        language='english',
-        interactive=False,
-    )
+    @classmethod
+    def random(cls, *args, **kwargs) -> 'LocalAccount':
+        account = EthAccount.create(*args, **kwargs)
+        return cls(key=PrivateKey(account.key), account=EthAccount)
+
+    @classmethod
+    def from_key(cls, private_key: PrivateKey) -> 'LocalAccount':
+        account = EthAccount.from_key(private_key=private_key)
+        return cls(key=PrivateKey(account.key), account=EthAccount)
+
+
+class ReservedTestAccountManager(TestAccountManager):
 
     NUMBER_OF_URSULAS_IN_TESTS = 10
     NUMBER_OF_STAKING_PROVIDERS_IN_TESTS = NUMBER_OF_URSULAS_IN_TESTS
@@ -45,10 +52,10 @@ class ReservedTestAccountManager(TestAccountManager):
         self.__wallets = None
 
     @property
-    def accounts(self) -> List[Wallet]:
+    def accounts(self) -> List[TestAccount]:
         if self.__wallets:
             return self.__wallets
-        wallets = [Wallet.from_key(a.private_key) for a in super(ReservedTestAccountManager, self).accounts]
+        wallets = [TestAccount.from_key(a.private_key) for a in super(ReservedTestAccountManager, self).accounts]
         self.__wallets = wallets
         return wallets
 
