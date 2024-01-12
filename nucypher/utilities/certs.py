@@ -91,7 +91,7 @@ class SelfSignedCertificateAdapter(HTTPAdapter):
     def __init__(self, *args, **kwargs):
         self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.ssl_context.verify_mode = ssl.CERT_REQUIRED
-        self.ssl_context.check_hostname = True
+        self.ssl_context.check_hostname = False
         super().__init__(*args, **kwargs)
 
     def init_poolmanager(self, *args, **kwargs) -> None:
