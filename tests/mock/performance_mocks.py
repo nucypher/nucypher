@@ -6,8 +6,6 @@ from nucypher_core.umbral import PublicKey
 from nucypher.network.server import make_rest_app
 from tests.mock.serials import good_serials
 
-mock_cert_storage = patch("nucypher.config.storages.ForgetfulNodeStorage.store_node_certificate",
-                          new=lambda *args, **kwargs: "this_might_normally_be_a_filepath")
 mock_message_verification = patch('nucypher.characters.lawful.Alice.verify_from', new=lambda *args, **kwargs: None)
 
 

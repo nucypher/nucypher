@@ -25,7 +25,6 @@ from nucypher.blockchain.eth.registry import (
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.config import constants
-from nucypher.config.storages import NodeStorage
 from nucypher.config.util import cast_paths_from
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
@@ -328,7 +327,7 @@ class CharacterConfiguration(BaseConfiguration):
     'Sideways Engagement' of Character classes; a reflection of input parameters.
     """
 
-    VERSION = 8  # bump when static payload scheme changes
+    VERSION = 9  # bump when static payload scheme changes
 
     CHARACTER_CLASS = NotImplemented
     MNEMONIC_KEYSTORE = False
@@ -384,7 +383,6 @@ class CharacterConfiguration(BaseConfiguration):
         lonely: bool = False,
         # Node Storage
         known_nodes: Optional[set] = None,
-        node_storage: Optional[NodeStorage] = None,
         reload_metadata: bool = True,
         save_metadata: bool = True,
         # Blockchain
@@ -500,13 +498,11 @@ class CharacterConfiguration(BaseConfiguration):
 
         if dev_mode:
             self.__temp_dir = UNINITIALIZED_CONFIGURATION
-            self._setup_node_storage()
             self.initialize(password=DEVELOPMENT_CONFIGURATION)
         else:
             self.__temp_dir = LIVE_CONFIGURATION
             self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
             self._cache_runtime_filepaths()
-            self._setup_node_storage(node_storage=node_storage)
 
         # Network
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(
@@ -603,15 +599,6 @@ class CharacterConfiguration(BaseConfiguration):
     @property
     def dev_mode(self) -> bool:
         return self.__dev_mode
-
-    def _setup_node_storage(self, node_storage: Optional = None) -> None:
-        node_storage = node_storage or NodeStorage()
-        self.node_storage = node_storage
-
-    def forget_nodes(self) -> None:
-        self.node_storage.clear()
-        message = "Removed all stored node node metadata and certificates"
-        self.log.debug(message)
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
@@ -744,7 +731,6 @@ class CharacterConfiguration(BaseConfiguration):
             network_middleware=self.network_middleware
             or self.DEFAULT_NETWORK_MIDDLEWARE(),
             known_nodes=self.known_nodes,
-            node_storage=self.node_storage,
             keystore=self.keystore,
             crypto_power_ups=self.derive_node_power_ups(),
         )
@@ -854,16 +840,6 @@ class CharacterConfiguration(BaseConfiguration):
                 )
 
         return self.keystore
-
-    @classmethod
-    def load_node_storage(cls, storage_payload: dict):
-        from nucypher.config.storages import NodeStorage
-
-        node_storage_subclasses = {storage._name: storage for storage in [NodeStorage]}
-        storage_type = storage_payload[NodeStorage._TYPE_LABEL]
-        storage_class = node_storage_subclasses[storage_type]
-        node_storage = storage_class()
-        return node_storage
 
     def configure_pre_payment_method(self):
         # TODO: finalize config fields

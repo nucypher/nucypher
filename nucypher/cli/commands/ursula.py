@@ -372,18 +372,6 @@ def destroy(general_config, config_options, config_file, force):
 
 
 @ursula.command()
-@group_config_options
-@option_config_file
-@group_general_config
-def forget(general_config, config_options, config_file):
-    """Forget all known nodes."""
-    emitter = setup_emitter(general_config, config_options.operator_address)
-    _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
-    ursula_config = config_options.create_config(emitter, config_file)
-    forget_nodes(emitter, configuration=ursula_config)
-
-
-@ursula.command()
 @group_character_options
 @option_config_file
 @option_dry_run
