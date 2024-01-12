@@ -129,7 +129,7 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
         TACoApplicationAgent, registry=test_registry
     )
 
-    active_stake = collector_registry.get_sample_value("associated_active_stake")
+    active_stake = collector_registry.get_sample_value("active_stake")
     # only floats can be stored
     assert active_stake == float(
         int(

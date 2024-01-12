@@ -162,8 +162,8 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "active_stake_gauge": Gauge(
-                "associated_active_stake",
-                "Total amount of T staked (adapted NU/KEEP and liquid T)",
+                "active_stake",
+                "Total amount of T staked",
                 registry=registry,
             ),
             "operator_confirmed_gauge": Gauge(
