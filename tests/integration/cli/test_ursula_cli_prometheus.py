@@ -43,6 +43,7 @@ def test_ursula_cli_prometheus(
     run_args = (
         "ursula",
         "run",
+        "--prometheus",
         "--dry-run",
         "--debug",
         "--config-file",
@@ -93,6 +94,7 @@ def test_ursula_cli_prometheus_metrics_port(
         "--debug",
         "--config-file",
         str(tempfile_path.absolute()),
+        "--prometheus",
         "--metrics-port",
         str(port),
     )
