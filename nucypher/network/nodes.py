@@ -30,7 +30,6 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.config.constants import SeednodeMetadata
-from nucypher.config.storages import NodeStorage
 from nucypher.crypto.powers import (
     CryptoPower,
     DecryptingPower,
@@ -218,9 +217,6 @@ class Learner:
     _LONG_LEARNING_DELAY = 90
     LEARNING_TIMEOUT = 10
     _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
-
-    # For Keeps
-    __DEFAULT_NODE_STORAGE = NodeStorage
     __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     _crashed = (
@@ -257,7 +253,6 @@ class Learner:
         learn_on_same_thread: bool = False,
         known_nodes: tuple = None,
         seed_nodes: Tuple[tuple] = None,
-        node_storage=None,
         save_metadata: bool = False,
         abort_on_learning_error: bool = False,
         lonely: bool = False,
@@ -287,11 +282,6 @@ class Learner:
         self.done_seeding = False
         self._learning_deferred = None
         self._discovery_canceller = DiscoveryCanceller()
-
-        node_storage = node_storage or self.__DEFAULT_NODE_STORAGE()
-        self.node_storage = node_storage
-        if save_metadata and node_storage is NO_STORAGE_AVAILABLE:
-            raise ValueError("Cannot save nodes without a configured node storage")
 
         self.node_class = node_class or characters.lawful.Ursula
 
@@ -342,9 +332,9 @@ class Learner:
     def known_nodes(self):
         return self.__known_nodes
 
-    def load_seednodes(self, read_storage: bool = True, record_fleet_state=False):
+    def load_seednodes(self, record_fleet_state=False):
         """
-        Engage known nodes from storages and pre-fetch hardcoded seednode certificates for node learning.
+        Pre-fetch hardcoded seednode certificates for node learning.
 
         TODO: Dehydrate this with nucypher.utilities.seednodes.load_seednodes
         """
@@ -404,37 +394,10 @@ class Learner:
 
         self.done_seeding = True
 
-        nodes_restored_from_storage = (
-            self.read_nodes_from_storage() if read_storage else []
-        )
-        discovered.extend(nodes_restored_from_storage)
-
         if discovered and record_fleet_state:
             self.known_nodes.record_fleet_state()
 
         return discovered
-
-    def read_nodes_from_storage(self) -> List:
-        stored_nodes = self.node_storage.all()
-
-        restored_from_disk = []
-        invalid_nodes = defaultdict(list)
-        for node in stored_nodes:
-            if str(node.domain) != str(self.domain):
-                invalid_nodes[node.domain].append(node)
-                continue
-            restored_node = self.remember_node(
-                node, record_fleet_state=False
-            )  # TODO: Validity status 1866
-            restored_from_disk.append(restored_node)
-
-        if invalid_nodes:
-            self.log.warn(
-                f"We're learning about domain '{self.domain}', but found nodes from other domains; "
-                f"let's ignore them. These domains and nodes are: {dict(invalid_nodes)}"
-            )
-
-        return restored_from_disk
 
     def remember_node(
         self,
@@ -463,9 +426,6 @@ class Learner:
         self.known_nodes.record_node(
             node
         )  # FIXME - dont always remember nodes, bucket them.
-
-        if self.save_metadata:
-            self.node_storage.set(node=node)
 
         if eager:
             node.mature()

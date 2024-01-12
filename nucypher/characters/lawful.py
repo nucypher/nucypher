@@ -91,7 +91,6 @@ from nucypher.characters.banners import (
     URSULA_BANNER,
 )
 from nucypher.characters.base import Character, Learner
-from nucypher.config.storages import NodeStorage
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -1226,10 +1225,6 @@ class Ursula(Teacher, Character, Operator):
                 )
 
         return potential_seed_node
-
-    @classmethod
-    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> "Ursula":
-        return node_storage.get(checksum_address=checksum_adress)
 
     #
     # Properties
