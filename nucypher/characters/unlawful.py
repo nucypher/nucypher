@@ -2,7 +2,6 @@ from copy import copy
 from unittest import mock
 from unittest.mock import Mock, patch
 
-from eth_tester.exceptions import ValidationError
 from eth_utils import to_canonical_address
 from nucypher_core import NodeMetadata
 
@@ -50,8 +49,6 @@ class Vladimir(Ursula):
         polygon_blockchain = target_ursula.child_application_agent.blockchain
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
-
-        cls.attach_transacting_key(blockchain=eth_blockchain)
 
         # Vladimir does not care about payment.
         bogus_pre_payment_method = FreeReencryptions()
@@ -116,22 +113,6 @@ class Vladimir(Ursula):
         vladimir._metadata = fake_metadata
 
         return vladimir
-
-    @classmethod
-    def attach_transacting_key(cls, blockchain):
-        """
-        Upload Vladimir's ETH keys to the keychain via web3.
-        """
-        try:
-            password = 'iamverybadass'
-            blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
-        except (ValidationError,):
-            # check if Vlad's key is already on the keystore...
-            if cls.fraud_address in blockchain.client.accounts:
-                return True
-            else:
-                raise
-        return True
 
 
 class Amonia(Alice):

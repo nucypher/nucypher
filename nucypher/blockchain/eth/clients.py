@@ -3,9 +3,7 @@ from functools import cached_property
 from typing import Union
 
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from cytoolz.dicttoolz import dissoc
-from eth_typing.evm import BlockNumber, ChecksumAddress
-from eth_utils import to_checksum_address
+from eth_typing.evm import BlockNumber
 from web3 import Web3
 from web3._utils.threads import Timeout
 from web3.contract.contract import Contract
@@ -35,31 +33,14 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 
-# TODO: Consider creating a ChainInventory class and/or moving this to a separate module
-
 PUBLIC_CHAINS = {
-    0: "Olympic",
     1: "Mainnet",
-    2: "Morden",
-    3: "Ropsten",
-    4: "Rinkeby",
-    5: "Goerli",
-    6: "Kotti",
-    42: "Kovan",
-    77: "Sokol",
-    100: "xDai",
     137: "Polygon/Mainnet",
     11155111: "Sepolia",
     80001: "Polygon/Mumbai"
 }
 
-LOCAL_CHAINS = {
-    1337: "GethDev",
-    5777: "Ganache/TestRPC"
-}
-
-# This list is not exhaustive,
-# but is sufficient for the current needs of the project.
+# This list is incomplete, but it suffices for the moment - See #1857
 POA_CHAINS = {
     4,  # Rinkeby
     5,  # Goerli
@@ -73,18 +54,6 @@ POA_CHAINS = {
 
 
 class EthereumClient:
-    is_local = False
-
-    # These two are used by Infura
-    GETH = 'Geth'
-    BOR = 'bor'
-
-    PARITY = 'Parity'
-    ALT_PARITY = 'Parity-Ethereum'
-    GANACHE = 'EthereumJS TestRPC'
-
-    ETHEREUM_TESTER = 'EthereumTester'  # (PyEVM)
-
     BLOCK_CONFIRMATIONS_POLLING_TIME = 3  # seconds
     TRANSACTION_POLLING_TIME = 0.5  # seconds
     COOLING_TIME = 5  # seconds
@@ -120,106 +89,31 @@ class EthereumClient:
                                                      block_hash=Web3.to_hex(receipt['blockHash']))
             super().__init__(self.message)
 
-    def __init__(self,
-                 w3,
-                 node_technology: str,
-                 version: str,
-                 platform: str,
-                 backend: str):
-
-        self.w3 = w3
-        self.node_technology = node_technology
-        self.node_version = version
-        self.platform = platform
-        self.backend = backend
+    def __init__(self, w3):
         self.log = Logger(self.__class__.__name__)
-
+        self.w3 = w3
         self._add_default_middleware()
 
     def _add_default_middleware(self):
-        # default retry functionality
-        self.log.debug('Adding RPC retry middleware to client')
-        self.add_middleware(RetryRequestMiddleware)
-
-    @classmethod
-    def _get_variant(cls, w3):
-        return cls
-
-    @classmethod
-    def from_w3(cls, w3: Web3) -> 'EthereumClient':
-        """
-
-        Client version strings:
-
-        Geth    -> 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
-        Parity  -> 'Parity-Ethereum/v2.5.1-beta-e0141f8-20190510/x86_64-linux-gnu/rustc1.34.1'
-        Ganache -> 'EthereumJS TestRPC/v2.1.5/ethereum-js'
-        PyEVM   -> 'EthereumTester/0.1.0b39/linux/python3.6.7'
-        Bor     -> 'bor/v0.2.13-beta2-c227a072/linux-amd64/go1.17.5'
-        """
-        clients = {
-
-            # Geth
-            cls.GETH: GethClient,
-            cls.BOR: BorClient,
-
-            # Test Clients
-            cls.GANACHE: GanacheClient,
-            cls.ETHEREUM_TESTER: EthereumTesterClient,
-        }
-
-        try:
-            client_data = w3.client_version.split('/')
-            node_technology = client_data[0]
-            ClientSubclass = clients[node_technology]
-
-        except (ValueError, IndexError):
-            raise ValueError(f"Invalid client version string. Got '{w3.client_version}'")
-
-        except KeyError:
-            raise NotImplementedError(f'{w3.client_version} is not a supported ethereum client')
-
-        client_kwargs = {
-            'node_technology': node_technology,
-            'version': client_data[1],
-            'backend': client_data[-1],
-            'platform': client_data[2] if len(client_data) == 4 else None  # Platform is optional
-        }
-
-        instance = ClientSubclass._get_variant(w3)(w3, **client_kwargs)
-        return instance
-
-    @property
-    def peers(self):
-        raise NotImplementedError
+        endpoint_uri = getattr(self.w3.provider, "endpoint_uri", "")
+        if "infura" in endpoint_uri:
+            self.log.debug("Adding Infura RPC retry middleware to client")
+            self.add_middleware(InfuraRetryRequestMiddleware)
+        elif "alchemyapi.io" in endpoint_uri:
+            self.log.debug("Adding Alchemy RPC retry middleware to client")
+            self.add_middleware(AlchemyRetryRequestMiddleware)
+        else:
+            self.log.debug("Adding RPC retry middleware to client")
+            self.add_middleware(RetryRequestMiddleware)
 
     @property
     def chain_name(self) -> str:
-        chain_inventory = LOCAL_CHAINS if self.is_local else PUBLIC_CHAINS
-        name = chain_inventory.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
+        name = PUBLIC_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
-
-    def lock_account(self, account) -> bool:
-        if self.is_local:
-            return True
-        return NotImplemented
-
-    def unlock_account(self, account, password, duration=None) -> bool:
-        if self.is_local:
-            return True
-        return NotImplemented
 
     @property
     def is_connected(self):
         return self.w3.is_connected()
-
-    @property
-    def etherbase(self) -> str:
-        return self.w3.eth.accounts[0]
-
-    @property
-    def accounts(self):
-        return self.w3.eth.accounts
 
     def get_balance(self, account):
         return self.w3.eth.get_balance(account)
@@ -269,10 +163,6 @@ class EthereumClient:
     @property
     def block_number(self) -> BlockNumber:
         return self.w3.eth.block_number
-
-    @property
-    def coinbase(self) -> ChecksumAddress:
-        return self.w3.eth.coinbase
 
     def wait_for_receipt(self,
                          transaction_hash: str,
@@ -352,9 +242,6 @@ class EthereumClient:
             # TODO: Consider adding an optional param in this exception to include extra info (e.g. new block)
         return True
 
-    def sign_transaction(self, transaction_dict: dict) -> bytes:
-        raise NotImplementedError
-
     def get_transaction(self, transaction_hash) -> dict:
         return self.w3.eth.get_transaction(transaction_hash)
 
@@ -371,14 +258,6 @@ class EthereumClient:
     def send_raw_transaction(self, transaction_bytes: bytes) -> str:
         return self.w3.eth.send_raw_transaction(transaction_bytes)
 
-    def sign_message(self, account: str, message: bytes) -> str:
-        """
-        Calls the appropriate signing function for the specified account on the
-        backend. If the backend is based on eth-tester, then it uses the
-        eth-tester signing interface to do so.
-        """
-        return self.w3.eth.sign(account, data=message)
-
     def get_blocktime(self):
         highest_block = self.w3.eth.get_block('latest')
         now = highest_block['timestamp']
@@ -391,106 +270,3 @@ class EthereumClient:
         # TODO: Investigate using `web3.middleware.make_stalecheck_middleware` #2060
         # check that our local chain data is up to date
         return (time.time() - self.get_blocktime()) < self.STALECHECK_ALLOWABLE_DELAY
-
-    def parse_transaction_data(self, transaction):
-        return transaction.input
-
-
-class GethClient(EthereumClient):
-
-    @classmethod
-    def _get_variant(cls, w3):
-        endpoint_uri = getattr(w3.provider, 'endpoint_uri', '')
-        if 'infura' in endpoint_uri:
-            return InfuraClient
-        elif 'alchemyapi.io' in endpoint_uri:
-            return AlchemyClient
-
-        return cls
-
-    @property
-    def is_local(self):
-        return self.chain_id not in PUBLIC_CHAINS
-
-    @property
-    def peers(self):
-        return self.w3.geth.admin.peers()
-
-    def new_account(self, password: str) -> str:
-        new_account = self.w3.geth.personal.new_account(password)
-        return to_checksum_address(new_account)  # cast and validate
-
-    def unlock_account(self, account: str, password: str, duration: int = None):
-        if self.is_local:
-            return True
-        debug_message = f"Unlocking account {account}"
-
-        if duration is None:
-            debug_message += " for 5 minutes"
-        elif duration == 0:
-            debug_message += " indefinitely"
-        elif duration > 0:
-            debug_message += f" for {duration} seconds"
-
-        if password is None:
-            debug_message += " with no password."
-
-        self.log.debug(debug_message)
-        return self.w3.geth.personal.unlock_account(account, password, duration)
-
-    def lock_account(self, account):
-        return self.w3.geth.personal.lock_account(account)
-
-    def sign_transaction(self, transaction_dict: dict) -> bytes:
-
-        # Do not include a 'to' field for contract creation.
-        if transaction_dict['to'] == b'':
-            transaction_dict = dissoc(transaction_dict, 'to')
-
-        # Sign
-        result = self.w3.eth.sign_transaction(transaction_dict)
-
-        # Return RLP bytes
-        rlp_encoded_transaction = result.raw
-        return rlp_encoded_transaction
-
-    @property
-    def wallets(self):
-        return self.w3.geth.personal.list_wallets()
-
-
-class BorClient(GethClient):
-    """Geth to Bor adapter"""
-
-
-class GanacheClient(EthereumClient):
-    is_local = True
-
-    def unlock_account(self, *args, **kwargs) -> bool:
-        return True
-
-
-class InfuraClient(EthereumClient):
-    is_local = False
-    TRANSACTION_POLLING_TIME = 2  # seconds
-
-    def _add_default_middleware(self):
-        # default retry functionality
-        self.log.debug('Adding Infura RPC retry middleware to client')
-        self.add_middleware(InfuraRetryRequestMiddleware)
-
-    def unlock_account(self, *args, **kwargs) -> bool:
-        return True
-
-
-class AlchemyClient(EthereumClient):
-
-    def _add_default_middleware(self):
-        # default retry functionality
-        self.log.debug('Adding Alchemy RPC retry middleware to client')
-        self.add_middleware(AlchemyRetryRequestMiddleware)
-
-
-class EthereumTesterClient(EthereumClient):
-    is_local = True
-    pass

@@ -26,6 +26,8 @@ def test_registry(module_mocker):
 @pytest.fixture(scope='function')
 def mock_ethereum_client(mocker):
     web3_mock = mocker.Mock()
+    web3_mock.provider = mocker.Mock()
+    web3_mock.provider.endpoint_uri = "http://localhost:8545"
     mock_client = MockEthereumClient(w3=web3_mock)
     return mock_client
 

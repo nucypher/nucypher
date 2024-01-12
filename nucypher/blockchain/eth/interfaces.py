@@ -26,7 +26,7 @@ from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.accounts import LocalAccount
-from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
+from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.providers import (
     _get_http_provider,
@@ -38,7 +38,6 @@ from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amo
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
     WEB3_GAS_STRATEGIES,
-    construct_datafeed_median_strategy,
     max_price_gas_strategy_wrapper,
 )
 from nucypher.utilities.logging import Logger
@@ -198,10 +197,6 @@ class BlockchainInterface:
         if gas_strategy:
             reported_gas_strategy = f"fixed/{gas_strategy.name}"
 
-        elif isinstance(self.client, InfuraClient):
-            gas_strategy = construct_datafeed_median_strategy(speed=self.gas_strategy)
-            reported_gas_strategy = f"datafeed/{self.gas_strategy}"
-
         else:
             reported_gas_strategy = f"web3/{self.gas_strategy}"
             gas_strategy = self.get_gas_strategy(self.gas_strategy)
@@ -239,7 +234,7 @@ class BlockchainInterface:
         # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
-            self.client = EthereumClient.from_w3(w3=self.w3)
+            self.client = EthereumClient(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
                 f"Connection Failed - {str(self.endpoint)} - is RPC enabled?"

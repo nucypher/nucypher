@@ -1,16 +1,9 @@
 import datetime
-from unittest.mock import Mock
-from unittest.mock import PropertyMock
+from unittest.mock import Mock, PropertyMock
 
 import pytest
 from web3 import HTTPProvider
 
-from nucypher.blockchain.eth.clients import (
-    AlchemyClient,
-    GanacheClient,
-    GethClient,
-    InfuraClient,
-)
 from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 
@@ -22,9 +15,7 @@ CHAIN_ID = 23
 @pytest.mark.parametrize("chain_id_return_value", [hex(CHAIN_ID), CHAIN_ID])
 def test_cached_chain_id(mocker, chain_id_return_value):
     web3_mock = mocker.MagicMock()
-    mock_client = EthereumClient(
-        w3=web3_mock, node_technology=None, version=None, platform=None, backend=None
-    )
+    mock_client = EthereumClient(w3=web3_mock)
 
     chain_id_property_mock = PropertyMock(return_value=chain_id_return_value)
     type(web3_mock.eth).chain_id = chain_id_property_mock
@@ -37,7 +28,7 @@ def test_cached_chain_id(mocker, chain_id_return_value):
 
     # second instance of client, but uses the same w3 mock
     mock_client_2 = EthereumClient(
-        w3=web3_mock, node_technology=None, version=None, platform=None, backend=None
+        w3=web3_mock,
     )
     assert mock_client_2.chain_id == CHAIN_ID
     assert (
@@ -48,29 +39,9 @@ def test_cached_chain_id(mocker, chain_id_return_value):
     assert chain_id_property_mock.call_count == 2, "not called again since cached"
 
 
-#
-# Mock Providers
-#
-
-
 class MockGethProvider:
     endpoint_uri = 'http://192.168.9.0:8545'
     client_version = 'Geth/v1.4.11-stable-fed692f6/darwin/go1.7'
-
-
-class MockGanacheProvider:
-    endpoint_uri = 'http://ganache:8445'
-    client_version = 'EthereumJS TestRPC/v2.1.5/ethereum-js'
-
-
-class MockInfuraProvider:
-    endpoint_uri = "https://goerli.infura.io/v3/1234567890987654321abcdef"
-    client_version = "Geth/v1.8.23-omnibus-2ad89aaa/linux-amd64/go1.11.1"
-
-
-class MockAlchemyProvider:
-    endpoint_uri = 'https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef'
-    client_version = 'Geth/v1.9.20-stable-979fc968/linux-amd64/go1.15'
 
 
 class SyncedMockW3Eth:
@@ -95,19 +66,6 @@ class MockedW3GethWithPeers:
 
             def peers(self):
                 return [1, 2, 3]
-
-        return GethAdmin()
-
-
-class MockedW3GethWithNoPeers:
-
-    @property
-    def admin(self):
-
-        class GethAdmin:
-
-            def peers(self):
-                return []
 
         return GethAdmin()
 
@@ -172,28 +130,10 @@ class ProviderTypeTestClient(BlockchainInterfaceTestBase):
         super()._attach_blockchain_provider(provider=self.test_provider_to_attach)
 
 
-class InfuraTestClient(BlockchainInterfaceTestBase):
-
-    def _attach_blockchain_provider(self, *args, **kwargs) -> None:
-        super()._attach_blockchain_provider(provider=MockInfuraProvider())
-
-
-class AlchemyTestClient(BlockchainInterfaceTestBase):
-
-    def _attach_blockchain_provider(self, *args, **kwargs) -> None:
-        super()._attach_blockchain_provider(provider=MockAlchemyProvider())
-
-
 class GethClientTestBlockchain(BlockchainInterfaceTestBase):
 
     def _attach_blockchain_provider(self, *args, **kwargs) -> None:
         super()._attach_blockchain_provider(provider=MockGethProvider())
-
-
-class GanacheClientTestInterface(BlockchainInterfaceTestBase):
-
-    def _attach_blockchain_provider(self, *args, **kwargs) -> None:
-        super()._attach_blockchain_provider(provider=MockGanacheProvider())
 
 
 def test_client_no_provider():
@@ -205,99 +145,28 @@ def test_client_no_provider():
 def test_geth_web3_client():
     interface = GethClientTestBlockchain(endpoint="https://my.geth:8545")
     interface.connect()
-
-    assert isinstance(interface.client, GethClient)
-    assert interface.client.node_technology == 'Geth'
-    assert interface.client.node_version == 'v1.4.11-stable-fed692f6'
-    assert interface.client.platform == 'darwin'
-    assert interface.client.backend == 'go1.7'
-
-    assert interface.client.is_local is False
+    assert isinstance(interface.client, EthereumClient)
     assert interface.client.chain_id == 5  # Hardcoded above
-
-
-def test_detect_provider_type_file():
-    interface = ProviderTypeTestClient(
-        endpoint="http://ipc.geth",
-        expected_provider_class=HTTPProvider,
-        actual_provider_to_attach=MockGethProvider(),
-    )
-    interface.connect()
-    assert isinstance(interface.client, GethClient)
-
-
-def test_detect_provider_type_ipc():
-    interface = ProviderTypeTestClient(
-        endpoint="https://ipc.geth",
-        expected_provider_class=HTTPProvider,
-        actual_provider_to_attach=MockGethProvider(),
-    )
-    interface.connect()
-    assert isinstance(interface.client, GethClient)
 
 
 def test_detect_provider_type_http():
     interface = ProviderTypeTestClient(
-        endpoint="http://ganache:8445",
+        endpoint="http://mynode.com:8445",
         expected_provider_class=HTTPProvider,
-        actual_provider_to_attach=MockGanacheProvider(),
+        actual_provider_to_attach=MockGethProvider(),
     )
     interface.connect()
-    assert isinstance(interface.client, GanacheClient)
+    assert isinstance(interface.client, EthereumClient)
 
 
 def test_detect_provider_type_https():
     interface = ProviderTypeTestClient(
-        endpoint="https://ganache:8445",
+        endpoint="https://public-node.io:8445",
         expected_provider_class=HTTPProvider,
-        actual_provider_to_attach=MockGanacheProvider(),
+        actual_provider_to_attach=MockGethProvider,
     )
     interface.connect()
-    assert isinstance(interface.client, GanacheClient)
-
-
-def test_infura_web3_client():
-    interface = InfuraTestClient(
-        endpoint="https://goerli.infura.io/v3/1234567890987654321abcdef"
-    )
-    interface.connect()
-
-    assert isinstance(interface.client, InfuraClient)
-
-    assert interface.client.node_technology == 'Geth'
-    assert interface.client.node_version == 'v1.8.23-omnibus-2ad89aaa'
-    assert interface.client.platform == 'linux-amd64'
-    assert interface.client.backend == 'go1.11.1'
-    assert interface.client.is_local is False
-    assert interface.client.chain_id == 5
-
-    assert interface.client.unlock_account('address', 'password')  # Returns True on success
-
-
-def test_alchemy_web3_client():
-    interface = AlchemyTestClient(
-        endpoint="https://eth-rinkeby.alchemyapi.io/v2/1234567890987654321abcdef"
-    )
-    interface.connect()
-
-    assert isinstance(interface.client, AlchemyClient)
-
-    assert interface.client.node_technology == 'Geth'
-    assert interface.client.node_version == 'v1.9.20-stable-979fc968'
-    assert interface.client.platform == 'linux-amd64'
-    assert interface.client.backend == 'go1.15'
-
-
-def test_ganache_web3_client():
-    interface = GanacheClientTestInterface(endpoint="http://ganache:8445")
-    interface.connect()
-
-    assert isinstance(interface.client, GanacheClient)
-    assert interface.client.node_technology == 'EthereumJS TestRPC'
-    assert interface.client.node_version == 'v2.1.5'
-    assert interface.client.platform is None
-    assert interface.client.backend == 'ethereum-js'
-    assert interface.client.is_local
+    assert isinstance(interface.client, EthereumClient)
 
 
 def test_gas_prices(mocker, mock_ethereum_client):
