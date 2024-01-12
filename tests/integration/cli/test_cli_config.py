@@ -67,10 +67,6 @@ def test_initialize_via_cli(
     assert custom_filepath.is_dir(), 'Configuration file does not exist'
     assert (custom_filepath / 'keystore').is_dir(), 'Keystore does not exist'
 
-    # TODO: Only using in-memory node storage for now
-    # assert (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
-    assert not (custom_filepath / 'known_nodes').is_dir(), 'known_nodes directory does not exist'
-
 
 @pytest.mark.parametrize("config_class", CONFIG_CLASSES)
 def test_reconfigure_via_cli(

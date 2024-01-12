@@ -67,17 +67,6 @@ def config(request, mocker):
     mocker.resetall()  # dont carry over context between functions
 
 
-def test_forget_cli_action(alice_test_config, test_emitter, mock_stdin, mocker, capsys):
-    mock_forget = mocker.patch.object(CharacterConfiguration, 'forget_nodes')
-    mock_stdin.line(YES)
-    forget(emitter=test_emitter, configuration=alice_test_config)
-    mock_forget.assert_called_once()
-    assert mock_stdin.empty()
-    captured = capsys.readouterr()
-    assert CONFIRM_FORGET_NODES in captured.out
-    assert SUCCESSFUL_FORGET_NODES in captured.out
-
-
 def test_update_configuration_cli_action(config, test_emitter, capsys):
     config_class, config_file = config.__class__, config.filepath
     updates = dict(domain=TEMPORARY_DOMAIN_NAME)

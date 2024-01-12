@@ -14,7 +14,6 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from nucypher.config.storages import NodeStorage
 from nucypher.crypto.keystore import Keystore
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
@@ -74,10 +73,6 @@ def test_development_character_configurations(
 
     # Domain
     assert TEMPORARY_DOMAIN_NAME == str(thing_one.domain)
-
-    # Node Storage
-    assert isinstance(thing_one.node_storage, NodeStorage)
-    assert ":memory:" in thing_one.node_storage._name
 
     # All development characters are unique
     _characters = [thing_one, thing_two]
@@ -187,8 +182,6 @@ def test_ursula_development_configuration(testerchain):
     # A Temporary Ursula
     port = ursula_one.rest_information()[0].port
     assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-    assert isinstance(ursula_one.node_storage, NodeStorage)
-    assert ":memory:" in ursula_one.node_storage._name
 
     # Alternate way to produce a character with a direct call
     ursula_two = config.produce()
