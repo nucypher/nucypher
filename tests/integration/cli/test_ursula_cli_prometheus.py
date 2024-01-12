@@ -74,7 +74,7 @@ def test_ursula_cli_prometheus(
     ), "Wrong value for start_now in prometheus_config"
 
 
-def test_ursula_cli_prometheus_metrics_port(
+def test_ursula_cli_prometheus_metrics_non_default_port_and_interval(
     click_runner,
     mocker,
     ursulas,
@@ -84,6 +84,7 @@ def test_ursula_cli_prometheus_metrics_port(
     mock_prometheus,
 ):
     port = 6666
+    interval = 30
 
     mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prometheus)
 
@@ -97,6 +98,8 @@ def test_ursula_cli_prometheus_metrics_port(
         "--prometheus",
         "--metrics-port",
         str(port),
+        "--metrics-interval",
+        str(interval),
     )
 
     result = click_runner.invoke(
@@ -117,7 +120,8 @@ def test_ursula_cli_prometheus_metrics_port(
         mock_prometheus.call_args.kwargs["prometheus_config"].listen_address == ""
     ), "Wrong listen address set in prometheus_config"
     assert (
-        mock_prometheus.call_args.kwargs["prometheus_config"].collection_interval == 90
+        mock_prometheus.call_args.kwargs["prometheus_config"].collection_interval
+        == interval
     ), "Wrong collection interval set in prometheus_config"
     assert (
         mock_prometheus.call_args.kwargs["prometheus_config"].start_now is False
