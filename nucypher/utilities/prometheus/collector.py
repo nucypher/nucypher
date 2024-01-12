@@ -4,9 +4,14 @@ from typing import Dict
 from eth_typing.evm import ChecksumAddress
 from prometheus_client import Gauge, Info
 from prometheus_client.registry import CollectorRegistry
+from web3 import Web3
 
 import nucypher
-from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    TACoApplicationAgent,
+    TACoChildApplicationAgent,
+)
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters import lawful
@@ -166,14 +171,9 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
                 "Total amount of T staked",
                 registry=registry,
             ),
-            "operator_confirmed_gauge": Gauge(
-                "operator_confirmed",
-                "Operator already confirmed",
-                registry=registry,
-            ),
-            "operator_start_gauge": Gauge(
-                "operator_start_timestamp",
-                "Operator start timestamp",
+            "operator_bonded_timestamp": Gauge(
+                "operator_bonded_timestamp",
+                "Timestamp operator bonded to stake",
                 registry=registry,
             ),
         }
@@ -192,9 +192,51 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         staking_provider_info = application_agent.get_staking_provider_info(
             staking_provider=self.staking_provider_address
         )
-        self.metrics["operator_confirmed_gauge"].set(
-            staking_provider_info.operator_confirmed
-        )
-        self.metrics["operator_start_gauge"].set(
+        self.metrics["operator_bonded_timestamp"].set(
             staking_provider_info.operator_start_timestamp
+        )
+
+
+class OperatorMetricsCollector(BaseMetricsCollector):
+    """Collector for Operator specific metrics."""
+
+    def __init__(
+        self,
+        operator_address: ChecksumAddress,
+        contract_registry: ContractRegistry,
+        polygon_endpoint: str,
+    ):
+        super().__init__()
+        self.operator_address = operator_address
+        self.contract_registry = contract_registry
+        self.polygon_endpoint = polygon_endpoint
+
+    def initialize(self, registry: CollectorRegistry) -> None:
+        self.metrics = {
+            "operator_confirmed": Gauge(
+                "operator_confirmed",
+                "Operator already confirmed",
+                registry=registry,
+            ),
+            "operator_matic_balance": Gauge(
+                "operator_matic_balance", "Operator MATIC balance", registry=registry
+            ),
+        }
+
+    def _collect_internal(self) -> None:
+        child_application_agent = ContractAgency.get_agent(
+            TACoChildApplicationAgent,
+            registry=self.contract_registry,
+            blockchain_endpoint=self.polygon_endpoint,
+        )
+        self.metrics["operator_confirmed"].set(
+            child_application_agent.is_operator_confirmed(
+                operator_address=self.operator_address
+            )
+        )
+        matic_balance = child_application_agent.blockchain.client.get_balance(
+            self.operator_address
+        )
+        self.metrics["operator_matic_balance"].set(
+            Web3.from_wei(matic_balance, "ether")
         )

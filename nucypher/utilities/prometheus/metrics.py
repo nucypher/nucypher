@@ -14,6 +14,7 @@ from nucypher.characters import lawful
 from nucypher.utilities.prometheus.collector import (
     BlockchainMetricsCollector,
     MetricsCollector,
+    OperatorMetricsCollector,
     StakingProviderMetricsCollector,
     UrsulaInfoMetricsCollector,
 )
@@ -153,23 +154,22 @@ def start_prometheus_exporter(
 
 def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]:
     """Create collectors used to obtain metrics."""
-    collectors: List[MetricsCollector] = [UrsulaInfoMetricsCollector(ursula=ursula)]
-
-    # Blockchain prometheus
-    collectors.append(
+    collectors: List[MetricsCollector] = [
+        UrsulaInfoMetricsCollector(ursula=ursula),
         BlockchainMetricsCollector(
             root_net_endpoint=ursula.eth_endpoint,
             child_net_endpoint=ursula.polygon_endpoint,
-        )
-    )
-
-    # Staking Provider prometheus
-    collectors.append(
+        ),
         StakingProviderMetricsCollector(
             staking_provider_address=ursula.checksum_address,
             contract_registry=ursula.registry,
             eth_endpoint=ursula.eth_endpoint,
+        ),
+        OperatorMetricsCollector(
+            operator_address=ursula.operator_address,
+            contract_registry=ursula.registry,
+            polygon_endpoint=ursula.polygon_endpoint,
         )
-    )
+    ]
 
     return collectors
