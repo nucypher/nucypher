@@ -39,7 +39,6 @@ from nucypher.policy.conditions.validation import (
     _validate_multiple_output_types,
     _validate_single_output_type,
 )
-
 # TODO: Move this to a more appropriate location,
 #  but be sure to change the mocks in tests too.
 # Permitted blockchains for condition evaluation

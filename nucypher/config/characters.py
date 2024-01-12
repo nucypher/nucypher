@@ -10,7 +10,6 @@ from nucypher.config.constants import (
     NUCYPHER_ENVVAR_BOB_ETH_PASSWORD,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
 )
-from nucypher.crypto.keystore import Keystore
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 
 

@@ -7,7 +7,7 @@ from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union, Type
+from typing import Callable, Dict, List, Optional, Tuple, Union, Type
 
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from eth_account.hdaccount import Mnemonic
@@ -16,8 +16,8 @@ from nucypher_core.ferveo import Keypair
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
-from nucypher.crypto.mnemonic import _LANGUAGE
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
+from nucypher.crypto.mnemonic import _LANGUAGE
 from nucypher.crypto.passwords import (
     SecretBoxAuthenticationError,
     derive_key_material_from_password,

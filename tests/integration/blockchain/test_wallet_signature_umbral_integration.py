@@ -1,7 +1,7 @@
 from nucypher_core.umbral import RecoverableSignature
 
-from tests.utils.blockchain import TestAccount
 from nucypher.crypto.utils import verify_eip_191
+from tests.utils.blockchain import TestAccount
 
 
 def test_signature_umbral_integration(accounts, test_registry, testerchain):

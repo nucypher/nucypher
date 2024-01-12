@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 
 from nucypher.config.base import BaseConfiguration
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 
 #
 # Local Test Constants

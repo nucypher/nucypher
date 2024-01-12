@@ -8,7 +8,7 @@ from eth_account import Account as EthAccount
 from eth_keys.datatypes import PrivateKey
 from hexbytes import HexBytes
 from web3.types import TxReceipt
-from eth_account.signers.local import LocalAccount as EthLocalAccount
+
 from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS

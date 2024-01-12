@@ -15,7 +15,6 @@ from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-
 from tests.mock.agents import MockContractAgent
 from tests.mock.interfaces import MockBlockchain
 

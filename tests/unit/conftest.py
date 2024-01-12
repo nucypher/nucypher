@@ -6,7 +6,6 @@ from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.crypto.ferveo import dkg
-
 from nucypher.network.nodes import Teacher
 from tests.constants import TEMPORARY_DOMAIN
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient

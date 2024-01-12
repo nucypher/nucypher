@@ -22,8 +22,8 @@ from nucypher_core.umbral import SecretKey
 from web3 import Web3
 from web3.types import Wei
 
-from nucypher.blockchain.eth.domains import LYNX
 from nucypher.blockchain.eth.accounts import Account
+from nucypher.blockchain.eth.domains import LYNX
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
 from nucypher.network.nodes import TEACHER_NODES

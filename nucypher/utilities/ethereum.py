@@ -1,5 +1,6 @@
 from _typeshed import SupportsAnext
 from typing import TypeVar, Any, Awaitable
+
 from typing_extensions import ParamSpec
 
 

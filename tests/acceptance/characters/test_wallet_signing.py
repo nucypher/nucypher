@@ -3,8 +3,8 @@ from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import Keypair
 
-from tests.utils.blockchain import TestAccount
 from nucypher.crypto.utils import verify_eip_191
+from tests.utils.blockchain import TestAccount
 
 
 def test_sign_message_text(accounts, test_registry, testerchain):

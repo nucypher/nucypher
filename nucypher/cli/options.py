@@ -9,9 +9,7 @@ from nucypher.blockchain.eth.constants import TACO_CONTRACT_NAMES
 from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     GWEI,
-    MIN_AUTHORIZATION,
     PRE_PAYMENT_METHOD_CHOICES,
-    STAKED_TOKENS_RANGE,
     NuCypherDomainName,
 )
 

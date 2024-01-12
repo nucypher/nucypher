@@ -4,7 +4,6 @@ import pytest
 from eth_utils.crypto import keccak
 
 from nucypher.blockchain.eth.actors import Operator
-
 from nucypher.network.nodes import Learner
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import (

@@ -1,5 +1,4 @@
 import time
-from unittest import mock
 
 import pytest_twisted as pt
 from twisted.internet import threads

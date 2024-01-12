@@ -33,7 +33,6 @@ from tests.constants import (
     NO_ENTER,
     YES_ENTER,
 )
-from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.ursula import select_test_port
 
 

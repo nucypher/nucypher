@@ -38,6 +38,7 @@ from web3.types import Timestamp, TxParams, TxReceipt, Wei
 
 from nucypher import types
 from nucypher.blockchain.eth import events
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.constants import (
     NUCYPHER_TOKEN_CONTRACT_NAME,
     NULL_ADDRESS,
@@ -50,7 +51,6 @@ from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
-from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,

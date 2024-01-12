@@ -1,7 +1,6 @@
 import pytest
 
 from nucypher.blockchain.eth import domains
-from tests.utils.blockchain import TestAccount
 from nucypher.characters.chaotic import (
     NiceGuyEddie,
     ThisBobAlwaysDecrypts,
@@ -14,6 +13,7 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     TESTERCHAIN_CHAIN_ID,
 )
+from tests.utils.blockchain import TestAccount
 
 
 def _attempt_decryption(BobClass, plaintext, testerchain, peers):

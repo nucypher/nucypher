@@ -2,7 +2,6 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
-from tests.utils.blockchain import TestAccount, LocalAccount
 from nucypher.cli.commands import ursula
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
@@ -16,6 +15,7 @@ from tests.constants import (
     TEST_POLYGON_PROVIDER_URI,
     YES_ENTER,
 )
+from tests.utils.blockchain import TestAccount, LocalAccount
 
 
 @pytest.mark.usefixtures("mock_registry_sources")

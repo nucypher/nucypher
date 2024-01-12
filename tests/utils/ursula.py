@@ -2,7 +2,7 @@ import contextlib
 import socket
 from itertools import islice
 from threading import Lock
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 from cryptography.x509 import Certificate
 from web3 import HTTPProvider

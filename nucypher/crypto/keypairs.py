@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Optional, Union
 
+from OpenSSL.SSL import TLSv1_2_METHOD
+from OpenSSL.crypto import X509
 from constant_sorrow import constants
 from cryptography.hazmat.primitives.asymmetric import ec
 from hendrix.deploy.tls import HendrixDeployTLS
@@ -20,8 +22,6 @@ from nucypher_core.umbral import (
     Signer,
     VerifiedKeyFrag,
 )
-from OpenSSL.crypto import X509
-from OpenSSL.SSL import TLSv1_2_METHOD
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.signing import SignatureStamp, StrangerStamp

@@ -1,5 +1,4 @@
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.accounts import Account
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType

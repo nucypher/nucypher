@@ -4,8 +4,8 @@ from pathlib import Path
 import click
 from constant_sorrow.constants import NO_PASSWORD
 
-from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.accounts import LocalAccount
+from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.cli.literature import (
     COLLECT_ETH_PASSWORD,
     COLLECT_NUCYPHER_PASSWORD,

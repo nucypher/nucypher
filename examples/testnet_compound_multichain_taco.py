@@ -5,7 +5,6 @@ from nucypher_core.ferveo import DkgPublicKey
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.accounts import Account
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
