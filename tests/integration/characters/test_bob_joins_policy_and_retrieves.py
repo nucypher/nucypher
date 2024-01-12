@@ -1,9 +1,9 @@
 import datetime
 import os
+import time
 
 import maya
 import pytest
-import time
 from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico

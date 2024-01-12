@@ -6,21 +6,17 @@ import pytest
 from nucypher.cli.actions import configure
 from nucypher.cli.actions.configure import (
     destroy_configuration,
-    forget,
     get_or_update_configuration,
     handle_invalid_configuration_file,
     handle_missing_configuration_file,
 )
 from nucypher.cli.literature import (
-    CONFIRM_FORGET_NODES,
     INVALID_CONFIGURATION_FILE_WARNING,
     INVALID_JSON_IN_CONFIGURATION_WARNING,
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION,
-    SUCCESSFUL_FORGET_NODES,
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
 )
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import YES
 
