@@ -8,7 +8,7 @@ from eth_account.account import Account as EthAccount
 from eth_utils.address import to_checksum_address, is_checksum_address
 from hexbytes.main import HexBytes
 
-from nucypher.blockchain.eth.accounts import InvalidKeystore, LocalAccount
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.constants import LENGTH_ECDSA_SIGNATURE_WITH_RECOVERY
 from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 from tests.utils.blockchain import TestAccount
@@ -56,7 +56,7 @@ def test_invalid_keystore(tmp_path, capture_wallets):
     empty_path = tmp_path / 'empty_file'
     capture_wallets[empty_path] = ''
 
-    with pytest.raises(InvalidKeystore, match=
+    with pytest.raises(LocalAccount.InvalidKeystore, match=
         'Invalid JSON in wallet keystore at') as e:
         LocalAccount.from_keystore(empty_path, INSECURE_DEVELOPMENT_PASSWORD)
 

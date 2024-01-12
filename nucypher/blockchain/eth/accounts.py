@@ -11,14 +11,6 @@ from eth_account.signers.local import LocalAccount as EthLocalAccount
 from eth_keys.datatypes import PrivateKey
 from hexbytes.main import HexBytes
 
-# AttributeError: The use of the Mnemonic features of Account is disabled by default until its API stabilizes.
-# To use these features, please enable them by running `Account.enable_unaudited_hdwallet_features()` and try again.
-EthAccount.enable_unaudited_hdwallet_features()
-
-
-class InvalidKeystore(Exception):
-    """Raised when the keystore file is invalid."""
-
 
 class LocalAccount(EthLocalAccount):
     """
@@ -27,21 +19,31 @@ class LocalAccount(EthLocalAccount):
     and standardizing signatures.
     """
 
+    # Enables the use of unaudited HD wallet and mnemonic features.
+    EthAccount.enable_unaudited_hdwallet_features()
+
     __HD_PATH = "m/44'/60'/0'/0/0"
 
+    class InvalidKeystore(Exception):
+        """Raised when the keystore file is invalid."""
+
     def sign_message(self, message: bytes, standardize: bool = True) -> HexBytes:
-        """Sign a message with the private key of this account."""
+        """
+        Sign a message with the private key of this account.
+        If standardize is True, this signature will need to be passed to nucypher_core.umbral.RecoverableSignature,
+        so we are cleaning the chain identifier from the recovery byte, bringing it to the standard choice of {0, 1}.
+        """
         signature = super().sign_message(signable_message=encode_defunct(primitive=message)).signature
         if standardize:
-            # This signature will need to be passed to Rust, so we are cleaning the chain identifier
-            # from the recovery byte, bringing it to the standard choice of {0, 1}.
             signature = to_standard_signature_bytes(signature)
         return HexBytes(signature)
 
     def sign_transaction(self, transaction_dict: dict) -> HexBytes:
-        """Sign a transaction with the private key of this account."""
+        """
+        Sign a transaction with the private key of this account.
+        Handles an edge case: do not include a 'to' field when deploying a contract.
+        """
         if not transaction_dict['to']:
-            # Edge case: do not include a 'to' field when deploying a contract.
             transaction_dict = dissoc(transaction_dict, 'to')
         signed_raw_transaction = super().sign_transaction(transaction_dict=transaction_dict).rawTransaction
         return HexBytes(signed_raw_transaction)
@@ -100,7 +102,7 @@ class LocalAccount(EthLocalAccount):
         try:
             metadata = json.loads(data)
         except JSONDecodeError:
-            raise InvalidKeystore(f'Invalid JSON in wallet keystore at {filepath}.')
+            raise cls.InvalidKeystore(f'Invalid JSON in wallet keystore at {filepath}.')
         return metadata
 
     @classmethod

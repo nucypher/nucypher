@@ -8,9 +8,7 @@ from nucypher.characters.base import Learner
 from nucypher.cli.literature import MISSING_CONFIGURATION_FILE
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
-from nucypher.config.constants import (
-    TEMPORARY_DOMAIN_NAME,
-)
+from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
