@@ -58,7 +58,6 @@ from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,
     mock_cert_loading,
-    mock_cert_storage,
     mock_keep_learning,
     mock_message_verification,
     mock_record_fleet_state,
