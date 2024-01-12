@@ -513,7 +513,6 @@ class CharacterConfiguration(BaseConfiguration):
 
         Warning: This method allows mutation and may result in an inconsistent configuration.
         """
-        # config file should exist and we we override -> no need for modifier
         return super().update(filepath=self.config_file_location, **kwargs)
 
     @classmethod

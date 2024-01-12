@@ -29,7 +29,7 @@ class LocalAccount(EthLocalAccount):
 
     def sign_message(self, message: bytes, standardize: bool = True) -> HexBytes:
         """
-        Sign a message with the private key of this account.
+        Sign a message with the private key of this account using EIP-191 standards.
         If standardize is True, this signature will need to be passed to nucypher_core.umbral.RecoverableSignature,
         so we are cleaning the chain identifier from the recovery byte, bringing it to the standard choice of {0, 1}.
         """
