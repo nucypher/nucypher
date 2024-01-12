@@ -1,8 +1,9 @@
 import json
+from pathlib import Path
+
 import pytest
 from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 from nucypher_core.umbral import SecretKey
-from pathlib import Path
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.cli.actions.configure import destroy_configuration

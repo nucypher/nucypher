@@ -1,7 +1,6 @@
 import os
 from http import HTTPStatus
-from typing import Optional, Sequence
-from typing import Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
