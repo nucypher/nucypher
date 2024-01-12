@@ -70,12 +70,12 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "client_info": Info("client", "TACo node client info", registry=registry),
-            "discovery_status_gauge": Gauge(
+            "discovery_status": Gauge(
                 "node_discovery_running",
                 "Node discovery loop status",
                 registry=registry,
             ),
-            "known_nodes_gauge": Gauge(
+            "known_nodes": Gauge(
                 "known_nodes",
                 "Number of currently known nodes",
                 registry=registry,
@@ -86,7 +86,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         # info
         payload = {
             "app": "TACo",
-            "app_version": nucypher.__version__,
+            "version": nucypher.__version__,
             "host": str(self.ursula.rest_interface),
             "domain": str(self.ursula.domain),
             "nickname": str(self.ursula.nickname),
@@ -96,8 +96,8 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         }
 
         self.metrics["client_info"].info(payload)
-        self.metrics["discovery_status_gauge"].set(self.ursula._learning_task.running)
-        self.metrics["known_nodes_gauge"].set(len(self.ursula.known_nodes))
+        self.metrics["discovery_status"].set(self.ursula._learning_task.running)
+        self.metrics["known_nodes"].set(len(self.ursula.known_nodes))
 
 
 class BlockchainMetricsCollector(BaseMetricsCollector):
@@ -161,7 +161,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
 
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
-            "active_stake_gauge": Gauge(
+            "active_stake": Gauge(
                 "active_stake",
                 "Total amount of T staked",
                 registry=registry,
@@ -187,7 +187,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
         )
-        self.metrics["active_stake_gauge"].set(int(authorized))
+        self.metrics["active_stake"].set(int(authorized))
 
         staking_provider_info = application_agent.get_staking_provider_info(
             staking_provider=self.staking_provider_address
