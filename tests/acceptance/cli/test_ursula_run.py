@@ -5,20 +5,16 @@ import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
 
-from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_IP_ADDRESS,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
 )

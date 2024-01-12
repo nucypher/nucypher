@@ -6,7 +6,7 @@ from statistics import median
 from unittest.mock import patch
 
 import pytest
-from constant_sorrow.constants import SLOW, MEDIUM, FAST, FASTEST
+from constant_sorrow.constants import FAST, FASTEST, MEDIUM, SLOW
 from requests.exceptions import ConnectionError
 from web3 import Web3
 
@@ -15,10 +15,9 @@ from nucypher.utilities.datafeeds import (
     EtherchainGasPriceDatafeed,
     EthereumGasPriceDatafeed,
     UpvestGasPriceDatafeed,
-    ZoltuGasPriceDatafeed
+    ZoltuGasPriceDatafeed,
 )
 from nucypher.utilities.gas_strategies import construct_datafeed_median_strategy
-
 
 etherchain_json = {
     "safeLow": "99.0",
@@ -204,7 +203,6 @@ def test_zoltu():
 
 def test_datafeed_median_gas_price_strategy():
 
-    mock_etherchain_gas_price = 1000
     mock_upvest_gas_price = 2000
     mock_zoltu_gas_price = 4000
     mock_rpc_gas_price = 42

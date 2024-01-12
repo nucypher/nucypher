@@ -22,15 +22,19 @@ try:
         Histogram,
         Info,
         Metric,
-        Summary
+        Summary,
     )
-
     from prometheus_client.core import GaugeHistogramMetricFamily, Timestamp
 
     # include dependencies that have sub-dependencies on prometheus
-    from nucypher.utilities.prometheus.collector import BaseMetricsCollector, MetricsCollector
-    from nucypher.utilities.prometheus.metrics import JSONMetricsResource
-    from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+    from nucypher.utilities.prometheus.collector import (
+        BaseMetricsCollector,
+        MetricsCollector,
+    )
+    from nucypher.utilities.prometheus.metrics import (
+        JSONMetricsResource,
+        PrometheusMetricsConfig,
+    )
 
     # flag to skip tests
     PROMETHEUS_INSTALLED = True

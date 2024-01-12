@@ -1,14 +1,13 @@
 import time
-from collections import defaultdict, deque
+from collections import deque
 from contextlib import suppress
 from queue import Queue
-from typing import List, Optional, Set, Tuple
+from typing import Optional, Set, Tuple
 
 import maya
 import requests
 from constant_sorrow.constants import (
     FLEET_STATES_MATCH,
-    NO_STORAGE_AVAILABLE,
     NOT_SIGNED,
     RELAX,
 )

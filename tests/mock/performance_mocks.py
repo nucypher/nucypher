@@ -205,7 +205,7 @@ def _determine_good_serials(start, end):
     for i in range(start, end):
         try:
             NotAPublicKey.from_int(i).i_want_to_be_a_real_boy()
-        except Exception as e:
+        except Exception:
             continue
         else:
             good_serials.append(i)
