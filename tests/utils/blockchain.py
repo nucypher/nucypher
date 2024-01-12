@@ -20,6 +20,7 @@ def free_gas_price_strategy(w3, transaction_params=None):
 
 
 class TestAccount(LocalAccount):
+    __test__ = False  # prohibit pytest from collecting this object as a test
 
     @classmethod
     def random(cls, *args, **kwargs) -> 'LocalAccount':
