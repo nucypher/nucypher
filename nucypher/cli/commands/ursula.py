@@ -390,10 +390,22 @@ def forget(general_config, config_options, config_file):
 @option_force
 @group_general_config
 @click.option(
+    "--prometheus",
+    help="Enable the prometheus metrics exporter",
+    is_flag=True,
+    default=False,
+)
+@click.option(
     "--metrics-port",
-    help="Specify the HTTP port of the Prometheus metrics exporter",
+    help="Specify the HTTP port of the Prometheus metrics exporter (if prometheus enabled)",
     default=9101,
     type=NETWORK_PORT,
+)
+@click.option(
+    "--metrics-interval",
+    help="The frequency of metrics collection (if prometheus enabled)",
+    type=click.INT,
+    default=90,
 )
 @click.option(
     "--ip-checkup/--no-ip-checkup",
@@ -405,7 +417,9 @@ def run(
     character_options,
     config_file,
     dry_run,
+    prometheus,
     metrics_port,
+    metrics_interval,
     force,
     ip_checkup,
 ):
@@ -417,7 +431,11 @@ def run(
 
     _pre_launch_warnings(emitter, dev=dev_mode, force=None)
 
-    prometheus_config = PrometheusMetricsConfig(port=metrics_port)
+    prometheus_config = None
+    if prometheus:
+        prometheus_config = PrometheusMetricsConfig(
+            port=metrics_port, collection_interval=metrics_interval
+        )
 
     ursula_config, URSULA = character_options.create_character(
         emitter=emitter, config_file=config_file, json_ipc=general_config.json_ipc
