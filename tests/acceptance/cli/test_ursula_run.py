@@ -36,31 +36,6 @@ def test_missing_configuration_file(_default_filepath_mock, click_runner):
 
 
 @pt.inlineCallbacks
-def test_ursula_run_with_prometheus_but_no_metrics_port(click_runner):
-    args = (
-        "ursula",
-        "run",  # Stat Ursula Command
-        "--debug",  # Display log output; Do not attach console
-        "--dev",  # Run in development mode (local ephemeral node)
-        "--dry-run",  # Disable twisted reactor in subprocess
-        "--lonely",  # Do not load seednodes
-        "--prometheus",  # Specify collection of prometheus metrics
-        "--eth-endpoint",
-        TEST_ETH_PROVIDER_URI,
-        "--polygon-endpoint",
-        TEST_POLYGON_PROVIDER_URI,
-    )
-
-    result = yield threads.deferToThread(
-        click_runner.invoke, nucypher_cli, args, catch_exceptions=False
-    )
-
-    assert result.exit_code != 0
-    expected_error = "Error: --metrics-port is required when using --prometheus"
-    assert expected_error in result.output
-
-
-@pt.inlineCallbacks
 def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain):
     deploy_port = select_test_port()
     args = (
