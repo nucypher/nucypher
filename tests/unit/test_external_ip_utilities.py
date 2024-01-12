@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import pytest
 from eth_utils import to_checksum_address
