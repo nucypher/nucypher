@@ -4,12 +4,18 @@ from typing import List
 
 import pytest
 from prometheus_client import CollectorRegistry
+from web3 import Web3
 from web3.types import Timestamp
 
-from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    TACoApplicationAgent,
+    TACoChildApplicationAgent,
+)
 from nucypher.utilities.prometheus.collector import (
     BlockchainMetricsCollector,
     MetricsCollector,
+    OperatorMetricsCollector,
     StakingProviderMetricsCollector,
     UrsulaInfoMetricsCollector,
 )
@@ -21,8 +27,13 @@ from tests.constants import MOCK_ETH_PROVIDER_URI
 
 
 @pytest.fixture(scope="function")
-def mock_operator_confirmation(random_address, mock_taco_application_agent):
-    mock_taco_application_agent.is_operator_confirmed.return_value = True
+def mock_taco_child_app_info(mock_taco_child_application_agent, testerchain):
+    mock_taco_child_application_agent.is_operator_confirmed.return_value = True
+    mock_taco_child_application_agent.blockchain = testerchain
+
+
+@pytest.fixture(scope="function")
+def mock_taco_app_staking_provider_info(random_address, mock_taco_application_agent):
     info = TACoApplicationAgent.StakingProviderInfo(
         operator=random_address,
         operator_confirmed=True,
@@ -112,7 +123,7 @@ def test_blockchain_metrics_collector(testerchain):
     assert block_number == testerchain.get_block_number()
 
 
-@pytest.mark.usefixtures("mock_operator_confirmation")
+@pytest.mark.usefixtures("mock_taco_app_staking_provider_info")
 def test_staking_provider_metrics_collector(test_registry, staking_providers):
 
     staking_provider_address = random.choice(staking_providers)
@@ -126,7 +137,9 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
     collector.collect()
 
     taco_application_agent = ContractAgency.get_agent(
-        TACoApplicationAgent, registry=test_registry
+        TACoApplicationAgent,
+        registry=test_registry,
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     active_stake = collector_registry.get_sample_value("active_stake")
@@ -143,14 +156,51 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
         staking_provider=staking_provider_address
     )
 
-    operator_confirmed = collector_registry.get_sample_value("operator_confirmed")
-    assert operator_confirmed == staking_provider_info.operator_confirmed
-
-    operator_start = collector_registry.get_sample_value("operator_start_timestamp")
+    operator_start = collector_registry.get_sample_value("operator_bonded_timestamp")
     assert operator_start == staking_provider_info.operator_start_timestamp
 
 
-@pytest.mark.usefixtures("mock_operator_confirmation")
+@pytest.mark.usefixtures("mock_taco_child_app_info")
+def test_operator_metrics_collector(
+    test_registry, operator_address, testerchain, mock_taco_child_application_agent
+):
+    collector = OperatorMetricsCollector(
+        operator_address=operator_address,
+        contract_registry=test_registry,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
+    )
+    collector_registry = CollectorRegistry()
+    collector.initialize(registry=collector_registry)
+    collector.collect()
+
+    taco_child_application_agent = ContractAgency.get_agent(
+        TACoChildApplicationAgent,
+        registry=test_registry,
+        blockchain_endpoint=MOCK_ETH_PROVIDER_URI,
+    )
+
+    operator_confirmed = collector_registry.get_sample_value("operator_confirmed")
+    assert operator_confirmed
+    assert operator_confirmed == taco_child_application_agent.is_operator_confirmed(
+        operator_address
+    )
+
+    operator_matic_balance = collector_registry.get_sample_value(
+        "operator_matic_balance"
+    )
+    assert operator_matic_balance == Web3.from_wei(
+        testerchain.client.get_balance(operator_address), "ether"
+    )
+
+    # switch operator confirmed and collect again
+    mock_taco_child_application_agent.is_operator_confirmed.return_value = False
+    collector.collect()
+    operator_confirmed = collector_registry.get_sample_value("operator_confirmed")
+    assert not operator_confirmed
+
+
+@pytest.mark.usefixtures("mock_taco_child_app_info")
+@pytest.mark.usefixtures("mock_taco_app_staking_provider_info")
 def test_all_metrics_collectors_sanity_collect(ursulas):
     ursula = random.choice(ursulas)
 
