@@ -224,8 +224,6 @@ class Learner:
 
     invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
 
-    _DEBUG_MODE = False
-
     class NotEnoughNodes(RuntimeError):
         pass
 
@@ -286,23 +284,6 @@ class Learner:
         self.peers_sample = deque()
         self._current_peer = None
         self._peering_task = task.LoopingCall(self.continue_peering)
-
-        if self._DEBUG_MODE:
-            # Very slow, but provides useful info when trying to track down a stray Character.
-            # Seems mostly useful for Bob but perhaps useful for other Characters as well.
-
-            import inspect
-            import os
-
-            frames = inspect.stack(3)
-            self._peering_task = task.LoopingCall(self.continue_peering, learner=self, frames=frames)
-            self._init_frames = frames
-            from tests.conftest import global_mutable_where_everybody
-
-            test_name = os.environ["PYTEST_CURRENT_TEST"]
-            global_mutable_where_everybody[test_name].append(self)
-            self._FOR_TEST = test_name
-            ########################
 
         self._peering_round = 0
         self._rounds_without_new_nodes = 0
@@ -433,15 +414,10 @@ class Learner:
     def _crash_gracefully(self, failure=None):
         """
         A facility for crashing more gracefully in the event that an exception
-        is unhandled in a different thread, especially inside a loop like the acumen loop, Alice's publication loop, or Bob's retrieval loop..
+        is unhandled in a different thread, especially inside a loop like the acumen loop,
+        Alice's publication loop, or Bob's retrieval loop..
         """
-
         self._crashed = failure
-
-        # When using Learner._DEBUG_MODE in tests, it may be helpful to uncomment this to be able to introspect.
-        # from tests.conftest import global_mutable_where_everybody
-        # gmwe = global_mutable_where_everybody
-
         failure.raiseException()
         reactor.stop()
 
