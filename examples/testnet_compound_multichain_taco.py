@@ -9,6 +9,7 @@ from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
+from tests.utils.blockchain import TestAccount
 
 ######################
 # Boring setup stuff #
@@ -41,9 +42,9 @@ ritual_id = 5  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
 # known authorized encryptor for ritual 3
-signer = InMemoryWallet(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY)
 enrico = Enrico(
-    encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)), wallet=signer
+    encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)),
+    wallet=TestAccount(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY),
 )
 
 print(

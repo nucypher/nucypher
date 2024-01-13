@@ -888,10 +888,11 @@ class Teacher:
     def validate_operator_signature(self) -> None:
         payload = self.metadata().payload
         try:
-            canonical_address = payload.derive_operator_address()
+            # This will raise if the signature is invalid.
+            _canonical_address = payload.derive_operator_address()
         except Exception as e:
             raise self.InvalidOperatorSignature(str(e)) from e
-        derived_address = to_checksum_address(bytes(canonical_address))
+        # derived_address = to_checksum_address(bytes(canonical_address))
         # if not derived_address == self.operator_address:
         #     raise self.InvalidOperatorSignature(
         #         f"Operator address {self.operator_address} does not match derived address {derived_address}"

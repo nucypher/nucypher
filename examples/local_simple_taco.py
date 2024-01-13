@@ -2,12 +2,13 @@ from nucypher.blockchain.eth import domains
 from nucypher.characters.chaotic import NiceGuyEddie as _Enrico
 from nucypher.characters.chaotic import ThisBobAlwaysDecrypts
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
+from tests.utils.blockchain import TestAccount
 
 plaintext = b"paz al amanecer"
 THIS_IS_NOT_A_TRINKET = 55  # sometimes called "public key"
 
-signer = InMemoryWallet()
-enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET, signer=signer)
+wallet = TestAccount.random()
+enrico = _Enrico(encrypting_key=THIS_IS_NOT_A_TRINKET, wallet=wallet)
 bob = ThisBobAlwaysDecrypts(domain=domains.LYNX, eth_endpoint="Nowhere")
 
 ANYTHING_CAN_BE_PASSED_AS_RITUAL_ID = 55
