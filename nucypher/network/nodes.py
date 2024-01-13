@@ -318,7 +318,7 @@ class Learner:
         force_verification_recheck: bool = False,
         record_fleet_state: bool = True,
         eager: bool = False,
-    ) -> Union["characters.lawful.Ursula", False]:
+    ) -> Union["characters.lawful.Ursula", bool]:
 
         # No need to remember self.
         if node == self:
