@@ -57,7 +57,7 @@ def test_auto_select_config_file(
                                               config_file=str(config_path)) in captured.out
 
 
-@pytest.mark.skip("planned for removal in PR #3382")
+@pytest.mark.skip(reason="planned for removal")
 def test_interactive_select_config_file(
     test_emitter,
     capsys,
