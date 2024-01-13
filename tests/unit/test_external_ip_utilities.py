@@ -10,8 +10,8 @@ from nucypher.characters.lawful import Ursula
 from nucypher.crypto.tls import generate_self_signed_certificate
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import NucypherMiddlewareClient
-from nucypher.network.nodes import TEACHER_NODES
 from nucypher.network.protocols import InterfaceInfo
+from nucypher.network.seednodes import TEACHER_NODES
 from nucypher.utilities.networking import (
     CENTRALIZED_IP_ORACLE_URL,
     UnknownIPAddress,

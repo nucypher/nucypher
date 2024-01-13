@@ -2,7 +2,7 @@ import time
 from collections import deque
 from contextlib import suppress
 from queue import Queue
-from typing import Optional, Set
+from typing import Optional, Set, Union
 
 import maya
 import requests
@@ -23,7 +23,6 @@ from twisted.internet.defer import Deferred
 from nucypher import characters
 from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
-from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.domains import TACoDomain
@@ -40,17 +39,8 @@ from nucypher.crypto.signing import InvalidSignature, SignatureStamp
 from nucypher.network.exceptions import NodeSeemsToBeDown
 from nucypher.network.middleware import RestMiddleware
 from nucypher.network.protocols import InterfaceInfo, SuspiciousActivity
+from nucypher.network.seednodes import TEACHER_NODES
 from nucypher.utilities.logging import Logger
-
-TEACHER_NODES = {
-    domains.MAINNET: (
-        "https://closest-seed.nucypher.network:9151",
-        "https://seeds.nucypher.network:9151",
-        "https://mainnet.nucypher.network:9151",
-    ),
-    domains.LYNX: ("https://lynx.nucypher.network:9151",),
-    domains.TAPIR: ("https://tapir.nucypher.network:9151",),
-}
 
 
 class NodeSprout:
@@ -210,11 +200,8 @@ class Learner:
     details about them, and store information about them for later use.
     """
 
-    _SHORT_LEARNING_DELAY = 5
-    _LONG_LEARNING_DELAY = 90
+    _SHORT_LEARNING_DELAY = 10  # seconds
     LEARNING_TIMEOUT = 10
-    _ROUNDS_WITHOUT_NODES_AFTER_WHICH_TO_SLOW_DOWN = 10
-    __DEFAULT_MIDDLEWARE_CLASS = RestMiddleware
 
     _crashed = (
         False  # moved from Character - why was this in Character and not Learner before
@@ -222,18 +209,21 @@ class Learner:
 
     tracker_class = FleetSensor
 
-    invalid_metadata_message = "{} has invalid metadata.  The node's stake may have ended, or it is transitioning to a new interface. Ignoring."
+    invalid_metadata_message = (
+        "{} has invalid metadata.  The node's stake may have ended, "
+        "or it is transitioning to a new interface. Ignoring."
+    )
 
-    class NotEnoughNodes(RuntimeError):
+    class P2PError(Exception):
         pass
 
-    class NotEnoughPeers(NotEnoughNodes):
+    class NotEnoughPeers(P2PError):
         crash_right_now = True
 
-    class UnresponsivePeer(ConnectionError):
+    class UnresponsivePeer(P2PError):
         pass
 
-    class NotATeacher(ValueError):
+    class NotATeacher(P2PError):
         """
         Raised when a character cannot be properly utilized because
         it does not have the proper attributes for peering or verification.
@@ -252,55 +242,53 @@ class Learner:
         include_self_in_the_state: bool = True,
     ):
         self.log = Logger("p2p")
-        self.domain = domain
 
+        # async
         self.peering_deferred = Deferred()
-        default_middleware = self.__DEFAULT_MIDDLEWARE_CLASS(
-            registry=self.registry, eth_endpoint=self.eth_endpoint
+        self._discovery_canceller = DiscoveryCanceller()
+        self._peering_task = task.LoopingCall(self.continue_peering)
+
+        # network
+        self.network_middleware = network_middleware or RestMiddleware(
+            eth_endpoint=self.eth_endpoint, registry=self.registry
         )
 
-        self.network_middleware = network_middleware or default_middleware
+        # settings
+        self.domain = domain
+        self.lonely = lonely
+        self._verify_peer_bonding = verify_peer_bonding
         self.start_peering_now = start_peering_now
         self.peering_on_same_thread = peering_on_same_thread
-
         self._abort_on_peering_error = abort_on_peering_error
+
+        # initialize
+        self._current_peer = None
+        self._peers_sample = deque()
+        self._peering_round = 0
+        self._rounds_without_new_nodes = 0
+        self.done_seeding = False
+        self._seed_nodes = seed_nodes or []
 
         self.peers = self.tracker_class(
             domain=self.domain, this_node=self if include_self_in_the_state else None
         )
-        self._verify_peer_bonding = verify_peer_bonding
 
-        self.lonely = lonely
-        self.done_seeding = False
-        self._peering_deferred = None
-        self._discovery_canceller = DiscoveryCanceller()
-
-        self.node_class = characters.lawful.Ursula
-
-        # This node has not initialized its metadata yet.
-        self.peers.record_fleet_state(skip_this_node=True)
-        self.peers_sample = deque()
-        self._current_peer = None
-        self._peering_task = task.LoopingCall(self.continue_peering)
-
-        self._peering_round = 0
-        self._rounds_without_new_nodes = 0
-        self._seed_nodes = seed_nodes or []
+        # launch
         if self.start_peering_now and not self.lonely:
+            # This node has not initialized its metadata yet.
+            self.peers.record_fleet_state(skip_this_node=True)
             self.start_peering(now=self.peering_on_same_thread)
 
     def load_seednodes(self, record_fleet_state=False):
         if self.done_seeding:
-            raise RuntimeError(
-                "Already finished seeding.  Why try again?  Is this a thread safety problem?"
-            )
+            raise self.P2PError("Already finished seeding.")
 
         canonical_sage_uris = TEACHER_NODES.get(self.domain, ())
 
         discovered = []
         for uri in canonical_sage_uris:
             try:
-                maybe_sage_node = self.node_class.from_peer_uri(
+                maybe_sage_node = characters.lawful.Ursula.from_peer_uri(
                     peer_uri=uri,
                     eth_endpoint=self.eth_endpoint,
                     registry=self.registry,
@@ -308,7 +296,7 @@ class Learner:
                 )
             except Exception as e:
                 # TODO: distinguish between versioning errors and other errors?
-                self.log.warn(f"Failed to instantiate a node at {uri}: {e}")
+                self.log.warn(f"Failed to instantiate seednode at {uri}: {e}")
             else:
                 new_peer = self.remember_peer(maybe_sage_node, record_fleet_state=False)
                 discovered.append(new_peer)
@@ -324,34 +312,37 @@ class Learner:
         self.log.info("Finished contacting seednodes.")
         return discovered
 
-    def remember_peer(self,
-                      node,
-                      force_verification_recheck: bool = False,
-                      record_fleet_state: bool = True,
-                      eager: bool = False):
+    def remember_peer(
+        self,
+        node: Union["characters.lawful.Ursula", NodeSprout],
+        force_verification_recheck: bool = False,
+        record_fleet_state: bool = True,
+        eager: bool = False,
+    ) -> Union["characters.lawful.Ursula", bool]:
 
-        if node == self:  # No need to remember self.
+        # No need to remember self.
+        if node == self:
             return False
 
-        # First, determine if this is an outdated representation of an already known node.
+        # If this node is not on the same domain, ignore it.
+        if str(node.domain) != str(self.domain):
+            return False
+
+        # Determine if this is an outdated representation of an already known node.
         with suppress(KeyError):
             already_known_peer = self.peers[node.checksum_address]
             if not node.timestamp > already_known_peer.timestamp:
-                # This node is already known.  We can safely return.
+                # This node is already known and not stale.  We can safely return.
                 return False
-
-        self.peers.record_node(node)  # FIXME - dont always remember nodes, bucket them.
 
         success = True
         if eager:
             node.mature()
-            registry = self.registry if self._verify_peer_bonding else None
-
             try:
                 node.verify_node(
                     force=force_verification_recheck,
                     network_middleware_client=self.network_middleware.client,
-                    registry=registry,
+                    registry=self.registry if self._verify_peer_bonding else None,
                     eth_endpoint=self.eth_endpoint,
                 )
             except SSLError:
@@ -367,9 +358,15 @@ class Learner:
                 self.peers.mark_for_removal(Teacher.NotStaking, node)
                 success = False
 
-        if record_fleet_state:
-            self.peers.record_fleet_state()
-        return node if success else False
+        if success:
+            # commit adding this node to the local view of the next fleet state.
+            self.peers.record_node(node)
+            if record_fleet_state:
+                # generate the next fleet state.
+                self.peers.record_fleet_state()
+            return node
+        else:
+            return False
 
     def start_peering(self, now=False):
         if self._peering_task.running:
@@ -391,10 +388,10 @@ class Learner:
     def stop_peering(self):
         if self._peering_task.running:
             self._peering_task.stop()
-        if self._peering_deferred is RELAX:
+        if self.peering_deferred is RELAX:
             assert False
-        if self._peering_deferred is not None:
-            self._discovery_canceller(self._peering_deferred)
+        if self.peering_deferred is not None:
+            self._discovery_canceller(self.peering_deferred)
 
     def handle_peering_errors(self, failure, *args, **kwargs):
         _exception = failure.value
@@ -421,13 +418,13 @@ class Learner:
         nodes_we_know_about = self.peers.shuffled()
         if not nodes_we_know_about:
             raise self.NotEnoughPeers("Need some nodes to start peering from.")
-        self.peers_sample.extend(nodes_we_know_about)
+        self._peers_sample.extend(nodes_we_know_about)
 
     def cycle_peers(self):
-        if not self.peers_sample:
+        if not self._peers_sample:
             self.select_peers()
         try:
-            self._current_peer = self.peers_sample.pop()
+            self._current_peer = self._peers_sample.pop()
         except IndexError:
             error = "Not enough nodes to select a good peer, Check your network connection then node configuration"
             raise self.NotEnoughPeers(error)
@@ -441,7 +438,7 @@ class Learner:
         peer = self._current_peer
         return peer
     def continue_peering(self):
-        self._peering_deferred = Deferred(canceller=self._discovery_canceller)
+        self.peering_deferred = Deferred(canceller=self._discovery_canceller)
 
         def _discover_or_abort(_first_result):
             # self.log.debug(f"{self} peering at {datetime.datetime.now()}")   # 1712
@@ -449,13 +446,13 @@ class Learner:
             # self.log.debug(f"{self} finished peering at {datetime.datetime.now()}")  # 1712
             return result
 
-        self._peering_deferred.addCallback(_discover_or_abort)
-        self._peering_deferred.addErrback(self.handle_peering_errors)
+        self.peering_deferred.addCallback(_discover_or_abort)
+        self.peering_deferred.addErrback(self.handle_peering_errors)
 
         # Instead of None, we might want to pass something useful about the context.
         # Alternately, it might be nice for learn_from_peer to (some or all of the time) return a Deferred.
-        reactor.callInThread(self._peering_deferred.callback, None)
-        return self._peering_deferred
+        reactor.callInThread(self.peering_deferred.callback, None)
+        return self.peering_deferred
 
     # TODO: Dehydrate these next two methods.  NRN
 
@@ -508,7 +505,7 @@ class Learner:
                         f"You need to start the Reactor in order to use {self} this way."
                     )
                 else:
-                    raise self.NotEnoughNodes(
+                    raise self.NotEnoughPeers(
                         "After {} seconds and {} rounds, didn't find {} nodes".format(
                             timeout, rounds_undertaken, number_of_nodes_to_know
                         )
@@ -573,13 +570,13 @@ class Learner:
             verifying_pk=stranger.stamp.as_umbral_pubkey(), message=message
         ):
             try:
-                node_on_the_other_end = self.node_class.from_seednode_metadata(
+                node_on_the_other_end = characters.lawful.Ursula.from_seednode_metadata(
                     stranger.seed_node_metadata(),
                     eth_endpoint=self.eth_endpoint,
                     network_middleware=self.network_middleware,
                 )
                 if node_on_the_other_end != stranger:
-                    raise self.node_class.InvalidNode(
+                    raise characters.lawful.Ursula.InvalidNode(
                         f"Expected to connect to {stranger}, got {node_on_the_other_end} instead."
                     )
                 else:

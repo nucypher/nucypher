@@ -2,7 +2,7 @@ import random
 import weakref
 from collections import deque
 from collections.abc import KeysView
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Type, Union
 
 import maya
 from eth_typing import ChecksumAddress
@@ -335,7 +335,9 @@ class FleetSensor:
     def shuffled(self):
         return self._current_state.shuffled()
 
-    def mark_for_removal(self, label: Exception, node: "characters.lawful.Ursula"):
+    def mark_for_removal(
+        self, label: Type[Exception], node: "characters.lawful.Ursula"
+    ):
         # TODO: for now we're not using `label` in any way, so we're just ignoring it
         self._nodes_to_remove.add(node.checksum_address)
 

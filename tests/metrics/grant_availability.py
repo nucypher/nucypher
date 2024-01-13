@@ -26,7 +26,7 @@ from nucypher.blockchain.eth.accounts import Account
 from nucypher.blockchain.eth.domains import LYNX
 from nucypher.characters.lawful import Alice, Bob, Ursula
 from nucypher.config.characters import AliceConfiguration
-from nucypher.network.nodes import TEACHER_NODES
+from nucypher.network.seednodes import TEACHER_NODES
 from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.policy.policies import Policy
 from nucypher.utilities.logging import GlobalLoggerSettings

@@ -1,7 +1,7 @@
 import pytest
 
 from nucypher.blockchain.eth import domains
-from nucypher.network.nodes import TEACHER_NODES
+from nucypher.network.seednodes import TEACHER_NODES
 
 
 @pytest.fixture(autouse=True)

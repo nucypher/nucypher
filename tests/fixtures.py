@@ -31,7 +31,7 @@ from nucypher.config.characters import (
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.ferveo import dkg
-from nucypher.network.nodes import TEACHER_NODES
+from nucypher.network.seednodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
 from nucypher.policy.conditions.lingo import (

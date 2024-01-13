@@ -4,7 +4,7 @@ import tests
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
-from nucypher.network.nodes import TEACHER_NODES
+from nucypher.network.seednodes import TEACHER_NODES
 from tests.constants import TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_INFO
 from tests.utils.registry import MockRegistrySource
 from tests.utils.ursula import make_ursulas

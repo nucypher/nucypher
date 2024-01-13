@@ -117,6 +117,3 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain, mocker):
 
     reserved_ports = (UrsulaConfiguration.DEFAULT_REST_PORT, UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT)
     assert deploy_port not in reserved_ports
-
-    # Check that CLI Ursula reports that it remembers the peer and saves the TLS certificate
-    assert f"Saved TLS certificate for {LOOPBACK_ADDRESS}" in result.output

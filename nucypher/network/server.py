@@ -94,11 +94,10 @@ def make_rest_app(
 def _make_rest_app(this_node, log: Logger) -> Flask:
 
     # TODO: Avoid circular imports :-(
-    from nucypher.characters.lawful import Alice, Bob, Ursula
+    from nucypher.characters.lawful import Alice, Bob
 
     _alice_class = Alice
     _bob_class = Bob
-    _node_class = Ursula
 
     rest_app = Flask("ursula-service")
     rest_app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_CONTENT_LENGTH
@@ -111,8 +110,11 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/node_metadata', methods=["GET"])
     def all_peers():
-        headers = {'Content-Type': 'application/octet-stream'}
-        if this_node._peering_deferred is not RELAX and not this_node._peering_task.running:
+        headers = {"Content-Type": "application/octet-stream"}
+        if (
+            this_node.peering_deferred is not RELAX
+            and not this_node._peering_task.running
+        ):
             # Learn when learned about
             this_node.start_peering()
 

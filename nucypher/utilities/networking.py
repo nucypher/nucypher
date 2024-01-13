@@ -101,7 +101,7 @@ def get_external_ip_from_default_peer(
 ) -> Union[str, None]:
     # Prevents circular imports
     from nucypher.characters.lawful import Ursula
-    from nucypher.network.nodes import TEACHER_NODES
+    from nucypher.network.seednodes import TEACHER_NODES
 
     base_error = 'Cannot determine IP using default peer'
 
