@@ -3,8 +3,8 @@ from pathlib import Path
 import click
 
 from nucypher.cli.actions.auth import (
-    get_wallet_password,
     get_nucypher_password,
+    get_wallet_password,
     recover_keystore,
 )
 from nucypher.cli.actions.configure import (
@@ -35,19 +35,19 @@ from nucypher.cli.options import (
     option_key_material,
     option_lonely,
     option_max_gas_price,
+    option_peer_uri,
     option_polygon_endpoint,
     option_pre_payment_method,
     option_registry_filepath,
-    option_peer_uri,
 )
 from nucypher.cli.painting.help import paint_new_installation_help
 from nucypher.cli.types import NETWORK_PORT, OPERATOR_IP
 from nucypher.cli.utils import make_cli_character, setup_emitter
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
+    DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
-    DEFAULT_CONFIG_ROOT,
 )
 from nucypher.config.migrations import MIGRATIONS
 from nucypher.config.migrations.common import (

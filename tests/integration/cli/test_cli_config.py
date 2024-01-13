@@ -8,7 +8,8 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
-    TEMPORARY_DOMAIN_NAME, NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
+    TEMPORARY_DOMAIN_NAME,
 )
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,

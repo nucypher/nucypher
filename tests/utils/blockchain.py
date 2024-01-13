@@ -1,5 +1,5 @@
 from itertools import islice
-from typing import Union, List
+from typing import List, Union
 
 import maya
 from ape.api import AccountAPI

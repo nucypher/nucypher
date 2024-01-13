@@ -5,7 +5,7 @@ import pytest
 from cytoolz.dicttoolz import assoc
 from eth_account._utils.legacy_transactions import Transaction
 from eth_account.account import Account as EthAccount
-from eth_utils.address import to_checksum_address, is_checksum_address
+from eth_utils.address import is_checksum_address, to_checksum_address
 from hexbytes.main import HexBytes
 
 from nucypher.blockchain.eth.accounts import LocalAccount
@@ -49,15 +49,16 @@ def mock_keystore(wallet, tmp_path_factory):
 
 
 def test_invalid_keystore(tmp_path, capture_wallets):
-    with pytest.raises(FileNotFoundError) as e:
+    with pytest.raises(FileNotFoundError):
         LocalAccount.from_keystore(tmp_path.absolute() / "nonexistent", INSECURE_DEVELOPMENT_PASSWORD)
 
     # simulate a file with invalid JSON
     empty_path = tmp_path / 'empty_file'
     capture_wallets[empty_path] = ''
 
-    with pytest.raises(LocalAccount.InvalidKeystore, match=
-        'Invalid JSON in wallet keystore at') as e:
+    with pytest.raises(
+        LocalAccount.InvalidKeystore, match="Invalid JSON in wallet keystore at"
+    ):
         LocalAccount.from_keystore(empty_path, INSECURE_DEVELOPMENT_PASSWORD)
 
 

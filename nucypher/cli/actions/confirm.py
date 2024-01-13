@@ -13,4 +13,3 @@ def confirm_destroy_configuration(config: CharacterConfiguration) -> bool:
                                                 config=config.filepath)
     click.confirm(confirmation, abort=True)
     return True
-

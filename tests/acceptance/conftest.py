@@ -23,7 +23,7 @@ from tests.constants import (
     TEST_ETH_PROVIDER_URI,
     TESTERCHAIN_CHAIN_ID,
 )
-from tests.utils.blockchain import TesterBlockchain, ReservedTestAccountManager
+from tests.utils.blockchain import ReservedTestAccountManager, TesterBlockchain
 from tests.utils.registry import ApeRegistrySource
 from tests.utils.ursula import (
     mock_permitted_multichain_connections,

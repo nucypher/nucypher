@@ -77,7 +77,6 @@ def recover_keystore(emitter) -> None:
                     'You will need to provide the entire mnemonic (space seperated) in the correct '
                     'order and choose a new password.', color='cyan')
     click.confirm('Do you want to continue', abort=True)
-    language = click.prompt('Enter language of mnemonic', type=str, default=mnemonic._LANGUAGE)
 
     __words = click.prompt("Enter mnemonic words",
                            hide_input=True,
@@ -93,7 +92,6 @@ def recover_keystore(emitter) -> None:
     if not click.confirm('Do you want to generate an ethereum wallet from these words?'):
         return
 
-    index = click.prompt('Enter index of wallet to use', type=int, default=0)
     filepath = click.prompt('Enter filepath to save wallet', type=Path, default=Keystore._DEFAULT_DIR / 'operator.json')
     account, fpath = LocalAccount.from_mnemonic(
         mnemonic=__words,
@@ -101,4 +99,3 @@ def recover_keystore(emitter) -> None:
         filepath=filepath,
     )
     emitter.message(f'Generated ethereum wallet {account.address} to \n {fpath}', color='green')
-

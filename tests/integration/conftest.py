@@ -1,9 +1,7 @@
-import os
 from pathlib import Path
 from typing import Iterable, Optional
 
 import pytest
-from eth_account.account import Account
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import (

@@ -7,7 +7,7 @@ from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
-from typing import Callable, Dict, List, Optional, Tuple, Union, Type
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 from constant_sorrow.constants import KEYSTORE_LOCKED
 from eth_account.hdaccount import Mnemonic

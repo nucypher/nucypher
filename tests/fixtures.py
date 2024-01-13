@@ -51,7 +51,8 @@ from tests.constants import (
     MOCK_ETH_PROVIDER_URI,
     TEMPORARY_DOMAIN,
     TEST_ETH_PROVIDER_URI,
-    TESTERCHAIN_CHAIN_ID, TEST_POLYGON_PROVIDER_URI,
+    TEST_POLYGON_PROVIDER_URI,
+    TESTERCHAIN_CHAIN_ID,
 )
 from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (

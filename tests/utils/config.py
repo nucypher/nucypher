@@ -1,7 +1,5 @@
 from typing import List
 
-from eth_typing import ChecksumAddress
-
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import (

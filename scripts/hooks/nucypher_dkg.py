@@ -1,5 +1,6 @@
 import random
 import time
+from pathlib import Path
 
 import click
 import maya
@@ -7,36 +8,30 @@ from nucypher_core.ferveo import DkgPublicKey
 from web3 import Web3
 
 from nucypher.blockchain.eth import domains
+from nucypher.blockchain.eth.accounts import LocalAccount
 from nucypher.blockchain.eth.agents import (
     ContractAgency,
     CoordinatorAgent,
     TACoChildApplicationAgent,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.accounts import Account
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY, GLOBAL_ALLOW_LIST
+from tests.utils.blockchain import TestAccount
 
 GlobalLoggerSettings.start_console_logging()
 
 emitter = StdoutEmitter(verbosity=2)
 
 
-def get_wallet(signer: Account):
-    account_address = signer.accounts[0]
-    emitter.echo(
-        f"Using {account_address} for initiation/authorization for DKG Ritual",
-        color="green",
-    )
-
+def get_wallet(keystore_filepath: Path) -> LocalAccount:
     password = click.prompt(
         "Enter your keystore password", confirmation_prompt=False, hide_input=True
     )
-    signer.unlock_account(account=account_address, password=password)
-    wallet = Account(signer=signer, account=account_address)
+    wallet = LocalAccount.from_keystore(path=keystore_filepath, password=password)
 
     return wallet
 
@@ -48,6 +43,14 @@ def get_wallet(signer: Account):
     help="TACo Domain",
     type=click.Choice([str(domains.TAPIR), str(domains.LYNX)]),
     default=str(domains.LYNX),
+)
+@click.option(
+    "--wallet-filepath",
+    "wallet_filepath",
+    "-w",
+    help="Path to wallet keystore file",
+    type=click.Path(exists=True),
+    required=False,
 )
 @click.option(
     "--eth-endpoint",
@@ -113,7 +116,7 @@ def nucypher_dkg(
     eth_endpoint,
     polygon_endpoint,
     ritual_id,
-    signer_uri,
+    wallet_filepath,
     dkg_size,
     num_rituals,
     ritual_duration,
@@ -122,9 +125,9 @@ def nucypher_dkg(
 ):
     if ritual_id < 0:
         # if creating ritual(s)
-        if signer_uri is None:
+        if wallet_filepath is None:
             raise click.BadOptionUsage(
-                option_name="--wallet",
+                option_name="--wallet-filepath",
                 message=click.style(
                     "--wallet must be provided to create new ritual",
                     fg="red",
@@ -187,7 +190,6 @@ def nucypher_dkg(
     #
     # Get deployer account
     #
-    signer = None
     wallet = None
 
     # Get AccessController contract
@@ -198,13 +200,11 @@ def nucypher_dkg(
     #
     if ritual_id < 0:
         # Obtain transacting power
-        signer = Account.from_keystore(path=wallet, password=password)
-        account_address = signer.accounts[0]
-        wallet = get_wallet(signer=signer)
+        wallet = get_wallet(wallet_filepath)
 
         emitter.echo("--------- Initiating Ritual ---------", color="yellow")
         emitter.echo(
-            f"Commencing DKG Ritual(s) on {domain.polygon_chain.name} using {account_address}",
+            f"Commencing DKG Ritual(s) on {domain.polygon_chain.name} using {wallet.address}",
             color="green",
         )
 
@@ -227,7 +227,7 @@ def nucypher_dkg(
             emitter.echo(f"Using staking providers for DKG: {dkg_staking_providers}")
             receipt = coordinator_agent.initiate_ritual(
                 providers=dkg_staking_providers,
-                authority=account_address,
+                authority=wallet.address,
                 duration=ritual_duration,
                 access_controller=access_controller_contract.address,
                 wallet=wallet,
@@ -335,11 +335,10 @@ def nucypher_dkg(
         print("Using default Enrico signing account")
         private_key = DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
-    enrico_signer = InMemoryWallet(private_key)
-    enrico_account = enrico_signer.accounts[0]
-    emitter.echo(f"Using account {enrico_account} to sign data")
+    enrico_wallet = TestAccount.from_key(private_key)
+    emitter.echo(f"Using account {enrico_wallet.address} to sign data")
 
-    enrico = Enrico(encrypting_key=encrypting_key, wallet=enrico_signer)
+    enrico = Enrico(encrypting_key=encrypting_key, wallet=enrico_wallet)
     threshold_message_kit = enrico.encrypt_for_dkg(
         plaintext=PLAINTEXT.encode(), conditions=CONDITIONS
     )
@@ -353,14 +352,16 @@ def nucypher_dkg(
         # Authorize Enrico to use the ritual
         #
         is_enrico_already_authorized = allow_list.functions.isAddressAuthorized(
-            ritual_id, enrico_account
+            ritual_id, enrico_wallet.address
         ).call()
         if is_enrico_already_authorized:
             emitter.echo(
-                f"Enrico {enrico_account} already authorized for DKG Ritual #{ritual_id}",
+                f"Enrico {enrico_wallet.address} already authorized for DKG Ritual #{ritual_id}",
                 color="green",
             )
-        elif click.confirm(f"Do you want to authorize Enrico ('{enrico_account}')?"):
+        elif click.confirm(
+            f"Do you want to authorize Enrico ('{enrico_wallet.address}')?"
+        ):
             # Obtain transacting power
             if not wallet:
                 emitter.echo(
@@ -368,31 +369,28 @@ def nucypher_dkg(
                 )
                 return click.Abort()
 
-            if not signer:
-                signer = Account.from_keystore(path=wallet_filepath, password=password)
-
             if not wallet:
-                wallet = get_wallet(signer)
+                wallet = get_wallet(wallet_filepath)
 
             # Authorize Enrico
             contract_function = allow_list.functions.authorize(
-                ritual_id, [enrico_account]
+                ritual_id, [enrico_wallet.address]
             )
             blockchain.send_transaction(
                 contract_function=contract_function, wallet=wallet
             )
             emitter.echo(
-                f"Enrico {enrico_account} authorized to use DKG Ritual #{ritual_id}",
+                f"Enrico {enrico_wallet.address} authorized to use DKG Ritual #{ritual_id}",
                 color="green",
             )
         else:
             emitter.echo(
-                f"Enrico {enrico_account} may/may not be authorized to use DKG Ritual #{ritual_id} - decryption may fail",
+                f"Enrico {enrico_wallet.address} may/may not be authorized to use DKG Ritual #{ritual_id} - decryption may fail",
                 color="yellow",
             )
     else:
         emitter.echo(
-            f"No authorization checked/performed - Enrico {enrico_account} may/may not be authorized to use DKG Ritual #{ritual_id} - decryption may fail",
+            f"No authorization checked/performed - Enrico {enrico_wallet.address} may/may not be authorized to use DKG Ritual #{ritual_id} - decryption may fail",
             color="yellow",
         )
 

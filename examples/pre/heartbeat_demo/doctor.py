@@ -12,7 +12,7 @@ from nucypher_core.umbral import PublicKey
 from nucypher.blockchain.eth import domains
 from nucypher.characters.lawful import Bob
 from nucypher.crypto.keypairs import DecryptingKeypair, SigningKeypair
-from nucypher.crypto.powers import DecryptingPower, SigningPower, CryptoPower
+from nucypher.crypto.powers import CryptoPower, DecryptingPower, SigningPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 
 ######################

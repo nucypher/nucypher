@@ -15,7 +15,7 @@ from tests.constants import (
     TEST_POLYGON_PROVIDER_URI,
     YES_ENTER,
 )
-from tests.utils.blockchain import TestAccount, LocalAccount
+from tests.utils.blockchain import LocalAccount, TestAccount
 
 
 @pytest.mark.usefixtures("mock_registry_sources")

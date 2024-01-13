@@ -5,7 +5,7 @@ from web3 import Web3
 
 from nucypher.utilities.gas_strategies import (
     construct_fixed_price_gas_strategy,
-    max_price_gas_strategy_wrapper
+    max_price_gas_strategy_wrapper,
 )
 
 

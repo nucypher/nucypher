@@ -5,9 +5,9 @@ from constant_sorrow.constants import NO_PASSWORD
 from eth_account.hdaccount import Mnemonic
 
 from nucypher.cli.actions.auth import (
-    get_wallet_password,
     get_nucypher_password,
     get_password_from_prompt,
+    get_wallet_password,
     unlock_nucypher_keystore,
 )
 from nucypher.cli.literature import (
