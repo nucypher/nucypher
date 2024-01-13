@@ -318,7 +318,7 @@ class Learner:
         force_verification_recheck: bool = False,
         record_fleet_state: bool = True,
         eager: bool = False,
-    ) -> Union["characters.lawful.Ursula", bool]:
+    ) -> Union["characters.lawful.Ursula", False]:
 
         # No need to remember self.
         if node == self:
@@ -335,8 +335,8 @@ class Learner:
                 # This node is already known and not stale.  We can safely return.
                 return False
 
-        success = True
         if eager:
+            # mature and verify the node immediately
             node.mature()
             try:
                 node.verify_node(
@@ -348,25 +348,22 @@ class Learner:
             except SSLError:
                 self.log.debug(f"SSL Error while trying to verify node {node.rest_interface}.")
                 self.peers.mark_for_removal(SSLError, node)
-                success = False
+                return False
             except RestMiddleware.Unreachable:
                 self.log.debug("No Response while trying to verify node {}|{}.".format(node.rest_interface, node))
                 self.peers.mark_for_removal(node.Unreachable, node)
-                success = False
+                return False
             except Teacher.NotStaking:
                 self.log.debug(f'Provider:Operator {node.checksum_address}:{node.operator_address} is not staking.')
                 self.peers.mark_for_removal(Teacher.NotStaking, node)
-                success = False
+                return False
 
-        if success:
-            # commit adding this node to the local view of the next fleet state.
-            self.peers.record_node(node)
-            if record_fleet_state:
-                # generate the next fleet state.
-                self.peers.record_fleet_state()
-            return node
-        else:
-            return False
+        # commit adding this node to the local view of the next fleet state.
+        self.peers.record_node(node)
+        if record_fleet_state:
+            # generate the next fleet state.
+            self.peers.record_fleet_state()
+        return node
 
     def start_peering(self, now=False):
         if self._peering_task.running:
@@ -747,10 +744,10 @@ class Teacher:
     class InvalidStamp(InvalidNode):
         """Base exception class for invalid character stamps"""
 
-    class InvalidOperatorSignature(InvalidStamp):
+    class InvalidOperatorSignature(InvalidNode):
         """Raised when a stamp fails signature verification or recovers an unexpected worker address"""
 
-    class NotStaking(InvalidStamp):
+    class NotStaking(InvalidNode):
         """Raised when a node fails verification because it is not currently staking"""
 
     class UnbondedOperator(InvalidNode):
@@ -855,17 +852,12 @@ class Teacher:
             raise self.InvalidNode("Metadata signature is invalid")
 
     def validate_operator_signature(self) -> None:
+        """Calls into nucypher-core. This will raise if the signature is invalid."""
         payload = self.metadata().payload
         try:
-            # This will raise if the signature is invalid.
-            _canonical_address = payload.derive_operator_address()
+            _canonical_address = payload.derive_operator_address()  # <-- core call
         except Exception as e:
             raise self.InvalidOperatorSignature(str(e)) from e
-        # derived_address = to_checksum_address(bytes(canonical_address))
-        # if not derived_address == self.operator_address:
-        #     raise self.InvalidOperatorSignature(
-        #         f"Operator address {self.operator_address} does not match derived address {derived_address}"
-        #     )
         self.verified_operator_signature = True
 
     def validate_metadata(
