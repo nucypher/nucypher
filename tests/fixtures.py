@@ -493,7 +493,6 @@ def highperf_mocked_alice(
         alice = config.produce(
             seed_nodes=list(fleet_of_highperf_mocked_ursulas)[:1],
             abort_on_peering_error=True,
-            save_metadata=False,
         )
     yield alice
     # TODO: Where does this really, truly belong?
@@ -516,8 +515,6 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
         bob = config.produce(
             seed_nodes=list(fleet_of_highperf_mocked_ursulas)[:1],
             abort_on_peering_error=True,
-            save_metadata=False,
-            reload_metadata=False,
         )
     yield bob
     bob._peering_task.stop()

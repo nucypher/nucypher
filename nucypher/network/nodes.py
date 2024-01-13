@@ -246,7 +246,6 @@ class Learner:
         start_peering_now: bool = False,
         peering_on_same_thread: bool = True,
         seed_nodes: tuple = None,
-        save_metadata: bool = False,
         abort_on_peering_error: bool = False,
         lonely: bool = False,
         verify_peer_bonding: bool = True,
@@ -261,7 +260,6 @@ class Learner:
         )
 
         self.network_middleware = network_middleware or default_middleware
-        self.save_metadata = save_metadata
         self.start_peering_now = start_peering_now
         self.peering_on_same_thread = peering_on_same_thread
 
@@ -277,7 +275,7 @@ class Learner:
         self._peering_deferred = None
         self._discovery_canceller = DiscoveryCanceller()
 
-        self.node_class =  characters.lawful.Ursula
+        self.node_class = characters.lawful.Ursula
 
         # This node has not initialized its metadata yet.
         self.peers.record_fleet_state(skip_this_node=True)
@@ -343,8 +341,6 @@ class Learner:
                 return False
 
         self.peers.record_node(node)  # FIXME - dont always remember nodes, bucket them.
-        if self.save_metadata:
-            self.node_storage.store_node_metadata(node=node)
 
         success = True
         if eager:
