@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
 set -e
-pytest tests/unit
+cd tests/unit
+pytest
 exit 0

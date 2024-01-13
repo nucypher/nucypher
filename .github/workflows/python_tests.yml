@@ -55,31 +55,35 @@ jobs:
       # Unit tests
       - name: Unit Tests (Coverage)
         if: matrix.python-version == '3.12'
+        working-directory: tests/unit
         run: |
-          coverage run --data-file=unit_data -m pytest tests/unit
+          coverage run --data-file=unit_data -m pytest
           coverage xml -i --data-file=unit_data -o unit-coverage.xml
 
       - name: Unit Tests
         if: matrix.python-version != '3.12'
-        run: python -m pytest tests/unit
+        working-directory: tests/unit
+        run: python -m pytest
 
       # Integration tests
       - name: Integration Tests (Coverage)
         if: matrix.python-version == '3.12'
+        working-directory: tests/integration
         run: |
-          coverage run --data-file=integration_data -m pytest tests/integration
+          coverage run --data-file=integration_data -m pytest
           coverage xml -i --data-file=integration_data -o integration-coverage.xml
 
       - name: Integration Tests
         if: matrix.python-version != '3.12'
-        run: python -m pytest tests/integration
+        working-directory: tests/integration
+        run: python -m pytest
 
       # Acceptance tests
       - name: Agents Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
         run: |
-          coverage run --data-file=acceptance_agent_data -m pytest agents
+          coverage run --data-file=acceptance_agent_data -m pytest
           coverage xml -i --data-file=acceptance_agent_data -o acceptance-agents-coverage.xml
 
       - name: Agents Tests
