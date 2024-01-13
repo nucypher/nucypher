@@ -35,7 +35,6 @@ class NotAPublicKey:
 
     _umbral_pubkey_from_bytes = PublicKey.from_compressed_bytes
 
-    @staticmethod
     def _tick():
         for serial in good_serials:
             yield serial
