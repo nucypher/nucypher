@@ -23,7 +23,6 @@ option_config_root = click.option(
     help="Custom configuration directory",
     type=click.Path(path_type=Path),
 )
-option_dev = click.option("--dev", "-d", help="Enable development mode", is_flag=True)
 option_dry_run = click.option(
     "--dry-run",
     "-x",

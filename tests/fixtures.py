@@ -481,7 +481,6 @@ def highperf_mocked_alice(
     testerchain,
 ):
     config = AliceConfiguration(
-        dev_mode=True,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
@@ -503,7 +502,6 @@ def highperf_mocked_alice(
 @pytest.fixture(scope="module")
 def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
     config = BobConfiguration(
-        dev_mode=True,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         domain=TEMPORARY_DOMAIN_NAME,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
@@ -542,7 +540,6 @@ def click_runner():
 @pytest.fixture(scope='module')
 def nominal_configuration_fields():
     config = UrsulaConfiguration(
-        dev_mode=True,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
     )

@@ -18,15 +18,11 @@ from nucypher.cli.actions.select import (
     select_domain,
 )
 from nucypher.cli.config import group_general_config
-from nucypher.cli.literature import (
-    DEVELOPMENT_MODE_WARNING,
-    FORCE_MODE_WARNING,
-)
+from nucypher.cli.literature import FORCE_MODE_WARNING
 from nucypher.cli.options import (
     group_options,
     option_config_file,
     option_config_root,
-    option_dev,
     option_domain,
     option_dry_run,
     option_eth_endpoint,
@@ -47,7 +43,6 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     DEFAULT_CONFIG_ROOT,
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
-    TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.config.migrations import MIGRATIONS
 from nucypher.config.migrations.common import (
@@ -71,7 +66,6 @@ class UrsulaConfigOptions:
         port: int,
         domain: str,
         registry_filepath: Path,
-        dev: bool,
         gas_strategy: str,
         max_gas_price: int,  # gwei
         wallet_filepath: Path,
@@ -86,7 +80,6 @@ class UrsulaConfigOptions:
         self.port = port
         self.domain = domain
         self.registry_filepath = registry_filepath
-        self.dev = dev
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price
         self.lonely = lonely
@@ -94,11 +87,13 @@ class UrsulaConfigOptions:
         self.polygon_endpoint = polygon_endpoint
 
     def create_config(self, emitter, config_file):
-        if self.dev:
-            return UrsulaConfiguration(
+        if not config_file:
+            config_file = DEFAULT_CONFIG_FILEPATH
+        try:
+            return UrsulaConfiguration.from_configuration_file(
                 emitter=emitter,
-                dev_mode=True,
-                domain=TEMPORARY_DOMAIN_NAME,
+                filepath=config_file,
+                domain=self.domain,
                 registry_filepath=self.registry_filepath,
                 eth_endpoint=self.eth_endpoint,
                 wallet_filepath=self.wallet_filepath,
@@ -109,30 +104,14 @@ class UrsulaConfigOptions:
                 pre_payment_method=self.pre_payment_method,
                 polygon_endpoint=self.polygon_endpoint,
             )
-        else:
-            if not config_file:
-                config_file = DEFAULT_CONFIG_FILEPATH
-            try:
-                return UrsulaConfiguration.from_configuration_file(
-                    emitter=emitter,
-                    filepath=config_file,
-                    domain=self.domain,
-                    registry_filepath=self.registry_filepath,
-                    eth_endpoint=self.eth_endpoint,
-                    wallet_filepath=self.wallet_filepath,
-                    gas_strategy=self.gas_strategy,
-                    max_gas_price=self.max_gas_price,
-                    host=self.host,
-                    port=self.port,
-                    pre_payment_method=self.pre_payment_method,
-                    polygon_endpoint=self.polygon_endpoint,
-                )
-            except FileNotFoundError:
-                return handle_missing_configuration_file(character_config_class=UrsulaConfiguration, config_file=config_file)
-            except Keystore.AuthenticationFailed as e:
-                emitter.error(str(e))
-                # TODO: Exit codes (not only for this, but for other exceptions)
-                return click.get_current_context().exit(1)
+        except FileNotFoundError:
+            return handle_missing_configuration_file(
+                character_config_class=UrsulaConfiguration, config_file=config_file
+            )
+        except Keystore.AuthenticationFailed as e:
+            emitter.error(str(e))
+            # TODO: Exit codes (not only for this, but for other exceptions)
+            return click.get_current_context().exit(1)
 
     @staticmethod
     def _check_for_existing_config(self, config_root, force):
@@ -148,14 +127,7 @@ class UrsulaConfigOptions:
             )
 
     def generate_config(self, emitter, config_root, force, key_material):
-
         self._check_for_existing_config(self, config_root, force)
-        if self.dev:
-            raise RuntimeError(
-                "Persistent configurations cannot be created in development mode."
-            )
-
-        # Resolve rest host
         if not self.host:
             self.host = collect_operator_ip_address(
                 emitter,
@@ -221,7 +193,6 @@ group_config_options = group_options(
     ),
     domain=option_domain(),
     registry_filepath=option_registry_filepath,
-    dev=option_dev,
     lonely=option_lonely,
     polygon_endpoint=option_polygon_endpoint,
     pre_payment_method=option_pre_payment_method,
@@ -245,7 +216,7 @@ class UrsulaCharacterOptions:
                 emitter=emitter,
                 eth_endpoint=ursula_config.eth_endpoint,
                 peer_uri=self.peer_uri,
-                unlock=not self.config_options.dev,
+                unlock=True,
                 lonely=self.config_options.lonely,
             )
             return ursula_config, URSULA
@@ -277,7 +248,7 @@ def ursula():
 def init(general_config, config_options, force, config_root, key_material):
     """Create a new Ursula node configuration."""
     emitter = setup_emitter(general_config)
-    _pre_launch_warnings(emitter, dev=None, force=force)
+    _pre_launch_warnings(emitter, force=force)
     if not config_root:
         config_root = general_config.config_root
     if not config_options.eth_endpoint:
@@ -327,7 +298,7 @@ def recover(general_config, config_options):
 def destroy(general_config, config_options, config_file, force):
     """Delete Ursula node configuration."""
     emitter = setup_emitter(general_config, )
-    _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
+    _pre_launch_warnings(emitter, force=force)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
 
@@ -375,10 +346,9 @@ def run(
     """Run an "Ursula" node."""
 
     emitter = setup_emitter(general_config)
-    dev_mode = character_options.config_options.dev
     lonely = character_options.config_options.lonely
 
-    _pre_launch_warnings(emitter, dev=dev_mode, force=None)
+    _pre_launch_warnings(emitter, force=None)
 
     prometheus_config = None
     if prometheus:
@@ -390,15 +360,16 @@ def run(
         emitter=emitter, config_file=config_file,
     )
 
-    if ip_checkup and not (dev_mode or lonely):
-        # Always skip startup IP checks for dev and lonely modes.
+    if ip_checkup and not lonely:
+        # Always skip startup IP checks in lonely mode.
         perform_startup_ip_check(emitter=emitter, ursula=URSULA, force=force)
 
     try:
-        URSULA.run(emitter=emitter,
-                   start_reactor=not dry_run,
-                   prometheus_config=prometheus_config,
-                   preflight=not dev_mode)
+        URSULA.run(
+            emitter=emitter,
+            start_reactor=not dry_run,
+            prometheus_config=prometheus_config,
+        )
     finally:
         if dry_run:
             URSULA.stop()
@@ -473,8 +444,6 @@ def migrate(general_config, config_options, config_file):
             return click.Abort()
 
 
-def _pre_launch_warnings(emitter, dev, force):
-    if dev:
-        emitter.echo(DEVELOPMENT_MODE_WARNING, color='yellow', verbosity=1)
+def _pre_launch_warnings(emitter, force):
     if force:
         emitter.echo(FORCE_MODE_WARNING, color='yellow', verbosity=1)

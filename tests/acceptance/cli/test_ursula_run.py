@@ -44,7 +44,6 @@ def test_run_lone_default_development_ursula(click_runner, ursulas, testerchain)
         "--debug",  # Display log output; Do not attach console
         "--port",
         deploy_port,  # Network Port
-        "--dev",  # Run in development mode (ephemeral node)
         "--dry-run",  # Disable twisted reactor in subprocess
         "--lonely",  # Do not load seednodes,
         "--eth-endpoint",
@@ -89,7 +88,6 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain, mocker):
             deploy_port,  # Network Port
             "--peer",
             peer_uri,
-            "--dev",  # Run in development mode (ephemeral node)
             "--dry-run",  # Disable twisted reactor
             "--eth-endpoint",
             TEST_ETH_PROVIDER_URI,

@@ -2,11 +2,9 @@ import json
 from abc import ABC, abstractmethod
 from decimal import Decimal
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Callable, List, Optional, Union
 
 from constant_sorrow.constants import (
-    DEVELOPMENT_CONFIGURATION,
     LIVE_CONFIGURATION,
     NO_BLOCKCHAIN_CONNECTION,
     NO_KEYSTORE_ATTACHED,
@@ -32,7 +30,6 @@ from nucypher.crypto.powers import CryptoPower, CryptoPowerUp
 from nucypher.network.middleware import RestMiddleware
 from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.logging import Logger
-from tests.utils.blockchain import TestAccount
 
 
 class BaseConfiguration(ABC):
@@ -342,7 +339,6 @@ class CharacterConfiguration(BaseConfiguration):
         emitter=None,
         config_root: Optional[Path] = None,
         filepath: Optional[Path] = None,
-        dev_mode: bool = False,
         crypto_power: Optional[CryptoPower] = None,
         keystore: Optional[Keystore] = None,
         keystore_filepath: Optional[Path] = None,
@@ -364,7 +360,6 @@ class CharacterConfiguration(BaseConfiguration):
         self.log = Logger(self.__class__.__name__)
 
         # Configuration
-        self.__dev_mode = dev_mode
         self.config_file_location = filepath or UNINITIALIZED_CONFIGURATION
         self.config_root = UNINITIALIZED_CONFIGURATION
 
@@ -443,18 +438,9 @@ class CharacterConfiguration(BaseConfiguration):
                 pre_payment_method or self.DEFAULT_PRE_PAYMENT_METHOD
             )
 
-        if dev_mode:
-            self.__temp_dir = UNINITIALIZED_CONFIGURATION
-
-            self.initialize(
-                keystore_password=DEVELOPMENT_CONFIGURATION,
-                wallet_password=DEVELOPMENT_CONFIGURATION,
-            )
-
-        else:
-            self.__temp_dir = LIVE_CONFIGURATION
-            self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
-            self._cache_runtime_filepaths()
+        self.__temp_dir = LIVE_CONFIGURATION
+        self.config_root = config_root or self.DEFAULT_CONFIG_ROOT
+        self._cache_runtime_filepaths()
 
         # Network
         self.network_middleware = network_middleware or self.DEFAULT_NETWORK_MIDDLEWARE(
@@ -523,21 +509,13 @@ class CharacterConfiguration(BaseConfiguration):
             key_material: Optional[bytes] = None,
             *args, **kwargs
     ):
-        node_config = cls(dev_mode=False, *args, **kwargs)
+        node_config = cls(*args, **kwargs)
         node_config.initialize(
             key_material=key_material,
             keystore_password=keystore_password,
             wallet_password=wallet_password,
         )
         return node_config
-
-    def cleanup(self) -> None:
-        if self.__dev_mode:
-            self.__temp_dir.cleanup()
-
-    @property
-    def dev_mode(self) -> bool:
-        return self.__dev_mode
 
     def destroy(self) -> None:
         """Parse a node configuration and remove all associated files from the filesystem"""
@@ -688,7 +666,7 @@ class CharacterConfiguration(BaseConfiguration):
 
     def derive_node_power_ups(self) -> List[CryptoPowerUp]:
         power_ups = list()
-        if not self.is_peer and not self.dev_mode:
+        if not self.is_peer:
             for power_class in self.CHARACTER_CLASS._default_crypto_powerups:
                 power_up = self.keystore.derive_crypto_power(power_class)
                 power_ups.append(power_up)
@@ -701,31 +679,14 @@ class CharacterConfiguration(BaseConfiguration):
             key_material: Optional[bytes] = None
     ) -> Path:
         """Initialize a new configuration and write installation files to disk."""
-
-        # Development
-        if self.dev_mode:
-            self.__temp_dir = TemporaryDirectory(
-                prefix=self.TEMP_CONFIGURATION_DIR_PREFIX
-            )
-            self.config_root = Path(self.__temp_dir.name)
-            self.wallet = TestAccount.random()
-
-        # Persistent
-        else:
-            self._ensure_config_root_exists()
-            self.keygen(
-                key_material=key_material,
-                keystore_password=keystore_password,
-                wallet_password=wallet_password,
-            )
-
+        self._ensure_config_root_exists()
+        self.keygen(
+            key_material=key_material,
+            keystore_password=keystore_password,
+            wallet_password=wallet_password,
+        )
         self._cache_runtime_filepaths()
-
-        # Validate
-        if not self.__dev_mode:
-            self.validate()
-
-        # Success
+        self.validate()
         message = "Created nucypher installation files at {}".format(self.config_root)
         self.log.debug(message)
         return Path(self.config_root)

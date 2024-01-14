@@ -40,12 +40,7 @@ def get_wallet_password(envvar: str = None, confirm: bool = False) -> str:
 
 
 def unlock_wallet(config: CharacterConfiguration) -> None:
-    eth_password_is_needed = (
-            not config.dev_mode,
-    )
-    __password = None
-    if eth_password_is_needed:
-        __password = get_wallet_password(envvar=config.WALLET_FILEPATH_ENVVAR)
+    __password = get_wallet_password(envvar=config.WALLET_FILEPATH_ENVVAR)
     config.unlock_wallet(password=__password)
 
 
@@ -62,12 +57,6 @@ def get_nucypher_password(emitter, confirm: bool = False, envvar=NUCYPHER_ENVVAR
 def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_configuration: CharacterConfiguration) -> bool:
     """Unlocks a nucypher keystore and attaches it to the supplied configuration if successful."""
     emitter.message(DECRYPTING_CHARACTER_KEYSTORE.format(name=character_configuration.NAME.capitalize()), color='yellow')
-
-    # precondition
-    if character_configuration.dev_mode:
-        return True  # Dev accounts are always unlocked
-
-    # unlock
     character_configuration.keystore.unlock(password=password)  # Takes ~3 seconds, ~1GB Ram
     return True
 

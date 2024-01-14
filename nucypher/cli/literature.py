@@ -3,7 +3,6 @@
 
 # Common
 FORCE_MODE_WARNING = "WARNING: Force is enabled"
-DEVELOPMENT_MODE_WARNING = "WARNING: Running in Development mode"
 
 # Events
 CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_file}?"

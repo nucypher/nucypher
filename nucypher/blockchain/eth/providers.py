@@ -20,7 +20,6 @@ def _get_http_provider(endpoint) -> BaseProvider:
 
 def _get_pyevm_test_backend() -> PyEVMBackend:
     try:
-        # TODO: Consider packaged support of --dev mode with testerchain
         from tests.constants import PYEVM_GAS_LIMIT
     except ImportError:
         raise DevelopmentInstallationRequired(importable_name='tests.constants')

@@ -31,27 +31,19 @@ class UrsulaConfiguration(CharacterConfiguration):
 
     def __init__(
         self,
-        dev_mode: bool = False,
         host: Optional[str] = None,
         port: Optional[int] = None,
         certificate: Optional[Certificate] = None,
         condition_blockchain_endpoints: Optional[Dict[str, List[str]]] = None,
         *args, **kwargs,
     ):
-
-        if dev_mode:
-            host = host or self.DEFAULT_DEVELOPMENT_REST_HOST
-            port = port or self.DEFAULT_DEVELOPMENT_REST_PORT
-        else:
-            if not host:
-                raise ValueError("host is required for live nodes.")
-            port = port or self.DEFAULT_REST_PORT
-
+        if not host:
+            raise ValueError("host is required for live nodes.")
+        port = port or self.DEFAULT_REST_PORT
         self.port = port
         self.host = host
         self.certificate = certificate
-
-        super().__init__(dev_mode=dev_mode, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # json configurations don't allow for integer keyed dictionaries
         # so convert string chain id to integer

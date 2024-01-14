@@ -40,8 +40,8 @@ NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUC
 CLI_ROOT = NUCYPHER_PACKAGE / "network" / "templates"
 MAX_UPLOAD_CONTENT_LENGTH = 1024 * 250  # 250kb
 
-# Dev Mode
-TEMPORARY_DOMAIN_NAME = ":temporary-domain:"  # for use with `--dev` node runtimes
+# Test domain
+TEMPORARY_DOMAIN_NAME = ":temporary-domain:"
 
 # Event Blocks Throttling
 NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS = 'NUCYPHER_EVENTS_THROTTLE_MAX_BLOCKS'

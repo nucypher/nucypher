@@ -2,9 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
-from constant_sorrow.constants import NO_KEYSTORE_ATTACHED
 from eth_account.hdaccount import Mnemonic
-from eth_utils import is_checksum_address
 from nucypher_core.umbral import SecretKey
 
 from nucypher.characters.lawful import Alice, Bob, Ursula
@@ -35,57 +33,6 @@ all_configurations = tuple(
 )
 
 
-@pytest.mark.usefixtures(
-    "mock_registry_sources",
-    "monkeypatch_get_staking_provider_from_operator"
-)
-@pytest.mark.parametrize("character,configuration", characters_and_configurations)
-def test_development_character_configurations(
-    character, configuration
-):
-    params = dict(
-        dev_mode=True,
-        lonely=True,
-        domain=TEMPORARY_DOMAIN_NAME,
-        eth_endpoint=MOCK_ETH_PROVIDER_URI,
-        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-    )
-    config = configuration(**params)
-
-    assert config.is_peer is False
-    assert config.dev_mode is True
-    assert config.keystore == NO_KEYSTORE_ATTACHED
-    assert config.wallet is not None
-
-    # Production
-    thing_one = config()
-
-    # Alternate way to produce a character with a direct call
-    thing_two = config.produce()
-    assert isinstance(thing_two, character)
-
-    # Ensure we do in fact have a character here
-    assert isinstance(thing_one, character)
-
-    # Ethereum Address
-    assert is_checksum_address(thing_one.wallet.address)
-    assert len(thing_one.wallet.address) == 42
-
-    # Domain
-    assert TEMPORARY_DOMAIN_NAME == str(thing_one.domain)
-
-    # All development characters are unique
-    _characters = [thing_one, thing_two]
-    for _ in range(3):
-        another_character = config()
-        assert another_character not in _characters
-        _characters.append(another_character)
-
-    if character is Alice:
-        for alice in _characters:
-            alice.disenchant()
-
-
 @pytest.mark.parametrize("configuration_class", all_configurations)
 def test_default_character_configuration_preservation(
     configuration_class,
@@ -108,7 +55,6 @@ def test_default_character_configuration_preservation(
     assert not expected_filepath.exists()
 
     if configuration_class == UrsulaConfiguration:
-        # special case for host & dev mode use keystore
         keystore = Keystore.from_mnemonic(
             mnemonic=Mnemonic('english').generate(24),
             password=INSECURE_DEVELOPMENT_PASSWORD,
@@ -155,40 +101,3 @@ def test_default_character_configuration_preservation(
     finally:
         if expected_filepath.exists():
             expected_filepath.unlink()
-
-
-def test_ursula_development_configuration(testerchain):
-    config = UrsulaConfiguration(
-        dev_mode=True,
-        domain=TEMPORARY_DOMAIN_NAME,
-        eth_endpoint=MOCK_ETH_PROVIDER_URI,
-        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-    )
-    assert config.is_peer is False
-    assert config.dev_mode is True
-    assert config.keystore == NO_KEYSTORE_ATTACHED
-
-    # Produce an Ursula
-    ursula_one = config()
-
-    # Ensure we do in fact have an Ursula here
-    assert isinstance(ursula_one, Ursula)
-    assert len(ursula_one.wallet.address) == 42
-
-    # A Temporary Ursula
-    port = ursula_one.rest_information()[0].port
-    assert port == UrsulaConfiguration.DEFAULT_DEVELOPMENT_REST_PORT
-
-    # Alternate way to produce a character with a direct call
-    ursula_two = config.produce()
-    assert isinstance(ursula_two, Ursula)
-
-    # All development Ursulas are unique
-    ursulas = [ursula_one, ursula_two]
-    for _ in range(3):
-        ursula = config()
-        assert ursula not in ursulas
-        ursulas.append(ursula)
-
-    for ursula in ursulas:
-        ursula.stop()

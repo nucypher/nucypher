@@ -12,7 +12,6 @@ from tests.utils.middleware import MockRestMiddleware
 from tests.utils.ursula import select_test_port
 
 TEST_CHARACTER_CONFIG_BASE_PARAMS = dict(
-    dev_mode=True,
     domain=TEMPORARY_DOMAIN_NAME,
 )
 
