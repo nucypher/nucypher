@@ -12,6 +12,7 @@ from web3.datastructures import AttributeDict
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Enrico, Ursula
+from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from tests.constants import TESTERCHAIN_CHAIN_ID
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -67,6 +68,9 @@ def cohort(ursulas, mock_coordinator_agent):
         # set mapping in coordinator agent
         mock_coordinator_agent._add_operator_to_staking_provider_mapping(
             {u.operator_address: u.checksum_address}
+        )
+        mock_coordinator_agent.set_provider_public_key(
+            u.public_keys(RitualisticPower), u.transacting_power
         )
         u.coordinator_agent = mock_coordinator_agent
         u.ritual_tracker.coordinator_agent = mock_coordinator_agent
