@@ -403,7 +403,7 @@ def forget(general_config, config_options, config_file):
 )
 @click.option(
     "--metrics-interval",
-    help="The frequency of metrics collection (if prometheus enabled)",
+    help="The frequency of metrics collection in seconds (if prometheus enabled)",
     type=click.INT,
     default=90,
 )
