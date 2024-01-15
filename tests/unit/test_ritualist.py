@@ -2,16 +2,23 @@ import pytest
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
+from nucypher.crypto.powers import RitualisticPower, TransactingPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
 
 
 @pytest.fixture(scope="module")
-def agent(mock_contract_agency) -> MockCoordinatorAgent:
+def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
     coordinator_agent: CoordinatorAgent = mock_contract_agency.get_agent(
         CoordinatorAgent, registry=None, blockchain_endpoint=MOCK_ETH_PROVIDER_URI
     )
+
+    def mock_get_provider_public_key(provider, ritual_id):
+        for ursula in ursulas:
+            if ursula.checksum_address == provider:
+                return ursula.public_keys(RitualisticPower)
+
+    coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
 
