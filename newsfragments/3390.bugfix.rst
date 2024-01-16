@@ -1,0 +1,5 @@
+Node blocks and remains unresponsive when another node in the cohort is
+unreachable during a dkg ritual because the ferveo public key is obtained from
+a node directly through node discovery. Instead, obtain ferveo public key
+from Coordinator contract so that connecting to the another node in
+the cohort is unnecessary.
