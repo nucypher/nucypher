@@ -910,6 +910,7 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
+            gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
             fire_and_forget=fire_and_forget,
         )
