@@ -127,6 +127,12 @@ def temp_dir_path():
 @pytest.fixture(scope="package", autouse=True)
 def mock_default_config_root(monkeypackage, session_mocker):
     path = Path("/tmp/nucypher-test-config-root")
+    if not path.exists():
+        path.mkdir()
+    keystore_dir = path / "keystore"
+    if not keystore_dir.exists():
+        keystore_dir.mkdir()
+
     session_mocker.patch("nucypher.config.constants.DEFAULT_CONFIG_ROOT", path)
     monkeypackage.setenv("NUCYPHER_CONFIG_ROOT", str(path.absolute()))
     session_mocker.patch.object(GroupGeneralConfig, "config_root", path)
@@ -134,7 +140,7 @@ def mock_default_config_root(monkeypackage, session_mocker):
     session_mocker.patch(
         "nucypher.cli.commands.ursula.DEFAULT_CONFIG_FILEPATH", path / "ursula.json"
     )
-    session_mocker.patch.object(Keystore, "_DEFAULT_DIR", path / "keystore")
+    session_mocker.patch.object(Keystore, "_DEFAULT_DIR", keystore_dir)
     monkeypackage.setattr(BaseConfiguration, "DEFAULT_CONFIG_ROOT", path)
 
 
