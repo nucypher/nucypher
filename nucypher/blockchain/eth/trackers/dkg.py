@@ -63,7 +63,7 @@ class EventScannerTask(SimpleTask):
         self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
         if not self._task.running:
             self.log.warn("Restarting event scanner task!")
-            self.start(now=True)
+            self.start(now=False)  # take a breather
 
 
 class ActiveRitualTracker:
