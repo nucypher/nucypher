@@ -1,4 +1,5 @@
 import json
+import random
 import time
 from collections import defaultdict
 from decimal import Decimal
@@ -133,6 +134,8 @@ class NucypherTokenActor(BaseActor):
 class Operator(BaseActor):
     READY_TIMEOUT = None  # (None or 0) == indefinite
     READY_POLL_RATE = 120  # seconds
+
+    AGGREGATION_SUBMISSION_MAX_DELAY = 60
 
     class OperatorError(BaseActor.ActorError):
         """Operator-specific errors."""
@@ -513,6 +516,11 @@ class Operator(BaseActor):
 
         # publish the transcript and store the receipt
         total = ritual.total_aggregations + 1
+
+        # distribute submission of aggregated transcripts - don't want all nodes submitting at
+        # the same time
+        time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
+
         tx_hash = self.publish_aggregated_transcript(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
