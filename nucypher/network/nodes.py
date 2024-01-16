@@ -434,6 +434,7 @@ class Learner:
             self.cycle_peers()
         peer = self._current_peer
         return peer
+
     def continue_peering(self):
         self.peering_deferred = Deferred(canceller=self._discovery_canceller)
 
@@ -604,7 +605,14 @@ class Learner:
                 remembered.extend(remembered_seednodes)
 
         self._peering_round += 1
-        current_peer = self.current_peer()  # Will raise if there's no available peer.
+
+        try:
+            current_peer = (
+                self.current_peer()
+            )  # Will raise if there's no available peer.
+        except self.NotEnoughPeers:
+            self.log.warn("Not enough peers to learn from.")
+            raise
 
         if isinstance(self, Teacher):
             announce_nodes = [self.metadata()]

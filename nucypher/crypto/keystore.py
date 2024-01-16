@@ -72,12 +72,22 @@ def _assemble_keystore(encrypted_secret: bytes, password_salt: bytes, wrapper_sa
     return encoded_key_data
 
 
+def _read_file(path: Path) -> bytes:
+    with open(path, "rb") as file:
+        data = file.read()
+    return data
+
+
+def _write_file(path, payload: bytes) -> None:
+    with os.open(path, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE) as keyfile:
+        keyfile.write(payload)
+
+
 def _read_keystore(path: Path, deserializer: Callable) -> Dict[str, Union[str, bytes]]:
     """Parses a keyfile and return decoded, deserialized key data."""
-    with open(path, 'rb') as keyfile:
-        key_data = keyfile.read()
-        if deserializer:
-            key_data = deserializer(key_data)
+    key_data = _read_file(path)
+    if deserializer:
+        key_data = deserializer(key_data)
     return key_data
 
 
@@ -103,13 +113,11 @@ def _write_keystore(path: Path, payload: Dict[str, bytes], serializer: Callable)
     if path.exists():
         raise Keystore.Exists(f"Private keyfile {path} already exists.")
     try:
-        keyfile_descriptor = os.open(path, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE)
+        _write_file(path, payload)
     finally:
         os.umask(0)  # Set the umask to 0 after opening
     if serializer:
         payload = serializer(payload)
-    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
-        keyfile.write(payload)
     return path
 
 
@@ -180,7 +188,6 @@ def validate_keystore_filename(path: Path) -> None:
 
 
 def _parse_path(path: Path) -> Tuple[int, str]:
-
     # validate keystore file
     if not path.exists():
         raise Keystore.NotFound(f"Keystore '{path.absolute()}' does not exist.")

@@ -39,7 +39,7 @@ def assemble(
 
 def make_ursula_test_configuration(port: int = select_test_port(), **assemble_kwargs) -> UrsulaConfiguration:
     test_params = assemble(**assemble_kwargs)
-    ursula_config = UrsulaConfiguration(**test_params, port=port)
+    ursula_config = UrsulaConfiguration(**test_params, host="0.0.0.0", port=port)
     return ursula_config
 
 

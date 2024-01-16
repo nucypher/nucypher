@@ -12,6 +12,7 @@ from unittest.mock import PropertyMock
 import maya
 import pytest
 from click.testing import CliRunner
+from eth_account.hdaccount import Mnemonic
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Validator
 from twisted.internet.task import Clock
@@ -30,7 +31,9 @@ from nucypher.config.characters import (
     UrsulaConfiguration,
 )
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
+from nucypher.crypto import keystore
 from nucypher.crypto.ferveo import dkg
+from nucypher.crypto.keystore import Keystore
 from nucypher.network.seednodes import TEACHER_NODES
 from nucypher.policy.conditions.context import USER_ADDRESS_CONTEXT
 from nucypher.policy.conditions.evm import RPCCondition
@@ -45,6 +48,7 @@ from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
     MIN_OPERATOR_SECONDS,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_CUSTOM_INSTALLATION_PATH_2,
@@ -83,10 +87,18 @@ test_logger = Logger("test-logger")
 # defer.setDebugging(True)
 
 
+@pytest.fixture(scope="package")
+def monkeypackage():
+    from _pytest.monkeypatch import MonkeyPatch
+
+    mpatch = MonkeyPatch()
+    yield mpatch
+    mpatch.undo()
+
+
 @pytest.fixture(scope='session')
 def monkeysession():
     from _pytest.monkeypatch import MonkeyPatch
-
     mpatch = MonkeyPatch()
     yield mpatch
     mpatch.undo()
@@ -112,24 +124,19 @@ def temp_dir_path():
     temp_dir.cleanup()
 
 
+@pytest.fixture(scope="package", autouse=True)
+def mock_default_config_root(monkeypackage, session_mocker):
+    path = Path("/tmp/nucypher-test-config-root")
+    session_mocker.patch("nucypher.config.constants.DEFAULT_CONFIG_ROOT", path)
+    monkeypackage.setenv("NUCYPHER_CONFIG_ROOT", str(path.absolute()))
+    session_mocker.patch.object(GroupGeneralConfig, "config_root", path)
+    session_mocker.patch("nucypher.cli.commands.ursula.DEFAULT_CONFIG_ROOT", path)
+    session_mocker.patch(
+        "nucypher.cli.commands.ursula.DEFAULT_CONFIG_FILEPATH", path / "ursula.json"
+    )
+    session_mocker.patch.object(Keystore, "_DEFAULT_DIR", path / "keystore")
+    monkeypackage.setattr(BaseConfiguration, "DEFAULT_CONFIG_ROOT", path)
 
-@pytest.fixture(scope='session', autouse=True)
-def mock_default_config_root(monkeysession, session_mocker):
-
-    # This is the target default config root for all tests.
-    path = Path('/tmp/nucypher-test-config-root')
-
-    # Constants
-    session_mocker.patch('nucypher.config.constants.DEFAULT_CONFIG_ROOT', path)
-    monkeysession.setenv('NUCYPHER_CONFIG_ROOT', str(path.absolute()))
-
-    # CLI
-    session_mocker.patch.object(GroupGeneralConfig, 'config_root', path)
-    session_mocker.patch('nucypher.cli.commands.ursula.DEFAULT_CONFIG_ROOT', path)
-    session_mocker.patch('nucypher.cli.commands.ursula.DEFAULT_CONFIG_FILEPATH', path / 'ursula.json')
-
-    # Config
-    monkeysession.setattr(BaseConfiguration, "DEFAULT_CONFIG_ROOT", path)
 
 
 #
@@ -165,6 +172,30 @@ def mock_read_wallet_keystore(monkeymodule, capture_wallets):
     monkeymodule.setattr(LocalAccount, '_read', read)
 
 
+@pytest.fixture(scope="package", autouse=True)
+def capture_nucypher_keystores():
+    return dict()
+
+
+@pytest.fixture(scope="package", autouse=True)
+def mock_write_keystore(monkeypackage, capture_nucypher_keystores):
+    def write(path, payload):
+        capture_nucypher_keystores[Path(path).absolute()] = payload
+
+    monkeypackage.setattr(keystore, "_write_file", write)
+
+
+@pytest.fixture(scope="package", autouse=True)
+def mock_read_keystore(monkeypackage, capture_nucypher_keystores):
+    def read(filepath):
+        try:
+            return capture_nucypher_keystores[filepath]
+        except KeyError:
+            raise FileNotFoundError
+
+    monkeypackage.setattr(keystore, "_read_file", read)
+
+
 @pytest.fixture(scope="module")
 def random_account():
     key = TestAccount.random(extra_entropy="lamborghini mercy")
@@ -190,7 +221,6 @@ def ursula_test_config(test_registry, temp_dir_path):
         port=select_test_port(),
     )
     yield config
-    config.cleanup()
     for k in list(MOCK_KNOWN_URSULAS_CACHE.keys()):
         del MOCK_KNOWN_URSULAS_CACHE[k]
 
@@ -204,7 +234,6 @@ def alice_test_config(test_registry, ursulas):
         seed_nodes=ursulas,
     )
     yield config
-    config.cleanup()
 
 
 @pytest.fixture(scope="module")
@@ -216,7 +245,6 @@ def bob_test_config(test_registry, ursulas):
         seed_nodes=ursulas,
     )
     yield config
-    config.cleanup()
 
 
 #
@@ -309,9 +337,14 @@ def random_policy_label():
 
 @pytest.fixture(scope="module")
 def alice(alice_test_config, ursulas, accounts):
+    alice_test_config._CharacterConfiguration__keystore = Keystore.from_mnemonic(
+        mnemonic=Mnemonic("english").generate(24),
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+    )
+    alice_test_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     alice = alice_test_config.produce(
         wallet=accounts.alice_wallet,
-        seed_nodes=ursulas
+        seed_nodes=ursulas,
     )
     yield alice
     alice.disenchant()
@@ -319,10 +352,16 @@ def alice(alice_test_config, ursulas, accounts):
 
 @pytest.fixture(scope="module")
 def bob(bob_test_config, accounts, ursulas):
+    bob_test_config._CharacterConfiguration__keystore = Keystore.from_mnemonic(
+        mnemonic=Mnemonic("english").generate(24),
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+    )
+    bob_test_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     bob = bob_test_config.produce(
         wallet=accounts.bob_wallet,
-        seed_nodes=ursulas
+        seed_nodes=ursulas,
     )
+    bob.start_peering()
     yield bob
     bob.disenchant()
 
@@ -389,6 +428,11 @@ def light_ursula(temp_dir_path, random_account, accounts):
         wallet=accounts.ursula_wallet(0),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: [MOCK_ETH_PROVIDER_URI]},
         lonely=True,
+        keystore=Keystore.from_mnemonic(
+            mnemonic=Mnemonic("english").generate(24),
+            password=INSECURE_DEVELOPMENT_PASSWORD,
+            # keystore_dir=Path('/tmp/nucypher-test-keys')
+        ),
     )
 
     ursula._staking_provider_address = accounts.provider_wallet(0).address
@@ -542,6 +586,7 @@ def nominal_configuration_fields():
     config = UrsulaConfiguration(
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
+        host=LOOPBACK_ADDRESS,
     )
     config_fields = config.static_payload()
     yield tuple(config_fields.keys())
@@ -725,7 +770,7 @@ def control_time():
 
 @pytest.mark.usefixtures("bond_operators", )
 @pytest.fixture(scope="module")
-def ursulas(ursula_test_config, accounts, bond_operators):
+def ursulas(ursula_test_config, accounts):
     if MOCK_KNOWN_URSULAS_CACHE:
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
@@ -733,7 +778,7 @@ def ursulas(ursula_test_config, accounts, bond_operators):
         accounts=accounts,
         ursula_config=ursula_test_config,
         know_each_other=True,
-        peering_on_same_thread=False,
+        peering_on_same_thread=True,
     )
     for u in _ursulas:
         # We expect to never have to wait for content that is actually on-chain during tests.

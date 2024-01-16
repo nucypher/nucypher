@@ -5,12 +5,15 @@ from threading import Lock
 from typing import List, Optional
 
 from cryptography.x509 import Certificate
+from eth_account.hdaccount import Mnemonic
 from web3 import HTTPProvider
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.keystore import Keystore
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from tests.constants import (
+    INSECURE_DEVELOPMENT_PASSWORD,
     TESTERCHAIN_CHAIN_ID,
 )
 from tests.utils.blockchain import ReservedTestAccountManager
@@ -80,6 +83,12 @@ def make_ursulas(
             accounts.ursula_wallets[account_start_index:]
     ), quantity):
 
+        ursula_config._CharacterConfiguration__keystore = Keystore.from_mnemonic(
+            mnemonic=Mnemonic("english").generate(24),
+            password=INSECURE_DEVELOPMENT_PASSWORD,
+        )
+        ursula_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
         ursula = ursula_config.produce(
             port=select_test_port(),
             wallet=operator,
@@ -93,6 +102,10 @@ def make_ursulas(
 
         # Store this Ursula in our global testing cache.
         MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port] = ursula
+
+        assert ursula.operator_address == operator.address
+        assert ursula.staking_provider_address == provider.address
+        assert ursula.rest_interface.port != UrsulaConfiguration.DEFAULT_REST_PORT
 
     if know_each_other:
         # Bootstrap the network

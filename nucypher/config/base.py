@@ -366,9 +366,11 @@ class CharacterConfiguration(BaseConfiguration):
         # This constant is used to signal that a path can be generated if one is not provided.
         UNINITIALIZED_CONFIGURATION.bool_value(False)
 
-        # Identity
-        # NOTE: This API can only be used with Self-Characters
+        # Learner
         self.is_peer = False
+        self.domain = domains.get_domain(str(domain))
+        self.peers = seed_nodes or set()  # handpicked
+        self.lonely = lonely
 
         # Keystore
         self.crypto_power = crypto_power
@@ -392,39 +394,15 @@ class CharacterConfiguration(BaseConfiguration):
                     f" and '{registry_filepath.absolute()}'."
                 )
                 raise ValueError(error)
-            else:
-                self.log.warn("Registry and registry filepath were both passed.")
-        self.registry = registry or NO_BLOCKCHAIN_CONNECTION.bool_value(False)
-        self.registry_filepath = registry_filepath or UNINITIALIZED_CONFIGURATION
 
         # Blockchain
+        self.registry = registry
+        self.registry_filepath = registry_filepath
         self.eth_endpoint = eth_endpoint or NO_BLOCKCHAIN_CONNECTION
         self.polygon_endpoint = polygon_endpoint or NO_BLOCKCHAIN_CONNECTION
-
-        # Learner
-        self.domain = domains.get_domain(str(domain))
-        self.peers = seed_nodes or set()  # handpicked
-        self.lonely = lonely
-
-        #
-        # Decentralized
-        #
-
         self.gas_strategy = gas_strategy
         self.max_gas_price = max_gas_price  # gwei
 
-        if not self.registry:
-            if not self.registry_filepath:
-                self.log.info("Fetching latest registry from remote source.")
-                self.registry = ContractRegistry.from_latest_publication(
-                    domain=self.domain
-                )
-            else:
-                source = LocalRegistrySource(
-                    domain=self.domain, filepath=self.registry_filepath
-                )
-                self.registry = ContractRegistry(source=source)
-                self.log.info(f"Using local registry source ({self.registry}).")
 
         #
         # Onchain Payments & Policies
@@ -620,13 +598,30 @@ class CharacterConfiguration(BaseConfiguration):
         """
         Exported dynamic configuration values for initializing Ursula.
         These values are used to init a character instance but are *not*
-        saved to the JSON configuration.
+        saved to the JSON configuration.  Initialize higher-order objects here.
         """
+        registry = self.registry
+        if not registry:
+            if not self.registry_filepath:
+                self.log.info("Fetching latest registry from remote source.")
+                registry = ContractRegistry.from_latest_publication(domain=self.domain)
+            else:
+                source = LocalRegistrySource(
+                    domain=self.domain, filepath=self.registry_filepath
+                )
+                registry = ContractRegistry(source=source)
+                self.log.info(f"Using local registry source ({registry}).")
+
+        middleware = self.network_middleware
+        if not middleware:
+            middleware = RestMiddleware(
+                eth_endpoint=self.eth_endpoint, registry=registry
+            )
+
         payload = dict(
-            registry=self.registry,
+            registry=registry,
+            network_middleware=middleware,
             wallet=self.wallet,
-            network_middleware=self.network_middleware
-            or self.DEFAULT_NETWORK_MIDDLEWARE(),
             seed_nodes=self.peers,
             keystore=self.keystore,
             crypto_power_ups=self.derive_node_power_ups(),

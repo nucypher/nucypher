@@ -2,11 +2,14 @@ import shutil
 from pathlib import Path
 
 import pytest
+from eth_account.hdaccount import Mnemonic
 
 import tests
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.migrations import MIGRATIONS
 from nucypher.config.migrations.common import WrongConfigurationVersion
+from nucypher.crypto.keystore import Keystore
+from tests.constants import INSECURE_DEVELOPMENT_PASSWORD
 
 
 def _copy_config_file(src_test_file_name, dst_filepath):
@@ -44,8 +47,15 @@ def test_migrate_v4_to_latest(ursula_v4_config_filepath):
 
     # file changed in place
     migrated_ursula_config_filepath = ursula_v4_config_filepath
+
+    keystore = Keystore.from_mnemonic(
+        mnemonic=Mnemonic("english").generate(24),
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+    )
+    keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
     ursula_config = UrsulaConfiguration.from_configuration_file(
-        migrated_ursula_config_filepath
+        migrated_ursula_config_filepath,
+        keystore=keystore,
     )
 
     # successfully produce an ursula based on latest config
