@@ -13,6 +13,7 @@ from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 class ThresholdDecryptionClient(ThresholdAccessControlClient):
     DEFAULT_DECRYPTION_TIMEOUT = 15
+    DEFAULT_STAGGER_TIMEOUT = 10
 
     class ThresholdDecryptionRequestFailed(Exception):
         """Raised when a decryption request returns a non-zero status code."""
@@ -30,6 +31,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         encrypted_requests: Dict[ChecksumAddress, EncryptedThresholdDecryptionRequest],
         threshold: int,
         timeout: int = DEFAULT_DECRYPTION_TIMEOUT,
+        stagger_timeout: int = DEFAULT_STAGGER_TIMEOUT,
     ) -> Tuple[
         Dict[ChecksumAddress, EncryptedThresholdDecryptionResponse],
         Dict[ChecksumAddress, str],
@@ -78,6 +80,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                 encrypted_requests
             ),  # TODO should we cap this (say 40?)
             timeout=timeout,
+            stagger_timeout=stagger_timeout,
         )
         worker_pool.start()
         try:
