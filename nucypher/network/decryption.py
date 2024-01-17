@@ -71,8 +71,9 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                         response.content
                     )
             except Exception as e:
-                self.log.warn(f"Node {ursula_address} raised {e}")
-                raise
+                message = f"Node {ursula_address} raised {e}"
+                self.log.warn(message)
+                raise self.ThresholdDecryptionRequestFailed(message)
 
             message = f"Node {ursula_address} returned {response.status_code} - {response.content}."
             self.log.warn(message)
