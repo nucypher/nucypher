@@ -186,7 +186,7 @@ class RegistrySourceManager:
     def __init__(
         self,
         domain: TACoDomain,
-        sources: Optional[RegistrySource] = None,
+        sources: Optional[List[RegistrySource]] = None,
         only_primary: bool = False,
     ):
         if only_primary and sources:
