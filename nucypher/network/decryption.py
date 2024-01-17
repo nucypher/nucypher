@@ -90,7 +90,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             successes = worker_pool.get_successes()
         finally:
             worker_pool.cancel()
-            worker_pool.join()
+
         failures = worker_pool.get_failures()
 
         return successes, failures
