@@ -18,9 +18,9 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         """Raised when a decryption request returns a non-zero status code."""
 
     class ThresholdDecryptionRequestFactory(BatchValueFactory):
-        def __init__(self, ursula_to_contact: List[ChecksumAddress], threshold: int):
+        def __init__(self, ursulas_to_contact: List[ChecksumAddress], threshold: int):
             # TODO should we batch the ursulas to contact i.e. pass `batch_size` parameter
-            super().__init__(values=ursula_to_contact, required_successes=threshold)
+            super().__init__(values=ursulas_to_contact, required_successes=threshold)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
