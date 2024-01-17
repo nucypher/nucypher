@@ -67,10 +67,11 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             self.log.warn(message)
             raise self.ThresholdDecryptionRequestFailed(message)
 
+        batch_size = min(int(threshold * 1.25), len(encrypted_requests))
         worker_pool = WorkerPool(
             worker=worker,
             value_factory=self.ThresholdDecryptionRequestFactory(
-                ursula_to_contact=list(encrypted_requests.keys()), threshold=threshold
+                ursulas_to_contact=list(encrypted_requests.keys()), threshold=batch_size
             ),
             target_successes=threshold,
             threadpool_size=len(
