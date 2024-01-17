@@ -13,7 +13,7 @@ from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 
 class ThresholdDecryptionClient(ThresholdAccessControlClient):
-    DEFAULT_DECRYPTION_TIMEOUT = 15
+    DEFAULT_DECRYPTION_TIMEOUT = 30
     DEFAULT_STAGGER_TIMEOUT = 10
 
     class ThresholdDecryptionRequestFailed(Exception):
