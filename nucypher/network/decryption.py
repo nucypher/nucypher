@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from random import shuffle
 from typing import Dict, List, Tuple
 
 from eth_typing import ChecksumAddress
@@ -77,10 +78,13 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             self.log.warn(message)
             raise self.ThresholdDecryptionRequestFailed(message)
 
+        # TODO: Find a better request order, perhaps based on latency data obtained from discovery loop - #3395
+        requests = list(encrypted_requests)
+        shuffle(requests)
         worker_pool = WorkerPool(
             worker=worker,
             value_factory=self.ThresholdDecryptionRequestFactory(
-                ursulas_to_contact=list(encrypted_requests.keys()),
+                ursulas_to_contact=requests,
                 batch_size=int(threshold * 1.25),
                 threshold=threshold,
             ),
