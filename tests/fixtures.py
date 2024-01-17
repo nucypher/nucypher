@@ -7,6 +7,7 @@ from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from typing import Tuple
+from unittest.mock import PropertyMock
 
 import maya
 import pytest
@@ -765,3 +766,14 @@ def dkg_public_key(dkg_public_key_data) -> DkgPublicKey:
 def aggregated_transcript(dkg_public_key_data) -> AggregatedTranscript:
     aggregated_transcript, _ = dkg_public_key_data
     return aggregated_transcript
+
+
+#
+# DKG Ritual Aggregation
+#
+@pytest.fixture(scope="module", autouse=True)
+def mock_operator_aggregation_delay(module_mocker):
+    module_mocker.patch(
+        "nucypher.blockchain.eth.actors.Operator.AGGREGATION_SUBMISSION_MAX_DELAY",
+        PropertyMock(return_value=1),
+    )
