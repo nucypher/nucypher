@@ -75,7 +75,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
     def initialize(self, registry: CollectorRegistry) -> None:
         self.metrics = {
             "client_info": Info("client", "TACo node client info", registry=registry),
-            "discovery_status": Gauge(
+            "node_discovery_running": Gauge(
                 "node_discovery_running",
                 "Node discovery loop status",
                 registry=registry,
@@ -101,7 +101,7 @@ class UrsulaInfoMetricsCollector(BaseMetricsCollector):
         }
 
         self.metrics["client_info"].info(payload)
-        self.metrics["discovery_status"].set(self.ursula._learning_task.running)
+        self.metrics["node_discovery_running"].set(self.ursula._learning_task.running)
         self.metrics["known_nodes"].set(len(self.ursula.known_nodes))
 
 
