@@ -15,6 +15,7 @@ from nucypher_core import (
     MetadataResponsePayload,
     ReencryptionRequest,
 )
+from prometheus_client import REGISTRY, Counter
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
@@ -26,6 +27,17 @@ from nucypher.policy.conditions.utils import (
     evaluate_condition_lingo,
 )
 from nucypher.utilities.logging import Logger
+
+DECRYPTION_REQUESTS = Counter(
+    "threshold_decryption_requests",
+    "Number of threshold decryption requests",
+    registry=REGISTRY,
+)
+DECRYPTION_REQUESTS_ERRORS = Counter(
+    "threshold_decryption_errors",
+    "Number of threshold decryption errors",
+    registry=REGISTRY,
+)
 
 HERE = BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = HERE / "templates"
@@ -150,13 +162,16 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/decrypt', methods=["POST"])
     def threshold_decrypt():
+        DECRYPTION_REQUESTS.inc()
         try:
-            encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
-                request.data
-            )
-            encrypted_response = this_node.handle_threshold_decryption_request(
-                encrypted_request
-            )
+            with DECRYPTION_REQUESTS_ERRORS.count_exceptions():
+                encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
+                    request.data
+                )
+                encrypted_response = this_node.handle_threshold_decryption_request(
+                    encrypted_request
+                )
+
             response = Response(
                 response=bytes(encrypted_response),
                 status=HTTPStatus.OK,
