@@ -6,10 +6,11 @@ from prometheus_client.core import Timestamp
 from prometheus_client.registry import REGISTRY, CollectorRegistry
 from prometheus_client.twisted import MetricsResource
 from prometheus_client.utils import floatToGoString
-from twisted.internet import reactor, task
+from twisted.internet import reactor
 from twisted.web.resource import Resource
 from twisted.web.server import Site
 
+from nucypher.blockchain.eth.trackers.prometheus import PrometheusMetricsTracker
 from nucypher.characters import lawful
 from nucypher.utilities.prometheus.collector import (
     BlockchainMetricsCollector,
@@ -121,7 +122,7 @@ def start_prometheus_exporter(
     ursula: "lawful.Ursula",
     prometheus_config: PrometheusMetricsConfig,
     registry: CollectorRegistry = REGISTRY,
-) -> None:
+) -> PrometheusMetricsTracker:
     """Configure, collect, and serve prometheus metrics."""
 
     # Disabling default collector metrics
@@ -134,13 +135,10 @@ def start_prometheus_exporter(
     for collector in metrics_collectors:
         collector.initialize(registry=registry)
 
-    # Scheduling
-    metrics_task = task.LoopingCall(
-        collect_prometheus_metrics, metrics_collectors=metrics_collectors
+    metrics_tracker = PrometheusMetricsTracker(
+        collectors=metrics_collectors, interval=prometheus_config.collection_interval
     )
-    metrics_task.start(
-        interval=prometheus_config.collection_interval, now=prometheus_config.start_now
-    )
+    metrics_tracker.start(now=prometheus_config.start_now)
 
     # WSGI Service
     root = Resource()
@@ -150,6 +148,8 @@ def start_prometheus_exporter(
     reactor.listenTCP(
         prometheus_config.port, factory, interface=prometheus_config.listen_address
     )
+
+    return metrics_tracker
 
 
 def create_metrics_collectors(ursula: "lawful.Ursula") -> List[MetricsCollector]:
