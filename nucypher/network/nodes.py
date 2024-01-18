@@ -538,7 +538,7 @@ class Learner:
 
         if not nodes_we_know_about:
             self.log.warn("Need some nodes to start learning from.")
-            return False
+            raise self.NotEnoughTeachers("Need some nodes to start learning from.")
 
         self.teacher_nodes.extend(nodes_we_know_about)
 
