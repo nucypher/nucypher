@@ -890,6 +890,8 @@ class Ursula(Teacher, Character, Operator):
             certificate_filepath=certificate_filepath,
         )
 
+        self._prometheus_metrics_tracker = None
+
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
         signature = transacting_power.sign_message(message=bytes(self.stamp))
@@ -1009,7 +1011,9 @@ class Ursula(Teacher, Character, Operator):
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
 
         if prometheus_config:
-            start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
+            self._prometheus_metrics_tracker = start_prometheus_exporter(
+                ursula=self, prometheus_config=prometheus_config
+            )
             if emitter:
                 emitter.message(
                     f"✓ Prometheus Exporter http://{self.rest_interface.host}:"
@@ -1061,6 +1065,8 @@ class Ursula(Teacher, Character, Operator):
             self.stop_learning_loop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
+            if self._prometheus_metrics_tracker:
+                self._prometheus_metrics_tracker.stop()
         if halt_reactor:
             reactor.stop()
 

@@ -12,7 +12,8 @@ class SimpleTask(ABC):
     INTERVAL = 60  # 60s default
     CLOCK = reactor
 
-    def __init__(self):
+    def __init__(self, interval: float = INTERVAL):
+        self.interval = interval
         self.log = Logger(self.__class__.__name__)
         self._task = LoopingCall(self.run)
         # self.__task.clock = self.CLOCK
@@ -25,7 +26,7 @@ class SimpleTask(ABC):
     def start(self, now: bool = False):
         """Start task."""
         if not self.running:
-            d = self._task.start(interval=self.INTERVAL, now=now)
+            d = self._task.start(interval=self.interval, now=now)
             d.addErrback(self.handle_errors)
             # return d
 
