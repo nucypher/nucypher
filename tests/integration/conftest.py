@@ -296,3 +296,8 @@ def multichain_ids(module_mocker):
 def multichain_ursulas(ursulas, multichain_ids):
     setup_multichain_ursulas(ursulas=ursulas, chain_ids=multichain_ids)
     return ursulas
+
+
+@pytest.fixture(scope="module")
+def mock_prometheus(module_mocker):
+    return module_mocker.patch("nucypher.characters.lawful.start_prometheus_exporter")
