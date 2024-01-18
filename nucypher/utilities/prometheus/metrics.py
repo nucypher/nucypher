@@ -125,9 +125,9 @@ def start_prometheus_exporter(
     """Configure, collect, and serve prometheus metrics."""
 
     # Disabling default collector metrics
-    REGISTRY.unregister(GC_COLLECTOR)
-    REGISTRY.unregister(PLATFORM_COLLECTOR)
-    REGISTRY.unregister(PROCESS_COLLECTOR)
+    registry.unregister(GC_COLLECTOR)
+    registry.unregister(PLATFORM_COLLECTOR)
+    registry.unregister(PROCESS_COLLECTOR)
 
     metrics_collectors = create_metrics_collectors(ursula)
     # initialize collectors
