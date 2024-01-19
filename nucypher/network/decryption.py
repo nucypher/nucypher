@@ -14,7 +14,7 @@ from nucypher.utilities.concurrency import BatchValueFactory, WorkerPool
 
 class ThresholdDecryptionClient(ThresholdAccessControlClient):
     DEFAULT_DECRYPTION_TIMEOUT = 30
-    DEFAULT_STAGGER_TIMEOUT = 10
+    DEFAULT_STAGGER_TIMEOUT = 3
 
     class ThresholdDecryptionRequestFailed(Exception):
         """Raised when a decryption request returns a non-zero status code."""
@@ -82,6 +82,8 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
         # TODO: Find a better request order, perhaps based on latency data obtained from discovery loop - #3395
         requests = list(encrypted_requests)
         shuffle(requests)
+        # Discussion about WorkerPool parameters:
+        # "https://github.com/nucypher/nucypher/pull/3393#discussion_r1456307991"
         worker_pool = WorkerPool(
             worker=worker,
             value_factory=self.ThresholdDecryptionRequestFactory(
@@ -90,9 +92,7 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
                 threshold=threshold,
             ),
             target_successes=threshold,
-            threadpool_size=len(
-                encrypted_requests
-            ),  # TODO should we cap this (say 40?)
+            threadpool_size=int(threshold * 1.5),  # TODO should we cap this (say 40?)
             timeout=timeout,
             stagger_timeout=stagger_timeout,
         )
