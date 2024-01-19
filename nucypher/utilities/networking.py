@@ -213,7 +213,7 @@ def _is_valid_ipv4(ip: str) -> bool:
         return False
 
 
-def _ipv4_to_ipv6(ip: str) -> Optional[str]:
+def _ipv6_to_ipv4(ip: str) -> Optional[str]:
     try:
         ip = ip_address(ip.strip())
         if isinstance(ip, IPv6Address) and ip.ipv4_mapped:
@@ -255,6 +255,6 @@ def get_request_public_ipv4(
     Optionally, a list of trusted proxies can be provided to help mitigate spoofing attacks.
     """
     for ip_str in _ip_sources(request=request, trusted_proxies=trusted_proxies):
-        ipv4_address = _ipv4_to_ipv6(ip_str)
+        ipv4_address = _ipv6_to_ipv4(ip_str)
         if ipv4_address and _is_valid_ipv4(ipv4_address):
             return ipv4_address
