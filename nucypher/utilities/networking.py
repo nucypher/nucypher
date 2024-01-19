@@ -216,14 +216,15 @@ def _is_global_ipv4(ip: str) -> bool:
         return False
 
 
-def _ipv6_to_ipv4(ip: str) -> Optional[str]:
+def _resolve_ipv4(ip: str) -> Optional[str]:
     try:
         ip = ip_address(ip.strip())
-        if isinstance(ip, IPv6Address) and ip.ipv4_mapped:
-            return str(ip.ipv4_mapped)
     except AddressValueError:
         return None
-    return None
+    if isinstance(ip, IPv6Address) and ip.ipv4_mapped:
+        return str(ip.ipv4_mapped)
+    elif isinstance(ip, IPv4Address):
+        return str(ip)
 
 
 def _ip_sources(request: Request, trusted_proxies: Optional[List[str]] = None) -> str:
@@ -258,6 +259,6 @@ def get_request_global_ipv4(
     Optionally, a list of trusted proxies can be provided to help mitigate spoofing attacks.
     """
     for ip_str in _ip_sources(request=request, trusted_proxies=trusted_proxies):
-        ipv4_address = _ipv6_to_ipv4(ip_str)
+        ipv4_address = _resolve_ipv4(ip_str)
         if ipv4_address and _is_global_ipv4(ipv4_address):
             return ipv4_address
