@@ -29,13 +29,18 @@ from nucypher.policy.conditions.utils import (
 from nucypher.utilities.logging import Logger
 
 DECRYPTION_REQUESTS = Counter(
-    "threshold_decryption_requests",
+    "threshold_decryption_num_requests",
     "Number of threshold decryption requests",
     registry=REGISTRY,
 )
-DECRYPTION_REQUESTS_ERRORS = Counter(
-    "threshold_decryption_errors",
-    "Number of threshold decryption errors",
+DECRYPTION_REQUESTS_SUCCESSES = Counter(
+    "threshold_decryption_num_successes",
+    "Number of threshold decryption successes",
+    registry=REGISTRY,
+)
+DECRYPTION_REQUESTS_FAILURES = Counter(
+    "threshold_decryption_num_failures",
+    "Number of threshold decryption failures",
     registry=REGISTRY,
 )
 
@@ -164,7 +169,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     def threshold_decrypt():
         DECRYPTION_REQUESTS.inc()
         try:
-            with DECRYPTION_REQUESTS_ERRORS.count_exceptions():
+            with DECRYPTION_REQUESTS_FAILURES.count_exceptions():
                 encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
                     request.data
                 )
@@ -172,6 +177,7 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                     encrypted_request
                 )
 
+            DECRYPTION_REQUESTS_SUCCESSES.inc()
             response = Response(
                 response=bytes(encrypted_response),
                 status=HTTPStatus.OK,
