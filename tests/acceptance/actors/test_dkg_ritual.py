@@ -4,6 +4,7 @@ import random
 import pytest
 import pytest_twisted
 from hexbytes import HexBytes
+from prometheus_client import REGISTRY
 from twisted.internet.threads import deferToThread
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
@@ -228,6 +229,14 @@ def test_ursula_ritualist(
             _ = bob.threshold_decrypt(
                 threshold_message_kit=threshold_message_kit,
             )
+
+        # check prometheus metric for decryption requests
+        # since all running on the same machine - the value is not per-ursula but rather all
+        num_failures = REGISTRY.get_sample_value(
+            "threshold_decryption_num_failures_total"
+        )
+        assert len(cohort) == int(num_failures)  # each ursula in cohort had a failure
+
         print("========= UNAUTHORIZED DECRYPTION UNSUCCESSFUL =========")
 
         return threshold_message_kit
@@ -248,6 +257,13 @@ def test_ursula_ritualist(
             threshold_message_kit=threshold_message_kit,
         )
         assert bytes(cleartext) == PLAINTEXT.encode()
+
+        # check prometheus metric for decryption requests
+        # since all running on the same machine - the value is not per-ursula but rather all
+        num_successes = REGISTRY.get_sample_value(
+            "threshold_decryption_num_successes_total"
+        )
+        assert len(cohort) == int(num_successes)  # each ursula in cohort had a success
         print("==================== DECRYPTION SUCCESSFUL ====================")
 
     def error_handler(e):
@@ -271,3 +287,18 @@ def test_ursula_ritualist(
         d.addCallback(callback)
         d.addErrback(error_handler)
     yield d
+
+    # check prometheus metric for decryption requests
+    # since all running on the same machine - the value is not per-ursula but rather all
+    num_decryption_failures = REGISTRY.get_sample_value(
+        "threshold_decryption_num_failures_total"
+    )
+    num_decryption_successes = REGISTRY.get_sample_value(
+        "threshold_decryption_num_successes_total"
+    )
+    num_decryption_requests = REGISTRY.get_sample_value(
+        "threshold_decryption_num_requests_total"
+    )
+    assert num_decryption_requests == (
+        num_decryption_successes + num_decryption_failures
+    )
