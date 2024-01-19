@@ -179,6 +179,9 @@ def determine_external_ip_address(
     3. A centralized IP address service
 
     If the IP address cannot be determined for any reason UnknownIPAddress is raised.
+
+    This function is intended to be used by nodes operators running `nucypher ursula init`
+    to assist determine their global IPv4 address for configuration purposes only.
     """
     rest_host = None
 
@@ -205,7 +208,7 @@ def determine_external_ip_address(
     return rest_host
 
 
-def _is_valid_ipv4(ip: str) -> bool:
+def _is_global_ipv4(ip: str) -> bool:
     try:
         ip = ip_address(ip.strip())
         return isinstance(ip, IPv4Address) and ip.is_global
@@ -235,7 +238,7 @@ def _ip_sources(request: Request, trusted_proxies: Optional[List[str]] = None) -
     yield request.remote_addr
 
 
-def get_request_public_ipv4(
+def get_request_global_ipv4(
     request: Request, trusted_proxies: Optional[List[str]] = None
 ) -> Optional[str]:
     """
@@ -256,5 +259,5 @@ def get_request_public_ipv4(
     """
     for ip_str in _ip_sources(request=request, trusted_proxies=trusted_proxies):
         ipv4_address = _ipv6_to_ipv4(ip_str)
-        if ipv4_address and _is_valid_ipv4(ipv4_address):
+        if ipv4_address and _is_global_ipv4(ipv4_address):
             return ipv4_address
