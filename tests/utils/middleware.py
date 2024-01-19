@@ -83,6 +83,9 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
 
+    def ping(self, node, *args, **kwargs):
+        return Response(node.rest_interface.host, status=200)
+
 
 class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
     """
