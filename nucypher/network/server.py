@@ -27,6 +27,7 @@ from nucypher.policy.conditions.utils import (
     evaluate_condition_lingo,
 )
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.networking import get_request_public_ipv4
 
 DECRYPTION_REQUESTS_SUCCESSES = Counter(
     "threshold_decryption_num_successes",
@@ -297,9 +298,14 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route("/ping", methods=['GET'])
     def ping():
-        """Asks this node: What is my IP address?"""
-        requester_ip_address = request.remote_addr
-        return Response(requester_ip_address, status=HTTPStatus.OK)
+        """Asks this node: What is my public IPv4 address?"""
+        ipv4 = get_request_public_ipv4(request=request)
+        if not ipv4:
+            return Response(
+                response="No public IPv4 address detected.",
+                status=HTTPStatus.BAD_GATEWAY,
+            )
+        return Response(response=ipv4, status=HTTPStatus.OK)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():
