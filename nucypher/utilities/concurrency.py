@@ -354,7 +354,7 @@ class BatchValueFactory:
 
         if batch_size is not None and batch_size <= 0:
             raise ValueError(f"Invalid batch size specified ({batch_size})")
-        self.batch_size = batch_size if batch_size else required_successes
+        self.batch_size = batch_size or required_successes
 
     def __call__(self, successes) -> Optional[List[Any]]:
         if successes >= self.required_successes:
