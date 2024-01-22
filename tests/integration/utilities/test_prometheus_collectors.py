@@ -145,10 +145,11 @@ def test_staking_provider_metrics_collector(test_registry, staking_providers):
     active_stake = collector_registry.get_sample_value("active_stake")
     # only floats can be stored
     assert active_stake == float(
-        int(
+        Web3.from_wei(
             taco_application_agent.get_authorized_stake(
                 staking_provider=staking_provider_address
-            )
+            ),
+            "ether",
         )
     )
 
