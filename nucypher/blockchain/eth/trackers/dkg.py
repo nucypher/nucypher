@@ -67,13 +67,6 @@ class EventScannerTask(SimpleTask):
             self.start(now=False)  # take a breather
 
 
-LAST_SCANNED_BLOCK_METRIC = Gauge(
-    "ritual_events_last_scanned_block_number",
-    "Last scanned block number for ritual events",
-    registry=REGISTRY,
-)
-
-
 class ActiveRitualTracker:
 
     MAX_CHUNK_SIZE = 10000
@@ -83,6 +76,12 @@ class ActiveRitualTracker:
 
     # what's the buffer for potentially receiving repeated events - 10mins?
     _RITUAL_TIMEOUT_ADDITIONAL_TTL_BUFFER = 60 * 10
+
+    _LAST_SCANNED_BLOCK_METRIC = Gauge(
+        "ritual_events_last_scanned_block_number",
+        "Last scanned block number for ritual events",
+        registry=REGISTRY,
+    )
 
     class ParticipationState:
         def __init__(
@@ -426,7 +425,7 @@ class ActiveRitualTracker:
         we need to discard the last few blocks from the previous scan results.
         """
         last_scanned_block = self.scanner.get_last_scanned_block()
-        LAST_SCANNED_BLOCK_METRIC.set(last_scanned_block)
+        self._LAST_SCANNED_BLOCK_METRIC.set(last_scanned_block)
 
         if last_scanned_block == 0:
             # first run so calculate starting block number based on dkg timeout
