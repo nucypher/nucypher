@@ -187,7 +187,7 @@ class StakingProviderMetricsCollector(BaseMetricsCollector):
         authorized = application_agent.get_authorized_stake(
             staking_provider=self.staking_provider_address
         )
-        self.metrics["active_stake"].set(int(authorized))
+        self.metrics["active_stake"].set(Web3.from_wei(authorized, "ether"))
 
         staking_provider_info = application_agent.get_staking_provider_info(
             staking_provider=self.staking_provider_address
