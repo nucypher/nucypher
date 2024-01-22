@@ -1,7 +1,7 @@
 import random
 from http import HTTPStatus
 from ipaddress import AddressValueError, IPv4Address, IPv6Address, ip_address
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import requests
 from flask import Request
@@ -209,6 +209,7 @@ def determine_external_ip_address(
 
 
 def _is_global_ipv4(ip: str) -> bool:
+    """Check if an IP address is a global IPv4 address according to RFC 1918."""
     try:
         ip = ip_address(ip.strip())
         return isinstance(ip, IPv4Address) and ip.is_global
@@ -217,6 +218,7 @@ def _is_global_ipv4(ip: str) -> bool:
 
 
 def _resolve_ipv4(ip: str) -> Optional[str]:
+    """Resolve an IP address to IPv4 if required and possible."""
     try:
         ip = ip_address(ip.strip())
     except AddressValueError:
@@ -227,21 +229,21 @@ def _resolve_ipv4(ip: str) -> Optional[str]:
         return str(ip)
 
 
-def _ip_sources(request: Request, trusted_proxies: Optional[List[str]] = None) -> str:
-    if not trusted_proxies:
-        trusted_proxies = []
+def _extract_ip(header: str, request: Request) -> Optional[str]:
+    """Extract the first IP address from a request header."""
+    if header in request.headers:
+        for ip in request.headers[header].split(","):
+            yield ip
+
+
+def _ip_sources(request: Request) -> str:
+    """Iterate over all possible sources of IP addresses in a request's headers."""
     for header in ["X-Forwarded-For", "X-Real-IP"]:
-        if header in request.headers:
-            if trusted_proxies and (request.remote_addr not in trusted_proxies):
-                yield None  # Do not trust this request
-            for ip in request.headers[header].split(","):
-                yield ip
+        yield from _extract_ip(header, request)
     yield request.remote_addr
 
 
-def get_request_global_ipv4(
-    request: Request, trusted_proxies: Optional[List[str]] = None
-) -> Optional[str]:
+def get_request_global_ipv4(request: Request) -> Optional[str]:
     """
     If the request is forwarded from a proxy, the first global IP address in the chain is returned.
     'X-Forwarded-For' (XFF) https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#selecting_an_ip_address
@@ -256,9 +258,8 @@ def get_request_global_ipv4(
     address ranges must not be returned.
     https://www.ietf.org/rfc/rfc1918.txt
 
-    Optionally, a list of trusted proxies can be provided to help mitigate spoofing attacks.
     """
-    for ip_str in _ip_sources(request=request, trusted_proxies=trusted_proxies):
+    for ip_str in _ip_sources(request=request):
         ipv4_address = _resolve_ipv4(ip_str)
         if ipv4_address and _is_global_ipv4(ipv4_address):
             return ipv4_address
