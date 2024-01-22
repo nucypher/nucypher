@@ -15,7 +15,7 @@ from nucypher_core import (
     MetadataResponsePayload,
     ReencryptionRequest,
 )
-from prometheus_client import REGISTRY, Counter
+from prometheus_client import REGISTRY, Counter, Summary
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
@@ -28,11 +28,6 @@ from nucypher.policy.conditions.utils import (
 )
 from nucypher.utilities.logging import Logger
 
-DECRYPTION_REQUESTS = Counter(
-    "threshold_decryption_num_requests",
-    "Number of threshold decryption requests",
-    registry=REGISTRY,
-)
 DECRYPTION_REQUESTS_SUCCESSES = Counter(
     "threshold_decryption_num_successes",
     "Number of threshold decryption successes",
@@ -41,6 +36,13 @@ DECRYPTION_REQUESTS_SUCCESSES = Counter(
 DECRYPTION_REQUESTS_FAILURES = Counter(
     "threshold_decryption_num_failures",
     "Number of threshold decryption failures",
+    registry=REGISTRY,
+)
+
+# Summary provides both `count` (num of calls), and `sum` (time taken in method)
+DECRYPTION_REQUEST_SUMMARY = Summary(
+    "decryption_request_processing",
+    "Summary of decryption request processing",
     registry=REGISTRY,
 )
 
@@ -166,8 +168,8 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         return Response(json.dumps(payload), mimetype="application/json")
 
     @rest_app.route('/decrypt', methods=["POST"])
+    @DECRYPTION_REQUEST_SUMMARY.time()
     def threshold_decrypt():
-        DECRYPTION_REQUESTS.inc()
         try:
             with DECRYPTION_REQUESTS_FAILURES.count_exceptions():
                 encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
