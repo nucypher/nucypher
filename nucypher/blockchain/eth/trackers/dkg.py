@@ -4,6 +4,7 @@ import time
 from typing import Callable, List, Optional, Tuple
 
 import maya
+from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
@@ -64,6 +65,13 @@ class EventScannerTask(SimpleTask):
         if not self._task.running:
             self.log.warn("Restarting event scanner task!")
             self.start(now=False)  # take a breather
+
+
+LAST_SCANNED_BLOCK_METRIC = Gauge(
+    "ritual_events_last_scanned_block_number",
+    "Last scanned block number for ritual events",
+    registry=REGISTRY,
+)
 
 
 class ActiveRitualTracker:
@@ -417,14 +425,16 @@ class ActiveRitualTracker:
         Because there might have been a minor Ethereum chain reorganisations since the last scan ended,
         we need to discard the last few blocks from the previous scan results.
         """
-        self.scanner.delete_potentially_forked_block_data(
-            self.state.get_last_scanned_block() - self.scanner.chain_reorg_rescan_window
-        )
+        last_scanned_block = self.scanner.get_last_scanned_block()
+        LAST_SCANNED_BLOCK_METRIC.set(last_scanned_block)
 
-        if self.scanner.get_last_scanned_block() == 0:
+        if last_scanned_block == 0:
             # first run so calculate starting block number based on dkg timeout
             suggested_start_block = self._get_first_scan_start_block_number()
         else:
+            self.scanner.delete_potentially_forked_block_data(
+                last_scanned_block - self.scanner.chain_reorg_rescan_window
+            )
             suggested_start_block = self.scanner.get_suggested_scan_start_block()
 
         end_block = self.scanner.get_suggested_scan_end_block()
