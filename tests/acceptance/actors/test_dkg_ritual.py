@@ -197,6 +197,11 @@ def test_ursula_ritualist(
         for ursula in cohort:
             assert ursula.dkg_storage.get_transcript(RITUAL_ID) is not None
 
+        last_scanned_block = REGISTRY.get_sample_value(
+            "ritual_events_last_scanned_block_number"
+        )
+        assert last_scanned_block > 0
+
     def test_encrypt(_):
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
