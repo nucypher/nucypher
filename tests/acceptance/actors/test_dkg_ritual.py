@@ -297,7 +297,7 @@ def test_ursula_ritualist(
         "threshold_decryption_num_successes_total"
     )
     num_decryption_requests = REGISTRY.get_sample_value(
-        "threshold_decryption_num_requests_total"
+        "decryption_request_processing_count"
     )
     assert num_decryption_requests == (
         num_decryption_successes + num_decryption_failures
