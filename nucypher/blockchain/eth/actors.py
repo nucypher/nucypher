@@ -403,8 +403,13 @@ class Operator(BaseActor):
         # above, we know this tx is pending
         pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
         if pending_tx:
+            try:
+                txhash = pending_tx["transactionHash"]
+            except TypeError:
+                txhash = pending_tx
+            txhash = bytes(txhash).hex()
             self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {pending_tx.hex()} "
+                f"Node {self.transacting_power.account} has pending tx {txhash} "
                 f"for posting transcript for ritual {ritual_id}; skipping execution"
             )
             return None
