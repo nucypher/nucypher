@@ -281,11 +281,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         headers = {'Content-Type': 'application/octet-stream'}
         return Response(headers=headers, response=bytes(response))
 
-    @rest_app.route('/revoke', methods=['POST'])
-    def revoke():
-        # TODO: Implement off-chain revocation.
-        return Response(status=HTTPStatus.OK)
-
     @rest_app.route("/ping", methods=['GET'])
     def ping():
         """Asks this node: What is my public IPv4 address?"""
