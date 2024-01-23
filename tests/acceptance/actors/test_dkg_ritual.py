@@ -268,7 +268,10 @@ def test_ursula_ritualist(
         num_successes = REGISTRY.get_sample_value(
             "threshold_decryption_num_successes_total"
         )
-        assert len(cohort) == int(num_successes)  # each ursula in cohort had a success
+
+        ritual = coordinator_agent.get_ritual(RITUAL_ID)
+        # at least a threshold of ursulas were successful (concurrency)
+        assert int(num_successes) >= ritual.threshold
         print("==================== DECRYPTION SUCCESSFUL ====================")
 
     def error_handler(e):
