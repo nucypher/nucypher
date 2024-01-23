@@ -1,3 +1,4 @@
+import math
 from http import HTTPStatus
 from random import shuffle
 from typing import Dict, List, Tuple
@@ -88,11 +89,13 @@ class ThresholdDecryptionClient(ThresholdAccessControlClient):
             worker=worker,
             value_factory=self.ThresholdDecryptionRequestFactory(
                 ursulas_to_contact=requests,
-                batch_size=int(threshold * 1.25),
+                batch_size=math.ceil(threshold * 1.25),
                 threshold=threshold,
             ),
             target_successes=threshold,
-            threadpool_size=int(threshold * 1.5),  # TODO should we cap this (say 40?)
+            threadpool_size=math.ceil(
+                threshold * 1.5
+            ),  # TODO should we cap this (say 40?)
             timeout=timeout,
             stagger_timeout=stagger_timeout,
         )
