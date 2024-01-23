@@ -1,6 +1,7 @@
 import json
 import weakref
 from http import HTTPStatus
+from ipaddress import AddressValueError
 from pathlib import Path
 
 from constant_sorrow import constants
@@ -299,7 +300,13 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
     @rest_app.route("/ping", methods=['GET'])
     def ping():
         """Asks this node: What is my public IPv4 address?"""
-        ipv4 = get_global_source_ipv4(request=request)
+        try:
+            ipv4 = get_global_source_ipv4(request=request)
+        except AddressValueError as e:
+            return Response(
+                response=str(e),
+                status=HTTPStatus.BAD_REQUEST,
+            )
         if not ipv4:
             return Response(
                 response="No public IPv4 address detected.",

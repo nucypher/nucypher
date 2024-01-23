@@ -215,8 +215,8 @@ def _resolve_ipv4(ip: str) -> Optional[IPv4Address]:
     """
     try:
         ip = ip_address(ip.strip())
-    except AddressValueError:
-        return None
+    except (AddressValueError, ValueError):
+        raise AddressValueError(f"'{ip}' does not appear to be an IPv4 or IPv6 address")
     if isinstance(ip, IPv6Address):
         return ip.ipv4_mapped  # returns IPv4Address or None
     elif isinstance(ip, IPv4Address):
