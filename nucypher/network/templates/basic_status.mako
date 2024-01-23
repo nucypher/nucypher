@@ -183,6 +183,10 @@ def character_span(character):
                 %endfor
             </td>
         </tr>
+        <tr>
+            <td><i>Latest Scanned Block:</i></td>
+            <td>${ status_info.block_height }</td>
+        </tr>
     </table>
 
     %if status_info.known_nodes is not None:
