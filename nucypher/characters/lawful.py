@@ -871,9 +871,6 @@ class Ursula(Teacher, Character, Operator):
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
 
-            # Care to introduce yourself?
-            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
-            self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
 
         else:

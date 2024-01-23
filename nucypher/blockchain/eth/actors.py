@@ -404,7 +404,8 @@ class Operator(BaseActor):
         pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
         if pending_tx:
             self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting transcript for ritual {ritual_id}; skipping execution"
+                f"Node {self.transacting_power.account} has pending tx {pending_tx.hex()} "
+                f"for posting transcript for ritual {ritual_id}; skipping execution"
             )
             return None
 
