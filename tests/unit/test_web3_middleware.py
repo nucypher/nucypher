@@ -3,14 +3,14 @@ from unittest.mock import Mock
 
 import pytest
 from requests import HTTPError
-from web3.types import RPCResponse, RPCError, RPCEndpoint
+from web3.types import RPCEndpoint, RPCError, RPCResponse
 
 from nucypher.blockchain.middleware.retry import (
-    RetryRequestMiddleware,
     AlchemyRetryRequestMiddleware,
-    InfuraRetryRequestMiddleware
+    InfuraRetryRequestMiddleware,
+    RetryRequestMiddleware,
 )
-from tests.constants import RPC_TOO_MANY_REQUESTS, RPC_SUCCESSFUL_RESPONSE
+from tests.constants import RPC_SUCCESSFUL_RESPONSE, RPC_TOO_MANY_REQUESTS
 
 RETRY_REQUEST_CLASSES = (RetryRequestMiddleware, AlchemyRetryRequestMiddleware, InfuraRetryRequestMiddleware)
 

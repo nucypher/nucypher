@@ -1,8 +1,9 @@
 import datetime
-import maya
 import os
 from getpass import getpass
 from pathlib import Path
+
+import maya
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.signers.base import Signer

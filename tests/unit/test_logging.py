@@ -4,7 +4,8 @@ from io import StringIO
 from json.encoder import py_encode_basestring_ascii
 
 import pytest
-from twisted.logger import Logger as TwistedLogger, formatEvent, jsonFileLogObserver
+from twisted.logger import Logger as TwistedLogger
+from twisted.logger import formatEvent, jsonFileLogObserver
 
 from nucypher.utilities.logging import Logger
 
