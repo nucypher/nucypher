@@ -69,7 +69,7 @@ def character_span(character):
 <html>
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/x-icon" href="https://www.nucypher.com/favicon-32x32.png"/>
+    <link rel="icon" type="image/x-icon" href="https://threshold.network/favicon-32x32.png"/>
     <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Open+Sans" />
 </head>
 <style type="text/css">
