@@ -3,7 +3,7 @@ import pytest
 
 import nucypher
 from nucypher.cli.main import ENTRY_POINTS, nucypher_cli
-from nucypher.config.constants import USER_LOG_DIR, DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import DEFAULT_CONFIG_ROOT, USER_LOG_DIR
 
 
 def test_echo_nucypher_version(click_runner):

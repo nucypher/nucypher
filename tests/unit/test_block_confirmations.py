@@ -4,7 +4,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 from hexbytes import HexBytes
-from web3.exceptions import TransactionNotFound, TimeExhausted
+from web3.exceptions import TimeExhausted, TransactionNotFound
 
 from tests.mock.interfaces import MockEthereumClient
 
