@@ -208,43 +208,39 @@ def determine_external_ip_address(
     return rest_host
 
 
-def _is_global_ipv4(ip: str) -> bool:
-    """Check if an IP address is a global IPv4 address according to RFC 1918."""
-    try:
-        ip = ip_address(ip.strip())
-        return isinstance(ip, IPv4Address) and ip.is_global
-    except AddressValueError:
-        return False
-
-
-def _resolve_ipv4(ip: str) -> Optional[str]:
-    """Resolve an IP address to IPv4 if required and possible."""
+def _resolve_ipv4(ip: str) -> Optional[IPv4Address]:
+    """
+    Resolve an IPv6 address to IPv4 if required and possible.
+    Returns None if there is no valid IPv4 address available.
+    """
     try:
         ip = ip_address(ip.strip())
     except AddressValueError:
         return None
-    if isinstance(ip, IPv6Address) and ip.ipv4_mapped:
-        return str(ip.ipv4_mapped)
+    if isinstance(ip, IPv6Address):
+        return ip.ipv4_mapped  # returns IPv4Address or None
     elif isinstance(ip, IPv4Address):
-        return str(ip)
+        return ip
 
 
-def _extract_ip(header: str, request: Request) -> Optional[str]:
-    """Extract the first IP address from a request header."""
+def _get_header_ips(header: str, request: Request) -> Optional[str]:
+    """Yields source IP addresses in sequential order from a given request and header name."""
     if header in request.headers:
         for ip in request.headers[header].split(","):
             yield ip
 
 
 def _ip_sources(request: Request) -> str:
-    """Iterate over all possible sources of IP addresses in a request's headers."""
+    """Yields all possible sources of IP addresses in a given request's headers."""
     for header in ["X-Forwarded-For", "X-Real-IP"]:
-        yield from _extract_ip(header, request)
+        yield from _get_header_ips(header, request)
     yield request.remote_addr
 
 
-def get_request_global_ipv4(request: Request) -> Optional[str]:
+def get_global_source_ipv4(request: Request) -> Optional[str]:
     """
+    Resolve the first global IPv4 address in a request's headers.
+
     If the request is forwarded from a proxy, the first global IP address in the chain is returned.
     'X-Forwarded-For' (XFF) https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#selecting_an_ip_address
 
@@ -257,9 +253,9 @@ def get_request_global_ipv4(request: Request) -> Optional[str]:
     In all cases, tests that the IPv4 range is global. RFC 1918 privately designated
     address ranges must not be returned.
     https://www.ietf.org/rfc/rfc1918.txt
-
     """
+
     for ip_str in _ip_sources(request=request):
         ipv4_address = _resolve_ipv4(ip_str)
-        if ipv4_address and _is_global_ipv4(ipv4_address):
-            return ipv4_address
+        if ipv4_address and ipv4_address.is_global:
+            return str(ipv4_address)
