@@ -5,7 +5,6 @@ from ipaddress import AddressValueError
 from pathlib import Path
 
 from constant_sorrow import constants
-from constant_sorrow.constants import RELAX
 from flask import Flask, Response, jsonify, request
 from mako import exceptions as mako_exceptions
 from mako.template import Template
@@ -109,19 +108,9 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         response = Response(response=bytes(this_node.metadata()), mimetype='application/octet-stream')
         return response
 
-    @rest_app.route('/node_metadata', methods=["GET"])
-    def all_known_nodes():
-        headers = {'Content-Type': 'application/octet-stream'}
-        if this_node._learning_deferred is not RELAX and not this_node._learning_task.running:
-            # Learn when learned about
-            this_node.start_learning_loop()
-
-        # All known nodes + this node
-        response_bytes = this_node.bytestring_of_known_nodes()
-        return Response(response_bytes, headers=headers)
-
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
+        response_headers = {"Content-Type": "application/octet-stream"}
 
         try:
             metadata_request = MetadataRequest.from_bytes(request.data)
@@ -152,10 +141,12 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
                 else:
                     this_node.remember_node(NodeSprout(metadata))
 
-        # TODO: generate a new fleet state here?
-
-        # TODO: What's the right status code here?  202?  Different if we already knew about the node(s)?
-        return all_known_nodes()
+        # All known nodes + this node
+        response_bytes = this_node.bytestring_of_known_nodes()
+        response = Response(
+            response_bytes, headers=response_headers, status=HTTPStatus.OK
+        )
+        return response
 
     @rest_app.route("/condition_chains", methods=["GET"])
     def condition_chains():
