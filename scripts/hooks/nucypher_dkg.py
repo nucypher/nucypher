@@ -230,6 +230,18 @@ def nucypher_dkg(
             ) = child_application_agent.get_all_active_staking_providers()
             staking_providers = list(staking_providers_dict.keys())
 
+            if domain == domains.LYNX:
+                # Ignore delinquent lynx providers
+                exclude_staking_providers = [
+                    "0x24dbb0BEE134C3773D2C1791d65d99e307Fe86CF",
+                    "0xE4c8d3bcf8C87D73CE38Ab2DC288d309072ee4E7",
+                ]
+                for provider in exclude_staking_providers:
+                    try:
+                        staking_providers.remove(provider)
+                    except ValueError:
+                        pass
+
             # sample then sort
             dkg_staking_providers = random.sample(staking_providers, dkg_size)
             dkg_staking_providers.sort()
