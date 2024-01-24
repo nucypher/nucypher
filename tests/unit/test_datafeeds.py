@@ -1,8 +1,3 @@
-
-
-
-from collections.abc import Callable
-from statistics import median
 from unittest.mock import patch
 
 import pytest
@@ -12,62 +7,17 @@ from web3 import Web3
 
 from nucypher.utilities.datafeeds import (
     Datafeed,
-    EtherchainGasPriceDatafeed,
     EthereumGasPriceDatafeed,
-    UpvestGasPriceDatafeed,
-    ZoltuGasPriceDatafeed,
+    PolygonGasStationDatafeed,
 )
-from nucypher.utilities.gas_strategies import construct_datafeed_median_strategy
 
-etherchain_json = {
-    "safeLow": "99.0",
-    "standard": "105.0",
-    "fast": "108.0",
-    "fastest": "119.9"
-}
-
-upvest_json = {
-    "success": True,
-    "updated": "2020-08-19T02:38:00.172Z",
-    "estimates": {
-        "fastest": 105.2745,
-        "fast": 97.158,
-        "medium": 91.424,
-        "slow": 87.19
-    }
-}
-
-zoltu_json = {
-    "number_of_blocks": 200,
-    "latest_block_number": 11294588,
-    "percentile_1": "1 nanoeth",
-    "percentile_2": "1 nanoeth",
-    "percentile_3": "3.452271231 nanoeth",
-    "percentile_4": "10 nanoeth",
-    "percentile_5": "10 nanoeth",
-    "percentile_10": "18.15 nanoeth",
-    "percentile_15": "25 nanoeth",
-    "percentile_20": "28 nanoeth",
-    "percentile_25": "30 nanoeth",
-    "percentile_30": "32 nanoeth",
-    "percentile_35": "37 nanoeth",
-    "percentile_40": "41 nanoeth",
-    "percentile_45": "44 nanoeth",
-    "percentile_50": "47.000001459 nanoeth",
-    "percentile_55": "50 nanoeth",
-    "percentile_60": "52.5 nanoeth",
-    "percentile_65": "55.20000175 nanoeth",
-    "percentile_70": "56.1 nanoeth",
-    "percentile_75": "58 nanoeth",
-    "percentile_80": "60.20000175 nanoeth",
-    "percentile_85": "63 nanoeth",
-    "percentile_90": "64 nanoeth",
-    "percentile_95": "67 nanoeth",
-    "percentile_96": "67.32 nanoeth",
-    "percentile_97": "68 nanoeth",
-    "percentile_98": "70 nanoeth",
-    "percentile_99": "71 nanoeth",
-    "percentile_100": "74 nanoeth"
+polygon_gas_station = {
+    "safeLow": {"maxPriorityFee": 30, "maxFee": 63.35796266},
+    "standard": {"maxPriorityFee": 30, "maxFee": 63.35796266},
+    "fast": {"maxPriorityFee": 33.890873063, "maxFee": 67.248835723},
+    "estimatedBaseFee": 33.35796266,
+    "blockTime": 3,
+    "blockNumber": 52691632,
 }
 
 
@@ -76,24 +26,26 @@ def test_probe_datafeed(mocker):
     feed = Datafeed()
     feed.api_url = "http://foo.bar"
 
-    with patch('requests.get', side_effect=ConnectionError("Bad connection")) as mocked_get:
+    with patch(
+        "requests.get", side_effect=ConnectionError("Bad connection")
+    ) as mocked_get:
         with pytest.raises(Datafeed.DatafeedError, match="Bad connection"):
             feed._probe_feed()
         mocked_get.assert_called_once_with(feed.api_url)
 
     bad_response = mocker.Mock()
     bad_response.status_code = 400
-    with patch('requests.get') as mocked_get:
+    with patch("requests.get") as mocked_get:
         mocked_get.return_value = bad_response
         with pytest.raises(Datafeed.DatafeedError, match="status code 400"):
             feed._probe_feed()
         mocked_get.assert_called_once_with(feed.api_url)
 
-    json = {'foo': 'bar'}
+    json = {"foo": "bar"}
     good_response = mocker.Mock()
     good_response.status_code = 200
     good_response.json = mocker.Mock(return_value=json)
-    with patch('requests.get') as mocked_get:
+    with patch("requests.get") as mocked_get:
         mocked_get.return_value = good_response
         feed._probe_feed()
         mocked_get.assert_called_once_with(feed.api_url)
@@ -103,15 +55,31 @@ def test_probe_datafeed(mocker):
 def test_canonical_speed_names():
     # Valid speed names, grouped in equivalence classes
     speed_equivalence_classes = {
-        SLOW: ('slow', 'SLOW', 'Slow',
-               'safeLow', 'safelow', 'SafeLow', 'SAFELOW',
-               'low', 'LOW', 'Low'),
-        MEDIUM: ('medium', 'MEDIUM', 'Medium',
-                 'standard', 'STANDARD', 'Standard',
-                 'average', 'AVERAGE', 'Average'),
-        FAST: ('fast', 'FAST', 'Fast',
-               'high', 'HIGH', 'High'),
-        FASTEST: ('fastest', 'FASTEST', 'Fastest')
+        SLOW: (
+            "slow",
+            "SLOW",
+            "Slow",
+            "safeLow",
+            "safelow",
+            "SafeLow",
+            "SAFELOW",
+            "low",
+            "LOW",
+            "Low",
+        ),
+        MEDIUM: (
+            "medium",
+            "MEDIUM",
+            "Medium",
+            "standard",
+            "STANDARD",
+            "Standard",
+            "average",
+            "AVERAGE",
+            "Average",
+        ),
+        FAST: ("fast", "FAST", "Fast", "high", "HIGH", "High"),
+        FASTEST: ("fastest", "FASTEST", "Fastest"),
     }
 
     for canonical_speed, equivalence_class in speed_equivalence_classes.items():
@@ -120,8 +88,8 @@ def test_canonical_speed_names():
 
     # Invalid speed names, but that are somewhat similar to a valid one so we can give a suggestion
     similarities = (
-        ('hihg', 'high'),
-        ('zlow', 'low'),
+        ("hihg", "high"),
+        ("zlow", "low"),
     )
 
     for wrong_name, suggestion in similarities:
@@ -135,122 +103,44 @@ def test_canonical_speed_names():
         EthereumGasPriceDatafeed.get_canonical_speed(wrong_name)
 
 
-def test_etherchain():
-    feed = EtherchainGasPriceDatafeed()
+def test_polygon_gas_station():
+    feed = PolygonGasStationDatafeed()
 
-    assert set(feed._speed_names.values()).issubset(etherchain_json.keys())
-    assert feed._default_speed in etherchain_json.keys()
+    assert set(feed._speed_names.values()).issubset(polygon_gas_station.keys())
+    assert feed._default_speed in polygon_gas_station.keys()
 
-    with patch.object(feed, '_probe_feed'):
-        feed._raw_data = etherchain_json
-        assert feed.get_gas_price('safeLow') == Web3.to_wei(99.0, 'gwei')
-        assert feed.get_gas_price('standard') == Web3.to_wei(105.0, 'gwei')
-        assert feed.get_gas_price('fast') == Web3.to_wei(108.0, 'gwei')
-        assert feed.get_gas_price('fastest') == Web3.to_wei(119.9, 'gwei')
-        assert feed.get_gas_price() == feed.get_gas_price('fast')  # Default
-        parsed_gas_prices = feed.gas_prices
+    with patch.object(feed, "_probe_feed"):
+        feed._raw_data = polygon_gas_station
 
-    with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed._parse_gas_prices', autospec=True):
-        EtherchainGasPriceDatafeed.gas_prices = dict()
-        with patch.dict(EtherchainGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
-            gas_strategy = feed.construct_gas_strategy()
-            assert gas_strategy("web3", "tx") == Web3.to_wei(108.0, 'gwei')
+        assert feed.get_gas_fee_pricing("safeLow").max_priority_fee == Web3.to_wei(
+            30, "gwei"
+        )
+        assert feed.get_gas_fee_pricing("standard").max_priority_fee == Web3.to_wei(
+            30, "gwei"
+        )
+        assert feed.get_gas_fee_pricing("fast").max_priority_fee == Web3.to_wei(
+            33.890873063, "gwei"
+        )
+        assert feed.get_gas_fee_pricing("fastest").max_priority_fee == Web3.to_wei(
+            33.890873063, "gwei"
+        )
 
+        assert feed.get_gas_fee_pricing("safeLow").max_fee == Web3.to_wei(
+            63.35796266, "gwei"
+        )
+        assert feed.get_gas_fee_pricing("standard").max_fee == Web3.to_wei(
+            63.35796266, "gwei"
+        )
+        assert feed.get_gas_fee_pricing("fast").max_fee == Web3.to_wei(
+            67.248835723, "gwei"
+        )
+        assert feed.get_gas_fee_pricing("fastest").max_fee == Web3.to_wei(
+            67.248835723, "gwei"
+        )
 
-def test_upvest():
-    feed = UpvestGasPriceDatafeed()
+        assert feed.get_gas_fee_pricing("safeLow").block == 52691632
+        assert feed.get_gas_fee_pricing("standard").block == 52691632
+        assert feed.get_gas_fee_pricing("fast").block == 52691632
+        assert feed.get_gas_fee_pricing("fastest").block == 52691632
 
-    assert set(feed._speed_names.values()).issubset(upvest_json['estimates'].keys())
-    assert feed._default_speed in upvest_json['estimates'].keys()
-
-    with patch.object(feed, '_probe_feed'):
-        feed._raw_data = upvest_json
-        assert feed.get_gas_price('slow') == Web3.to_wei(87.19, 'gwei')
-        assert feed.get_gas_price('medium') == Web3.to_wei(91.424, 'gwei')
-        assert feed.get_gas_price('fast') == Web3.to_wei(97.158, 'gwei')
-        assert feed.get_gas_price('fastest') == Web3.to_wei(105.2745, 'gwei')
-        assert feed.get_gas_price() == feed.get_gas_price('fastest')  # Default
-        parsed_gas_prices = feed.gas_prices
-
-    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._parse_gas_prices', autospec=True):
-        UpvestGasPriceDatafeed.gas_prices = dict()
-        with patch.dict(UpvestGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
-            gas_strategy = feed.construct_gas_strategy()
-            assert gas_strategy("web3", "tx") == Web3.to_wei(105.2745, 'gwei')
-
-
-def test_zoltu():
-    feed = ZoltuGasPriceDatafeed()
-
-    assert set(feed._speed_names.values()).issubset(zoltu_json.keys())
-    # assert feed._default_speed in zoltu_json.keys()
-
-    with patch.object(feed, '_probe_feed'):
-        feed._raw_data = zoltu_json
-        assert feed.get_gas_price('slow') == Web3.to_wei(41, 'gwei')
-        assert feed.get_gas_price('medium') == Web3.to_wei(58, 'gwei')
-        assert feed.get_gas_price('fast') == Web3.to_wei(67, 'gwei')
-        assert feed.get_gas_price('fastest') == Web3.to_wei(70, 'gwei')
-        assert feed.get_gas_price() == feed.get_gas_price('fast')  # Default
-        parsed_gas_prices = feed.gas_prices
-
-    with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed._parse_gas_prices', autospec=True):
-        ZoltuGasPriceDatafeed.gas_prices = dict()
-        with patch.dict(ZoltuGasPriceDatafeed.gas_prices, values=parsed_gas_prices):
-            gas_strategy = feed.construct_gas_strategy()
-            assert gas_strategy("web3", "tx") == Web3.to_wei(67, 'gwei')
-
-
-def test_datafeed_median_gas_price_strategy():
-
-    mock_upvest_gas_price = 2000
-    mock_zoltu_gas_price = 4000
-    mock_rpc_gas_price = 42
-
-    def construct_mock_gas_strategy(gas_price) -> Callable:
-        def _mock_gas_strategy(web3, tx=None):
-            return gas_price
-        return _mock_gas_strategy
-
-    # In normal circumstances, all datafeeds in the strategy work, and the median is returned
-    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed.construct_gas_strategy',
-               return_value=construct_mock_gas_strategy(mock_upvest_gas_price)):
-        # with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed.construct_gas_strategy',
-        #            return_value=construct_mock_gas_strategy(mock_etherchain_gas_price)):
-        with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed.construct_gas_strategy',
-                   return_value=construct_mock_gas_strategy(mock_zoltu_gas_price)):
-            datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
-            assert datafeed_median_gas_price_strategy("web3", "tx") == median([mock_upvest_gas_price,
-                                                                               mock_zoltu_gas_price])
-
-    # If, for example, Upvest fails, the median is computed using the other two feeds
-    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
-               side_effect=Datafeed.DatafeedError):
-        # with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed.construct_gas_strategy',
-        #            return_value=construct_mock_gas_strategy(mock_etherchain_gas_price)):
-        with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed.construct_gas_strategy',
-                   return_value=construct_mock_gas_strategy(mock_zoltu_gas_price)):
-            datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
-            assert datafeed_median_gas_price_strategy("web3", "tx") == median([mock_zoltu_gas_price])
-
-    # If only one feed works, then the return value corresponds to this feed
-    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
-               side_effect=Datafeed.DatafeedError):
-        # with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed._probe_feed',
-        #            side_effect=Datafeed.DatafeedError):
-        with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed.construct_gas_strategy',
-                   return_value=construct_mock_gas_strategy(mock_zoltu_gas_price)):
-            datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
-            assert datafeed_median_gas_price_strategy("web3", "tx") == mock_zoltu_gas_price
-
-    # If all feeds fail, we fallback to the rpc_gas_price_strategy
-    # with patch('nucypher.utilities.datafeeds.EtherchainGasPriceDatafeed._probe_feed',
-    #            side_effect=Datafeed.DatafeedError):
-    with patch('nucypher.utilities.datafeeds.UpvestGasPriceDatafeed._probe_feed',
-               side_effect=Datafeed.DatafeedError):
-        with patch('nucypher.utilities.datafeeds.ZoltuGasPriceDatafeed._probe_feed',
-               side_effect=Datafeed.DatafeedError):
-            with patch('nucypher.utilities.gas_strategies.rpc_gas_price_strategy',
-                       side_effect=construct_mock_gas_strategy(mock_rpc_gas_price)):
-                datafeed_median_gas_price_strategy = construct_datafeed_median_strategy()
-                assert datafeed_median_gas_price_strategy("web3", "tx") == mock_rpc_gas_price
+        assert feed.get_gas_fee_pricing() == feed.get_gas_fee_pricing("fast")  # Default
