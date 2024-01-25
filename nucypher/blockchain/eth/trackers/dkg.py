@@ -51,7 +51,7 @@ class EventActuator(EventScanner):
 class EventScannerTask(SimpleTask):
     """Task that runs the event scanner in a looping call."""
 
-    INTERVAL = 20  # seconds
+    INTERVAL = 120  # seconds
 
     def __init__(self, scanner: Callable, *args, **kwargs):
         self.scanner = scanner
