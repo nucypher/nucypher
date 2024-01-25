@@ -11,22 +11,20 @@ from tests.utils.middleware import MockRestMiddleware
 
 
 def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
-    # Create a non-learning AliceConfiguration
     config_root = temp_dir_path / 'nucypher-custom-alice-config'
     alice_config = AliceConfiguration(
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         config_root=config_root,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
         domain=TEMPORARY_DOMAIN_NAME,
-        checksum_address=testerchain.alice_account,
-        start_learning_now=False,
-        save_metadata=False,
-        reload_metadata=False,
-        known_nodes=ursulas,
+        seed_nodes=ursulas
     )
 
     # Generate keys and write them the disk
-    alice_config.initialize(password=INSECURE_DEVELOPMENT_PASSWORD)
+    alice_config.initialize(
+        keystore_password=INSECURE_DEVELOPMENT_PASSWORD,
+        wallet_password=INSECURE_DEVELOPMENT_PASSWORD
+    )
 
     # Unlock Alice's keystore
     alice_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
@@ -54,7 +52,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
 
     bob = Bob(
-        start_learning_now=False,
+        start_peering_now=False,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
@@ -81,9 +79,8 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
     new_alice_config = AliceConfiguration.from_configuration_file(
         filepath=alice_config_file,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
-        start_learning_now=False,
         config_root=config_root,
-        known_nodes=ursulas,
+        seed_nodes=ursulas,
     )
 
     # Alice unlocks her restored keystore from disk
@@ -98,7 +95,7 @@ def test_alices_powers_are_persistent(ursulas, temp_dir_path, testerchain):
     roberto = Bob(
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
-        start_learning_now=False,
+        start_peering_now=False,
         network_middleware=MockRestMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI),
     )
 

@@ -86,10 +86,10 @@ def test_ursula_info_metrics_collector(ursulas):
     collector.collect()
 
     discovery_status = collector_registry.get_sample_value("node_discovery_running")
-    assert discovery_status == ursula._learning_task.running
+    assert discovery_status == ursula._peering_task.running
 
     known_nodes = collector_registry.get_sample_value("known_nodes")
-    assert known_nodes == len(ursula.known_nodes)
+    assert known_nodes == len(ursula.peers)
 
 
 def test_blockchain_metrics_collector(testerchain):
@@ -124,9 +124,9 @@ def test_blockchain_metrics_collector(testerchain):
 
 
 @pytest.mark.usefixtures("mock_taco_app_staking_provider_info")
-def test_staking_provider_metrics_collector(test_registry, staking_providers):
+def test_staking_provider_metrics_collector(test_registry, accounts):
 
-    staking_provider_address = random.choice(staking_providers)
+    staking_provider_address = random.choice(accounts.stake_provider_wallets)
     collector = StakingProviderMetricsCollector(
         staking_provider_address=staking_provider_address,
         contract_registry=test_registry,

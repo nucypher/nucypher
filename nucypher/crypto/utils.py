@@ -10,7 +10,7 @@ from nucypher_core.umbral import PublicKey
 
 from nucypher.crypto.signing import SignatureStamp
 
-SYSTEM_RAND = SystemRandom()
+__SYSTEM_RAND = SystemRandom()
 
 
 def canonical_address_from_umbral_key(public_key: Union[PublicKey, SignatureStamp]) -> bytes:
@@ -34,7 +34,7 @@ def secure_random(num_bytes: int) -> bytes:
     :return: bytes
     """
     # TODO: Should we just use os.urandom or avoid the import w/ this?
-    return SYSTEM_RAND.getrandbits(num_bytes * 8).to_bytes(num_bytes, byteorder='big')
+    return __SYSTEM_RAND.getrandbits(num_bytes * 8).to_bytes(num_bytes, byteorder='big')
 
 
 def secure_random_range(min: int, max: int) -> int:
@@ -47,7 +47,7 @@ def secure_random_range(min: int, max: int) -> int:
 
     :return: int
     """
-    return SYSTEM_RAND.randrange(min, max)
+    return __SYSTEM_RAND.randrange(min, max)
 
 
 def keccak_digest(*messages: bytes) -> bytes:

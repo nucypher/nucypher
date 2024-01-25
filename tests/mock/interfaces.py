@@ -2,7 +2,7 @@ from typing import Union
 
 from hexbytes import HexBytes
 
-from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.blockchain.eth.clients import EthereumClient
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
 
@@ -32,10 +32,7 @@ class MockBlockchain(TesterBlockchain):
         return self.FAKE_RECEIPT
 
 
-class MockEthereumClient(EthereumTesterClient):
-
-    def __init__(self, w3):
-        super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)
+class MockEthereumClient(EthereumClient):
 
     def add_middleware(self, middleware):
         pass

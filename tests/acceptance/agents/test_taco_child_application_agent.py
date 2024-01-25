@@ -13,12 +13,13 @@ def test_get_min_authorization(
     assert result == taco_application.minimumAuthorization()
 
 
+@pytest.mark.usefixtures("bond_operators")
 def test_authorized_tokens(
-    testerchain, taco_application, taco_child_application_agent, staking_providers
+    testerchain, taco_application, taco_child_application_agent
 ):
-    provider_account = staking_providers[0]
+    provider_account = testerchain.accounts.stake_provider_wallets[0]
     authorized_amount = taco_child_application_agent.get_authorized_stake(
-        staking_provider=provider_account
+        staking_provider=provider_account.address
     )
     assert authorized_amount >= taco_application.minimumAuthorization()
 
@@ -93,14 +94,15 @@ def test_is_operator_confirmed(
     )
 
 
-def test_get_staker_population(taco_child_application_agent, staking_providers):
+@pytest.mark.usefixtures("bond_operators", "ursulas")
+def test_get_staker_population(taco_child_application_agent, accounts):
     # Apart from all the providers in the fixture, we also added a new provider above
     assert taco_child_application_agent.get_staking_providers_population() == len(
-        staking_providers
+        accounts.stake_provider_wallets
     )
 
 
-@pytest.mark.usefixtures("staking_providers", "ursulas")
+@pytest.mark.usefixtures("bond_operators", "ursulas")
 def test_sample_staking_providers(taco_child_application_agent):
     all_staking_providers = list(taco_child_application_agent.get_staking_providers())
     providers_population = (
@@ -126,15 +128,6 @@ def test_sample_staking_providers(taco_child_application_agent):
     assert len(providers) == 3
     assert len(set(providers)) == 3
     assert len(set(providers).intersection(all_staking_providers)) == 3
-
-    # repeat for opposite blockchain light setting
-    light = taco_child_application_agent.blockchain.is_light
-    taco_child_application_agent.blockchain.is_light = not light
-    providers = taco_child_application_agent.get_staking_provider_reservoir().draw(3)
-    assert len(providers) == 3
-    assert len(set(providers)) == 3
-    assert len(set(providers).intersection(all_staking_providers)) == 3
-    taco_child_application_agent.blockchain.is_light = light
 
     # Use exclusion list
     exclude_providers = random.choices(all_staking_providers, k=2)  # exclude 2 ursulas

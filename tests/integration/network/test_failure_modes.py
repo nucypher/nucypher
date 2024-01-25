@@ -15,13 +15,13 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(
     threshold, shares = 2, 3
     policy_end_datetime = maya.now() + datetime.timedelta(days=5)
     label = b"this_is_the_path_to_which_access_is_being_granted"
-    alice.known_nodes.current_state._nodes = {}
+    alice.peers.current_state._nodes = {}
 
     alice.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
 
     # OK, her first and only node is down.
     down_node = list(ursulas)[0]
-    alice.remember_node(down_node)
+    alice.remember_peer(down_node)
     alice.network_middleware.node_is_down(down_node)
 
     # Here's the command we want to run.
@@ -36,13 +36,13 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(
     )
 
     # Go!
-    alice.start_learning_loop()
+    alice.start_peering()
 
     # Now we'll have a situation where Alice knows about all 10,
     # though only one is up.
 
     # She'll try to learn about more, but there aren't any.
-    # Because she has successfully completed learning, but the nodes about which she learned are down,
+    # Because she has successfully completed peering, but the nodes about which she learned are down,
     # she'll get a different error.
 
     more_nodes = list(ursulas)[1:10]
@@ -50,7 +50,7 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(
         alice.network_middleware.node_is_down(node)
 
     for node in more_nodes:
-        alice.remember_node(node)
+        alice.remember_peer(node)
     with pytest.raises(Policy.NotEnoughUrsulas):
         alice_grant_action()
 
@@ -72,14 +72,14 @@ def test_alice_can_grant_even_when_the_first_nodes_she_tries_are_down(
 
 
 def test_node_has_changed_cert(alice, ursulas):
-    alice.known_nodes.current_state._nodes = {}
+    alice.peers.current_state._nodes = {}
     alice.network_middleware = NodeIsDownMiddleware(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     alice.network_middleware.client.certs_are_broken = True
 
     firstula = list(ursulas)[0]
-    alice.remember_node(firstula)
-    alice.start_learning_loop(now=True)
-    alice.learn_from_teacher_node()
+    alice.remember_peer(firstula)
+    alice.start_peering(now=True)
+    alice.learn_from_peer()
 
     # Cool - we didn't crash because of SSLError.
     # TODO: Assertions and such.

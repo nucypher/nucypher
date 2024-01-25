@@ -12,13 +12,13 @@ from tests.constants import MOCK_ETH_PROVIDER_URI, TEST_ETH_PROVIDER_URI
 from tests.utils.middleware import NodeIsDownMiddleware
 
 
-def test_stakers_bond_to_ursulas(ursulas, test_registry, staking_providers):
-    assert len(ursulas) == len(staking_providers)
+def test_stakers_bond_to_ursulas(ursulas, test_registry, accounts):
+    assert len(ursulas) == len(accounts.stake_provider_wallets)
     for ursula in ursulas:
         ursula.validate_operator(
             registry=test_registry, eth_endpoint=TEST_ETH_PROVIDER_URI
         )
-        assert ursula.verified_operator
+        assert ursula.verified_bonding
 
 
 def test_ursula_substantiates_stamp(ursulas):
@@ -34,12 +34,23 @@ def test_ursula_substantiates_stamp(ursulas):
 def test_blockchain_ursula_verifies_stamp(ursulas):
     first_ursula = list(ursulas)[0]
 
-    # This Ursula does not yet have a verified stamp
-    first_ursula.verified_stamp = False
+    # This Ursula does not yet have a verified operator signature...
+    first_ursula.verified_operator_signature = False
+    first_ursula.validate_operator_signature()
+
+    # ...but now it's verified.
+    assert first_ursula.verified_operator_signature
+
+
+def test_blockchain_ursula_verifies_bonding_and_staking(ursulas):
+    first_ursula = list(ursulas)[0]
+
+    # This Ursula does not yet have a verified operator signature...
+    first_ursula.verified_bonding = False
     first_ursula.validate_operator()
 
     # ...but now it's verified.
-    assert first_ursula.verified_stamp
+    assert first_ursula.verified_operator_signature
 
 
 def remote_vladimir(**kwds):
@@ -149,7 +160,7 @@ def test_ursulas_reencrypt(ursulas, alice, bob, policy_value):
 
     message_kit = enrico.encrypt_for_pre(message)
 
-    bob.start_learning_loop(now=True)
+    bob.start_peering(now=True)
 
     plaintexts = bob.retrieve_and_decrypt(
         [message_kit],

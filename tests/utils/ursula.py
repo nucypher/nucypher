@@ -1,18 +1,22 @@
 import contextlib
 import socket
+from itertools import islice
 from threading import Lock
-from typing import Iterable, List
+from typing import List, Optional
 
 from cryptography.x509 import Certificate
+from eth_account.hdaccount import Mnemonic
 from web3 import HTTPProvider
 
 from nucypher.characters.lawful import Ursula
 from nucypher.config.characters import UrsulaConfiguration
+from nucypher.crypto.keystore import Keystore
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from tests.constants import (
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
+    INSECURE_DEVELOPMENT_PASSWORD,
     TESTERCHAIN_CHAIN_ID,
 )
+from tests.utils.blockchain import ReservedTestAccountManager
 
 
 class __ActivePortCache:
@@ -65,31 +69,43 @@ def select_test_port() -> int:
 
 
 def make_ursulas(
+    accounts: ReservedTestAccountManager,
     ursula_config: UrsulaConfiguration,
-    staking_provider_addresses: Iterable[str],
-    operator_addresses: Iterable[str],
-    quantity: int = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
+    quantity: Optional[int] = ReservedTestAccountManager.NUMBER_OF_URSULAS_IN_TESTS,
     know_each_other: bool = True,
+    account_start_index: int = 0,
     **ursula_overrides
 ) -> List[Ursula]:
 
-    providers_and_operators = list(zip(staking_provider_addresses, operator_addresses))[:quantity]
     ursulas = list()
+    for provider, operator in islice(zip(
+            accounts.stake_provider_wallets[account_start_index:],
+            accounts.ursula_wallets[account_start_index:]
+    ), quantity):
 
-    for staking_provider_address, operator_address in providers_and_operators:
+        ursula_config._CharacterConfiguration__keystore = Keystore.from_mnemonic(
+            mnemonic=Mnemonic("english").generate(24),
+            password=INSECURE_DEVELOPMENT_PASSWORD,
+        )
+        ursula_config.keystore.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
+
         ursula = ursula_config.produce(
-            checksum_address=staking_provider_address,
-            operator_address=operator_address,
-            rest_port=select_test_port(),
+            port=select_test_port(),
+            wallet=operator,
             **ursula_overrides
         )
 
+        # mocks bonding with a stake provider (for unit and integration suites)
+        ursula._staking_provider_address = provider.address
         ursula.set_provider_public_key()
-
         ursulas.append(ursula)
 
         # Store this Ursula in our global testing cache.
         MOCK_KNOWN_URSULAS_CACHE[ursula.rest_interface.port] = ursula
+
+        assert ursula.operator_address == operator.address
+        assert ursula.staking_provider_address == provider.address
+        assert ursula.rest_interface.port != UrsulaConfiguration.DEFAULT_REST_PORT
 
     if know_each_other:
         # Bootstrap the network
@@ -98,14 +114,14 @@ def make_ursulas(
                 # FIXME #2588: FleetSensor should not own fully-functional Ursulas.
                 # It only needs to see whatever public info we can normally get via REST.
                 # Also sharing mutable Ursulas like that can lead to unpredictable results.
-                ursula_to_teach.remember_node(ursula_to_learn_about)
+                ursula_to_teach.remember_peer(ursula_to_learn_about)
 
     return ursulas
 
 
 def start_pytest_ursula_services(ursula: Ursula) -> Certificate:
     """
-    Takes an ursula and starts its learning
+    Takes an ursula and starts its peering
     services when running tests with pytest twisted.
     """
 

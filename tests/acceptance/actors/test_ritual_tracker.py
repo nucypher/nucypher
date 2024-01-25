@@ -23,6 +23,7 @@ def cohort(ursulas):
     return nodes
 
 
+@pytest.mark.usefixtures("bond_operators")
 def test_action_required_not_participating(cohort):
     ursula = cohort[0]
     agent = ursula.coordinator_agent

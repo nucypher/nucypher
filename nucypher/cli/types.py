@@ -4,9 +4,9 @@ from pathlib import Path
 
 import click
 from eth_utils import to_checksum_address
+from web3 import Web3
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.token import TToken
 from nucypher.policy.payment import PRE_PAYMENT_METHODS
 from nucypher.utilities.networking import InvalidOperatorIP, validate_operator_ip
 
@@ -106,7 +106,7 @@ class NuCypherDomainName(click.ParamType):
 EIP55_CHECKSUM_ADDRESS = ChecksumAddress()
 GWEI = DecimalRange(min=0)
 
-__min_authorization = TToken(40_000, "T").to_tokens()  # TODO right spot for this?
+__min_authorization = Web3.to_wei(40_000, "ether")
 MIN_AUTHORIZATION = Decimal(__min_authorization)
 STAKED_TOKENS_RANGE = DecimalRange(min=__min_authorization)
 

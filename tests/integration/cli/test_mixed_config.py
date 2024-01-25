@@ -8,6 +8,7 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.crypto.keystore import InvalidPassword
@@ -42,7 +43,7 @@ def test_destroy_with_no_configurations(click_runner, custom_filepath):
 
 
 def test_corrupted_configuration(
-    click_runner, custom_filepath, testerchain, test_registry, mocker
+    click_runner, custom_filepath, accounts, test_registry, mocker
 ):
     #
     # Setup
@@ -53,7 +54,7 @@ def test_corrupted_configuration(
         shutil.rmtree(custom_filepath, ignore_errors=True)
     assert not custom_filepath.exists()
 
-    alice, ursula, another_ursula, staking_provider, *all_yall = testerchain.unassigned_accounts
+    alice, ursula, another_ursula, staking_provider, *all_yall = accounts.unassigned_wallets
 
     #
     # Chaos
@@ -66,18 +67,16 @@ def test_corrupted_configuration(
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
-        "--operator-address",
-        another_ursula,
         "--domain",
         TEMPORARY_DOMAIN_NAME,
-        "--rest-host",
+        "--host",
         MOCK_IP_ADDRESS,
         "--config-root",
         str(custom_filepath.absolute()),
     )
 
     # Fails because password is too short and the command uses incomplete args (needs either -F or blockchain details)
-    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: ''}
+    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: '', NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: ''}
 
     with pytest.raises(InvalidPassword):
         result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
@@ -91,12 +90,12 @@ def test_corrupted_configuration(
     keystore = custom_filepath / 'keystore'
     assert not keystore.exists()
 
-    known_nodes = 'known_nodes'
-    path = custom_filepath / known_nodes
+    peers = 'peers'
+    path = custom_filepath / peers
     assert not path.exists()
 
     mocker.patch.object(LocalRegistrySource, "get", return_value=dict())
-    mock_registry_filepath = custom_filepath / "mock_registry.json"
+    mock_registry_filepath = Path("mock_registry.json")
     mock_registry_filepath.touch()
 
     # Attempt installation again, with full args
@@ -109,9 +108,7 @@ def test_corrupted_configuration(
         MOCK_ETH_PROVIDER_URI,
         "--polygon-endpoint",
         TEST_POLYGON_PROVIDER_URI,
-        "--operator-address",
-        another_ursula,
-        "--rest-host",
+        "--host",
         MOCK_IP_ADDRESS,
         "--registry-filepath",
         mock_registry_filepath,
@@ -119,7 +116,10 @@ def test_corrupted_configuration(
         str(custom_filepath.absolute()),
     )
 
-    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+    envvars = {
+        NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+        NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    }
     result = click_runner.invoke(nucypher_cli, init_args, catch_exceptions=False, env=envvars)
     assert result.exit_code == 0, result.output
 

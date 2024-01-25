@@ -85,11 +85,11 @@ class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
     A MockRestMiddleware with workaround necessary to test the conditions that arise with thousands of nodes.
     """
 
-    def get_nodes_via_rest(self,
+    def get_peers_via_rest(self,
                            node,
                            fleet_state_checksum,
                            announce_nodes=None):
-        response_bytes = node.bytestring_of_known_nodes()
+        response_bytes = node.bytestring_of_peers()
         r = Response(response_bytes)
         r.content = r.data
         return r

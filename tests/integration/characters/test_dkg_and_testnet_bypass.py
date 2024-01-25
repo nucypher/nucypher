@@ -1,7 +1,6 @@
 import pytest
 
 from nucypher.blockchain.eth import domains
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.chaotic import (
     NiceGuyEddie,
     ThisBobAlwaysDecrypts,
@@ -14,17 +13,21 @@ from tests.constants import (
     MOCK_REGISTRY_FILEPATH,
     TESTERCHAIN_CHAIN_ID,
 )
+from tests.utils.blockchain import TestAccount
 
 
-def _attempt_decryption(BobClass, plaintext, testerchain):
-    trinket = 80  # Doens't matter.
+def _attempt_decryption(BobClass, plaintext, testerchain, peers):
+    trinket = 80  # Doesn't matter.
 
-    signer = Web3Signer(client=testerchain.client)
-    enrico = NiceGuyEddie(encrypting_key=trinket, signer=signer)
+    wallet = TestAccount.random()
+    enrico = NiceGuyEddie(encrypting_key=trinket, wallet=wallet)
     bob = BobClass(
         registry=MOCK_REGISTRY_FILEPATH,
         domain=domains.LYNX,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        seed_nodes=peers,
+        start_peering_now=False,
+        lonely=True,
     )
 
     definitely_false_condition = {
@@ -49,15 +52,13 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
     return decrypted_cleartext
 
 
-@pytest.mark.usefixtures("mock_sign_message")
-def test_user_controls_success(testerchain):
+def test_user_controls_success(testerchain, ursulas):
     plaintext = b"ever thus to deadbeats"
-    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, testerchain)
+    result = _attempt_decryption(ThisBobAlwaysDecrypts, plaintext, testerchain, ursulas)
     assert bytes(result) == bytes(plaintext)
 
 
-@pytest.mark.usefixtures("mock_sign_message")
-def test_user_controls_failure(testerchain):
+def test_user_controls_failure(testerchain, ursulas):
     plaintext = b"ever thus to deadbeats"
     with pytest.raises(Ursula.NotEnoughUrsulas):
-        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext, testerchain)
+        _ = _attempt_decryption(ThisBobAlwaysFails, plaintext, testerchain, ursulas)

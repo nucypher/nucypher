@@ -60,6 +60,7 @@ class NucypherMiddlewareClient:
                     network_middleware_client=self,
                     registry=self.registry,
                     eth_endpoint=self.eth_endpoint,
+                    force=True,
                 )
         return self.parse_node_or_host_and_port(node_or_sprout, host, port)
 
@@ -182,11 +183,11 @@ class RestMiddleware:
 
     _client_class = NucypherMiddlewareClient
 
-    class Unreachable(Exception):
+    class Unreachable(BaseException):
         def __init__(self, message, *args, **kwargs):
             super().__init__(message, *args, **kwargs)
 
-    class UnexpectedResponse(Exception):
+    class UnexpectedResponse(BaseException):
         """Based for all HTTP status codes"""
 
         def __init__(self, message, status, *args, **kwargs):
@@ -264,14 +265,16 @@ class RestMiddleware:
         response = self.client.get(node_or_sprout=node, path="ping")
         return response
 
-    def get_nodes_via_rest(
-        self,
-        node,
-        fleet_state_checksum: FleetStateChecksum,
-        announce_nodes: Sequence[NodeMetadata],
+    def get_peers_via_rest(
+            self,
+            node,
+            fleet_state_checksum: FleetStateChecksum,
+            announce_nodes: Sequence[NodeMetadata]
     ):
+
         request = MetadataRequest(
-            fleet_state_checksum=fleet_state_checksum, announce_nodes=announce_nodes
+            fleet_state_checksum=fleet_state_checksum,
+            announce_nodes=announce_nodes
         )
         response = self.client.post(
             node_or_sprout=node,

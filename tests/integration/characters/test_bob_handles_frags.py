@@ -30,8 +30,8 @@ def test_retrieval_kit(enacted_policy, ursulas):
 
 
 def test_single_retrieve(enacted_policy, bob, ursulas):
-    bob.remember_node(ursulas[0])
-    bob.start_learning_loop()
+    bob.remember_peer(ursulas[0])
+    bob.start_peering()
     messages, message_kits = make_message_kits(enacted_policy.public_key)
 
     cleartexts = bob.retrieve_and_decrypt(
@@ -43,7 +43,7 @@ def test_single_retrieve(enacted_policy, bob, ursulas):
 
 
 def test_single_retrieve_conditions_set_directly_to_none(enacted_policy, bob, ursulas):
-    bob.start_learning_loop()
+    bob.start_peering()
     message = b"plaintext1"
 
     # MessageKit is created directly in this test, to ensure consistency
@@ -60,7 +60,7 @@ def test_single_retrieve_conditions_set_directly_to_none(enacted_policy, bob, ur
 
 
 def test_single_retrieve_conditions_empty_list(enacted_policy, bob, ursulas):
-    bob.start_learning_loop()
+    bob.start_peering()
     message = b"plaintext1"
 
     # MessageKit is created directly in this test, to ensure consistency
@@ -78,7 +78,7 @@ def test_single_retrieve_conditions_empty_list(enacted_policy, bob, ursulas):
 
 def test_use_external_cache(enacted_policy, bob, ursulas):
 
-    bob.start_learning_loop()
+    bob.start_peering()
     messages, message_kits = make_message_kits(enacted_policy.public_key)
 
     ursulas = list(ursulas)

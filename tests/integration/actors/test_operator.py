@@ -22,7 +22,7 @@ def monkeypatch_get_staking_provider_from_operator(
 
 @pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
 def test_operator_block_until_ready_failure(
-    staking_providers,
+    bond_operators,
     mocker,
     ursulas,
     mock_taco_application_agent,

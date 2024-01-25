@@ -5,11 +5,11 @@ from nucypher_core.ferveo import DkgPublicKey
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
+from tests.utils.blockchain import TestAccount
 
 ######################
 # Boring setup stuff #
@@ -42,9 +42,9 @@ ritual_id = 5  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
 # known authorized encryptor for ritual 3
-signer = InMemorySigner(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY)
 enrico = Enrico(
-    encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)), signer=signer
+    encrypting_key=DkgPublicKey.from_bytes(bytes(ritual.public_key)),
+    wallet=TestAccount(private_key=DEFAULT_TEST_ENRICO_PRIVATE_KEY),
 )
 
 print(
@@ -108,7 +108,7 @@ bob = Bob(
     registry=registry,
 )
 
-bob.start_learning_loop(now=True)
+bob.start_peering(now=True)
 
 cleartext = bob.threshold_decrypt(threshold_message_kit=threshold_message_kit)
 

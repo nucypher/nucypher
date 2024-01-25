@@ -21,8 +21,6 @@ from nucypher.cli.options import (
     group_options,
     option_contract_name,
     option_event_name,
-    option_light,
-    option_poa,
     option_registry_filepath,
 )
 from nucypher.cli.painting.status import paint_application_contract_status
@@ -54,11 +52,9 @@ option_domain = click.option(
 class RegistryOptions:
     __option_name__ = "registry_options"
 
-    def __init__(self, blockchain_endpoint, poa, registry_filepath, light, domain):
+    def __init__(self, blockchain_endpoint, registry_filepath, domain):
         self.blockchain_endpoint = blockchain_endpoint
-        self.poa = poa
         self.registry_filepath = registry_filepath
-        self.light = light
         self.domain = domains.get_domain(str(domain))
 
     def setup(self, general_config) -> tuple:
@@ -71,8 +67,6 @@ class RegistryOptions:
 
 group_registry_options = group_options(
     RegistryOptions,
-    poa=option_poa,
-    light=option_light,
     registry_filepath=option_registry_filepath,
     domain=option_domain,
     blockchain_endpoint=option_blockchain_endpoint,

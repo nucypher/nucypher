@@ -7,17 +7,17 @@ from json import JSONDecodeError
 from os.path import abspath
 from pathlib import Path
 from secrets import token_bytes
-from typing import Callable, ClassVar, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
-import click
 from constant_sorrow.constants import KEYSTORE_LOCKED
-from mnemonic.mnemonic import Mnemonic
+from eth_account.hdaccount import Mnemonic
 from nucypher_core import SessionSecretFactory
 from nucypher_core.ferveo import Keypair
 from nucypher_core.umbral import SecretKeyFactory
 
 from nucypher.config.constants import DEFAULT_CONFIG_ROOT
 from nucypher.crypto.keypairs import HostingKeypair, RitualisticKeypair
+from nucypher.crypto.mnemonic import _LANGUAGE
 from nucypher.crypto.passwords import (
     SecretBoxAuthenticationError,
     derive_key_material_from_password,
@@ -50,11 +50,6 @@ _TLS_INFO = __INFO_BASE + b"tls"
 # Wrapping key
 _SALT_SIZE = 32
 
-# Mnemonic
-_ENTROPY_BITS = 256
-_WORD_COUNT = 24
-_MNEMONIC_LANGUAGE = "english"
-
 # Keystore File
 FILE_ENCODING = 'utf-8'
 _KEYSTORE_VERSION = '2.0'
@@ -77,12 +72,22 @@ def _assemble_keystore(encrypted_secret: bytes, password_salt: bytes, wrapper_sa
     return encoded_key_data
 
 
+def _read_file(path: Path) -> bytes:
+    with open(path, "rb") as file:
+        data = file.read()
+    return data
+
+
+def _write_file(path, payload: bytes) -> None:
+    with os.open(path, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE) as keyfile:
+        keyfile.write(payload)
+
+
 def _read_keystore(path: Path, deserializer: Callable) -> Dict[str, Union[str, bytes]]:
     """Parses a keyfile and return decoded, deserialized key data."""
-    with open(path, 'rb') as keyfile:
-        key_data = keyfile.read()
-        if deserializer:
-            key_data = deserializer(key_data)
+    key_data = _read_file(path)
+    if deserializer:
+        key_data = deserializer(key_data)
     return key_data
 
 
@@ -108,13 +113,11 @@ def _write_keystore(path: Path, payload: Dict[str, bytes], serializer: Callable)
     if path.exists():
         raise Keystore.Exists(f"Private keyfile {path} already exists.")
     try:
-        keyfile_descriptor = os.open(path, flags=__PRIVATE_FLAGS, mode=__PRIVATE_MODE)
+        _write_file(path, payload)
     finally:
         os.umask(0)  # Set the umask to 0 after opening
     if serializer:
         payload = serializer(payload)
-    with os.fdopen(keyfile_descriptor, 'wb') as keyfile:
-        keyfile.write(payload)
     return path
 
 
@@ -185,7 +188,6 @@ def validate_keystore_filename(path: Path) -> None:
 
 
 def _parse_path(path: Path) -> Tuple[int, str]:
-
     # validate keystore file
     if not path.exists():
         raise Keystore.NotFound(f"Keystore '{path.absolute()}' does not exist.")
@@ -224,6 +226,7 @@ class Keystore:
 
     # Filepath
     _DEFAULT_DIR: Path = DEFAULT_CONFIG_ROOT / 'keystore'
+
     _DELIMITER = '-'
     _SUFFIX = 'priv'
 
@@ -252,9 +255,9 @@ class Keystore:
     class AuthenticationFailed(RuntimeError):
         pass
 
-    def __init__(self, keystore_path: Path):
-        self.keystore_path = keystore_path
-        self.__created, self.__id = _parse_path(keystore_path)
+    def __init__(self, keystore_filepath: Path):
+        self.keystore_filepath = keystore_filepath
+        self.__created, self.__id = _parse_path(keystore_filepath)
         self.__secret = KEYSTORE_LOCKED
 
     def __decrypt_keystore(self, path: Path, password: str) -> bool:
@@ -271,25 +274,30 @@ class Keystore:
             raise self.AuthenticationFailed
 
     @staticmethod
-    def __save(secret: bytes, password: str, keystore_dir: Optional[Path] = None) -> Path:
+    def __commit(secret: bytes, password: str, keystore_dir: Optional[Path] = None) -> Path:
         failures = validate_keystore_password(password)
         if failures:
             # TODO: Ensure this scope is separable from the scope containing the password
             #       to help avoid unintentional logging of the password.
             raise InvalidPassword(''.join(failures))
 
+        if len(secret) != SecretKeyFactory.seed_size():
+            raise ValueError(
+                f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
+            )
+
         # Derive verifying key (for use as ID)
         signing_key = SecretKeyFactory.from_secure_randomness(secret).make_key(
             _SIGNING_INFO
         )
         keystore_id = (
-            signing_key.public_key().to_compressed_bytes().hex()[: Keystore._ID_SIZE]
+            signing_key.public_key().to_compressed_bytes().hex()[:Keystore._ID_SIZE]
         )
 
         # Generate paths
         keystore_dir = keystore_dir or Keystore._DEFAULT_DIR
         os.makedirs(abspath(keystore_dir), exist_ok=True, mode=0o700)
-        keystore_path = generate_keystore_filepath(parent=keystore_dir, id=keystore_id)
+        keystore_filepath = generate_keystore_filepath(parent=keystore_dir, id=keystore_id)
 
         # Encrypt secret
         __password_salt = token_bytes(_SALT_SIZE)
@@ -305,9 +313,14 @@ class Keystore:
         keystore_payload = _assemble_keystore(encrypted_secret=encrypted_secret,
                                               password_salt=__password_salt,
                                               wrapper_salt=__wrapper_salt)
-        _write_keystore(path=keystore_path, payload=keystore_payload, serializer=_serialize_keystore)
 
-        return keystore_path
+        _write_keystore(
+            path=keystore_filepath,
+            payload=keystore_payload,
+            serializer=_serialize_keystore
+        )
+
+        return keystore_filepath
 
     #
     # Public API
@@ -316,7 +329,7 @@ class Keystore:
     @classmethod
     def load(cls, id: str, keystore_dir: Path = _DEFAULT_DIR) -> 'Keystore':
         filepath = generate_keystore_filepath(parent=keystore_dir, id=id)
-        instance = cls(keystore_path=filepath)
+        instance = cls(keystore_filepath=filepath)
         return instance
 
     @classmethod
@@ -332,68 +345,29 @@ class Keystore:
             "and can recover it. No mnemonic will be generated.\n",
             color="yellow",
         )
-        if len(key_material) != SecretKeyFactory.seed_size():
-            raise ValueError(
-                f"Entropy bytes bust be exactly {SecretKeyFactory.seed_size()}."
-            )
-        path = Keystore.__save(
-            secret=key_material, password=password, keystore_dir=keystore_dir
+        path = Keystore.__commit(
+            secret=key_material,
+            password=password,
+            keystore_dir=keystore_dir
         )
-        keystore = cls(keystore_path=path)
+        keystore = cls(keystore_filepath=path)
         return keystore
 
     @classmethod
-    def restore(cls, words: str, password: str, keystore_dir: Optional[Path] = None) -> 'Keystore':
-        """Restore a keystore from seed words"""
-        __mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __secret = bytes(__mnemonic.to_entropy(words))
-        path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
-        keystore = cls(keystore_path=path)
-        return keystore
-
-    @classmethod
-    def generate(
-            cls, password: str,
-            keystore_dir: Optional[Path] = None,
-            interactive: bool = True,
-            ) -> Union['Keystore', Tuple['Keystore', str]]:
-        """Generate a new nucypher keystore for use with characters"""
-        mnemonic = Mnemonic(_MNEMONIC_LANGUAGE)
-        __words = mnemonic.generate(strength=_ENTROPY_BITS)
-        if interactive:
-            cls._confirm_generate(__words)
-        __secret = bytes(mnemonic.to_entropy(__words))
-        path = Keystore.__save(secret=__secret, password=password, keystore_dir=keystore_dir)
-        keystore = cls(keystore_path=path)
-
-        if interactive:
-            return keystore
-
-        return keystore, __words
-
-    @staticmethod
-    def _confirm_generate(__words: str) -> None:
-        """
-        Inform the caller of new keystore seed words generation the console
-        and optionally perform interactive confirmation.
-        """
-
-        # notification
-        emitter = StdoutEmitter()
-        emitter.message(
-            "Backup your seed words, you will not be able to view them again.\n"
+    def from_mnemonic(
+            cls,
+            mnemonic: str,
+            password: str,
+            keystore_dir: Optional[Path] = None):
+        __seed = Mnemonic(_LANGUAGE).to_seed(mnemonic)
+        __secret = __seed[:SecretKeyFactory.seed_size()]
+        keystore_filepath = cls.__commit(
+            secret=__secret,
+            password=password,
+            keystore_dir=keystore_dir
         )
-        emitter.message(f"{__words}\n", color="cyan")
-        if not click.confirm("Have you backed up your seed phrase?"):
-            emitter.message('Keystore generation aborted.', color='red')
-            raise click.Abort()
-        click.clear()
-
-        # confirmation
-        __response = click.prompt("Confirm seed words")
-        if __response != __words:
-            raise ValueError('Incorrect seed word confirmation. No keystore has been created, try again.')
-        click.clear()
+        keystore = cls(keystore_filepath=keystore_filepath)
+        return keystore
 
     @property
     def id(self) -> str:
@@ -407,10 +381,10 @@ class Keystore:
         self.__secret = KEYSTORE_LOCKED
 
     def unlock(self, password: str) -> None:
-        self.__decrypt_keystore(path=self.keystore_path, password=password)
+        self.__decrypt_keystore(path=self.keystore_filepath, password=password)
 
     def derive_crypto_power(self,
-                            power_class: ClassVar[CryptoPowerUp],
+                            power_class: Type[CryptoPowerUp],
                             *power_args, **power_kwargs
                             ) -> Union[KeyPairBasedPower, DerivedKeyBasedPower]:
 
@@ -422,6 +396,7 @@ class Keystore:
             failure_message = f"{power_class.__name__} is an invalid type for deriving a CryptoPower"
             raise TypeError(failure_message)
         else:
+
             __skf = SecretKeyFactory.from_secure_randomness(self.__secret)
 
         if power_class is TLSHostingPower:  # TODO: something more elegant?

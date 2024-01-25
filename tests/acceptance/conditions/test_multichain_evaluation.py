@@ -51,8 +51,8 @@ def conditions(bob, multichain_ids):
 def test_single_retrieve_with_multichain_conditions(
     enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
 ):
-    bob.remember_node(multichain_ursulas[0])
-    bob.start_learning_loop()
+    bob.remember_peer(multichain_ursulas[0])
+    bob.start_peering()
 
     messages, message_kits = make_message_kits(enacted_policy.public_key, conditions)
     policy_info_kwargs = dict(
@@ -71,8 +71,8 @@ def test_single_retrieve_with_multichain_conditions(
 def test_single_decryption_request_with_faulty_rpc_endpoint(
     enacted_policy, bob, multichain_ursulas, conditions, mock_rpc_condition
 ):
-    bob.remember_node(multichain_ursulas[0])
-    bob.start_learning_loop()
+    bob.remember_peer(multichain_ursulas[0])
+    bob.start_peering()
 
     messages, message_kits = make_message_kits(enacted_policy.public_key, conditions)
     policy_info_kwargs = dict(

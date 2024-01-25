@@ -8,10 +8,10 @@ from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
 from tests.constants import (
-    FAKE_PASSWORD_CONFIRMED,
     INSECURE_DEVELOPMENT_PASSWORD,
     MOCK_CUSTOM_INSTALLATION_PATH,
     MOCK_ETH_PROVIDER_URI,
@@ -23,7 +23,10 @@ from tests.constants import (
 CONFIG_CLASSES = (UrsulaConfiguration, )
 
 
-ENV = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
+ENV = {
+    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+    NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD,
+}
 
 
 @pytest.mark.usefixtures("mock_registry_sources")
@@ -48,14 +51,16 @@ def test_initialize_via_cli(
         TEST_ETH_PROVIDER_URI,
         "--config-root",
         str(custom_filepath.absolute()),
+        "--debug",
+        "--force"
     )
 
     if config_class == UrsulaConfiguration:
-        init_args += ('--rest-host', MOCK_IP_ADDRESS)
+        init_args += ('--host', MOCK_IP_ADDRESS)
 
     result = click_runner.invoke(nucypher_cli,
                                  init_args,
-                                 input=FAKE_PASSWORD_CONFIRMED + YES,
+                                 input=YES + YES,
                                  catch_exceptions=False,
                                  env=ENV)
     assert result.exit_code == 0, result.output

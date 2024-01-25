@@ -1,6 +1,4 @@
-
 import time
-from unittest.mock import PropertyMock
 
 import pytest
 from hexbytes import HexBytes
@@ -50,49 +48,6 @@ def test_check_transaction_is_on_chain(mocker, mock_ethereum_client, receipt):
         _ = mock_ethereum_client.check_transaction_is_on_chain(receipt=receipt)
 
 
-@pytest.mark.skip("Needs fix for web3.py v6+")
-def test_block_until_enough_confirmations(mocker, mock_ethereum_client, receipt):
-    my_tx_hash = receipt['transactionHash']
-    block_number_of_my_tx = receipt['blockNumber']
-
-    # Test that web3's TimeExhausted is propagated:
-    web3_mock = mock_ethereum_client.w3
-    web3_mock.eth.wait_for_transaction_receipt = mocker.Mock(side_effect=TimeExhausted)
-
-    with pytest.raises(TimeExhausted):
-        mock_ethereum_client.block_until_enough_confirmations(transaction_hash=my_tx_hash,
-                                                              timeout=1,
-                                                              confirmations=1)
-
-    # Test that NotEnoughConfirmations is raised when there are not enough confirmations.
-    # In this case, we're going to mock eth.blockNumber to be stuck
-    web3_mock.eth.wait_for_transaction_receipt = mocker.Mock(return_value=receipt)
-    web3_mock.eth.get_transaction_receipt = mocker.Mock(return_value=receipt)
-
-    type(web3_mock.eth).block_number = PropertyMock(return_value=block_number_of_my_tx)  # See docs of PropertyMock
-
-    # Additional adjustments to make the test faster
-    mocker.patch.object(mock_ethereum_client, '_calculate_confirmations_timeout', return_value=0.1)
-    mock_ethereum_client.BLOCK_CONFIRMATIONS_POLLING_TIME = 0
-
-    with pytest.raises(mock_ethereum_client.NotEnoughConfirmations):
-        mock_ethereum_client.block_until_enough_confirmations(transaction_hash=my_tx_hash,
-                                                              timeout=1,
-                                                              confirmations=1)
-
-    # Test that block_until_enough_confirmations keeps iterating until the required confirmations are obtained
-    required_confirmations = 3
-    new_blocks_sequence = range(block_number_of_my_tx, block_number_of_my_tx + required_confirmations + 1)
-    type(web3_mock.eth).blockNumber = PropertyMock(side_effect=new_blocks_sequence)  # See docs of PropertyMock
-    spy_check_transaction = mocker.spy(mock_ethereum_client, 'check_transaction_is_on_chain')
-
-    returned_receipt = mock_ethereum_client.block_until_enough_confirmations(transaction_hash=my_tx_hash,
-                                                                             timeout=1,
-                                                                             confirmations=required_confirmations)
-    assert receipt == returned_receipt
-    assert required_confirmations + 1 == spy_check_transaction.call_count
-
-
 def test_wait_for_receipt_no_confirmations(mocker, mock_ethereum_client, receipt):
     my_tx_hash = receipt['transactionHash']
 
@@ -120,7 +75,6 @@ def test_wait_for_receipt_with_confirmations(mocker, mock_ethereum_client, recei
     mock_ethereum_client.COOLING_TIME = 0  # Don't make test unnecessarily slow
 
     time_spy = mocker.spy(time, 'sleep')
-    # timeout_spy = mocker.spy(Timeout, 'check')  # FIXME
 
     # First, let's make a simple, successful call to check that:
     #   - The same receipt goes through
@@ -129,7 +83,6 @@ def test_wait_for_receipt_with_confirmations(mocker, mock_ethereum_client, recei
     returned_receipt = mock_ethereum_client.wait_for_receipt(transaction_hash=my_tx_hash, timeout=1, confirmations=1)
     assert receipt == returned_receipt
     time_spy.assert_called_once_with(mock_ethereum_client.COOLING_TIME)
-    # timeout_spy.assert_not_called()  # FIXME
 
     # Test that wait_for_receipt finishes when a receipt is returned by block_until_enough_confirmations
     sequence_of_events = (
@@ -145,7 +98,6 @@ def test_wait_for_receipt_with_confirmations(mocker, mock_ethereum_client, recei
 
     returned_receipt = mock_ethereum_client.wait_for_receipt(transaction_hash=my_tx_hash, timeout=timeout, confirmations=1)
     assert receipt == returned_receipt
-    # assert timeout_spy.call_count == 3  # FIXME
 
     # Test that a TransactionTimeout is thrown when no receipt is found during the given time
     timeout = 0.1

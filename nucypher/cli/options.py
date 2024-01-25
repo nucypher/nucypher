@@ -9,9 +9,7 @@ from nucypher.blockchain.eth.constants import TACO_CONTRACT_NAMES
 from nucypher.cli.types import (
     EXISTING_READABLE_FILE,
     GWEI,
-    MIN_AUTHORIZATION,
     PRE_PAYMENT_METHOD_CHOICES,
-    STAKED_TOKENS_RANGE,
     NuCypherDomainName,
 )
 
@@ -25,7 +23,6 @@ option_config_root = click.option(
     help="Custom configuration directory",
     type=click.Path(path_type=Path),
 )
-option_dev = click.option("--dev", "-d", help="Enable development mode", is_flag=True)
 option_dry_run = click.option(
     "--dry-run",
     "-x",
@@ -49,17 +46,8 @@ option_key_material = click.option(
 option_max_gas_price = click.option(
     "--max-gas-price", help="Maximum acceptable gas price (in GWEI)", type=GWEI
 )
-option_light = click.option(
-    "--light", help="Indicate that node is light", is_flag=True, default=None
-)
 option_lonely = click.option(
     "--lonely", help="Do not connect to seednodes", is_flag=True
-)
-option_min_stake = click.option(
-    "--min-stake",
-    help="The minimum stake the teacher must have to be locally accepted.",
-    type=STAKED_TOKENS_RANGE,
-    default=MIN_AUTHORIZATION,
 )
 option_polygon_endpoint = click.option(
     "--polygon-endpoint",
@@ -74,19 +62,15 @@ option_pre_payment_method = click.option(
     type=PRE_PAYMENT_METHOD_CHOICES,
     required=False,
 )
-option_poa = click.option(
-    "--poa/--disable-poa", help="Inject POA middleware", is_flag=True, default=None
-)
 option_registry_filepath = click.option(
     "--registry-filepath",
     help="Custom contract registry filepath",
     type=EXISTING_READABLE_FILE,
 )
-option_signer_uri = click.option("--signer", "signer_uri", "-S", default=None, type=str)
-option_teacher_uri = click.option(
-    "--teacher",
-    "teacher_uri",
-    help="An Ursula URI to start learning from (seednode)",
+option_peer_uri = click.option(
+    "--peer",
+    "peer_uri",
+    help="An Ursula URI to start peering from (seednode)",
     type=click.STRING,
 )
 _option_middleware = click.option(

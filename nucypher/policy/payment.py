@@ -112,7 +112,7 @@ class SubscriptionManagerPayment(ContractPayment):
             size=len(policy.kfrags),              # uint16
             start_timestamp=policy.commencement,  # uint16
             end_timestamp=policy.expiration,      # uint16
-            transacting_power=policy.publisher.transacting_power
+            wallet=policy.publisher.wallet
         )
         return receipt
 

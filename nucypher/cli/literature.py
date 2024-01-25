@@ -3,7 +3,6 @@
 
 # Common
 FORCE_MODE_WARNING = "WARNING: Force is enabled"
-DEVELOPMENT_MODE_WARNING = "WARNING: Running in Development mode"
 
 # Events
 CONFIRM_OVERWRITE_EVENTS_CSV_FILE = "Overwrite existing CSV events file - {csv_file}?"
@@ -46,11 +45,11 @@ DEFAULT_TO_LONE_CONFIG_FILE = "Defaulting to {config_class} configuration file: 
 
 #  Authentication
 PASSWORD_COLLECTION_NOTICE = """
-Please provide a password to lock Operator keys.
+Enter a password to encrypt your keys.
 Do not forget this password, and ideally store it using a password manager.
 """
 
-COLLECT_ETH_PASSWORD = "Enter ethereum account password ({checksum_address})"
+COLLECT_ETH_PASSWORD = "Enter ethereum account password"
 COLLECT_NUCYPHER_PASSWORD = 'Enter nucypher keystore password'
 GENERIC_PASSWORD_PROMPT = "Enter password"
 DECRYPTING_CHARACTER_KEYSTORE = 'Authenticating {name}'
@@ -59,6 +58,6 @@ REPEAT_FOR_CONFIRMATION = "Repeat for confirmation:"
 # Networking
 CONFIRM_IPV4_ADDRESS_QUESTION = "Is this the public-facing address of Ursula?"
 CONFIRM_URSULA_IPV4_ADDRESS = (
-    "Detected IPv4 address ({rest_host}) - " + CONFIRM_IPV4_ADDRESS_QUESTION
+    "Detected IPv4 address ({host}) - " + CONFIRM_IPV4_ADDRESS_QUESTION
 )
 COLLECT_URSULA_IPV4_ADDRESS = "Enter Ursula's public-facing IPv4 address"

@@ -15,6 +15,7 @@ from tests.constants import (
     TEST_POLYGON_PROVIDER_URI,
     YES_ENTER,
 )
+from tests.utils.blockchain import LocalAccount, TestAccount
 
 
 @pytest.mark.usefixtures("mock_registry_sources")
@@ -28,7 +29,10 @@ def test_ursula_startup_ip_checkup(click_runner, mocker):
         ursula, "get_nucypher_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
     )
     mocker.patch.object(
-        ursula, "get_client_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
+        ursula, "get_wallet_password", return_value=INSECURE_DEVELOPMENT_PASSWORD
+    )
+    mocker.patch.object(
+        LocalAccount, "from_keystore", return_value=TestAccount.random()
     )
 
     args = (
@@ -106,27 +110,31 @@ def test_ursula_run_ip_checkup(
     # Mock Teacher Resolution
     from nucypher.characters.lawful import Ursula
 
-    teacher = ursulas[0]
-    mocker.patch.object(Ursula, 'from_teacher_uri', return_value=teacher)
+    peer = ursulas[0]
+    mocker.patch.object(Ursula, 'from_peer_uri', return_value=peer)
 
     # Mock worker qualification
     staking_provider = ursulas[1]
 
     def set_staking_provider_address(operator, *args, **kwargs):
-        operator.checksum_address = staking_provider.checksum_address
+        operator._staking_provider_address = staking_provider.checksum_address
         return True
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
 
-    ursula_test_config.rest_host = MOCK_IP_ADDRESS
+    ursula_test_config.host = MOCK_IP_ADDRESS
     mocker.patch.object(
         UrsulaConfiguration, "from_configuration_file", return_value=ursula_test_config
     )
 
-    # Setup
-    teacher = ursulas[2]
+    mocker.patch.object(
+        LocalAccount, "from_keystore", return_value=testerchain.accounts.ursula_wallet(0)
+    )
 
-    # manual teacher
+    # Setup
+    peer = ursulas[2]
+
+    # manual peer
     run_args = (
         "ursula",
         "run",
@@ -134,15 +142,15 @@ def test_ursula_run_ip_checkup(
         "--debug",
         "--config-file",
         str(tempfile_path.absolute()),
-        "--teacher",
-        teacher.rest_url(),
+        "--peer",
+        peer.rest_url(),
     )
     result = click_runner.invoke(
         nucypher_cli, run_args, catch_exceptions=False, input=FAKE_PASSWORD_CONFIRMED
     )
     assert result.exit_code == 0, result.output
 
-    # default teacher
+    # default peer
     run_args = (
         "ursula",
         "run",

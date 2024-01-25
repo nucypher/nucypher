@@ -1,16 +1,13 @@
-
-
 import os
 
 import pytest
 from constant_sorrow.constants import NO_PASSWORD
-from mnemonic.mnemonic import Mnemonic
+from eth_account.hdaccount import Mnemonic
 
-from nucypher.blockchain.eth.decorators import InvalidChecksumAddress
 from nucypher.cli.actions.auth import (
-    get_client_password,
     get_nucypher_password,
     get_password_from_prompt,
+    get_wallet_password,
     unlock_nucypher_keystore,
 )
 from nucypher.cli.literature import (
@@ -20,7 +17,6 @@ from nucypher.cli.literature import (
     GENERIC_PASSWORD_PROMPT,
     REPEAT_FOR_CONFIRMATION,
 )
-from nucypher.config.base import CharacterConfiguration
 from nucypher.crypto import passwords
 from nucypher.crypto.keystore import Keystore
 from nucypher.crypto.passwords import SecretBoxAuthenticationError
@@ -57,17 +53,10 @@ def test_get_password_from_prompt_cli_action(mocker, mock_stdin, confirm, capsys
     assert not captured.err
 
 
-def test_get_client_password_with_invalid_address(mock_stdin):
-    # `mock_stdin` used to assert the user was not prompted
-    bad_address = '0xdeadbeef'
-    with pytest.raises(InvalidChecksumAddress):
-        get_client_password(checksum_address=bad_address)
-
-
 @pytest.mark.parametrize('confirm', (True, False))
-def test_get_client_password(mock_stdin, mock_account, confirm, capsys):
+def test_get_wallet_password(mock_stdin, mock_account, confirm, capsys):
     mock_stdin.password(INSECURE_DEVELOPMENT_PASSWORD, confirm=confirm)
-    result = get_client_password(checksum_address=mock_account.address, confirm=confirm)
+    result = get_wallet_password(confirm=confirm)
     assert result == INSECURE_DEVELOPMENT_PASSWORD
     assert mock_stdin.empty()
     message = COLLECT_ETH_PASSWORD.format(checksum_address=mock_account.address)
@@ -100,11 +89,11 @@ def test_unlock_nucypher_keystore_invalid_password(
 
     # Setup
     mocker.patch.object(passwords, 'secret_box_decrypt', side_effect=SecretBoxAuthenticationError)
-    mocker.patch.object(CharacterConfiguration,
-                        'dev_mode',
-                        return_value=False,
-                        new_callable=mocker.PropertyMock)
-    keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore = Keystore.from_mnemonic(
+        mnemonic=Mnemonic('english').generate(24),
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        keystore_dir=tmpdir
+    )
     alice_test_config.attach_keystore(keystore)
 
     # Test
@@ -122,48 +111,19 @@ def test_unlock_nucypher_keystore_invalid_password(
     )
 
 
-def test_unlock_nucypher_keystore_dev_mode(
-    mocker, test_emitter, capsys, alice_test_config, tmpdir
-):
-
-    # Setup
-    unlock_spy = mocker.spy(Keystore, 'unlock')
-    mocker.patch.object(CharacterConfiguration,
-                        'dev_mode',
-                        return_value=True,
-                        new_callable=mocker.PropertyMock)
-    keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
-    alice_test_config.attach_keystore(keystore)
-
-    result = unlock_nucypher_keystore(
-        emitter=test_emitter,
-        password=INSECURE_DEVELOPMENT_PASSWORD,
-        character_configuration=alice_test_config,
-    )
-
-    assert result
-    output = capsys.readouterr().out
-    message = DECRYPTING_CHARACTER_KEYSTORE.format(
-        name=alice_test_config.NAME.capitalize()
-    )
-    assert message in output
-
-    unlock_spy.assert_not_called()
-
-
 def test_unlock_nucypher_keystore(
-    mocker, test_emitter, capsys, alice_test_config, patch_keystore, tmpdir
+    mocker, test_emitter, capsys, alice_test_config, tmpdir
 ):
 
     # Setup
     # Do not test "real" unlocking here, just the plumbing
     unlock_spy = mocker.patch.object(Keystore, 'unlock', return_value=True)
-    mocker.patch.object(CharacterConfiguration,
-                        'dev_mode',
-                        return_value=False,
-                        new_callable=mocker.PropertyMock)
     mocker.patch.object(Mnemonic, 'detect_language', return_value='english')
-    keystore = Keystore.generate(password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=tmpdir)
+    keystore = Keystore.from_mnemonic(
+        mnemonic=Mnemonic('english').generate(24),
+        password=INSECURE_DEVELOPMENT_PASSWORD,
+        keystore_dir=tmpdir
+    )
     alice_test_config.attach_keystore(keystore)
 
     result = unlock_nucypher_keystore(

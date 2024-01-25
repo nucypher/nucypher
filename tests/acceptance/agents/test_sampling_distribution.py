@@ -5,12 +5,8 @@ from itertools import permutations
 import pytest
 from nucypher_core.ferveo import Keypair
 
-from nucypher.blockchain.eth.agents import (
-    WeightedSampler,
-)
+from nucypher.blockchain.eth.agents import WeightedSampler
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.crypto.powers import TransactingPower
 
 
 def test_sampling_distribution(
@@ -21,32 +17,30 @@ def test_sampling_distribution(
     deployer_account,
 ):
     # setup
-    stake_provider_accounts = testerchain.stake_providers_accounts
+    stake_provider_wallets = testerchain.accounts.stake_provider_wallets
     amount = taco_application_agent.get_min_authorization()
-    all_locked_tokens = len(stake_provider_accounts) * amount
+    all_locked_tokens = len(stake_provider_wallets) * amount
 
     # providers and operators
-    for provider_address in stake_provider_accounts:
-        operator_address = provider_address
+    for provider_wallet in stake_provider_wallets:
+        operator_address = provider_wallet.address
 
         # initialize threshold stake
-        threshold_staking.setRoles(provider_address, sender=deployer_account)
+        threshold_staking.setRoles(provider_wallet.address, sender=deployer_account)
         threshold_staking.authorizationIncreased(
-            provider_address, 0, amount, sender=deployer_account
+            provider_wallet.address, 0, amount, sender=deployer_account
         )
-
-        power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
 
         # We assume that the staking provider knows in advance the account of her operator
         taco_application_agent.bond_operator(
-            staking_provider=provider_address,
+            staking_provider=provider_wallet.address,
             operator=operator_address,
-            transacting_power=power,
+            wallet=provider_wallet,
         )
 
         # set provider public key
         coordinator_agent.set_provider_public_key(
-            public_key=Keypair.random().public_key(), transacting_power=power
+            public_key=Keypair.random().public_key(), wallet=provider_wallet
         )
 
     #
@@ -74,8 +68,8 @@ def test_sampling_distribution(
     total_times = sum(counter.values())
 
     expected = amount / all_locked_tokens
-    for stake_provider in stake_provider_accounts:
-        times = counter[stake_provider]
+    for provider_wallet in stake_provider_wallets:
+        times = counter[provider_wallet.address]
         sampled_ratio = times / total_times
         abs_error = abs(expected - sampled_ratio)
         assert abs_error < ERROR_TOLERANCE

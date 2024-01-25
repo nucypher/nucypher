@@ -6,7 +6,6 @@ from nucypher.blockchain.eth.agents import ContractAgency
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.crypto.ferveo import dkg
-from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
 from tests.constants import TEMPORARY_DOMAIN
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient
@@ -15,7 +14,6 @@ from tests.utils.registry import MockRegistrySource, mock_registry_sources
 
 def pytest_addhooks(pluginmanager):
     pluginmanager.set_blocked('ape_test')
-
 
 
 @pytest.fixture(scope='module')
@@ -28,13 +26,10 @@ def test_registry(module_mocker):
 @pytest.fixture(scope='function')
 def mock_ethereum_client(mocker):
     web3_mock = mocker.Mock()
+    web3_mock.provider = mocker.Mock()
+    web3_mock.provider.endpoint_uri = "http://localhost:8545"
     mock_client = MockEthereumClient(w3=web3_mock)
     return mock_client
-
-
-@pytest.fixture(scope='module', autouse=True)
-def mock_transacting_power(module_mocker):
-    module_mocker.patch.object(TransactingPower, 'unlock')
 
 
 @pytest.fixture(scope='module', autouse=True)
@@ -72,14 +67,12 @@ def testerchain(mock_testerchain, module_mocker) -> MockBlockchain:
 
 
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(testerchain, test_registry, monkeymodule):
+def bond_operators(accounts, test_registry, monkeymodule):
     def faked(self, *args, **kwargs):
-        return testerchain.stake_providers_accounts[
-            testerchain.ursulas_accounts.index(self.transacting_power.account)
-        ]
+        index = accounts.ursula_wallets.index(self.wallet)
+        return accounts.stake_provider_wallets[index].address
 
     Operator.get_staking_provider_address = faked
-    return testerchain.stake_providers_accounts
 
 
 @pytest.fixture(scope="module", autouse=True)

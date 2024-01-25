@@ -9,8 +9,8 @@ from nucypher.characters.lawful import Ursula
 
 
 @pytest_twisted.inlineCallbacks
-def test_nodes_connect_via_tls_and_verify(lonely_ursula_maker):
-    node = lonely_ursula_maker(quantity=1).pop()
+def test_nodes_connect_via_tls_and_verify(lonely_ursula_maker, accounts):
+    node = lonely_ursula_maker(quantity=1, accounts=accounts).pop()
     node_deployer = node.get_deployer()
 
     node_deployer.addServices()

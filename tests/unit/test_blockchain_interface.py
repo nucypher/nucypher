@@ -1,5 +1,3 @@
-
-
 from constant_sorrow.constants import ALL_OF_THEM
 from web3.gas_strategies import time_based
 

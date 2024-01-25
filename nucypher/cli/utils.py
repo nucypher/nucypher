@@ -17,11 +17,9 @@ from nucypher.characters.base import Character
 from nucypher.cli.actions.auth import (
     get_nucypher_password,
     unlock_nucypher_keystore,
-    unlock_signer_account,
+    unlock_wallet,
 )
-from nucypher.cli.literature import (
-    CONFIRM_OVERWRITE_EVENTS_CSV_FILE,
-)
+from nucypher.cli.literature import CONFIRM_OVERWRITE_EVENTS_CSV_FILE
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.events import write_events_to_csv_file
 
@@ -37,29 +35,27 @@ def make_cli_character(
     character_config,
     emitter,
     eth_endpoint: str,
-    unlock_keystore: bool = True,
-    unlock_signer: bool = True,
-    teacher_uri: str = None,
-    min_stake: int = 0,
-    json_ipc: bool = False,
+    unlock: bool = True,
+    peer_uri: str = None,
     **config_args,
 ) -> Character:
     #
     # Pre-Init
     #
 
-    # Handle KEYSTORE
-    if unlock_keystore:
-        unlock_nucypher_keystore(emitter,
-                                 character_configuration=character_config,
-                                 password=get_nucypher_password(emitter=emitter, confirm=False))
+    # Handle nucypher keystore
+    if unlock:
+        unlock_nucypher_keystore(
+            emitter,
+            character_configuration=character_config,
+            password=get_nucypher_password(emitter=emitter, confirm=False)
+        )
 
-    # Handle Signer/Wallet
-    if unlock_signer:
-        unlock_signer_account(config=character_config, json_ipc=json_ipc)
+    # Handle ethereum wallet
+    if unlock:
+        unlock_wallet(config=character_config)
 
     # Handle Teachers
-    # TODO: Is this still relevant?  Is it better to DRY this up by doing it later?
     sage_nodes = list()
 
     #
@@ -67,18 +63,17 @@ def make_cli_character(
     #
 
     # Produce Character
-    if teacher_uri:
-        maybe_sage_node = character_config.known_node_class.from_teacher_uri(
-            teacher_uri=teacher_uri,
-            min_stake=min_stake,
+    if peer_uri:
+        maybe_sage_node = character_config.peer_class.from_peer_uri(
+            peer_uri=peer_uri,
             network_middleware=character_config.network_middleware,
             registry=character_config.registry,
             eth_endpoint=eth_endpoint,
         )
         sage_nodes.append(maybe_sage_node)
 
-    CHARACTER = character_config(
-        known_nodes=sage_nodes,
+    character = character_config(
+        seed_nodes=sage_nodes,
         network_middleware=character_config.network_middleware,
         eth_endpoint=eth_endpoint,
         **config_args,
@@ -88,8 +83,8 @@ def make_cli_character(
     # Post-Init
     #
 
-    emitter.message(f"Loaded {CHARACTER.__class__.__name__} ({CHARACTER.domain})", color='green')
-    return CHARACTER
+    emitter.message(f"Loaded {character.__class__.__name__} ({character.domain})", color='green')
+    return character
 
 
 def get_registry(
