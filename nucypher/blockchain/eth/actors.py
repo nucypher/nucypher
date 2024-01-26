@@ -418,14 +418,10 @@ class Operator(BaseActor):
             f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp} with authority {authority}."
         )
 
-        # gather the cohort
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        nodes, transcripts = list(zip(*self._resolve_validators(ritual, ritual_id)))
+        # gather the cohort transcripts
+        ritual = self.coordinator_agent.get_ritual(ritual_id)
+        nodes, _ = list(zip(*self._resolve_validators(ritual, ritual_id)))
         nodes = sorted(nodes, key=lambda n: n.address)
-        if any(transcripts):
-            self.log.debug(
-                f"ritual #{ritual_id} is in progress {ritual.total_transcripts + 1}/{len(ritual.providers)}."
-            )
 
         # generate a transcript
         try:
