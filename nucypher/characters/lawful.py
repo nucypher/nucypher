@@ -695,9 +695,7 @@ class Bob(Character):
         return ritual_id
 
     def get_ritual_from_id(self, ritual_id) -> CoordinatorAgent.Ritual:
-        ritual = self._get_coordinator_agent().get_ritual(
-            ritual_id, with_participants=True
-        )
+        ritual = self._get_coordinator_agent().get_ritual(ritual_id)
         return ritual
 
     def threshold_decrypt(
