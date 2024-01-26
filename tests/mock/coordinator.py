@@ -1,5 +1,4 @@
 import time
-from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional
 
@@ -94,7 +93,8 @@ class MockCoordinatorAgent(MockContractAgent):
             init_timestamp=init_timestamp,
             end_timestamp=end_timestamp,
             participants=[
-                self.Participant(index=0, provider=provider) for provider in providers
+                self.Participant(index=i, provider=provider)
+                for i, provider in enumerate(providers)
             ],
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),
@@ -211,7 +211,7 @@ class MockCoordinatorAgent(MockContractAgent):
     def get_ritual(
         self, ritual_id: int, transcripts: bool = False, participants: bool = True
     ) -> CoordinatorAgent.Ritual:
-        ritual = deepcopy(self.rituals[ritual_id])
+        ritual = self.rituals[ritual_id]
         return ritual
 
     def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
@@ -226,11 +226,7 @@ class MockCoordinatorAgent(MockContractAgent):
     ) -> Participant:
         for p in self.rituals[ritual_id].participants:
             if p.provider == provider:
-                # if not transcripts:
-                #     p = deepcopy(p)
-                #     p.transcript = b""
                 return p
-
         raise ValueError(f"Provider {provider} not found for ritual #{ritual_id}")
 
     def get_providers(self, ritual_id: int) -> List[ChecksumAddress]:

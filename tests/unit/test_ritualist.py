@@ -111,7 +111,7 @@ def test_perform_round_1(
         participants=list(participants.values()),
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participant = lambda ritual_id, provider, transcripts: participants[
+    agent.get_participant = lambda ritual_id, provider, transcript: participants[
         provider
     ]
 
@@ -210,7 +210,9 @@ def test_perform_round_2(
     )
 
     agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participant = lambda ritual_id, provider: participants[provider]
+    agent.get_participant = lambda ritual_id, provider, transcript: participants[
+        provider
+    ]
 
     # ensure no operation performed for non-application-state
     non_application_states = [
@@ -248,7 +250,9 @@ def test_perform_round_2(
     )
 
     # participant already posted aggregated transcript
-    participant = agent.get_participant(ritual_id=0, provider=ursula.checksum_address)
+    participant = agent.get_participant(
+        ritual_id=0, provider=ursula.checksum_address, transcript=False
+    )
     participant.aggregated = True
 
     # try submitting again
