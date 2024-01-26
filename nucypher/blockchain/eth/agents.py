@@ -775,13 +775,13 @@ class CoordinatorAgent(EthereumContractAgent):
         if not participants and transcripts:
             raise ValueError("Cannot get transcripts without participants")
 
-        ritual = self.rituals(ritual_id)  # call 1
+        ritual = self.rituals(ritual_id)  # 1 rpc call
         if not participants:
             return ritual
 
         participants = []
-        addresses = self.get_providers(ritual_id)  # call 2
-        for index, address in enumerate(addresses):  # n calls
+        addresses = self.get_providers(ritual_id)  # 1 rpc call
+        for index, address in enumerate(addresses):  # n rpc calls
             participant = self.get_participant(ritual_id, address, transcripts)
             participants.append(participant)
         ritual.participants = participants
