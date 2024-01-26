@@ -748,7 +748,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return self.contract.functions.timeout().call()
 
     @contract_api(CONTRACT_CALL)
-    def get_ritual(self, ritual_id: int, with_participants: bool = False) -> Ritual:
+    def get_ritual(self, ritual_id: int) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = self.Ritual(
             initiator=ChecksumAddress(result[0]),
@@ -767,11 +767,6 @@ class CoordinatorAgent(EthereumContractAgent):
 
         # public key
         ritual.public_key = self.Ritual.G1Point(result[10][0], result[10][1])
-
-        # participants
-        if with_participants:
-            participants = self.get_participants(ritual_id)
-            ritual.participants = participants
         return ritual
 
     @contract_api(CONTRACT_CALL)
@@ -790,9 +785,23 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_participant_providers(self, ritual_id: int) -> List[ChecksumAddress]:
-        result = self.contract.functions.getParticipantProviders(ritual_id).call()
+    def get_providers(self, ritual_id: int) -> List[ChecksumAddress]:
+        result = self.contract.functions.getProviders(ritual_id).call()
         return result
+
+    @contract_api(CONTRACT_CALL)
+    def get_participant(
+        self, ritual_id: int, provider: ChecksumAddress
+    ) -> Ritual.Participant:
+        data, index = self.contract.functions.getParticipant(ritual_id, provider).call()
+        participant = self.Ritual.Participant(
+            index=index,
+            provider=ChecksumAddress(data[0]),
+            aggregated=data[1],
+            transcript=bytes(data[2]),
+            decryption_request_static_key=bytes(data[3]),
+        )
+        return participant
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
@@ -807,31 +816,6 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def number_of_rituals(self) -> int:
         result = self.contract.functions.numberOfRituals().call()
-        return result
-
-    @contract_api(CONTRACT_CALL)
-    def get_participant_from_provider(
-        self, ritual_id: int, provider: ChecksumAddress
-    ) -> Ritual.Participant:
-        result = self.contract.functions.getParticipantFromProvider(
-            ritual_id, provider
-        ).call()
-        participant = self.Ritual.Participant(
-            index=0,
-            provider=ChecksumAddress(result[0]),
-            aggregated=result[1],
-            transcript=bytes(result[2]),
-            decryption_request_static_key=bytes(result[3]),
-        )
-        return participant
-
-    @contract_api(CONTRACT_CALL)
-    def is_provider_participating(
-        self, ritual_id: int, provider: ChecksumAddress
-    ) -> bool:
-        result = self.contract.functions.isProviderParticipating(
-            ritual_id, provider
-        ).call()
         return result
 
     @contract_api(CONTRACT_CALL)
