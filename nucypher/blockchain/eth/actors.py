@@ -375,7 +375,7 @@ class Operator(BaseActor):
             self.log.error(
                 f"Not part of ritual {ritual_id}; no need to submit transcripts"
             )
-            raise self.RitualError(
+            raise self.ActorError(
                 f"Not part of ritual {ritual_id}; don't post transcript"
             )
 
