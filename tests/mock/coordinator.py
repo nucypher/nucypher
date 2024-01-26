@@ -93,7 +93,7 @@ class MockCoordinatorAgent(MockContractAgent):
             init_timestamp=init_timestamp,
             end_timestamp=end_timestamp,
             participants=[
-                self.Participant(provider=provider) for provider in providers
+                self.Participant(index=0, provider=provider) for provider in providers
             ],
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),

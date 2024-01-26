@@ -668,6 +668,7 @@ class CoordinatorAgent(EthereumContractAgent):
 
         @dataclass
         class Participant:
+            index: int
             provider: ChecksumAddress
             aggregated: bool = False
             transcript: bytes = bytes()
@@ -793,8 +794,9 @@ class CoordinatorAgent(EthereumContractAgent):
             params += (start, end)
         result = self.contract.functions.getParticipants(*params).call()
         participants = list()
-        for r in result:
+        for index, r in enumerate(result, start=start):
             participant = self.Ritual.Participant(
+                index=index,
                 provider=ChecksumAddress(r[0]),
                 aggregated=r[1],
                 transcript=bytes(r[2]),
@@ -831,6 +833,7 @@ class CoordinatorAgent(EthereumContractAgent):
             ritual_id, provider
         ).call()
         participant = self.Ritual.Participant(
+            index=0,
             provider=ChecksumAddress(result[0]),
             aggregated=result[1],
             transcript=bytes(result[2]),
