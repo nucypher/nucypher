@@ -333,11 +333,8 @@ class Operator(BaseActor):
                 external_validator = Validator(
                     address=staking_provider_address, public_key=public_key
                 )
-
-            transcript = Transcript.from_bytes(transcript_bytes) if transcript_bytes else None
-            result.append((external_validator, transcript))
-
-        result = sorted(result, key=lambda x: x[0].address)
+            result.append(external_validator)
+        result = sorted(result, key=lambda x: x.address)
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
@@ -428,15 +425,14 @@ class Operator(BaseActor):
             f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp} with authority {authority}."
         )
 
-        # gather the cohort transcripts
-        ritual = self.coordinator_agent.get_ritual(ritual_id)
-        nodes, _ = list(zip(*self._resolve_validators(ritual, ritual_id)))
-        nodes = sorted(nodes, key=lambda n: n.address)
+        # gather the ritual metadata
+        ritual = self.get_ritual(ritual_id, download_transcripts=False)
+        validators = list(zip(*self._resolve_validators(ritual, ritual_id)))
 
         # generate a transcript
         try:
             transcript = self.ritual_power.generate_transcript(
-                nodes=nodes,
+                nodes=validators,
                 threshold=ritual.threshold,
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
