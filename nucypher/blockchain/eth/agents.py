@@ -747,7 +747,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return self.contract.functions.timeout().call()
 
     @contract_api(CONTRACT_CALL)
-    def get_ritual(self, ritual_id: int, with_participants: bool = True) -> Ritual:
+    def get_ritual(self, ritual_id: int, with_participants: bool = False) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = self.Ritual(
             initiator=ChecksumAddress(result[0]),
