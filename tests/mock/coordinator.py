@@ -208,7 +208,7 @@ class MockCoordinatorAgent(MockContractAgent):
         return len(self.rituals)
 
     def get_ritual(
-        self, ritual_id: int, with_participants: bool = True
+        self, ritual_id: int, with_participants: bool = False
     ) -> CoordinatorAgent.Ritual:
         return self.rituals[ritual_id]
 
