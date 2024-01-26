@@ -785,25 +785,9 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_participants(
-        self, ritual_id: int, start: Optional[int] = None, end: Optional[int] = None
-    ) -> List[Ritual.Participant]:
-        params = (ritual_id,)
-        start = start or 0
-        if start and end:
-            params += (start, end)
-        result = self.contract.functions.getParticipants(*params).call()
-        participants = list()
-        for index, r in enumerate(result, start=start):
-            participant = self.Ritual.Participant(
-                index=index,
-                provider=ChecksumAddress(r[0]),
-                aggregated=r[1],
-                transcript=bytes(r[2]),
-                decryption_request_static_key=bytes(r[3]),
-            )
-            participants.append(participant)
-        return participants
+    def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
+        result = self.contract.functions.isParticipant(ritual_id, provider).call()
+        return result
 
     @contract_api(CONTRACT_CALL)
     def get_participant_providers(self, ritual_id: int) -> List[ChecksumAddress]:
