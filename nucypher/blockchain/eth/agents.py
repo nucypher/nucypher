@@ -798,6 +798,11 @@ class CoordinatorAgent(EthereumContractAgent):
         return participants
 
     @contract_api(CONTRACT_CALL)
+    def get_participant_providers(self, ritual_id: int) -> List[ChecksumAddress]:
+        result = self.contract.functions.getParticipantProviders(ritual_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
         self, provider: ChecksumAddress, ritual_id: int
     ) -> FerveoPublicKey:
@@ -826,6 +831,15 @@ class CoordinatorAgent(EthereumContractAgent):
             decryption_request_static_key=bytes(result[3]),
         )
         return participant
+
+    @contract_api(CONTRACT_CALL)
+    def is_provider_participating(
+        self, ritual_id: int, provider: ChecksumAddress
+    ) -> bool:
+        result = self.contract.functions.isProviderParticipating(
+            ritual_id, provider
+        ).call()
+        return result
 
     @contract_api(CONTRACT_CALL)
     def is_encryption_authorized(
