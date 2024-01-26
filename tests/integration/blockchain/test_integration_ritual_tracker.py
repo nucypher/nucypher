@@ -243,7 +243,6 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
 
 
 def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
-    mocked_agent = ritualist.coordinator_agent
     active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
 
     participants = []
@@ -253,7 +252,6 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
             index=i, provider=get_random_checksum_address()
         )
         participants.append(participant)
-    mocked_agent.get_participants.return_value = participants
 
     # operator not in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
@@ -274,7 +272,6 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
 def test_get_participation_state_values_from_contract(
     ritualist, get_random_checksum_address
 ):
-    mocked_agent = ritualist.coordinator_agent
     active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
 
     participants = []
@@ -284,8 +281,6 @@ def test_get_participation_state_values_from_contract(
             provider=get_random_checksum_address()
         )
         participants.append(participant)
-
-    mocked_agent.get_participants.return_value = participants
 
     # not participating so everything should be False
     (

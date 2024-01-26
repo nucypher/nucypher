@@ -723,11 +723,8 @@ class CoordinatorAgent(EthereumContractAgent):
             return [p.provider for p in self.participants]
 
         @property
-        def transcripts(self) -> List[Tuple[ChecksumAddress, bytes]]:
-            transcripts = list()
-            for p in self.participants:
-                transcripts.append((p.provider, p.transcript))
-            return transcripts
+        def transcripts(self) -> Iterable[bytes]:
+            return [p.transcript for p in self.participants]
 
         @property
         def shares(self) -> int:
@@ -748,7 +745,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return self.contract.functions.timeout().call()
 
     @contract_api(CONTRACT_CALL)
-    def get_ritual(self, ritual_id: int) -> Ritual:
+    def rituals(self, ritual_id: int) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = self.Ritual(
             initiator=ChecksumAddress(result[0]),
@@ -764,9 +761,30 @@ class CoordinatorAgent(EthereumContractAgent):
             aggregated_transcript=bytes(result[11]),
             participants=[],  # solidity does not return sub-structs
         )
-
         # public key
         ritual.public_key = self.Ritual.G1Point(result[10][0], result[10][1])
+        return ritual
+
+    def get_ritual(
+        self,
+        ritual_id: int,
+        transcripts: bool = False,
+        participants: bool = True,
+    ) -> Ritual:
+        """assembles Coordinator data using multiple RPC requests."""
+        if not participants and transcripts:
+            raise ValueError("Cannot get transcripts without participants")
+
+        ritual = self.rituals(ritual_id)  # call 1
+        if not participants:
+            return ritual
+
+        participants = []
+        addresses = self.get_providers(ritual_id)  # call 2
+        for index, address in enumerate(addresses):  # n calls
+            participant = self.get_participant(ritual_id, address, transcripts)
+            participants.append(participant)
+        ritual.participants = participants
         return ritual
 
     @contract_api(CONTRACT_CALL)
@@ -791,9 +809,11 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_participant(
-        self, ritual_id: int, provider: ChecksumAddress
+        self, ritual_id: int, provider: ChecksumAddress, transcript: bool
     ) -> Ritual.Participant:
-        data, index = self.contract.functions.getParticipant(ritual_id, provider).call()
+        data, index = self.contract.functions.getParticipant(
+            ritual_id, provider, transcript
+        ).call()
         participant = self.Ritual.Participant(
             index=index,
             provider=ChecksumAddress(data[0]),
@@ -805,7 +825,7 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
-        self, provider: ChecksumAddress, ritual_id: int
+            self, provider: ChecksumAddress, ritual_id: int
     ) -> FerveoPublicKey:
         result = self.contract.functions.getProviderPublicKey(
             provider, ritual_id

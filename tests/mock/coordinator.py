@@ -1,4 +1,5 @@
 import time
+from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional
 
@@ -121,7 +122,7 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant(ritual_id, provider)
+        participant = self.get_participant(ritual_id, provider, False)
         participant.transcript = bytes(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == ritual.dkg_size:
@@ -151,7 +152,7 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant(ritual_id, provider)
+        participant = self.get_participant(ritual_id, provider, True)
         participant.aggregated = True
         participant.decryption_request_static_key = bytes(participant_public_key)
 
@@ -207,19 +208,27 @@ class MockCoordinatorAgent(MockContractAgent):
     def number_of_rituals(self) -> int:
         return len(self.rituals)
 
-    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
-        return self.rituals[ritual_id]
+    def get_ritual(
+        self, ritual_id: int, transcripts: bool = False, participants: bool = True
+    ) -> CoordinatorAgent.Ritual:
+        ritual = deepcopy(self.rituals[ritual_id])
+        return ritual
 
     def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
         try:
-            self.get_participant(ritual_id, provider)
+            self.get_participant(ritual_id, provider, False)
             return True
         except ValueError:
             return False
 
-    def get_participant(self, ritual_id: int, provider: ChecksumAddress) -> Participant:
+    def get_participant(
+        self, ritual_id: int, provider: ChecksumAddress, transcript: bool
+    ) -> Participant:
         for p in self.rituals[ritual_id].participants:
             if p.provider == provider:
+                # if not transcripts:
+                #     p = deepcopy(p)
+                #     p.transcript = b""
                 return p
 
         raise ValueError(f"Provider {provider} not found for ritual #{ritual_id}")

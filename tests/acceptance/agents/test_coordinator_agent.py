@@ -99,8 +99,8 @@ def test_initiate_ritual(
     ritual = agent.get_ritual(ritual_id)
     assert ritual.authority == authority
 
-    participants = agent.get_participants(ritual_id)
-    assert [p.provider for p in participants] == cohort
+    ritual = agent.get_ritual(ritual_id)
+    assert [p.provider for p in ritual.participants] == cohort
 
     assert (
         agent.get_ritual_status(ritual_id=ritual_id)
@@ -128,8 +128,8 @@ def test_post_transcript(agent, transcripts, transacting_powers):
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["transcriptDigest"] == keccak(transcripts[i])
 
-    participants = agent.get_participants(ritual_id)
-    assert [p.transcript for p in participants] == transcripts
+    ritual = agent.get_ritual(ritual_id, transcripts=True)
+    assert [p.transcript for p in ritual.participants] == transcripts
 
     assert (
         agent.get_ritual_status(ritual_id=ritual_id)
@@ -167,7 +167,7 @@ def test_post_aggregation(
             bytes(aggregated_transcript)
         )
 
-    participants = agent.get_participants(ritual_id)
+    participants = agent.get_ritual(ritual_id).participants
     for p in participants:
         assert p.aggregated
         assert p.decryption_request_static_key == bytes(

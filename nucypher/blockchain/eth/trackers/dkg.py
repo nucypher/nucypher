@@ -246,7 +246,7 @@ class ActiveRitualTracker:
         Returns node's participant information for the provided
         ritual id; None if node is not participating in the ritual
         """
-        participants = self.coordinator_agent.get_participants(ritual_id=ritual_id)
+        participants = self.coordinator_agent.get_ritual(ritual_id=ritual_id)
         for p in participants:
             if p.provider == self.operator.checksum_address:
                 return p

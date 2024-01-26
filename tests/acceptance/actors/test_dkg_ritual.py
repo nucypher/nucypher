@@ -166,7 +166,9 @@ def test_ursula_ritualist(
             assert (
                 len(
                     coordinator_agent.get_participant(
-                        ritual_id=RITUAL_ID, provider=ursula.checksum_address
+                        ritual_id=RITUAL_ID,
+                        provider=ursula.checksum_address,
+                        transcript=True,
                     ).transcript
                 )
                 > 0
