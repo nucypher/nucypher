@@ -1,6 +1,6 @@
 import time
 from enum import Enum
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
@@ -121,7 +121,7 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant_from_provider(ritual_id, provider)
+        participant = self.get_participant(ritual_id, provider)
         participant.transcript = bytes(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == ritual.dkg_size:
@@ -151,7 +151,7 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant_from_provider(ritual_id, provider)
+        participant = self.get_participant(ritual_id, provider)
         participant.aggregated = True
         participant.decryption_request_static_key = bytes(participant_public_key)
 
@@ -207,22 +207,25 @@ class MockCoordinatorAgent(MockContractAgent):
     def number_of_rituals(self) -> int:
         return len(self.rituals)
 
-    def get_ritual(
-        self, ritual_id: int, with_participants: bool = False
-    ) -> CoordinatorAgent.Ritual:
+    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
         return self.rituals[ritual_id]
 
-    def get_participants(self, ritual_id: int) -> List[Participant]:
-        return self.rituals[ritual_id].participants
+    def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
+        try:
+            self.get_participant(ritual_id, provider)
+            return True
+        except ValueError:
+            return False
 
-    def get_participant_from_provider(
-        self, ritual_id: int, provider: ChecksumAddress
-    ) -> Participant:
+    def get_participant(self, ritual_id: int, provider: ChecksumAddress) -> Participant:
         for p in self.rituals[ritual_id].participants:
             if p.provider == provider:
                 return p
 
         raise ValueError(f"Provider {provider} not found for ritual #{ritual_id}")
+
+    def get_providers(self, ritual_id: int) -> List[ChecksumAddress]:
+        return [p.provider for p in self.rituals[ritual_id].participants]
 
     def get_ritual_status(self, ritual_id: int) -> int:
         ritual = self.rituals[ritual_id]
@@ -259,7 +262,7 @@ class MockCoordinatorAgent(MockContractAgent):
             f"No ritual id found for public key 0x{bytes(public_key).hex()}"
         )
 
-    def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
+    def get_ritual_public_key(self, ritual_id: int) -> Optional[DkgPublicKey]:
         status = self.get_ritual_status(ritual_id=ritual_id)
         if status != self.Ritual.Status.ACTIVE and status != self.Ritual.Status.EXPIRED:
             # TODO should we raise here instead?
@@ -277,8 +280,8 @@ class MockCoordinatorAgent(MockContractAgent):
         participant_keys = self._participant_keys_history[provider]
         for participant_key in reversed(participant_keys):
             if participant_key.lastRitualId <= ritual_id:
-                g2Point = participant_key.publicKey
-                return g2Point.to_public_key()
+                g2_point = participant_key.publicKey
+                return g2_point.to_public_key()
 
         raise ValueError(
             f"Public key not found for provider {provider} for ritual #{ritual_id}"

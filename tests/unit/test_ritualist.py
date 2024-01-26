@@ -113,9 +113,7 @@ def test_perform_round_1(
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
     agent.get_participants = lambda *args, **kwargs: participants
-    agent.get_participant_from_provider = lambda ritual_id, provider: participants[
-        provider
-    ]
+    agent.get_participant = lambda ritual_id, provider: participants[provider]
 
     # ensure no operation performed for non-application-state
     non_application_states = [
@@ -156,9 +154,7 @@ def test_perform_round_1(
     ursula.dkg_storage.store_transcript_receipt(ritual_id=0, txhash_or_receipt=None)
 
     # participant already posted transcript
-    participant = agent.get_participant_from_provider(
-        ritual_id=0, provider=ursula.checksum_address
-    )
+    participant = agent.get_participant(ritual_id=0, provider=ursula.checksum_address)
     participant.transcript = bytes(random_transcript)
 
     # try submitting again
@@ -213,9 +209,7 @@ def test_perform_round_2(
 
     agent.get_ritual = lambda *args, **kwargs: ritual
     agent.get_participants = lambda *args, **kwargs: participants
-    agent.get_participant_from_provider = lambda ritual_id, provider: participants[
-        provider
-    ]
+    agent.get_participant = lambda ritual_id, provider: participants[provider]
 
     # ensure no operation performed for non-application-state
     non_application_states = [
@@ -253,9 +247,7 @@ def test_perform_round_2(
     )
 
     # participant already posted aggregated transcript
-    participant = agent.get_participant_from_provider(
-        ritual_id=0, provider=ursula.checksum_address
-    )
+    participant = agent.get_participant(ritual_id=0, provider=ursula.checksum_address)
     participant.aggregated = True
 
     # try submitting again
