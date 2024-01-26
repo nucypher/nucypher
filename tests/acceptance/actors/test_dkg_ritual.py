@@ -165,7 +165,7 @@ def test_ursula_ritualist(
             # nodes received `StartRitual` and submitted their transcripts
             assert (
                 len(
-                    coordinator_agent.get_participant_from_provider(
+                    coordinator_agent.get_participant(
                         ritual_id=RITUAL_ID, provider=ursula.checksum_address
                     ).transcript
                 )
