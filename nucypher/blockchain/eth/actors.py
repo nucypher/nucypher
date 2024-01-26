@@ -491,8 +491,8 @@ class Operator(BaseActor):
         )
 
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        transcripts = self._resolve_validators(ritual, ritual_id)
-        if not all([t for _, t in transcripts]):
+        nodes, transcripts = self._resolve_validators(ritual, ritual_id)
+        if not all(transcripts):
             raise self.ActorError(
                 f"ritual #{ritual_id} is missing transcripts from {len([t for t in transcripts if not t])} nodes."
             )
