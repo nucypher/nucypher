@@ -82,7 +82,7 @@ def unlock_nucypher_keystore(emitter: StdoutEmitter, password: str, character_co
 
 def recover_keystore(emitter) -> None:
     emitter.message('This procedure will recover your nucypher keystore from mnemonic seed words. '
-                    'You will need to provide the entire mnemonic (space seperated) in the correct '
+                    'You will need to provide the entire mnemonic (space separated) in the correct '
                     'order and choose a new password.', color='cyan')
     click.confirm('Do you want to continue', abort=True)
     __words = click.prompt("Enter nucypher keystore seed words")

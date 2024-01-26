@@ -193,7 +193,7 @@ def test_wait_for_successes_timed_out(join_worker_pool):
         pool.block_until_target_successes()
     t_end = time.monotonic()
 
-    # Even though timeout is 1, there are long-running workers which we can't interupt.
+    # Even though timeout is 1, there are long-running workers which we can't interrupt.
     assert t_end - t_start < 3
 
     message = str(exc_info.value)
@@ -228,7 +228,7 @@ def test_join(join_worker_pool):
 
     pool.join()  # should work the second time too
 
-    # Even though timeout is 1, there are long-running workers which we can't interupt.
+    # Even though timeout is 1, there are long-running workers which we can't interrupt.
     assert t_end - t_start < 3
 
 

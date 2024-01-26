@@ -47,7 +47,7 @@ class Keypair(object):
                  public_key=None,
                  generate_keys_if_needed=True) -> None:
         """
-        Initalizes a Keypair object with an Umbral key object.
+        Initializes a Keypair object with an Umbral key object.
         :param generate_keys_if_needed: Generate keys or not?
         """
         if private_key and public_key:

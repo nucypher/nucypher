@@ -86,7 +86,7 @@ def test_state_is_recorded_after_learning(ursulas, lonely_ursula_maker):
     some_ursula_in_the_fleet = list(ursulas)[0]
     lonely_learner.remember_node(some_ursula_in_the_fleet)
     # Archived states at this point:
-    # - inital one (empty, Ursula's metadata is not ready yet, no known nodes)
+    # - initial one (empty, Ursula's metadata is not ready yet, no known nodes)
     # - the one created in Learner.__init__(). Metadata is still not ready, so it's the same
     #   as the previous one and is not recorded.
     # - the one created after Ursula learned about a remote node
