@@ -291,24 +291,6 @@ class Operator(BaseActor):
 
         return providers
 
-    def get_ritual(
-        self, ritual_id: int, download_transcripts: bool
-    ) -> CoordinatorAgent.Ritual:
-        """assembles Coordinator data using multiple RPC requests."""
-        ritual = self.coordinator_agent.get_ritual(ritual_id)  # call 1
-        addresses = self.coordinator_agent.get_providers(ritual_id)  # call 2
-        participants = []
-        for index, address in enumerate(addresses):  # n calls
-            if download_transcripts:
-                participant = self.coordinator_agent.get_participant(ritual_id, address)
-            else:
-                participant = CoordinatorAgent.Ritual.Participant(
-                    index=index, provider=address
-                )
-            participants.append(participant)
-        ritual.participants = participants
-        return ritual
-
     def _resolve_validators(
         self,
         ritual: CoordinatorAgent.Ritual,
@@ -398,7 +380,7 @@ class Operator(BaseActor):
 
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant(
-            ritual_id=ritual_id, provider=self.checksum_address
+            ritual_id=ritual_id, provider=self.checksum_address, transcript=False
         )
         if participant.transcript:
             self.log.debug(
@@ -425,9 +407,9 @@ class Operator(BaseActor):
             f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp} with authority {authority}."
         )
 
-        # gather the ritual metadata
-        ritual = self.get_ritual(ritual_id, download_transcripts=False)
-        validators = list(zip(*self._resolve_validators(ritual, ritual_id)))
+        # gather the ritual metadata and DKG artifacts
+        ritual = self.coordinator_agent.get_ritual(ritual_id)
+        validators = self._resolve_validators(ritual, ritual_id)
 
         # generate a transcript
         try:
@@ -473,7 +455,7 @@ class Operator(BaseActor):
 
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant(
-            ritual_id=ritual_id, provider=self.checksum_address
+            ritual_id=ritual_id, provider=self.checksum_address, transcript=False
         )
         if participant.aggregated:
             self.log.debug(
@@ -496,12 +478,17 @@ class Operator(BaseActor):
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
-        ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        nodes, transcripts = self._resolve_validators(ritual, ritual_id)
-        if not all(transcripts):
+        ritual = self.coordinator_agent.get_ritual(ritual_id, transcripts=True)
+        missing = sum(1 for t in ritual.transcripts if not t)
+        if missing:
             raise self.ActorError(
-                f"ritual #{ritual_id} is missing transcripts from {len([t for t in transcripts if not t])} nodes."
+                f"ritual #{ritual_id} is missing transcripts from {missing} nodes."
             )
+
+        # Prepare the DKG artifacts
+        validators = self._resolve_validators(ritual, ritual_id)
+        transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
+        messages = list(zip(validators, transcripts))
 
         # Aggregate the transcripts
         try:
@@ -510,7 +497,7 @@ class Operator(BaseActor):
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
                 ritual_id=ritual_id,
-                transcripts=transcripts
+                transcripts=messages,
             )
         except Exception as e:
             self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
@@ -558,16 +545,10 @@ class Operator(BaseActor):
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
             raise self.ActorError(f"Ritual #{ritual_id} is not active.")
-
-        nodes, transcripts = list(zip(*self._resolve_validators(ritual, ritual_id)))
-        if not all(transcripts):
-            raise self.ActorError(f"Ritual #{ritual_id} is missing transcripts")
-
-        # TODO: consider the usage of local DKG artifact storage here #3052
-        # aggregated_transcript_bytes = self.dkg_storage.get_aggregated_transcript(ritual_id)
+        validators = list(self._resolve_validators(ritual, ritual_id))
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
-            nodes=nodes,
+            nodes=validators,
             threshold=ritual.threshold,
             shares=ritual.shares,
             checksum_address=self.checksum_address,
@@ -577,7 +558,6 @@ class Operator(BaseActor):
             aad=aad,
             variant=variant
         )
-
         return decryption_share
 
     def decrypt_threshold_decryption_request(
@@ -602,7 +582,7 @@ class Operator(BaseActor):
         # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
 
         # enforces that the node is part of the ritual
-        participating = self.coordinator_agent.is_provider_participating(
+        participating = self.coordinator_agent.is_participant(
             ritual_id=decryption_request.ritual_id, provider=self.checksum_address
         )
         if not participating:

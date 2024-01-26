@@ -694,8 +694,9 @@ class Bob(Character):
         )
         return ritual_id
 
-    def get_ritual_from_id(self, ritual_id) -> CoordinatorAgent.Ritual:
-        ritual = self._get_coordinator_agent().get_ritual(ritual_id)
+    def get_ritual(self, ritual_id) -> CoordinatorAgent.Ritual:
+        agent = self._get_coordinator_agent()
+        ritual = agent.get_ritual(ritual_id)
         return ritual
 
     def threshold_decrypt(
@@ -708,7 +709,7 @@ class Bob(Character):
         ritual_id = self.get_ritual_id_from_public_key(
             public_key=threshold_message_kit.acp.public_key
         )
-        ritual = self.get_ritual_from_id(ritual_id=ritual_id)
+        ritual = self.get_ritual(ritual_id=ritual_id)
 
         if ursulas:
             for ursula in ursulas:
@@ -726,10 +727,9 @@ class Bob(Character):
             variant=variant,
             context=context,
         )
-        participant_public_keys = ritual.participant_public_keys
         decryption_shares = self._get_decryption_shares(
             decryption_request=decryption_request,
-            participant_public_keys=participant_public_keys,
+            participant_public_keys=ritual.participant_public_keys,
             threshold=ritual.threshold,
             timeout=decryption_timeout,
         )
