@@ -56,9 +56,10 @@ def test_initiate_ritual(
 
     participants = [
         CoordinatorAgent.Ritual.Participant(
+            index=i,
             provider=c,
         )
-        for c in cohort
+        for i, c in enumerate(cohort)
     ]
 
     init_timestamp = 123456
@@ -91,8 +92,9 @@ def test_perform_round_1(
     get_random_checksum_address,
 ):
     participants = dict()
-    for checksum_address in cohort:
+    for i, checksum_address in enumerate(cohort):
         participants[checksum_address] = CoordinatorAgent.Ritual.Participant(
+            index=i,
             provider=checksum_address,
         )
 
@@ -183,8 +185,9 @@ def test_perform_round_2(
     get_random_checksum_address,
 ):
     participants = dict()
-    for checksum_address in cohort:
+    for i, checksum_address in enumerate(cohort):
         participant = CoordinatorAgent.Ritual.Participant(
+            index=i,
             transcript=bytes(random_transcript),
             provider=checksum_address,
         )
