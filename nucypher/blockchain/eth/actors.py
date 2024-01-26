@@ -3,7 +3,7 @@ import random
 import time
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import maya
 from eth_typing import ChecksumAddress
@@ -291,21 +291,31 @@ class Operator(BaseActor):
 
         return providers
 
-    def get_ritual(self, ritual_id: int) -> CoordinatorAgent.Ritual:
-        try:
-            ritual = self.ritual_tracker.rituals[ritual_id]
-        except KeyError:
-            raise self.ActorError(f"{ritual_id} is not in the local cache")
+    def get_ritual(
+        self, ritual_id: int, download_transcripts: bool
+    ) -> CoordinatorAgent.Ritual:
+        """assembles Coordinator data using multiple RPC requests."""
+        ritual = self.coordinator_agent.get_ritual(ritual_id)  # call 1
+        addresses = self.coordinator_agent.get_providers(ritual_id)  # call 2
+        participants = []
+        for index, address in enumerate(addresses):  # n calls
+            if download_transcripts:
+                participant = self.coordinator_agent.get_participant(ritual_id, address)
+            else:
+                participant = CoordinatorAgent.Ritual.Participant(
+                    index=index, provider=address
+                )
+            participants.append(participant)
+        ritual.participants = participants
         return ritual
 
     def _resolve_validators(
         self,
         ritual: CoordinatorAgent.Ritual,
         ritual_id: int,
-    ) -> List[Tuple[Validator, Transcript]]:
-
+    ) -> List[Validator]:
         result = list()
-        for staking_provider_address, transcript_bytes in ritual.transcripts:
+        for staking_provider_address in ritual.providers:
             if self.checksum_address == staking_provider_address:
                 # Local
                 external_validator = Validator(
@@ -390,7 +400,7 @@ class Operator(BaseActor):
             return None
 
         # validate the active ritual tracker state
-        participant = self.coordinator_agent.get_participant_from_provider(
+        participant = self.coordinator_agent.get_participant(
             ritual_id=ritual_id, provider=self.checksum_address
         )
         if participant.transcript:
@@ -466,7 +476,7 @@ class Operator(BaseActor):
             return None
 
         # validate the active ritual tracker state
-        participant = self.coordinator_agent.get_participant_from_provider(
+        participant = self.coordinator_agent.get_participant(
             ritual_id=ritual_id, provider=self.checksum_address
         )
         if participant.aggregated:
