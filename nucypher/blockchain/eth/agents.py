@@ -784,8 +784,14 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_participants(self, ritual_id: int) -> List[Ritual.Participant]:
-        result = self.contract.functions.getParticipants(ritual_id).call()
+    def get_participants(
+        self, ritual_id: int, start: Optional[int] = None, end: Optional[int] = None
+    ) -> List[Ritual.Participant]:
+        params = (ritual_id,)
+        start = start or 0
+        if start and end:
+            params += (start, end)
+        result = self.contract.functions.getParticipants(*params).call()
         participants = list()
         for r in result:
             participant = self.Ritual.Participant(
