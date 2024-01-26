@@ -152,7 +152,7 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
         seconds=target_average_block_time * sample_window
     ).epoch
 
-    expected_number_blocks_in_past = (int)(ritual_timeout / target_average_block_time)
+    expected_number_blocks_in_past = int(ritual_timeout / target_average_block_time)
     expected_timestamp = now.subtract(seconds=ritual_timeout).epoch
 
     initial_calc_potential_first_scan_block_number = (
@@ -243,6 +243,7 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
 
 
 def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
+    mocked_agent = ritualist.coordinator_agent
     active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
 
     participants = []
@@ -253,13 +254,17 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
         )
         participants.append(participant)
 
+    mock_ritual = Mock()
+    mock_ritual.participants = participants
+    mocked_agent.get_ritual.return_value = mock_ritual
+
     # operator not in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
     assert participant_info is None
 
     # add operator to participants list
     participant = CoordinatorAgent.Ritual.Participant(
-        provider=ritualist.checksum_address
+        index=i + 1, provider=ritualist.checksum_address
     )
     participants.append(participant)
 
@@ -272,15 +277,20 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
 def test_get_participation_state_values_from_contract(
     ritualist, get_random_checksum_address
 ):
+    mocked_agent = ritualist.coordinator_agent
     active_ritual_tracker = ActiveRitualTracker(operator=ritualist)
 
     participants = []
     # random participants
     for i in range(0, 5):
         participant = CoordinatorAgent.Ritual.Participant(
-            provider=get_random_checksum_address()
+            index=i, provider=get_random_checksum_address()
         )
         participants.append(participant)
+
+    mock_ritual = Mock()
+    mock_ritual.participants = participants
+    mocked_agent.get_ritual.return_value = mock_ritual
 
     # not participating so everything should be False
     (
@@ -294,7 +304,7 @@ def test_get_participation_state_values_from_contract(
 
     # add operator to participants list
     ritual_participant = CoordinatorAgent.Ritual.Participant(
-        provider=ritualist.checksum_address
+        index=i + 1, provider=ritualist.checksum_address
     )
     participants.append(ritual_participant)
 

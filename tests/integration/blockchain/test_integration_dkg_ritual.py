@@ -180,6 +180,11 @@ def test_ursula_ritualist(
             print(
                 "==================== BLOCKING UNTIL DKG FINALIZED ===================="
             )
+            assert (
+                mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+                == mock_coordinator_agent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
+            )
+
             execute_round_2(ritual_id, cohort)
 
         def finality(_):
