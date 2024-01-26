@@ -1,0 +1,1 @@
+Optimizes on-chain reads for dkg artifacts into fixed-size requests.
