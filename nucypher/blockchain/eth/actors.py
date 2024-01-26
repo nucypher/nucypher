@@ -478,12 +478,19 @@ class Operator(BaseActor):
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
 
-        ritual = self.coordinator_agent.get_ritual(ritual_id, transcripts=True)
-        missing = sum(1 for t in ritual.transcripts if not t)
-        if missing:
-            raise self.ActorError(
-                f"ritual #{ritual_id} is missing transcripts from {missing} nodes."
+        ritual = self.coordinator_agent.get_ritual(
+            ritual_id, transcripts=True
+        )  # n + 2 rpc calls
+        missing_transcripts = sum(1 for t in ritual.transcripts if not t)
+        if missing_transcripts:
+            # Nodes should not be able to aggregate transcripts until all transcripts
+            # have been posted.  If this happens, it's a bug.
+            message = (
+                f"Aggregation is not permitted because ritual #{ritual_id} is "
+                f"missing {missing_transcripts} transcripts."
             )
+            self.log.critical(message)
+            raise self.ActorError(message)
 
         # Prepare the DKG artifacts
         validators = self._resolve_validators(ritual, ritual_id)
