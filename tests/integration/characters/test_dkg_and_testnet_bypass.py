@@ -25,6 +25,7 @@ def _attempt_decryption(BobClass, plaintext, testerchain):
         registry=MOCK_REGISTRY_FILEPATH,
         domain=domains.LYNX,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
+        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
 
     definitely_false_condition = {
