@@ -379,7 +379,7 @@ class Operator(BaseActor):
 
         # validate the active ritual tracker state
         participant = self.coordinator_agent.get_participant(
-            ritual_id=ritual_id, provider=self.checksum_address, transcript=False
+            ritual_id=ritual_id, provider=self.checksum_address, transcript=True
         )
         if participant.transcript:
             self.log.debug(
