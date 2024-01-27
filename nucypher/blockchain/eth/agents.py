@@ -703,6 +703,7 @@ class CoordinatorAgent(EthereumContractAgent):
             def __bytes__(self):
                 return self.word0 + self.word1
 
+        id: int
         initiator: ChecksumAddress
         authority: ChecksumAddress
         access_controller: ChecksumAddress
@@ -745,9 +746,10 @@ class CoordinatorAgent(EthereumContractAgent):
         return self.contract.functions.timeout().call()
 
     @contract_api(CONTRACT_CALL)
-    def rituals(self, ritual_id: int) -> Ritual:
+    def __rituals(self, ritual_id: int) -> Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = self.Ritual(
+            id=ritual_id,
             initiator=ChecksumAddress(result[0]),
             init_timestamp=result[1],
             end_timestamp=result[2],
