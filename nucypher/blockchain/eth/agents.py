@@ -771,21 +771,15 @@ class CoordinatorAgent(EthereumContractAgent):
         self,
         ritual_id: int,
         transcripts: bool = False,
-        participants: bool = True,
     ) -> Ritual:
         """assembles Coordinator data using multiple RPC requests."""
-        if not participants and transcripts:
-            raise ValueError("Cannot get transcripts without participants")
+        ritual = self.__rituals(ritual_id)  # 1 rpc call
 
-        ritual = self.rituals(ritual_id)  # 1 rpc call
-        if not participants:
-            return ritual
-
-        participants = []
-        addresses = self.get_providers(ritual_id)  # 1 rpc call
-        for index, address in enumerate(addresses):  # n rpc calls
-            participant = self.get_participant(ritual_id, address, transcripts)
-            participants.append(participant)
+        participants = self.get_participants(
+            ritual_id=ritual_id,
+            num_participants=ritual.dkg_size,
+            include_transcripts=transcripts,
+        )  # 1 rpc call
         ritual.participants = participants
         return ritual
 
@@ -805,11 +799,6 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     @contract_api(CONTRACT_CALL)
-    def get_providers(self, ritual_id: int) -> List[ChecksumAddress]:
-        result = self.contract.functions.getProviders(ritual_id).call()
-        return result
-
-    @contract_api(CONTRACT_CALL)
     def get_participant(
         self, ritual_id: int, provider: ChecksumAddress, transcript: bool
     ) -> Ritual.Participant:
@@ -824,6 +813,47 @@ class CoordinatorAgent(EthereumContractAgent):
             decryption_request_static_key=bytes(data[3]),
         )
         return participant
+
+    @contract_api(CONTRACT_CALL)
+    def get_participants(
+        self,
+        ritual_id: int,
+        num_participants: int,
+        pagination_size: Optional[int] = None,
+        include_transcripts: Optional[bool] = False,
+    ) -> List[Ritual.Participant]:
+        ritual_participants = list()
+
+        if num_participants <= 0:
+            raise ValueError("Number of participants must be >= 0")
+        if pagination_size is None:
+            pagination_size = 10  # TODO what's a good value here?
+            self.log.debug(
+                f"Defaulting to pagination size of {pagination_size} for participants"
+            )
+        elif pagination_size <= 0:
+            raise ValueError("Pagination size must be > 0")
+
+        # TODO: another option is if include_transcripts is false, then don't bother paginating...?
+
+        if pagination_size > 0:
+            start_index: int = 0
+            while start_index < num_participants:
+                result = self.contract.functions.getParticipants(
+                    ritual_id, start_index, pagination_size, include_transcripts
+                ).call()
+                for i, participant_data in enumerate(result):
+                    participant = self.Ritual.Participant(
+                        index=start_index + i,
+                        provider=ChecksumAddress(participant_data[0]),
+                        aggregated=participant_data[1],
+                        transcript=bytes(participant_data[2]),
+                        decryption_request_static_key=bytes(participant_data[3]),
+                    )
+                    ritual_participants.append(participant)
+                    start_index += pagination_size
+
+        return ritual_participants
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
