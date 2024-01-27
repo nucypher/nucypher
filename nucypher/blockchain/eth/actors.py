@@ -584,8 +584,13 @@ class Operator(BaseActor):
         )
 
     def _verify_active_ritual(self, decryption_request: ThresholdDecryptionRequest):
-        # TODO: #3052 consider using the DKGStorage cache instead of the coordinator agent
-        # dkg_public_key = this_node.dkg_storage.get_public_key(decryption_request.ritual_id)
+        # check that ritual is active
+        if not self.coordinator_agent.is_ritual_active(
+            ritual_id=decryption_request.ritual_id
+        ):
+            raise self.UnauthorizedRequest(
+                f"Ritual #{decryption_request.ritual_id} is not active",
+            )
 
         # enforces that the node is part of the ritual
         participating = self.coordinator_agent.is_participant(
@@ -594,14 +599,6 @@ class Operator(BaseActor):
         if not participating:
             raise self.UnauthorizedRequest(
                 f"Node not part of ritual {decryption_request.ritual_id}",
-            )
-
-        # check that ritual is active
-        if not self.coordinator_agent.is_ritual_active(
-            ritual_id=decryption_request.ritual_id
-        ):
-            raise self.UnauthorizedRequest(
-                f"Ritual #{decryption_request.ritual_id} is not active",
             )
 
     def _verify_ciphertext_authorization(
