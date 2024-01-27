@@ -237,7 +237,9 @@ def test_ursula_ritualist(
 
             def expired_ritual():
                 print("============ DKG DECRYPTION EXPIRED RITUAL =============")
-                ritual = mock_coordinator_agent.get_ritual(ritual_id)
+                ritual = mock_coordinator_agent.rituals[
+                    ritual_id
+                ]  # if mocking state, use underlying object
                 time_in_past = mock_coordinator_agent.blockchain.get_blocktime() - 1
                 with patch.object(ritual, "end_timestamp", time_in_past):
                     with pytest.raises(

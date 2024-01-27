@@ -1,4 +1,5 @@
 import time
+from copy import deepcopy
 from enum import Enum
 from typing import Dict, List, NamedTuple, Optional
 
@@ -72,8 +73,15 @@ class MockCoordinatorAgent(MockContractAgent):
         self._operator_to_staking_provider = {}
 
     #
-    # Transactions
+    # Transactions - modify state
     #
+
+    def __find_participant_for_state_change(self, ritual_id, provider) -> Participant:
+        for p in self.rituals[ritual_id].participants:
+            if p.provider == provider:
+                return p
+
+        raise ValueError("participant not found")
 
     def initiate_ritual(
         self,
@@ -87,6 +95,7 @@ class MockCoordinatorAgent(MockContractAgent):
         init_timestamp = int(time.time_ns())
         end_timestamp = init_timestamp + duration
         ritual = self.Ritual(
+            id=ritual_id,
             initiator=transacting_power.account,
             authority=authority,
             access_controller=access_controller,
@@ -122,7 +131,7 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant(ritual_id, provider, False)
+        participant = self.__find_participant_for_state_change(ritual_id, provider)
         participant.transcript = bytes(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == ritual.dkg_size:
@@ -152,7 +161,11 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant(ritual_id, provider, True)
+        participant = None
+        for p in self.rituals[ritual_id].participants:
+            if p.provider == provider:
+                participant = p
+                break
         participant.aggregated = True
         participant.decryption_request_static_key = bytes(participant_public_key)
 
@@ -170,9 +183,6 @@ class MockCoordinatorAgent(MockContractAgent):
 
         ritual.total_aggregations += 1
         return self.blockchain.FAKE_RECEIPT
-
-    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
-        return staking_provider in self._participant_keys_history
 
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
@@ -199,8 +209,11 @@ class MockCoordinatorAgent(MockContractAgent):
         return self.blockchain.FAKE_RECEIPT
 
     #
-    # Calls
+    # Read Calls - don't change state (only use copies of objects)
     #
+
+    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
+        return staking_provider in self._participant_keys_history
 
     def get_timeout(self) -> int:
         return self.timeout
@@ -209,10 +222,17 @@ class MockCoordinatorAgent(MockContractAgent):
         return len(self.rituals)
 
     def get_ritual(
-        self, ritual_id: int, transcripts: bool = False, participants: bool = True
+        self, ritual_id: int, transcripts: bool = False
     ) -> CoordinatorAgent.Ritual:
         ritual = self.rituals[ritual_id]
-        return ritual
+
+        # return a copy of the ritual object; the original value is used for state
+        copied_ritual = deepcopy(ritual)
+        if not transcripts:
+            for participant in copied_ritual.participants:
+                participant.transcript = bytes()
+
+        return copied_ritual
 
     def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
         try:
@@ -222,11 +242,14 @@ class MockCoordinatorAgent(MockContractAgent):
             return False
 
     def get_participant(
-        self, ritual_id: int, provider: ChecksumAddress, transcript: bool
+        self, ritual_id: int, provider: ChecksumAddress, transcript: bool = False
     ) -> Participant:
         for p in self.rituals[ritual_id].participants:
             if p.provider == provider:
-                return p
+                copied_participant = deepcopy(p)
+                if not transcript:
+                    copied_participant.transcript = bytes()
+                return copied_participant
         raise ValueError(f"Provider {provider} not found for ritual #{ritual_id}")
 
     def get_providers(self, ritual_id: int) -> List[ChecksumAddress]:
