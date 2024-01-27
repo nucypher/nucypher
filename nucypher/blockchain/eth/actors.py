@@ -294,7 +294,6 @@ class Operator(BaseActor):
     def _resolve_validators(
         self,
         ritual: CoordinatorAgent.Ritual,
-        ritual_id: int,
     ) -> List[Validator]:
         result = list()
         for staking_provider_address in ritual.providers:
@@ -307,7 +306,7 @@ class Operator(BaseActor):
             else:
                 # Remote
                 public_key = self.coordinator_agent.get_provider_public_key(
-                    provider=staking_provider_address, ritual_id=ritual_id
+                    provider=staking_provider_address, ritual_id=ritual.id
                 )
                 self.log.debug(
                     f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}"
@@ -409,7 +408,7 @@ class Operator(BaseActor):
 
         # gather the ritual metadata and DKG artifacts
         ritual = self.coordinator_agent.get_ritual(ritual_id)
-        validators = self._resolve_validators(ritual, ritual_id)
+        validators = self._resolve_validators(ritual)
 
         # generate a transcript
         try:
@@ -493,7 +492,7 @@ class Operator(BaseActor):
             raise self.ActorError(message)
 
         # Prepare the DKG artifacts
-        validators = self._resolve_validators(ritual, ritual_id)
+        validators = self._resolve_validators(ritual)
         transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
         messages = list(zip(validators, transcripts))
 
@@ -552,7 +551,7 @@ class Operator(BaseActor):
         ritual = self.coordinator_agent.get_ritual(ritual_id)
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
             raise self.ActorError(f"Ritual #{ritual_id} is not active.")
-        validators = list(self._resolve_validators(ritual, ritual_id))
+        validators = list(self._resolve_validators(ritual))
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=validators,

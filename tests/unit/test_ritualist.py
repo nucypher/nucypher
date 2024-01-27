@@ -64,7 +64,10 @@ def test_initiate_ritual(
 
     init_timestamp = 123456
     end_timestamp = init_timestamp + duration
+    number_of_rituals = agent.number_of_rituals()
+    ritual_id = number_of_rituals - 1
     ritual = CoordinatorAgent.Ritual(
+        id=ritual_id,
         initiator=transacting_power.account,
         authority=transacting_power.account,
         access_controller=global_allow_list,
@@ -77,8 +80,6 @@ def test_initiate_ritual(
     agent.get_ritual = lambda *args, **kwargs: ritual
 
     assert receipt["transactionHash"]
-    number_of_rituals = agent.number_of_rituals()
-    ritual_id = number_of_rituals - 1
     return ritual_id
 
 
@@ -100,6 +101,7 @@ def test_perform_round_1(
     init_timestamp = 123456
     end_timestamp = init_timestamp + 100
     ritual = CoordinatorAgent.Ritual(
+        id=0,
         initiator=random_address,
         authority=random_address,
         access_controller=get_random_checksum_address(),
@@ -196,6 +198,7 @@ def test_perform_round_2(
     end_timestamp = init_timestamp + 100
 
     ritual = CoordinatorAgent.Ritual(
+        id=0,
         initiator=transacting_power.account,
         authority=transacting_power.account,
         access_controller=get_random_checksum_address(),
