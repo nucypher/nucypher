@@ -135,8 +135,8 @@ class NucypherTokenActor(BaseActor):
 class Operator(BaseActor):
     READY_TIMEOUT = None  # (None or 0) == indefinite
     READY_POLL_RATE = 120  # seconds
-
     AGGREGATION_SUBMISSION_MAX_DELAY = 60
+    LOG = Logger("operator")
 
     class OperatorError(BaseActor.ActorError):
         """Operator-specific errors."""
