@@ -3,7 +3,7 @@ import random
 import time
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
 from eth_typing import ChecksumAddress
@@ -26,6 +26,7 @@ from nucypher_core.ferveo import (
     Validator,
 )
 from web3 import HTTPProvider, Web3
+from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -320,13 +321,10 @@ class Operator(BaseActor):
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
-        """Publish a transcript to publicly available storage."""
-        # look up the node index for this node on the blockchain
         tx_hash = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
             transacting_power=self.transacting_power,
-            fire_and_forget=True,
         )
         return tx_hash
 
@@ -347,7 +345,6 @@ class Operator(BaseActor):
             public_key=public_key,
             participant_public_key=participant_public_key,
             transacting_power=self.transacting_power,
-            fire_and_forget=True,
         )
         return tx_hash
 
@@ -436,9 +433,7 @@ class Operator(BaseActor):
 
         # publish the transcript and store the receipt
         tx_hash = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
-        self.dkg_storage.store_transcript_receipt(
-            ritual_id=ritual_id, txhash_or_receipt=tx_hash
-        )
+        self.dkg_storage.store_transcript_txhash(ritual_id=ritual_id, txhash=tx_hash)
 
         # logging
         arrival = ritual.total_transcripts + 1
@@ -504,9 +499,7 @@ class Operator(BaseActor):
         )
 
         # store the receipt
-        self.dkg_storage.store_aggregated_transcript_receipt(
-            ritual_id=ritual_id, txhash_or_receipt=tx_hash
-        )
+        self.dkg_storage.store_aggregation_txhash(ritual_id=ritual_id, txhash=tx_hash)
 
         # logging
         total = ritual.total_aggregations + 1
