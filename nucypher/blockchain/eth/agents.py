@@ -935,7 +935,7 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = False,
+        fire_and_forget: bool = True,
     ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
@@ -955,7 +955,7 @@ class CoordinatorAgent(EthereumContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = False,
+        fire_and_forget: bool = True,
     ) -> Union[TxReceipt, HexBytes]:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
