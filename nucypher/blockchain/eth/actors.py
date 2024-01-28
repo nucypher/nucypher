@@ -348,29 +348,40 @@ class Operator(BaseActor):
         )
         return tx_hash
 
-    def pending(self, ritual_id: int, round: int) -> Union[HexBytes, TxReceipt]:
-        if round == 1:
-            pending = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
-        elif round == 2:
-            pending = self.dkg_storage.get_aggregated_transcript_receipt(
-                ritual_id=ritual_id
-            )
+    def get_phase_receipt(
+        self, ritual_id: int, phase: int
+    ) -> Tuple[Optional[HexBytes], Optional[TxReceipt]]:
+        if phase == 1:
+            txhash = self.dkg_storage.get_transcript_txhash(ritual_id=ritual_id)
+        elif phase == 2:
+            txhash = self.dkg_storage.get_aggregation_txhash(ritual_id=ritual_id)
         else:
-            raise ValueError(f"Invalid round {round}")
-        return pending
-
-    def handle_pending_round(
-        self,
-        phase: int,
-        ritual_id: int,
-    ) -> bool:
-        pending = self.pending(ritual_id=ritual_id, round=phase)
-        if not pending:
-            return False
+            raise ValueError(f"Invalid phase: '{phase}'.")
+        if not txhash:
+            return None, None
         try:
-            txhash = pending["transactionHash"]
-        except TypeError:
-            txhash = pending
+            receipt = self.coordinator_agent.blockchain.client.get_transaction_receipt(
+                txhash
+            )
+        except TransactionNotFound:
+            return txhash, None
+        status = receipt.get("status")
+        if status == 1:
+            # If status in response equals 1 the transaction was successful.
+            # If it is equals 0 the transaction was reverted by EVM.
+            # https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.get_transaction_receipt
+            # TODO: What follow-up actions can be taken if the transaction was reverted?
+            return txhash, receipt
+        raise self.ActorError(
+            f"Transaction {txhash} failed with status {status} (ritual {ritual_id}/{phase})."
+        )
+
+    def retry_phase(self, ritual_id: int, phase: int, txhash: HexBytes) -> bool:
+
+        ###
+        # TODO: Retry logic here
+        ###
+
         self.log.info(
             f"Node {self.transacting_power.account} has pending tx {bytes(txhash).hex()} "
             f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
@@ -396,11 +407,14 @@ class Operator(BaseActor):
             return
 
         # handle pending transactions
-        pending = self.handle_pending_round(
-            ritual_id=ritual_id,
-            phase=DKG.PHASE1,
-        )
+        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=DKG.PHASE1)
+        pending = txhash and not receipt
         if pending:
+            self.retry_phase(
+                ritual_id=ritual_id,
+                phase=DKG.PHASE1,
+                txhash=txhash,
+            )
             return
 
         # begin the ritual
@@ -456,8 +470,14 @@ class Operator(BaseActor):
             return
 
         # check if there is a pending tx for this ritual + round combination
-        pending = self.handle_pending_round(ritual_id=ritual_id, phase=DKG.PHASE2)
+        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=DKG.PHASE2)
+        pending = txhash and not receipt
         if pending:
+            self.retry_phase(
+                ritual_id=ritual_id,
+                phase=DKG.PHASE2,
+                txhash=txhash,
+            )
             return
 
         # prepare the DKG artifacts and aggregate transcripts
