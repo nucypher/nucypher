@@ -40,6 +40,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.models import DKG
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
@@ -349,6 +350,35 @@ class Operator(BaseActor):
             fire_and_forget=True,
         )
         return tx_hash
+
+    def pending(self, ritual_id: int, round: int) -> Union[HexBytes, TxReceipt]:
+        if round == 1:
+            pending = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
+        elif round == 2:
+            pending = self.dkg_storage.get_aggregated_transcript_receipt(
+                ritual_id=ritual_id
+            )
+        else:
+            raise ValueError(f"Invalid round {round}")
+        return pending
+
+    def handle_pending_round(
+        self,
+        phase: int,
+        ritual_id: int,
+    ) -> bool:
+        pending = self.pending(ritual_id=ritual_id, round=phase)
+        if not pending:
+            return False
+        try:
+            txhash = pending["transactionHash"]
+        except TypeError:
+            txhash = pending
+        self.log.info(
+            f"Node {self.transacting_power.account} has pending tx {bytes(txhash).hex()} "
+            f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
+        )
+        return True
 
     def perform_round_1(
         self,
