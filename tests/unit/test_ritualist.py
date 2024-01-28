@@ -1,4 +1,5 @@
 import pytest
+from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -18,6 +19,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
+    coordinator_agent.post_transcript = lambda *args, **kwargs: HexBytes("deadbeef")
+    coordinator_agent.post_aggregation = lambda *args, **kwargs: HexBytes("deadbeef")
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
@@ -144,7 +147,7 @@ def test_perform_round_1(
     assert tx_hash is not None
 
     # ensure tx hash is stored
-    assert ursula.dkg_storage.get_transcript_receipt(ritual_id=0) == tx_hash
+    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) == tx_hash
 
     # try again
     tx_hash = ursula.perform_round_1(
@@ -153,7 +156,7 @@ def test_perform_round_1(
     assert tx_hash is None  # no execution since pending tx already present
 
     # clear tx hash
-    ursula.dkg_storage.store_transcript_receipt(ritual_id=0, txhash_or_receipt=None)
+    ursula.dkg_storage.store_transcript_txhash(ritual_id=0, txhash=None)
 
     # participant already posted transcript
     participant = agent.get_participant(
@@ -241,16 +244,14 @@ def test_perform_round_2(
     assert tx_hash is not None
 
     # check tx hash
-    assert ursula.dkg_storage.get_aggregated_transcript_receipt(ritual_id=0) == tx_hash
+    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) == tx_hash
 
     # try again
     tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert tx_hash is None  # no execution since pending tx already present
 
     # clear tx hash
-    ursula.dkg_storage.store_aggregated_transcript_receipt(
-        ritual_id=0, txhash_or_receipt=None
-    )
+    ursula.dkg_storage.store_aggregation_txhash(ritual_id=0, txhash=None)
 
     # participant already posted aggregated transcript
     participant = agent.get_participant(
