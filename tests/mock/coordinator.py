@@ -222,16 +222,16 @@ class MockCoordinatorAgent(MockContractAgent):
         return len(self.rituals)
 
     def get_ritual(
-        self, ritual_id: int, transcripts: bool = False
+        self, ritual_id: int, transcripts: bool = False, participants: bool = True
     ) -> CoordinatorAgent.Ritual:
         ritual = self.rituals[ritual_id]
-
         # return a copy of the ritual object; the original value is used for state
         copied_ritual = deepcopy(ritual)
+        if not participants:
+            return copied_ritual
         if not transcripts:
             for participant in copied_ritual.participants:
                 participant.transcript = bytes()
-
         return copied_ritual
 
     def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
