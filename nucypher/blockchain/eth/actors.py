@@ -379,7 +379,9 @@ class Operator(BaseActor):
     def retry_phase(self, ritual_id: int, phase: int, txhash: HexBytes) -> bool:
 
         ###
-        # TODO: Retry logic here
+        # blockchain = self.coordinator_agent.blockchain.client
+        # transaction = blockchain.get_transaction(txhash)
+        # TODO: Fire retry logic here
         ###
 
         self.log.info(
