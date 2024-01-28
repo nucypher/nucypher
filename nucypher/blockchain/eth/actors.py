@@ -388,59 +388,34 @@ class Operator(BaseActor):
         timestamp: int,
     ) -> Optional[HexBytes]:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
-        if self.checksum_address not in participants:
-            # should never get here
-            self.log.error(
-                f"Not part of ritual {ritual_id}; no need to submit transcripts"
-            )
-            raise self.ActorError(
-                f"Not part of ritual {ritual_id}; don't post transcript"
-            )
 
-        # check ritual status from the blockchain
-        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-
-        # validate the status
-        if status != CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS:
-            self.log.debug(
-                f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
-            )
-            return None
-
-        # validate the active ritual tracker state
-        participant = self.coordinator_agent.get_participant(
-            ritual_id=ritual_id, provider=self.checksum_address, transcript=True
+        # get the ritual and check the status
+        phase1 = DKG.Phase1.fetch(
+            ritual_id=ritual_id,
+            coordinator_agent=self.coordinator_agent,
+            provider=self.checksum_address,
         )
-        if participant.transcript:
-            self.log.debug(
-                f"Node {self.transacting_power.account} has already posted a transcript for ritual {ritual_id}; skipping execution"
-            )
-            return None
+        if not phase1.ready(participants=participants, provider=self.checksum_address):
+            return
 
-        # check pending tx; since we check the coordinator contract
-        # above, we know this tx is pending
-        pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
-        if pending_tx:
-            try:
-                txhash = pending_tx["transactionHash"]
-            except TypeError:
-                txhash = pending_tx
-            txhash = bytes(txhash).hex()
-            self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {txhash} "
-                f"for posting transcript for ritual {ritual_id}; skipping execution"
-            )
-            return None
+        # handle pending transactions
+        pending = self.handle_pending_round(
+            ritual_id=ritual_id,
+            phase=DKG.PHASE1,
+        )
+        if pending:
+            return
 
+        # begin the ritual
         self.log.debug(
-            f"performing round 1 of DKG ritual #{ritual_id} from blocktime {timestamp} with authority {authority}."
+            f"performing round 1 of DKG ritual "
+            f"#{ritual_id} from blocktime {timestamp} "
+            f"with authority {authority}."
         )
-
-        # gather the ritual metadata and DKG artifacts
-        ritual = self.coordinator_agent.get_ritual(ritual_id)
-        validators = self._resolve_validators(ritual)
 
         # generate a transcript
+        ritual = phase1.ritual
+        validators = self._resolve_validators(ritual)
         try:
             transcript = self.ritual_power.generate_transcript(
                 nodes=validators,
@@ -451,7 +426,9 @@ class Operator(BaseActor):
             )
         except Exception as e:
             # TODO: Handle this better #3096
-            self.log.debug(f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}")
+            self.log.critical(
+                f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}"
+            )
             raise e
 
         # store the transcript in the local cache
@@ -463,6 +440,7 @@ class Operator(BaseActor):
             ritual_id=ritual_id, txhash_or_receipt=tx_hash
         )
 
+        # logging
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
@@ -473,102 +451,71 @@ class Operator(BaseActor):
     def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
-        # Get the ritual and check the status from the blockchain
-        # TODO potentially optimize local cache of ritual participants (#3052)
-        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-        if status != CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS:
-            self.log.debug(
-                f"ritual #{ritual_id} is not waiting for aggregations; status={status}; skipping execution"
-            )
-            return None
-
-        # validate the active ritual tracker state
-        participant = self.coordinator_agent.get_participant(
-            ritual_id=ritual_id, provider=self.checksum_address, transcript=False
+        # download ritual data and check if it's ready
+        phase2 = DKG.Phase2.fetch(
+            ritual_id=ritual_id,
+            coordinator_agent=self.coordinator_agent,
+            staking_provider=self.checksum_address,
         )
-        if participant.aggregated:
-            self.log.debug(
-                f"Node {self.transacting_power.account} has already posted an aggregated transcript for ritual {ritual_id}; skipping execution"
-            )
-            return None
+        if not phase2.ready(operator_address=self.transacting_power.account):
+            return
 
-        # check pending tx; since we check the coordinator contract
-        # above, we know this tx is pending
-        pending_tx = self.dkg_storage.get_aggregated_transcript_receipt(
-            ritual_id=ritual_id
-        )
-        if pending_tx:
-            self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting aggregated transcript for ritual {ritual_id}; skipping execution"
-            )
-            return None
+        # check if there is a pending tx for this ritual + round combination
+        pending = self.handle_pending_round(ritual_id=ritual_id, phase=DKG.PHASE2)
+        if pending:
+            return
 
+        # prepare the DKG artifacts and aggregate transcripts
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
         )
-
-        ritual = self.coordinator_agent.get_ritual(
-            ritual_id, transcripts=True
-        )  # n + 2 rpc calls
-        missing_transcripts = sum(1 for t in ritual.transcripts if not t)
-        if missing_transcripts:
-            # Nodes should not be able to aggregate transcripts until all transcripts
-            # have been posted.  If this happens, it's a bug.
-            message = (
-                f"Aggregation is not permitted because ritual #{ritual_id} is "
-                f"missing {missing_transcripts} transcripts."
-            )
-            self.log.critical(message)
-            raise self.ActorError(message)
-
-        # Prepare the DKG artifacts
+        ritual = phase2.ritual
         validators = self._resolve_validators(ritual)
         transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
         messages = list(zip(validators, transcripts))
-
-        # Aggregate the transcripts
         try:
-            result = self.ritual_power.aggregate_transcripts(
-                threshold=ritual.threshold,
-                shares=ritual.shares,
-                checksum_address=self.checksum_address,
-                ritual_id=ritual_id,
-                transcripts=messages,
+            aggregated_transcript, dkg_public_key = (
+                self.ritual_power.aggregate_transcripts(
+                    threshold=ritual.threshold,
+                    shares=ritual.shares,
+                    checksum_address=self.checksum_address,
+                    ritual_id=ritual_id,
+                    transcripts=messages,
+                )
             )
         except Exception as e:
             self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
             raise e
-        else:
-            aggregated_transcript, dkg_public_key = result
 
-        # Store the DKG artifacts for later us
-        self.dkg_storage.store_aggregated_transcript(ritual_id=ritual_id, aggregated_transcript=aggregated_transcript)
-        self.dkg_storage.store_public_key(ritual_id=ritual_id, public_key=dkg_public_key)
+        # store the DKG artifacts for later optimized reads
+        self.dkg_storage.store_aggregated_transcript(
+            ritual_id=ritual_id, aggregated_transcript=aggregated_transcript
+        )
+        self.dkg_storage.store_public_key(
+            ritual_id=ritual_id, public_key=dkg_public_key
+        )
 
-        # publish the transcript and store the receipt
-        total = ritual.total_aggregations + 1
-
-        # distribute submission of aggregated transcripts - don't want all nodes submitting at
-        # the same time
+        # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
-
         tx_hash = self.publish_aggregated_transcript(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
         )
+
+        # store the receipt
         self.dkg_storage.store_aggregated_transcript_receipt(
             ritual_id=ritual_id, txhash_or_receipt=tx_hash
         )
 
         # logging
+        total = ritual.total_aggregations + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} aggregated a transcript for "
             f"DKG ritual #{ritual_id} ({total}/{len(ritual.providers)})"
         )
         if total >= len(ritual.providers):
             self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
-
         return tx_hash
 
     def derive_decryption_share(
