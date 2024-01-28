@@ -857,7 +857,7 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
-            self, provider: ChecksumAddress, ritual_id: int
+        self, provider: ChecksumAddress, ritual_id: int
     ) -> FerveoPublicKey:
         result = self.contract.functions.getProviderPublicKey(
             provider, ritual_id
