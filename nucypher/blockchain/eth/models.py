@@ -20,6 +20,7 @@ class DKG:
     @dataclass
     class Phase1:
         """Models all required data fetched from RPC eth_calls to perform DKG round 1."""
+
         ritual_id: int
         ritual: CoordinatorAgent.Ritual
         status: int
@@ -97,6 +98,7 @@ class DKG:
     @dataclass
     class Phase2:
         """Models all required data fetched from RPC eth_calls to perform DKG round 2."""
+
         ritual_id: int
         ritual: CoordinatorAgent.Ritual
         status: int

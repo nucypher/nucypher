@@ -647,7 +647,6 @@ class CoordinatorAgent(EthereumContractAgent):
             data = bytes(self)
             if not data:
                 return None
-
             return FerveoPublicKey.from_bytes(data)
 
         def __bytes__(self):
@@ -674,6 +673,16 @@ class CoordinatorAgent(EthereumContractAgent):
             transcript: bytes = bytes()
             decryption_request_static_key: bytes = bytes()
 
+            @classmethod
+            def from_data(cls, index: int, data: list):
+                return cls(
+                    index=index,
+                    provider=ChecksumAddress(data[0]),
+                    aggregated=data[1],
+                    transcript=bytes(data[2]),
+                    decryption_request_static_key=bytes(data[3]),
+                )
+
         class G1Point(NamedTuple):
             """Coordinator contract representation of DkgPublicKey."""
 
@@ -697,7 +706,6 @@ class CoordinatorAgent(EthereumContractAgent):
                 data = bytes(self)
                 if not data:
                     return None
-
                 return DkgPublicKey.from_bytes(data)
 
             def __bytes__(self):
@@ -738,20 +746,13 @@ class CoordinatorAgent(EthereumContractAgent):
                 participant_public_keys[p.provider] = SessionStaticKey.from_bytes(
                     p.decryption_request_static_key
                 )
-
             return participant_public_keys
 
         @classmethod
         def make_participants(cls, data: list, start: int = 0) -> Iterable[Participant]:
             """Converts a list of participant data into an iterable of Participant objects."""
             for i, participant_data in enumerate(data, start=start):
-                participant = cls.Participant(
-                    index=i,
-                    provider=ChecksumAddress(participant_data[0]),
-                    aggregated=participant_data[1],
-                    transcript=bytes(participant_data[2]),
-                    decryption_request_static_key=bytes(participant_data[3]),
-                )
+                participant = cls.Participant.from_data(index=i, data=participant_data)
                 yield participant
 
     @contract_api(CONTRACT_CALL)
@@ -796,11 +797,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     def _get_participants(
-        self,
-        ritual: Ritual,
-        ritual_id: int,
-        transcripts: bool,
-        page_size: int = 10,  # Default pagination size
+        self, ritual: Ritual, ritual_id: int, transcripts: bool, page_size: int
     ) -> Iterable[Ritual.Participant]:
         """Fetches all participants for a given ritual."""
         start, end = 0, ritual.dkg_size
@@ -821,12 +818,13 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcripts: bool = False,
         participants: bool = True,
+        page_size: int = 10,
     ) -> Ritual:
         """
         Exposes three views of Coordinator.Rituals:
-            1. The ritual metadata only
-            2. ritual + participant metadata
-            3. ritual + participants + transcripts
+        1. The ritual metadata only
+        2. ritual + participant metadata
+        3. ritual + participants + transcripts
         """
         ritual = self.__rituals(ritual_id)
         if participants:
@@ -835,6 +833,7 @@ class CoordinatorAgent(EthereumContractAgent):
                     ritual=ritual,
                     ritual_id=ritual_id,
                     transcripts=transcripts,
+                    page_size=page_size,
                 )
             )
         elif transcripts:
@@ -853,19 +852,16 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_participants(
-        self,
-        ritual_id: int,
-        start: Optional[int],
-        end: Optional[int],
-        transcripts: Optional[bool] = False,
-    ) -> List[Ritual.Participant]:
+        self, ritual_id: int, start: int, end: int, transcripts: bool
+    ) -> Iterable[Ritual.Participant]:
         if end < start:
             raise ValueError("End must be greater than or equal to start")
+        max_results = end - start
         data = self.contract.functions.getParticipants(
-            ritual_id, start, end - start, transcripts
+            ritual_id, start, max_results, transcripts
         ).call()
-        participants = self.Ritual.make_participants(data, start=start)
-        return list(participants)
+        participants = self.Ritual.make_participants(data=data, start=start)
+        return participants
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
