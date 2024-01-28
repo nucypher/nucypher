@@ -111,15 +111,16 @@ def test_initiate_ritual(
     assert ritual_dkg_key is None  # no dkg key available until ritual is completed
 
 
-def test_post_transcript(agent, transcripts, transacting_powers):
+def test_post_transcript(agent, transcripts, transacting_powers, testerchain):
     ritual_id = agent.number_of_rituals() - 1
     for i, transacting_power in enumerate(transacting_powers):
-        receipt = agent.post_transcript(
+        txhash = agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
         )
-        assert receipt["status"] == 1
+
+        receipt = testerchain.wait_for_receipt(txhash)
         post_transcript_events = (
             agent.contract.events.TranscriptPosted().process_receipt(receipt)
         )
@@ -141,13 +142,18 @@ def test_post_transcript(agent, transcripts, transacting_powers):
 
 
 def test_post_aggregation(
-    agent, aggregated_transcript, dkg_public_key, transacting_powers, cohort
+    agent,
+    aggregated_transcript,
+    dkg_public_key,
+    transacting_powers,
+    cohort,
+    testerchain,
 ):
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
     for i, transacting_power in enumerate(transacting_powers):
         participant_public_key = SessionStaticSecret.random().public_key()
-        receipt = agent.post_aggregation(
+        txhash = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
@@ -155,8 +161,7 @@ def test_post_aggregation(
             transacting_power=transacting_power,
         )
         participant_public_keys[cohort[i]] = participant_public_key
-        assert receipt["status"] == 1
-
+        receipt = testerchain.wait_for_receipt(txhash)
         post_aggregation_events = (
             agent.contract.events.AggregationPosted().process_receipt(receipt)
         )
