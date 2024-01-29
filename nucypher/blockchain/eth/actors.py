@@ -360,9 +360,8 @@ class Operator(BaseActor):
         if not txhash:
             return None, None
         try:
-            receipt = self.coordinator_agent.blockchain.client.get_transaction_receipt(
-                txhash
-            )
+            blockchain = self.coordinator_agent.blockchain.client
+            receipt = blockchain.get_transaction_receipt(txhash)
         except TransactionNotFound:
             return txhash, None
         status = receipt.get("status")
@@ -409,11 +408,13 @@ class Operator(BaseActor):
             return
 
         # handle pending transactions
-        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=DKG.PHASE1)
+        txhash, receipt = self.get_phase_receipt(
+            ritual_id=phase1.ritual.id, phase=DKG.PHASE1
+        )
         pending = txhash and not receipt
         if pending:
             self.retry_phase(
-                ritual_id=ritual_id,
+                ritual_id=phase1.ritual.id,
                 phase=DKG.PHASE1,
                 txhash=txhash,
             )
@@ -435,27 +436,27 @@ class Operator(BaseActor):
                 threshold=ritual.threshold,
                 shares=ritual.shares,
                 checksum_address=self.checksum_address,
-                ritual_id=ritual_id
+                ritual_id=ritual.id,
             )
         except Exception as e:
             # TODO: Handle this better #3096
             self.log.critical(
-                f"Failed to generate a transcript for ritual #{ritual_id}: {str(e)}"
+                f"Failed to generate a transcript for ritual #{ritual.id}: {str(e)}"
             )
             raise e
 
         # store the transcript in the local cache
-        self.dkg_storage.store_transcript(ritual_id=ritual_id, transcript=transcript)
+        self.dkg_storage.store_transcript(ritual_id=ritual.id, transcript=transcript)
 
         # publish the transcript and store the receipt
-        tx_hash = self.publish_transcript(ritual_id=ritual_id, transcript=transcript)
-        self.dkg_storage.store_transcript_txhash(ritual_id=ritual_id, txhash=tx_hash)
+        tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
+        self.dkg_storage.store_transcript_txhash(ritual_id=ritual.id, txhash=tx_hash)
 
         # logging
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
-            f"DKG ritual #{ritual_id} ({arrival}/{len(ritual.providers)}) with authority {authority}."
+            f"DKG ritual #{ritual.id} ({arrival}/{len(ritual.providers)}) with authority {authority}."
         )
         return tx_hash
 
@@ -472,11 +473,13 @@ class Operator(BaseActor):
             return
 
         # check if there is a pending tx for this ritual + round combination
-        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=DKG.PHASE2)
+        txhash, receipt = self.get_phase_receipt(
+            ritual_id=phase2.ritual.id, phase=DKG.PHASE2
+        )
         pending = txhash and not receipt
         if pending:
             self.retry_phase(
-                ritual_id=ritual_id,
+                ritual_id=phase2.ritual.id,
                 phase=DKG.PHASE2,
                 txhash=txhash,
             )
@@ -484,7 +487,8 @@ class Operator(BaseActor):
 
         # prepare the DKG artifacts and aggregate transcripts
         self.log.debug(
-            f"{self.transacting_power.account[:8]} performing round 2 of DKG ritual #{ritual_id} from blocktime {timestamp}"
+            f"{self.transacting_power.account[:8]} performing phase 2 "
+            f"of DKG ritual #{phase2.ritual.id} from blocktime {timestamp}"
         )
         ritual = phase2.ritual
         validators = self._resolve_validators(ritual)
@@ -496,41 +500,43 @@ class Operator(BaseActor):
                     threshold=ritual.threshold,
                     shares=ritual.shares,
                     checksum_address=self.checksum_address,
-                    ritual_id=ritual_id,
+                    ritual_id=ritual.id,
                     transcripts=messages,
                 )
             )
         except Exception as e:
-            self.log.debug(f"Failed to aggregate transcripts for ritual #{ritual_id}: {str(e)}")
+            self.log.debug(
+                f"Failed to aggregate transcripts for ritual #{ritual.id}: {str(e)}"
+            )
             raise e
 
         # store the DKG artifacts for later optimized reads
         self.dkg_storage.store_aggregated_transcript(
-            ritual_id=ritual_id, aggregated_transcript=aggregated_transcript
+            ritual_id=ritual.id, aggregated_transcript=aggregated_transcript
         )
         self.dkg_storage.store_public_key(
-            ritual_id=ritual_id, public_key=dkg_public_key
+            ritual_id=ritual.id, public_key=dkg_public_key
         )
 
         # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
         tx_hash = self.publish_aggregated_transcript(
-            ritual_id=ritual_id,
+            ritual_id=ritual.id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
         )
 
         # store the receipt
-        self.dkg_storage.store_aggregation_txhash(ritual_id=ritual_id, txhash=tx_hash)
+        self.dkg_storage.store_aggregation_txhash(ritual_id=ritual.id, txhash=tx_hash)
 
         # logging
         total = ritual.total_aggregations + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} aggregated a transcript for "
-            f"DKG ritual #{ritual_id} ({total}/{len(ritual.providers)})"
+            f"DKG ritual #{ritual.id} ({total}/{len(ritual.providers)})"
         )
         if total >= len(ritual.providers):
-            self.log.debug(f"DKG ritual #{ritual_id} should now be finalized")
+            self.log.debug(f"DKG ritual #{ritual.id} should now be finalized")
         return tx_hash
 
     def derive_decryption_share(
@@ -541,8 +547,8 @@ class Operator(BaseActor):
         variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
         ritual = self.coordinator_agent.get_ritual(ritual_id)
-        if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
-            raise self.ActorError(f"Ritual #{ritual_id} is not active.")
+        if not self.coordinator_agent.is_ritual_active(ritual_id=ritual.id):
+            raise self.ActorError(f"Ritual #{ritual.id} is not active.")
         validators = list(self._resolve_validators(ritual))
         aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
         decryption_share = self.ritual_power.derive_decryption_share(
@@ -550,7 +556,7 @@ class Operator(BaseActor):
             threshold=ritual.threshold,
             shares=ritual.shares,
             checksum_address=self.checksum_address,
-            ritual_id=ritual_id,
+            ritual_id=ritual.id,
             aggregated_transcript=aggregated_transcript,
             ciphertext_header=ciphertext_header,
             aad=aad,

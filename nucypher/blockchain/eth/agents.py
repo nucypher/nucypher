@@ -626,6 +626,27 @@ class CoordinatorAgent(EthereumContractAgent):
         return self.contract.functions.timeout().call()
 
     @contract_api(CONTRACT_CALL)
+    def get_ritual_status(self, ritual_id: int) -> int:
+        result = self.contract.functions.getRitualState(ritual_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_ritual_active(self, ritual_id: int) -> bool:
+        result = self.contract.functions.isRitualActive(ritual_id).call()
+        return result
+
+    @contract_api(CONTRACT_CALL)
+    def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
+        result = self.contract.functions.isParticipant(ritual_id, provider).call()
+        return result
+
+    @staticmethod
+    def _get_page_size(ritual: Coordinator.Ritual) -> int:
+        # def transcript_size(shares, threshold):
+        #     return int(424 + 240 * (shares / 2) + 50 * (threshold))
+        return 10
+
+    @contract_api(CONTRACT_CALL)
     def __rituals(self, ritual_id: int) -> Coordinator.Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
         ritual = Coordinator.Ritual(
@@ -646,48 +667,10 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         return ritual
 
-    @contract_api(CONTRACT_CALL)
-    def get_ritual_status(self, ritual_id: int) -> int:
-        result = self.contract.functions.getRitualState(ritual_id).call()
-        return result
-
-    @contract_api(CONTRACT_CALL)
-    def is_ritual_active(self, ritual_id: int) -> bool:
-        result = self.contract.functions.isRitualActive(ritual_id).call()
-        return result
-
-    @contract_api(CONTRACT_CALL)
-    def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
-        result = self.contract.functions.isParticipant(ritual_id, provider).call()
-        return result
-
-    def _get_participants(
-        self,
-        ritual: Coordinator.Ritual,
-        ritual_id: int,
-        transcripts: bool,
-        page_size: int,
-    ) -> Iterable[Coordinator.Participant]:
-        """Fetches all participants for a given ritual."""
-        start, end = 0, ritual.dkg_size
-        while start < end:
-            current_page_size = min(page_size, end - start)
-            batch = self.get_participants(
-                ritual_id=ritual_id,
-                start=start,
-                end=start + current_page_size,
-                transcripts=transcripts,
-            )
-            for participant in batch:
-                yield participant
-            start += current_page_size
-
     def get_ritual(
         self,
         ritual_id: int,
         transcripts: bool = False,
-        participants: bool = True,
-        page_size: int = 10,
     ) -> Coordinator.Ritual:
         """
         Exposes three views of Coordinator.Rituals:
@@ -696,17 +679,12 @@ class CoordinatorAgent(EthereumContractAgent):
         3. ritual + participants + transcripts
         """
         ritual = self.__rituals(ritual_id)
-        if participants:
-            ritual.participants = list(
-                self._get_participants(
-                    ritual=ritual,
-                    ritual_id=ritual_id,
-                    transcripts=transcripts,
-                    page_size=page_size,
-                )
+        ritual.participants = list(
+            self.__get_participants(
+                ritual=ritual,
+                transcripts=transcripts,
             )
-        elif transcripts:
-            raise ValueError("Cannot fetch transcripts without participants")
+        )
         return ritual
 
     @contract_api(CONTRACT_CALL)
@@ -722,7 +700,7 @@ class CoordinatorAgent(EthereumContractAgent):
         return participant
 
     @contract_api(CONTRACT_CALL)
-    def get_participants(
+    def __get_participants(
         self, ritual_id: int, start: int, end: int, transcripts: bool
     ) -> Iterable[Coordinator.Participant]:
         if end < start:
@@ -733,6 +711,26 @@ class CoordinatorAgent(EthereumContractAgent):
         ).call()
         participants = Coordinator.Ritual.make_participants(data=data, start=start)
         return participants
+
+    def get_participants(
+        self,
+        ritual: Coordinator.Ritual,
+        transcripts: bool,
+    ) -> Iterable[Coordinator.Participant]:
+        """Fetches all participants for a given ritual."""
+        start, end = 0, ritual.dkg_size
+        page_size = self._get_page_size(ritual)
+        while start < end:
+            current_page_size = min(page_size, end - start)
+            batch = self.__get_participants(
+                ritual_id=ritual.id,
+                start=start,
+                end=start + current_page_size,
+                transcripts=transcripts,
+            )
+            for participant in batch:
+                yield participant
+            start += current_page_size
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
