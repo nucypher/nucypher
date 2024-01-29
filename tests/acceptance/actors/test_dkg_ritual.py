@@ -1,5 +1,6 @@
 import os
 import random
+from unittest.mock import patch
 
 import pytest
 import pytest_twisted
@@ -205,6 +206,22 @@ def test_ursula_ritualist(
         )
         assert last_scanned_block > 0
 
+    def test_participant_pagination(_):
+        print("================ PARTICIPANT PAGINATION ================")
+        pagination_sizes = range(1, DKG_SIZE)
+        for page_size in pagination_sizes:
+            with patch.object(
+                coordinator_agent, "_get_page_size", return_value=page_size
+            ):
+                ritual = coordinator_agent.get_ritual(RITUAL_ID, transcripts=True)
+                for i, participant in enumerate(ritual.participants):
+                    assert participant.provider == cohort[i].checksum_address
+                    assert participant.aggregated is True
+                    assert participant.transcript
+                    assert participant.decryption_request_static_key
+
+                assert len(ritual.participants) == DKG_SIZE
+
     def test_encrypt(_):
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
@@ -288,6 +305,7 @@ def test_ursula_ritualist(
         test_initialize,
         block_until_dkg_finalized,
         test_finality,
+        test_participant_pagination,
         test_encrypt,
         test_unauthorized_decrypt,
         test_decrypt,
