@@ -3,7 +3,6 @@ import random
 import sys
 from abc import abstractmethod
 from bisect import bisect_right
-from dataclasses import dataclass, field
 from itertools import accumulate
 from typing import (
     Any,
@@ -47,6 +46,7 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.models import Coordinator, Ferveo
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -621,148 +621,14 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
 class CoordinatorAgent(EthereumContractAgent):
     contract_name: str = "Coordinator"
 
-    class G2Point(NamedTuple):
-        """
-        Coordinator contract representation of Ferveo Participant public key.
-        """
-
-        # TODO validation of these if used directly
-        word0: bytes  # 32 bytes
-        word1: bytes  # 32 bytes
-        word2: bytes  # 32 bytes
-
-        @classmethod
-        def from_public_key(cls, public_key: FerveoPublicKey):
-            return cls.from_bytes(bytes(public_key))
-
-        @classmethod
-        def from_bytes(cls, data: bytes):
-            if len(data) != FerveoPublicKey.serialized_size():
-                raise ValueError(
-                    f"Invalid byte length; expected {FerveoPublicKey.serialized_size()} bytes but got {len(data)} bytes for G2Point"
-                )
-            return cls(word0=data[:32], word1=data[32:64], word2=data[64:96])
-
-        def to_public_key(self) -> FerveoPublicKey:
-            data = bytes(self)
-            if not data:
-                return None
-            return FerveoPublicKey.from_bytes(data)
-
-        def __bytes__(self):
-            return self.word0 + self.word1 + self.word2
-
-    @dataclass
-    class Ritual:
-
-        @dataclass
-        class Status:
-            NON_INITIATED = 0
-            DKG_AWAITING_TRANSCRIPTS = 1
-            DKG_AWAITING_AGGREGATIONS = 2
-            DKG_TIMEOUT = 3
-            DKG_INVALID = 4
-            ACTIVE = 5
-            EXPIRED = 6
-
-        @dataclass
-        class Participant:
-            index: int
-            provider: ChecksumAddress
-            aggregated: bool = False
-            transcript: bytes = bytes()
-            decryption_request_static_key: bytes = bytes()
-
-            @classmethod
-            def from_data(cls, index: int, data: list):
-                return cls(
-                    index=index,
-                    provider=ChecksumAddress(data[0]),
-                    aggregated=data[1],
-                    transcript=bytes(data[2]),
-                    decryption_request_static_key=bytes(data[3]),
-                )
-
-        class G1Point(NamedTuple):
-            """Coordinator contract representation of DkgPublicKey."""
-
-            # TODO validation of these if used directly
-            word0: bytes  # 32 bytes
-            word1: bytes  # 16 bytes
-
-            @classmethod
-            def from_dkg_public_key(cls, public_key: DkgPublicKey):
-                return cls.from_bytes(bytes(public_key))
-
-            @classmethod
-            def from_bytes(cls, data: bytes):
-                if len(data) != DkgPublicKey.serialized_size():
-                    raise ValueError(
-                        f"Invalid byte length; expected {DkgPublicKey.serialized_size()} bytes but got {len(data)} bytes for G1Point"
-                    )
-                return cls(word0=data[:32], word1=data[32:48])
-
-            def to_dkg_public_key(self) -> DkgPublicKey:
-                data = bytes(self)
-                if not data:
-                    return None
-                return DkgPublicKey.from_bytes(data)
-
-            def __bytes__(self):
-                return self.word0 + self.word1
-
-        id: int
-        initiator: ChecksumAddress
-        authority: ChecksumAddress
-        access_controller: ChecksumAddress
-        dkg_size: int
-        init_timestamp: int
-        end_timestamp: int
-        threshold: int
-
-        total_transcripts: int = 0
-        total_aggregations: int = 0
-        public_key: G1Point = None
-        aggregation_mismatch: bool = False
-        aggregated_transcript: bytes = bytes()
-        participants: List = field(default_factory=list)
-
-        @property
-        def providers(self):
-            return [p.provider for p in self.participants]
-
-        @property
-        def transcripts(self) -> Iterable[bytes]:
-            return [p.transcript for p in self.participants]
-
-        @property
-        def shares(self) -> int:
-            return len(self.providers)
-
-        @property
-        def participant_public_keys(self) -> Dict[ChecksumAddress, SessionStaticKey]:
-            participant_public_keys = {}
-            for p in self.participants:
-                participant_public_keys[p.provider] = SessionStaticKey.from_bytes(
-                    p.decryption_request_static_key
-                )
-            return participant_public_keys
-
-        @classmethod
-        def make_participants(cls, data: list, start: int = 0) -> Iterable[Participant]:
-            """Converts a list of participant data into an iterable of Participant objects."""
-            for i, participant_data in enumerate(data, start=start):
-                participant = cls.Participant.from_data(index=i, data=participant_data)
-                yield participant
-
     @contract_api(CONTRACT_CALL)
     def get_timeout(self) -> int:
         return self.contract.functions.timeout().call()
 
     @contract_api(CONTRACT_CALL)
-    def __rituals(self, ritual_id: int) -> Ritual:
+    def __rituals(self, ritual_id: int) -> Coordinator.Ritual:
         result = self.contract.functions.rituals(int(ritual_id)).call()
-        ritual = self.Ritual(
+        ritual = Coordinator.Ritual(
             id=ritual_id,
             initiator=ChecksumAddress(result[0]),
             init_timestamp=result[1],
@@ -775,10 +641,9 @@ class CoordinatorAgent(EthereumContractAgent):
             aggregation_mismatch=result[8],
             access_controller=ChecksumAddress(result[9]),
             aggregated_transcript=bytes(result[11]),
+            public_key=Ferveo.G1Point(result[10][0], result[10][1]),
             participants=[],  # solidity does not return sub-structs
         )
-        # public key
-        ritual.public_key = self.Ritual.G1Point(result[10][0], result[10][1])
         return ritual
 
     @contract_api(CONTRACT_CALL)
@@ -797,8 +662,12 @@ class CoordinatorAgent(EthereumContractAgent):
         return result
 
     def _get_participants(
-        self, ritual: Ritual, ritual_id: int, transcripts: bool, page_size: int
-    ) -> Iterable[Ritual.Participant]:
+        self,
+        ritual: Coordinator.Ritual,
+        ritual_id: int,
+        transcripts: bool,
+        page_size: int,
+    ) -> Iterable[Coordinator.Participant]:
         """Fetches all participants for a given ritual."""
         start, end = 0, ritual.dkg_size
         while start < end:
@@ -819,7 +688,7 @@ class CoordinatorAgent(EthereumContractAgent):
         transcripts: bool = False,
         participants: bool = True,
         page_size: int = 10,
-    ) -> Ritual:
+    ) -> Coordinator.Ritual:
         """
         Exposes three views of Coordinator.Rituals:
         1. The ritual metadata only
@@ -843,24 +712,26 @@ class CoordinatorAgent(EthereumContractAgent):
     @contract_api(CONTRACT_CALL)
     def get_participant(
         self, ritual_id: int, provider: ChecksumAddress, transcript: bool
-    ) -> Ritual.Participant:
+    ) -> Coordinator.Participant:
         data, index = self.contract.functions.getParticipant(
             ritual_id, provider, transcript
         ).call()
-        participant = next(iter(self.Ritual.make_participants([data], start=index)))
+        participant = next(
+            iter(Coordinator.Ritual.make_participants([data], start=index))
+        )
         return participant
 
     @contract_api(CONTRACT_CALL)
     def get_participants(
         self, ritual_id: int, start: int, end: int, transcripts: bool
-    ) -> Iterable[Ritual.Participant]:
+    ) -> Iterable[Coordinator.Participant]:
         if end < start:
             raise ValueError("End must be greater than or equal to start")
         max_results = end - start
         data = self.contract.functions.getParticipants(
             ritual_id, start, max_results, transcripts
         ).call()
-        participants = self.Ritual.make_participants(data=data, start=start)
+        participants = Coordinator.Ritual.make_participants(data=data, start=start)
         return participants
 
     @contract_api(CONTRACT_CALL)
@@ -870,7 +741,7 @@ class CoordinatorAgent(EthereumContractAgent):
         result = self.contract.functions.getProviderPublicKey(
             provider, ritual_id
         ).call()
-        g2_point = self.G2Point(result[0], result[1], result[2])
+        g2_point = Ferveo.G2Point(result[0], result[1], result[2])
         return g2_point.to_public_key()
 
     @contract_api(CONTRACT_CALL)
@@ -901,7 +772,7 @@ class CoordinatorAgent(EthereumContractAgent):
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
     ) -> TxReceipt:
         contract_function = self.contract.functions.setProviderPublicKey(
-            self.G2Point.from_public_key(public_key)
+            Ferveo.G2Point.from_public_key(public_key)
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function, transacting_power=transacting_power
@@ -956,7 +827,7 @@ class CoordinatorAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
-            dkgPublicKey=self.Ritual.G1Point.from_dkg_public_key(public_key),
+            dkgPublicKey=Ferveo.G1Point.from_dkg_public_key(public_key),
             decryptionRequestStaticKey=bytes(participant_public_key),
         )
         receipt = self.blockchain.send_transaction(
@@ -978,20 +849,21 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(TRANSACTION)
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
-        g1_point = self.Ritual.G1Point.from_dkg_public_key(public_key)
+        g1_point = Ferveo.G1Point.from_dkg_public_key(public_key)
         result = self.contract.functions.getRitualIdFromPublicKey(g1_point).call()
         return result
 
-    def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
+    def get_ritual_public_key(self, ritual_id: int) -> Optional[DkgPublicKey]:
         status = self.get_ritual_status(ritual_id=ritual_id)
-        if status != self.Ritual.Status.ACTIVE and status != self.Ritual.Status.EXPIRED:
+        if (
+            status != Coordinator.RitualStatus.ACTIVE
+            and status != Coordinator.RitualStatus.EXPIRED
+        ):
             # TODO should we raise here instead?
-            return None
-
+            return
         ritual = self.get_ritual(ritual_id=ritual_id)
         if not ritual.public_key:
-            return None
-
+            return
         return ritual.public_key.to_dkg_public_key()
 
 

@@ -14,7 +14,7 @@ from nucypher_core.ferveo import (
 )
 from web3.types import TxReceipt
 
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator, Ferveo
 from nucypher.crypto.powers import TransactingPower
 from tests.mock.agents import MockContractAgent
 from tests.mock.interfaces import MockBlockchain
@@ -22,15 +22,15 @@ from tests.mock.interfaces import MockBlockchain
 
 class MockCoordinatorAgent(MockContractAgent):
 
-    Participant = CoordinatorAgent.Ritual.Participant
-    Ritual = CoordinatorAgent.Ritual
-    RitualStatus = CoordinatorAgent.Ritual.Status
-    G1Point = CoordinatorAgent.Ritual.G1Point
-    G2Point = CoordinatorAgent.G2Point
+    Participant = Coordinator.Participant
+    Ritual = Coordinator.Ritual
+    RitualStatus = Coordinator.RitualStatus
+    G1Point = Ferveo.G1Point
+    G2Point = Ferveo.G2Point
 
     class ParticipantKey(NamedTuple):
         lastRitualId: int
-        publicKey: CoordinatorAgent.G2Point
+        publicKey: Ferveo.G2Point
 
     EVENTS = {}
     rituals = []
@@ -221,7 +221,7 @@ class MockCoordinatorAgent(MockContractAgent):
 
     def get_ritual(
         self, ritual_id: int, transcripts: bool = False, participants: bool = True
-    ) -> CoordinatorAgent.Ritual:
+    ) -> Coordinator.Ritual:
         ritual = self.rituals[ritual_id]
         # return a copy of the ritual object; the original value is used for state
         copied_ritual = deepcopy(ritual)
@@ -290,7 +290,10 @@ class MockCoordinatorAgent(MockContractAgent):
 
     def get_ritual_public_key(self, ritual_id: int) -> Optional[DkgPublicKey]:
         status = self.get_ritual_status(ritual_id=ritual_id)
-        if status != self.Ritual.Status.ACTIVE and status != self.Ritual.Status.EXPIRED:
+        if (
+            status != Coordinator.RitualStatus.ACTIVE
+            and status != Coordinator.RitualStatus.EXPIRED
+        ):
             # TODO should we raise here instead?
             return None
 

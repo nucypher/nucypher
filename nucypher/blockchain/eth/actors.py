@@ -41,7 +41,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.models import DKG
+from nucypher.blockchain.eth.models import DKG, Coordinator
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
@@ -295,7 +295,7 @@ class Operator(BaseActor):
 
     def _resolve_validators(
         self,
-        ritual: CoordinatorAgent.Ritual,
+        ritual: Coordinator.Ritual,
     ) -> List[Validator]:
         result = list()
         for staking_provider_address in ritual.providers:
