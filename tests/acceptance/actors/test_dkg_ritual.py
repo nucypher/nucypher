@@ -143,7 +143,7 @@ def test_ursula_ritualist(
         return receipt
 
     # Round 0 - Initiate the ritual
-    def test_initialize(receipt):
+    def check_initialize(receipt):
         """Checks the initialization of the ritual"""
         print("==================== CHECKING INITIALIZATION ====================")
         testerchain.wait_for_receipt(receipt['transactionHash'])
@@ -157,7 +157,6 @@ def test_ursula_ritualist(
 
         # time travel has a side effect of mining a block so that the scanner will definitively
         # pick up ritual event
-        # TODO is there a better strategy
         testerchain.time_travel(seconds=1)
 
         for ursula in cohort:
@@ -193,7 +192,7 @@ def test_ursula_ritualist(
         for ursula in cohort:
             ursula.ritual_tracker.task.run()
 
-    def test_finality(_):
+    def check_finality(_):
         """Checks the finality of the DKG"""
         print("==================== CHECKING DKG FINALITY ====================")
         status = coordinator_agent.get_ritual_status(RITUAL_ID)
@@ -206,7 +205,7 @@ def test_ursula_ritualist(
         )
         assert last_scanned_block > 0
 
-    def test_participant_pagination(_):
+    def check_participant_pagination(_):
         print("================ PARTICIPANT PAGINATION ================")
         pagination_sizes = range(1, DKG_SIZE)
         for page_size in pagination_sizes:
@@ -222,7 +221,7 @@ def test_ursula_ritualist(
 
                 assert len(ritual.participants) == DKG_SIZE
 
-    def test_encrypt(_):
+    def check_encrypt(_):
         """Encrypts a message and returns the ciphertext and conditions"""
         print("==================== DKG ENCRYPTION ====================")
 
@@ -242,7 +241,7 @@ def test_ursula_ritualist(
 
         return threshold_message_kit
 
-    def test_unauthorized_decrypt(threshold_message_kit):
+    def check_unauthorized_decrypt(threshold_message_kit):
         """Attempts to decrypt a message before Enrico is authorized to use the ritual"""
         print("======== DKG DECRYPTION UNAUTHORIZED ENCRYPTION ========")
         # ritual_id, ciphertext, conditions are obtained from the side channel
@@ -266,7 +265,7 @@ def test_ursula_ritualist(
 
         return threshold_message_kit
 
-    def test_decrypt(threshold_message_kit):
+    def check_decrypt(threshold_message_kit):
         """Decrypts a message and checks that it matches the original plaintext"""
         # authorize Enrico to encrypt for ritual
         global_allow_list.authorize(
@@ -302,13 +301,13 @@ def test_ursula_ritualist(
 
     # order matters
     callbacks = [
-        test_initialize,
+        check_initialize,
         block_until_dkg_finalized,
-        test_finality,
-        test_participant_pagination,
-        test_encrypt,
-        test_unauthorized_decrypt,
-        test_decrypt,
+        check_finality,
+        check_participant_pagination,
+        check_encrypt,
+        check_unauthorized_decrypt,
+        check_decrypt,
     ]
 
     d = deferToThread(initialize)
