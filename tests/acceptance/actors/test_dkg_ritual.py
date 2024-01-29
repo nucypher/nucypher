@@ -9,6 +9,7 @@ from twisted.internet.threads import deferToThread
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
 from nucypher.characters.lawful import Enrico, Ursula
@@ -150,7 +151,7 @@ def test_ursula_ritualist(
         assert coordinator_agent.number_of_rituals() == RITUAL_ID + 1
         assert (
             coordinator_agent.get_ritual_status(RITUAL_ID)
-            == coordinator_agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+            == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
         )
 
         # time travel has a side effect of mining a block so that the scanner will definitively
@@ -179,7 +180,7 @@ def test_ursula_ritualist(
         print("==================== BLOCKING UNTIL DKG FINALIZED ====================")
         while (
             coordinator_agent.get_ritual_status(RITUAL_ID)
-            != coordinator_agent.Ritual.Status.ACTIVE
+            != Coordinator.RitualStatus.ACTIVE
         ):
             for ursula in cohort:
                 # this is a testing hack to make the event scanner work,
@@ -195,7 +196,7 @@ def test_ursula_ritualist(
         """Checks the finality of the DKG"""
         print("==================== CHECKING DKG FINALITY ====================")
         status = coordinator_agent.get_ritual_status(RITUAL_ID)
-        assert status == coordinator_agent.Ritual.Status.ACTIVE
+        assert status == Coordinator.RitualStatus.ACTIVE
         for ursula in cohort:
             assert ursula.dkg_storage.get_transcript(RITUAL_ID) is not None
 

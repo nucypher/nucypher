@@ -78,6 +78,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -694,7 +695,7 @@ class Bob(Character):
         )
         return ritual_id
 
-    def get_ritual(self, ritual_id) -> CoordinatorAgent.Ritual:
+    def get_ritual(self, ritual_id) -> Coordinator.Ritual:
         agent = self._get_coordinator_agent()
         ritual = agent.get_ritual(ritual_id)
         return ritual

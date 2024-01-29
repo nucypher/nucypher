@@ -2,6 +2,7 @@ import pytest
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
@@ -58,7 +59,7 @@ def test_initiate_ritual(
     )
 
     participants = [
-        CoordinatorAgent.Ritual.Participant(
+        Coordinator.Participant(
             index=i,
             provider=c,
         )
@@ -69,7 +70,7 @@ def test_initiate_ritual(
     end_timestamp = init_timestamp + duration
     number_of_rituals = agent.number_of_rituals()
     ritual_id = number_of_rituals - 1
-    ritual = CoordinatorAgent.Ritual(
+    ritual = Coordinator.Ritual(
         id=ritual_id,
         initiator=transacting_power.account,
         authority=transacting_power.account,
@@ -96,14 +97,14 @@ def test_perform_round_1(
 ):
     participants = dict()
     for i, checksum_address in enumerate(cohort):
-        participants[checksum_address] = CoordinatorAgent.Ritual.Participant(
+        participants[checksum_address] = Coordinator.Participant(
             index=i,
             provider=checksum_address,
         )
 
     init_timestamp = 123456
     end_timestamp = init_timestamp + 100
-    ritual = CoordinatorAgent.Ritual(
+    ritual = Coordinator.Ritual(
         id=0,
         initiator=random_address,
         authority=random_address,
@@ -122,12 +123,12 @@ def test_perform_round_1(
 
     # ensure no operation performed for non-application-state
     non_application_states = [
-        CoordinatorAgent.Ritual.Status.NON_INITIATED,
-        CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS,
-        CoordinatorAgent.Ritual.Status.ACTIVE,
-        CoordinatorAgent.Ritual.Status.EXPIRED,
-        CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
-        CoordinatorAgent.Ritual.Status.DKG_INVALID,
+        Coordinator.RitualStatus.NON_INITIATED,
+        Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS,
+        Coordinator.RitualStatus.ACTIVE,
+        Coordinator.RitualStatus.EXPIRED,
+        Coordinator.RitualStatus.DKG_TIMEOUT,
+        Coordinator.RitualStatus.DKG_INVALID,
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
@@ -138,7 +139,7 @@ def test_perform_round_1(
 
     # set correct state
     agent.get_ritual_status = (
-        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+        lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
     tx_hash = ursula.perform_round_1(
@@ -189,7 +190,7 @@ def test_perform_round_2(
 ):
     participants = dict()
     for i, checksum_address in enumerate(cohort):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             index=i,
             transcript=bytes(random_transcript),
             provider=checksum_address,
@@ -200,7 +201,7 @@ def test_perform_round_2(
     init_timestamp = 123456
     end_timestamp = init_timestamp + 100
 
-    ritual = CoordinatorAgent.Ritual(
+    ritual = Coordinator.Ritual(
         id=0,
         initiator=transacting_power.account,
         authority=transacting_power.account,
@@ -222,12 +223,12 @@ def test_perform_round_2(
 
     # ensure no operation performed for non-application-state
     non_application_states = [
-        CoordinatorAgent.Ritual.Status.NON_INITIATED,
-        CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS,
-        CoordinatorAgent.Ritual.Status.ACTIVE,
-        CoordinatorAgent.Ritual.Status.EXPIRED,
-        CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
-        CoordinatorAgent.Ritual.Status.DKG_INVALID,
+        Coordinator.RitualStatus.NON_INITIATED,
+        Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS,
+        Coordinator.RitualStatus.ACTIVE,
+        Coordinator.RitualStatus.EXPIRED,
+        Coordinator.RitualStatus.DKG_TIMEOUT,
+        Coordinator.RitualStatus.DKG_INVALID,
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
@@ -236,7 +237,7 @@ def test_perform_round_2(
 
     # set correct state
     agent.get_ritual_status = (
-        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
+        lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")

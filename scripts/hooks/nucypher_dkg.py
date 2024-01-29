@@ -12,6 +12,7 @@ from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
     TACoChildApplicationAgent,
 )
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner, Signer
 from nucypher.characters.lawful import Bob, Enrico
@@ -247,7 +248,7 @@ def nucypher_dkg(
             ritual_id = start_ritual_event[0]["args"]["ritualId"]
             ritual_status = coordinator_agent.get_ritual_status(ritual_id)
             assert (
-                ritual_status != coordinator_agent.Ritual.Status.NON_INITIATED
+                ritual_status != Coordinator.RitualStatus.NON_INITIATED
             ), "ritual successfully initiated"
 
             initiated_rituals.append(ritual_id)
@@ -269,7 +270,7 @@ def nucypher_dkg(
                     continue
 
                 ritual_status = coordinator_agent.get_ritual_status(initiated_ritual)
-                if ritual_status == coordinator_agent.Ritual.Status.ACTIVE:
+                if ritual_status == Coordinator.RitualStatus.ACTIVE:
                     # success
                     emitter.echo(
                         f"DKG Ritual #{initiated_ritual} completed after {(maya.now() - start_time).seconds}s",
@@ -278,8 +279,8 @@ def nucypher_dkg(
                     completed_rituals[initiated_ritual] = ritual_status
                 elif (
                     # failure
-                    ritual_status == coordinator_agent.Ritual.Status.DKG_TIMEOUT
-                    or ritual_status == coordinator_agent.Ritual.Status.DKG_INVALID
+                    ritual_status == Coordinator.RitualStatus.DKG_TIMEOUT
+                    or ritual_status == Coordinator.RitualStatus.DKG_INVALID
                 ):
                     emitter.error(
                         f"Ritual #{initiated_ritual} failed with status '{ritual_status}'"
@@ -298,7 +299,7 @@ def nucypher_dkg(
         # sort by ritual id, print results, stop script
         for r_id in sorted(completed_rituals.keys()):
             ritual_status = completed_rituals[r_id]
-            if ritual_status == coordinator_agent.Ritual.Status.ACTIVE:
+            if ritual_status == Coordinator.RitualStatus.ACTIVE:
                 message = f"✓ Ritual #{r_id} successfully created"
                 color = "green"
             else:

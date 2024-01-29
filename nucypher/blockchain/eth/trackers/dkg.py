@@ -9,7 +9,7 @@ from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth import actors
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -241,7 +241,7 @@ class ActiveRitualTracker:
 
     def _get_ritual_participant_info(
         self, ritual_id: int
-    ) -> Optional[CoordinatorAgent.Ritual.Participant]:
+    ) -> Optional[Coordinator.Participant]:
         """
         Returns node's participant information for the provided
         ritual id; None if node is not participating in the ritual

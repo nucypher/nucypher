@@ -5,6 +5,7 @@ import pytest
 from eth_account import Account
 from nucypher_core import SessionStaticSecret
 
+from nucypher.blockchain.eth.models import Coordinator
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
 
@@ -73,7 +74,7 @@ def test_mock_coordinator_round_1(
     ritual = coordinator.rituals[0]
     assert (
         coordinator.get_ritual_status(0)
-        == MockCoordinatorAgent.RitualStatus.DKG_AWAITING_TRANSCRIPTS
+        == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
     for p in ritual.participants:
@@ -110,7 +111,7 @@ def test_mock_coordinator_round_2(
     ritual = coordinator.rituals[0]
     assert (
         coordinator.get_ritual_status(0)
-        == MockCoordinatorAgent.RitualStatus.DKG_AWAITING_AGGREGATIONS
+        == Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
     for p in ritual.participants:
@@ -140,4 +141,4 @@ def test_mock_coordinator_round_2(
     assert p.decryption_request_static_key == bytes(participant_public_keys[index])
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
-    assert coordinator.get_ritual_status(0) == MockCoordinatorAgent.RitualStatus.ACTIVE
+    assert coordinator.get_ritual_status(0) == Coordinator.RitualStatus.ACTIVE

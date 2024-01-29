@@ -7,6 +7,7 @@ from nucypher_core import SessionStaticSecret
 from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
 )
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
@@ -104,7 +105,7 @@ def test_initiate_ritual(
 
     assert (
         agent.get_ritual_status(ritual_id=ritual_id)
-        == agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+        == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
     ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
@@ -134,7 +135,7 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain):
 
     assert (
         agent.get_ritual_status(ritual_id=ritual_id)
-        == agent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
+        == Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
     ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
@@ -182,7 +183,9 @@ def test_post_aggregation(
     ritual = agent.get_ritual(ritual_id)
     assert ritual.participant_public_keys == participant_public_keys
 
-    assert agent.get_ritual_status(ritual_id=ritual_id) == agent.Ritual.Status.ACTIVE
+    assert (
+        agent.get_ritual_status(ritual_id=ritual_id) == Coordinator.RitualStatus.ACTIVE
+    )
 
     ritual_dkg_key = agent.get_ritual_public_key(ritual_id=ritual_id)
     assert bytes(ritual_dkg_key) == bytes(dkg_public_key)
