@@ -644,6 +644,7 @@ class CoordinatorAgent(EthereumContractAgent):
     def _get_page_size(ritual: Coordinator.Ritual) -> int:
         # def transcript_size(shares, threshold):
         #     return int(424 + 240 * (shares / 2) + 50 * (threshold))
+        # TODO should this be a function of dkg_size and trancript size?
         return 10
 
     @contract_api(CONTRACT_CALL)
@@ -680,7 +681,7 @@ class CoordinatorAgent(EthereumContractAgent):
         """
         ritual = self.__rituals(ritual_id)
         ritual.participants = list(
-            self.__get_participants(
+            self._get_participants(
                 ritual=ritual,
                 transcripts=transcripts,
             )
@@ -701,18 +702,19 @@ class CoordinatorAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def __get_participants(
-        self, ritual_id: int, start: int, end: int, transcripts: bool
+        self, ritual_id: int, start_index: int, max_results: int, transcripts: bool
     ) -> Iterable[Coordinator.Participant]:
-        if end < start:
-            raise ValueError("End must be greater than or equal to start")
-        max_results = end - start
+        if max_results <= 0:
+            raise ValueError("Max results must be greater than or equal to zero.")
         data = self.contract.functions.getParticipants(
-            ritual_id, start, max_results, transcripts
+            ritual_id, start_index, max_results, transcripts
         ).call()
-        participants = Coordinator.Ritual.make_participants(data=data, start=start)
+        participants = Coordinator.Ritual.make_participants(
+            data=data, start=start_index
+        )
         return participants
 
-    def get_participants(
+    def _get_participants(
         self,
         ritual: Coordinator.Ritual,
         transcripts: bool,
@@ -721,16 +723,15 @@ class CoordinatorAgent(EthereumContractAgent):
         start, end = 0, ritual.dkg_size
         page_size = self._get_page_size(ritual)
         while start < end:
-            current_page_size = min(page_size, end - start)
             batch = self.__get_participants(
                 ritual_id=ritual.id,
-                start=start,
-                end=start + current_page_size,
+                start_index=start,
+                max_results=page_size,
                 transcripts=transcripts,
             )
             for participant in batch:
                 yield participant
-            start += current_page_size
+                start += 1
 
     @contract_api(CONTRACT_CALL)
     def get_provider_public_key(
