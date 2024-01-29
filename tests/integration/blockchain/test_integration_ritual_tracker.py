@@ -7,6 +7,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
 
@@ -249,7 +250,7 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
     participants = []
     # random participants
     for i in range(0, 3):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             index=i, provider=get_random_checksum_address()
         )
         participants.append(participant)
@@ -263,7 +264,7 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
     assert participant_info is None
 
     # add operator to participants list
-    participant = CoordinatorAgent.Ritual.Participant(
+    participant = Coordinator.Participant(
         index=i + 1, provider=ritualist.checksum_address
     )
     participants.append(participant)
@@ -283,7 +284,7 @@ def test_get_participation_state_values_from_contract(
     participants = []
     # random participants
     for i in range(0, 5):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             index=i, provider=get_random_checksum_address()
         )
         participants.append(participant)
@@ -303,7 +304,7 @@ def test_get_participation_state_values_from_contract(
     assert not posted_aggregate
 
     # add operator to participants list
-    ritual_participant = CoordinatorAgent.Ritual.Participant(
+    ritual_participant = Coordinator.Participant(
         index=i + 1, provider=ritualist.checksum_address
     )
     participants.append(ritual_participant)

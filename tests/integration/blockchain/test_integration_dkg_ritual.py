@@ -10,6 +10,7 @@ from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.crypto.powers import RitualisticPower
@@ -169,7 +170,7 @@ def test_ursula_ritualist(
             # verify that the ritual is in the correct state
             assert (
                 mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-                == mock_coordinator_agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+                == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
             )
 
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
@@ -182,7 +183,7 @@ def test_ursula_ritualist(
             )
             assert (
                 mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-                == mock_coordinator_agent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
+                == Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
             )
 
             execute_round_2(ritual_id, cohort)
@@ -192,7 +193,7 @@ def test_ursula_ritualist(
             print("==================== CHECKING DKG FINALITY ====================")
 
             status = mock_coordinator_agent.get_ritual_status(ritual_id)
-            assert status == mock_coordinator_agent.Ritual.Status.ACTIVE
+            assert status == Coordinator.RitualStatus.ACTIVE
             for ursula in cohort:
                 assert ursula.dkg_storage.get_transcript(ritual_id) is not None
 
