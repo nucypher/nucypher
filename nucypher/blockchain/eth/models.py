@@ -139,6 +139,11 @@ class Coordinator:
         def shares(self) -> int:
             return len(self.providers)
 
+        def get_participant(self, provider: ChecksumAddress):
+            for p in self.participants:
+                if p.provider == provider:
+                    return p
+
         @property
         def participant_public_keys(self) -> Dict[ChecksumAddress, SessionStaticKey]:
             participant_public_keys = {}
@@ -173,8 +178,6 @@ class DKG:
     @dataclass
     class Phase1:
         """Models all required data fetched from RPC eth_calls to perform DKG round 1."""
-
-        ritual_id: int
         ritual: Coordinator.Ritual
         status: int
         transcript: bool
@@ -189,7 +192,6 @@ class DKG:
             """Execute all required RPC eth_calls to perform DKG round 1."""
             ritual = coordinator_agent.get_ritual(
                 ritual_id=ritual_id,
-                participants=True,
                 transcripts=False,
             )
             status = coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -197,7 +199,6 @@ class DKG:
                 ritual_id=ritual_id, provider=provider, transcript=True
             )
             data = cls(
-                ritual_id=ritual_id,
                 status=status,
                 transcript=bool(participant.transcript),
                 ritual=ritual,
@@ -225,7 +226,7 @@ class DKG:
                 # participant addresses dispatched from the EventScanner (StartRitual event).
                 # This is an abnormal state and can be understood as a higher-order bug.
                 DKG.log.error(
-                    f"Not part of ritual {self.ritual_id}; no need to submit transcripts; skipping execution"
+                    f"Not part of ritual {self.ritual.id}; no need to submit transcripts; skipping execution"
                 )
                 return False
             if self.status != Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS:
@@ -234,7 +235,7 @@ class DKG:
                 # Similar to the above branches, this is an internal state check for consistency between the
                 # state dispatched from the scanner and the agent.  This is an abnormal state.
                 DKG.log.error(
-                    f"ritual #{self.ritual_id} is not waiting for transcripts; status={self.status}; skipping execution"
+                    f"ritual #{self.ritual.id} is not waiting for transcripts; status={self.status}; skipping execution"
                 )
                 return False
             if self.transcript:
@@ -243,7 +244,7 @@ class DKG:
                 # the node may have already submitted a transcript for this ritual.
                 DKG.log.info(
                     f"Node {provider} has already posted a transcript for ritual "
-                    f"{self.ritual_id}; skipping execution"
+                    f"{self.ritual.id}; skipping execution"
                 )
                 return False
             return True
@@ -251,8 +252,6 @@ class DKG:
     @dataclass
     class Phase2:
         """Models all required data fetched from RPC eth_calls to perform DKG round 2."""
-
-        ritual_id: int
         ritual: Coordinator.Ritual
         status: int
         aggregated: bool
@@ -268,15 +267,11 @@ class DKG:
             """Execute all required RPC eth_calls to perform DKG round 2."""
             ritual = coordinator_agent.get_ritual(
                 ritual_id=ritual_id,
-                participants=True,
                 transcripts=True,
             )
-            participant = coordinator_agent.get_participant(
-                ritual_id=ritual_id, provider=staking_provider, transcript=False
-            )
-            status = coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+            participant = ritual.get_participant(staking_provider)
+            status = coordinator_agent.get_ritual_status(ritual_id=ritual.id)
             data = cls(
-                ritual_id=ritual_id,
                 ritual=ritual,
                 status=status,
                 aggregated=bool(participant.aggregated),
@@ -295,14 +290,14 @@ class DKG:
                 # participant addresses dispatched from the EventScanner (StartRitual event).
                 # This is an abnormal state.
                 DKG.log.debug(
-                    f"ritual #{self.ritual_id} is not waiting for aggregations; status={self.status}."
+                    f"ritual #{self.ritual.id} is not waiting for aggregations; status={self.status}."
                 )
                 return False
             if self.aggregated:
                 # This is a normal state, as the node may have already submitted an aggregated
                 # transcript for this ritual, and it's not necessary to submit another one. Carry on.
                 DKG.log.debug(
-                    f"Node {operator_address} has already posted an aggregated transcript for ritual {self.ritual_id}."
+                    f"Node {operator_address} has already posted an aggregated transcript for ritual {self.ritual.id}."
                 )
                 return False
             if self.missing_transcripts:
@@ -310,7 +305,7 @@ class DKG:
                 # received all the transcripts for the ritual but was dispatched to perform phase 2.
                 # It's not possible to perform round 2 of the DKG protocol without all the transcripts available.
                 message = (
-                    f"Aggregation is not permitted because ritual #{self.ritual_id} is "
+                    f"Aggregation is not permitted because ritual #{self.ritual.id} is "
                     f"missing {self.missing_transcripts} transcripts."
                 )
                 DKG.log.critical(message)
