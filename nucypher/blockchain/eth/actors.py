@@ -41,7 +41,7 @@ from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.decorators import validate_checksum_address
 from nucypher.blockchain.eth.domains import TACoDomain
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.models import DKG, Coordinator
+from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
@@ -389,6 +389,34 @@ class Operator(BaseActor):
         )
         return True
 
+    def _fetch_phase_1_data(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
+        """Execute all required RPC eth_calls to perform DKG round 1."""
+        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+        if status != Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS:
+            # This is a normal state when replaying/syncing historical
+            # blocks that contain StartRitual events of pending or completed rituals.
+            self.log.debug(
+                f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
+            )
+            return
+        participant = self.coordinator_agent.get_participant(
+            ritual_id=ritual_id, provider=self.staking_provider_address, transcript=True
+        )
+        if participant.transcript:
+            # This verifies that the node has not already submitted a transcript for this
+            # ritual as read from the CoordinatorAgent.  This is a normal state, as
+            # the node may have already submitted a transcript for this ritual.
+            self.log.info(
+                f"Node {self.transacting_power.account} has already posted a transcript for ritual "
+                f"{ritual_id}; skipping execution"
+            )
+            return
+        ritual = self.coordinator_agent.get_ritual(
+            ritual_id=ritual_id,
+            transcripts=False,
+        )
+        return ritual
+
     def perform_round_1(
         self,
         ritual_id: int,
@@ -397,27 +425,27 @@ class Operator(BaseActor):
         timestamp: int,
     ) -> Optional[HexBytes]:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
-
-        # get the ritual and check the status
-        phase1 = DKG.Phase1.fetch(
-            ritual_id=ritual_id,
-            coordinator_agent=self.coordinator_agent,
-            provider=self.checksum_address,
-        )
-        if not phase1.ready(participants=participants, provider=self.checksum_address):
+        if self.checksum_address not in participants:
+            # This is totally normal.  The node is not part of the ritual. Carry on.
+            self.log.debug(
+                f"Not part of ritual {ritual_id}; no need to submit transcripts; skipping execution"
+            )
             return
 
         # handle pending transactions
-        txhash, receipt = self.get_phase_receipt(
-            ritual_id=phase1.ritual.id, phase=DKG.PHASE1
-        )
+        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=PHASE1)
         pending = txhash and not receipt
         if pending:
             self.retry_phase(
-                ritual_id=phase1.ritual.id,
-                phase=DKG.PHASE1,
+                ritual_id=ritual_id,
+                phase=PHASE1,
                 txhash=txhash,
             )
+            return
+
+        # get the ritual and check the status
+        ritual = self._fetch_phase_1_data(ritual_id=ritual_id)
+        if not ritual:
             return
 
         # begin the ritual
@@ -428,7 +456,6 @@ class Operator(BaseActor):
         )
 
         # generate a transcript
-        ritual = phase1.ritual
         validators = self._resolve_validators(ritual)
         try:
             transcript = self.ritual_power.generate_transcript(
@@ -460,37 +487,59 @@ class Operator(BaseActor):
         )
         return tx_hash
 
+    def _fetch_phase_2_data(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
+        """Execute all required RPC eth_calls to perform DKG round 2."""
+        status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+        if status != Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS:
+            # This is a normal state when replaying/syncing historical
+            # blocks that contain StartRitual events of pending or completed rituals.
+            self.log.debug(
+                f"ritual #{ritual_id} is not waiting for aggregations; status={status}."
+            )
+            return
+        participant = self.coordinator_agent.get_participant(
+            ritual_id=ritual_id,
+            provider=self.staking_provider_address,
+            transcript=False,
+        )
+        if participant.aggregated:
+            # This is a normal state, as the node may have already submitted an aggregated
+            # transcript for this ritual, and it's not necessary to submit another one. Carry on.
+            self.log.debug(
+                f"Node {self.transacting_power.account} has already posted an "
+                f"aggregated transcript for ritual {ritual_id}."
+            )
+            return
+        ritual = self.coordinator_agent.get_ritual(
+            ritual_id=ritual_id,
+            transcripts=True,
+        )
+        return ritual
+
     def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
 
-        # download ritual data and check if it's ready
-        phase2 = DKG.Phase2.fetch(
-            ritual_id=ritual_id,
-            coordinator_agent=self.coordinator_agent,
-            staking_provider=self.checksum_address,
-        )
-        if not phase2.ready(operator_address=self.transacting_power.account):
-            return
-
         # check if there is a pending tx for this ritual + round combination
-        txhash, receipt = self.get_phase_receipt(
-            ritual_id=phase2.ritual.id, phase=DKG.PHASE2
-        )
+        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=PHASE2)
         pending = txhash and not receipt
         if pending:
             self.retry_phase(
-                ritual_id=phase2.ritual.id,
-                phase=DKG.PHASE2,
+                ritual_id=ritual_id,
+                phase=PHASE2,
                 txhash=txhash,
             )
+            return
+
+        # download ritual data and check if it's ready
+        ritual = self._fetch_phase_2_data(ritual_id=ritual_id)
+        if not ritual:
             return
 
         # prepare the DKG artifacts and aggregate transcripts
         self.log.debug(
             f"{self.transacting_power.account[:8]} performing phase 2 "
-            f"of DKG ritual #{phase2.ritual.id} from blocktime {timestamp}"
+            f"of DKG ritual #{ritual.id} from blocktime {timestamp}"
         )
-        ritual = phase2.ritual
         validators = self._resolve_validators(ritual)
         transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
         messages = list(zip(validators, transcripts))
