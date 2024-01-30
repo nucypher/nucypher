@@ -13,8 +13,10 @@ from nucypher_core.ferveo import (
     FerveoPublicKey,
 )
 
-PHASE1 = 1
-PHASE2 = 2
+from nucypher.types import PhaseId
+
+PHASE1 = PhaseId(1)
+PHASE2 = PhaseId(2)
 
 
 @dataclass
