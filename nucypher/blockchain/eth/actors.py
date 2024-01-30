@@ -54,7 +54,6 @@ from nucypher.crypto.powers import (
     ThresholdRequestDecryptingPower,
     TransactingPower,
 )
-from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
@@ -359,9 +358,13 @@ class Operator(BaseActor):
         self, ritual_id: int, phase: int
     ) -> Tuple[Optional[HexBytes], Optional[TxReceipt]]:
         if phase == 1:
-            txhash = self.dkg_storage.get_transcript_txhash(ritual_id=ritual_id)
+            txhash = self.dkg_tracker.dkg_storage.get_transcript_txhash(
+                ritual_id=ritual_id
+            )
         elif phase == 2:
-            txhash = self.dkg_storage.get_aggregation_txhash(ritual_id=ritual_id)
+            txhash = self.dkg_tracker.dkg_storage.get_aggregation_txhash(
+                ritual_id=ritual_id
+            )
         else:
             raise ValueError(f"Invalid phase: '{phase}'.")
         if not txhash:
@@ -475,12 +478,17 @@ class Operator(BaseActor):
             )
             raise e
 
-        # store the transcript in the local cache
-        self.dkg_storage.store_transcript(ritual_id=ritual.id, transcript=transcript)
+        # store the transcript in the local cache;
+        # TODO is this necessary - other than for testing?
+        self.dkg_tracker.dkg_storage.store_transcript(
+            ritual_id=ritual.id, transcript=transcript
+        )
 
         # publish the transcript and store the receipt
         tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
-        self.dkg_storage.store_transcript_txhash(ritual_id=ritual.id, txhash=tx_hash)
+        self.dkg_tracker.dkg_storage.store_transcript_txhash(
+            ritual_id=ritual.id, txhash=tx_hash
+        )
 
         # logging
         arrival = ritual.total_transcripts + 1
@@ -559,10 +567,10 @@ class Operator(BaseActor):
             raise e
 
         # store the DKG artifacts for later optimized reads
-        self.dkg_storage.store_aggregated_transcript(
+        self.dkg_tracker.dkg_storage.store_aggregated_transcript(
             ritual_id=ritual.id, aggregated_transcript=aggregated_transcript
         )
-        self.dkg_storage.store_public_key(
+        self.dkg_tracker.dkg_storage.store_public_key(
             ritual_id=ritual.id, public_key=dkg_public_key
         )
 
@@ -575,7 +583,9 @@ class Operator(BaseActor):
         )
 
         # store the receipt
-        self.dkg_storage.store_aggregation_txhash(ritual_id=ritual.id, txhash=tx_hash)
+        self.dkg_tracker.dkg_storage.store_aggregation_txhash(
+            ritual_id=ritual.id, txhash=tx_hash
+        )
 
         # logging
         total = ritual.total_aggregations + 1
