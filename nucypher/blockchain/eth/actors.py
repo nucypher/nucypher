@@ -307,6 +307,8 @@ class Operator(BaseActor):
                 )
             else:
                 # Remote
+                # TODO optimize rpc calls by obtaining public keys altogether
+                #  instead of one-by-one?
                 public_key = self.coordinator_agent.get_provider_public_key(
                     provider=staking_provider_address, ritual_id=ritual.id
                 )
@@ -391,6 +393,7 @@ class Operator(BaseActor):
 
     def _fetch_phase_1_data(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
         """Execute all required RPC eth_calls to perform DKG round 1."""
+        # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS:
             # This is a normal state when replaying/syncing historical
@@ -399,6 +402,8 @@ class Operator(BaseActor):
                 f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
             )
             return
+
+        # check the associated participant state
         participant = self.coordinator_agent.get_participant(
             ritual_id=ritual_id, provider=self.staking_provider_address, transcript=True
         )
@@ -411,6 +416,7 @@ class Operator(BaseActor):
                 f"{ritual_id}; skipping execution"
             )
             return
+
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
             transcripts=False,
@@ -426,11 +432,13 @@ class Operator(BaseActor):
     ) -> Optional[HexBytes]:
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
         if self.checksum_address not in participants:
-            # This is totally normal.  The node is not part of the ritual. Carry on.
-            self.log.debug(
-                f"Not part of ritual {ritual_id}; no need to submit transcripts; skipping execution"
+            # should never get here
+            self.log.error(
+                f"Not part of ritual {ritual_id}; no need to submit transcripts"
             )
-            return
+            raise RuntimeError(
+                f"Not participating in ritual {ritual_id}; should not have been notified"
+            )
 
         # handle pending transactions
         txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=PHASE1)
@@ -483,12 +491,13 @@ class Operator(BaseActor):
         arrival = ritual.total_transcripts + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} submitted a transcript for "
-            f"DKG ritual #{ritual.id} ({arrival}/{len(ritual.providers)}) with authority {authority}."
+            f"DKG ritual #{ritual.id} ({arrival}/{ritual.dkg_size}) with authority {authority}."
         )
         return tx_hash
 
     def _fetch_phase_2_data(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
         """Execute all required RPC eth_calls to perform DKG round 2."""
+        # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS:
             # This is a normal state when replaying/syncing historical
@@ -497,6 +506,8 @@ class Operator(BaseActor):
                 f"ritual #{ritual_id} is not waiting for aggregations; status={status}."
             )
             return
+
+        # check the associated participant state
         participant = self.coordinator_agent.get_participant(
             ritual_id=ritual_id,
             provider=self.staking_provider_address,
@@ -510,6 +521,7 @@ class Operator(BaseActor):
                 f"aggregated transcript for ritual {ritual_id}."
             )
             return
+
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
             transcripts=True,
@@ -582,9 +594,9 @@ class Operator(BaseActor):
         total = ritual.total_aggregations + 1
         self.log.debug(
             f"{self.transacting_power.account[:8]} aggregated a transcript for "
-            f"DKG ritual #{ritual.id} ({total}/{len(ritual.providers)})"
+            f"DKG ritual #{ritual.id} ({total}/{ritual.dkg_size})"
         )
-        if total >= len(ritual.providers):
+        if total >= ritual.dkg_size:
             self.log.debug(f"DKG ritual #{ritual.id} should now be finalized")
         return tx_hash
 
