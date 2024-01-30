@@ -377,22 +377,22 @@ class Operator(BaseActor):
             f"Transaction {txhash} failed with status {status} (ritual {ritual_id}/{phase})."
         )
 
-    def retry_phase(self, ritual_id: int, phase: int, txhash: HexBytes) -> bool:
-
-        ###
-        # blockchain = self.coordinator_agent.blockchain.client
-        # transaction = blockchain.get_transaction(txhash)
-        # TODO: Fire retry logic here
-        ###
-
+    def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
+        tx_hash, _ = self.get_phase_receipt(ritual_id=ritual_id, phase=phase)
+        if not tx_hash:
+            return False
         self.log.info(
-            f"Node {self.transacting_power.account} has pending tx {bytes(txhash).hex()} "
+            f"Node {self.transacting_power.account} has pending tx {bytes(tx_hash).hex()} "
             f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
         )
         return True
 
-    def _fetch_phase_1_data(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
-        """Execute all required RPC eth_calls to perform DKG round 1."""
+    def _is_phase_1_action_required(self, ritual_id: int) -> bool:
+        """Check whether node needs to perform a DKG round 1 action."""
+        # handle pending transactions
+        if self._phase_has_pending_tx(ritual_id=ritual_id, phase=PHASE1):
+            return False
+
         # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS:
@@ -401,7 +401,7 @@ class Operator(BaseActor):
             self.log.debug(
                 f"ritual #{ritual_id} is not waiting for transcripts; status={status}; skipping execution"
             )
-            return
+            return False
 
         # check the associated participant state
         participant = self.coordinator_agent.get_participant(
@@ -415,13 +415,9 @@ class Operator(BaseActor):
                 f"Node {self.transacting_power.account} has already posted a transcript for ritual "
                 f"{ritual_id}; skipping execution"
             )
-            return
+            return False
 
-        ritual = self.coordinator_agent.get_ritual(
-            ritual_id=ritual_id,
-            transcripts=False,
-        )
-        return ritual
+        return True
 
     def perform_round_1(
         self,
@@ -440,23 +436,15 @@ class Operator(BaseActor):
                 f"Not participating in ritual {ritual_id}; should not have been notified"
             )
 
-        # handle pending transactions
-        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=PHASE1)
-        pending = txhash and not receipt
-        if pending:
-            self.retry_phase(
-                ritual_id=ritual_id,
-                phase=PHASE1,
-                txhash=txhash,
-            )
+        # check phase 1 contract state
+        if not self._is_phase_1_action_required(ritual_id=ritual_id):
             return
 
-        # get the ritual and check the status
-        ritual = self._fetch_phase_1_data(ritual_id=ritual_id)
-        if not ritual:
-            return
+        ritual = self.coordinator_agent.get_ritual(
+            ritual_id=ritual_id,
+            transcripts=False,
+        )
 
-        # begin the ritual
         self.log.debug(
             f"performing round 1 of DKG ritual "
             f"#{ritual_id} from blocktime {timestamp} "
@@ -495,8 +483,12 @@ class Operator(BaseActor):
         )
         return tx_hash
 
-    def _fetch_phase_2_data(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
-        """Execute all required RPC eth_calls to perform DKG round 2."""
+    def _is_phase_2_action_required(self, ritual_id: int) -> bool:
+        """Check whether node needs to perform a DKG round 2 action."""
+        # check if there is a pending tx for this ritual + round combination
+        if self._phase_has_pending_tx(ritual_id=ritual_id, phase=PHASE2):
+            return False
+
         # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
         if status != Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS:
@@ -505,7 +497,7 @@ class Operator(BaseActor):
             self.log.debug(
                 f"ritual #{ritual_id} is not waiting for aggregations; status={status}."
             )
-            return
+            return False
 
         # check the associated participant state
         participant = self.coordinator_agent.get_participant(
@@ -520,32 +512,20 @@ class Operator(BaseActor):
                 f"Node {self.transacting_power.account} has already posted an "
                 f"aggregated transcript for ritual {ritual_id}."
             )
+            return False
+
+        return True
+
+    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
+        """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
+        # check phase 2 state
+        if not self._is_phase_2_action_required(ritual_id=ritual_id):
             return
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
             transcripts=True,
         )
-        return ritual
-
-    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
-        """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
-
-        # check if there is a pending tx for this ritual + round combination
-        txhash, receipt = self.get_phase_receipt(ritual_id=ritual_id, phase=PHASE2)
-        pending = txhash and not receipt
-        if pending:
-            self.retry_phase(
-                ritual_id=ritual_id,
-                phase=PHASE2,
-                txhash=txhash,
-            )
-            return
-
-        # download ritual data and check if it's ready
-        ritual = self._fetch_phase_2_data(ritual_id=ritual_id)
-        if not ritual:
-            return
 
         # prepare the DKG artifacts and aggregate transcripts
         self.log.debug(
