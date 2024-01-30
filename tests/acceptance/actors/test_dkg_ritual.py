@@ -207,7 +207,7 @@ def test_ursula_ritualist(
 
     def check_participant_pagination(_):
         print("================ PARTICIPANT PAGINATION ================")
-        pagination_sizes = range(1, DKG_SIZE)
+        pagination_sizes = range(0, DKG_SIZE)  # 0 means get all in one call
         for page_size in pagination_sizes:
             with patch.object(
                 coordinator_agent, "_get_page_size", return_value=page_size
