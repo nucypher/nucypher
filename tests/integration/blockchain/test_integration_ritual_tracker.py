@@ -255,9 +255,7 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
         )
         participants.append(participant)
 
-    mock_ritual = Mock()
-    mock_ritual.participants = participants
-    mocked_agent.get_ritual.return_value = mock_ritual
+    mocked_agent.is_participant.return_value = False
 
     # operator not in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
@@ -268,6 +266,9 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
         index=i + 1, provider=ritualist.checksum_address
     )
     participants.append(participant)
+
+    mocked_agent.is_participant.return_value = True
+    mocked_agent.get_participant.return_value = participant
 
     # operator in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
@@ -289,9 +290,7 @@ def test_get_participation_state_values_from_contract(
         )
         participants.append(participant)
 
-    mock_ritual = Mock()
-    mock_ritual.participants = participants
-    mocked_agent.get_ritual.return_value = mock_ritual
+    mocked_agent.is_participant.return_value = False
 
     # not participating so everything should be False
     (
@@ -308,6 +307,8 @@ def test_get_participation_state_values_from_contract(
         index=i + 1, provider=ritualist.checksum_address
     )
     participants.append(ritual_participant)
+    mocked_agent.is_participant.return_value = True
+    mocked_agent.get_participant.return_value = ritual_participant
 
     # participating, but nothing submitted
     (
