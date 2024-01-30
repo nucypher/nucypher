@@ -4,6 +4,54 @@ Releases
 
 .. towncrier release notes start
 
+v7.2.0 (2024-01-30)
+-------------------
+
+Features
+~~~~~~~~
+
+- Make Prometheus exporter always run for Ursula (`#3223 <https://github.com/nucypher/nucypher/issues/3223>`__)
+-  (`#3224 <https://github.com/nucypher/nucypher/issues/3224>`__)
+- Add Prometheus metrics endpoint to running logs (`#3231 <https://github.com/nucypher/nucypher/issues/3231>`__)
+- Add metrics for root and child networks. (`#3339 <https://github.com/nucypher/nucypher/issues/3339>`__)
+- Make prometheus optional, and allow fine tuning of collection interval. (`#3388 <https://github.com/nucypher/nucypher/issues/3388>`__)
+- Add prometheus metrics for tracking total threshold decryption requests and errors. (`#3397 <https://github.com/nucypher/nucypher/issues/3397>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Don't use web3.py gas strategies, since that switches TX mode to legacy. (`#3368 <https://github.com/nucypher/nucypher/issues/3368>`__)
+- Node blocks and remains unresponsive when another node in the cohort is
+  unreachable during a dkg ritual because the ferveo public key is obtained from
+  a node directly through node discovery. Instead, obtain ferveo public key
+  from Coordinator contract so that connecting to the another node in
+  the cohort is unnecessary. (`#3390 <https://github.com/nucypher/nucypher/issues/3390>`__)
+- Fix `MAX_UPLOAD_CONTENT_LENGTH` too small for mainnet TACo rituals (`#3396 <https://github.com/nucypher/nucypher/issues/3396>`__)
+- Ensure incoming request ip addresses resolution handles proxied headers. (`#3398 <https://github.com/nucypher/nucypher/issues/3398>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#3232 <https://github.com/nucypher/nucypher/issues/3232>`__)
+
+
+Misc
+~~~~
+
+- Peer TLS certificates are no longer stored on the node's disk. (`#3307 <https://github.com/nucypher/nucypher/issues/3307>`__)
+- Deprecate use of Goerli for Lynx testnets; use Sepolia instead. (`#3376 <https://github.com/nucypher/nucypher/issues/3376>`__)
+- Scan for ritual events less often to be more efficient with RPC requests. (`#3416 <https://github.com/nucypher/nucypher/issues/3416>`__)
+
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#3245 <https://github.com/nucypher/nucypher/issues/3245>`__, `#3310 <https://github.com/nucypher/nucypher/issues/3310>`__, `#3327 <https://github.com/nucypher/nucypher/issues/3327>`__, `#3333 <https://github.com/nucypher/nucypher/issues/3333>`__, `#3361 <https://github.com/nucypher/nucypher/issues/3361>`__, `#3386 <https://github.com/nucypher/nucypher/issues/3386>`__, `#3387 <https://github.com/nucypher/nucypher/issues/3387>`__, `#3405 <https://github.com/nucypher/nucypher/issues/3405>`__, `#3406 <https://github.com/nucypher/nucypher/issues/3406>`__, `#3408 <https://github.com/nucypher/nucypher/issues/3408>`__)
+- Optimize use of decryption request WorkerPool. (`#3393 <https://github.com/nucypher/nucypher/issues/3393>`__)
+
+
 v7.0.4 (2023-12-15)
 -------------------
 

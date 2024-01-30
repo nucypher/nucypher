@@ -1,1 +1,0 @@
-Fix `MAX_UPLOAD_CONTENT_LENGTH` too small for mainnet TACo rituals

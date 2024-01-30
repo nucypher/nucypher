@@ -1,1 +1,0 @@
-Scan for ritual events less often to be more efficient with RPC requests.
