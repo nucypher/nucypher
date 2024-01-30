@@ -249,10 +249,8 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
 
     participants = []
     # random participants
-    for i in range(0, 3):
-        participant = Coordinator.Participant(
-            index=i, provider=get_random_checksum_address()
-        )
+    for _ in range(0, 3):
+        participant = Coordinator.Participant(provider=get_random_checksum_address())
         participants.append(participant)
 
     mocked_agent.is_participant.return_value = False
@@ -262,9 +260,7 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
     assert participant_info is None
 
     # add operator to participants list
-    participant = Coordinator.Participant(
-        index=i + 1, provider=ritualist.checksum_address
-    )
+    participant = Coordinator.Participant(provider=ritualist.checksum_address)
     participants.append(participant)
 
     mocked_agent.is_participant.return_value = True
@@ -284,10 +280,8 @@ def test_get_participation_state_values_from_contract(
 
     participants = []
     # random participants
-    for i in range(0, 5):
-        participant = Coordinator.Participant(
-            index=i, provider=get_random_checksum_address()
-        )
+    for _ in range(0, 5):
+        participant = Coordinator.Participant(provider=get_random_checksum_address())
         participants.append(participant)
 
     mocked_agent.is_participant.return_value = False
@@ -303,9 +297,7 @@ def test_get_participation_state_values_from_contract(
     assert not posted_aggregate
 
     # add operator to participants list
-    ritual_participant = Coordinator.Participant(
-        index=i + 1, provider=ritualist.checksum_address
-    )
+    ritual_participant = Coordinator.Participant(provider=ritualist.checksum_address)
     participants.append(ritual_participant)
     mocked_agent.is_participant.return_value = True
     mocked_agent.get_participant.return_value = ritual_participant
