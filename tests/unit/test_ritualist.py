@@ -60,7 +60,6 @@ def test_initiate_ritual(
 
     participants = [
         Coordinator.Participant(
-            index=i,
             provider=c,
         )
         for i, c in enumerate(cohort)
@@ -98,7 +97,6 @@ def test_perform_round_1(
     participants = dict()
     for i, checksum_address in enumerate(cohort):
         participants[checksum_address] = Coordinator.Participant(
-            index=i,
             provider=checksum_address,
         )
 
@@ -191,7 +189,6 @@ def test_perform_round_2(
     participants = dict()
     for i, checksum_address in enumerate(cohort):
         participant = Coordinator.Participant(
-            index=i,
             transcript=bytes(random_transcript),
             provider=checksum_address,
         )

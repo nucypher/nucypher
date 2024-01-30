@@ -257,7 +257,6 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     #
     def participating(*args, **kwargs):
         participant = Coordinator.Participant(
-            index=0,
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
             transcript=os.urandom(32),
@@ -392,7 +391,6 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     #
     def participating(*args, **kwargs):
         participant = Coordinator.Participant(
-            index=0,
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=True,
             transcript=os.urandom(32),
@@ -422,7 +420,6 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     #
     def participating(*args, **kwargs):
         participant = Coordinator.Participant(
-            index=0,
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
             transcript=bytes(),
@@ -456,7 +453,6 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     #
     def participating(*args, **kwargs):
         participant = Coordinator.Participant(
-            index=0,
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
             transcript=os.urandom(32),
