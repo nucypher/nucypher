@@ -23,7 +23,6 @@ def mock_condition_blockchains(module_mocker):
     "eth_chain_test",
     (
         (EthChain.MAINNET, "mainnet", 1),
-        (EthChain.GOERLI, "goerli", 5),
         (EthChain.SEPOLIA, "sepolia", 11155111),
     ),
 )
@@ -59,11 +58,11 @@ def test_polygon_chains(poly_chain_test):
         (
             domains.LYNX,
             "lynx",
-            EthChain.GOERLI,
+            EthChain.SEPOLIA,
             PolygonChain.MUMBAI,
             (
                 EthChain.MAINNET,
-                EthChain.GOERLI,
+                EthChain.SEPOLIA,
                 PolygonChain.MUMBAI,
                 PolygonChain.MAINNET,
             ),

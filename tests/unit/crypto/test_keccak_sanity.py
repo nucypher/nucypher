@@ -4,11 +4,7 @@ import unittest
 
 from eth_utils import keccak
 
-from nucypher.crypto.utils import (
-    secure_random_range,
-    secure_random,
-    keccak_digest
-)
+from nucypher.crypto.utils import keccak_digest, secure_random, secure_random_range
 
 
 class TestCrypto(unittest.TestCase):

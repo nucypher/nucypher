@@ -203,7 +203,7 @@ class FleetState:
 
 class FleetSensor:
     """
-    A representation of a fleet of NuCypher nodes.
+    A representation of a fleet of nodes.
 
     If `this_node` is provided, it will be included in the state checksum
     (but not returned during iteration/lookups).

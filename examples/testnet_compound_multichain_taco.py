@@ -38,7 +38,7 @@ coordinator_agent = CoordinatorAgent(
     blockchain_endpoint=polygon_endpoint,
     registry=registry,
 )
-ritual_id = 0  # got this from a side channel
+ritual_id = 5  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
 # known authorized encryptor for ritual 3
@@ -75,7 +75,7 @@ conditions = {
             },
             {
                 "conditionType": ConditionType.RPC.value,
-                "chain": 5,
+                "chain": 11155111,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": ">", "value": 1},

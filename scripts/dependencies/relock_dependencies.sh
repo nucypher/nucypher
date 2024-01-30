@@ -25,7 +25,6 @@ echo "Removing existing requirement files"
 pipenv --rm
 rm -f $PREFIX.txt
 rm -f dev-$PREFIX.txt
-rm -f docs-$PREFIX.txt
 
 echo "Removing pip cache"
 pip cache purge
@@ -34,11 +33,11 @@ pip cache purge
 set -e
 
 echo "Building Development Requirements"
-pipenv --python 3.11 lock --clear --pre --dev-only
+pipenv --python 3.12 lock --clear --pre --dev-only
 pipenv requirements --dev-only > dev-$PREFIX.txt
 
 echo "Building Standard Requirements"
-pipenv --python 3.11 lock --clear --pre
+pipenv --python 3.12 lock --clear --pre
 pipenv requirements > $PREFIX.txt
 
 echo "OK!"

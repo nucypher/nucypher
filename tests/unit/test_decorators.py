@@ -2,7 +2,10 @@
 
 import pytest
 
-from nucypher.blockchain.eth.decorators import InvalidChecksumAddress, validate_checksum_address
+from nucypher.blockchain.eth.decorators import (
+    InvalidChecksumAddress,
+    validate_checksum_address,
+)
 
 
 def test_validate_checksum_address(get_random_checksum_address):

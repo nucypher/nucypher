@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 from queue import Queue
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Iterable,
@@ -120,9 +119,10 @@ from nucypher.policy.policies import Policy
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 from nucypher.utilities.networking import validate_operator_ip
-
-if TYPE_CHECKING:
-    from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
+from nucypher.utilities.prometheus.metrics import (
+    PrometheusMetricsConfig,
+    start_prometheus_exporter,
+)
 
 
 class Alice(Character, actors.PolicyAuthor):
@@ -871,9 +871,6 @@ class Ursula(Teacher, Character, Operator):
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
 
-            # Care to introduce yourself?
-            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
-            self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
 
         else:
@@ -889,6 +886,8 @@ class Ursula(Teacher, Character, Operator):
             certificate=certificate,
             certificate_filepath=certificate_filepath,
         )
+
+        self._prometheus_metrics_tracker = None
 
     def _substantiate_stamp(self):
         transacting_power = self.transacting_power
@@ -962,7 +961,7 @@ class Ursula(Teacher, Character, Operator):
         ritual_tracking: bool = True,
         hendrix: bool = True,
         start_reactor: bool = True,
-        prometheus_config: "PrometheusMetricsConfig" = None,
+        prometheus_config: PrometheusMetricsConfig = None,
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,
@@ -1009,12 +1008,15 @@ class Ursula(Teacher, Character, Operator):
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
 
         if prometheus_config:
-            # Locally scoped to prevent import without prometheus explicitly installed
-            from nucypher.utilities.prometheus.metrics import start_prometheus_exporter
-
-            start_prometheus_exporter(ursula=self, prometheus_config=prometheus_config)
+            self._prometheus_metrics_tracker = start_prometheus_exporter(
+                ursula=self, prometheus_config=prometheus_config
+            )
             if emitter:
-                emitter.message("✓ Prometheus Exporter", color="green")
+                emitter.message(
+                    f"✓ Prometheus Exporter http://{self.rest_interface.host}:"
+                    f"{prometheus_config.port}/metrics",
+                    color="green",
+                )
 
         if hendrix:
             if emitter:
@@ -1060,6 +1062,8 @@ class Ursula(Teacher, Character, Operator):
             self.stop_learning_loop()
             self._operator_bonded_tracker.stop()
             self.ritual_tracker.stop()
+            if self._prometheus_metrics_tracker:
+                self._prometheus_metrics_tracker.stop()
         if halt_reactor:
             reactor.stop()
 
@@ -1336,6 +1340,7 @@ class Ursula(Teacher, Character, Operator):
             previous_fleet_states=previous_fleet_states,
             known_nodes=known_nodes_info,
             balance_eth=balance_eth,
+            block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
         )
 
     def as_external_validator(self) -> Validator:
@@ -1372,6 +1377,7 @@ class LocalUrsulaStatus(NamedTuple):
     previous_fleet_states: List[ArchivedFleetState]
     known_nodes: Optional[List[RemoteUrsulaStatus]]
     balance_eth: float
+    block_height: int
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1392,6 +1398,7 @@ class LocalUrsulaStatus(NamedTuple):
             ],
             known_nodes=known_nodes_json,
             balance_eth=self.balance_eth,
+            block_height=self.block_height,
         )
 
 

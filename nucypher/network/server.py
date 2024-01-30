@@ -1,6 +1,7 @@
 import json
 import weakref
 from http import HTTPStatus
+from ipaddress import AddressValueError
 from pathlib import Path
 
 from constant_sorrow import constants
@@ -15,6 +16,7 @@ from nucypher_core import (
     MetadataResponsePayload,
     ReencryptionRequest,
 )
+from prometheus_client import REGISTRY, Counter, Summary
 
 from nucypher.config.constants import MAX_UPLOAD_CONTENT_LENGTH
 from nucypher.crypto.keypairs import DecryptingKeypair
@@ -26,6 +28,25 @@ from nucypher.policy.conditions.utils import (
     evaluate_condition_lingo,
 )
 from nucypher.utilities.logging import Logger
+from nucypher.utilities.networking import get_global_source_ipv4
+
+DECRYPTION_REQUESTS_SUCCESSES = Counter(
+    "threshold_decryption_num_successes",
+    "Number of threshold decryption successes",
+    registry=REGISTRY,
+)
+DECRYPTION_REQUESTS_FAILURES = Counter(
+    "threshold_decryption_num_failures",
+    "Number of threshold decryption failures",
+    registry=REGISTRY,
+)
+
+# Summary provides both `count` (num of calls), and `sum` (time taken in method)
+DECRYPTION_REQUEST_SUMMARY = Summary(
+    "decryption_request_processing",
+    "Summary of decryption request processing",
+    registry=REGISTRY,
+)
 
 HERE = BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = HERE / "templates"
@@ -149,14 +170,18 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
         return Response(json.dumps(payload), mimetype="application/json")
 
     @rest_app.route('/decrypt', methods=["POST"])
+    @DECRYPTION_REQUEST_SUMMARY.time()
     def threshold_decrypt():
         try:
-            encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
-                request.data
-            )
-            encrypted_response = this_node.handle_threshold_decryption_request(
-                encrypted_request
-            )
+            with DECRYPTION_REQUESTS_FAILURES.count_exceptions():
+                encrypted_request = EncryptedThresholdDecryptionRequest.from_bytes(
+                    request.data
+                )
+                encrypted_response = this_node.handle_threshold_decryption_request(
+                    encrypted_request
+                )
+
+            DECRYPTION_REQUESTS_SUCCESSES.inc()
             response = Response(
                 response=bytes(encrypted_response),
                 status=HTTPStatus.OK,
@@ -274,9 +299,20 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route("/ping", methods=['GET'])
     def ping():
-        """Asks this node: What is my IP address?"""
-        requester_ip_address = request.remote_addr
-        return Response(requester_ip_address, status=HTTPStatus.OK)
+        """Asks this node: What is my public IPv4 address?"""
+        try:
+            ipv4 = get_global_source_ipv4(request=request)
+        except AddressValueError as e:
+            return Response(
+                response=str(e),
+                status=HTTPStatus.BAD_REQUEST,
+            )
+        if not ipv4:
+            return Response(
+                response="No public IPv4 address detected.",
+                status=HTTPStatus.BAD_GATEWAY,
+            )
+        return Response(response=ipv4, status=HTTPStatus.OK)
 
     @rest_app.route('/status/', methods=['GET'])
     def status():

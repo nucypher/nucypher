@@ -1,9 +1,7 @@
 
 
-import pytest
-from web3.gas_strategies import time_based
-
 from constant_sorrow.constants import ALL_OF_THEM
+from web3.gas_strategies import time_based
 
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from nucypher.utilities.gas_strategies import WEB3_GAS_STRATEGIES

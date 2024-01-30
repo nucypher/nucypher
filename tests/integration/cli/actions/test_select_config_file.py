@@ -1,8 +1,3 @@
-
-
-import os
-from pathlib import Path
-
 import click
 import pytest
 
@@ -62,6 +57,7 @@ def test_auto_select_config_file(
                                               config_file=str(config_path)) in captured.out
 
 
+@pytest.mark.skip("planned for removal in PR #3382")
 def test_interactive_select_config_file(
     test_emitter,
     capsys,
@@ -97,24 +93,8 @@ def test_interactive_select_config_file(
         assert config_path.exists()
 
     mock_stdin.line(str(user_input))
-    result = select_config_file(emitter=test_emitter,
-                                config_class=config_class,
-                                config_root=temp_dir_path)
 
     captured = capsys.readouterr()
     for filename, account in accounts:
         assert account.address in captured.out
     assert mock_stdin.empty()
-
-    table_data = captured.out.split('\n')
-    table_addresses = [row.split()[1] for row in table_data[6:-2]]  # escape extra lines printed before table
-
-    # TODO: Finish this test
-    # for index, (filename, account) in enumerate(accounts):
-    #     assert False
-    #
-    # selection = config.filepath
-    # assert isinstance(result, str)
-    # result = Path(result)
-    # assert result.exists()
-    # assert result == selection

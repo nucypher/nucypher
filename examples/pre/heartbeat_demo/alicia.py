@@ -17,11 +17,12 @@
 import base64
 import datetime
 import json
-import maya
 import os
 import shutil
 from getpass import getpass
 from pathlib import Path
+
+import maya
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.signers import Signer

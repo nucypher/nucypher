@@ -83,6 +83,9 @@ class MockRestMiddleware(RestMiddleware):
     class NotEnoughMockUrsulas(Ursula.NotEnoughUrsulas):
         pass
 
+    def ping(self, node, *args, **kwargs):
+        return Response(node.rest_interface.host, status=200)
+
 
 class MockRestMiddlewareForLargeFleetTests(MockRestMiddleware):
     """
@@ -157,6 +160,12 @@ class NodeIsDownMiddleware(MockRestMiddleware):
 
     def all_nodes_down(self):
         self.client.ports_that_are_down = set(MOCK_KNOWN_URSULAS_CACHE)
+
+    def ping(self, node, *args, **kwargs):
+        if node.rest_interface.port in self.client.ports_that_are_down:
+            raise ConnectionRefusedError
+        else:
+            return Response(node.rest_interface.host, status=200)
 
 
 class EvilMiddleWare(MockRestMiddleware):

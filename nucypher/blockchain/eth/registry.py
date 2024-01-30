@@ -186,7 +186,7 @@ class RegistrySourceManager:
     def __init__(
         self,
         domain: TACoDomain,
-        sources: Optional[RegistrySource] = None,
+        sources: Optional[List[RegistrySource]] = None,
         only_primary: bool = False,
     ):
         if only_primary and sources:
@@ -208,11 +208,15 @@ class RegistrySourceManager:
             try:
                 source = source_class(domain=self.domain)
             except RegistrySource.Unavailable:
-                self.logger.warn(f"Fetching registry from {source_class} failed.")
+                self.logger.warn(
+                    f"Fetching registry from {source_class.__name__} failed."
+                )
                 continue
             else:
                 if not source.is_primary:
-                    message = f"Warning: {source_class} is not a primary source."
+                    message = (
+                        f"Warning: {source_class.__name__} is not a primary source."
+                    )
                     self.logger.warn(message)
                 return source
         self.logger.warn("All known registry sources failed.")

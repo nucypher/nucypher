@@ -1,9 +1,10 @@
 import random
 from http import HTTPStatus
-from ipaddress import ip_address
+from ipaddress import AddressValueError, IPv4Address, IPv6Address, ip_address
 from typing import Optional, Union
 
 import requests
+from flask import Request
 from requests.exceptions import HTTPError, RequestException
 
 from nucypher.acumen.perception import FleetSensor
@@ -178,6 +179,9 @@ def determine_external_ip_address(
     3. A centralized IP address service
 
     If the IP address cannot be determined for any reason UnknownIPAddress is raised.
+
+    This function is intended to be used by nodes operators running `nucypher ursula init`
+    to assist determine their global IPv4 address for configuration purposes only.
     """
     rest_host = None
 
@@ -200,4 +204,58 @@ def determine_external_ip_address(
     # complete failure!
     if not rest_host:
         raise UnknownIPAddress('External IP address detection failed')
+
     return rest_host
+
+
+def _resolve_ipv4(ip: str) -> Optional[IPv4Address]:
+    """
+    Resolve an IPv6 address to IPv4 if required and possible.
+    Returns None if there is no valid IPv4 address available.
+    """
+    try:
+        ip = ip_address(ip.strip())
+    except (AddressValueError, ValueError):
+        raise AddressValueError(f"'{ip}' does not appear to be an IPv4 or IPv6 address")
+    if isinstance(ip, IPv6Address):
+        return ip.ipv4_mapped  # returns IPv4Address or None
+    elif isinstance(ip, IPv4Address):
+        return ip
+
+
+def _get_header_ips(header: str, request: Request) -> Optional[str]:
+    """Yields source IP addresses in sequential order from a given request and header name."""
+    if header in request.headers:
+        for ip in request.headers[header].split(","):
+            yield ip
+
+
+def _ip_sources(request: Request) -> str:
+    """Yields all possible sources of IP addresses in a given request's headers."""
+    for header in ["X-Forwarded-For", "X-Real-IP"]:
+        yield from _get_header_ips(header, request)
+    yield request.remote_addr
+
+
+def get_global_source_ipv4(request: Request) -> Optional[str]:
+    """
+    Resolve the first global IPv4 address in a request's headers.
+
+    If the request is forwarded from a proxy, the first global IP address in the chain is returned.
+    'X-Forwarded-For' (XFF) https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#selecting_an_ip_address
+
+    If XFF is not present in the request headers, this method also checks for 'X-Real-IP',
+    a popular non-standard header conventionally configured in some proxies like nginx.
+
+    Finally, if neither XFF nor X-Real-IP are present, the request is assumed to be
+    direct and the remote address is returned.
+
+    In all cases, tests that the IPv4 range is global. RFC 1918 privately designated
+    address ranges must not be returned.
+    https://www.ietf.org/rfc/rfc1918.txt
+    """
+
+    for ip_str in _ip_sources(request=request):
+        ipv4_address = _resolve_ipv4(ip_str)
+        if ipv4_address and ipv4_address.is_global:
+            return str(ipv4_address)

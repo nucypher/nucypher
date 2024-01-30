@@ -170,9 +170,8 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual.total_aggregations += 1
         return self.blockchain.FAKE_RECEIPT
 
-    @staticmethod
-    def is_provider_public_key_set(staking_provider: ChecksumAddress) -> bool:
-        return False
+    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
+        return staking_provider in self._participant_keys_history
 
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
@@ -187,6 +186,7 @@ class MockCoordinatorAgent(MockContractAgent):
         participant_keys = self._participant_keys_history.get(provider_address)
         if not participant_keys:
             participant_keys = []
+            self._participant_keys_history[provider_address] = participant_keys
 
         participant_keys.append(
             self.ParticipantKey(
@@ -274,7 +274,7 @@ class MockCoordinatorAgent(MockContractAgent):
     def get_provider_public_key(
         self, provider: ChecksumAddress, ritual_id: int
     ) -> FerveoPublicKey:
-        participant_keys = self._participant_keys_history.get(provider)
+        participant_keys = self._participant_keys_history[provider]
         for participant_key in reversed(participant_keys):
             if participant_key.lastRitualId <= ritual_id:
                 g2Point = participant_key.publicKey

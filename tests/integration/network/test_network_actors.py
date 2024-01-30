@@ -6,8 +6,9 @@ from nucypher.acumen.nicknames import Nickname
 from nucypher.acumen.perception import FleetSensor
 from nucypher.characters.unlawful import Vladimir
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
+from nucypher.network.middleware import RestMiddleware
 from tests.constants import MOCK_ETH_PROVIDER_URI
-from tests.utils.middleware import MockRestMiddleware
+from tests.utils.middleware import EvilMiddleWare, MockRestMiddleware
 
 
 def test_all_ursulas_know_about_all_other_ursulas(ursulas, test_registry):
@@ -99,10 +100,11 @@ def test_vladimir_illegal_interface_key_does_not_propagate(ursulas):
     # assert vladimir not in other_ursula.known_nodes
 
 
+@pytest.mark.usefixtures("monkeypatch_get_staking_provider_from_operator")
 def test_alice_refuses_to_select_node_unless_ursula_is_valid(
     alice, idle_policy, ursulas
 ):
-
+    Vladimir.network_middleware = EvilMiddleWare(eth_endpoint=MOCK_ETH_PROVIDER_URI)
     target = list(ursulas)[2]
     # First, let's imagine that Alice has sampled a Vladimir while making this policy.
     vladimir = Vladimir.from_target_ursula(target,
@@ -116,6 +118,9 @@ def test_alice_refuses_to_select_node_unless_ursula_is_valid(
     # but before being selected for a policy.
     alice.known_nodes.record_node(vladimir)
     alice.known_nodes.record_fleet_state()
+
+    # unmock the ping endpoint on mock rest middleware for this test.
+    MockRestMiddleware.ping = RestMiddleware.ping
 
     with pytest.raises(vladimir.InvalidNode):
         idle_policy._ping_node(

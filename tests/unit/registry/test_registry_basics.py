@@ -1,8 +1,7 @@
 import pytest
 
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from tests.constants import TESTERCHAIN_CHAIN_ID, TEMPORARY_DOMAIN
+from tests.constants import TEMPORARY_DOMAIN, TESTERCHAIN_CHAIN_ID
 from tests.utils.registry import MockRegistrySource
 
 

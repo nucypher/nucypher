@@ -1,4 +1,5 @@
 import json
+import random
 import time
 from collections import defaultdict
 from decimal import Decimal
@@ -133,6 +134,8 @@ class NucypherTokenActor(BaseActor):
 class Operator(BaseActor):
     READY_TIMEOUT = None  # (None or 0) == indefinite
     READY_POLL_RATE = 120  # seconds
+
+    AGGREGATION_SUBMISSION_MAX_DELAY = 60
 
     class OperatorError(BaseActor.ActorError):
         """Operator-specific errors."""
@@ -296,19 +299,10 @@ class Operator(BaseActor):
         return ritual
 
     def _resolve_validators(
-            self,
-            ritual: CoordinatorAgent.Ritual,
-            timeout: int = 60
+        self,
+        ritual: CoordinatorAgent.Ritual,
+        ritual_id: int,
     ) -> List[Tuple[Validator, Transcript]]:
-
-        validators = [n[0] for n in ritual.transcripts]
-        if timeout > 0:
-            nodes_to_discover = list(set(validators) - {self.checksum_address})
-            self.block_until_specific_nodes_are_known(
-                addresses=nodes_to_discover,
-                timeout=timeout,
-                allow_missing=0
-            )
 
         result = list()
         for staking_provider_address, transcript_bytes in ritual.transcripts:
@@ -320,12 +314,9 @@ class Operator(BaseActor):
                 )
             else:
                 # Remote
-                try:
-                    remote_operator = self.known_nodes[staking_provider_address]
-                except KeyError:
-                    raise self.ActorError(f"Unknown node {staking_provider_address}")
-                remote_operator.mature()
-                public_key = remote_operator.public_keys(RitualisticPower)
+                public_key = self.coordinator_agent.get_provider_public_key(
+                    provider=staking_provider_address, ritual_id=ritual_id
+                )
                 self.log.debug(
                     f"Ferveo public key for {staking_provider_address} is {bytes(public_key).hex()[:-8:-1]}"
                 )
@@ -412,8 +403,14 @@ class Operator(BaseActor):
         # above, we know this tx is pending
         pending_tx = self.dkg_storage.get_transcript_receipt(ritual_id=ritual_id)
         if pending_tx:
+            try:
+                txhash = pending_tx["transactionHash"]
+            except TypeError:
+                txhash = pending_tx
+            txhash = bytes(txhash).hex()
             self.log.debug(
-                f"Node {self.transacting_power.account} has pending tx {pending_tx} for posting transcript for ritual {ritual_id}; skipping execution"
+                f"Node {self.transacting_power.account} has pending tx {txhash} "
+                f"for posting transcript for ritual {ritual_id}; skipping execution"
             )
             return None
 
@@ -423,7 +420,7 @@ class Operator(BaseActor):
 
         # gather the cohort
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
+        nodes, transcripts = list(zip(*self._resolve_validators(ritual, ritual_id)))
         nodes = sorted(nodes, key=lambda n: n.address)
         if any(transcripts):
             self.log.debug(
@@ -498,7 +495,7 @@ class Operator(BaseActor):
         )
 
         ritual = self.coordinator_agent.get_ritual(ritual_id, with_participants=True)
-        transcripts = self._resolve_validators(ritual)
+        transcripts = self._resolve_validators(ritual, ritual_id)
         if not all([t for _, t in transcripts]):
             raise self.ActorError(
                 f"ritual #{ritual_id} is missing transcripts from {len([t for t in transcripts if not t])} nodes."
@@ -525,6 +522,11 @@ class Operator(BaseActor):
 
         # publish the transcript and store the receipt
         total = ritual.total_aggregations + 1
+
+        # distribute submission of aggregated transcripts - don't want all nodes submitting at
+        # the same time
+        time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
+
         tx_hash = self.publish_aggregated_transcript(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
@@ -555,7 +557,7 @@ class Operator(BaseActor):
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
             raise self.ActorError(f"Ritual #{ritual_id} is not active.")
 
-        nodes, transcripts = list(zip(*self._resolve_validators(ritual)))
+        nodes, transcripts = list(zip(*self._resolve_validators(ritual, ritual_id)))
         if not all(transcripts):
             raise self.ActorError(f"Ritual #{ritual_id} is missing transcripts")
 

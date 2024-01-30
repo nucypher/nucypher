@@ -2,7 +2,6 @@
 from pathlib import Path
 
 import maya
-import os
 import pytest
 
 

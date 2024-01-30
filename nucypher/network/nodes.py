@@ -662,7 +662,9 @@ class Learner:
                     self.log.info(f"Learned about enough nodes after {rounds_undertaken} rounds.")
                     return True
                 if not self._learning_task.running:
-                    raise RuntimeError("Learning loop is not running.  Start it with start_learning().")
+                    raise RuntimeError(
+                        "Learning loop is not running.  Start it with start_learning_loop()."
+                    )
                 elif not reactor.running and not learn_on_this_thread:
                     raise RuntimeError(
                         f"The reactor isn't running, but you're trying to use it for discovery.  You need to start the Reactor in order to use {self} this way.")

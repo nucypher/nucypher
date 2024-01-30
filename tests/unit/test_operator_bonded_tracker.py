@@ -66,7 +66,7 @@ def test_operator_bonded_but_becomes_unbonded(mocker, get_random_checksum_addres
         tracker.stop()
 
 
-def test_operator_handle_errors(mocker, get_random_checksum_address):
+def test_operator_handle_errors(mocker):
     ursula = mocker.Mock()
     tracker = OperatorBondedTracker(ursula=ursula)
 

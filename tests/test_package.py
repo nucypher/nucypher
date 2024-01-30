@@ -1,6 +1,7 @@
 
 
 import builtins
+
 import pytest
 
 from nucypher.exceptions import DevelopmentInstallationRequired
@@ -49,7 +50,7 @@ def test_use_vladimir_without_development_installation(import_mocker, mocker):
     del EvilMiddleWare
 
     with import_mocker:
-        from nucypher.characters.unlawful import Vladimir                    # Import OK
+        from nucypher.characters.unlawful import Vladimir  # Import OK
         with pytest.raises(DevelopmentInstallationRequired, match=message):  # Expect lazy failure
             Vladimir.from_target_ursula(target_ursula=mocker.Mock())
 
@@ -63,7 +64,8 @@ def test_get_pyevm_backend_without_development_installation(import_mocker):
     del constants
 
     with import_mocker:
-        from nucypher.blockchain.eth.providers import _get_pyevm_test_backend   # Import OK
+        from nucypher.blockchain.eth.providers import (
+            _get_pyevm_test_backend,  # Import OK
+        )
         with pytest.raises(DevelopmentInstallationRequired, match=message):     # Expect lazy failure
             _get_pyevm_test_backend()
-

@@ -15,7 +15,6 @@ class ChainInfo(NamedTuple):
 
 class EthChain(ChainInfo, Enum):
     MAINNET = (1, "mainnet")
-    GOERLI = (5, "goerli")
     SEPOLIA = (11155111, "sepolia")
 
 
@@ -83,11 +82,11 @@ MAINNET = TACoDomain(
 
 LYNX = TACoDomain(
     name="lynx",
-    eth_chain=EthChain.GOERLI,
+    eth_chain=EthChain.SEPOLIA,
     polygon_chain=PolygonChain.MUMBAI,
     condition_chains=(
         EthChain.MAINNET,
-        EthChain.GOERLI,
+        EthChain.SEPOLIA,
         PolygonChain.MUMBAI,
         PolygonChain.MAINNET,
     ),

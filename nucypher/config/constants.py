@@ -37,8 +37,8 @@ NUCYPHER_SENTRY_USER_ID = ""
 NUCYPHER_SENTRY_ENDPOINT = f"https://{NUCYPHER_SENTRY_PUBLIC_KEY}@sentry.io/{NUCYPHER_SENTRY_USER_ID}"
 
 # Web
-CLI_ROOT = NUCYPHER_PACKAGE / 'network' / 'templates'
-MAX_UPLOAD_CONTENT_LENGTH = 1024 * 50
+CLI_ROOT = NUCYPHER_PACKAGE / "network" / "templates"
+MAX_UPLOAD_CONTENT_LENGTH = 1024 * 250  # 250kb
 
 # Dev Mode
 TEMPORARY_DOMAIN_NAME = ":temporary-domain:"  # for use with `--dev` node runtimes
