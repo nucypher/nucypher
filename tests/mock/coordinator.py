@@ -159,11 +159,7 @@ class MockCoordinatorAgent(MockContractAgent):
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = None
-        for p in self._rituals[ritual_id].participants:
-            if p.provider == provider:
-                participant = p
-                break
+        participant = self.__find_participant_for_state_change(ritual_id, provider)
         participant.aggregated = True
         participant.decryption_request_static_key = bytes(participant_public_key)
 
