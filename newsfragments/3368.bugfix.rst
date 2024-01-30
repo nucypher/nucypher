@@ -1,1 +1,0 @@
-Don't use web3.py gas strategies, since that switches TX mode to legacy.
