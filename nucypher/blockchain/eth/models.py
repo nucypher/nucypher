@@ -95,16 +95,14 @@ class Coordinator:
 
     @dataclass
     class Participant:
-        index: int
         provider: ChecksumAddress
         aggregated: bool = False
         transcript: bytes = bytes()
         decryption_request_static_key: bytes = bytes()
 
         @classmethod
-        def from_data(cls, index: int, data: list):
+        def from_data(cls, data: list):
             return cls(
-                index=index,
                 provider=ChecksumAddress(data[0]),
                 aggregated=data[1],
                 transcript=bytes(data[2]),
@@ -155,12 +153,8 @@ class Coordinator:
             return participant_public_keys
 
         @staticmethod
-        def make_participants(
-            data: list, start: int = 0
-        ) -> Iterable["Coordinator.Participant"]:
+        def make_participants(data: list) -> Iterable["Coordinator.Participant"]:
             """Converts a list of participant data into an iterable of Participant objects."""
-            for i, participant_data in enumerate(data, start=start):
-                participant = Coordinator.Participant.from_data(
-                    index=i, data=participant_data
-                )
+            for participant_data in data:
+                participant = Coordinator.Participant.from_data(data=participant_data)
                 yield participant

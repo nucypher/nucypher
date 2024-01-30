@@ -691,12 +691,10 @@ class CoordinatorAgent(EthereumContractAgent):
     def get_participant(
         self, ritual_id: int, provider: ChecksumAddress, transcript: bool
     ) -> Coordinator.Participant:
-        data, index = self.contract.functions.getParticipant(
+        data = self.contract.functions.getParticipant(
             ritual_id, provider, transcript
         ).call()
-        participant = next(
-            iter(Coordinator.Ritual.make_participants([data], start=index))
-        )
+        participant = next(iter(Coordinator.Ritual.make_participants([data])))
         return participant
 
     @contract_api(CONTRACT_CALL)
@@ -708,9 +706,7 @@ class CoordinatorAgent(EthereumContractAgent):
         data = self.contract.functions.getParticipants(
             ritual_id, start_index, max_results, transcripts
         ).call()
-        participants = Coordinator.Ritual.make_participants(
-            data=data, start=start_index
-        )
+        participants = Coordinator.Ritual.make_participants(data=data)
         return participants
 
     def _get_participants(
