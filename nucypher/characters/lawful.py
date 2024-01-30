@@ -950,6 +950,7 @@ class Ursula(Teacher, Character, Operator):
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,
+        dkg_tracking: bool = True,
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
 
@@ -991,6 +992,11 @@ class Ursula(Teacher, Character, Operator):
         self._operator_bonded_tracker.start(now=eager)
         if emitter:
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
+
+        if dkg_tracking:
+            self.dkg_tracker.start(now=False)
+            if emitter:
+                emitter.message("✓ Start DKG Phase Retries", color="green")
 
         if prometheus_config:
             self._prometheus_metrics_tracker = start_prometheus_exporter(

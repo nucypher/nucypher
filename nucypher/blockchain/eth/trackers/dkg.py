@@ -4,12 +4,14 @@ import time
 from typing import Callable, List, Optional, Tuple
 
 import maya
+from hexbytes import HexBytes
 from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
+from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -64,6 +66,64 @@ class EventScannerTask(SimpleTask):
         self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
         if not self._task.running:
             self.log.warn("Restarting event scanner task!")
+            self.start(now=False)  # take a breather
+
+
+class DKGTracker(SimpleTask):
+
+    INTERVAL = 120  # TODO: think
+
+    def __init__(
+            self,
+            transacting_power: "actors.TransactingPower",
+            coordinator_agent: "actors.CoordinatorAgent",
+            *args, **kwargs
+    ):
+        self.coordinator_agent = coordinator_agent
+        self.transacting_power = transacting_power
+        self.dkg_storage = DKGStorage()
+
+        self.timeout = self.coordinator_agent.get_timeout()
+
+        self.w3 = self.coordinator_agent.blockchain.client.w3  # TODO: think
+        super().__init__(*args, **kwargs)
+
+    def _get_pending_transactions(self):
+        # get pending transactions from on-chain
+        pass
+
+    def _retry_now(self, txhash: HexBytes) -> bool:
+        # already retired too many times
+        # reached spending cap
+        # not enough gas
+        # timeout of the ritual
+        # etc.
+        return True
+
+    def addtxhash(self, txhash: HexBytes):
+        self.dkg_storage.add_unconfirmed_transaction(txhash)
+
+    def run(self):
+        retry_txhashes = []
+        for txhash in self.dkg_storage.get_unconfirmed_transactions():
+            
+            retry_now = self._retry_now(txhash)
+            if not retry_now:
+                continue
+            
+            retry_txhash = self.w3.eth.modify_transaction(txhash)
+            
+            if retry_txhash:
+                retry_txhashes.append(retry_txhash)
+            
+            time.sleep(0.1)  # TODO: jitter
+            
+        self.dkg_storage.update_unconfirmed_transactions(retry_txhashes)
+
+    def handle_errors(self, *args, **kwargs):
+        self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
+        if not self._task.running:
+            self.log.warn("Restarting transaction task!")
             self.start(now=False)  # take a breather
 
 
