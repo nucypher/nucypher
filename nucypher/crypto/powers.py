@@ -310,12 +310,12 @@ class RitualisticPower(KeyPairBasedPower):
         return transcript
 
     def aggregate_transcripts(
-            self,
-            ritual_id: int,
-            checksum_address: ChecksumAddress,
-            shares: int,
-            threshold: int,
-            transcripts: list
+        self,
+        ritual_id: int,
+        checksum_address: ChecksumAddress,
+        shares: int,
+        threshold: int,
+        transcripts: List[Tuple[Validator, Transcript]],
     ) -> Tuple[AggregatedTranscript, DkgPublicKey]:
         aggregated_transcript, dkg_public_key = dkg.aggregate_transcripts(
             ritual_id=ritual_id,
