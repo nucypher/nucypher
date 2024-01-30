@@ -675,9 +675,8 @@ class CoordinatorAgent(EthereumContractAgent):
     ) -> Coordinator.Ritual:
         """
         Exposes three views of Coordinator.Rituals:
-        1. The ritual metadata only
-        2. ritual + participant metadata
-        3. ritual + participants + transcripts
+        1. ritual + participant w/o transcripts
+        2. ritual + participants w/ transcripts
         """
         ritual = self.__rituals(ritual_id)
         ritual.participants = list(
@@ -704,7 +703,7 @@ class CoordinatorAgent(EthereumContractAgent):
     def __get_participants(
         self, ritual_id: int, start_index: int, max_results: int, transcripts: bool
     ) -> Iterable[Coordinator.Participant]:
-        if max_results <= 0:
+        if max_results < 0:
             raise ValueError("Max results must be greater than or equal to zero.")
         data = self.contract.functions.getParticipants(
             ritual_id, start_index, max_results, transcripts
