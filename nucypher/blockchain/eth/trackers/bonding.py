@@ -14,7 +14,7 @@ class OperatorBondedTracker(SimpleTask):
 
     def __init__(self, ursula):
         self._ursula = ursula
-        super().__init__()
+        super().__init__(interval=self.INTERVAL)
 
     def run(self) -> None:
         application_agent = ContractAgency.get_agent(

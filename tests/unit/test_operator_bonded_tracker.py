@@ -20,9 +20,6 @@ def test_operator_never_bonded(mocker, get_random_checksum_address):
 
     tracker = OperatorBondedTracker(ursula=ursula)
     try:
-        d = threads.deferToThread(tracker.start)
-        yield d
-
         with pytest.raises(OperatorBondedTracker.OperatorNoLongerBonded):
             d = threads.deferToThread(tracker.run)
             yield d
@@ -46,10 +43,6 @@ def test_operator_bonded_but_becomes_unbonded(mocker, get_random_checksum_addres
 
     tracker = OperatorBondedTracker(ursula=ursula)
     try:
-        d = threads.deferToThread(tracker.start)
-        yield d
-
-        # bonded
         for i in range(1, 10):
             d = threads.deferToThread(tracker.run)
             yield d

@@ -13,9 +13,6 @@ def test_execution_of_collectors(mocker):
 
     tracker = PrometheusMetricsTracker(collectors=collectors, interval=45)
     try:
-        d = threads.deferToThread(tracker.start)
-        yield d
-
         d = threads.deferToThread(tracker.run)
         yield d
 
