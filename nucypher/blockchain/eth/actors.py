@@ -366,16 +366,18 @@ class Operator(BaseActor):
             receipt = blockchain.get_transaction_receipt(txhash)
         except TransactionNotFound:
             return txhash, None
+
+        # at least for now (pre dkg tracker) - clear since receipt obtained
+        if phase == 1:
+            self.dkg_storage.clear_transcript_txhash(ritual_id, txhash)
+        else:
+            self.dkg_storage.clear_aggregated_txhash(ritual_id, txhash)
+
         status = receipt.get("status")
         if status == 1:
-            # If status in response equals 1 the transaction was successful.
-            # If it is equals 0 the transaction was reverted by EVM.
-            # https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.get_transaction_receipt
-            # TODO: What follow-up actions can be taken if the transaction was reverted?
             return txhash, receipt
-        raise self.ActorError(
-            f"Transaction {txhash} failed with status {status} (ritual {ritual_id}/{phase})."
-        )
+        else:
+            return None, None
 
     def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
         tx_hash, _ = self.get_phase_receipt(ritual_id=ritual_id, phase=phase)
