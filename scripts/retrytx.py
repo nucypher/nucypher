@@ -1,5 +1,3 @@
-import time
-
 from eth_utils import encode_hex
 from twisted.internet import reactor
 
@@ -21,7 +19,7 @@ address = signer.accounts[0]
 transacting_power = TransactingPower(signer=signer, account=address)
 print(address)
 
-endpoint = "https://polygon-mumbai.infura.io/v3/YOUR-API-KEY"
+endpoint = "https://polygon-mumbai.infura.io/v3/YOUR_INFURA_KEY_HERE"
 registry = ContractRegistry.from_latest_publication(
     domain=LYNX,
 )
@@ -29,55 +27,14 @@ coordinator_agent = CoordinatorAgent(
     blockchain_endpoint=endpoint,
     registry=registry
 )
-
 w3 = coordinator_agent.blockchain.w3
-
-
-def cancel():
-    # Get the latest confirmed transaction nonce and the nonce including pending transactions
-    latest_nonce = w3.eth.get_transaction_count(address, 'latest')
-    pending_nonce = w3.eth.get_transaction_count(address, 'pending')
-
-    # Fetch the current base fee
-    base_fee = w3.eth.get_block('latest')['baseFeePerGas']
-
-    for nonce in range(latest_nonce, pending_nonce):
-        # Calculate an increased priority fee and max fee for the cancellation transaction
-        increased_priority_fee = w3.to_wei(1.5, 'gwei')  # Adjust based on network conditions
-        new_max_fee = base_fee + increased_priority_fee
-
-        # Create a cancellation transaction with the same nonce but higher fees
-        cancel_tx = {
-            'nonce': nonce,
-            'to': address,  # Sending to your own address
-            'value': 0,
-            'gas': 21000,
-            'maxPriorityFeePerGas': increased_priority_fee,
-            'maxFeePerGas': new_max_fee,
-            'chainId': 80001,
-            'type': '0x2',  # Indicating EIP-1559 transaction
-            'from': address
-        }
-
-        # Sign the transaction
-        signed_tx = signer.sign_transaction(cancel_tx)
-
-        # Send the transaction
-        tx_hash = w3.eth.send_raw_transaction(signed_tx)
-        print(f"Cancel transaction sent, tx hash: {encode_hex(tx_hash)}")
-
-        # Wait a bit before sending the next cancellation transaction
-        time.sleep(1)
-
-    # After all cancellation transactions are sent
-    print("All cancellation transactions sent")
 
 
 def send_underpriced():
     nonce = w3.eth.get_transaction_count(address, 'pending')
     cancel_tx = {
         'nonce': nonce,
-        'to': address,  # Sending to your own address
+        'to': address,
         'value': 0,
         'gas': 21000,
         'maxPriorityFeePerGas': 1,
@@ -86,33 +43,21 @@ def send_underpriced():
         'type': '0x2',
         'from': address
     }
-
-    # Sign the transaction
     signed_tx = signer.sign_transaction(cancel_tx)
-
-    # Send the transaction
     tx_hash = w3.eth.send_raw_transaction(signed_tx)
-    print(f"Underpriced transaction sent, tx hash: {encode_hex(tx_hash)}")
-    return tx_hash
+    print(f"Underpriced transaction sent | txhash: {encode_hex(tx_hash)}")
+    return tx_hash, nonce
 
-
-cancel()
-time.sleep(3)
-
-txhash = send_underpriced()
-time.sleep(3)
-
-# pending_nonce = w3.eth.get_transaction_count(address, 'pending')
-# latest_nonce = w3.eth.get_transaction_count(address, 'latest')
-# print(f'pending nonce: {pending_nonce}')
-# print(f'latest nonce: {latest_nonce}')
-# print(f'pending nonce - latest nonce: {pending_nonce - latest_nonce}')
-# time.sleep(10)
 
 tracker = TransactionTracker(
-    coordinator_agent=coordinator_agent,
+    w3=coordinator_agent.blockchain.w3,
     transacting_power=transacting_power
 )
-tracker.track(txhash=txhash)
+
+for i in range(3):
+    txhash, nonce = send_underpriced()
+    if i == 0:
+        tracker.track(txhash=txhash, nonce=nonce)
+
 tracker.start()
 reactor.run()
