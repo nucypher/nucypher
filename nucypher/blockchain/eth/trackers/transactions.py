@@ -154,7 +154,6 @@ class TransactionTracker(SimpleTask):
     def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
         base_fee = self.w3.eth.get_block("latest")["baseFeePerGas"]
         tip = self.w3.eth.max_priority_fee
-        self._log_gas_weather(base_fee, tip)
         increased_tip = round(max(tx.maxPriorityFeePerGas, tip) * self.SPEEDUP_FACTOR)
         fee_per_gas = round(
             max(tx.maxFeePerGas * self.SPEEDUP_FACTOR, (base_fee * 2) + increased_tip)
