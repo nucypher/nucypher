@@ -24,9 +24,11 @@ class DKGStorage:
     def store_transcript_txhash(self, ritual_id: int, txhash: HexBytes) -> None:
         self.data["transcript_tx_hashes"][ritual_id] = txhash
 
-    def clear_transcript_txhash(self, ritual_id: int, txhash: HexBytes):
+    def clear_transcript_txhash(self, ritual_id: int, txhash: HexBytes) -> bool:
         if self.get_transcript_txhash(ritual_id) == txhash:
             del self.data["transcript_tx_hashes"][ritual_id]
+            return True
+        return False
 
     def get_transcript_txhash(self, ritual_id: int) -> Optional[HexBytes]:
         return self.data["transcript_tx_hashes"].get(ritual_id)
@@ -47,9 +49,11 @@ class DKGStorage:
     def store_aggregation_txhash(self, ritual_id: int, txhash: HexBytes) -> None:
         self.data["aggregation_tx_hashes"][ritual_id] = txhash
 
-    def clear_aggregated_txhash(self, ritual_id: int, txhash: HexBytes):
+    def clear_aggregated_txhash(self, ritual_id: int, txhash: HexBytes) -> bool:
         if self.get_aggregation_txhash(ritual_id) == txhash:
             del self.data["aggregation_tx_hashes"][ritual_id]
+            return True
+        return False
 
     def get_aggregation_txhash(self, ritual_id: int) -> Optional[HexBytes]:
         return self.data["aggregation_tx_hashes"].get(ritual_id)
