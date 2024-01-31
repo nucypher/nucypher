@@ -126,10 +126,21 @@ class TransactionTracker(SimpleTask):
         return False
 
     def __is_tx_finalized(self, tx: AttributeDict, txhash: HexBytes) -> bool:
-        finalized = tx.blockHash is not None
-        if finalized:
-            self.log.info(f"Transaction {txhash.hex()} has been included in block #{tx.blockNumber}")
-        return finalized
+        if tx.blockHash is None:
+            return False
+        try:
+            receipt = self.w3.eth.get_transaction_receipt(txhash)
+        except TransactionNotFound:
+            return False
+        status = receipt.get("status")
+        if status == 0:
+            # If status in response equals 1 the transaction was successful.
+            # If it is equals 0 the transaction was reverted by EVM.
+            # https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.get_transaction_receipt
+            # TODO: What follow-up actions can be taken if the transaction was reverted?
+            self.log.info(f"Transaction {txhash.hex()} was reverted by EVM with status {status}")
+        self.log.info(f"Transaction {txhash.hex()} has been included in block #{tx.blockNumber}")
+        return True
 
     def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
         # Fetch the current base fee and priority fee
@@ -196,22 +207,28 @@ class TransactionTracker(SimpleTask):
         })
         return tx
 
+    def _handle_transaction_error(self, e: Exception, tx: AttributeDict) -> None:
+        rpc_response = e.args[0]
+        code = rpc_response['code']
+        if code == -32000:
+            error_message = rpc_response['message']
+            if error_message == 'replacement transaction underpriced':
+                self.log.warn(f"Transaction #{tx.nonce} underpriced")
+            elif error_message == 'already known':
+                self.log.warn(f"Transaction #{tx.nonce} already known")
+            elif error_message == 'nonce too low':
+                self.log.warn(f"Transaction #{tx.nonce} nonce too low")
+        else:
+            raise e
+
     def _sign_and_send(self, tx: AttributeDict) -> HexBytes:
         tx = self._prepare_transaction(tx)
         signed_tx = self.transacting_power.sign_transaction(tx)
         try:
             txhash = self.w3.eth.send_raw_transaction(signed_tx)
         except ValueError as e:
-            try:
-                rpc_response = json.loads(e.args[0])
-                code = rpc_response['code']
-                if code == -32000 and rpc_response['message'] == 'replacement transaction underpriced':
-                    self.log.warn(f"Transaction #{tx.nonce} underpriced")
-                    breakpoint()
-            except JSONDecodeError:
-                breakpoint()
-                raise e
-
+            self._handle_transaction_error(e, tx=tx)
+            return
         self.log.info(f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}")
         return txhash
 
