@@ -235,9 +235,11 @@ class Operator(BaseActor):
             condition_blockchain_endpoints
         )
 
-        self.dkg_tracker = TransactionTracker(
+        self.transaction_tracker = TransactionTracker(
             transacting_power=self.transacting_power,
-            coordinator_agent=self.coordinator_agent,
+            w3=self.coordinator_agent.blockchain.w3,
+            finalize_hook=lambda txs: self.ritual_tracker.add_active_ritual_phase_txs,
+            tracking_hook=lambda txs: self.ritual_tracker.remove_active_ritual_phase_txs,
         )
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
@@ -355,19 +357,20 @@ class Operator(BaseActor):
         return tx_hash
 
     def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
-        active = self.ritual_tracker.active_rituals
-        self.dkg_tracker.tracked[active.nonce]
-        tx_hash, _ = self.dkg_tracker.is_tracked(
-            ritual_id=ritual_id,
-            phase=phase
-        )
-        if not tx_hash:
-            return False
-        self.log.info(
-            f"Node {self.transacting_power.account} has pending tx {bytes(tx_hash).hex()} "
-            f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
-        )
-        return True
+        try:
+            nonce = self.ritual_tracker.active_rituals[ritual_id]
+        except KeyError:
+            raise self.RitualNotFoundException(
+                f"Ritual {ritual_id} not found in active rituals."
+            )
+        txhash = self.transaction_tracker.tracked[nonce]
+        if txhash:
+            self.log.info(
+                f"Node {self.transacting_power.account} has pending tx {bytes(txhash).hex()} "
+                f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
+            )
+            return True
+        return False
 
     def _is_phase_1_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 1 action."""
@@ -452,13 +455,13 @@ class Operator(BaseActor):
 
         # store the transcript in the local cache;
         # TODO is this necessary - other than for testing?
-        self.dkg_tracker.__txs.store_transcript(
+        self.transaction_tracker.__txs.store_transcript(
             ritual_id=ritual.id, transcript=transcript
         )
 
         # publish the transcript and store the receipt
         tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
-        self.dkg_tracker.__txs.store_transcript_txhash(
+        self.transaction_tracker.__txs.store_transcript_txhash(
             ritual_id=ritual.id, txhash=tx_hash
         )
 
@@ -539,10 +542,10 @@ class Operator(BaseActor):
             raise e
 
         # store the DKG artifacts for later optimized reads
-        self.dkg_tracker.__txs.store_aggregated_transcript(
+        self.transaction_tracker.__txs.store_aggregated_transcript(
             ritual_id=ritual.id, aggregated_transcript=aggregated_transcript
         )
-        self.dkg_tracker.__txs.store_public_key(
+        self.transaction_tracker.__txs.store_public_key(
             ritual_id=ritual.id, public_key=dkg_public_key
         )
 
@@ -555,7 +558,7 @@ class Operator(BaseActor):
         )
 
         # store the receipt
-        self.dkg_tracker.__txs.store_aggregation_txhash(
+        self.transaction_tracker.__txs.store_aggregation_txhash(
             ritual_id=ritual.id, txhash=tx_hash
         )
 

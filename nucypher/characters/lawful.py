@@ -994,7 +994,7 @@ class Ursula(Teacher, Character, Operator):
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
 
         if dkg_tracking:
-            self.dkg_tracker.start(now=False)
+            self.transaction_tracker.start(now=False)
             if emitter:
                 emitter.message("✓ Start DKG Phase Retries", color="green")
 

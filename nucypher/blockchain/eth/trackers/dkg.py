@@ -17,7 +17,6 @@ from web3.types import Nonce
 
 # from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.config.constants import APP_DIR
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -92,6 +91,8 @@ class TransactionTracker(SimpleTask):
             transacting_power: "actors.TransactingPower",
             spending_cap: int = 99999999999999999999999999999999999,
             timeout: int = 60 * 60 * 24 * 7,  # 7 days
+            tracking_hook: Callable = None,
+            finalize_hook: Callable = None,
             *args, **kwargs
     ):
         self.w3 = w3
@@ -101,6 +102,10 @@ class TransactionTracker(SimpleTask):
         # TODO: Generic limitations on the retry attempts
         self.spending_cap = spending_cap
         self.timeout = timeout
+
+        self.__tracking_hook = tracking_hook
+        self.__finalize_hook = finalize_hook
+
         self.__txs: Dict[int, str] = dict()
         self.__file = NamedTemporaryFile(
             mode='w+',
@@ -118,13 +123,14 @@ class TransactionTracker(SimpleTask):
         self.__file.flush()
         self.log.debug(f"Updated transaction cache file {self.__file.name}")
 
-    def __read_file(self):
+    def __read_file(self) -> Dict[int, HexBytes]:
         self.__file.seek(0)
         try:
-            self.__txs = json.load(self.__file)
+            txs = json.load(self.__file)
         except JSONDecodeError:
-            self.__txs = dict()
+            txs = dict()
         self.log.debug(f"Loaded transaction cache file {self.__file.name}")
+        return txs
 
     def __track(self, nonce: int, txhash: HexBytes) -> None:
         if nonce in self.__txs:
@@ -139,8 +145,9 @@ class TransactionTracker(SimpleTask):
             raise ValueError("Either nonce or txhash must be provided")
         if nonce:
             txhash = self.__txs.pop(nonce, None)
-            if txhash:
-                self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash}")
+            if not txhash:
+                raise ValueError(f"Transaction #{nonce} not found")
+            self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash}")
         if txhash:
             for nonce, _txhash in self.__txs.items():
                 if txhash == _txhash:
@@ -151,26 +158,31 @@ class TransactionTracker(SimpleTask):
         for nonce, txhash in txs:
             self.__track(nonce=nonce, txhash=txhash)
         self.__write_file()
+        if self.__tracking_hook:
+            self.__tracking_hook(txs=txs)
 
     def untrack(self, txs: List[Tuple[int, HexBytes]]) -> None:
         for nonce, txhash in txs:
             self.__untrack(nonce=nonce, txhash=txhash)
         self.__write_file()
+        if self.__finalize_hook:
+            self.__finalize_hook(txs=txs)
 
     def is_tracked(
             self,
             nonce: int = None,
             txhash: HexBytes = None
     ) -> bool:
+        tracked = dict(self.tracked)
         if nonce:
-            return nonce in self.__txs.keys()
+            return int(nonce) in tracked
         elif txhash:
-            return txhash in self.__txs.values()
+            return txhash in tracked.values()
         return False
 
     @property
     def tracked(self) -> List[Tuple[Nonce, HexBytes]]:
-        return [(Nonce(nonce), HexBytes(txhash)) for nonce, txhash in self.__txs.items()]
+        return [(Nonce(int(nonce)), HexBytes(txhash)) for nonce, txhash in self.__txs.items()]
 
     def get_txhash(self, nonce: int) -> Optional[HexBytes]:
         return HexBytes(self.__txs.get(nonce))
@@ -196,7 +208,8 @@ class TransactionTracker(SimpleTask):
         # Fetch the current base fee and priority fee
         base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
         tip = self.w3.eth.max_priority_fee
-        self.log.info(f"Current suggested base fee: {base_fee}, tip: {tip}")
+
+        self._log_gas_weather(base_fee, tip)
 
         # maths
         factor = 1.2
@@ -210,6 +223,15 @@ class TransactionTracker(SimpleTask):
             (base_fee*2) + increased_tip
         ))
         return increased_tip, fee_per_gas
+
+    def _log_gas_weather(self, base_fee, tip):
+        base_fee_gwei = self.w3.from_wei(base_fee, 'gwei')
+        tip_gwei = self.w3.from_wei(tip, 'gwei')
+        self.log.info(
+            "Gas Weather Report: "
+            f"base fee: {base_fee_gwei} gwei, "
+            f"tip: {tip_gwei} gwei"
+        )
 
     @staticmethod
     def _prepare_transaction(tx: AttributeDict) -> AttributeDict:
@@ -314,28 +336,36 @@ class TransactionTracker(SimpleTask):
 
     def start(self, now: bool = False):
         self.log.info("Starting Transaction Tracker")
-
-        # Check for pending transactions
         pending_nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
         latest_nonce = self.w3.eth.get_transaction_count(self.address, 'latest')
         pending = pending_nonce - latest_nonce
-        self.log.info(f"Found {pending} pending transactions")
-
-        if (pending > 0) and (pending > len(self.tracked)):
-
-            # Read the pending transactions from the disk
-            self.__read_file()
-            if len(self.tracked) > 0:
-                self.log.info(f"Loaded {len(self.tracked)} tracked transactions on disk")
-
-            # Cancel all pending transactions that are not tracked
-            pending_nonces = range(latest_nonce, pending_nonce)
-            untracked_nonces = set(filter(lambda n: Nonce(n) not in dict(self.tracked).keys(), pending_nonces))
-            if len(untracked_nonces) > 0:
-                self.log.warn(f"Found {len(untracked_nonces)} untracked pending transactions")
-                self.cancel_transactions(nonces=untracked_nonces)
-
+        pending_nonces = range(latest_nonce, pending_nonce)
+        self.log.info(f"Detected {pending} pending transactions "
+                      f"with nonces: {', '.join(map(str, pending_nonces))}")
+        self._restore_state(pending_nonces)
+        self._handle_untracked_transactions(pending_nonces)
         super().start(now=now)
+
+    def _handle_untracked_transactions(self, pending_nonces):
+        untracked_nonces = set(filter(lambda n: not self.is_tracked(nonce=n), pending_nonces))
+        if len(untracked_nonces) > 0:
+            # Cancels all pending transactions that are not tracked
+            self.log.warn(f"Detected {len(untracked_nonces)} untracked "
+                          f"pending transactions with nonces: {', '.join(map(str, untracked_nonces))}")
+            self.cancel_transactions(nonces=untracked_nonces)
+
+    def _restore_state(self, pending_nonces):
+        # Read the pending transactions from the disk
+        records = self.__read_file()
+        if len(records) > 0:
+            disk_txhashes = '\n'.join(f'#{k}|{v}' for k, v in records.items())
+            self.log.debug(f"Loaded {len(records)} tracked txhashes "
+                           f"from disk\n{disk_txhashes} "
+                           f"with nonces: {', '.join(map(str, records.keys()))}")
+        txs = list((nonce, HexBytes(txhash)) for nonce, txhash in records.items())
+        if set(records) == set(pending_nonces):
+            self.log.info("All cached transactions are tracked")
+        self.track(txs=txs)
 
     def run(self):
         if len(self.tracked) == 0:
@@ -348,6 +378,7 @@ class TransactionTracker(SimpleTask):
             # NOTE: do not mutate __txs while iterating over it.
             try:
                 replacement_txhash = self.speedup_transaction(txhash)
+                replacements.append((nonce, replacement_txhash))
             except self.TransactionFinalized:
                 finalized.append((nonce, txhash))
                 continue
@@ -356,18 +387,18 @@ class TransactionTracker(SimpleTask):
                 continue
             except TransactionNotFound:
                 # TODO not sure what to do here
-                # self.untrack(nonce=_nonce, txhash=txhash)
-                self.log.warn(f"Transaction {txhash.hex()} not found")
+                # finalized.append((nonce, txhash))
+                self.log.info(f"Transaction #{nonce}|{txhash.hex()} not found")
                 continue
-            # Replace the transaction in the cache
-            replacements.append((nonce, replacement_txhash))
 
         # Update the cache
         self.track(txs=replacements)
         self.untrack(txs=finalized)
+
         if replacements:
-            self.log.info(f"Replaced {len(replacements)} transactions "
-                          f"({len(self.tracked) - len(replacements)} transactions pending)")
+            self.log.info(f"Replaced {len(replacements)} transactions")
+        if finalized:
+            self.log.info(f"Finalized {len(finalized)} transactions")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
@@ -430,6 +461,9 @@ class ActiveRitualTracker:
             self.contract.events.EndRitual,
         ]
 
+        # ritual id -> phase -> txhash
+        self.active_phase_txs: Dict[int, Tuple[int, int]] = dict()
+
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
         # self.web3.middleware_onion.remove(http_retry_request_middleware)
@@ -470,6 +504,18 @@ class ActiveRitualTracker:
     @property
     def contract(self):
         return self.coordinator_agent.contract
+    
+    def remove_active_ritual_phase_txs(self, nonces: List[int]) -> None:
+        data = {}
+        for rid, (nonce, txhash) in self.active_phase_txs.items():
+            if nonce in nonces:
+                continue
+            data[rid] = (nonce, txhash)
+        self.active_phase_txs = data
+
+    def add_active_ritual_phase_txs(self, ritual_id: int, txs: List[Tuple[int, int]]) -> None:
+        for nonce, txhash in txs:
+            self.active_phase_txs[ritual_id] = (nonce, txhash)
 
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
     def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
