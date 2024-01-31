@@ -68,14 +68,15 @@ class EventScannerTask(SimpleTask):
         self.scanner()
 
     def handle_errors(self, *args, **kwargs):
-        self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
+        self.log.warn(
+            "Error during ritual event scanning: {}".format(args[0].getTraceback())
+        )
         if not self._task.running:
             self.log.warn("Restarting event scanner task!")
             self.start(now=False)  # take a breather
 
 
 class TransactionTracker(SimpleTask):
-
     INTERVAL = 10
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 100_000  # blocks
@@ -90,20 +91,21 @@ class TransactionTracker(SimpleTask):
         pass
 
     def __init__(
-            self,
-            w3: Web3,
-            transacting_power: "actors.TransactingPower",
-            max_tip: int = DEFAULT_MAX_TIP,
-            timeout: int = DEFAULT_TIMEOUT,
-            tracking_hook: Callable = None,
-            finalize_hook: Callable = None,
-            *args, **kwargs
+        self,
+        w3: Web3,
+        transacting_power: "actors.TransactingPower",
+        max_tip: int = DEFAULT_MAX_TIP,
+        timeout: int = DEFAULT_TIMEOUT,
+        tracking_hook: Callable = None,
+        finalize_hook: Callable = None,
+        *args,
+        **kwargs,
     ):
         self.w3 = w3
         self.transacting_power = transacting_power  # TODO: Use LocalAccount instead
         self.address = transacting_power.account
 
-        self.max_tip = self.w3.to_wei(max_tip, 'gwei')
+        self.max_tip = self.w3.to_wei(max_tip, "gwei")
         self.timeout = timeout
 
         self.__tracking_hook = tracking_hook
@@ -111,11 +113,11 @@ class TransactionTracker(SimpleTask):
 
         self.__txs: Dict[int, str] = dict()
         self.__file = NamedTemporaryFile(
-            mode='w+',
+            mode="w+",
             delete=False,
-            encoding='utf-8',
-            prefix='txs-cache-',
-            suffix='.json',
+            encoding="utf-8",
+            prefix="txs-cache-",
+            suffix=".json",
         )
         super().__init__(*args, **kwargs)
 
@@ -164,11 +166,7 @@ class TransactionTracker(SimpleTask):
         if self.__finalize_hook:
             self.__finalize_hook(nonces=nonces)
 
-    def is_tracked(
-            self,
-            nonce: int = None,
-            txhash: HexBytes = None
-    ) -> bool:
+    def is_tracked(self, nonce: int = None, txhash: HexBytes = None) -> bool:
         tracked = dict(self.tracked)
         if nonce:
             return int(nonce) in tracked
@@ -178,7 +176,10 @@ class TransactionTracker(SimpleTask):
 
     @property
     def tracked(self) -> List[Tuple[Nonce, HexBytes]]:
-        return [(Nonce(int(nonce)), HexBytes(txhash)) for nonce, txhash in self.__txs.items()]
+        return [
+            (Nonce(int(nonce)), HexBytes(txhash))
+            for nonce, txhash in self.__txs.items()
+        ]
 
     def get_txhash(self, nonce: int) -> Optional[HexBytes]:
         return HexBytes(self.__txs.get(nonce))
@@ -196,30 +197,30 @@ class TransactionTracker(SimpleTask):
             # If it is equals 0 the transaction was reverted by EVM.
             # https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.get_transaction_receipt
             # TODO: What follow-up actions can be taken if the transaction was reverted?
-            self.log.info(f"Transaction {txhash.hex()} was reverted by EVM with status {status}")
-        self.log.info(f"Transaction {txhash.hex()} has been included in block #{tx.blockNumber}")
+            self.log.info(
+                f"Transaction {txhash.hex()} was reverted by EVM with status {status}"
+            )
+        self.log.info(
+            f"Transaction {txhash.hex()} has been included in block #{tx.blockNumber}"
+        )
         return True
 
     def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
         # Fetch the current base fee and priority fee
-        base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
+        base_fee = self.w3.eth.get_block("latest")["baseFeePerGas"]
         tip = self.w3.eth.max_priority_fee
         self._log_gas_weather(base_fee, tip)
         factor = 1.2
-        increased_tip = round(max(
-            tx.maxPriorityFeePerGas,
-            tip
-        ) * factor)
+        increased_tip = round(max(tx.maxPriorityFeePerGas, tip) * factor)
 
-        fee_per_gas = round(max(
-            tx.maxFeePerGas * factor,
-            (base_fee * 2) + increased_tip
-        ))
+        fee_per_gas = round(
+            max(tx.maxFeePerGas * factor, (base_fee * 2) + increased_tip)
+        )
         return increased_tip, fee_per_gas
 
     def _get_average_blocktime(self) -> float:
         """Returns the average block time in seconds."""
-        latest_block = self.w3.eth.get_block('latest')
+        latest_block = self.w3.eth.get_block("latest")
         if latest_block.number == 0:
             return 0
         sample_block_number = latest_block.number - self.BLOCK_SAMPLE_SIZE
@@ -232,8 +233,8 @@ class TransactionTracker(SimpleTask):
         return average_block_time
 
     def _log_gas_weather(self, base_fee: int, tip: int) -> None:
-        base_fee_gwei = self.w3.from_wei(base_fee, 'gwei')
-        tip_gwei = self.w3.from_wei(tip, 'gwei')
+        base_fee_gwei = self.w3.from_wei(base_fee, "gwei")
+        tip_gwei = self.w3.from_wei(tip, "gwei")
         self.log.info(
             "Current gas conditions: "
             f"base fee {base_fee_gwei} gwei | "
@@ -247,8 +248,13 @@ class TransactionTracker(SimpleTask):
         TODO: is there a better way to do this?
         """
         final_fields = {
-            'blockHash', 'blockNumber', 'transactionIndex',
-            'yParity', 'input', 'gasPrice', 'hash'
+            "blockHash",
+            "blockNumber",
+            "transactionIndex",
+            "yParity",
+            "input",
+            "gasPrice",
+            "hash",
         }
         tx = dict(tx)
         for key in final_fields:
@@ -260,37 +266,43 @@ class TransactionTracker(SimpleTask):
         tip, max_fee = self._calculate_speedup_fee(tx)
         tx = self._prepare_transaction(tx)
         tx = dict(tx)  # allow mutation
-        tx['maxPriorityFeePerGas'] = tip
-        tx['maxFeePerGas'] = max_fee
+        tx["maxPriorityFeePerGas"] = tip
+        tx["maxFeePerGas"] = max_fee
         tx = AttributeDict(tx)  # disallow mutation
         return tx
 
     def _calculate_cancel_fee(self, factor: int = 2) -> Tuple[int, int]:
-        base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
+        base_fee = self.w3.eth.get_block("latest")["baseFeePerGas"]
         tip = self.w3.eth.max_priority_fee * factor
         max_fee = (base_fee * 2) + tip
         return tip, max_fee
 
-    def _make_cancellation_transaction(self, chain_id: int, nonce: int) -> AttributeDict:
+    def _make_cancellation_transaction(
+        self, chain_id: int, nonce: int
+    ) -> AttributeDict:
         tip, max_fee = self._calculate_cancel_fee()
-        tx = AttributeDict({
-            'type': '0x2',
-            'nonce': nonce,
-            'to': self.transacting_power.account,
-            'value': 0,
-            'gas': 21000,
-            'maxPriorityFeePerGas': tip,
-            'maxFeePerGas': max_fee,
-            'chainId': chain_id,
-            'from': self.transacting_power.account
-        })
+        tx = AttributeDict(
+            {
+                "type": "0x2",
+                "nonce": nonce,
+                "to": self.transacting_power.account,
+                "value": 0,
+                "gas": 21000,
+                "maxPriorityFeePerGas": tip,
+                "maxFeePerGas": max_fee,
+                "chainId": chain_id,
+                "from": self.transacting_power.account,
+            }
+        )
         return tx
 
     def _handle_transaction_error(self, e: Exception, tx: AttributeDict) -> None:
         rpc_response = e.args[0]
-        self.log.critical(f"Transaction #{tx.nonce} | {tx.hash.hex()} "
-                          f"failed with { rpc_response['code']} | "
-                          f"{rpc_response['message']}")
+        self.log.critical(
+            f"Transaction #{tx.nonce} | {tx.hash.hex()} "
+            f"failed with { rpc_response['code']} | "
+            f"{rpc_response['message']}"
+        )
 
     def _sign_and_send(self, tx: AttributeDict) -> HexBytes:
         tx = self._prepare_transaction(tx)
@@ -300,7 +312,9 @@ class TransactionTracker(SimpleTask):
         except ValueError as e:
             self._handle_transaction_error(e, tx=tx)
         else:
-            self.log.info(f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}")
+            self.log.info(
+                f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}"
+            )
             return txhash
 
     def speedup_transaction(self, txhash: HexBytes) -> HexBytes:
@@ -313,16 +327,22 @@ class TransactionTracker(SimpleTask):
         tx = self._make_speedup_transaction(tx)
         tip, base_fee = tx.maxPriorityFeePerGas, tx.maxFeePerGas
         self._log_gas_weather(base_fee, tip)
-        self.log.info(f"Speeding up transaction #{tx.nonce} with "
-                      f"maxPriorityFeePerGas={tip} and maxFeePerGas={base_fee}")
+        self.log.info(
+            f"Speeding up transaction #{tx.nonce} with "
+            f"maxPriorityFeePerGas={tip} and maxFeePerGas={base_fee}"
+        )
         txhash = self._sign_and_send(tx)
         return txhash
 
     def cancel_transaction(self, nonce: int) -> HexBytes:
-        tx = self._make_cancellation_transaction(nonce=nonce, chain_id=self.w3.eth.chain_id)
+        tx = self._make_cancellation_transaction(
+            nonce=nonce, chain_id=self.w3.eth.chain_id
+        )
         tx = self._prepare_transaction(tx)
-        self.log.info(f"Cancelling transaction #{nonce} with "
-                      f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
+        self.log.info(
+            f"Cancelling transaction #{nonce} with "
+            f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}"
+        )
         txhash = self._sign_and_send(tx)
         return txhash
 
@@ -337,54 +357,70 @@ class TransactionTracker(SimpleTask):
 
     def start(self, now: bool = False):
         self.log.info("Starting Transaction Tracker")
-        pending_nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
-        latest_nonce = self.w3.eth.get_transaction_count(self.address, 'latest')
+        pending_nonce = self.w3.eth.get_transaction_count(self.address, "pending")
+        latest_nonce = self.w3.eth.get_transaction_count(self.address, "latest")
         pending = pending_nonce - latest_nonce
         pending_nonces = range(latest_nonce, pending_nonce)
-        self.log.info(f"Detected {pending} pending transactions "
-                      f"with nonces {', '.join(map(str, pending_nonces))}")
+        self.log.info(
+            f"Detected {pending} pending transactions "
+            f"with nonces {', '.join(map(str, pending_nonces))}"
+        )
 
         self._restore_state(pending_nonces)
         self._handle_untracked_transactions(pending_nonces)
 
         average_block_time = self._get_average_blocktime()
         self._task.interval = round(average_block_time * self.BLOCK_INTERVAL)
-        self.log.info(f"Average block time is {average_block_time} seconds "
-                      f"Set tracking interval to {self._task.interval} seconds "
-                      f"Transaction speedups spending cap is {self.max_tip} wei per transaction")
+        self.log.info(
+            f"Average block time is {average_block_time} seconds \n"
+            f"Set tracking interval to {self._task.interval} seconds \n"
+            f"Transaction speedups spending cap is {self.max_tip} wei per transaction"
+        )
 
         super().start(now=now)
 
     def _handle_untracked_transactions(self, pending_nonces) -> None:
-        untracked_nonces = set(filter(lambda n: not self.is_tracked(nonce=n), pending_nonces))
+        untracked_nonces = set(
+            filter(lambda n: not self.is_tracked(nonce=n), pending_nonces)
+        )
         if len(untracked_nonces) > 0:
             # Cancels all pending transactions that are not tracked
-            self.log.warn(f"Detected {len(untracked_nonces)} untracked "
-                          f"pending transactions with nonces {', '.join(map(str, untracked_nonces))}")
+            self.log.warn(
+                f"Detected {len(untracked_nonces)} untracked "
+                f"pending transactions with nonces {', '.join(map(str, untracked_nonces))}"
+            )
             self.cancel_transactions(nonces=untracked_nonces)
 
     def _restore_state(self, pending_nonces) -> None:
         """Read the pending transaction data from the disk"""
         records = self.__read_file()
         if len(records) > 0:
-            disk_txhashes = '\n'.join(f'#{nonce}|{txhash.hex()}' for nonce, txhash in records.items())
-            self.log.debug(f"Loaded {len(records)} tracked txhashes "
-                           f"with nonces {', '.join(map(str, records.keys()))} "
-                           f"from disk\n{disk_txhashes}")
+            disk_txhashes = "\n".join(
+                f"#{nonce}|{txhash.hex()}" for nonce, txhash in records.items()
+            )
+            self.log.debug(
+                f"Loaded {len(records)} tracked txhashes "
+                f"with nonces {', '.join(map(str, records.keys()))} "
+                f"from disk\n{disk_txhashes}"
+            )
         if not pending_nonces:
             self.log.info("No pending transactions to track")
         elif set(records) == set(pending_nonces):
             self.log.info("All cached transactions are tracked")
         else:
             diff = set(pending_nonces) - set(records)
-            self.log.warn("Untracked nonces: {}".format(', '.join(map(str, diff))))
+            self.log.warn("Untracked nonces: {}".format(", ".join(map(str, diff))))
         self.track(txs=set(records.items()))
 
     def run(self):
         if len(self.tracked) == 0:
-            self.log.info(f"Steady as she goes... next cycle in {self.INTERVAL} seconds")
+            self.log.info(
+                f"Steady as she goes... next cycle in {self.INTERVAL} seconds"
+            )
             return False
-        self.log.info(f"Tracking {len(self.tracked)} transaction{'s' if len(self.tracked) > 1 else ''}")
+        self.log.info(
+            f"Tracking {len(self.tracked)} transaction{'s' if len(self.tracked) > 1 else ''}"
+        )
 
         replacements, finalized = set(), set()
         for nonce, txhash in self.tracked:
@@ -396,7 +432,9 @@ class TransactionTracker(SimpleTask):
                 finalized.add(nonce)
                 continue
             except self.SpendingCapExceeded:
-                self.log.warn(f"Transaction #{nonce} exceeds spending cap {self.max_tip} wei")
+                self.log.warn(
+                    f"Transaction #{nonce} exceeds spending cap {self.max_tip} wei"
+                )
                 continue
             except TransactionNotFound:
                 # TODO not sure what to do here - mark for removal.
@@ -422,7 +460,6 @@ class TransactionTracker(SimpleTask):
 
 
 class ActiveRitualTracker:
-
     MAX_CHUNK_SIZE = 10000
 
     # how often to check/purge for expired cached values - 8hrs?
@@ -491,7 +528,7 @@ class ActiveRitualTracker:
             filters={"address": self.contract.address},
             # How many maximum blocks at the time we request from JSON-RPC,
             # and we are unlikely to exceed the response size limit of the JSON-RPC server
-            max_chunk_scan_size=self.MAX_CHUNK_SIZE
+            max_chunk_scan_size=self.MAX_CHUNK_SIZE,
         )
 
         self.task = EventScannerTask(scanner=self.scan)
@@ -518,7 +555,7 @@ class ActiveRitualTracker:
     @property
     def contract(self):
         return self.coordinator_agent.contract
-    
+
     def remove_active_ritual_phase_txs(self, nonces: List[int]) -> None:
         data = {}
         for rid, (nonce, txhash) in self.active_phase_txs.items():
@@ -527,7 +564,9 @@ class ActiveRitualTracker:
             data[rid] = (nonce, txhash)
         self.active_phase_txs = data
 
-    def add_active_ritual_phase_txs(self, ritual_id: int, txs: List[Tuple[int, int]]) -> None:
+    def add_active_ritual_phase_txs(
+        self, ritual_id: int, txs: List[Tuple[int, int]]
+    ) -> None:
         for nonce, txhash in txs:
             self.active_phase_txs[ritual_id] = (nonce, txhash)
 
@@ -539,7 +578,7 @@ class ActiveRitualTracker:
         w3 = self.web3
         timeout = self.coordinator_agent.get_timeout()
 
-        latest_block = w3.eth.get_block('latest')
+        latest_block = w3.eth.get_block("latest")
         if latest_block.number == 0:
             return 0
 
@@ -756,8 +795,10 @@ class ActiveRitualTracker:
             camel_case_to_snake(k): v for k, v in ritual_event.args.items()
         }
         event_type = getattr(self.contract.events, ritual_event.event)
+
         def task():
             self.actions[event_type](timestamp=timestamp, **formatted_kwargs)
+
         if defer:
             d = threads.deferToThread(task)
             d.addErrback(self.task.handle_errors)
@@ -783,14 +824,18 @@ class ActiveRitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        self.log.debug(f"({account[:8]}) Scanning events in block range {start_block} - {end_block}")
+        self.log.debug(
+            f"({account[:8]}) Scanning events in block range {start_block} - {end_block}"
+        )
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:
             self.state.save()
         duration = time.time() - start
-        self.log.debug(f"Scanned total of {len(result)} events, in {duration} seconds, "
-                       f"total {total_chunks_scanned} chunk scans performed")
+        self.log.debug(
+            f"Scanned total of {len(result)} events, in {duration} seconds, "
+            f"total {total_chunks_scanned} chunk scans performed"
+        )
 
     def scan(self):
         """
