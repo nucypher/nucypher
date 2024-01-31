@@ -18,7 +18,7 @@ class TransactionTracker(SimpleTask):
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 100_000  # blocks
     DEFAULT_MAX_TIP = 10  # gwei maxPriorityFeePerGas per transaction
-    DEFAULT_TIMEOUT = 60 * 60 * 24 * 7  # 7 days
+    DEFAULT_TIMEOUT = (60 * 60) * 1  # 1 hour
     RPC_THROTTLE = 0.5  # seconds between RPC calls
 
     class TransactionFinalized(Exception):
@@ -48,6 +48,7 @@ class TransactionTracker(SimpleTask):
         self.__tracking_hook = tracking_hook
         self.__finalize_hook = finalize_hook
 
+        self.__seen = dict()
         self.__txs: Dict[int, str] = dict()
         self.__file = NamedTemporaryFile(
             mode="w+",
@@ -81,10 +82,12 @@ class TransactionTracker(SimpleTask):
             self.log.warn(f"Replacing tracking txhash #{nonce}|{old} -> {txhash.hex()}")
         else:
             self.log.info(f"Started tracking transaction #{nonce}|{txhash.hex()}")
+            self.__seen[nonce] = time.time()
         self.__txs[int(nonce)] = txhash.hex()
 
     def __untrack(self, nonce: int) -> None:
         removed_txhash = self.__txs.pop(nonce, None)
+        self.__seen.pop(nonce, None)
         if removed_txhash is None:
             raise ValueError(f"Transaction #{nonce} not found")
         self.log.info(f"Stopped tracking transaction #{nonce}")
@@ -297,7 +300,7 @@ class TransactionTracker(SimpleTask):
         pending_nonce = self.w3.eth.get_transaction_count(self.address, "pending")
         latest_nonce = self.w3.eth.get_transaction_count(self.address, "latest")
         pending = pending_nonce - latest_nonce
-        pending_nonces = range(latest_nonce, pending_nonce)
+        pending_nonces = set(range(latest_nonce, pending_nonce))
         self.log.info(
             f"Detected {pending} pending transactions "
             f"with nonces {', '.join(map(str, pending_nonces))}"
@@ -316,7 +319,7 @@ class TransactionTracker(SimpleTask):
 
         super().start(now=now)
 
-    def _handle_untracked_transactions(self, pending_nonces) -> None:
+    def _handle_untracked_transactions(self, pending_nonces: Set[int]) -> None:
         untracked_nonces = set(
             filter(lambda n: not self.is_tracked(nonce=n), pending_nonces)
         )
@@ -349,6 +352,29 @@ class TransactionTracker(SimpleTask):
             self.log.warn("Untracked nonces: {}".format(", ".join(map(str, diff))))
         self.track(txs=set(records.items()))
 
+    def __is_timed_out(self, nonce: int) -> bool:
+        created = self.__seen.get(nonce)
+        if not created:
+            return False
+        timeout = (time.time() - created) > self.timeout
+        return timeout
+
+    def is_timed_out(self, nonce: int) -> bool:
+        timeout = self.__is_timed_out(nonce=nonce)
+        if timeout:
+            self.log.warn(
+                f"Transaction #{nonce} has been pending for more than"
+                f"{self.timeout} seconds"
+            )
+            return True
+        self.log.info(
+            f"Transaction #{nonce} has been pending for"
+            f" {time.time() - self.__seen[nonce]} seconds"
+        )
+        time_remaining = round(self.timeout - (time.time() - self.__seen[nonce]))
+        self.log.info(f"Transaction #{nonce} will timeout in {time_remaining} seconds")
+        return False
+
     def run(self):
         if len(self.tracked) == 0:
             self.log.info(
@@ -359,14 +385,16 @@ class TransactionTracker(SimpleTask):
             f"Tracking {len(self.tracked)} transaction{'s' if len(self.tracked) > 1 else ''}"
         )
 
-        replacements, finalized = set(), set()
+        replacements, removals = set(), set()
         for nonce, txhash in self.tracked:
             # NOTE: do not mutate __txs while iterating over it.
+            if self.is_timed_out(nonce=nonce):
+                removals.add(nonce)
+                continue
             try:
                 replacement_txhash = self.speedup_transaction(txhash)
-                replacements.add((nonce, replacement_txhash))
             except self.TransactionFinalized:
-                finalized.add(nonce)
+                removals.add(nonce)
                 continue
             except self.SpendingCapExceeded:
                 self.log.warn(
@@ -374,20 +402,22 @@ class TransactionTracker(SimpleTask):
                 )
                 continue
             except TransactionNotFound:
-                # TODO not sure what to do here - mark for removal.
-                finalized.add((nonce, txhash))
+                removals.add((nonce, txhash))
                 self.log.info(f"Transaction #{nonce}|{txhash.hex()} not found")
                 continue
-            time.sleep(self.RPC_THROTTLE)
+            else:
+                # engage throttle when sending multiple transactions
+                replacements.add((nonce, replacement_txhash))
+                time.sleep(self.RPC_THROTTLE)
 
         # Update the cache
         self.track(txs=replacements)
-        self.untrack(nonces=finalized)
+        self.untrack(nonces=removals)
 
         if replacements:
             self.log.info(f"Replaced {len(replacements)} transactions")
-        if finalized:
-            self.log.info(f"Finalized {len(finalized)} transactions")
+        if removals:
+            self.log.info(f"Untracked {len(removals)} transactions")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
