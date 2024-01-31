@@ -2,14 +2,13 @@ import datetime
 import json
 import os
 import time
-from collections import defaultdict
 from json import JSONDecodeError
-from typing import Callable, List, Optional, Tuple, Dict
+from typing import Callable, List, Optional, Tuple, Set
 
 import maya
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY, Gauge
-from twisted.internet import threads, reactor
+from twisted.internet import threads
 from web3 import Web3
 from web3.datastructures import AttributeDict
 from web3.exceptions import TransactionNotFound
@@ -216,7 +215,7 @@ class TransactionTracker(SimpleTask):
         self.log.info(f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}")
         return txhash
 
-    def speedup_transaction(self, txhash: HexBytes) -> None:
+    def speedup_transaction(self, txhash: HexBytes) -> HexBytes:
         tx = self.w3.eth.get_transaction(txhash)
         finalized = self.__is_tx_finalized(tx=tx, txhash=txhash)
         if finalized:
@@ -227,20 +226,21 @@ class TransactionTracker(SimpleTask):
         self.log.info(f"Speeding up transaction #{tx.nonce} with "
                       f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
         txhash = self._sign_and_send(tx)
-        self.track(nonce=tx.nonce, txhash=txhash)
+        return txhash
 
-    def cancel_transaction(self, nonce: int) -> None:
+    def cancel_transaction(self, nonce: int) -> HexBytes:
         tx = self._make_cancel_transaction(nonce=nonce, chain_id=self.w3.eth.chain_id)
         tx = self._prepare_transaction(tx)
         self.log.info(f"Cancelling transaction #{nonce} with "
                       f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
         txhash = self._sign_and_send(tx)
-        self.track(nonce=tx.nonce, txhash=txhash)
+        return txhash
 
-    def cancel_transactions(self, nonces: List[int]) -> None:
+    def cancel_transactions(self, nonces: Set[int]) -> None:
         self.log.info(f"Cancelling {len(nonces)} transactions")
         for nonce in nonces:
-            self.cancel_transaction(nonce=nonce)
+            txhash = self.cancel_transaction(nonce=nonce)
+            self.track(nonce=nonce, txhash=txhash)
             time.sleep(0.5)
 
     def start(self, now: bool = False):
@@ -259,9 +259,10 @@ class TransactionTracker(SimpleTask):
 
             # B. Cancel all pending transactions that are not tracked
             pending_nonces = range(latest_nonce, pending_nonce)
-            cancel = filter(lambda n: n not in self.__txs, pending_nonces)
-            self.log.warn(f"Found {len(set(cancel))} untracked pending transactions")
-            self.cancel_transactions(nonces=list(cancel))
+            untracked_nonces = set(filter(lambda n: n not in self.__txs, pending_nonces))
+            if len(untracked_nonces) > 0:
+                self.log.warn(f"Found {len(untracked_nonces)} untracked pending transactions")
+                self.cancel_transactions(nonces=untracked_nonces)
 
             # C. Raise an error (and possibly prevent the node from starting up)
             # raise RuntimeError("Cannot start DKGTracker with pending transactions")
@@ -283,16 +284,19 @@ class TransactionTracker(SimpleTask):
         replacements, finalized = set(), set()
         for _nonce, txhash in self.__txs.items():
             try:
-                self.speedup_transaction(txhash)
+                replacement_txhash = self.speedup_transaction(txhash)
             except self.TransactionFinalized:
                 finalized.add((_nonce, txhash))
                 continue
+            except self.SpendingCapExceeded:
+                self.log.warn(f"Transaction #{_nonce} exceeds spending cap.")
+                continue
             except TransactionNotFound:
-                # TODO: untrack?
+                # self.untrack(nonce=_nonce, txhash=txhash)
                 self.log.warn(f"Transaction {txhash.hex()} not found")
                 continue
             else:
-                replacements.add((_nonce, txhash))
+                replacements.add((_nonce, replacement_txhash))
 
         # Update the internal caches after all transactions have been processed
         # in order to avoid mutating the cache while iterating over it above.
