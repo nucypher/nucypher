@@ -1,7 +1,9 @@
 import datetime
+import json
 import os
 import time
 from collections import defaultdict
+from json import JSONDecodeError
 from typing import Callable, List, Optional, Tuple, Dict
 
 import maya
@@ -75,6 +77,12 @@ class DKGTracker(SimpleTask):
 
     INTERVAL = 10  # EventScannerTask.INTERVAL * 2
 
+    class TransactionFinalized(Exception):
+        pass
+
+    class SpendingCapExceeded(Exception):
+        pass
+
     def __init__(
             self,
             transacting_power: "actors.TransactingPower",
@@ -85,59 +93,10 @@ class DKGTracker(SimpleTask):
         self.coordinator_agent = coordinator_agent
         self.w3 = self.coordinator_agent.blockchain.client.w3
         self.transacting_power = transacting_power
-        self.timeout = self.coordinator_agent.get_timeout()
+        self.address = transacting_power.account
         self.spending_cap = spending_cap
         self.__txs = defaultdict(Nonce)
         super().__init__(*args, **kwargs)
-
-    def _is_tx_pending(self, tx: AttributeDict) -> bool:
-        block_hash, block_number = tx.blockHash, tx.blockNumber
-        if block_hash or block_number:
-            return False
-        return True
-
-    def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
-        # Fetch the current base fee and priority fee
-        base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
-        tip = self.w3.eth.max_priority_fee
-        self.log.info(f"Current suggested base fee: {base_fee}, tip: {tip}")
-
-        # maths
-        factor = 1.2
-        increased_tip = round(max(
-            tx.maxPriorityFeePerGas,
-            tip
-        ) * factor)
-
-        fee_per_gas = round(max(
-            tx.maxFeePerGas * factor,
-            (base_fee*2) + increased_tip
-        ))
-        return increased_tip, fee_per_gas
-
-    @staticmethod
-    def _prepare_transaction(tx: AttributeDict) -> Dict:
-        """
-        Filter out fields that are not needed for signing
-        TODO: is there a better way to do this?
-        """
-        tx = dict(tx)  # allow mutation
-        final_fields = {
-            'blockHash', 'blockNumber', 'transactionIndex',
-            'yParity', 'input', 'gasPrice', 'hash'
-        }
-        for key in final_fields:
-            tx.pop(key, None)
-        return tx
-
-    def _modify_transaction(self, tx: AttributeDict) -> AttributeDict:
-        increased_tip, fee_per_gas = self._calculate_speedup_fee(tx)
-        self.log.info(f"Speeding up transaction with tip: {increased_tip} and fee: {fee_per_gas}")
-        tx = self._prepare_transaction(tx)
-        tx['maxPriorityFeePerGas'] = increased_tip
-        tx['maxFeePerGas'] = fee_per_gas
-        tx = AttributeDict(tx)  # disallow mutation
-        return tx
 
     def track(self, nonce: Nonce, txhash: HexBytes) -> None:
         self.__txs[nonce] = txhash
@@ -165,6 +124,151 @@ class DKGTracker(SimpleTask):
             return txhash in self.__txs.values()
         return False
 
+    def __is_tx_pending(self, tx: AttributeDict) -> bool:
+        block_hash, block_number = tx.blockHash, tx.blockNumber
+        if block_hash or block_number:
+            return False
+        return True
+
+    def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
+        # Fetch the current base fee and priority fee
+        base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
+        tip = self.w3.eth.max_priority_fee
+        self.log.info(f"Current suggested base fee: {base_fee}, tip: {tip}")
+
+        # maths
+        factor = 1.2
+        increased_tip = round(max(
+            tx.maxPriorityFeePerGas,
+            tip
+        ) * factor)
+
+        fee_per_gas = round(max(
+            tx.maxFeePerGas * factor,
+            (base_fee*2) + increased_tip
+        ))
+        return increased_tip, fee_per_gas
+
+    @staticmethod
+    def _prepare_transaction(tx: AttributeDict) -> AttributeDict:
+        """
+        Filter out fields that are not needed for signing
+        TODO: is there a better way to do this?
+        """
+        final_fields = {
+            'blockHash', 'blockNumber', 'transactionIndex',
+            'yParity', 'input', 'gasPrice', 'hash'
+        }
+        tx = dict(tx)
+        for key in final_fields:
+            tx.pop(key, None)
+        tx = AttributeDict(tx)
+        return tx
+
+    def _make_speedup_transaction(self, tx: AttributeDict) -> AttributeDict:
+        tip, max_fee = self._calculate_speedup_fee(tx)
+        tx = self._prepare_transaction(tx)
+        tx = dict(tx)  # allow mutation
+        tx['maxPriorityFeePerGas'] = tip
+        tx['maxFeePerGas'] = max_fee
+        tx = AttributeDict(tx)  # disallow mutation
+        return tx
+
+    def _calculate_cancel_fee(self, factor: int = 2) -> Tuple[int, int]:
+        base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
+        tip = self.w3.eth.max_priority_fee * factor
+        max_fee = (base_fee * 2) + tip
+        return tip, max_fee
+
+    def _make_cancel_transaction(self, chain_id: int, nonce: int) -> AttributeDict:
+        tip, max_fee = self._calculate_cancel_fee()
+        tx = AttributeDict({
+            'type': '0x2',
+            'nonce': nonce,
+            'to': self.transacting_power.account,
+            'value': 0,
+            'gas': 21000,
+            'maxPriorityFeePerGas': tip,
+            'maxFeePerGas': max_fee,
+            'chainId': chain_id,
+            'from': self.transacting_power.account
+        })
+        return tx
+
+    def _sign_and_send(self, tx: AttributeDict) -> HexBytes:
+        tx = self._prepare_transaction(tx)
+        signed_tx = self.transacting_power.sign_transaction(tx)
+        try:
+            txhash = self.w3.eth.send_raw_transaction(signed_tx)
+        except ValueError as e:
+            try:
+                rpc_response = json.loads(e.args[0])
+                code = rpc_response['code']
+                if code == -32000 and rpc_response['message'] == 'replacement transaction underpriced':
+                    self.log.warn(f"Transaction #{tx.nonce} underpriced")
+                    breakpoint()
+            except JSONDecodeError:
+                breakpoint()
+                raise e
+
+        self.log.info(f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}")
+        return txhash
+
+    def speedup_transaction(self, txhash: HexBytes) -> None:
+        tx = self.w3.eth.get_transaction(txhash)
+        pending = self.__is_tx_pending(tx=tx)
+        if not pending:
+            raise self.TransactionFinalized
+        if tx.maxPriorityFeePerGas > self.spending_cap:
+            raise self.SpendingCapExceeded
+        tx = self._make_speedup_transaction(tx)
+        self.log.info(f"Speeding up transaction with "
+                      f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
+        txhash = self._sign_and_send(tx)
+        self.track(nonce=tx.nonce, txhash=txhash)
+
+    def cancel_transaction(self, nonce: int) -> None:
+        tx = self._make_cancel_transaction(nonce=nonce, chain_id=self.w3.eth.chain_id)
+        tx = self._prepare_transaction(tx)
+        self.log.info(f"Cancelling transaction #{nonce} with "
+                      f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
+        txhash = self._sign_and_send(tx)
+        self.track(nonce=tx.nonce, txhash=txhash)
+
+    def cancel_transactions(self, nonces: List[int]) -> None:
+        for nonce in nonces:
+            self.cancel_transaction(nonce=nonce)
+            time.sleep(1)
+
+    def start(self, now: bool = False):
+        pending_nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
+        latest_nonce = self.w3.eth.get_transaction_count(self.address, 'latest')
+        pending = pending_nonce - latest_nonce
+        tracked = len(self.__txs)
+        if (pending > 0) and (pending > tracked):
+            self.log.warn(f"Found {pending} untracked pending transactions")
+
+            # TODO: Chose your own adventure:
+
+            # A. Do nothing
+            # This may result in the node being unable to overcome "stuck" transactions
+            pass
+
+            # B. Cancel all pending transactions that are not tracked
+            pending_nonces = range(latest_nonce, pending_nonce)
+            cancel = filter(lambda n: n not in self.__txs, pending_nonces)
+            self.cancel_transactions(nonces=list(cancel))
+
+            # C. Raise an error (and possibly prevent the node from starting up)
+            # raise RuntimeError("Cannot start DKGTracker with pending transactions")
+
+            # D. Read the pending transactions from the disk or a 3rd party service
+            # pending = self.get_pending_transactions()
+            # for txhash in pending:
+            #     self.track(txhash=txhash)
+
+        super().start(now=now)
+
     def run(self):
         tracked = len(self.__txs)
         if tracked == 0:
@@ -175,29 +279,16 @@ class DKGTracker(SimpleTask):
         replacements, finalized = set(), set()
         for nonce, txhash in self.__txs.items():
             try:
-                tx = self.w3.eth.get_transaction(txhash)
+                self.speedup_transaction(txhash)
+            except self.TransactionFinalized:
+                finalized.add((nonce, txhash))
+                continue
             except TransactionNotFound:
+                # TODO: untrack?
                 self.log.warn(f"Transaction {txhash.hex()} not found")
                 continue
-
-            pending = self._is_tx_pending(tx=tx)
-            if not pending:
-                finalized.add((tx.nonce, txhash))
-                self.log.info(f"Transaction with nonce {tx.nonce} has been included in block #{tx.blockNumber}")
-                continue
-
-            if tx.maxPriorityFeePerGas > self.spending_cap:
-                self.log.info(f"Retry transaction with nonce {tx.nonce} "
-                              f"exceeds the spending cap ({self.spending_cap})")
-                continue
-
-            # fire replacement transaction
-            self.log.info(f"Retry transaction #{tx.nonce}")
-            tx = self._modify_transaction(tx)
-            signed_tx = self.transacting_power.sign_transaction(tx)
-            replacement_txhash = self.w3.eth.send_raw_transaction(signed_tx)
-            self.log.info(f"Broadcast retry transaction #{tx.nonce} | txhash {replacement_txhash.hex()}")
-            replacements.add((tx.nonce, replacement_txhash))
+            else:
+                replacements.add((nonce, txhash))
 
         # Update the internal caches after all transactions have been processed
         # in order to avoid mutating the cache while iterating over it above.
