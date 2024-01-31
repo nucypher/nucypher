@@ -354,41 +354,13 @@ class Operator(BaseActor):
         )
         return tx_hash
 
-    def get_phase_receipt(
-        self, ritual_id: int, phase: int
-    ) -> Tuple[Optional[HexBytes], Optional[TxReceipt]]:
-        if phase == 1:
-            txhash = self.dkg_tracker.__txs.get_transcript_txhash(
-                ritual_id=ritual_id
-            )
-        elif phase == 2:
-            txhash = self.dkg_tracker.__txs.get_aggregation_txhash(
-                ritual_id=ritual_id
-            )
-        else:
-            raise ValueError(f"Invalid phase: '{phase}'.")
-        if not txhash:
-            return None, None
-        try:
-            blockchain = self.coordinator_agent.blockchain.client
-            receipt = blockchain.get_transaction_receipt(txhash)
-        except TransactionNotFound:
-            return txhash, None
-
-        # at least for now (pre dkg tracker) - clear since receipt obtained
-        if phase == 1:
-            self.dkg_storage.clear_transcript_txhash(ritual_id, txhash)
-        else:
-            self.dkg_storage.clear_aggregated_txhash(ritual_id, txhash)
-
-        status = receipt.get("status")
-        if status == 1:
-            return txhash, receipt
-        else:
-            return None, None
-
     def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
-        tx_hash, _ = self.get_phase_receipt(ritual_id=ritual_id, phase=phase)
+        active = self.ritual_tracker.active_rituals
+        self.dkg_tracker.tracked[active.nonce]
+        tx_hash, _ = self.dkg_tracker.is_tracked(
+            ritual_id=ritual_id,
+            phase=phase
+        )
         if not tx_hash:
             return False
         self.log.info(

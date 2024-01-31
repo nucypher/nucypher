@@ -3,7 +3,8 @@ import json
 import os
 import time
 from json import JSONDecodeError
-from typing import Callable, List, Optional, Tuple, Set
+from tempfile import NamedTemporaryFile
+from typing import Callable, List, Optional, Tuple, Set, Dict
 
 import maya
 from hexbytes import HexBytes
@@ -16,6 +17,7 @@ from web3.types import Nonce
 
 # from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
+from nucypher.config.constants import APP_DIR
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -75,6 +77,7 @@ class EventScannerTask(SimpleTask):
 
 class TransactionTracker(SimpleTask):
 
+    # TODO: relate the timeout to the block time?
     INTERVAL = 10  # EventScannerTask.INTERVAL * 2
 
     class TransactionFinalized(Exception):
@@ -88,31 +91,71 @@ class TransactionTracker(SimpleTask):
             w3: Web3,
             transacting_power: "actors.TransactingPower",
             spending_cap: int = 99999999999999999999999999999999999,
+            timeout: int = 60 * 60 * 24 * 7,  # 7 days
             *args, **kwargs
     ):
         self.w3 = w3
-        self.transacting_power = transacting_power
+        self.transacting_power = transacting_power  # TODO: Use LocalAccount instead
         self.address = transacting_power.account
+
+        # TODO: Generic limitations on the retry attempts
         self.spending_cap = spending_cap
-        self.__txs = dict()
+        self.timeout = timeout
+        self.__txs: Dict[int, str] = dict()
+        self.__file = NamedTemporaryFile(
+            mode='w+',
+            delete=False,
+            encoding='utf-8',
+            prefix='txs-cache-',
+            suffix='.json',
+        )
         super().__init__(*args, **kwargs)
 
-    def track(self, nonce: int, txhash: HexBytes) -> None:
-        self.__txs[nonce] = txhash
-        self.log.info(f"Started tracking transaction #{nonce} | txhash {txhash.hex()}")
+    def __write_file(self):
+        self.__file.seek(0)
+        self.__file.truncate()
+        json.dump(self.__txs, self.__file)
+        self.__file.flush()
+        self.log.debug(f"Updated transaction cache file {self.__file.name}")
 
-    def untrack(self, nonce: Nonce = None, txhash: Optional[HexBytes] = None) -> None:
+    def __read_file(self):
+        self.__file.seek(0)
+        try:
+            self.__txs = json.load(self.__file)
+        except JSONDecodeError:
+            self.__txs = dict()
+        self.log.debug(f"Loaded transaction cache file {self.__file.name}")
+
+    def __track(self, nonce: int, txhash: HexBytes) -> None:
+        if nonce in self.__txs:
+            replace, old = True, self.__txs[nonce]
+            self.log.warn(f"Replacing tracking txhash #{nonce} | {old} -> {txhash.hex()}")
+        else:
+            self.log.info(f"Started tracking transaction #{nonce} | txhash {txhash.hex()}")
+        self.__txs[nonce] = bytes(txhash).hex()
+
+    def __untrack(self, nonce: int = None, txhash: Optional[HexBytes] = None) -> None:
         if nonce is None and txhash is None:
             raise ValueError("Either nonce or txhash must be provided")
         if nonce:
             txhash = self.__txs.pop(nonce, None)
             if txhash:
-                self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash.hex()}")
+                self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash}")
         if txhash:
             for nonce, _txhash in self.__txs.items():
                 if txhash == _txhash:
                     self.__txs.pop(nonce, None)
-                    self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash.hex()}")
+                    self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash}")
+
+    def track(self, txs: List[Tuple[int, HexBytes]]) -> None:
+        for nonce, txhash in txs:
+            self.__track(nonce=nonce, txhash=txhash)
+        self.__write_file()
+
+    def untrack(self, txs: List[Tuple[int, HexBytes]]) -> None:
+        for nonce, txhash in txs:
+            self.__untrack(nonce=nonce, txhash=txhash)
+        self.__write_file()
 
     def is_tracked(
             self,
@@ -124,6 +167,13 @@ class TransactionTracker(SimpleTask):
         elif txhash:
             return txhash in self.__txs.values()
         return False
+
+    @property
+    def tracked(self) -> List[Tuple[Nonce, HexBytes]]:
+        return [(Nonce(nonce), HexBytes(txhash)) for nonce, txhash in self.__txs.items()]
+
+    def get_txhash(self, nonce: int) -> Optional[HexBytes]:
+        return HexBytes(self.__txs.get(nonce))
 
     def __is_tx_finalized(self, tx: AttributeDict, txhash: HexBytes) -> bool:
         if tx.blockHash is None:
@@ -255,76 +305,69 @@ class TransactionTracker(SimpleTask):
 
     def cancel_transactions(self, nonces: Set[int]) -> None:
         self.log.info(f"Cancelling {len(nonces)} transactions")
+        txs = []
         for nonce in nonces:
             txhash = self.cancel_transaction(nonce=nonce)
-            self.track(nonce=nonce, txhash=txhash)
+            txs.append((nonce, txhash))
             time.sleep(0.5)
+        self.track(txs=txs)
 
     def start(self, now: bool = False):
         self.log.info("Starting Transaction Tracker")
+
+        # Check for pending transactions
         pending_nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
         latest_nonce = self.w3.eth.get_transaction_count(self.address, 'latest')
         pending = pending_nonce - latest_nonce
-        tracked = len(self.__txs)
-        if (pending > 0) and (pending > tracked):
+        self.log.info(f"Found {pending} pending transactions")
 
-            # TODO: Chose your own adventure:
+        if (pending > 0) and (pending > len(self.tracked)):
 
-            # A. Do nothing
-            # This may result in the node being unable to overcome "stuck" transactions
-            pass
+            # Read the pending transactions from the disk
+            self.__read_file()
+            if len(self.tracked) > 0:
+                self.log.info(f"Loaded {len(self.tracked)} tracked transactions on disk")
 
-            # B. Cancel all pending transactions that are not tracked
+            # Cancel all pending transactions that are not tracked
             pending_nonces = range(latest_nonce, pending_nonce)
-            untracked_nonces = set(filter(lambda n: n not in self.__txs, pending_nonces))
+            untracked_nonces = set(filter(lambda n: Nonce(n) not in dict(self.tracked).keys(), pending_nonces))
             if len(untracked_nonces) > 0:
                 self.log.warn(f"Found {len(untracked_nonces)} untracked pending transactions")
                 self.cancel_transactions(nonces=untracked_nonces)
 
-            # C. Raise an error (and possibly prevent the node from starting up)
-            # raise RuntimeError("Cannot start DKGTracker with pending transactions")
-
-            # D. Read the pending transactions from the disk or a 3rd party service
-            # pending = self.get_pending_transactions()
-            # for txhash in pending:
-            #     self.track(txhash=txhash)
-
         super().start(now=now)
 
     def run(self):
-        tracked = len(self.__txs)
-        if tracked == 0:
+        if len(self.tracked) == 0:
             self.log.info(f"No pending transactions to retry - next cycle in {self.INTERVAL} seconds")
             return False
-        self.log.info(f"Tracking {tracked} transaction{'s' if tracked > 1 else ''}")
+        self.log.info(f"Tracking {len(self.tracked)} transaction{'s' if len(self.tracked) > 1 else ''}")
 
-        replacements, finalized = set(), set()
-        for _nonce, txhash in self.__txs.items():
+        replacements, finalized = [], []
+        for nonce, txhash in self.tracked:
+            # NOTE: do not mutate __txs while iterating over it.
             try:
                 replacement_txhash = self.speedup_transaction(txhash)
             except self.TransactionFinalized:
-                finalized.add((_nonce, txhash))
+                finalized.append((nonce, txhash))
                 continue
             except self.SpendingCapExceeded:
-                self.log.warn(f"Transaction #{_nonce} exceeds spending cap.")
+                self.log.warn(f"Transaction #{nonce} exceeds spending cap.")
                 continue
             except TransactionNotFound:
+                # TODO not sure what to do here
                 # self.untrack(nonce=_nonce, txhash=txhash)
                 self.log.warn(f"Transaction {txhash.hex()} not found")
                 continue
-            else:
-                replacements.add((_nonce, replacement_txhash))
+            # Replace the transaction in the cache
+            replacements.append((nonce, replacement_txhash))
 
-        # Update the internal caches after all transactions have been processed
-        # in order to avoid mutating the cache while iterating over it above.
-        for nonce, txhash in replacements:
-            self.track(nonce=nonce, txhash=txhash)
-        for nonce, txhash in finalized:
-            self.untrack(nonce=nonce, txhash=txhash)
-
+        # Update the cache
+        self.track(txs=replacements)
+        self.untrack(txs=finalized)
         if replacements:
             self.log.info(f"Replaced {len(replacements)} transactions "
-                          f"({tracked - len(replacements)} transactions pending)")
+                          f"({len(self.tracked) - len(replacements)} transactions pending)")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))

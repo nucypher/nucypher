@@ -1,3 +1,5 @@
+import time
+
 from eth_utils import encode_hex
 from twisted.internet import reactor
 
@@ -10,7 +12,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
-LOG_LEVEL = "info"
+LOG_LEVEL = "debug"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
@@ -54,10 +56,12 @@ tracker = TransactionTracker(
     transacting_power=transacting_power
 )
 
+track = []
 for i in range(3):
     txhash, nonce = send_underpriced()
-    if i == 0:
-        tracker.track(txhash=txhash, nonce=nonce)
+    track.append((nonce, txhash))
+
+tracker.track(txs=track)
 
 tracker.start()
 reactor.run()
