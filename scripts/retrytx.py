@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.domains import LYNX
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.blockchain.eth.trackers.dkg import DKGTracker
+from nucypher.blockchain.eth.trackers.dkg import TransactionTracker
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
@@ -109,7 +109,7 @@ time.sleep(3)
 # print(f'pending nonce - latest nonce: {pending_nonce - latest_nonce}')
 # time.sleep(10)
 
-tracker = DKGTracker(
+tracker = TransactionTracker(
     coordinator_agent=coordinator_agent,
     transacting_power=transacting_power
 )

@@ -9,7 +9,8 @@ from typing import Callable, List, Optional, Tuple, Dict
 import maya
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY, Gauge
-from twisted.internet import threads
+from twisted.internet import threads, reactor
+from web3 import Web3
 from web3.datastructures import AttributeDict
 from web3.exceptions import TransactionNotFound
 from web3.types import Nonce
@@ -73,7 +74,7 @@ class EventScannerTask(SimpleTask):
             self.start(now=False)  # take a breather
 
 
-class DKGTracker(SimpleTask):
+class TransactionTracker(SimpleTask):
 
     INTERVAL = 10  # EventScannerTask.INTERVAL * 2
 
@@ -85,37 +86,38 @@ class DKGTracker(SimpleTask):
 
     def __init__(
             self,
+            w3: Web3,
             transacting_power: "actors.TransactingPower",
-            coordinator_agent: "actors.CoordinatorAgent",
             spending_cap: int = 99999999999999999999999999999999999,
             *args, **kwargs
     ):
-        self.coordinator_agent = coordinator_agent
-        self.w3 = self.coordinator_agent.blockchain.client.w3
+        self.w3 = w3
         self.transacting_power = transacting_power
         self.address = transacting_power.account
         self.spending_cap = spending_cap
-        self.__txs = defaultdict(Nonce)
+        self.__txs = dict()
         super().__init__(*args, **kwargs)
 
-    def track(self, nonce: Nonce, txhash: HexBytes) -> None:
+    def track(self, nonce: int, txhash: HexBytes) -> None:
         self.__txs[nonce] = txhash
+        self.log.info(f"Started tracking transaction #{nonce} | txhash {txhash.hex()}")
 
-    def untrack(
-            self,
-            nonce: Nonce = None,
-            txhash: HexBytes = None
-    ) -> None:
+    def untrack(self, nonce: Nonce = None, txhash: Optional[HexBytes] = None) -> None:
+        if nonce is None and txhash is None:
+            raise ValueError("Either nonce or txhash must be provided")
         if nonce:
-            self.__txs.pop(nonce, None)
-        elif txhash:
+            txhash = self.__txs.pop(nonce, None)
+            if txhash:
+                self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash.hex()}")
+        if txhash:
             for nonce, _txhash in self.__txs.items():
-                if _txhash == txhash:
+                if txhash == _txhash:
                     self.__txs.pop(nonce, None)
+                    self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash.hex()}")
 
     def is_tracked(
             self,
-            nonce: Nonce = None,
+            nonce: int = None,
             txhash: HexBytes = None
     ) -> bool:
         if nonce:
@@ -124,11 +126,11 @@ class DKGTracker(SimpleTask):
             return txhash in self.__txs.values()
         return False
 
-    def __is_tx_pending(self, tx: AttributeDict) -> bool:
-        block_hash, block_number = tx.blockHash, tx.blockNumber
-        if block_hash or block_number:
-            return False
-        return True
+    def __is_tx_finalized(self, tx: AttributeDict, txhash: HexBytes) -> bool:
+        finalized = tx.blockHash is not None
+        if finalized:
+            self.log.info(f"Transaction {txhash.hex()} has been included in block #{tx.blockNumber}")
+        return finalized
 
     def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
         # Fetch the current base fee and priority fee
@@ -216,13 +218,13 @@ class DKGTracker(SimpleTask):
 
     def speedup_transaction(self, txhash: HexBytes) -> None:
         tx = self.w3.eth.get_transaction(txhash)
-        pending = self.__is_tx_pending(tx=tx)
-        if not pending:
+        finalized = self.__is_tx_finalized(tx=tx, txhash=txhash)
+        if finalized:
             raise self.TransactionFinalized
         if tx.maxPriorityFeePerGas > self.spending_cap:
             raise self.SpendingCapExceeded
         tx = self._make_speedup_transaction(tx)
-        self.log.info(f"Speeding up transaction with "
+        self.log.info(f"Speeding up transaction #{tx.nonce} with "
                       f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
         txhash = self._sign_and_send(tx)
         self.track(nonce=tx.nonce, txhash=txhash)
@@ -236,17 +238,18 @@ class DKGTracker(SimpleTask):
         self.track(nonce=tx.nonce, txhash=txhash)
 
     def cancel_transactions(self, nonces: List[int]) -> None:
+        self.log.info(f"Cancelling {len(nonces)} transactions")
         for nonce in nonces:
             self.cancel_transaction(nonce=nonce)
-            time.sleep(1)
+            time.sleep(0.5)
 
     def start(self, now: bool = False):
+        self.log.info("Starting Transaction Tracker")
         pending_nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
         latest_nonce = self.w3.eth.get_transaction_count(self.address, 'latest')
         pending = pending_nonce - latest_nonce
         tracked = len(self.__txs)
         if (pending > 0) and (pending > tracked):
-            self.log.warn(f"Found {pending} untracked pending transactions")
 
             # TODO: Chose your own adventure:
 
@@ -257,6 +260,7 @@ class DKGTracker(SimpleTask):
             # B. Cancel all pending transactions that are not tracked
             pending_nonces = range(latest_nonce, pending_nonce)
             cancel = filter(lambda n: n not in self.__txs, pending_nonces)
+            self.log.warn(f"Found {len(set(cancel))} untracked pending transactions")
             self.cancel_transactions(nonces=list(cancel))
 
             # C. Raise an error (and possibly prevent the node from starting up)
@@ -274,21 +278,21 @@ class DKGTracker(SimpleTask):
         if tracked == 0:
             self.log.info(f"No pending transactions to retry - next cycle in {self.INTERVAL} seconds")
             return False
-        self.log.info(f"Tracking {tracked} transaction {'s' if tracked > 1 else ''}")
+        self.log.info(f"Tracking {tracked} transaction{'s' if tracked > 1 else ''}")
 
         replacements, finalized = set(), set()
-        for nonce, txhash in self.__txs.items():
+        for _nonce, txhash in self.__txs.items():
             try:
                 self.speedup_transaction(txhash)
             except self.TransactionFinalized:
-                finalized.add((nonce, txhash))
+                finalized.add((_nonce, txhash))
                 continue
             except TransactionNotFound:
                 # TODO: untrack?
                 self.log.warn(f"Transaction {txhash.hex()} not found")
                 continue
             else:
-                replacements.add((nonce, txhash))
+                replacements.add((_nonce, txhash))
 
         # Update the internal caches after all transactions have been processed
         # in order to avoid mutating the cache while iterating over it above.

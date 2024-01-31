@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.trackers.dkg import DKGTracker
+from nucypher.blockchain.eth.trackers.dkg import TransactionTracker
 from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -235,7 +235,7 @@ class Operator(BaseActor):
             condition_blockchain_endpoints
         )
 
-        self.dkg_tracker = DKGTracker(
+        self.dkg_tracker = TransactionTracker(
             transacting_power=self.transacting_power,
             coordinator_agent=self.coordinator_agent,
         )
