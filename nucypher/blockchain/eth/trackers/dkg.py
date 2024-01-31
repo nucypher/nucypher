@@ -1,7 +1,8 @@
 import datetime
 import os
 import time
-from typing import Callable, List, Optional, Tuple
+from collections import defaultdict
+from typing import Callable, List, Optional, Tuple, Dict
 
 import maya
 from eth_account._utils.typed_transactions import TypedTransaction
@@ -10,6 +11,7 @@ from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
 from web3.exceptions import TransactionNotFound
+from web3.types import Nonce
 
 # from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
@@ -73,37 +75,32 @@ class EventScannerTask(SimpleTask):
 
 class DKGTracker(SimpleTask):
 
-    INTERVAL = 10  # TODO: think
+    INTERVAL = 10  # EventScannerTask.INTERVAL * 2
 
     def __init__(
             self,
             transacting_power: "actors.TransactingPower",
             coordinator_agent: "actors.CoordinatorAgent",
+            spending_cap: int = 99999999999999999999999999999999999,
             *args, **kwargs
     ):
         self.coordinator_agent = coordinator_agent
+        self.w3 = self.coordinator_agent.blockchain.client.w3
         self.transacting_power = transacting_power
-        self.dkg_storage = None
-
         self.timeout = self.coordinator_agent.get_timeout()
-
-        self.w3 = self.coordinator_agent.blockchain.client.w3  # TODO: think
+        self.spending_cap = spending_cap
+        self.__txs = defaultdict(Nonce)
         super().__init__(*args, **kwargs)
-
-    def _get_pending_transactions(self):
-        # get pending transactions from on-chain
-        pass
 
     def _retry_now(self, tx: AttributeDict) -> bool:
         block_hash, block_number = tx.blockHash, tx.blockNumber
         if block_hash or block_number:
-            # this is not a pending transaction, it's already in a block.
+            self.untrack(txhash=tx.hash, nonce=tx.nonce)
+            self.log.info(f"Transaction with nonce {tx.nonce} has been included in block #{block_number}")
             return False
-        spending_cap = 999999999999999999999999999999
-        if tx.maxPriorityFeePerGas > spending_cap:
-            # do not retry if the fee is too high
+        if tx.maxPriorityFeePerGas > self.spending_cap:
+            self.log.info(f"Retry transaction with nonce {tx.nonce} exceeds the spending cap")
             return False
-
         self.log.info(f"Retrying transaction with nonce {tx.nonce}")
         return True
 
@@ -111,6 +108,7 @@ class DKGTracker(SimpleTask):
         # Fetch the current base fee and priority fee
         base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
         tip = self.w3.eth.max_priority_fee
+        self.log.info(f"Current base fee: {base_fee}, tip: {tip}")
 
         # maths
         factor = 1.2
@@ -125,55 +123,87 @@ class DKGTracker(SimpleTask):
         ))
         return increased_tip, fee_per_gas
 
-    def _modify_transaction(self, tx: AttributeDict) -> AttributeDict:
-
-        # calculate the speed-up fee
-        increased_tip, fee_per_gas = self._calculate_speedup_fee(tx)
-        self.log.info(f"Speeding up transaction with tip: {increased_tip} and fee: {fee_per_gas}")
-
-        # update the transaction
-
+    @staticmethod
+    def _prepare_transaction(tx: AttributeDict) -> Dict:
+        """
+        Filter out fields that are not needed for signing
+        TODO: is there a better way to do this?
+        """
         tx = dict(tx)  # allow mutation
-
         final_fields = {
-            'blockHash',
-            'blockNumber',
-            'transactionIndex',
-            'yParity',
-            'input',
-            'gasPrice',
-            'hash'
+            'blockHash', 'blockNumber', 'transactionIndex',
+            'yParity', 'input', 'gasPrice', 'hash'
         }
         for key in final_fields:
             tx.pop(key, None)
+        return tx
 
-        self.w3.eth.modify_transaction
-
+    def _modify_transaction(self, tx: AttributeDict) -> AttributeDict:
+        increased_tip, fee_per_gas = self._calculate_speedup_fee(tx)
+        self.log.info(f"Speeding up transaction with tip: {increased_tip} and fee: {fee_per_gas}")
+        tx = self._prepare_transaction(tx)
         tx['maxPriorityFeePerGas'] = increased_tip
         tx['maxFeePerGas'] = fee_per_gas
         tx = AttributeDict(tx)  # disallow mutation
         return tx
 
-    def track(self, txhash: HexBytes):
-        self.dkg_storage = txhash
+    def track(self, nonce: Nonce, txhash: HexBytes) -> None:
+        self.__txs[nonce] = txhash
+
+    def untrack(
+            self,
+            nonce: Nonce = None,
+            txhash: HexBytes = None
+    ) -> None:
+        if nonce:
+            self.__txs.pop(nonce, None)
+        elif txhash:
+            for nonce, _txhash in self.__txs.items():
+                if _txhash == txhash:
+                    self.__txs.pop(nonce, None)
+
+    def is_tracked(
+            self,
+            nonce: Nonce = None,
+            txhash: HexBytes = None
+    ) -> bool:
+        if nonce:
+            return nonce in self.__txs.keys()
+        elif txhash:
+            return txhash in self.__txs.values()
+        return False
 
     def run(self):
-        txhash = self.dkg_storage
-        try:
-            tx = self.w3.eth.get_transaction(txhash)
-        except TransactionNotFound:
-            raise
-
-        if not self._retry_now(tx=tx):
-            self.log.info(f"Skipping transaction with nonce {tx.nonce}")
+        replacements, tracked = set(), len(self.__txs)
+        if tracked == 0:
             return False
 
-        # sign the transaction
-        tx = self._modify_transaction(tx)
-        signed_tx = self.transacting_power.sign_transaction(tx)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_tx)
-        self.log.info(f"Retrying transaction sent, tx hash: {tx_hash.hex()}")
-        return tx_hash
+        self.log.info(f"Tracking {tracked} transactions")
+        for nonce, txhash in self.__txs.items():
+            try:
+                tx = self.w3.eth.get_transaction(txhash)
+            except TransactionNotFound:
+                self.log.warn(f"Transaction {txhash.hex()} not found")
+                continue
+
+            if not self._retry_now(tx=tx):
+                self.log.info(f"Skipping transaction #{tx.nonce} | txhash {tx.hash.hex()}")
+                continue
+
+            self.log.info(f"Retry transaction #{tx.nonce}")
+            tx = self._modify_transaction(tx)
+            signed_tx = self.transacting_power.sign_transaction(tx)
+            replacement_txhash = self.w3.eth.send_raw_transaction(signed_tx)
+            self.log.info(f"Broadcast retry transaction #{tx.nonce} | txhash {replacement_txhash.hex()}")
+            replacements.add((tx.nonce, replacement_txhash))
+
+        # Update the nonce and txhash after all transactions have been replaced
+        # in order to avoid mutation of the tx cache during iteration.
+        for nonce, txhash in replacements:
+            self.track(nonce=tx.nonce, txhash=txhash)
+
+        self.log.info(f"Replaced {len(replacements)} transactions "
+                      f"({tracked - len(replacements)} transactions still pending)")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))

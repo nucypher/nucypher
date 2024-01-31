@@ -358,11 +358,11 @@ class Operator(BaseActor):
         self, ritual_id: int, phase: int
     ) -> Tuple[Optional[HexBytes], Optional[TxReceipt]]:
         if phase == 1:
-            txhash = self.dkg_tracker.dkg_storage.get_transcript_txhash(
+            txhash = self.dkg_tracker.__txs.get_transcript_txhash(
                 ritual_id=ritual_id
             )
         elif phase == 2:
-            txhash = self.dkg_tracker.dkg_storage.get_aggregation_txhash(
+            txhash = self.dkg_tracker.__txs.get_aggregation_txhash(
                 ritual_id=ritual_id
             )
         else:
@@ -480,13 +480,13 @@ class Operator(BaseActor):
 
         # store the transcript in the local cache;
         # TODO is this necessary - other than for testing?
-        self.dkg_tracker.dkg_storage.store_transcript(
+        self.dkg_tracker.__txs.store_transcript(
             ritual_id=ritual.id, transcript=transcript
         )
 
         # publish the transcript and store the receipt
         tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
-        self.dkg_tracker.dkg_storage.store_transcript_txhash(
+        self.dkg_tracker.__txs.store_transcript_txhash(
             ritual_id=ritual.id, txhash=tx_hash
         )
 
@@ -567,10 +567,10 @@ class Operator(BaseActor):
             raise e
 
         # store the DKG artifacts for later optimized reads
-        self.dkg_tracker.dkg_storage.store_aggregated_transcript(
+        self.dkg_tracker.__txs.store_aggregated_transcript(
             ritual_id=ritual.id, aggregated_transcript=aggregated_transcript
         )
-        self.dkg_tracker.dkg_storage.store_public_key(
+        self.dkg_tracker.__txs.store_public_key(
             ritual_id=ritual.id, public_key=dkg_public_key
         )
 
@@ -583,7 +583,7 @@ class Operator(BaseActor):
         )
 
         # store the receipt
-        self.dkg_tracker.dkg_storage.store_aggregation_txhash(
+        self.dkg_tracker.__txs.store_aggregation_txhash(
             ritual_id=ritual.id, txhash=tx_hash
         )
 

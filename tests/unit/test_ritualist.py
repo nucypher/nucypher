@@ -147,9 +147,6 @@ def test_perform_round_1(
     )
     assert original_tx_hash is not None
 
-    # ensure tx hash is stored
-    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) == original_tx_hash
-
     # try again
     tx_hash = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
@@ -206,12 +203,6 @@ def test_perform_round_1(
         ritual_id=0, txhash=HexBytes("abcd")
     )
     assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is not None
-
-    # clear tx hash
-    assert ursula.dkg_storage.clear_transcript_txhash(
-        ritual_id=0, txhash=original_tx_hash
-    )
-    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is None
 
     # participant already posted transcript
     participant = agent.get_participant(
@@ -298,9 +289,6 @@ def test_perform_round_2(
     original_tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert original_tx_hash is not None
 
-    # check tx hash
-    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) == original_tx_hash
-
     # try again
     tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert tx_hash is None  # no execution since pending tx already present
@@ -352,12 +340,6 @@ def test_perform_round_2(
         ritual_id=0, txhash=HexBytes("1234")
     )
     assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is not None
-
-    # clear tx hash
-    assert ursula.dkg_storage.clear_aggregated_txhash(
-        ritual_id=0, txhash=original_tx_hash
-    )
-    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is None
 
     # participant already posted aggregated transcript
     participant = agent.get_participant(

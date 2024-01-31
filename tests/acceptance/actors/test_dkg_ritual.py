@@ -198,7 +198,7 @@ def test_ursula_ritualist(
         status = coordinator_agent.get_ritual_status(RITUAL_ID)
         assert status == Coordinator.RitualStatus.ACTIVE
         for ursula in cohort:
-            assert ursula.dkg_storage.get_transcript(RITUAL_ID) is not None
+            assert ursula.__txs.get_transcript(RITUAL_ID) is not None
 
         last_scanned_block = REGISTRY.get_sample_value(
             "ritual_events_last_scanned_block_number"
