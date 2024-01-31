@@ -108,6 +108,7 @@ class TransactionTracker(SimpleTask):
         for nonce in nonces:
             self.__untrack(nonce=nonce)
         self.__write_file()
+
         if self.__finalize_hook:
             self.__finalize_hook(nonces=nonces)
 
@@ -382,7 +383,6 @@ class TransactionTracker(SimpleTask):
     def run(self):
         # idle
         if len(self.tracked) == 0:
-            self._task.interval = self.INTERVAL
             self.log.info(f"[idle] cycle interval is {self._task.interval} seconds")
             return False
 
@@ -430,6 +430,10 @@ class TransactionTracker(SimpleTask):
             )
         if removals:
             self.log.info(f"Untracked {len(removals)} transactions: {removals}")
+
+        if removals and len(self.tracked) == 0:
+            self._task.interval = self.INTERVAL
+            self.log.info(f"[done] returning to idle mode with {self._task.interval} second interval")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
