@@ -4,12 +4,14 @@ import time
 from typing import Callable, List, Optional, Tuple
 
 import maya
+from eth_account._utils.typed_transactions import TypedTransaction
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
+from web3.exceptions import TransactionNotFound
 
-from nucypher.blockchain.eth import actors
+# from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.utils import camel_case_to_snake
@@ -71,7 +73,7 @@ class EventScannerTask(SimpleTask):
 
 class DKGTracker(SimpleTask):
 
-    INTERVAL = 120  # TODO: think
+    INTERVAL = 10  # TODO: think
 
     def __init__(
             self,
@@ -81,7 +83,7 @@ class DKGTracker(SimpleTask):
     ):
         self.coordinator_agent = coordinator_agent
         self.transacting_power = transacting_power
-        self.dkg_storage = DKGStorage()
+        self.dkg_storage = None
 
         self.timeout = self.coordinator_agent.get_timeout()
 
@@ -92,33 +94,86 @@ class DKGTracker(SimpleTask):
         # get pending transactions from on-chain
         pass
 
-    def _retry_now(self, txhash: HexBytes) -> bool:
-        # already retired too many times
-        # reached spending cap
-        # not enough gas
-        # timeout of the ritual
-        # etc.
+    def _retry_now(self, tx: AttributeDict) -> bool:
+        block_hash, block_number = tx.blockHash, tx.blockNumber
+        if block_hash or block_number:
+            # this is not a pending transaction, it's already in a block.
+            return False
+        spending_cap = 999999999999999999999999999999
+        if tx.maxPriorityFeePerGas > spending_cap:
+            # do not retry if the fee is too high
+            return False
+
+        self.log.info(f"Retrying transaction with nonce {tx.nonce}")
         return True
 
-    def addtxhash(self, txhash: HexBytes):
-        self.dkg_storage.add_unconfirmed_transaction(txhash)
+    def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
+        # Fetch the current base fee and priority fee
+        base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
+        tip = self.w3.eth.max_priority_fee
+
+        # maths
+        factor = 1.2
+        increased_tip = round(max(
+            tx.maxPriorityFeePerGas,
+            tip
+        ) * factor)
+
+        fee_per_gas = round(max(
+            tx.maxFeePerGas * factor,
+            (base_fee*2) + increased_tip
+        ))
+        return increased_tip, fee_per_gas
+
+    def _modify_transaction(self, tx: AttributeDict) -> AttributeDict:
+
+        # calculate the speed-up fee
+        increased_tip, fee_per_gas = self._calculate_speedup_fee(tx)
+        self.log.info(f"Speeding up transaction with tip: {increased_tip} and fee: {fee_per_gas}")
+
+        # update the transaction
+
+        tx = dict(tx)  # allow mutation
+
+        final_fields = {
+            'blockHash',
+            'blockNumber',
+            'transactionIndex',
+            'yParity',
+            'input',
+            'gasPrice',
+            'hash'
+        }
+        for key in final_fields:
+            tx.pop(key, None)
+
+        self.w3.eth.modify_transaction
+
+        tx['maxPriorityFeePerGas'] = increased_tip
+        tx['maxFeePerGas'] = fee_per_gas
+        tx = AttributeDict(tx)  # disallow mutation
+        return tx
+
+    def track(self, txhash: HexBytes):
+        self.dkg_storage = txhash
 
     def run(self):
-        retry_txhashes = []
-        for txhash in self.dkg_storage.get_unconfirmed_transactions():
-            
-            retry_now = self._retry_now(txhash)
-            if not retry_now:
-                continue
-            
-            retry_txhash = self.w3.eth.modify_transaction(txhash)
-            
-            if retry_txhash:
-                retry_txhashes.append(retry_txhash)
-            
-            time.sleep(0.1)  # TODO: jitter
-            
-        self.dkg_storage.update_unconfirmed_transactions(retry_txhashes)
+        txhash = self.dkg_storage
+        try:
+            tx = self.w3.eth.get_transaction(txhash)
+        except TransactionNotFound:
+            raise
+
+        if not self._retry_now(tx=tx):
+            self.log.info(f"Skipping transaction with nonce {tx.nonce}")
+            return False
+
+        # sign the transaction
+        tx = self._modify_transaction(tx)
+        signed_tx = self.transacting_power.sign_transaction(tx)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_tx)
+        self.log.info(f"Retrying transaction sent, tx hash: {tx_hash.hex()}")
+        return tx_hash
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
