@@ -411,7 +411,7 @@ class TransactionTracker(SimpleTask):
                 )
                 continue
             except TransactionNotFound:
-                removals.add((nonce, txhash))
+                removals.add(nonce)
                 self.log.info(f"Transaction #{nonce}|{txhash.hex()} not found")
                 continue
             else:
