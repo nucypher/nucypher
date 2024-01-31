@@ -83,7 +83,7 @@ class TransactionTracker(SimpleTask):
 
     def __track(self, nonce: int, txhash: HexBytes) -> None:
         if nonce in self.__txs:
-            replace, old = True, self.__txs[nonce]
+            old = self.__txs[nonce]
             self.log.warn(f"Replacing tracking txhash #{nonce}|{old} -> {txhash.hex()}")
         else:
             self.log.info(f"Started tracking transaction #{nonce}|{txhash.hex()}")
@@ -365,13 +365,17 @@ class TransactionTracker(SimpleTask):
         time_remaining = round(self.timeout - (time.time() - self.__seen[nonce]))
         minutes = round(time_remaining / 60)
         remainder_seconds = time_remaining % 60
+        end_time = time.time() + time_remaining
+        human_end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
         if time_remaining < (60 * 2):
             self.log.warn(
-                f"Transaction #{nonce} will timeout in {minutes}m{remainder_seconds}s"
+                f"Transaction #{nonce} will timeout in "
+                f"{minutes}m{remainder_seconds}s at {human_end_time}"
             )
         else:
             self.log.info(
-                f"Transaction #{nonce} will be retried for {minutes}m{remainder_seconds}s"
+                f"Transaction #{nonce} will be tracked for "
+                f"{minutes}m{remainder_seconds}s until {human_end_time}"
             )
         return False
 
@@ -420,7 +424,10 @@ class TransactionTracker(SimpleTask):
         self.untrack(nonces=removals)
 
         if replacements:
-            self.log.info(f"Replaced {len(replacements)} transactions: {replacements}")
+            replacement_nonces = set(r[0] for r in replacements)
+            self.log.info(
+                f"Replaced {len(replacements)} transactions: {replacement_nonces}"
+            )
         if removals:
             self.log.info(f"Untracked {len(removals)} transactions: {removals}")
 
