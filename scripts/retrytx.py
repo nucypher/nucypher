@@ -7,7 +7,7 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.domains import LYNX
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
-from nucypher.blockchain.eth.trackers.dkg import TransactionTracker
+from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY

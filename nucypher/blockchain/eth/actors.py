@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.trackers.dkg import TransactionTracker
+from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
 from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -358,7 +358,7 @@ class Operator(BaseActor):
 
     def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
         try:
-            nonce = self.ritual_tracker.active_rituals[ritual_id]
+            nonce = self.ritual_tracker.active_phase_txs[ritual_id]
         except KeyError:
             raise self.RitualNotFoundException(
                 f"Ritual {ritual_id} not found in active rituals."
