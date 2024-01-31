@@ -78,6 +78,10 @@ class TransactionTracker(SimpleTask):
 
     INTERVAL = 10
     BLOCK_INTERVAL = 20  # ~20 blocks
+    BLOCK_SAMPLE_SIZE = 100_000  # blocks
+    DEFAULT_MAX_TIP = 10  # gwei maxPriorityFeePerGas per transaction
+    DEFAULT_TIMEOUT = 60 * 60 * 24 * 7  # 7 days
+    RPC_THROTTLE = 0.5  # seconds between RPC calls
 
     class TransactionFinalized(Exception):
         pass
@@ -89,8 +93,8 @@ class TransactionTracker(SimpleTask):
             self,
             w3: Web3,
             transacting_power: "actors.TransactingPower",
-            spending_cap: int = 99999999999999999999999999999999999,
-            timeout: int = 60 * 60 * 24 * 7,  # 7 days
+            max_tip: int = DEFAULT_MAX_TIP,
+            timeout: int = DEFAULT_TIMEOUT,
             tracking_hook: Callable = None,
             finalize_hook: Callable = None,
             *args, **kwargs
@@ -99,7 +103,7 @@ class TransactionTracker(SimpleTask):
         self.transacting_power = transacting_power  # TODO: Use LocalAccount instead
         self.address = transacting_power.account
 
-        self.spending_cap = spending_cap
+        self.max_tip = self.w3.to_wei(max_tip, 'gwei')
         self.timeout = timeout
 
         self.__tracking_hook = tracking_hook
@@ -135,7 +139,7 @@ class TransactionTracker(SimpleTask):
     def __track(self, nonce: int, txhash: HexBytes) -> None:
         if nonce in self.__txs:
             replace, old = True, self.__txs[nonce]
-            self.log.warn(f"Replacing tracking txhash #{nonce} | {old} -> {txhash.hex()}")
+            self.log.warn(f"Replacing tracking txhash #{nonce}|{old} -> {txhash.hex()}")
         else:
             self.log.info(f"Started tracking transaction #{nonce}|{txhash.hex()}")
         self.__txs[int(nonce)] = txhash.hex()
@@ -213,22 +217,18 @@ class TransactionTracker(SimpleTask):
         ))
         return increased_tip, fee_per_gas
 
-    def _get_average_blocktime(self, sample_window_size: int = 100) -> float:
-        """
-        Returns the average block time in seconds.
-        """
+    def _get_average_blocktime(self) -> float:
+        """Returns the average block time in seconds."""
         latest_block = self.w3.eth.get_block('latest')
         if latest_block.number == 0:
             return 0
-
-        # get average block time
-        sample_block_number = latest_block.number - sample_window_size
+        sample_block_number = latest_block.number - self.BLOCK_SAMPLE_SIZE
         if sample_block_number <= 0:
             return 0
         base_block = self.w3.eth.get_block(sample_block_number)
         average_block_time = (
             latest_block.timestamp - base_block.timestamp
-        ) / sample_window_size
+        ) / self.BLOCK_SAMPLE_SIZE
         return average_block_time
 
     def _log_gas_weather(self, base_fee: int, tip: int) -> None:
@@ -308,7 +308,7 @@ class TransactionTracker(SimpleTask):
         finalized = self.__is_tx_finalized(tx=tx, txhash=txhash)
         if finalized:
             raise self.TransactionFinalized
-        if tx.maxPriorityFeePerGas > self.spending_cap:
+        if tx.maxPriorityFeePerGas > self.max_tip:
             raise self.SpendingCapExceeded
         tx = self._make_speedup_transaction(tx)
         tip, base_fee = tx.maxPriorityFeePerGas, tx.maxFeePerGas
@@ -332,7 +332,7 @@ class TransactionTracker(SimpleTask):
         for nonce in nonces:
             txhash = self.cancel_transaction(nonce=nonce)
             txs.add((nonce, txhash))
-            time.sleep(0.5)
+            time.sleep(self.RPC_THROTTLE)
         self.track(txs=txs)
 
     def start(self, now: bool = False):
@@ -343,17 +343,19 @@ class TransactionTracker(SimpleTask):
         pending_nonces = range(latest_nonce, pending_nonce)
         self.log.info(f"Detected {pending} pending transactions "
                       f"with nonces {', '.join(map(str, pending_nonces))}")
+
         self._restore_state(pending_nonces)
         self._handle_untracked_transactions(pending_nonces)
 
         average_block_time = self._get_average_blocktime()
         self._task.interval = round(average_block_time * self.BLOCK_INTERVAL)
-        self.log.info(f"Average block time is {average_block_time} seconds")
-        self.log.info(f"Set tracking interval to {self._task.interval} seconds")
+        self.log.info(f"Average block time is {average_block_time} seconds "
+                      f"Set tracking interval to {self._task.interval} seconds "
+                      f"Transaction speedups spending cap is {self.max_tip} wei per transaction")
 
         super().start(now=now)
 
-    def _handle_untracked_transactions(self, pending_nonces):
+    def _handle_untracked_transactions(self, pending_nonces) -> None:
         untracked_nonces = set(filter(lambda n: not self.is_tracked(nonce=n), pending_nonces))
         if len(untracked_nonces) > 0:
             # Cancels all pending transactions that are not tracked
@@ -394,13 +396,14 @@ class TransactionTracker(SimpleTask):
                 finalized.add(nonce)
                 continue
             except self.SpendingCapExceeded:
-                self.log.warn(f"Transaction #{nonce} exceeds spending cap.")
+                self.log.warn(f"Transaction #{nonce} exceeds spending cap {self.max_tip} wei")
                 continue
             except TransactionNotFound:
                 # TODO not sure what to do here - mark for removal.
                 finalized.add((nonce, txhash))
                 self.log.info(f"Transaction #{nonce}|{txhash.hex()} not found")
                 continue
+            time.sleep(self.RPC_THROTTLE)
 
         # Update the cache
         self.track(txs=replacements)
