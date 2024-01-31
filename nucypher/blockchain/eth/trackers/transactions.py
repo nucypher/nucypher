@@ -14,18 +14,19 @@ from nucypher.utilities.task import SimpleTask
 
 
 class TransactionTracker(SimpleTask):
-    INTERVAL = 10
+    INTERVAL = 60 * 5  # 5 min. steady state interval
     BLOCK_INTERVAL = 20  # ~20 blocks
-    BLOCK_SAMPLE_SIZE = 100_000  # blocks
+    BLOCK_SAMPLE_SIZE = 1_000  # blocks
     DEFAULT_MAX_TIP = 10  # gwei maxPriorityFeePerGas per transaction
-    DEFAULT_TIMEOUT = (60 * 60) * 1  # 1 hour
+    DEFAULT_TIMEOUT = 60 * 60  # 1 hour
     RPC_THROTTLE = 0.5  # seconds between RPC calls
+    SPEEDUP_FACTOR = 1.125  # 12.5% increase
 
     class TransactionFinalized(Exception):
-        pass
+        """raised when a transaction has been included in a block"""
 
     class SpendingCapExceeded(Exception):
-        pass
+        """raised when a transaction exceeds the spending cap"""
 
     def __init__(
         self,
@@ -33,21 +34,25 @@ class TransactionTracker(SimpleTask):
         transacting_power: "actors.TransactingPower",
         max_tip: int = DEFAULT_MAX_TIP,
         timeout: int = DEFAULT_TIMEOUT,
-        tracking_hook: Callable = None,
-        finalize_hook: Callable = None,
+        tracking_hook: Optional[Callable] = None,
+        finalize_hook: Optional[Callable] = None,
         *args,
         **kwargs,
     ):
+        # w3
         self.w3 = w3
         self.transacting_power = transacting_power  # TODO: Use LocalAccount instead
         self.address = transacting_power.account
 
+        # config
         self.max_tip = self.w3.to_wei(max_tip, "gwei")
         self.timeout = timeout
 
+        # hooks
         self.__tracking_hook = tracking_hook
         self.__finalize_hook = finalize_hook
 
+        # state
         self.__seen = dict()
         self.__txs: Dict[int, str] = dict()
         self.__file = NamedTemporaryFile(
@@ -141,20 +146,17 @@ class TransactionTracker(SimpleTask):
                 f"Transaction {txhash.hex()} was reverted by EVM with status {status}"
             )
         self.log.info(
-            f"Transaction {txhash.hex()} has been included in block #{tx.blockNumber}"
+            f"Transaction #{tx.nonce}|{txhash.hex()} has been included in block #{tx.blockNumber}"
         )
         return True
 
     def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
-        # Fetch the current base fee and priority fee
         base_fee = self.w3.eth.get_block("latest")["baseFeePerGas"]
         tip = self.w3.eth.max_priority_fee
         self._log_gas_weather(base_fee, tip)
-        factor = 1.2
-        increased_tip = round(max(tx.maxPriorityFeePerGas, tip) * factor)
-
+        increased_tip = round(max(tx.maxPriorityFeePerGas, tip) * self.SPEEDUP_FACTOR)
         fee_per_gas = round(
-            max(tx.maxFeePerGas * factor, (base_fee * 2) + increased_tip)
+            max(tx.maxFeePerGas * self.SPEEDUP_FACTOR, (base_fee * 2) + increased_tip)
         )
         return increased_tip, fee_per_gas
 
@@ -239,7 +241,7 @@ class TransactionTracker(SimpleTask):
     def _handle_transaction_error(self, e: Exception, tx: AttributeDict) -> None:
         rpc_response = e.args[0]
         self.log.critical(
-            f"Transaction #{tx.nonce} | {tx.hash.hex()} "
+            f"Transaction #{tx.nonce}|{tx.hash.hex()} "
             f"failed with { rpc_response['code']} | "
             f"{rpc_response['message']}"
         )
@@ -252,9 +254,7 @@ class TransactionTracker(SimpleTask):
         except ValueError as e:
             self._handle_transaction_error(e, tx=tx)
         else:
-            self.log.info(
-                f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}"
-            )
+            self.log.info(f"Broadcasted transaction #{tx.nonce}|{txhash.hex()}")
             return txhash
 
     def speedup_transaction(self, txhash: HexBytes) -> HexBytes:
@@ -295,28 +295,19 @@ class TransactionTracker(SimpleTask):
             time.sleep(self.RPC_THROTTLE)
         self.track(txs=txs)
 
-    def start(self, now: bool = False):
+    def start(self, now: bool = False) -> None:
         self.log.info("Starting Transaction Tracker")
         pending_nonce = self.w3.eth.get_transaction_count(self.address, "pending")
         latest_nonce = self.w3.eth.get_transaction_count(self.address, "latest")
         pending = pending_nonce - latest_nonce
         pending_nonces = set(range(latest_nonce, pending_nonce))
         self.log.info(
-            f"Detected {pending} pending transactions "
-            f"with nonces {', '.join(map(str, pending_nonces))}"
+            f"Detected {pending} pending transactions " f"with nonces {pending_nonces}"
         )
-
         self._restore_state(pending_nonces)
         self._handle_untracked_transactions(pending_nonces)
-
-        average_block_time = self._get_average_blocktime()
-        self._task.interval = round(average_block_time * self.BLOCK_INTERVAL)
-        self.log.info(
-            f"Average block time is {average_block_time} seconds \n"
-            f"Set tracking interval to {self._task.interval} seconds \n"
-            f"Transaction speedups spending cap is {self.max_tip} wei per transaction"
-        )
-
+        if self.tracked:
+            now = True
         super().start(now=now)
 
     def _handle_untracked_transactions(self, pending_nonces: Set[int]) -> None:
@@ -327,7 +318,7 @@ class TransactionTracker(SimpleTask):
             # Cancels all pending transactions that are not tracked
             self.log.warn(
                 f"Detected {len(untracked_nonces)} untracked "
-                f"pending transactions with nonces {', '.join(map(str, untracked_nonces))}"
+                f"pending transactions with nonces {untracked_nonces}"
             )
             self.cancel_transactions(nonces=untracked_nonces)
 
@@ -349,7 +340,7 @@ class TransactionTracker(SimpleTask):
             self.log.info("All cached transactions are tracked")
         else:
             diff = set(pending_nonces) - set(records)
-            self.log.warn("Untracked nonces: {}".format(", ".join(map(str, diff))))
+            self.log.warn(f"Untracked nonces: {diff}")
         self.track(txs=set(records.items()))
 
     def __is_timed_out(self, nonce: int) -> bool:
@@ -369,18 +360,32 @@ class TransactionTracker(SimpleTask):
             return True
         self.log.info(
             f"Transaction #{nonce} has been pending for"
-            f" {time.time() - self.__seen[nonce]} seconds"
+            f" {round(time.time() - self.__seen[nonce])} seconds"
         )
         time_remaining = round(self.timeout - (time.time() - self.__seen[nonce]))
-        self.log.info(f"Transaction #{nonce} will timeout in {time_remaining} seconds")
+        minutes = round(time_remaining / 60)
+        remainder_seconds = time_remaining % 60
+        if time_remaining < (60 * 2):
+            self.log.warn(
+                f"Transaction #{nonce} will timeout in {minutes}m{remainder_seconds}s"
+            )
+        else:
+            self.log.info(
+                f"Transaction #{nonce} will be retried for {minutes}m{remainder_seconds}s"
+            )
         return False
 
     def run(self):
+        # idle
         if len(self.tracked) == 0:
-            self.log.info(
-                f"Steady as she goes... next cycle in {self.INTERVAL} seconds"
-            )
+            self._task.interval = self.INTERVAL
+            self.log.info(f"[idle] cycle interval is {self._task.interval} seconds")
             return False
+
+        # work
+        average_block_time = self._get_average_blocktime()
+        self._task.interval = round(average_block_time * self.BLOCK_INTERVAL)
+        self.log.info(f"[working] cycle interval is {self._task.interval} seconds")
         self.log.info(
             f"Tracking {len(self.tracked)} transaction{'s' if len(self.tracked) > 1 else ''}"
         )
@@ -415,9 +420,9 @@ class TransactionTracker(SimpleTask):
         self.untrack(nonces=removals)
 
         if replacements:
-            self.log.info(f"Replaced {len(replacements)} transactions")
+            self.log.info(f"Replaced {len(replacements)} transactions: {replacements}")
         if removals:
-            self.log.info(f"Untracked {len(removals)} transactions")
+            self.log.info(f"Untracked {len(removals)} transactions: {removals}")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
