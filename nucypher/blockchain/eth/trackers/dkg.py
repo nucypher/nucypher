@@ -5,7 +5,6 @@ from collections import defaultdict
 from typing import Callable, List, Optional, Tuple, Dict
 
 import maya
-from eth_account._utils.typed_transactions import TypedTransaction
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
@@ -15,7 +14,6 @@ from web3.types import Nonce
 
 # from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -92,23 +90,17 @@ class DKGTracker(SimpleTask):
         self.__txs = defaultdict(Nonce)
         super().__init__(*args, **kwargs)
 
-    def _retry_now(self, tx: AttributeDict) -> bool:
+    def _is_tx_pending(self, tx: AttributeDict) -> bool:
         block_hash, block_number = tx.blockHash, tx.blockNumber
         if block_hash or block_number:
-            self.untrack(txhash=tx.hash, nonce=tx.nonce)
-            self.log.info(f"Transaction with nonce {tx.nonce} has been included in block #{block_number}")
             return False
-        if tx.maxPriorityFeePerGas > self.spending_cap:
-            self.log.info(f"Retry transaction with nonce {tx.nonce} exceeds the spending cap")
-            return False
-        self.log.info(f"Retrying transaction with nonce {tx.nonce}")
         return True
 
     def _calculate_speedup_fee(self, tx: AttributeDict) -> Tuple[int, int]:
         # Fetch the current base fee and priority fee
         base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
         tip = self.w3.eth.max_priority_fee
-        self.log.info(f"Current base fee: {base_fee}, tip: {tip}")
+        self.log.info(f"Current suggested base fee: {base_fee}, tip: {tip}")
 
         # maths
         factor = 1.2
@@ -174,11 +166,13 @@ class DKGTracker(SimpleTask):
         return False
 
     def run(self):
-        replacements, tracked = set(), len(self.__txs)
+        tracked = len(self.__txs)
         if tracked == 0:
+            self.log.info(f"No pending transactions to retry - next cycle in {self.INTERVAL} seconds")
             return False
+        self.log.info(f"Tracking {tracked} transaction {'s' if tracked > 1 else ''}")
 
-        self.log.info(f"Tracking {tracked} transactions")
+        replacements, finalized = set(), set()
         for nonce, txhash in self.__txs.items():
             try:
                 tx = self.w3.eth.get_transaction(txhash)
@@ -186,10 +180,18 @@ class DKGTracker(SimpleTask):
                 self.log.warn(f"Transaction {txhash.hex()} not found")
                 continue
 
-            if not self._retry_now(tx=tx):
-                self.log.info(f"Skipping transaction #{tx.nonce} | txhash {tx.hash.hex()}")
+            pending = self._is_tx_pending(tx=tx)
+            if not pending:
+                finalized.add((tx.nonce, txhash))
+                self.log.info(f"Transaction with nonce {tx.nonce} has been included in block #{tx.blockNumber}")
                 continue
 
+            if tx.maxPriorityFeePerGas > self.spending_cap:
+                self.log.info(f"Retry transaction with nonce {tx.nonce} "
+                              f"exceeds the spending cap ({self.spending_cap})")
+                continue
+
+            # fire replacement transaction
             self.log.info(f"Retry transaction #{tx.nonce}")
             tx = self._modify_transaction(tx)
             signed_tx = self.transacting_power.sign_transaction(tx)
@@ -197,13 +199,16 @@ class DKGTracker(SimpleTask):
             self.log.info(f"Broadcast retry transaction #{tx.nonce} | txhash {replacement_txhash.hex()}")
             replacements.add((tx.nonce, replacement_txhash))
 
-        # Update the nonce and txhash after all transactions have been replaced
-        # in order to avoid mutation of the tx cache during iteration.
+        # Update the internal caches after all transactions have been processed
+        # in order to avoid mutating the cache while iterating over it above.
         for nonce, txhash in replacements:
-            self.track(nonce=tx.nonce, txhash=txhash)
+            self.track(nonce=nonce, txhash=txhash)
+        for nonce, txhash in finalized:
+            self.untrack(nonce=nonce, txhash=txhash)
 
-        self.log.info(f"Replaced {len(replacements)} transactions "
-                      f"({tracked - len(replacements)} transactions still pending)")
+        if replacements:
+            self.log.info(f"Replaced {len(replacements)} transactions "
+                          f"({tracked - len(replacements)} transactions pending)")
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
