@@ -51,26 +51,15 @@ def send_underpriced():
     return tx_hash, nonce
 
 
-def track(*args, **kwargs):
-    print("Tracking...")
-
-
-def finalize(*args, **kwargs):
-    print("Finalizing...")
-
-
 tracker = TransactionTracker(
     w3=coordinator_agent.blockchain.w3,
     transacting_power=transacting_power,
-    tracking_hook=track,
-    finalize_hook=finalize,
 )
 
-track = []
+track = set()
 for i in range(3):
     txhash, nonce = send_underpriced()
-    track.append((nonce, txhash))
-
+    track.add((nonce, txhash))
 tracker.track(txs=track)
 
 tracker.start()

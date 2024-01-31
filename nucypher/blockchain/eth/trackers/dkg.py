@@ -76,8 +76,8 @@ class EventScannerTask(SimpleTask):
 
 class TransactionTracker(SimpleTask):
 
-    # TODO: relate the timeout to the block time?
-    INTERVAL = 10  # EventScannerTask.INTERVAL * 2
+    INTERVAL = 10
+    BLOCK_INTERVAL = 20  # ~20 blocks
 
     class TransactionFinalized(Exception):
         pass
@@ -99,7 +99,6 @@ class TransactionTracker(SimpleTask):
         self.transacting_power = transacting_power  # TODO: Use LocalAccount instead
         self.address = transacting_power.account
 
-        # TODO: Generic limitations on the retry attempts
         self.spending_cap = spending_cap
         self.timeout = timeout
 
@@ -130,6 +129,7 @@ class TransactionTracker(SimpleTask):
         except JSONDecodeError:
             txs = dict()
         self.log.debug(f"Loaded transaction cache file {self.__file.name}")
+        txs = dict((int(nonce), HexBytes(txhash)) for nonce, txhash in txs.items())
         return txs
 
     def __track(self, nonce: int, txhash: HexBytes) -> None:
@@ -137,36 +137,28 @@ class TransactionTracker(SimpleTask):
             replace, old = True, self.__txs[nonce]
             self.log.warn(f"Replacing tracking txhash #{nonce} | {old} -> {txhash.hex()}")
         else:
-            self.log.info(f"Started tracking transaction #{nonce} | txhash {txhash.hex()}")
-        self.__txs[nonce] = bytes(txhash).hex()
+            self.log.info(f"Started tracking transaction #{nonce}|{txhash.hex()}")
+        self.__txs[int(nonce)] = txhash.hex()
 
-    def __untrack(self, nonce: int = None, txhash: Optional[HexBytes] = None) -> None:
-        if nonce is None and txhash is None:
-            raise ValueError("Either nonce or txhash must be provided")
-        if nonce:
-            txhash = self.__txs.pop(nonce, None)
-            if not txhash:
-                raise ValueError(f"Transaction #{nonce} not found")
-            self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash}")
-        if txhash:
-            for nonce, _txhash in self.__txs.items():
-                if txhash == _txhash:
-                    self.__txs.pop(nonce, None)
-                    self.log.info(f"Stopped tracking transaction #{nonce} | txhash: {txhash}")
+    def __untrack(self, nonce: int) -> None:
+        removed_txhash = self.__txs.pop(nonce, None)
+        if removed_txhash is None:
+            raise ValueError(f"Transaction #{nonce} not found")
+        self.log.info(f"Stopped tracking transaction #{nonce}")
 
-    def track(self, txs: List[Tuple[int, HexBytes]]) -> None:
+    def track(self, txs: Set[Tuple[int, HexBytes]]) -> None:
         for nonce, txhash in txs:
             self.__track(nonce=nonce, txhash=txhash)
         self.__write_file()
         if self.__tracking_hook:
             self.__tracking_hook(txs=txs)
 
-    def untrack(self, txs: List[Tuple[int, HexBytes]]) -> None:
-        for nonce, txhash in txs:
-            self.__untrack(nonce=nonce, txhash=txhash)
+    def untrack(self, nonces: Set[int]) -> None:
+        for nonce in nonces:
+            self.__untrack(nonce=nonce)
         self.__write_file()
         if self.__finalize_hook:
-            self.__finalize_hook(txs=txs)
+            self.__finalize_hook(nonces=nonces)
 
     def is_tracked(
             self,
@@ -208,10 +200,7 @@ class TransactionTracker(SimpleTask):
         # Fetch the current base fee and priority fee
         base_fee = self.w3.eth.get_block('latest')['baseFeePerGas']
         tip = self.w3.eth.max_priority_fee
-
         self._log_gas_weather(base_fee, tip)
-
-        # maths
         factor = 1.2
         increased_tip = round(max(
             tx.maxPriorityFeePerGas,
@@ -220,17 +209,35 @@ class TransactionTracker(SimpleTask):
 
         fee_per_gas = round(max(
             tx.maxFeePerGas * factor,
-            (base_fee*2) + increased_tip
+            (base_fee * 2) + increased_tip
         ))
         return increased_tip, fee_per_gas
 
-    def _log_gas_weather(self, base_fee, tip):
+    def _get_average_blocktime(self, sample_window_size: int = 100) -> float:
+        """
+        Returns the average block time in seconds.
+        """
+        latest_block = self.w3.eth.get_block('latest')
+        if latest_block.number == 0:
+            return 0
+
+        # get average block time
+        sample_block_number = latest_block.number - sample_window_size
+        if sample_block_number <= 0:
+            return 0
+        base_block = self.w3.eth.get_block(sample_block_number)
+        average_block_time = (
+            latest_block.timestamp - base_block.timestamp
+        ) / sample_window_size
+        return average_block_time
+
+    def _log_gas_weather(self, base_fee: int, tip: int) -> None:
         base_fee_gwei = self.w3.from_wei(base_fee, 'gwei')
         tip_gwei = self.w3.from_wei(tip, 'gwei')
         self.log.info(
-            "Gas Weather Report: "
-            f"base fee: {base_fee_gwei} gwei, "
-            f"tip: {tip_gwei} gwei"
+            "Current gas conditions: "
+            f"base fee {base_fee_gwei} gwei | "
+            f"tip {tip_gwei} gwei"
         )
 
     @staticmethod
@@ -264,7 +271,7 @@ class TransactionTracker(SimpleTask):
         max_fee = (base_fee * 2) + tip
         return tip, max_fee
 
-    def _make_cancel_transaction(self, chain_id: int, nonce: int) -> AttributeDict:
+    def _make_cancellation_transaction(self, chain_id: int, nonce: int) -> AttributeDict:
         tip, max_fee = self._calculate_cancel_fee()
         tx = AttributeDict({
             'type': '0x2',
@@ -281,17 +288,9 @@ class TransactionTracker(SimpleTask):
 
     def _handle_transaction_error(self, e: Exception, tx: AttributeDict) -> None:
         rpc_response = e.args[0]
-        code = rpc_response['code']
-        if code == -32000:
-            error_message = rpc_response['message']
-            if error_message == 'replacement transaction underpriced':
-                self.log.warn(f"Transaction #{tx.nonce} underpriced")
-            elif error_message == 'already known':
-                self.log.warn(f"Transaction #{tx.nonce} already known")
-            elif error_message == 'nonce too low':
-                self.log.warn(f"Transaction #{tx.nonce} nonce too low")
-        else:
-            raise e
+        self.log.critical(f"Transaction #{tx.nonce} | {tx.hash.hex()} "
+                          f"failed with { rpc_response['code']} | "
+                          f"{rpc_response['message']}")
 
     def _sign_and_send(self, tx: AttributeDict) -> HexBytes:
         tx = self._prepare_transaction(tx)
@@ -300,9 +299,9 @@ class TransactionTracker(SimpleTask):
             txhash = self.w3.eth.send_raw_transaction(signed_tx)
         except ValueError as e:
             self._handle_transaction_error(e, tx=tx)
-            return
-        self.log.info(f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}")
-        return txhash
+        else:
+            self.log.info(f"Broadcasted transaction #{tx.nonce} | txhash {txhash.hex()}")
+            return txhash
 
     def speedup_transaction(self, txhash: HexBytes) -> HexBytes:
         tx = self.w3.eth.get_transaction(txhash)
@@ -312,13 +311,15 @@ class TransactionTracker(SimpleTask):
         if tx.maxPriorityFeePerGas > self.spending_cap:
             raise self.SpendingCapExceeded
         tx = self._make_speedup_transaction(tx)
+        tip, base_fee = tx.maxPriorityFeePerGas, tx.maxFeePerGas
+        self._log_gas_weather(base_fee, tip)
         self.log.info(f"Speeding up transaction #{tx.nonce} with "
-                      f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
+                      f"maxPriorityFeePerGas={tip} and maxFeePerGas={base_fee}")
         txhash = self._sign_and_send(tx)
         return txhash
 
     def cancel_transaction(self, nonce: int) -> HexBytes:
-        tx = self._make_cancel_transaction(nonce=nonce, chain_id=self.w3.eth.chain_id)
+        tx = self._make_cancellation_transaction(nonce=nonce, chain_id=self.w3.eth.chain_id)
         tx = self._prepare_transaction(tx)
         self.log.info(f"Cancelling transaction #{nonce} with "
                       f"tip: {tx.maxPriorityFeePerGas} and fee: {tx.maxFeePerGas}")
@@ -327,10 +328,10 @@ class TransactionTracker(SimpleTask):
 
     def cancel_transactions(self, nonces: Set[int]) -> None:
         self.log.info(f"Cancelling {len(nonces)} transactions")
-        txs = []
+        txs = set()
         for nonce in nonces:
             txhash = self.cancel_transaction(nonce=nonce)
-            txs.append((nonce, txhash))
+            txs.add((nonce, txhash))
             time.sleep(0.5)
         self.track(txs=txs)
 
@@ -341,9 +342,15 @@ class TransactionTracker(SimpleTask):
         pending = pending_nonce - latest_nonce
         pending_nonces = range(latest_nonce, pending_nonce)
         self.log.info(f"Detected {pending} pending transactions "
-                      f"with nonces: {', '.join(map(str, pending_nonces))}")
+                      f"with nonces {', '.join(map(str, pending_nonces))}")
         self._restore_state(pending_nonces)
         self._handle_untracked_transactions(pending_nonces)
+
+        average_block_time = self._get_average_blocktime()
+        self._task.interval = round(average_block_time * self.BLOCK_INTERVAL)
+        self.log.info(f"Average block time is {average_block_time} seconds")
+        self.log.info(f"Set tracking interval to {self._task.interval} seconds")
+
         super().start(now=now)
 
     def _handle_untracked_transactions(self, pending_nonces):
@@ -351,49 +358,53 @@ class TransactionTracker(SimpleTask):
         if len(untracked_nonces) > 0:
             # Cancels all pending transactions that are not tracked
             self.log.warn(f"Detected {len(untracked_nonces)} untracked "
-                          f"pending transactions with nonces: {', '.join(map(str, untracked_nonces))}")
+                          f"pending transactions with nonces {', '.join(map(str, untracked_nonces))}")
             self.cancel_transactions(nonces=untracked_nonces)
 
-    def _restore_state(self, pending_nonces):
-        # Read the pending transactions from the disk
+    def _restore_state(self, pending_nonces) -> None:
+        """Read the pending transaction data from the disk"""
         records = self.__read_file()
         if len(records) > 0:
-            disk_txhashes = '\n'.join(f'#{k}|{v}' for k, v in records.items())
+            disk_txhashes = '\n'.join(f'#{nonce}|{txhash.hex()}' for nonce, txhash in records.items())
             self.log.debug(f"Loaded {len(records)} tracked txhashes "
-                           f"from disk\n{disk_txhashes} "
-                           f"with nonces: {', '.join(map(str, records.keys()))}")
-        txs = list((nonce, HexBytes(txhash)) for nonce, txhash in records.items())
-        if set(records) == set(pending_nonces):
+                           f"with nonces {', '.join(map(str, records.keys()))} "
+                           f"from disk\n{disk_txhashes}")
+        if not pending_nonces:
+            self.log.info("No pending transactions to track")
+        elif set(records) == set(pending_nonces):
             self.log.info("All cached transactions are tracked")
-        self.track(txs=txs)
+        else:
+            diff = set(pending_nonces) - set(records)
+            self.log.warn("Untracked nonces: {}".format(', '.join(map(str, diff))))
+        self.track(txs=set(records.items()))
 
     def run(self):
         if len(self.tracked) == 0:
-            self.log.info(f"No pending transactions to retry - next cycle in {self.INTERVAL} seconds")
+            self.log.info(f"Steady as she goes... next cycle in {self.INTERVAL} seconds")
             return False
         self.log.info(f"Tracking {len(self.tracked)} transaction{'s' if len(self.tracked) > 1 else ''}")
 
-        replacements, finalized = [], []
+        replacements, finalized = set(), set()
         for nonce, txhash in self.tracked:
             # NOTE: do not mutate __txs while iterating over it.
             try:
                 replacement_txhash = self.speedup_transaction(txhash)
-                replacements.append((nonce, replacement_txhash))
+                replacements.add((nonce, replacement_txhash))
             except self.TransactionFinalized:
-                finalized.append((nonce, txhash))
+                finalized.add(nonce)
                 continue
             except self.SpendingCapExceeded:
                 self.log.warn(f"Transaction #{nonce} exceeds spending cap.")
                 continue
             except TransactionNotFound:
-                # TODO not sure what to do here
-                # finalized.append((nonce, txhash))
+                # TODO not sure what to do here - mark for removal.
+                finalized.add((nonce, txhash))
                 self.log.info(f"Transaction #{nonce}|{txhash.hex()} not found")
                 continue
 
         # Update the cache
         self.track(txs=replacements)
-        self.untrack(txs=finalized)
+        self.untrack(nonces=finalized)
 
         if replacements:
             self.log.info(f"Replaced {len(replacements)} transactions")
