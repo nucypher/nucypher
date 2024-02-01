@@ -195,7 +195,11 @@ def test_ursula_ritualist(
             status = mock_coordinator_agent.get_ritual_status(ritual_id)
             assert status == Coordinator.RitualStatus.ACTIVE
             for ursula in cohort:
-                assert ursula.dkg_storage.get_transcript(ritual_id) is not None
+                participant = mock_coordinator_agent.get_participant(
+                    ritual_id, ursula.checksum_address, True
+                )
+                assert participant.transcript
+                assert participant.aggregated
 
         def encrypt(_):
             """Encrypts a message and returns the ciphertext and conditions"""
