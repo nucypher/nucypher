@@ -272,7 +272,7 @@ class RitualisticPower(KeyPairBasedPower):
         ritual_id: int,
         shares: int,
         threshold: int,
-        nodes: list,
+        nodes: List[Validator],
         aggregated_transcript: AggregatedTranscript,
         ciphertext_header: CiphertextHeader,
         aad: bytes,
