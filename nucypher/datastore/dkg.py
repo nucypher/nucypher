@@ -92,4 +92,4 @@ class DKGStorage:
     def get_decryption_share(
         self, ritual_id: int
     ) -> Optional[Union[DecryptionShareSimple, DecryptionSharePrecomputed]]:
-        self.data[self.KEY_DECRYPTION_SHARE].get(ritual_id)
+        return self.data[self.KEY_DECRYPTION_SHARE].get(ritual_id)
