@@ -674,7 +674,7 @@ class CoordinatorAgent(EthereumContractAgent):
         transcripts: bool = False,
     ) -> Coordinator.Ritual:
         """
-        Exposes three views of Coordinator.Rituals:
+        Exposes two views of Coordinator.Rituals:
         1. ritual + participant w/o transcripts
         2. ritual + participants w/ transcripts
         """
