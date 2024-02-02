@@ -2,6 +2,7 @@ import time
 
 from eth_utils import encode_hex
 from twisted.internet import reactor
+from web3.types import TxParams
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.domains import LYNX
@@ -36,4 +37,23 @@ tracker = TransactionTracker(
     transacting_power=transacting_power,
 )
 tracker.start()
+
+
+for i in range(10):
+    nonce = w3.eth.get_transaction_count(address, 'pending')
+    base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+    tip = w3.eth.max_priority_fee
+    tx = TxParams({
+        'nonce': nonce + i,
+        'to': address,
+        'value': 0,
+        'gas': 21000,
+        'maxPriorityFeePerGas': tip,
+        'maxFeePerGas': base_fee + tip,
+        'chainId': 80001,
+        'type': '0x2',
+        'from': address
+    })
+    tracker.queue_transaction(tx=tx)
+
 reactor.run()

@@ -75,10 +75,6 @@ def _is_tx_finalized(w3: Web3, data: Union[TxData, PendingTx]) -> bool:
 
 
 def _make_tx_params(tx: TxData) -> TxParams:
-    # if tx.get("gasPrice"):
-    #     # TODO: legacy transaction
-    #     raise NotImplementedError("Only EIP-1559 transactions are supported")
-
     return TxParams(
         {
             "nonce": tx['nonce'],
@@ -445,22 +441,3 @@ class TransactionTracker(SimpleTask):
         self.__restore_state()
         super().start(now=now)
         self.log.info("Starting transaction tracker")
-        self.self_test()
-
-    def self_test(self):
-        for i in range(10):
-            nonce = self.w3.eth.get_transaction_count(self.address, 'pending')
-            base_fee = self.w3.eth.get_block("latest")["baseFeePerGas"]
-            tip = self.w3.eth.max_priority_fee
-            tx = TxParams({
-                'nonce': nonce + i,
-                'to': self.address,
-                'value': 0,
-                'gas': 21000,
-                'maxPriorityFeePerGas': tip,
-                'maxFeePerGas': base_fee + tip,
-                'chainId': 80001,
-                'type': '0x2',
-                'from': self.address
-            })
-            self.queue_transaction(tx=tx)
