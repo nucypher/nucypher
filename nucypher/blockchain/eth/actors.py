@@ -595,10 +595,6 @@ class Operator(BaseActor):
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
             raise self.ActorError(f"Ritual #{ritual_id} is not active.")
 
-        decryption_share = self.dkg_storage.get_decryption_share(ritual_id)
-        if decryption_share:
-            return decryption_share
-
         ritual = self.coordinator_agent.get_ritual(ritual_id)
 
         validators = self._resolve_validators(ritual)
@@ -623,7 +619,6 @@ class Operator(BaseActor):
             aad=aad,
             variant=variant
         )
-        self.dkg_storage.store_decryption_share(ritual_id, decryption_share)
         return decryption_share
 
     def decrypt_threshold_decryption_request(

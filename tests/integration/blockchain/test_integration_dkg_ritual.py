@@ -300,16 +300,10 @@ def test_ursula_ritualist(
                 0
             ].dkg_storage.get_aggregated_transcript(ritual_id)
 
-            original_decryption_shares = []
             for ursula in cohort:
-                original_decryption_shares.append(
-                    ursula.dkg_storage.get_decryption_share(ritual_id)
-                )
-
                 ursula.dkg_storage.clear(ritual_id)
                 assert ursula.dkg_storage.get_validators(ritual_id) is None
                 assert ursula.dkg_storage.get_aggregated_transcript(ritual_id) is None
-                assert ursula.dkg_storage.get_decryption_share(ritual_id) is None
 
             bob.start_learning_loop(now=True)
             cleartext = bob.threshold_decrypt(
@@ -338,11 +332,6 @@ def test_ursula_ritualist(
                 assert (
                     bytes(cached_aggregated_transcript) == ritual.aggregated_transcript
                 )
-
-                assert ursula.dkg_storage.get_decryption_share(ritual_id)
-
-                # TODO not working for some reason
-                # assert bytes(ursula.dkg_storage.get_decryption_share(ritual_id)) == bytes(original_decryption_shares[ursula_index])
             assert num_used_ursulas >= threshold
             print("===================== DECRYPTION SUCCESSFUL =====================")
 
