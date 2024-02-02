@@ -293,6 +293,17 @@ class Operator(BaseActor):
 
         return providers
 
+    def _resolve_ritual(self, ritual_id: int) -> Coordinator.Ritual:
+        if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
+            raise self.ActorError(f"Ritual #{ritual_id} is not active.")
+
+        ritual = self.dkg_storage.get_active_ritual(ritual_id)
+        if not ritual:
+            ritual = self.coordinator_agent.get_ritual(ritual_id)
+            self.dkg_storage.store_active_ritual(active_ritual=ritual)
+
+        return ritual
+
     def _resolve_validators(
         self,
         ritual: Coordinator.Ritual,
@@ -559,11 +570,6 @@ class Operator(BaseActor):
             )
             raise e
 
-        # store the DKG artifacts for later optimized reads
-        self.dkg_storage.store_aggregated_transcript(
-            ritual_id=ritual.id, aggregated_transcript=aggregated_transcript
-        )
-
         # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
         tx_hash = self.publish_aggregated_transcript(
@@ -592,21 +598,13 @@ class Operator(BaseActor):
         aad: bytes,
         variant: FerveoVariant,
     ) -> Union[DecryptionShareSimple, DecryptionSharePrecomputed]:
-        if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
-            raise self.ActorError(f"Ritual #{ritual_id} is not active.")
-
-        ritual = self.coordinator_agent.get_ritual(ritual_id)
+        ritual = self._resolve_ritual(ritual_id)
 
         validators = self._resolve_validators(ritual)
 
-        aggregated_transcript = self.dkg_storage.get_aggregated_transcript(ritual_id)
-        if not aggregated_transcript:
-            aggregated_transcript = AggregatedTranscript.from_bytes(
-                bytes(ritual.aggregated_transcript)
-            )
-            self.dkg_storage.store_aggregated_transcript(
-                ritual_id, aggregated_transcript
-            )
+        aggregated_transcript = AggregatedTranscript.from_bytes(
+            bytes(ritual.aggregated_transcript)
+        )
 
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=validators,

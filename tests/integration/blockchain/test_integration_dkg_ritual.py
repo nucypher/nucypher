@@ -304,14 +304,11 @@ def test_ursula_ritualist(
         def decrypt_without_any_cached_values(threshold_message_kit):
             print("==================== DKG DECRYPTION NO CACHE ====================")
             original_validators = cohort[0].dkg_storage.get_validators(ritual_id)
-            original_aggregated_transcript = cohort[
-                0
-            ].dkg_storage.get_aggregated_transcript(ritual_id)
 
             for ursula in cohort:
                 ursula.dkg_storage.clear(ritual_id)
                 assert ursula.dkg_storage.get_validators(ritual_id) is None
-                assert ursula.dkg_storage.get_aggregated_transcript(ritual_id) is None
+                assert ursula.dkg_storage.get_active_ritual(ritual_id) is None
 
             bob.start_learning_loop(now=True)
             cleartext = bob.threshold_decrypt(
@@ -322,25 +319,20 @@ def test_ursula_ritualist(
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
             num_used_ursulas = 0
             for ursula_index, ursula in enumerate(cohort):
-                stored_validators = ursula.dkg_storage.get_validators(ritual_id)
-                if not stored_validators:
+                stored_ritual = ursula.dkg_storage.get_active_ritual(ritual_id)
+                if not stored_ritual:
                     # this ursula was not used for threshold decryption; skip
                     continue
+
+                assert stored_ritual == ritual
+
+                stored_validators = ursula.dkg_storage.get_validators(ritual_id)
                 num_used_ursulas += 1
                 for v_index, v in enumerate(stored_validators):
                     assert v.address == original_validators[v_index].address
                     assert v.public_key == original_validators[v_index].public_key
 
-                cached_aggregated_transcript = (
-                    ursula.dkg_storage.get_aggregated_transcript(ritual_id)
-                )
-                assert bytes(cached_aggregated_transcript) == bytes(
-                    original_aggregated_transcript
-                )
-                assert (
-                    bytes(cached_aggregated_transcript) == ritual.aggregated_transcript
-                )
-            assert num_used_ursulas >= threshold
+            assert num_used_ursulas >= ritual.threshold
             print("===================== DECRYPTION SUCCESSFUL =====================")
 
         def error_handler(e):
