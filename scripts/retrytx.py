@@ -31,36 +31,9 @@ coordinator_agent = CoordinatorAgent(
 )
 w3 = coordinator_agent.blockchain.w3
 
-
-def send_underpriced():
-    nonce = w3.eth.get_transaction_count(address, 'pending')
-    cancel_tx = {
-        'nonce': nonce,
-        'to': address,
-        'value': 0,
-        'gas': 21000,
-        'maxPriorityFeePerGas': 1,
-        'maxFeePerGas': 1,
-        'chainId': 80001,
-        'type': '0x2',
-        'from': address
-    }
-    signed_tx = signer.sign_transaction(cancel_tx)
-    tx_hash = w3.eth.send_raw_transaction(signed_tx)
-    print(f"Underpriced transaction sent | txhash: {encode_hex(tx_hash)}")
-    return tx_hash, nonce
-
-
 tracker = TransactionTracker(
     w3=coordinator_agent.blockchain.w3,
     transacting_power=transacting_power,
 )
-
-track = set()
-for i in range(3):
-    txhash, nonce = send_underpriced()
-    track.add((nonce, txhash))
-tracker.track(txs=track)
-
 tracker.start()
 reactor.run()
