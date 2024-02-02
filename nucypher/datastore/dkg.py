@@ -22,8 +22,23 @@ class DKGStorage:
     # active rituals
     KEY_DECRYPTION_SHARE = "decryption_share"
 
+    _KEYS = [
+        KEY_TRANSCRIPT_TXS,
+        KEY_VALIDATORS,
+        KEY_AGGREGATED_TXS,
+        KEY_AGGREGATED_TRANSCRIPTS,
+        KEY_DECRYPTION_SHARE,
+    ]
+
     def __init__(self):
         self.data = defaultdict(dict)
+
+    def clear(self, ritual_id):
+        for key in self._KEYS:
+            try:
+                del self.data[key][ritual_id]
+            except KeyError:
+                continue
 
     #
     # DKG Round 1 - Transcripts
@@ -45,6 +60,9 @@ class DKGStorage:
 
     def get_validators(self, ritual_id: int) -> Optional[List[Validator]]:
         validators = self.data[self.KEY_VALIDATORS].get(ritual_id)
+        if not validators:
+            return None
+
         return list(validators)
 
     #
@@ -80,7 +98,7 @@ class DKGStorage:
         return self.data[self.KEY_AGGREGATED_TXS].get(ritual_id)
 
     #
-    # Completed DKG
+    # Active Rituals
     #
     def store_decryption_share(
         self,
