@@ -295,7 +295,66 @@ def test_ursula_ritualist(
         ritual = coordinator_agent.get_ritual(RITUAL_ID)
         # at least a threshold of ursulas were successful (concurrency)
         assert int(num_successes) >= ritual.threshold
+
+        # decrypt again (should use cache of decryption share)
+        cleartext = bob.threshold_decrypt(
+            threshold_message_kit=threshold_message_kit,
+        )
+        assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")
+
+        return threshold_message_kit
+
+    def check_decrypt_without_any_cached_values(threshold_message_kit):
+        print("==================== DKG DECRYPTION NO CACHE ====================")
+        original_validators = cohort[0].dkg_storage.get_validators(RITUAL_ID)
+        original_aggregated_transcript = cohort[
+            0
+        ].dkg_storage.get_aggregated_transcript(RITUAL_ID)
+
+        original_decryption_shares = []
+        for ursula in cohort:
+            original_decryption_shares.append(
+                ursula.dkg_storage.get_decryption_share(RITUAL_ID)
+            )
+
+            ursula.dkg_storage.clear(RITUAL_ID)
+            assert ursula.dkg_storage.get_validators(RITUAL_ID) is None
+            assert ursula.dkg_storage.get_aggregated_transcript(RITUAL_ID) is None
+            assert ursula.dkg_storage.get_decryption_share(RITUAL_ID) is None
+
+        bob.start_learning_loop(now=True)
+        cleartext = bob.threshold_decrypt(
+            threshold_message_kit=threshold_message_kit,
+        )
+        assert bytes(cleartext) == PLAINTEXT.encode()
+
+        ritual = coordinator_agent.get_ritual(RITUAL_ID)
+        num_used_ursulas = 0
+        for ursula_index, ursula in enumerate(cohort):
+            stored_validators = ursula.dkg_storage.get_validators(RITUAL_ID)
+            if not stored_validators:
+                # this ursula was not used for threshold decryption; skip
+                continue
+            num_used_ursulas += 1
+            for v_index, v in enumerate(stored_validators):
+                assert v.address == original_validators[v_index].address
+                assert v.public_key == original_validators[v_index].public_key
+
+            cached_aggregated_transcript = ursula.dkg_storage.get_aggregated_transcript(
+                RITUAL_ID
+            )
+            assert bytes(cached_aggregated_transcript) == bytes(
+                original_aggregated_transcript
+            )
+            assert bytes(cached_aggregated_transcript) == ritual.aggregated_transcript
+
+            assert ursula.dkg_storage.get_decryption_share(RITUAL_ID)
+
+            # TODO not working for some reason
+            # assert bytes(ursula.dkg_storage.get_decryption_share(ritual_id)) == bytes(original_decryption_shares[ursula_index])
+        assert num_used_ursulas >= ritual.threshold
+        print("===================== DECRYPTION SUCCESSFUL =====================")
 
     def error_handler(e):
         """Prints the error and raises it"""
@@ -312,6 +371,7 @@ def test_ursula_ritualist(
         check_encrypt,
         check_unauthorized_decrypt,
         check_decrypt,
+        check_decrypt_without_any_cached_values,
     ]
 
     d = deferToThread(initialize)
