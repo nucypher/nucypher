@@ -297,6 +297,10 @@ class Operator(BaseActor):
         self,
         ritual: Coordinator.Ritual,
     ) -> List[Validator]:
+        validators = self.dkg_storage.get_validators(ritual.id)
+        if validators:
+            return validators
+
         result = list()
         for staking_provider_address in ritual.providers:
             if self.checksum_address == staking_provider_address:
@@ -319,7 +323,10 @@ class Operator(BaseActor):
                     address=staking_provider_address, public_key=public_key
                 )
             result.append(external_validator)
+
         result = sorted(result, key=lambda x: x.address)
+        self.dkg_storage.store_validators(ritual.id, result)
+
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
@@ -532,9 +539,7 @@ class Operator(BaseActor):
             f"{self.transacting_power.account[:8]} performing phase 2 "
             f"of DKG ritual #{ritual.id} from blocktime {timestamp}"
         )
-        validators = self.dkg_storage.get_validators(ritual.id)
-        if not validators:
-            validators = self._resolve_validators(ritual)
+        validators = self._resolve_validators(ritual)
 
         transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
         messages = list(zip(validators, transcripts))
@@ -590,15 +595,13 @@ class Operator(BaseActor):
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
             raise self.ActorError(f"Ritual #{ritual_id} is not active.")
 
-        ritual = self.coordinator_agent.get_ritual(ritual_id)
         decryption_share = self.dkg_storage.get_decryption_share(ritual_id)
         if decryption_share:
             return decryption_share
 
-        validators = self.dkg_storage.get_validators(ritual_id)
-        if not validators:
-            validators = list(self._resolve_validators(ritual))
-            self.dkg_storage.store_validators(ritual_id, validators)
+        ritual = self.coordinator_agent.get_ritual(ritual_id)
+
+        validators = self._resolve_validators(ritual)
 
         aggregated_transcript = self.dkg_storage.get_aggregated_transcript(ritual_id)
         if not aggregated_transcript:
