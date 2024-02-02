@@ -296,11 +296,19 @@ def test_ursula_ritualist(
         # at least a threshold of ursulas were successful (concurrency)
         assert int(num_successes) >= ritual.threshold
 
-        # decrypt again (should use cache of decryption share)
-        cleartext = bob.threshold_decrypt(
-            threshold_message_kit=threshold_message_kit,
-        )
-        assert bytes(cleartext) == PLAINTEXT.encode()
+        # decrypt again (should only use cached values)
+        with patch.object(
+            coordinator_agent,
+            "get_provider_public_key",
+            side_effect=RuntimeError(
+                "should not be called to create validators; cache should be used"
+            ),
+        ):
+            # would like to but can't patch agent.get_ritual, since bob uses it
+            cleartext = bob.threshold_decrypt(
+                threshold_message_kit=threshold_message_kit,
+            )
+            assert bytes(cleartext) == PLAINTEXT.encode()
         print("==================== DECRYPTION SUCCESSFUL ====================")
 
         return threshold_message_kit
