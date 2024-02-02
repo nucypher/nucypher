@@ -832,7 +832,7 @@ class CoordinatorAgent(EthereumContractAgent):
         )
         return receipt
 
-    @contract_api(TRANSACTION)
+    @contract_api(CONTRACT_CALL)
     def get_ritual_initiation_cost(
         self, providers: List[ChecksumAddress], duration: int
     ) -> Wei:
@@ -841,7 +841,7 @@ class CoordinatorAgent(EthereumContractAgent):
         ).call()
         return Wei(result)
 
-    @contract_api(TRANSACTION)
+    @contract_api(CONTRACT_CALL)
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
         g1_point = Ferveo.G1Point.from_dkg_public_key(public_key)
         result = self.contract.functions.getRitualIdFromPublicKey(g1_point).call()

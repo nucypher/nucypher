@@ -235,11 +235,6 @@ class Operator(BaseActor):
             condition_blockchain_endpoints
         )
 
-        self.transaction_tracker = TransactionTracker(
-            transacting_power=self.transacting_power,
-            w3=self.coordinator_agent.blockchain.w3
-        )
-
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
         # TODO: Here we're assuming there is one global key per node. See nucypher/#3167
         node_global_ferveo_key_set = self.coordinator_agent.is_provider_public_key_set(
@@ -327,7 +322,12 @@ class Operator(BaseActor):
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
-        tx_hash = self.coordinator_agent.post_transcript(
+        # store the transcript in the local cache;
+        # TODO is this necessary - other than for testing?
+        self.transaction_tracker.__txs.store_transcript(
+            ritual_id=ritual.id, transcript=transcript
+        )
+        performance = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
             transacting_power=self.transacting_power,
@@ -450,12 +450,6 @@ class Operator(BaseActor):
                 f"Failed to generate a transcript for ritual #{ritual.id}: {str(e)}"
             )
             raise e
-
-        # store the transcript in the local cache;
-        # TODO is this necessary - other than for testing?
-        self.transaction_tracker.__txs.store_transcript(
-            ritual_id=ritual.id, transcript=transcript
-        )
 
         # publish the transcript and store the receipt
         tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)

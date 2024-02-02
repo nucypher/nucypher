@@ -13,7 +13,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
-LOG_LEVEL = "info"
+LOG_LEVEL = "debug"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
@@ -34,7 +34,6 @@ w3 = coordinator_agent.blockchain.w3
 
 tracker = TransactionTracker(
     w3=coordinator_agent.blockchain.w3,
-    transacting_power=transacting_power,
 )
 tracker.start()
 
@@ -54,8 +53,12 @@ for i in range(3):
         'type': '0x2',
         'from': address
     })
-    tracker.queue_transaction(tx=tx)
+    tracker.queue_transaction(
+        tx=tx,
+        transacting_power=transacting_power,
+    )
 
 # txhash = tracker.send_transaction(tx=tx)
 # print(txhash)
+
 reactor.run()

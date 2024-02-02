@@ -24,7 +24,7 @@ from web3.contract.contract import Contract, ContractConstructor, ContractFuncti
 from web3.exceptions import TimeExhausted
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
-from web3.types import TxReceipt
+from web3.types import TxReceipt, TxParams
 
 from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -37,6 +37,7 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
+from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
@@ -211,6 +212,7 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
+        self.tracker = TransactionTracker(w3=self.w3)
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
@@ -470,7 +472,7 @@ class BlockchainInterface:
                                    transaction_gas_limit: Optional[int] = None,
                                    gas_estimation_multiplier: Optional[float] = None,
                                    use_pending_nonce: Optional[bool] = None,
-                                   ) -> dict:
+                                   ) -> TxParams:
 
         if transaction_gas_limit is not None:
             self.log.warn("The transaction gas limit of {transaction_gas_limit} will override gas estimation attempts")
@@ -518,7 +520,6 @@ class BlockchainInterface:
         transaction_dict: Dict,
         transaction_name: str = "",
         confirmations: int = 0,
-        fire_and_forget: bool = False,
     ) -> Union[TxReceipt, HexBytes]:
         """
         Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
@@ -529,19 +530,7 @@ class BlockchainInterface:
         otherwise return the transaction receipt.
 
         """
-        #
-        # Setup
-        #
-
-        # TODO # 1754 - Move this to singleton - I do not approve... nor does Bogdan?
         emitter = StdoutEmitter()
-
-        #
-        # Sign
-        #
-
-        # TODO: Show the USD Price:  https://api.coinmarketcap.com/v1/ticker/ethereum/
-        
         try:
             # post-london fork transactions (Type 2)
             max_unit_price = transaction_dict['maxFeePerGas']
@@ -564,6 +553,7 @@ class BlockchainInterface:
         #
         # Broadcast
         #
+
         emitter.message(f'Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
                         color='yellow')
         try:
@@ -571,22 +561,18 @@ class BlockchainInterface:
             emitter.message(f'TXHASH {txhash.hex()}', color='yellow')
         except (TestTransactionFailed, ValueError):
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
-        else:
-            if fire_and_forget:
-                return txhash
 
         #
         # Receipt
         #
 
-        try:  # TODO: Handle block confirmation exceptions
+        try:
             waiting_for = 'receipt'
             if confirmations:
                 waiting_for = f'{confirmations} confirmations'
             emitter.message(f'Waiting {self.TIMEOUT} seconds for {waiting_for}', color='yellow')
             receipt = self.client.wait_for_receipt(txhash, timeout=self.TIMEOUT, confirmations=confirmations)
         except TimeExhausted:
-            # TODO: #1504 - Handle transaction timeout
             raise
         else:
             self.log.debug(f"[RECEIPT-{transaction_name}] | txhash: {receipt['transactionHash'].hex()}")
@@ -622,7 +608,6 @@ class BlockchainInterface:
                          gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
                          confirmations: int = 0,
                          fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
-                         replace: bool = False,
                          ) -> Union[TxReceipt, HexBytes]:
 
         if fire_and_forget:
@@ -630,29 +615,39 @@ class BlockchainInterface:
                 raise ValueError("Transaction Prevented: "
                                  "Cannot use 'confirmations' and 'fire_and_forget' options together.")
 
-            use_pending_nonce = False  # TODO: #2385
+        transaction = self.build_contract_transaction(
+            contract_function=contract_function,
+            sender_address=transacting_power.account,
+            payload=payload,
+            transaction_gas_limit=transaction_gas_limit,
+            gas_estimation_multiplier=gas_estimation_multiplier,
+        )
+
+        if fire_and_forget:
+            info = {
+                'name': contract_function.fn_name,
+                'contract': contract_function.address,
+            }
+            performance = self.tracker.queue_transaction(
+                info=info,
+                tx=transaction,
+                transacting_power=transacting_power,
+            )
+            return performance
+
         else:
-            use_pending_nonce = replace  # TODO: #2385
-
-        transaction = self.build_contract_transaction(contract_function=contract_function,
-                                                      sender_address=transacting_power.account,
-                                                      payload=payload,
-                                                      transaction_gas_limit=transaction_gas_limit,
-                                                      gas_estimation_multiplier=gas_estimation_multiplier,
-                                                      use_pending_nonce=use_pending_nonce)
-
-        # Get transaction name
-        try:
-            transaction_name = contract_function.fn_name.upper()
-        except AttributeError:
-            transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
-
-        txhash_or_receipt = self.sign_and_broadcast_transaction(transacting_power=transacting_power,
-                                                                transaction_dict=transaction,
-                                                                transaction_name=transaction_name,
-                                                                confirmations=confirmations,
-                                                                fire_and_forget=fire_and_forget)
-        return txhash_or_receipt
+            # Get transaction name
+            try:
+                transaction_name = contract_function.fn_name.upper()
+            except AttributeError:
+                transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
+            receipt = self.sign_and_broadcast_transaction(
+                transacting_power=transacting_power,
+                transaction_dict=transaction,
+                transaction_name=transaction_name,
+                confirmations=confirmations,
+            )
+            return receipt
 
     def get_contract_by_name(
         self,
