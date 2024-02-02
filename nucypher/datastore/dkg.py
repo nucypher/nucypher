@@ -1,11 +1,9 @@
 from collections import defaultdict
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from hexbytes import HexBytes
 from nucypher_core.ferveo import (
     AggregatedTranscript,
-    DecryptionSharePrecomputed,
-    DecryptionShareSimple,
     Validator,
 )
 
@@ -19,15 +17,12 @@ class DKGStorage:
     # round 2
     KEY_AGGREGATED_TXS = "aggregation_tx_hashes"
     KEY_AGGREGATED_TRANSCRIPTS = "aggregated_transcripts"
-    # active rituals
-    KEY_DECRYPTION_SHARE = "decryption_share"
 
     _KEYS = [
         KEY_TRANSCRIPT_TXS,
         KEY_VALIDATORS,
         KEY_AGGREGATED_TXS,
         KEY_AGGREGATED_TRANSCRIPTS,
-        KEY_DECRYPTION_SHARE,
     ]
 
     def __init__(self):
@@ -96,18 +91,3 @@ class DKGStorage:
 
     def get_aggregation_txhash(self, ritual_id: int) -> Optional[HexBytes]:
         return self.data[self.KEY_AGGREGATED_TXS].get(ritual_id)
-
-    #
-    # Active Rituals
-    #
-    def store_decryption_share(
-        self,
-        ritual_id: int,
-        decryption_share: Union[DecryptionShareSimple, DecryptionSharePrecomputed],
-    ) -> None:
-        self.data[self.KEY_DECRYPTION_SHARE][ritual_id] = decryption_share
-
-    def get_decryption_share(
-        self, ritual_id: int
-    ) -> Optional[Union[DecryptionShareSimple, DecryptionSharePrecomputed]]:
-        return self.data[self.KEY_DECRYPTION_SHARE].get(ritual_id)
