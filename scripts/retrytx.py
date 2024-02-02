@@ -39,7 +39,7 @@ tracker = TransactionTracker(
 tracker.start()
 
 
-for i in range(10):
+for i in range(3):
     nonce = w3.eth.get_transaction_count(address, 'pending')
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
     tip = w3.eth.max_priority_fee
@@ -56,4 +56,6 @@ for i in range(10):
     })
     tracker.queue_transaction(tx=tx)
 
+# txhash = tracker.send_transaction(tx=tx)
+# print(txhash)
 reactor.run()
