@@ -138,10 +138,7 @@ class TransactionTracker(SimpleTask):
     class SpendingCap(Exception):
         """raised when a transaction exceeds the spending cap"""
 
-    class TxBroadcastError(Exception):
-        pass
-
-    class InsufficientFunds(TxBroadcastError):
+    class InsufficientFunds(RPCError):
         """raised when a transaction exceeds the spending cap"""
 
     def __init__(
@@ -173,20 +170,6 @@ class TransactionTracker(SimpleTask):
         )
         super().__init__(*args, **kwargs)
 
-    def __serialize_queue(self) -> List:
-        queue = []
-        for tx in self.__queue:
-            tx = {str(k): v for k, v in tx.items()}
-            queue.append(tx)
-        return queue
-
-    # def __deserialize_queue(self, queue: List) -> deque:
-    #     deserialized = deque()
-    #     for tx in queue:
-    #         tx = {int(k): v for k, v in tx.items()}
-    #         deserialized.append(tx)
-    #     return deserialized
-
     def __write_file(self):
         self.__file.seek(0)
         self.__file.truncate()
@@ -212,25 +195,24 @@ class TransactionTracker(SimpleTask):
         self.__queue = deque(txs)
         self.__pending = tuple(pending.items())
 
-    def start(self, now: bool = False) -> None:
-        self.__restore_state()
-        super().start(now=now)
-        self.log.info("Starting transaction tracker")
-        self.self_test()
+    def __serialize_queue(self) -> List:
+        queue = []
+        for tx in self.__queue:
+            tx = {str(k): v for k, v in tx.items()}
+            queue.append(tx)
+        return queue
+
+    def __clear_pending(self) -> None:
+        self.__pending = None
+        self.__write_file()
 
     @property
     def idle(self) -> bool:
         return (not self.__pending) and len(self.__queue) == 0
 
-    def __track_hash(self, txhash: TxHash) -> None:
+    def __track_pending_txhash(self, txhash: TxHash) -> None:
         self.log.info(f"Tacking pending transaction {txhash.hex()}")
         self.__pending = (time.time(), txhash)
-
-    def queue_transaction(self, tx: TxParams) -> None:
-        self.__queue.append(tx)
-        self.log.info(f"Queued transaction #{tx['nonce']} "
-                      f"in broadcast queue position {len(self.__queue)}")
-        self.__write_file()
 
     def handle_errors(self, *args, **kwargs):
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
@@ -238,7 +220,7 @@ class TransactionTracker(SimpleTask):
             self.log.warn("Restarting transaction task!")
             self.start(now=False)  # take a breather
 
-    def __fire(self, tx: TxParams) -> PendingTx:
+    def __sign_and_send(self, tx: TxParams) -> PendingTx:
         try:
             txhash = self.w3.eth.send_raw_transaction(
                 self.transacting_power.sign_transaction(tx)
@@ -284,36 +266,10 @@ class TransactionTracker(SimpleTask):
             )
         return False
 
-    def speedup(self) -> Tuple[bool, bool]:
-        if not self.__pending:
-            raise ValueError("No pending transaction to speedup")
-
-        created, txhash = self.__pending
-        if self.is_timed_out():
-            self.__pending = None
-            return False, False
-
-        data = self.w3.eth.get_transaction(txhash)
-        if _is_tx_finalized(w3=self.w3, data=data):
-            self.__pending = None
-            return True, True
-
-        if data["maxPriorityFeePerGas"] > self.max_tip:
-            raise self.SpendingCap
-
-        tx = _make_speedup_params(
-            tx=data,
-            w3=self.w3,
-            factor=self.SPEEDUP_FACTOR
-        )
-
-        success, final = self.fire(tx=tx)
-        return success, final
-
-    def fire(self, tx: PendingTx) -> Tuple[bool, bool]:
+    def __fire(self, tx: PendingTx) -> Tuple[bool, bool]:
         success, removal, final = False, False, False
         try:
-            replacement = self.__fire(tx=tx)
+            replacement = self.__sign_and_send(tx=tx)
         except self.TransactionFinalized:
             final = True
         except self.SpendingCap:
@@ -325,21 +281,63 @@ class TransactionTracker(SimpleTask):
             self.log.info(f"Transaction {tx['hash'].hex()} not found")
         else:
             success = True
-            self.__track_hash(txhash=replacement["hash"])
+            self.__track_pending_txhash(txhash=replacement["hash"])
             self.log.info(
                 f"[retry] Sped up transaction #{replacement['nonce']}|{replacement['hash'].hex()}"
             )
         if removal or final:
-            self.__pending = None
+            self.__clear_pending()
+        return success, final
+
+    #######
+    # API #
+    #######
+
+    def queue_transaction(self, tx: TxParams) -> None:
+        self.__queue.append(tx)
+        self.log.info(f"Queued transaction #{tx['nonce']} "
+                      f"in broadcast queue position {len(self.__queue)}")
+        self.__write_file()
+
+    def speedup(self) -> Tuple[bool, bool]:
+        if not self.__pending:
+            raise ValueError("No pending transaction to speedup")
+
+        created, txhash = self.__pending
+        if self.is_timed_out():
+            self.__clear_pending()
+            return False, False
+
+        data = self.w3.eth.get_transaction(txhash)
+        if _is_tx_finalized(w3=self.w3, data=data):
+            self.__clear_pending()
+            return True, True
+
+        if data["maxPriorityFeePerGas"] > self.max_tip:
+            raise self.SpendingCap
+
+        tx = _make_speedup_params(
+            tx=data,
+            w3=self.w3,
+            factor=self.SPEEDUP_FACTOR
+        )
+
+        success, final = self.__fire(tx=tx)
         return success, final
 
     def broadcast(self) -> Tuple[bool, bool]:
         tx = self.__queue.popleft()
         tx = _make_tx_params(tx)
-        success, final = self.fire(tx=tx)
+        success, final = self.__fire(tx=tx)
         if not success:
             self.__queue.append(tx)
         return success, final
+
+    def start(self, now: bool = False) -> None:
+        self.__restore_state()
+        super().start(now=now)
+        self.log.info("Starting transaction tracker")
+        self.self_test()
 
     def run(self):
         if self.idle:
