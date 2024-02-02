@@ -237,9 +237,7 @@ class Operator(BaseActor):
 
         self.transaction_tracker = TransactionTracker(
             transacting_power=self.transacting_power,
-            w3=self.coordinator_agent.blockchain.w3,
-            finalize_hook=lambda txs: self.ritual_tracker.add_active_ritual_phase_txs,
-            tracking_hook=lambda txs: self.ritual_tracker.remove_active_ritual_phase_txs,
+            w3=self.coordinator_agent.blockchain.w3
         )
 
     def set_provider_public_key(self) -> Union[TxReceipt, None]:
@@ -363,7 +361,7 @@ class Operator(BaseActor):
             raise self.RitualNotFoundException(
                 f"Ritual {ritual_id} not found in active rituals."
             )
-        txhash = self.transaction_tracker.tracked[nonce]
+        txhash = self.transaction_tracker.transactions[nonce]
         if txhash:
             self.log.info(
                 f"Node {self.transacting_power.account} has pending tx {bytes(txhash).hex()} "

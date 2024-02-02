@@ -12,7 +12,7 @@ from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 
-LOG_LEVEL = "debug"
+LOG_LEVEL = "info"
 GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
 GlobalLoggerSettings.start_console_logging()
 
