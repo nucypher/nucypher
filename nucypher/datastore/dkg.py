@@ -3,9 +3,10 @@ from typing import List, Optional
 
 from hexbytes import HexBytes
 from nucypher_core.ferveo import (
-    AggregatedTranscript,
     Validator,
 )
+
+from nucypher.blockchain.eth.models import Coordinator
 
 
 class DKGStorage:
@@ -16,13 +17,14 @@ class DKGStorage:
     KEY_VALIDATORS = "validators"
     # round 2
     KEY_AGGREGATED_TXS = "aggregation_tx_hashes"
-    KEY_AGGREGATED_TRANSCRIPTS = "aggregated_transcripts"
+    # active rituals
+    KEY_ACTIVE_RITUAL = "active_rituals"
 
     _KEYS = [
         KEY_TRANSCRIPT_TXS,
         KEY_VALIDATORS,
         KEY_AGGREGATED_TXS,
-        KEY_AGGREGATED_TRANSCRIPTS,
+        KEY_ACTIVE_RITUAL,
     ]
 
     def __init__(self):
@@ -63,23 +65,6 @@ class DKGStorage:
     #
     # DKG Round 2 - Aggregation
     #
-    def store_aggregated_transcript(
-        self, ritual_id: int, aggregated_transcript: AggregatedTranscript
-    ) -> None:
-        self.data[self.KEY_AGGREGATED_TRANSCRIPTS][ritual_id] = bytes(
-            aggregated_transcript
-        )
-
-    def get_aggregated_transcript(
-        self, ritual_id: int
-    ) -> Optional[AggregatedTranscript]:
-        data = self.data[self.KEY_AGGREGATED_TRANSCRIPTS].get(ritual_id)
-        if not data:
-            return None
-
-        aggregated_transcript = AggregatedTranscript.from_bytes(data)
-        return aggregated_transcript
-
     def store_aggregation_txhash(self, ritual_id: int, txhash: HexBytes) -> None:
         self.data[self.KEY_AGGREGATED_TXS][ritual_id] = txhash
 
@@ -91,3 +76,15 @@ class DKGStorage:
 
     def get_aggregation_txhash(self, ritual_id: int) -> Optional[HexBytes]:
         return self.data[self.KEY_AGGREGATED_TXS].get(ritual_id)
+
+    #
+    # Active Rituals
+    #
+    def store_active_ritual(self, active_ritual: Coordinator.Ritual) -> None:
+        if active_ritual.total_aggregations != active_ritual.dkg_size:
+            # safeguard against a non-active ritual being cached
+            raise ValueError("Only active rituals can be cached")
+        self.data[self.KEY_ACTIVE_RITUAL][active_ritual.id] = active_ritual
+
+    def get_active_ritual(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
+        return self.data[self.KEY_ACTIVE_RITUAL].get(ritual_id)
