@@ -88,9 +88,3 @@ class DKGStorage:
 
     def get_active_ritual(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
         return self.data[self.KEY_ACTIVE_RITUAL].get(ritual_id)
-
-    def clear_active_ritual(self, ritual_id: int) -> None:
-        try:
-            del self.data[self.KEY_ACTIVE_RITUAL][ritual_id]
-        except KeyError:
-            pass
