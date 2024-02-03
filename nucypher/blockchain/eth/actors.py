@@ -295,7 +295,7 @@ class Operator(BaseActor):
 
     def _resolve_ritual(self, ritual_id: int) -> Coordinator.Ritual:
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual_id):
-            self.dkg_storage.clear_active_ritual(ritual_id)
+            self.dkg_storage.clear(ritual_id)
             raise self.ActorError(f"Ritual #{ritual_id} is not active.")
 
         ritual = self.dkg_storage.get_active_ritual(ritual_id)
