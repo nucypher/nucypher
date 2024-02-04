@@ -52,7 +52,7 @@ for i in range(3):
     })
     future_tx = tracker.queue_transaction(
         tx=tx,
-        transacting_power=transacting_power,
+        signer=transacting_power.sign_transaction,
         info={"message": f"This is transaction {i}"},
     )
     txs.append(future_tx)
