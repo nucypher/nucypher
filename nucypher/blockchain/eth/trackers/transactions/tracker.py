@@ -1,15 +1,13 @@
 import time
 from typing import Optional, Union
 
-from twisted.python.failure import Failure
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
-from web3.types import Gwei, Wei
 
-from nucypher.blockchain.eth.trackers.transactions.exceptions import _handle_rpc_error
+from nucypher.blockchain.eth.trackers.transactions.exceptions import _handle_rpc_error, StrategyLimitExceeded
 from nucypher.blockchain.eth.trackers.transactions.state import _TrackerState
 from nucypher.blockchain.eth.trackers.transactions.strategies import (
-    _make_speedup_params,
+    SpeedupStrategy,
 )
 from nucypher.blockchain.eth.trackers.transactions.tx import (
     FinalizedTx,
@@ -38,46 +36,26 @@ class _TransactionTracker(SimpleTask):
     and restarts.
     """
 
-    # slow
+    # tweaks
+    _STRATEGY = SpeedupStrategy
+    _TIMEOUT = 60 * 60  # 1 hour
+    _TRACKING_CONFIRMATIONS = 300  # blocks until clearing a finalized transaction
+    _RPC_THROTTLE = 1  # min. seconds between RPC calls (>1 recommended)
+    _MIN_INTERVAL = 1  # absolute min. async loop interval (edge case in case of low block count)
+
+    # idle (slower)
     INTERVAL = 60 * 5  # seconds
     IDLE_INTERVAL = INTERVAL  # renames above constant
 
-    # fast
+    # work (faster)
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 10_000  # blocks
 
-    # public config
-    DEFAULT_MAX_TIP = Gwei(1)  # gwei maxPriorityFeePerGas per transaction
-    DEFAULT_TIMEOUT = 60 * 60  # 1 hour
-
-    # tweaks
-    _FINALITY_CONFIRMATIONS = 30  # blocks until a transaction is considered finalized
-    _TRACKING_CONFIRMATIONS = (
-        300  # confirmations until clearing a finalized transaction
-    )
-    _RPC_THROTTLE = 1  # min. seconds between RPC calls (>1 recommended)
-
-    # internal
-    __MIN_INTERVAL = 1  # seconds
-
-    def __init__(
-        self,
-        w3: Web3,
-        max_tip: Gwei = DEFAULT_MAX_TIP,
-        timeout: int = DEFAULT_TIMEOUT,
-        filepath: Optional[str] = None,
-        disk_restore: bool = False,
-    ):
-        # w3
+    def __init__(self, w3: Web3):
         self.w3 = w3
-
-        # gwei -> wei
-        self.max_tip: Wei = Web3.to_wei(max_tip, "gwei")
-        self.timeout = timeout
-        self.disk_restore = disk_restore
-
-        # internal
-        self.__state = _TrackerState(filepath=filepath)
+        self.strategy = self._STRATEGY(w3=w3)
+        self.timeout = self._TIMEOUT
+        self.__state = _TrackerState()
         super().__init__(interval=self.INTERVAL)
 
     #
@@ -98,7 +76,7 @@ class _TransactionTracker(SimpleTask):
             w3=self.w3, sample_size=self.BLOCK_SAMPLE_SIZE
         )
         self._task.interval = max(
-            round(average_block_time * self.BLOCK_INTERVAL), self.__MIN_INTERVAL
+            round(average_block_time * self.BLOCK_INTERVAL), self._MIN_INTERVAL
         )
         self.log.info(f"[working] cycle interval is {self._task.interval} seconds")
 
@@ -114,7 +92,7 @@ class _TransactionTracker(SimpleTask):
         1. timeout
         2. finalized
         3. capped
-        4. speedup
+        4. (re)strategize
 
         Returns True if the pending transaction has been cleared
         and the queue is ready for the next transaction.
@@ -131,6 +109,12 @@ class _TransactionTracker(SimpleTask):
         # Outcome 2: pending transaction is finalized
         receipt = self.__get_receipt()
         if receipt:
+            final_txhash = receipt["transactionHash"]
+            confirmations = self.__get_confirmations(tx=self.__state.active)
+            self.log.info(
+                f"[finalized] Transaction #atx-{self.__state.active.id} has been finalized "
+                f"with {confirmations} confirmations txhash: {final_txhash.hex()}"
+            )
             self.__state.finalize_active_tx(receipt=receipt)
             return True
 
@@ -139,7 +123,7 @@ class _TransactionTracker(SimpleTask):
             return False
 
         # Outcome4: pending transaction has been sped up
-        self.__speedup()
+        self.__strategize()
         return False
 
     #
@@ -147,32 +131,38 @@ class _TransactionTracker(SimpleTask):
     #
 
     def __fire(self, tx: FutureTx, msg: str) -> Optional[PendingTx]:
+        """Signs and broadcasts a transaction. Handles RPC errors and state changes."""
         try:
             txhash = self.w3.eth.send_raw_transaction(tx.signer(tx.params))
         except ValueError as e:
             _handle_rpc_error(e, tx=tx)
             return
         self.log.info(
-            f"[{msg}] Fired transaction #{tx.id}: {tx.params['nonce']}|{txhash.hex()}"
+            f"[{msg}] fired transaction #atx-{tx.id}: {tx.params['nonce']}|{txhash.hex()}"
         )
         self.__state.evolve_future(tx=tx, txhash=txhash)
 
-    def __speedup(self) -> Optional[TxHash]:
+    def __strategize(self) -> Optional[TxHash]:
         """Speeds up the currently tracked pending transaction."""
-        params = _make_speedup_params(
-            w3=self.w3,
-            params=_make_tx_params(self.__state.active.data),
-        )
-        if params["maxPriorityFeePerGas"] > self.max_tip:
-            self.log.warn(
-                f"[cap] Pending transaction maxPriorityFeePerGas exceeds spending cap {self.max_tip}"
+        try:
+            params = self.strategy.execute(
+                params=_make_tx_params(self.__state.active.data),
             )
+        except StrategyLimitExceeded as e:
             self.__state.active.capped = True
-            self.log.info("Waiting for capped transaction to clear...")
+            self.log.warn(
+                f"[cap] pending transaction {self.__state.active.txhash.hex()} has been capped: {e}"
+            )
+            # It would be nice to re-queue the capped transaction however,
+            # if the pending tx has already reached the spending cap it cannot
+            # be sped up again (without increasing the cap).  For now, we just
+            # let the transaction timeout and remove it, but this may cascade
+            # into a chain of capped transactions if the cap is not increased / is too low.
             return
 
+        # use the strategy-generated transaction parameters
         pending_tx = self.__fire(tx=params, msg="speedup")
-        self.log.info(f"[speedup] transaction #{pending_tx.id} has been sped up")
+        self.log.info(f"[{self.strategy.name}] transaction #{pending_tx.id} has been re-broadcasted")
 
     def __broadcast(self) -> Optional[TxHash]:
         """
@@ -203,14 +193,14 @@ class _TransactionTracker(SimpleTask):
             txdata = self.w3.eth.get_transaction(self.__state.active.txhash)
             self.__state.active.data = txdata
         except TransactionNotFound:
-            self.log.info(f"Transaction {self.__state.active.txhash.hex()} not found")
+            self.log.error(f"[error] Transaction {self.__state.active.txhash.hex()} not found")
             self.__state.clear_active()
             return
 
         receipt = _get_receipt(w3=self.w3, data=txdata)
         if receipt:
             txtracker_log.info(
-                f"[accepted] Transaction #{txdata['nonce']}|{txdata['hash'].hex()} "
+                f"[accepted] Transaction {txdata['nonce']}|{txdata['hash'].hex()} "
                 f"has been included in block #{txdata['blockNumber']}"
             )
             return receipt
@@ -239,6 +229,10 @@ class _TransactionTracker(SimpleTask):
         return confirmations
 
     def __active_timed_out(self) -> bool:
+        """
+        Returns True if the active transaction has timed out.
+        Does not perform any state changes.
+        """
         if not self.__state.active:
             return False
         timeout = (time.time() - self.__state.active.created) > self.timeout
@@ -257,35 +251,34 @@ class _TransactionTracker(SimpleTask):
         human_end_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
         if time_remaining < (60 * 2):
             self.log.warn(
-                f"Transaction {self.__state.active.txhash.hex()} will timeout in "
+                f"[timeout] Transaction {self.__state.active.txhash.hex()} will timeout in "
                 f"{minutes}m{remainder_seconds}s at {human_end_time}"
             )
         else:
             self.log.info(
-                f"Pending Transaction: {self.__state.active.txhash.hex()} \n"
-                f"{round(time.time() - self.__state.active.created)}s Elapsed | "
+                f"[pending] {self.__state.active.txhash.hex()} \n"
+                f"[pending] {round(time.time() - self.__state.active.created)}s Elapsed | "
                 f"{minutes}m{remainder_seconds}s Remaining | "
                 f"Timeout at {human_end_time}"
             )
         return False
 
     def __monitor_finalized(self) -> None:
-        """Follow up on finalized transactions"""
+        """Follow-up on finalized transactions for a little while."""
         if not self.__state.finalized:
             return
         for tx in self.__state.finalized.copy():
             confirmations = self.__get_confirmations(tx=tx)
             txhash = tx.receipt["transactionHash"]
-            txblock = tx.receipt["blockNumber"]
-            if confirmations >= self._FINALITY_CONFIRMATIONS:
-                self.log.info(
-                    f"[finalized] Transaction {txhash.hex()} has been finalized"
-                )
+            if confirmations >= self._TRACKING_CONFIRMATIONS:
                 if tx in self.__state.finalized:
                     self.__state.finalized.remove(tx)
+                    self.log.info(
+                        f"[monitor] stopped tracking {txhash.hex()} after {confirmations} confirmations"
+                    )
                 continue
             self.log.info(
-                f"[monitor] Transaction {txhash.hex()} has {confirmations} confirmations"
+                f"[monitor] transaction {txhash.hex()} has {confirmations} confirmations"
             )
 
     #
@@ -293,14 +286,14 @@ class _TransactionTracker(SimpleTask):
     #
 
     def handle_errors(self, *args, **kwargs):
-        """Handles unexpected errors during transaction processing."""
+        """Handles unexpected errors during task processing."""
         self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
         if not self._task.running:
             self.log.warn("Restarting transaction task!")
             self.start(now=False)  # take a breather
 
     def run(self):
-        """Executes one cycle of the transaction tracker."""
+        """Executes one cycle of the tracker."""
 
         self.__monitor_finalized()
         if not self.busy:
@@ -328,11 +321,17 @@ class _TransactionTracker(SimpleTask):
 
     @property
     def fire(self):
-        """Returns True if the next transaction will be broadcasted."""
+        """
+        Returns True if the next queued transaction can be broadcasted right now.
+        -
+        Qualification: There is no active transaction and
+        there are transactions waiting in the queue.
+        """
         return self.__state.waiting and not self.__state.active
 
     @property
     def busy(self) -> bool:
+        """Returns True if the tracker is busy."""
         if self.__state.active:
             return True
         if len(self.__state.waiting) > 0:

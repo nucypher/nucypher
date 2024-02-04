@@ -11,6 +11,10 @@ class InsufficientFunds(RPCError):
     """raised when a transaction exceeds the spending cap"""
 
 
+class StrategyLimitExceeded(Exception):
+    """raised when a transaction exceeds a strategy limitation"""
+
+
 def _handle_rpc_error(e: Exception, tx: TxParams) -> None:
     error = RPCError(**e.args[0])
     txtracker_log.critical(

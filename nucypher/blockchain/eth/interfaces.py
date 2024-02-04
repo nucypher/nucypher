@@ -473,22 +473,25 @@ class BlockchainInterface:
                                    transaction_gas_limit: Optional[int] = None,
                                    gas_estimation_multiplier: Optional[float] = None,
                                    use_pending_nonce: Optional[bool] = None,
+                                   log_now: bool = True,
                                    ) -> TxParams:
 
         if transaction_gas_limit is not None:
-            self.log.warn("The transaction gas limit of {transaction_gas_limit} will override gas estimation attempts")
+            self.log.warn(f"The transaction gas limit of {transaction_gas_limit} will override gas estimation attempts")
 
         # Sanity checks for the gas estimation multiplier
         if gas_estimation_multiplier is not None:
             if not 1 <= gas_estimation_multiplier <= 3:  # Arbitrary upper bound.
-                raise ValueError(f"The gas estimation multiplier should be a float between 1 and 3, "
+                raise ValueError(f"The gas estimation multiplier must be a float between 1 and 3, "
                                  f"but we received {gas_estimation_multiplier}.")
 
         payload = self.build_payload(sender_address=sender_address,
                                      payload=payload,
                                      transaction_gas_limit=transaction_gas_limit,
                                      use_pending_nonce=use_pending_nonce)
-        self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
+
+        if log_now:
+            self.__log_transaction(transaction_dict=payload, contract_function=contract_function)
         try:
             if 'gas' not in payload:  # i.e., transaction_gas_limit is not None
                 # As web3 build_transaction() will estimate gas with block identifier "pending" by default,
@@ -617,6 +620,7 @@ class BlockchainInterface:
             payload=payload,
             transaction_gas_limit=transaction_gas_limit,
             gas_estimation_multiplier=gas_estimation_multiplier,
+            log_now=not fire_and_forget,
         )
 
         if fire_and_forget:

@@ -35,7 +35,7 @@ class _TrackerState:
     def commit(self) -> None:
         with open(self.__filepath, "w+t") as file:
             file.write(self.__serialize())
-        txtracker_log.debug(f"Updated transaction cache file {self.__filepath}")
+        txtracker_log.debug(f"[state] wrote transaction cache file {self.__filepath}")
 
     def restore(self) -> None:
         # read
@@ -51,6 +51,7 @@ class _TrackerState:
         # parse
         active = data.get("active", dict())
         queue = data.get("queue", list())
+        final = data.get("finalized", list())
 
         # deserialize
         if active is not None:
@@ -60,15 +61,22 @@ class _TrackerState:
         # restore
         self.__active = active
         self.__queue = deque(txs)
+        self.finalized = set(final)
         txtracker_log.debug(
-            f"Loaded {len(queue)} transactions from cache file {self.__filepath}"
+            f"[state] restored {len(queue)} transactions from cache file {self.__filepath}"
         )
 
-    def track_active(self, tx: PendingTx) -> None:
-        """Track a active transaction by its hash. Overwrites any existing active transaction."""
+    def __track_active(self, tx: PendingTx) -> None:
+        """Update the active transaction (destructive operation)."""
+        old = None
+        if self.__active:
+            old = self.__active.txhash
         self.__active = tx
         self.commit()
-        txtracker_log.debug(f"Tacking pending transaction {tx.txhash.hex()}")
+        if old:
+            txtracker_log.debug(f"[state] updated active transaction {old.hex()} -> {tx.txhash.hex()}")
+            return
+        txtracker_log.debug(f"[state] tracked active transaction {tx.txhash.hex()}")
 
     def evolve_future(self, tx: FutureTx, txhash) -> None:
         """
@@ -81,8 +89,8 @@ class _TrackerState:
         tx.retries = 0
         tx.__class__ = PendingTx
         tx: PendingTx
-        self.track_active(tx=tx)
-        txtracker_log.info(f"{self.__active.id} Queued -> Pending")
+        self.__track_active(tx=tx)
+        txtracker_log.info(f"[state] #atx-{self.__active.id} queued -> pending")
 
     def finalize_active_tx(self, receipt: TxReceipt) -> None:
         """
@@ -94,15 +102,16 @@ class _TrackerState:
         self.__active.receipt = receipt
         self.__active.__class__ = FinalizedTx
         self.finalized.add(self.__active)
-        txtracker_log.info(f"{self.__active.id} Pending -> Finalized")
+        txtracker_log.info(f"[state] #atx-{self.__active.id} pending -> finalized")
         self.clear_active()
 
     def clear_active(self) -> None:
         self.__active = None
         self.commit()
         txtracker_log.debug(
-            f"Cleared 1 pending transaction - {len(self.waiting)} "
-            f"queued transaction{'s' if len(self.waiting) > 1 else ''} remaining"
+            f"[state] cleared 1 pending transaction \n"
+            f"[state] {len(self.waiting)} queued "
+            f"transaction{'s' if len(self.waiting) != 1 else ''} remaining"
         )
 
     @property
@@ -120,7 +129,8 @@ class _TrackerState:
         self.__queue.append(tx)
         self.commit()
         txtracker_log.info(
-            f"Re-queued transaction #{tx.id} " f"in position {len(self.__queue) + 1}"
+            f"[state] re-queued transaction #atx-{tx.id} "
+            f"priority {len(self.__queue) + 1}"
         )
 
     def _queue(
@@ -138,8 +148,8 @@ class _TrackerState:
         self.__queue.append(tx)
         self.__COUNTER += 1
         txtracker_log.info(
-            f"Queued transaction #{tx.params['nonce']} "
-            f"in broadcast queue position {len(self.__queue)}"
+            f"[state] queued transaction #atx-{tx.id} "
+            f"priority {len(self.__queue)}"
         )
         self.commit()
         return tx

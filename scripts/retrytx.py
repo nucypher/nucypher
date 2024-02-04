@@ -32,7 +32,6 @@ w3 = coordinator_agent.blockchain.w3
 tracker = TransactionTracker(
     w3=coordinator_agent.blockchain.w3,
 )
-tracker.start()
 
 txs = []
 for i in range(3):
@@ -57,4 +56,6 @@ for i in range(3):
     )
     txs.append(future_tx)
 
+
+tracker.start(now=True)
 reactor.run()

@@ -27,7 +27,8 @@ class TransactionTracker(_TransactionTracker):
         tx = self.__state._queue(*args, **kwargs)
         return tx
 
-    def start(self, now: bool = False) -> None:
+    def start(self, now: bool = True) -> None:
         # self.__state.restore()
+        # self.log.info("Resuming transaction tracker")
         self.log.info("Starting transaction tracker")
         return super().start(now=now)
