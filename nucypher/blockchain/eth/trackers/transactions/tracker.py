@@ -1,8 +1,11 @@
 import time
 from typing import Optional, Union
 
+from eth_account.signers.local import LocalAccount
+from twisted.internet.defer import Deferred
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
+from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.trackers.transactions.exceptions import (
     StrategyLimitExceeded,
@@ -23,6 +26,7 @@ from nucypher.blockchain.eth.trackers.transactions.utils import (
     _get_average_blocktime,
     _get_receipt,
     txtracker_log,
+    fire_hook,
 )
 from nucypher.utilities.task import SimpleTask
 
@@ -45,7 +49,7 @@ class _TransactionTracker(SimpleTask):
     _TRACKING_CONFIRMATIONS = 300  # blocks until clearing a finalized transaction
     _RPC_THROTTLE = 1  # min. seconds between RPC calls (>1 recommended)
     _MIN_INTERVAL = (
-        1  # absolute min. async loop interval (edge case in case of low block count)
+        1  # absolute min. async loop interval (edge case of low block count)
     )
 
     # idle (slower)
@@ -56,8 +60,9 @@ class _TransactionTracker(SimpleTask):
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 10_000  # blocks
 
-    def __init__(self, w3: Web3):
+    def __init__(self, w3: Web3, signer: LocalAccount):
         self.w3 = w3
+        self.signer = signer
         self.strategy = self._STRATEGY(w3=w3)
         self.timeout = self._TIMEOUT
         self.__state = _TrackerState()
@@ -97,7 +102,7 @@ class _TransactionTracker(SimpleTask):
         1. timeout
         2. finalized
         3. capped
-        4. (re)strategize
+        4. (re)strategize & (re)broadcast
 
         Returns True if the pending transaction has been cleared
         and the queue is ready for the next transaction.
@@ -105,10 +110,13 @@ class _TransactionTracker(SimpleTask):
 
         # Outcome 1: pending transaction has timed out
         if self.__active_timed_out():
+            hook = self.__state.active.on_timeout
             self.log.warn(
                 f"[timeout] pending transaction {self.__state.active.txhash.hex()} has timed out"
             )
             self.__state.clear_active()
+            if hook:
+                fire_hook(hook=hook, tx=self.__state.active)
             return True
 
         # Outcome 2: pending transaction is finalized
@@ -138,17 +146,19 @@ class _TransactionTracker(SimpleTask):
     def __fire(self, tx: FutureTx, msg: str) -> Optional[PendingTx]:
         """Signs and broadcasts a transaction. Handles RPC errors and state changes."""
         try:
-            txhash = self.w3.eth.send_raw_transaction(tx.signer(tx.params))
+            txhash = self.w3.eth.send_raw_transaction(
+                self.signer.sign_transaction(tx.params).rawTransaction
+            )
         except ValueError as e:
             _handle_rpc_error(e, tx=tx)
             return
         self.log.info(
-            f"[{msg}] fired transaction #atx-{tx.id}: {tx.params['nonce']}|{txhash.hex()}"
+            f"[{msg}] fired transaction #atx-{tx.id}|{tx.params['nonce']}|{txhash.hex()}"
         )
         self.__state.evolve_future(tx=tx, txhash=txhash)
 
     def __strategize(self) -> Optional[TxHash]:
-        """Speeds up the currently tracked pending transaction."""
+        """Retry the currently tracked pending transaction with the configured strategy."""
         try:
             params = self.strategy.execute(
                 params=_make_tx_params(self.__state.active.data),
@@ -163,6 +173,12 @@ class _TransactionTracker(SimpleTask):
             # be sped up again (without increasing the cap).  For now, we just
             # let the transaction timeout and remove it, but this may cascade
             # into a chain of capped transactions if the cap is not increased / is too low.
+            hook = self.__state.active.on_capped
+            if hook:
+                fire_hook(
+                    hook=hook,
+                    tx=self.__state.active
+                )
             return
 
         # use the strategy-generated transaction parameters
@@ -178,11 +194,11 @@ class _TransactionTracker(SimpleTask):
         """
         future_tx = self.__state._pop()
         future_tx.params = _make_tx_params(future_tx.params)
-        nonce = self.w3.eth.get_transaction_count(future_tx.params["from"], "latest")
+        nonce = self.w3.eth.get_transaction_count(self.signer.address, "latest")
         if nonce > future_tx.params["nonce"]:
             self.log.warn(
-                f"Transaction #{future_tx.params['nonce']} has been front-run "
-                f"by another transaction. Updating nonce {future_tx.params['nonce']} -> {nonce}"
+                f"[broadcast] nonce {future_tx.params['nonce']} has been front-run "
+                f"by another transaction. Updating queued tx nonce {future_tx.params['nonce']} -> {nonce}"
             )
         future_tx.params["nonce"] = nonce
         self.__fire(tx=future_tx, msg="broadcast")
@@ -194,7 +210,7 @@ class _TransactionTracker(SimpleTask):
     # Monitoring
     #
 
-    def __get_receipt(self):
+    def __get_receipt(self) -> Optional[TxReceipt]:
         """Make and RPC call to get the pending transaction data."""
         try:
             txdata = self.w3.eth.get_transaction(self.__state.active.txhash)
@@ -294,14 +310,16 @@ class _TransactionTracker(SimpleTask):
     # Async
     #
 
-    def handle_errors(self, *args, **kwargs):
+    def handle_errors(self, *args, **kwargs) -> None:
         """Handles unexpected errors during task processing."""
-        self.log.warn("Error during transaction: {}".format(args[0].getTraceback()))
+        self.log.warn("[recovery] error during transaction: {}".format(args[0].getTraceback()))
+        self.__state.commit()
+        time.sleep(self._RPC_THROTTLE)
         if not self._task.running:
-            self.log.warn("Restarting transaction task!")
+            self.log.warn("[recovery] restarting transaction tracker!")
             self.start(now=False)  # take a breather
 
-    def run(self):
+    def run(self) -> None:
         """Executes one cycle of the tracker."""
 
         self.__monitor_finalized()
@@ -329,7 +347,7 @@ class _TransactionTracker(SimpleTask):
             self.__idle_mode()
 
     @property
-    def fire(self):
+    def fire(self) -> bool:
         """
         Returns True if the next queued transaction can be broadcasted right now.
         -
@@ -346,3 +364,11 @@ class _TransactionTracker(SimpleTask):
         if len(self.__state.waiting) > 0:
             return True
         return False
+
+    def start(self, now: bool = True) -> Deferred:
+        self.__state.restore()
+        if now:
+            self.log.info("[txtracker] starting transaction tracker now")
+        else:
+            self.log.info(f"[txtracker] starting transaction tracker in {self.INTERVAL} seconds")
+        return super().start(now=now)

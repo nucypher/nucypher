@@ -1,10 +1,12 @@
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
+from twisted.internet import reactor
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import PendingTx as PendingTxData
 from web3.types import TxData, TxReceipt, Wei
 
+from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
 from nucypher.utilities.logging import Logger
 
 txtracker_log = Logger("tx.tracker")
@@ -48,3 +50,16 @@ def _get_receipt(w3: Web3, data: Union[TxData, PendingTxData]) -> Optional[TxRec
         )
         return receipt
     return receipt
+
+
+def fire_hook(hook: Callable, tx: AsyncTx) -> None:
+    """Fire a hook in a separate thread."""
+
+    def _hook():
+        try:
+            hook(tx)
+        except Exception as e:
+            txtracker_log.warn(f'[hook] {e}')
+
+    reactor.callInThread(_hook)
+    txtracker_log.info(f"[hook] fired hook {hook} for transaction #atx-{tx.id}")

@@ -1,16 +1,18 @@
 import os
 
+from eth_account import Account
 from twisted.internet import reactor
+from web3 import Web3, HTTPProvider
+from web3.middleware import geth_poa_middleware
 
-from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.domains import LYNX
-from nucypher.blockchain.eth.interfaces import BlockchainInterface, BlockchainInterfaceFactory
-from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
-from nucypher.crypto.powers import TransactingPower
+from nucypher.blockchain.eth.trackers.transactions.tx import FinalizedTx, PendingTx
 from nucypher.utilities.logging import GlobalLoggerSettings
 from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
+
+GlobalLoggerSettings.set_log_level(log_level_name='debug')
+GlobalLoggerSettings.start_console_logging()
 
 
 #
@@ -18,40 +20,46 @@ from tests.constants import DEFAULT_TEST_ENRICO_PRIVATE_KEY
 #
 
 LOG_LEVEL = "debug"
+CHAIN_ID = 80001
 ENDPOINT = os.environ["WEB3_PROVIDER_URI"]
 PRIVATE_KEY = DEFAULT_TEST_ENRICO_PRIVATE_KEY
 DOMAIN = LYNX
-
 
 #
 # Setup
 #
 
-GlobalLoggerSettings.set_log_level(log_level_name=LOG_LEVEL)
-GlobalLoggerSettings.start_console_logging()
+account = Account.from_key(PRIVATE_KEY)
+provider = HTTPProvider(endpoint_uri=ENDPOINT)
 
-signer = InMemorySigner(private_key=PRIVATE_KEY)
-address = signer.accounts[0]
-transacting_power = TransactingPower(signer=signer, account=address)
-
-blockchain = BlockchainInterfaceFactory.get_or_create_interface(endpoint=ENDPOINT)
-
+w3 = Web3(provider)
+w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
 #
-# Prepare Tx
+# Prepare Transaction
 #
 
+nonce = w3.eth.get_transaction_count(account.address, 'pending')
 
-base_fee = blockchain.w3.eth.get_block("latest")["baseFeePerGas"]
-tip = blockchain.w3.eth.max_priority_fee
-nonce = blockchain.w3.eth.get_transaction_count(address, 'pending')
-
-tx = {
-    'type': '0x2',
-    'chainId': 80001,
+# Legacy transaction
+gas_price = w3.eth.gas_price
+legacy_transaction = {
+    'chainId': CHAIN_ID,
     'nonce': nonce,
-    'from': address,
-    'to': address,
+    'to': account.address,
+    'value': 0,
+    'gas': 21000,
+    'gasPrice': gas_price,
+    'data': b'',
+}
+
+# EIP-1559 transaction
+base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
+tip = w3.eth.max_priority_fee
+transaction_eip1559 = {
+    'chainId': CHAIN_ID,
+    'nonce': nonce + 1,
+    'to': account.address,
     'value': 0,
     'gas': 21000,
     'maxPriorityFeePerGas': tip,
@@ -60,14 +68,41 @@ tx = {
 }
 
 #
-# Queue Tx
+# Define Hooks
 #
 
-tracker = TransactionTracker(w3=blockchain.w3)
-_future_tx = tracker.queue_transaction(
-    tx=tx,
-    signer=transacting_power.sign_transaction,  # callable
-    info={"message": f"This is transaction {nonce}"},  # optional
+
+def on_transaction_finalized(tx: FinalizedTx):
+    txhash = tx.receipt['transactionHash'].hex()
+    mumbai_polygonscan = f"https://mumbai.polygonscan.com/tx/{txhash}"
+    print(f"[alert] Transaction has been finalized ({txhash})!")
+    print(f"View on PolygonScan: {mumbai_polygonscan}")
+
+
+def on_transaction_capped(tx: PendingTx):
+    txhash = tx.txhash.hex()
+    print(f"[alert] Transaction has been capped ({txhash})!")
+
+
+def on_transaction_timeout(tx: PendingTx):
+    txhash = tx.txhash.hex()
+    print(f"[alert] Transaction has timed out ({txhash})!")
+
+
+#
+# Queue Transaction(s)
+#
+
+tracker = TransactionTracker(w3=w3, signer=account)
+_future_txs = tracker.queue_transactions(
+    params=[
+        legacy_transaction,
+        transaction_eip1559
+    ],
+    info={"message": f"something wonderful is happening..."},  # optional
+    on_finalized=on_transaction_finalized,
+    on_capped=on_transaction_capped,
+    on_timeout=on_transaction_timeout
 )
 
 tracker.start(now=True)

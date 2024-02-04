@@ -12,19 +12,40 @@ TxHash = HexBytes
 class AsyncTx(ABC):
     id: int
     final: bool = field(default=None, init=False)
+    on_finalized: Optional[Callable] = field(default=None, init=False)
+    on_capped: Optional[Callable] = field(default=None, init=False)
+    on_timeout: Optional[Callable] = field(default=None, init=False)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} id={self.id} final={self.final}>"
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, other):
+        return self.id == other.id
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def to_dict(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_dict(cls, data: Dict):
+        raise NotImplementedError
 
 
 @dataclass
 class FutureTx(AsyncTx):
     final: bool = field(default=False, init=False)
     params: TxParams
-    signer: Callable
     info: Optional[Dict] = None
 
     def __hash__(self):
         return hash(self.id)
 
-    def to_dict(self):
+    def to_dict(self) -> Dict:
         return {
             "id": self.id,
             "params": _serialize_tx_params(self.params),
@@ -32,16 +53,11 @@ class FutureTx(AsyncTx):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, signer: Optional[Callable] = None):
-        if not signer:
-            raise NotImplementedError(
-                "Signer must be provided to deserialize a FutureTx"
-            )
+    def from_dict(cls, data: Dict):
         return cls(
             id=int(data["id"]),
             params=TxParams(data["params"]),
             info=dict(data["info"]),
-            signer=signer,
         )
 
 
@@ -97,18 +113,26 @@ def _serialize_tx_params(params: TxParams) -> Dict:
     data = params.get("data", b"")
     if isinstance(data, bytes):
         data = data.hex()
-    return {
+
+    result = {
         "nonce": params["nonce"],
-        "maxPriorityFeePerGas": params["maxPriorityFeePerGas"],
-        "maxFeePerGas": params["maxFeePerGas"],
         "chainId": params["chainId"],
         "gas": params["gas"],
         "type": params.get("type", ""),
-        "from": params["from"],
         "to": params["to"],
         "value": params["value"],
         "data": data,
     }
+    if "type" in params:
+        result["type"] = params["type"]
+    if "maxPriorityFeePerGas" in params:
+        result["maxPriorityFeePerGas"] = params["maxPriorityFeePerGas"]
+    if "maxFeePerGas" in params:
+        result["maxFeePerGas"] = params["maxFeePerGas"]
+    if "gasPrice" in params:
+        result["gasPrice"] = params["gasPrice"]
+
+    return dict(result)
 
 
 def _serialize_tx_receipt(receipt: TxReceipt) -> Dict:
@@ -121,29 +145,32 @@ def _serialize_tx_receipt(receipt: TxReceipt) -> Dict:
         "to": receipt["to"],
         "cumulativeGasUsed": receipt["cumulativeGasUsed"],
         "gasUsed": receipt["gasUsed"],
-        "contractAddress": receipt["contractAddress"],
-        "logs": [dict(_log) for _log in receipt["logs"]],
         "status": receipt["status"],
-        "logsBloom": receipt["logsBloom"].hex(),
-        "root": receipt["root"].hex(),
-        "type": receipt["type"],
-        "effectiveGasPrice": receipt["effectiveGasPrice"],
     }
 
 
-def _make_tx_params(tx: TxData) -> TxParams:
-    """Creates a transaction parameters object from a transaction data object for broadcast."""
-    return TxParams(
-        {
-            "nonce": tx["nonce"],
-            "maxPriorityFeePerGas": tx["maxPriorityFeePerGas"],
-            "maxFeePerGas": tx["maxFeePerGas"],
-            "chainId": tx["chainId"],
-            "gas": tx["gas"],
-            "type": "0x2",
-            "from": tx["from"],
-            "to": tx["to"],
-            "value": tx["value"],
-            "data": tx.get("data", b""),
-        }
-    )
+def _make_tx_params(data: TxData) -> TxParams:
+    """
+    TxData -> TxParams: Creates a transaction parameters
+    object from a transaction data object for broadcast.
+
+    This operation is performed in order to "turnaround" the transaction
+    data object as queried from the RPC provider (eth_getTransaction) into a transaction
+    parameters object for strategics and re-broadcast (LocalAccount.sign_transaction).
+    """
+    params = TxParams({
+            "nonce": data["nonce"],
+            "chainId": data["chainId"],
+            "gas": data["gas"],
+            "to": data["to"],
+            "value": data["value"],
+            "data": data.get("data", b""),
+    })
+    if "gasPrice" in data:
+        params["type"] = "0x01"
+        params["gasPrice"] = data["gasPrice"]
+    elif "maxFeePerGas" in data:
+        params["type"] = "0x02"
+        params["maxFeePerGas"] = data["maxFeePerGas"]
+        params["maxPriorityFeePerGas"] = data["maxPriorityFeePerGas"]
+    return params

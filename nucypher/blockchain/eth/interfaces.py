@@ -634,7 +634,7 @@ class BlockchainInterface:
             async_tx = self.tracker.queue_transaction(
                 info=info,
                 tx=transaction,
-                signer=transacting_power.sign_transaction,
+                signer=transacting_power,
             )
             return async_tx
 
