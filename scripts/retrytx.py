@@ -1,6 +1,3 @@
-import time
-
-from eth_utils import encode_hex
 from twisted.internet import reactor
 from web3.types import TxParams
 
@@ -37,7 +34,7 @@ tracker = TransactionTracker(
 )
 tracker.start()
 
-
+txs = []
 for i in range(3):
     nonce = w3.eth.get_transaction_count(address, 'pending')
     base_fee = w3.eth.get_block("latest")["baseFeePerGas"]
@@ -53,12 +50,11 @@ for i in range(3):
         'type': '0x2',
         'from': address
     })
-    tracker.queue_transaction(
+    future_tx = tracker.queue_transaction(
         tx=tx,
         transacting_power=transacting_power,
+        info={"message": f"This is transaction {i}"},
     )
-
-# txhash = tracker.send_transaction(tx=tx)
-# print(txhash)
+    txs.append(future_tx)
 
 reactor.run()

@@ -11,6 +11,7 @@ from nucypher.blockchain.eth.interfaces import (
 )
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.token import NU
+from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
@@ -90,6 +91,7 @@ class TesterBlockchain(BlockchainInterface):
             *args,
             **kwargs,
         )
+
         self.log = Logger("test-blockchain")
         self.connect()
 

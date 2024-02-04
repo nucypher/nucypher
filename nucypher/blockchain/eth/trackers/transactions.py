@@ -1,15 +1,19 @@
 import json
 import time
+from abc import ABC
 from collections import deque
 from dataclasses import dataclass
 from json import JSONDecodeError
 from tempfile import NamedTemporaryFile
-from typing import Optional, Tuple, Union, List, Dict, NamedTuple, Callable
+from typing import Optional, Tuple, Union, List, Dict, Callable
 
 from hexbytes import HexBytes
+from twisted.internet import reactor
+from twisted.internet.defer import Deferred
+from twisted.internet.task import LoopingCall
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
-from web3.types import PendingTx as PendingTxData
+from web3.types import PendingTx as PendingTxData, TxReceipt
 from web3.types import Wei, Gwei, TxData, TxParams, RPCError
 
 from nucypher.utilities.logging import Logger
@@ -18,6 +22,43 @@ from nucypher.utilities.task import SimpleTask
 TxHash = HexBytes
 
 log = Logger('txtracker')
+
+
+@dataclass
+class AsyncTX(ABC):
+    id: int
+
+
+@dataclass
+class FutureTx(AsyncTX):
+    params: TxParams
+    signer: 'TransactingPower' = None
+    info: Optional[Dict] = None
+    success: Optional[Callable] = None
+    error: Optional[Callable] = None
+
+    def __hash__(self):
+        return hash(self.id)
+
+
+@dataclass
+class PendingTx(AsyncTX):
+    txhash: TxHash
+    created: int
+    data: Optional[TxData] = None
+    capped: bool = False
+    retries: int = 0
+
+    def __hash__(self):
+        return hash(self.txhash)
+
+
+@dataclass
+class FinalizedTx(AsyncTX):
+    receipt: TxReceipt
+
+    def __hash__(self):
+        return hash(self.receipt['transactionHash'])
 
 
 def _get_average_blocktime(w3, sample_size: int) -> float:
@@ -53,11 +94,11 @@ def _log_gas_weather(base_fee: Wei, tip: Wei) -> None:
     log.info(f"Gas conditions: base {base_fee_gwei} gwei | tip {tip_gwei} gwei")
 
 
-def _is_tx_finalized(w3: Web3, data: Union[TxData, PendingTxData]) -> bool:
+def _get_receipt(w3: Web3, data: Union[TxData, PendingTxData]) -> Optional[TxReceipt]:
     try:
         receipt = w3.eth.get_transaction_receipt(data["hash"])
     except TransactionNotFound:
-        return False
+        return
     status = receipt.get("status")
     if status == 0:
         # If status in response equals 1 the transaction was successful.
@@ -67,8 +108,8 @@ def _is_tx_finalized(w3: Web3, data: Union[TxData, PendingTxData]) -> bool:
         log.info(
             f"Transaction {data['hash'].hex()} was reverted by EVM with status {status}"
         )
-        return True
-    return True
+        return receipt
+    return receipt
 
 
 def _make_tx_params(tx: TxData) -> TxParams:
@@ -122,24 +163,6 @@ def _handle_rpc_error(e: Exception, tx: TxParams) -> None:
             raise TransactionTracker.InsufficientFunds
 
 
-@dataclass
-class PendingTx:
-    txhash: TxHash
-    created: int
-    capped: bool = False
-    retries: int = 0
-
-
-@dataclass
-class FutureTx:
-    id: int
-    params: TxParams
-    signer: 'TransactingPower' = None
-    info: Optional[Dict] = None
-    success: Optional[Callable] = None
-    error: Optional[Callable] = None
-
-
 class TransactionTracker(SimpleTask):
     """
     A transaction tracker that manages the lifecycle of transactions on the Ethereum blockchain.
@@ -150,21 +173,28 @@ class TransactionTracker(SimpleTask):
     There are two modes of operation: idle (slow scan) and work (fast scan).
     Internal state is written to a temporary cache file to help recover from crashes
     and restarts.
-
     """
 
-    INTERVAL = 60 * 5  # 5 min. steady state interval
-
+    # slow
+    INTERVAL = 20 * 1
     IDLE_INTERVAL = INTERVAL  # renames above constant
-    BLOCK_INTERVAL = 20  # ~20 blocks
-    BLOCK_SAMPLE_SIZE = 1_000  # blocks
-    DEFAULT_MAX_TIP = Gwei(2)  # gwei maxPriorityFeePerGas per transaction
-    DEFAULT_TIMEOUT = 60 * 60  # 1 hour
-    RPC_THROTTLE = 1  # min. seconds between RPC calls (>1 recommended)
-    SPEEDUP_FACTOR = 1.125  # 12.5% increase
-    CONFIRMATIONS = 3  # confirmations
-    QUEUE_JOIN_TIMEOUT = 15  # seconds
 
+    # fast
+    BLOCK_INTERVAL = 20  # ~20 blocks
+    BLOCK_SAMPLE_SIZE = 10_000  # blocks
+
+    # public config
+    DEFAULT_MAX_TIP = Gwei(1)  # gwei maxPriorityFeePerGas per transaction
+    DEFAULT_TIMEOUT = 60 * 60  # 1 hour
+    SPEEDUP_FACTOR = 1.125  # 12.5% increase
+
+    # tweaks
+    _FINALITY_CONFIRMATIONS = 30  # blocks until a transaction is considered finalized
+    _TRACKING_CONFIRMATIONS = 300  # confirmations until clearing a finalized transaction
+    _RPC_THROTTLE = 1  # min. seconds between RPC calls (>1 recommended)
+    _QUEUE_JOIN_TIMEOUT = 15  # seconds
+
+    # internal
     __COUNTER = 0
 
     class TransactionFinalized(Exception):
@@ -178,7 +208,6 @@ class TransactionTracker(SimpleTask):
             w3: Web3,
             max_tip: Gwei = DEFAULT_MAX_TIP,
             timeout: int = DEFAULT_TIMEOUT,
-            *args, **kwargs,
     ):
         # w3
         self.w3 = w3
@@ -194,7 +223,7 @@ class TransactionTracker(SimpleTask):
         self.__pending: Optional[PendingTx] = None
 
         # transactions to follow beyond finalization
-        # self.__follow = set()
+        self.__finalized = set()
 
         self.__file = NamedTemporaryFile(
             mode="w+",
@@ -209,7 +238,7 @@ class TransactionTracker(SimpleTask):
             prefix="txs-cache-",
             suffix=".json",
         )
-        super().__init__(*args, **kwargs)
+        super().__init__(interval=self.INTERVAL)
 
     #
     # Disk
@@ -267,17 +296,14 @@ class TransactionTracker(SimpleTask):
         self.log.debug(f"Loaded {len(data)} transactions from cache file {self.__file.name}")
 
     #
-    # Memory
+    # Pending
     #
 
-    def __track_pending(self, txhash: TxHash) -> None:
+    def __track_pending(self, tx: PendingTx) -> None:
         """Track a pending transaction by its hash. Overwrites any existing pending transaction."""
-        self.__pending = PendingTx(
-            txhash=txhash,
-            created=int(time.time())
-        )
+        self.__pending = tx
         self.__write_file()
-        self.log.debug(f"Tacking pending transaction {txhash.hex()}")
+        self.log.debug(f"Tacking pending transaction {tx.txhash.hex()}")
 
     def __clear_pending(self) -> None:
         self.__pending = None
@@ -286,6 +312,31 @@ class TransactionTracker(SimpleTask):
             f"Cleared 1 pending transaction - {len(self.queue)} "
             f"queued transaction{'s' if len(self.queue) > 1 else ''} remaining"
         )
+
+    def __get_receipt(self):
+        """Make and RPC call to get the pending transaction data."""
+        try:
+            txdata = self.w3.eth.get_transaction(self.pending.txhash)
+            self.pending.data = txdata
+        except TransactionNotFound:
+            self.log.info(f"Transaction {self.pending.txhash.hex()} not found")
+            self.__clear_pending()
+            return
+
+        receipt = _get_receipt(w3=self.w3, data=txdata)
+        if receipt:
+            log.info(
+                f"[accepted] Transaction #{txdata['nonce']}|{txdata['hash'].hex()} "
+                f"has been included in block #{txdata['blockNumber']}"
+            )
+            return receipt
+
+    def __finalize_pending(self, receipt) -> None:
+        self.log.info(f"{self.pending.id} Pending -> Finalized")
+        self.pending.receipt = receipt
+        self.pending.__class__ = FinalizedTx
+        self.__finalized.add(self.pending)
+        self.__clear_pending()
 
     #
     # Rate
@@ -307,7 +358,7 @@ class TransactionTracker(SimpleTask):
     # Transactions
     #
 
-    def __handle_timeout(self) -> bool:
+    def __is_pending_timed_out(self) -> bool:
         if not self.pending:
             return False
         timeout = (time.time() - self.pending.created) > self.timeout
@@ -336,6 +387,17 @@ class TransactionTracker(SimpleTask):
             )
         return False
 
+    def __evolve_future(self, tx: FutureTx, txhash) -> None:
+        """Transforms a future transaction into a pending transaction."""
+        tx.txhash = txhash
+        tx.created = int(time.time())
+        tx.capped = False
+        tx.retries = 0
+        tx.__class__ = PendingTx
+        tx: PendingTx
+        self.__track_pending(tx=tx)
+        self.log.info(f"{self.pending.id} Queued -> Pending")
+
     def __fire(self, tx: FutureTx, msg: str) -> Optional[PendingTx]:
         try:
             txhash = self.w3.eth.send_raw_transaction(
@@ -345,16 +407,16 @@ class TransactionTracker(SimpleTask):
             _handle_rpc_error(e, tx=tx)
             return
         self.log.info(
-            f"[{msg}] Fired transaction #{tx.params['nonce']}|{txhash.hex()}"
+            f"[{msg}] Fired transaction #{tx.id}: {tx.params['nonce']}|{txhash.hex()}"
         )
-        self.__track_pending(txhash=txhash)
-        return self.pending
+        self.__evolve_future(tx=tx, txhash=txhash)
 
-    def __speedup(self, txdata: TxData) -> Optional[TxHash]:
+    def __speedup(self) -> Optional[TxHash]:
         """Speeds up the pending transaction."""
+
         params = _make_speedup_params(
             w3=self.w3,
-            params=_make_tx_params(txdata),
+            params=_make_tx_params(self.pending.data),
             factor=self.SPEEDUP_FACTOR
         )
         if params["maxPriorityFeePerGas"] > self.max_tip:
@@ -362,13 +424,12 @@ class TransactionTracker(SimpleTask):
                 f"[cap] Pending transaction maxPriorityFeePerGas exceeds spending cap {self.max_tip}"
             )
             self.pending.capped = True
-            # self.__follow.add(txdata["hash"])
             self.log.info("Waiting for capped transaction to clear...")
             return
-        txhash = self.__fire(tx=params, msg="speedup")
+
+        self.__fire(tx=params, msg="speedup")
         self.pending.retries += 1
-        self.log.info(f"Pending transaction #{txdata['nonce']} has been sped up {self.pending.retries} times")
-        return txhash
+        self.log.info(f"Pending transaction #{params['nonce']} has been sped up {self.pending.retries} times")
 
     def __broadcast(self) -> Optional[TxHash]:
         """
@@ -384,67 +445,47 @@ class TransactionTracker(SimpleTask):
                 f"by another transaction. Updating nonce {future_tx.params['nonce']} -> {nonce}"
             )
         future_tx.params["nonce"] = nonce
-        pending_tx = self.__fire(tx=future_tx, msg='broadcast')
-        if not pending_tx:
-            self.__queue.append(future_tx)
-        return pending_tx
-
-    def __get_pending_tx(self) -> Optional[TxData]:
-        """Make and RPC call to get the pending transaction data."""
-
+        self.__fire(tx=future_tx, msg='broadcast')
         if not self.pending:
-            return
+            self.__queue.append(future_tx)
+        return self.pending.txhash
 
-        # check if the transaction is finalized
-        if self.__handle_timeout():
-            self.__clear_pending()
-            return
-
-        # get the transaction data from RPC
-        try:
-            txdata = self.w3.eth.get_transaction(self.pending.txhash)
-        except TransactionNotFound:
-            self.log.info(f"Transaction {self.pending.txhash.hex()} not found")
-            self.__clear_pending()
-            return
-
-        if _is_tx_finalized(w3=self.w3, data=txdata):
-            log.info(
-                f"[success] Transaction #{txdata['nonce']}|{txdata['hash'].hex()} "
-                f"has been included in block #{txdata['blockNumber']}"
-            )
-            # self.__follow.add(txdata["hash"])
-            self.__clear_pending()
-            return
-
-        return txdata
-
-    def __followup(self) -> bool:
+    def __get_confirmations(self, tx: Union[PendingTx, FinalizedTx]) -> int:
         current_block = self.w3.eth.block_number
-
         try:
-            txdata = self.w3.eth.get_transaction(self.pending.txhash)
+            txdata = self.w3.eth.get_transaction(tx.txhash)
         except TransactionNotFound:
-            self.log.info(f"[pending] transaction {self.pending.txhash.hex()} is still pending")
-            return False
+            self.log.info(f"[pending] transaction {tx.txhash.hex()} is still pending")
+            return 0
 
-        tx_block = txdata["blockNumber"]
-        if tx_block is None:
-            self.log.info(f"[pending] Transaction {self.pending.txhash.hex()} is still pending")
-            return False
+        if isinstance(tx, PendingTx):
+            nonce = txdata["nonce"]
+            txhash = txdata["hash"]
+            tx_block = txdata["blockNumber"]
+            if tx_block is None:
+                self.log.info(f"[pending] Transaction {tx.txhash.hex()} is still pending")
+                return 0
+
+        elif isinstance(tx, FinalizedTx):
+            nonce = tx.receipt["transactionIndex"]
+            txhash = tx.receipt["transactionHash"]
+            tx_block = tx.receipt["blockNumber"]
+
+        else:
+            raise ValueError(f"Invalid transaction type {type(tx)}")
 
         confirmations = current_block - tx_block
-        self.log.info(
-            f"[confirmations] Transaction #{txdata['nonce']}|{txdata['hash'].hex()} "
-            f"has been included in block #{txdata['blockNumber']} with {confirmations} confirmations"
-        )
-        time.sleep(self.RPC_THROTTLE)
-        if confirmations > self.CONFIRMATIONS:
-            self.log.info(f"Stopping follow-up on transaction {txdata['hash'].hex()}")
-            self.__clear_pending()
-            return True
+        if confirmations >= self._FINALITY_CONFIRMATIONS:
+            self.log.info(f"[finalized] Transaction #{nonce}|{txhash.hex()} has been finalized")
+            if tx in self.finalized:
+                self.__finalized.remove(tx)
+        else:
+            self.log.info(
+                f"[confirmation] Transaction #{nonce}|{txhash.hex()} "
+                f"has been included in block #{tx_block} with {confirmations} confirmations"
+            )
 
-        return False
+        return confirmations
 
     #
     # Async
@@ -453,36 +494,42 @@ class TransactionTracker(SimpleTask):
     def run(self):
         """Executes one cycle of the transaction tracker."""
 
+        # follow-up on post-finalized transactions
+        if self.__finalized:
+            for tx in self.__finalized.copy():
+                self.__get_confirmations(tx=tx)
+
         # steady state
         if not self.busy:
             self.log.info(f"[idle] cycle interval is {self._task.interval} seconds")
             return
         self.log.info(
-            f"Tracking {len(self.queue)} queued transaction{'s' if len(self.queue) > 1 else ''} "
+            f"[working] tracking {len(self.queue)} queued transaction{'s' if len(self.queue) > 1 else ''} "
             f"{'and 1 pending transaction' if self.pending else ''}"
         )
 
         # go to work
         self.__work_mode()
 
-        # follow-up on post-finalized or capped transactions
-        # these are not re-queued and not sped up, we're just
-        # waiting for them to finalize or clear.
-        # if self.__follow:
-        #     clear = self.__followup()
-        #     if not clear:
-        #         return
-        if self.pending and self.pending.capped:
-            self.__followup()
-            if self.pending:
+        if self.pending:
+            # check if the currently tracked pending transaction is finalized
+            if self.__is_pending_timed_out():
+                self.log.warn(f"[timeout] pending transaction {self.pending.txhash.hex()} has timed out")
+                self.__clear_pending()
+
+            receipt = self.__get_receipt()
+            if receipt:
+                # confirmations = self.__get_confirmations(tx=self.pending)
+                # if confirmations >= self._TRACKING_CONFIRMATIONS:
+                #     self.log.info(f"[clear] Pending transaction {self.pending.txhash.hex()} has been cleared")
+                self.__finalize_pending(receipt=receipt)
+            else:
+                if self.pending.capped:
+                    return
+                self.__speedup()
                 return
 
-        # Speedup the current pending transaction
-        pending_tx = self.__get_pending_tx()
-        if pending_tx:
-            self.__speedup(txdata=pending_tx)
-
-        # Broadcast the next transaction in the queue
+        # Broadcast the next transaction in the queue if nothing is pending
         if self.queue and not self.pending:
             self.__broadcast()
 
@@ -501,10 +548,10 @@ class TransactionTracker(SimpleTask):
         """Blocks until the transaction is finalized."""
         start = time.time()
         while self.pending:
-            if time.time() - start > self.QUEUE_JOIN_TIMEOUT:
+            if time.time() - start > self._QUEUE_JOIN_TIMEOUT:
                 raise TimeoutError("Pending transaction timeout")
             self.log.info(f"Waiting for pending transaction {self.pending[1].hex()} to clear...")
-            time.sleep(self.RPC_THROTTLE)
+            time.sleep(self._RPC_THROTTLE)
 
     ##############
     # Public API #
@@ -513,6 +560,49 @@ class TransactionTracker(SimpleTask):
     @property
     def queue(self) -> List[FutureTx]:
         return list(self.__queue)
+
+    @property
+    def pending(self) -> PendingTx:
+        return self.__pending or None
+
+    @property
+    def finalized(self) -> List[FinalizedTx]:
+        return list(self.__finalized)
+
+    @property
+    def busy(self) -> bool:
+        if self.pending:
+            return True
+        if len(self.queue) > 0:
+            return True
+        return False
+
+    @property
+    def processed(self) -> int:
+        return self.__COUNTER
+
+    def queue_transaction(
+            self,
+            tx: TxParams,
+            transacting_power,
+            info: Dict = None,
+            success: Callable = None,
+            error: Callable = None
+    ) -> FutureTx:
+        tx = FutureTx(
+            id=self.__COUNTER,
+            params=tx,
+            info=info,
+            signer=transacting_power,
+            success=success,
+            error=error
+        )
+        self.__queue.append(tx)
+        self.__COUNTER += 1
+        self.log.info(f"Queued transaction #{tx.params['nonce']} "
+                      f"in broadcast queue position {len(self.__queue)}")
+        self.__write_file()
+        return tx
 
     def send_transaction(self, tx: TxParams) -> TxHash:
         """
@@ -526,42 +616,79 @@ class TransactionTracker(SimpleTask):
         txhash = self.__broadcast()
         return txhash
 
-    @property
-    def pending(self) -> PendingTx:
-        return self.__pending or None
+    def get_transaction(self, id: int) -> Union[FutureTx, PendingTx, FinalizedTx]:
+        for tx in self.queue:
+            if tx.id == id:
+                return tx
+        for tx in self.finalized:
+            if tx.id == id:
+                return tx
+        if self.pending and self.pending.id == id:
+            return self.pending
+        raise ValueError(f"Transaction {id} not found in queue or finalized transactions")
 
-    @property
-    def busy(self) -> bool:
-        if self.pending:
-            return True
-        if len(self.__queue) > 0:
-            return True
-        return False
+    def all_transactions(self) -> List[AsyncTX]:
+        return self.queue + list(self.__finalized) + [self.pending]
 
-    def queue_transaction(
+    def wait_for_broadcast(
             self,
-            tx: TxParams,
-            transacting_power,
-            info: Dict = None,
-            success: Callable = None,
-            error: Callable = None
-    ) -> FutureTx:
-        performance = FutureTx(
-            id=self.__COUNTER,
-            params=tx,
-            info=info,
-            signer=transacting_power,
-            success=success,
-            error=error
-        )
-        self.__queue.append(performance)
-        self.__COUNTER += 1
-        self.log.info(f"Queued transaction #{tx['nonce']} "
-                      f"in broadcast queue position {len(self.__queue)}")
-        self.__write_file()
-        return performance
+            tx: FutureTx,
+            timeout: int = 10,
+            throttle: float = 1.0
+    ) -> Union[TxHash, TxReceipt]:
+        """Wait for a transaction to be broadcasted."""
+        if (tx not in self.queue) and (tx not in self.__finalized):
+            raise ValueError(f"Transaction {tx.id} not found in queue or finalized transactions")
+
+        start = time.time()
+        while True:
+            if time.time() - start > timeout:
+                raise TimeoutError(f"Transaction {tx.id} timeout")
+            if tx in self.queue:
+                self.log.info(f"Waiting for transaction {tx.id} to be broadcasted...")
+                time.sleep(throttle)
+                continue
+            if self.pending and self.pending.id == tx.id:
+                return self.pending.txhash
+            for tx in self.__finalized:
+                if tx.id == tx.id:
+                    return tx.receipt
+            time.sleep(throttle)
+
+    def wait_for_broadcast_async(self, tx, check_interval=1.0, timeout=30):
+        d = Deferred()
+        start_time = reactor.seconds()
+
+        def check_broadcast(tx):
+            result = None
+
+            if reactor.seconds() - start_time > timeout:
+                d.errback(TimeoutError(f"Timeout waiting for transaction {tx} to broadcast"))
+                poll.stop()
+
+            if tx in self.queue:
+                self.log.info(f"Waiting for transaction {tx.id} to be broadcasted...")
+                time.sleep(check_interval)
+                return
+
+            if self.pending and self.pending.id == tx.id:
+                result = self.pending.txhash
+
+            for _tx in self.__finalized:
+                if _tx.id == tx.id:
+                    result = _tx.receipt
+                    break
+
+            if result:
+                d.callback(result)
+                poll.stop()
+
+        poll = LoopingCall(check_broadcast, tx)
+        poll.start(check_interval)
+
+        return d
 
     def start(self, now: bool = False) -> None:
         self.__restore_state()
-        super().start(now=now)
         self.log.info("Starting transaction tracker")
+        return super().start(now=now)

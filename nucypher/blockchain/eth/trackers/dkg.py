@@ -53,9 +53,9 @@ class EventScannerTask(SimpleTask):
 
     INTERVAL = 120  # seconds
 
-    def __init__(self, scanner: Callable, *args, **kwargs):
+    def __init__(self, scanner: Callable):
         self.scanner = scanner
-        super().__init__(*args, **kwargs)
+        super().__init__(interval=self.INTERVAL)
 
     def run(self):
         self.scanner()
@@ -123,7 +123,7 @@ class ActiveRitualTracker:
         ]
 
         # ritual id -> phase -> txhash
-        self.active_phase_txs: Dict[Tuple[int, int], FutureTx] = dict()
+        self.phase_txs: Dict[Tuple[int, int], FutureTx] = dict()
 
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
@@ -165,20 +165,6 @@ class ActiveRitualTracker:
     @property
     def contract(self):
         return self.coordinator_agent.contract
-
-    def remove_active_ritual_phase_txs(self, nonces: List[int]) -> None:
-        data = {}
-        for rid, (nonce, txhash) in self.active_phase_txs.items():
-            if nonce in nonces:
-                continue
-            data[rid] = (nonce, txhash)
-        self.active_phase_txs = data
-
-    def add_active_ritual_phase_txs(
-        self, ritual_id: int, txs: List[Tuple[int, int]]
-    ) -> None:
-        for nonce, txhash in txs:
-            self.active_phase_txs[ritual_id] = (nonce, txhash)
 
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
     def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:

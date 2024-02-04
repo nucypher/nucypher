@@ -628,12 +628,12 @@ class BlockchainInterface:
                 'name': contract_function.fn_name,
                 'contract': contract_function.address,
             }
-            performance = self.tracker.queue_transaction(
+            future_tx = self.tracker.queue_transaction(
                 info=info,
                 tx=transaction,
                 transacting_power=transacting_power,
             )
-            return performance
+            return future_tx
 
         else:
             # Get transaction name

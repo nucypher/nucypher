@@ -694,7 +694,7 @@ class CoordinatorAgent(EthereumContractAgent):
         data = self.contract.functions.getParticipant(
             ritual_id, provider, transcript
         ).call()
-        participant = next(iter(Coordinator.Ritual.make_participants([data])))
+        participant = next(iter(Coordinator.Ritual.make_participants(data)))
         return participant
 
     @contract_api(CONTRACT_CALL)

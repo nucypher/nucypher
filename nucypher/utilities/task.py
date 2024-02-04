@@ -9,14 +9,13 @@ from nucypher.utilities.logging import Logger
 
 class SimpleTask(ABC):
     """Simple Twisted Looping Call abstract base class."""
-    INTERVAL = 60  # 60s default
+    INTERVAL = NotImplemented
     CLOCK = reactor
 
     def __init__(self, interval: float = INTERVAL):
         self.interval = interval
         self.log = Logger(self.__class__.__name__)
         self._task = LoopingCall(self.run)
-        # self.__task.clock = self.CLOCK
 
     @property
     def running(self) -> bool:
@@ -28,7 +27,7 @@ class SimpleTask(ABC):
         if not self.running:
             d = self._task.start(interval=self.interval, now=now)
             d.addErrback(self.handle_errors)
-            # return d
+            return d
 
     def stop(self):
         """Stop task."""

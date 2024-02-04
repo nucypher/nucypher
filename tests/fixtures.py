@@ -666,13 +666,13 @@ def valid_user_address_context():
     }
 
 
-@pytest.fixture(scope='module', autouse=True)
-def control_time():
-    clock = Clock()
-    EventScannerTask.CLOCK = clock
-    EventScannerTask.INTERVAL = .1
-    clock.llamas = 0
-    return clock
+# @pytest.fixture(scope='module', autouse=True)
+# def control_time():
+#     clock = Clock()
+#     EventScannerTask.CLOCK = clock
+#     EventScannerTask.INTERVAL = .1
+#     clock.llamas = 0
+#     return clock
 
 
 @pytest.fixture(scope="module")

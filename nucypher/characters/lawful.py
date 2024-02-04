@@ -951,14 +951,12 @@ class Ursula(Teacher, Character, Operator):
         block_until_ready: bool = True,
         eager: bool = False,
         dkg_tracking: bool = True,
+        transaction_tracking: bool = True,
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
 
-        # Connect to Provider
-        if not BlockchainInterfaceFactory.is_interface_initialized(
-            endpoint=self.eth_endpoint
-        ):
-            BlockchainInterfaceFactory.initialize_interface(endpoint=self.eth_endpoint)
+        mainnet = BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.eth_endpoint)
+        polygon = BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.polygon_endpoint)
 
         if preflight:
             self.__preflight()
@@ -974,6 +972,11 @@ class Ursula(Teacher, Character, Operator):
             self.start_learning_loop(now=eager)
             if emitter:
                 emitter.message(f"✓ Node Discovery ({self.domain})", color="green")
+
+        if transaction_tracking:
+            polygon.tracker.start(now=False)
+            if emitter:
+                emitter.message("✓ Polygon Transaction Tracking", color="green")
 
         if ritual_tracking:
             self.ritual_tracker.start()
@@ -994,7 +997,6 @@ class Ursula(Teacher, Character, Operator):
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
 
         if dkg_tracking:
-            self.transaction_tracker.start(now=False)
             if emitter:
                 emitter.message("✓ Start DKG Phase Retries", color="green")
 

@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
+from nucypher.blockchain.eth.trackers.transactions import TransactionTracker, FutureTx, PendingTx
 from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -321,60 +321,38 @@ class Operator(BaseActor):
         result = sorted(result, key=lambda x: x.address)
         return result
 
-    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> HexBytes:
-        # store the transcript in the local cache;
-        # TODO is this necessary - other than for testing?
-        self.transaction_tracker.__txs.store_transcript(
-            ritual_id=ritual.id, transcript=transcript
-        )
-        performance = self.coordinator_agent.post_transcript(
+    def publish_transcript(self, ritual_id: int, transcript: Transcript) -> FutureTx:
+        future_tx = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
             transacting_power=self.transacting_power,
         )
-        return tx_hash
+        self.ritual_tracker.phase_txs[(ritual_id, PHASE1)] = future_tx
+        return future_tx
 
     def publish_aggregated_transcript(
         self,
         ritual_id: int,
         aggregated_transcript: AggregatedTranscript,
         public_key: DkgPublicKey,
-    ) -> HexBytes:
+    ) -> FutureTx:
         """Publish an aggregated transcript to publicly available storage."""
         # look up the node index for this node on the blockchain
         participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
-        tx_hash = self.coordinator_agent.post_aggregation(
+        future_tx = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             participant_public_key=participant_public_key,
             transacting_power=self.transacting_power,
         )
-        return tx_hash
-
-    def _phase_has_pending_tx(self, ritual_id: int, phase: int) -> bool:
-        try:
-            nonce = self.ritual_tracker.active_phase_txs[ritual_id]
-        except KeyError:
-            raise self.RitualNotFoundException(
-                f"Ritual {ritual_id} not found in active rituals."
-            )
-        txhash = self.transaction_tracker.transactions[nonce]
-        if txhash:
-            self.log.info(
-                f"Node {self.transacting_power.account} has pending tx {bytes(txhash).hex()} "
-                f"for ritual #{ritual_id}, phase #{phase}; skipping execution"
-            )
-            return True
-        return False
+        self.ritual_tracker.phase_txs[(ritual_id, PHASE2)] = future_tx
+        return future_tx
 
     def _is_phase_1_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 1 action."""
-        # handle pending transactions
-        if self._phase_has_pending_tx(ritual_id=ritual_id, phase=PHASE1):
-            return False
 
         # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -408,7 +386,7 @@ class Operator(BaseActor):
         authority: ChecksumAddress,
         participants: List[ChecksumAddress],
         timestamp: int,
-    ) -> Optional[HexBytes]:
+    ) -> Optional[FutureTx]:  # TODO: raise instead of returning None?
         """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
         if self.checksum_address not in participants:
             # should never get here
@@ -422,6 +400,14 @@ class Operator(BaseActor):
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):
             return
+
+        pending_tx = self.ritual_tracker.phase_txs.get((ritual_id, PHASE1))
+        if pending_tx:
+            self.log.info(
+                f"Node {self.transacting_power.account} has pending tx"
+                f"for ritual #{ritual_id}, phase #{PHASE1}; skipping execution"
+            )
+            return pending_tx
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -452,10 +438,7 @@ class Operator(BaseActor):
             raise e
 
         # publish the transcript and store the receipt
-        tx_hash = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
-        self.transaction_tracker.__txs.store_transcript_txhash(
-            ritual_id=ritual.id, txhash=tx_hash
-        )
+        future_tx = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
 
         # logging
         arrival = ritual.total_transcripts + 1
@@ -463,13 +446,10 @@ class Operator(BaseActor):
             f"{self.transacting_power.account[:8]} submitted a transcript for "
             f"DKG ritual #{ritual.id} ({arrival}/{ritual.dkg_size}) with authority {authority}."
         )
-        return tx_hash
+        return future_tx
 
     def _is_phase_2_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 2 action."""
-        # check if there is a pending tx for this ritual + round combination
-        if self._phase_has_pending_tx(ritual_id=ritual_id, phase=PHASE2):
-            return False
 
         # check ritual status from the blockchain
         status = self.coordinator_agent.get_ritual_status(ritual_id=ritual_id)
@@ -498,11 +478,20 @@ class Operator(BaseActor):
 
         return True
 
-    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[HexBytes]:
+    def perform_round_2(self, ritual_id: int, timestamp: int) -> Optional[FutureTx]:
         """Perform round 2 of the DKG protocol for the given ritual ID on this node."""
         # check phase 2 state
         if not self._is_phase_2_action_required(ritual_id=ritual_id):
             return
+
+        # check if there is a pending tx for this ritual + round combination
+        pending_tx = self.ritual_tracker.phase_txs.get((ritual_id, PHASE2))
+        if pending_tx:
+            self.log.info(
+                f"Node {self.transacting_power.account} has pending tx"
+                f"for ritual #{ritual_id}, phase #{PHASE1}; skipping execution"
+            )
+            return pending_tx
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -533,25 +522,12 @@ class Operator(BaseActor):
             )
             raise e
 
-        # store the DKG artifacts for later optimized reads
-        self.transaction_tracker.__txs.store_aggregated_transcript(
-            ritual_id=ritual.id, aggregated_transcript=aggregated_transcript
-        )
-        self.transaction_tracker.__txs.store_public_key(
-            ritual_id=ritual.id, public_key=dkg_public_key
-        )
-
         # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
-        tx_hash = self.publish_aggregated_transcript(
+        future_tx = self.publish_aggregated_transcript(
             ritual_id=ritual.id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
-        )
-
-        # store the receipt
-        self.transaction_tracker.__txs.store_aggregation_txhash(
-            ritual_id=ritual.id, txhash=tx_hash
         )
 
         # logging
@@ -562,7 +538,8 @@ class Operator(BaseActor):
         )
         if total >= ritual.dkg_size:
             self.log.debug(f"DKG ritual #{ritual.id} should now be finalized")
-        return tx_hash
+
+        return future_tx
 
     def derive_decryption_share(
         self,
