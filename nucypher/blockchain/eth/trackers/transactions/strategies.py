@@ -2,9 +2,11 @@ from abc import ABC
 from typing import Tuple
 
 from web3 import Web3
-from web3.types import TxParams, Wei, Gwei
+from web3.types import Gwei, TxParams, Wei
 
-from nucypher.blockchain.eth.trackers.transactions.exceptions import StrategyLimitExceeded
+from nucypher.blockchain.eth.trackers.transactions.exceptions import (
+    StrategyLimitExceeded,
+)
 from nucypher.blockchain.eth.trackers.transactions.utils import (
     _log_gas_weather,
     txtracker_log,
@@ -55,7 +57,10 @@ class SpeedupStrategy(AsyncTxStrategy):
             max(tx["maxPriorityFeePerGas"], suggested_tip) * self.SPEEDUP_FACTOR
         )
         max_fee_per_gas = round(
-            max(tx["maxFeePerGas"] * self.SPEEDUP_FACTOR, (base_fee * 2) + max_priority_fee)
+            max(
+                tx["maxFeePerGas"] * self.SPEEDUP_FACTOR,
+                (base_fee * 2) + max_priority_fee,
+            )
         )
         return max_priority_fee, max_fee_per_gas
 
@@ -86,4 +91,3 @@ class SpeedupStrategy(AsyncTxStrategy):
         params["nonce"] = latest_nonce
         params = TxParams(params)
         return params
-

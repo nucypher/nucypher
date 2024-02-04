@@ -4,7 +4,10 @@ from typing import Optional, Union
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 
-from nucypher.blockchain.eth.trackers.transactions.exceptions import _handle_rpc_error, StrategyLimitExceeded
+from nucypher.blockchain.eth.trackers.transactions.exceptions import (
+    StrategyLimitExceeded,
+    _handle_rpc_error,
+)
 from nucypher.blockchain.eth.trackers.transactions.state import _TrackerState
 from nucypher.blockchain.eth.trackers.transactions.strategies import (
     SpeedupStrategy,
@@ -41,7 +44,9 @@ class _TransactionTracker(SimpleTask):
     _TIMEOUT = 60 * 60  # 1 hour
     _TRACKING_CONFIRMATIONS = 300  # blocks until clearing a finalized transaction
     _RPC_THROTTLE = 1  # min. seconds between RPC calls (>1 recommended)
-    _MIN_INTERVAL = 1  # absolute min. async loop interval (edge case in case of low block count)
+    _MIN_INTERVAL = (
+        1  # absolute min. async loop interval (edge case in case of low block count)
+    )
 
     # idle (slower)
     INTERVAL = 60 * 5  # seconds
@@ -162,7 +167,9 @@ class _TransactionTracker(SimpleTask):
 
         # use the strategy-generated transaction parameters
         pending_tx = self.__fire(tx=params, msg="speedup")
-        self.log.info(f"[{self.strategy.name}] transaction #{pending_tx.id} has been re-broadcasted")
+        self.log.info(
+            f"[{self.strategy.name}] transaction #{pending_tx.id} has been re-broadcasted"
+        )
 
     def __broadcast(self) -> Optional[TxHash]:
         """
@@ -193,7 +200,9 @@ class _TransactionTracker(SimpleTask):
             txdata = self.w3.eth.get_transaction(self.__state.active.txhash)
             self.__state.active.data = txdata
         except TransactionNotFound:
-            self.log.error(f"[error] Transaction {self.__state.active.txhash.hex()} not found")
+            self.log.error(
+                f"[error] Transaction {self.__state.active.txhash.hex()} not found"
+            )
             self.__state.clear_active()
             return
 

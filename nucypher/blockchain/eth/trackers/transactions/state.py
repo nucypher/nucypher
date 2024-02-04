@@ -74,7 +74,9 @@ class _TrackerState:
         self.__active = tx
         self.commit()
         if old:
-            txtracker_log.debug(f"[state] updated active transaction {old.hex()} -> {tx.txhash.hex()}")
+            txtracker_log.debug(
+                f"[state] updated active transaction {old.hex()} -> {tx.txhash.hex()}"
+            )
             return
         txtracker_log.debug(f"[state] tracked active transaction {tx.txhash.hex()}")
 
@@ -148,8 +150,7 @@ class _TrackerState:
         self.__queue.append(tx)
         self.__COUNTER += 1
         txtracker_log.info(
-            f"[state] queued transaction #atx-{tx.id} "
-            f"priority {len(self.__queue)}"
+            f"[state] queued transaction #atx-{tx.id} " f"priority {len(self.__queue)}"
         )
         self.commit()
         return tx

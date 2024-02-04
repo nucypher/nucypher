@@ -34,7 +34,9 @@ class FutureTx(AsyncTx):
     @classmethod
     def from_dict(cls, data: Dict, signer: Optional[Callable] = None):
         if not signer:
-            raise NotImplementedError("Signer must be provided to deserialize a FutureTx")
+            raise NotImplementedError(
+                "Signer must be provided to deserialize a FutureTx"
+            )
         return cls(
             id=int(data["id"]),
             params=TxParams(data["params"]),
