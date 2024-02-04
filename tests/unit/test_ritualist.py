@@ -5,6 +5,7 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.blockchain.eth.trackers.transactions import FutureTx
+from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx, PendingTx
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
@@ -154,15 +155,17 @@ def test_perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
     assert tx is not None
+    assert isinstance(tx, (FutureTx, PendingTx))
 
     # ensure tx is tracked
     assert len(ursula.ritual_tracker.phase_txs) == 1
+    tx = ursula.ritual_tracker.phase_txs
+    assert isinstance(tx, (FutureTx, PendingTx))
 
     # try again
     tx = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    # assert tx is None  # no execution since pending tx already present
 
 # TODO: check for clearance of tx hash on ritual tracker
 #

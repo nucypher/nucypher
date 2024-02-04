@@ -38,6 +38,7 @@ from nucypher.blockchain.eth.providers import (
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
+from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
@@ -607,13 +608,8 @@ class BlockchainInterface:
                          transaction_gas_limit: Optional[int] = None,
                          gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
                          confirmations: int = 0,
-                         fire_and_forget: bool = False,  # do not wait for receipt.  See #2385
-                         ) -> Union[TxReceipt, HexBytes]:
-
-        if fire_and_forget:
-            if confirmations > 0:
-                raise ValueError("Transaction Prevented: "
-                                 "Cannot use 'confirmations' and 'fire_and_forget' options together.")
+                         fire_and_forget: bool = False,
+                         ) -> Union[TxReceipt, AsyncTx]:
 
         transaction = self.build_contract_transaction(
             contract_function=contract_function,
@@ -624,30 +620,31 @@ class BlockchainInterface:
         )
 
         if fire_and_forget:
+            if confirmations > 0:
+                raise ValueError("Transaction Prevented: "
+                                 "Cannot use 'confirmations' and 'fire_and_forget' options together.")
             info = {
                 'name': contract_function.fn_name,
                 'contract': contract_function.address,
             }
-            future_tx = self.tracker.queue_transaction(
+            async_tx = self.tracker.queue_transaction(
                 info=info,
                 tx=transaction,
-                transacting_power=transacting_power,
+                signer=transacting_power.sign_transaction,
             )
-            return future_tx
+            return async_tx
 
-        else:
-            # Get transaction name
-            try:
-                transaction_name = contract_function.fn_name.upper()
-            except AttributeError:
-                transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
-            receipt = self.sign_and_broadcast_transaction(
-                transacting_power=transacting_power,
-                transaction_dict=transaction,
-                transaction_name=transaction_name,
-                confirmations=confirmations,
-            )
-            return receipt
+        try:
+            transaction_name = contract_function.fn_name.upper()
+        except AttributeError:
+            transaction_name = 'DEPLOY' if isinstance(contract_function, ContractConstructor) else 'UNKNOWN'
+        receipt = self.sign_and_broadcast_transaction(
+            transacting_power=transacting_power,
+            transaction_dict=transaction,
+            transaction_name=transaction_name,
+            confirmations=confirmations,
+        )
+        return receipt
 
     def get_contract_by_name(
         self,

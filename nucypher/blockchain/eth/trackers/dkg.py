@@ -9,8 +9,9 @@ from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.transactions import FutureTx
+from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx
 from nucypher.policy.conditions.utils import camel_case_to_snake
+from nucypher.types import RitualId, PhaseId
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
@@ -123,7 +124,7 @@ class ActiveRitualTracker:
         ]
 
         # ritual id -> phase -> txhash
-        self.phase_txs: Dict[Tuple[int, int], FutureTx] = dict()
+        self.phase_txs: Dict[Tuple[RitualId, PhaseId], FutureTx] = dict()
 
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.

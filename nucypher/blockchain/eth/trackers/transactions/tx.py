@@ -9,13 +9,13 @@ TxHash = HexBytes
 
 
 @dataclass
-class AsyncTX(ABC):
+class AsyncTx(ABC):
     id: int
     final: bool = field(default=None, init=False)
 
 
 @dataclass
-class FutureTx(AsyncTX):
+class FutureTx(AsyncTx):
     final: bool = field(default=False, init=False)
     params: TxParams
     signer: Callable
@@ -42,7 +42,7 @@ class FutureTx(AsyncTX):
 
 
 @dataclass
-class PendingTx(AsyncTX):
+class PendingTx(AsyncTx):
     final: bool = field(default=False, init=False)
     txhash: TxHash
     created: int
@@ -73,7 +73,7 @@ class PendingTx(AsyncTX):
 
 
 @dataclass
-class FinalizedTx(AsyncTX):
+class FinalizedTx(AsyncTx):
     final: bool = field(default=True, init=False)
     receipt: TxReceipt
 

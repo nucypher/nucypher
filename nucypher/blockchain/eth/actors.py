@@ -3,11 +3,10 @@ import random
 import time
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import maya
 from eth_typing import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,
@@ -26,7 +25,6 @@ from nucypher_core.ferveo import (
     Validator,
 )
 from web3 import HTTPProvider, Web3
-from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
 
 from nucypher.acumen.nicknames import Nickname
@@ -46,7 +44,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.trackers.transactions import TransactionTracker, FutureTx, PendingTx
+from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx
 from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -57,6 +55,7 @@ from nucypher.crypto.powers import (
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
+from nucypher.types import RitualId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 
@@ -327,7 +326,8 @@ class Operator(BaseActor):
             transcript=transcript,
             transacting_power=self.transacting_power,
         )
-        self.ritual_tracker.phase_txs[(ritual_id, PHASE1)] = future_tx
+        identifier = (RitualId(ritual_id), PHASE1)
+        self.ritual_tracker.phase_txs[identifier] = future_tx
         return future_tx
 
     def publish_aggregated_transcript(
@@ -348,7 +348,8 @@ class Operator(BaseActor):
             participant_public_key=participant_public_key,
             transacting_power=self.transacting_power,
         )
-        self.ritual_tracker.phase_txs[(ritual_id, PHASE2)] = future_tx
+        identifier = (RitualId(ritual_id), PHASE2)
+        self.ritual_tracker.phase_txs[identifier] = future_tx
         return future_tx
 
     def _is_phase_1_action_required(self, ritual_id: int) -> bool:
@@ -399,15 +400,17 @@ class Operator(BaseActor):
 
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):
+            self.log.debug("No action required for phase 1 of DKG protocol for some reason or another.")
             return
 
-        pending_tx = self.ritual_tracker.phase_txs.get((ritual_id, PHASE1))
-        if pending_tx:
+        identifier = (RitualId(ritual_id), PHASE1)
+        tx = self.ritual_tracker.phase_txs.get(identifier)
+        if tx:
             self.log.info(
-                f"Node {self.transacting_power.account} has pending tx"
-                f"for ritual #{ritual_id}, phase #{PHASE1}; skipping execution"
+                f"Active ritual in progress: {self.transacting_power.account} has submitted tx"
+                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {tx.final})"
             )
-            return pending_tx
+            return tx
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -485,13 +488,14 @@ class Operator(BaseActor):
             return
 
         # check if there is a pending tx for this ritual + round combination
-        pending_tx = self.ritual_tracker.phase_txs.get((ritual_id, PHASE2))
-        if pending_tx:
+        identifier = (RitualId(ritual_id), PHASE2)
+        tx = self.ritual_tracker.phase_txs.get(identifier)
+        if tx:
             self.log.info(
-                f"Node {self.transacting_power.account} has pending tx"
-                f"for ritual #{ritual_id}, phase #{PHASE1}; skipping execution"
+                f"Active ritual in progress Node {self.transacting_power.account} has submitted tx"
+                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {tx.final})."
             )
-            return pending_tx
+            return tx
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
