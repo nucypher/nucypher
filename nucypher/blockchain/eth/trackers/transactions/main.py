@@ -13,18 +13,18 @@ class TransactionTracker(_TransactionTracker):
 
     @property
     def queued(self) -> List[FutureTx]:
-        return list(self.__state.queue)
+        return list(self.__state.waiting)
 
     @property
     def pending(self) -> PendingTx:
-        return self.__state.pending or None
+        return self.__state.active or None
 
     @property
     def finalized(self) -> Set[FinalizedTx]:
         return self.__state.finalized
 
     def queue_transaction(self, *args, **kwargs) -> FutureTx:
-        tx = self.__state.add(*args, **kwargs)
+        tx = self.__state._queue(*args, **kwargs)
         return tx
 
     def start(self, now: bool = False) -> None:

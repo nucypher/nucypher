@@ -26,9 +26,7 @@ def _calculate_speedup_fee(w3: Web3, tx: TxParams) -> Tuple[Wei, Wei]:
 
 def _make_speedup_params(w3: Web3, params: TxParams) -> TxParams:
     old_tip, old_max_fee = params["maxPriorityFeePerGas"], params["maxFeePerGas"]
-    new_tip, new_max_fee = _calculate_speedup_fee(
-        w3=w3, tx=params, factor=SPEEDUP_FACTOR
-    )
+    new_tip, new_max_fee = _calculate_speedup_fee(w3=w3, tx=params)
     tip_increase = round(Web3.from_wei(new_tip - old_tip, "gwei"), 4)
     fee_increase = round(Web3.from_wei(new_max_fee - old_max_fee, "gwei"), 4)
 

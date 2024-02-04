@@ -23,13 +23,13 @@ class _TrackerState:
     def __init__(self, filepath: Optional[Path] = None):
         self.__filepath = filepath or self.__DEFAULT_FILEPATH
         self.__queue: Deque[FutureTx] = deque()
-        self.__pending: Optional[PendingTx] = None
+        self.__active: Optional[PendingTx] = None
         self.finalized: Set[FinalizedTx] = set()
 
     def __serialize(self) -> str:
-        pending = self.__pending.to_dict() if self.__pending else dict()
+        active = self.__active.to_dict() if self.__active else dict()
         queue = [tx.to_dict() for tx in self.__queue]
-        data = json.dumps({"pending": pending, "queue": queue})
+        data = json.dumps({"active": active, "queue": queue})
         return data
 
     def commit(self) -> None:
@@ -49,24 +49,24 @@ class _TrackerState:
             data = dict()
 
         # parse
-        pending = data.get("pending", dict())
+        active = data.get("active", dict())
         queue = data.get("queue", list())
 
         # deserialize
-        if pending is not None:
-            pending = PendingTx.from_dict(pending)
+        if active is not None:
+            active = PendingTx.from_dict(active)
         txs = [FutureTx.from_dict(tx) for tx in queue]
 
         # restore
-        self.__pending = pending
+        self.__active = active
         self.__queue = deque(txs)
         txtracker_log.debug(
             f"Loaded {len(queue)} transactions from cache file {self.__filepath}"
         )
 
-    def track_pending(self, tx: PendingTx) -> None:
-        """Track a pending transaction by its hash. Overwrites any existing pending transaction."""
-        self.__pending = tx
+    def track_active(self, tx: PendingTx) -> None:
+        """Track a active transaction by its hash. Overwrites any existing active transaction."""
+        self.__active = tx
         self.commit()
         txtracker_log.debug(f"Tacking pending transaction {tx.txhash.hex()}")
 
@@ -81,49 +81,49 @@ class _TrackerState:
         tx.retries = 0
         tx.__class__ = PendingTx
         tx: PendingTx
-        self.track_pending(tx=tx)
-        txtracker_log.info(f"{self.__pending.id} Queued -> Pending")
+        self.track_active(tx=tx)
+        txtracker_log.info(f"{self.__active.id} Queued -> Pending")
 
-    def finalize_pending(self, receipt: TxReceipt) -> None:
+    def finalize_active_tx(self, receipt: TxReceipt) -> None:
         """
         Finalizes a pending transaction.
         Use polymorphism to transform the pending transaction into a finalized transaction.
         """
-        if not self.pending:
+        if not self.__active:
             raise RuntimeError("No pending transaction to finalize")
-        self.__pending.receipt = receipt
-        self.__pending.__class__ = FinalizedTx
-        self.finalized.add(self.__pending)
-        txtracker_log.info(f"{self.__pending.id} Pending -> Finalized")
-        self.clear_pending()
+        self.__active.receipt = receipt
+        self.__active.__class__ = FinalizedTx
+        self.finalized.add(self.__active)
+        txtracker_log.info(f"{self.__active.id} Pending -> Finalized")
+        self.clear_active()
 
-    def clear_pending(self) -> None:
-        self.__pending = None
+    def clear_active(self) -> None:
+        self.__active = None
         self.commit()
         txtracker_log.debug(
-            f"Cleared 1 pending transaction - {len(self.queue)} "
-            f"queued transaction{'s' if len(self.queue) > 1 else ''} remaining"
+            f"Cleared 1 pending transaction - {len(self.waiting)} "
+            f"queued transaction{'s' if len(self.waiting) > 1 else ''} remaining"
         )
 
     @property
-    def pending(self) -> Optional[PendingTx]:
-        return self.__pending
+    def active(self) -> Optional[PendingTx]:
+        return self.__active
 
     @property
-    def queue(self) -> Deque[FutureTx]:
+    def waiting(self) -> Deque[FutureTx]:
         return self.__queue
 
-    def next(self) -> FutureTx:
+    def _pop(self) -> FutureTx:
         return self.__queue.popleft()
 
-    def requeue(self, tx: FutureTx) -> None:
+    def _requeue(self, tx: FutureTx) -> None:
         self.__queue.append(tx)
         self.commit()
         txtracker_log.info(
             f"Re-queued transaction #{tx.id} " f"in position {len(self.__queue) + 1}"
         )
 
-    def add(
+    def _queue(
         self,
         tx: TxParams,
         signer: Callable,
