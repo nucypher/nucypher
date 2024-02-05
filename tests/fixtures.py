@@ -315,7 +315,7 @@ def mock_testerchain() -> MockBlockchain:
 @pytest.fixture()
 def light_ursula(temp_dir_path, random_account, mocker):
     mocker.patch.object(
-        KeystoreSigner, "_KeystoreSigner__get_signer", return_value=random_account
+        KeystoreSigner, "_get_signer", return_value=random_account
     )
     pre_payment_method = SubscriptionManagerPayment(
         blockchain_endpoint=MOCK_ETH_PROVIDER_URI, domain=TEMPORARY_DOMAIN_NAME

@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.models import Coordinator, Ferveo
+from nucypher.blockchain.eth.models import Coordinator, Ferveo, PHASE1, PHASE2
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -805,6 +805,7 @@ class CoordinatorAgent(EthereumContractAgent):
             contract_function=contract_function,
             transacting_power=transacting_power,
             fire_and_forget=fire_and_forget,
+            info={"ritual_id": ritual_id, "phase": PHASE1},
         )
         return receipt
 
@@ -829,6 +830,7 @@ class CoordinatorAgent(EthereumContractAgent):
             gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
             fire_and_forget=fire_and_forget,
+            info={"ritual_id": ritual_id, "phase": PHASE2},
         )
         return receipt
 

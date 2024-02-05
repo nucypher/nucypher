@@ -552,7 +552,7 @@ class BlockchainInterface:
             emitter.message(f'Confirm transaction {transaction_name} on hardware wallet... '
                             f'({max_cost} ETH @ {max_price_gwei} gwei)',
                             color='yellow')
-        signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
+        signed_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
@@ -561,7 +561,7 @@ class BlockchainInterface:
         emitter.message(f'Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)',
                         color='yellow')
         try:
-            txhash = self.client.send_raw_transaction(signed_raw_transaction)  # <--- BROADCAST
+            txhash = self.client.send_raw_transaction(signed_transaction.rawTransaction)  # <--- BROADCAST
             emitter.message(f'TXHASH {txhash.hex()}', color='yellow')
         except (TestTransactionFailed, ValueError):
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
@@ -612,6 +612,7 @@ class BlockchainInterface:
                          gas_estimation_multiplier: Optional[float] = 1.15,  # TODO: Workaround for #2635, #2337
                          confirmations: int = 0,
                          fire_and_forget: bool = False,
+                         info: Optional[Dict] = None,
                          ) -> Union[TxReceipt, AsyncTx]:
 
         transaction = self.build_contract_transaction(
@@ -625,16 +626,21 @@ class BlockchainInterface:
 
         if fire_and_forget:
             if confirmations > 0:
-                raise ValueError("Transaction Prevented: "
-                                 "Cannot use 'confirmations' and 'fire_and_forget' options together.")
-            info = {
+                raise ValueError("Cannot use 'confirmations' and 'fire_and_forget' options together.")
+            basic_info = {
                 'name': contract_function.fn_name,
                 'contract': contract_function.address,
             }
+            if info:
+                basic_info.update(info)
+
+            # TODO: This is a bit of a hack. temporary solution until incoming PR #3382 is merged.
+            signer = transacting_power._signer._get_signer(transacting_power.account)
+
             async_tx = self.tracker.queue_transaction(
                 info=info,
-                tx=transaction,
-                signer=transacting_power,
+                params=transaction,
+                signer=signer,
             )
             return async_tx
 

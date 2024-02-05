@@ -1,10 +1,12 @@
 import os
+import time
 
 import pytest
 import pytest_twisted
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
-from twisted.internet.task import Clock
+from twisted.internet import reactor
+from twisted.internet.task import Clock, deferLater
 
 from nucypher.blockchain.eth.agents import (
     CoordinatorAgent,
@@ -134,8 +136,10 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, co
             transacting_power=transacting_power,
         )
 
-        while tx not in testerchain.tracker.finalized:
+        while not tx.final:
             yield clock.advance(testerchain.tracker._task.interval)
+            yield deferLater(reactor, 1, lambda: None)
+            time.sleep(1)
 
         receipt = testerchain.wait_for_receipt(tx.txhash)
         post_transcript_events = (

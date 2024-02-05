@@ -3,6 +3,7 @@ from typing import Union
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
 
@@ -12,6 +13,19 @@ class MockBlockchain(TesterBlockchain):
     ETH_PROVIDER_URI = MOCK_ETH_PROVIDER_URI
 
     FAKE_TX_HASH = HexBytes(b"FAKE29890FAKE8349804")
+
+    FAKE_ASYNX_TX = FutureTx(
+        id=1,
+        params={
+            "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+            "gas": 1,
+            "gasPrice": 1,
+            "value": 1,
+            "data": b"",
+            "nonce": 1,
+        },
+        _from=HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+    )
 
     FAKE_RECEIPT = {
         "transactionHash": FAKE_TX_HASH,

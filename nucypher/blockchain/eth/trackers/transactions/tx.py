@@ -1,7 +1,9 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Optional
 
+from eth_typing import ChecksumAddress
+from eth_utils import encode_hex
 from hexbytes import HexBytes
 from web3.types import TxData, TxParams, TxReceipt
 
@@ -12,9 +14,12 @@ TxHash = HexBytes
 class AsyncTx(ABC):
     id: int
     final: bool = field(default=None, init=False)
+    on_broadcast: Optional[Callable] = field(default=None, init=False)
     on_finalized: Optional[Callable] = field(default=None, init=False)
     on_capped: Optional[Callable] = field(default=None, init=False)
     on_timeout: Optional[Callable] = field(default=None, init=False)
+    on_revert: Optional[Callable] = field(default=None, init=False)
+    on_error: Optional[Callable] = field(default=None, init=False)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} id={self.id} final={self.final}>"
@@ -28,6 +33,7 @@ class AsyncTx(ABC):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    @abstractmethod
     def to_dict(self):
         raise NotImplementedError
 
@@ -40,6 +46,7 @@ class AsyncTx(ABC):
 class FutureTx(AsyncTx):
     final: bool = field(default=False, init=False)
     params: TxParams
+    _from: ChecksumAddress
     info: Optional[Dict] = None
 
     def __hash__(self):
@@ -48,6 +55,7 @@ class FutureTx(AsyncTx):
     def to_dict(self) -> Dict:
         return {
             "id": self.id,
+            "from": self._from,
             "params": _serialize_tx_params(self.params),
             "info": self.info,
         }
@@ -56,6 +64,7 @@ class FutureTx(AsyncTx):
     def from_dict(cls, data: Dict):
         return cls(
             id=int(data["id"]),
+            _from=data["from"],
             params=TxParams(data["params"]),
             info=dict(data["info"]),
         )
@@ -105,41 +114,37 @@ class FinalizedTx(AsyncTx):
 
     @classmethod
     def from_dict(cls, data: Dict):
-        return cls(id=int(data["id"]), receipt=TxReceipt(data["receipt"]))
+        receipt = _deserialize_tx_receipt(data["receipt"])
+        return cls(id=int(data["id"]), receipt=receipt)
 
 
 def _serialize_tx_params(params: TxParams) -> Dict:
     """Serializes transaction parameters to a dictionary for disk storage."""
-    data = params.get("data", b"")
+    data = params.get("data")
     if isinstance(data, bytes):
-        data = data.hex()
-
+        data = encode_hex(data)
     result = {
         "nonce": params["nonce"],
         "chainId": params["chainId"],
         "gas": params["gas"],
-        "type": params.get("type", ""),
+        "type": params.get("type"),
         "to": params["to"],
         "value": params["value"],
-        "data": data,
+        "data":  data,
+        "maxPriorityFeePerGas": params.get("maxPriorityFeePerGas"),
+        "maxFeePerGas": params.get("maxFeePerGas"),
+        "gasPrice": params.get("gasPrice"),
     }
-    if "type" in params:
-        result["type"] = params["type"]
-    if "maxPriorityFeePerGas" in params:
-        result["maxPriorityFeePerGas"] = params["maxPriorityFeePerGas"]
-    if "maxFeePerGas" in params:
-        result["maxFeePerGas"] = params["maxFeePerGas"]
-    if "gasPrice" in params:
-        result["gasPrice"] = params["gasPrice"]
-
-    return dict(result)
+    # filtrate Nones
+    result = {k: v for k, v in result.items() if v is not None}
+    return result
 
 
 def _serialize_tx_receipt(receipt: TxReceipt) -> Dict:
     return {
-        "transactionHash": receipt["transactionHash"].hex(),
+        "transactionHash": encode_hex(receipt["transactionHash"]),
         "transactionIndex": receipt["transactionIndex"],
-        "blockHash": receipt["blockHash"].hex(),
+        "blockHash": encode_hex(receipt["blockHash"]),
         "blockNumber": receipt["blockNumber"],
         "from": receipt["from"],
         "to": receipt["to"],
@@ -147,6 +152,20 @@ def _serialize_tx_receipt(receipt: TxReceipt) -> Dict:
         "gasUsed": receipt["gasUsed"],
         "status": receipt["status"],
     }
+
+
+def _deserialize_tx_receipt(receipt: Dict) -> TxReceipt:
+    return TxReceipt({
+        "transactionHash": HexBytes(receipt["transactionHash"]),
+        "transactionIndex": receipt["transactionIndex"],
+        "blockHash": HexBytes(receipt["blockHash"]),
+        "blockNumber": receipt["blockNumber"],
+        "from": receipt["from"],
+        "to": receipt["to"],
+        "cumulativeGasUsed": receipt["cumulativeGasUsed"],
+        "gasUsed": receipt["gasUsed"],
+        "status": receipt["status"],
+    })
 
 
 def _make_tx_params(data: TxData) -> TxParams:

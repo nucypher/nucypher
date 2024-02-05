@@ -5,6 +5,7 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import Deque, Dict, Optional, Set, Callable
 
+from eth_typing import ChecksumAddress
 from web3.types import TxParams, TxReceipt
 
 from nucypher.blockchain.eth.trackers.transactions.tx import (
@@ -14,13 +15,13 @@ from nucypher.blockchain.eth.trackers.transactions.tx import (
     TxHash,
 )
 from nucypher.blockchain.eth.trackers.transactions.utils import txtracker_log, fire_hook
-from nucypher.config.constants import DEFAULT_CONFIG_ROOT
+from nucypher.config.constants import APP_DIR
 
 
 class _TrackerState:
     """State management for transaction tracking."""
 
-    __DEFAULT_FILEPATH = Path(DEFAULT_CONFIG_ROOT / "txtracker.json")
+    __DEFAULT_FILEPATH = Path(APP_DIR.user_cache_dir) / ".txs.json"
     __COUNTER = 0  # id generator
 
     def __init__(self, filepath: Optional[Path] = None):
@@ -157,22 +158,30 @@ class _TrackerState:
     def _queue(
             self,
             params: TxParams,
+            _from: ChecksumAddress,
             info: Dict[str, str] = None,
+            on_broadcast: Optional[Callable] = None,
             on_timeout: Optional[Callable] = None,
             on_capped: Optional[Callable] = None,
             on_finalized: Optional[Callable] = None,
+            on_revert: Optional[Callable] = None,
+            on_error: Optional[Callable] = None,
     ) -> FutureTx:
         """Queue a new transaction for broadcast and subsequent tracking."""
         tx = FutureTx(
+            _from=_from,
             id=self.__COUNTER,
             params=params,
             info=info,
         )
 
         # configure hooks
+        tx.on_broadcast = on_broadcast
         tx.on_timeout = on_timeout
         tx.on_capped = on_capped
         tx.on_finalized = on_finalized
+        tx.on_revert = on_revert
+        tx.on_error = on_error
 
         self.__queue.append(tx)
         self.commit()

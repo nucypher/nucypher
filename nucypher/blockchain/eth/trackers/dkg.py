@@ -9,7 +9,7 @@ from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx
+from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx, AsyncTx
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.types import RitualId, PhaseId
 from nucypher.utilities.cache import TTLCache
@@ -123,8 +123,7 @@ class ActiveRitualTracker:
             self.contract.events.EndRitual,
         ]
 
-        # ritual id -> phase -> txhash
-        self.phase_txs: Dict[Tuple[RitualId, PhaseId], FutureTx] = dict()
+        self.__phase_txs: Dict[Tuple[RitualId, PhaseId], FutureTx] = {}
 
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
@@ -166,6 +165,10 @@ class ActiveRitualTracker:
     @property
     def contract(self):
         return self.coordinator_agent.contract
+
+    @property
+    def active_rituals(self) -> Dict[Tuple[RitualId, PhaseId], AsyncTx]:
+        return self.__phase_txs
 
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
     def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:

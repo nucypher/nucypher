@@ -57,7 +57,7 @@ def test_character_transacting_power_signing(testerchain, test_registry):
     signed_transaction = power.sign_transaction(transaction_dict=transaction_dict)
 
     # Demonstrate that the transaction is valid RLP encoded.
-    restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction)
+    restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction.rawTransaction)
     restored_dict = restored_transaction.as_dict()
     assert to_checksum_address(restored_dict['to']) == transaction_dict['to']
 
@@ -109,7 +109,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
     # Demonstrate that the transaction is valid RLP encoded.
     from eth_account._utils.legacy_transactions import Transaction
-    restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction)
+    restored_transaction = Transaction.from_bytes(serialized_bytes=signed_transaction.rawTransaction)
     restored_dict = restored_transaction.as_dict()
     assert to_checksum_address(restored_dict['to']) == transaction_dict['to']
 
@@ -139,7 +139,7 @@ def test_transacting_power_sign_agent_transaction(testerchain, coordinator_agent
     transacting_power = TransactingPower(password=INSECURE_DEVELOPMENT_PASSWORD,
                                          signer=Web3Signer(testerchain.client),
                                          account=testerchain.etherbase_account)
-    signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)
+    signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction).rawTransaction
 
     # Demonstrate that the transaction is valid RLP encoded.
     restored_transaction = Transaction.from_bytes(serialized_bytes=signed_raw_transaction)

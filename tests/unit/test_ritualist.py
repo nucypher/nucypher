@@ -1,14 +1,12 @@
 import pytest
-from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
-from nucypher.blockchain.eth.trackers.transactions import FutureTx
-from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx, PendingTx
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
+from tests.mock.interfaces import MockBlockchain
 
 
 @pytest.fixture(scope="module")
@@ -22,17 +20,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
-    def make_tx(tx, info, success, error):
-        tx = FutureTx(
-            id=0,
-            params=tx,
-            info=info,
-            signer=transacting_power._signer.get_signer(),
-        )
-
-    coordinator_agent.post_transcript = lambda *args, **kwargs: HexBytes("deadbeef")
-    coordinator_agent.post_aggregation = lambda *args, **kwargs: HexBytes("deadbeef")
-
+    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.FAKE_ASYNX_TX
+    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.FAKE_ASYNX_TX
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
@@ -141,10 +130,10 @@ def test_perform_round_1(
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
-        tx_hash = ursula.perform_round_1(
+        tx = ursula.perform_round_1(
             ritual_id=0, authority=random_address, participants=cohort, timestamp=0
         )
-        assert tx_hash is None  # no execution performed
+        assert tx is None  # no execution performed
 
     # set correct state
     agent.get_ritual_status = (
@@ -157,7 +146,7 @@ def test_perform_round_1(
     assert tx is not None
 
     # ensure tx is tracked
-    assert len(ursula.ritual_tracker.phase_txs) == 1
+    assert len(ursula.ritual_tracker.active_rituals) == 1
 
     # try again
     tx = ursula.perform_round_1(
@@ -303,7 +292,7 @@ def test_perform_round_2(
     assert tx is not None
 
     # check tx hash tracking
-    assert len(ursula.ritual_tracker.phase_txs) == 2
+    assert len(ursula.ritual_tracker.active_rituals) == 2
 
     # try again
     tx = ursula.perform_round_2(ritual_id=0, timestamp=0)

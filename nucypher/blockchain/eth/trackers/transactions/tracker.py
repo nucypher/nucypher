@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Union
+from typing import Optional, Union, Iterable
 
 from eth_account.signers.local import LocalAccount
 from twisted.internet.defer import Deferred
@@ -9,7 +9,7 @@ from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.trackers.transactions.exceptions import (
     StrategyLimitExceeded,
-    _handle_rpc_error,
+    TransactionReverted,
 )
 from nucypher.blockchain.eth.trackers.transactions.state import _TrackerState
 from nucypher.blockchain.eth.trackers.transactions.strategies import (
@@ -26,22 +26,13 @@ from nucypher.blockchain.eth.trackers.transactions.utils import (
     _get_average_blocktime,
     _get_receipt,
     txtracker_log,
-    fire_hook,
+    fire_hook, _handle_rpc_error,
 )
 from nucypher.utilities.task import SimpleTask
 
 
 class _TransactionTracker(SimpleTask):
-    """
-    Do not import this - use the public TransactionTracker instead.
-
-    The tracker is responsible for queuing, speeding up, and broadcasting transactions.
-    Transactions are queued and broadcasted in a first-in-first-out (FIFO) order.
-
-    There are two modes of operation: idle (slow scan) and work (fast scan).
-    Internal state is written to a temporary cache file to help recover from crashes
-    and restarts.
-    """
+    """Do not import this - use the public TransactionTracker instead."""
 
     # tweaks
     _STRATEGY = SpeedupStrategy
@@ -60,9 +51,11 @@ class _TransactionTracker(SimpleTask):
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 10_000  # blocks
 
-    def __init__(self, w3: Web3, signer: LocalAccount):
+    def __init__(self, w3: Web3, signers: Optional[Iterable[LocalAccount]] = None):
         self.w3 = w3
-        self.signer = signer
+        if not signers:
+            signers = list()
+        self.signers = {signer.address: signer for signer in signers}
         self.strategy = self._STRATEGY(w3=w3)
         self.timeout = self._TIMEOUT
         self.__state = _TrackerState()
@@ -98,11 +91,12 @@ class _TransactionTracker(SimpleTask):
         """
         Handles the currently tracked pending transaction.
 
-        There are 4 possible outcomes for the pending transaction:
+        The 5 possible outcomes for the pending ("active") transaction:
         1. timeout
-        2. finalized
-        3. capped
-        4. (re)strategize & (re)broadcast
+        2. reverted
+        3. finalized
+        4. capped
+        5. (re)strategize & (re)broadcast
 
         Returns True if the pending transaction has been cleared
         and the queue is ready for the next transaction.
@@ -119,8 +113,17 @@ class _TransactionTracker(SimpleTask):
                 fire_hook(hook=hook, tx=self.__state.active)
             return True
 
-        # Outcome 2: pending transaction is finalized
-        receipt = self.__get_receipt()
+        # Outcome 2: the pending transaction was reverted
+        try:
+            receipt = self.__get_receipt()
+        except TransactionReverted:
+            hook = self.__state.active.on_revert
+            if hook:
+                fire_hook(hook=hook, tx=self.__state.active)
+            self.__state.clear_active()
+            return True
+
+        # Outcome 3: pending transaction is finalized
         if receipt:
             final_txhash = receipt["transactionHash"]
             confirmations = self.__get_confirmations(tx=self.__state.active)
@@ -131,11 +134,11 @@ class _TransactionTracker(SimpleTask):
             self.__state.finalize_active_tx(receipt=receipt)
             return True
 
-        # Outcome 3: pending transaction is capped
+        # Outcome 4: pending transaction is capped
         if self.__state.active.capped:
             return False
 
-        # Outcome4: pending transaction has been sped up
+        # Outcome 5: pending transaction has been sped up
         self.__strategize()
         return False
 
@@ -143,11 +146,19 @@ class _TransactionTracker(SimpleTask):
     # Broadcast
     #
 
+    def __get_signer(self, address: str) -> LocalAccount:
+        try:
+            signer = self.signers[address]
+        except KeyError:
+            raise ValueError(f"Signer {address} not found")
+        return signer
+
     def __fire(self, tx: FutureTx, msg: str) -> Optional[PendingTx]:
         """Signs and broadcasts a transaction. Handles RPC errors and state changes."""
+        signer = self.__get_signer(tx._from)
         try:
             txhash = self.w3.eth.send_raw_transaction(
-                self.signer.sign_transaction(tx.params).rawTransaction
+                signer.sign_transaction(tx.params).rawTransaction
             )
         except ValueError as e:
             _handle_rpc_error(e, tx=tx)
@@ -156,6 +167,9 @@ class _TransactionTracker(SimpleTask):
             f"[{msg}] fired transaction #atx-{tx.id}|{tx.params['nonce']}|{txhash.hex()}"
         )
         self.__state.evolve_future(tx=tx, txhash=txhash)
+        hook = tx.on_broadcast
+        if hook:
+            fire_hook(hook=hook, tx=tx)
 
     def __strategize(self) -> Optional[TxHash]:
         """Retry the currently tracked pending transaction with the configured strategy."""
@@ -194,7 +208,8 @@ class _TransactionTracker(SimpleTask):
         """
         future_tx = self.__state._pop()
         future_tx.params = _make_tx_params(future_tx.params)
-        nonce = self.w3.eth.get_transaction_count(self.signer.address, "latest")
+        signer = self.__get_signer(future_tx._from)
+        nonce = self.w3.eth.get_transaction_count(signer.address, "latest")
         if nonce > future_tx.params["nonce"]:
             self.log.warn(
                 f"[broadcast] nonce {future_tx.params['nonce']} has been front-run "
@@ -232,26 +247,15 @@ class _TransactionTracker(SimpleTask):
 
     def __get_confirmations(self, tx: Union[PendingTx, FinalizedTx]) -> int:
         current_block = self.w3.eth.block_number
+        txhash = tx.txhash if isinstance(tx, PendingTx) else tx.receipt["transactionHash"]
         try:
-            txdata = self.w3.eth.get_transaction(tx.txhash)
+            tx_receipt = self.w3.eth.get_transaction_receipt(txhash)
+            tx_block = tx_receipt["blockNumber"]
+            confirmations = current_block - tx_block
+            return confirmations
         except TransactionNotFound:
-            self.log.info(f"[pending] transaction {tx.txhash.hex()} is still pending")
+            self.log.info(f"Transaction {txhash.hex()} is pending or unconfirmed")
             return 0
-
-        if isinstance(tx, PendingTx):
-            tx_block = txdata["blockNumber"]
-            if tx_block is None:
-                self.log.info(
-                    f"[pending] Transaction {tx.txhash.hex()} is still pending"
-                )
-                return 0
-        elif isinstance(tx, FinalizedTx):
-            tx_block = tx.receipt["blockNumber"]
-        else:
-            raise ValueError(f"Invalid transaction type {type(tx)}")
-
-        confirmations = current_block - tx_block
-        return confirmations
 
     def __active_timed_out(self) -> bool:
         """
@@ -299,7 +303,7 @@ class _TransactionTracker(SimpleTask):
                 if tx in self.__state.finalized:
                     self.__state.finalized.remove(tx)
                     self.log.info(
-                        f"[monitor] stopped tracking {txhash.hex()} after {confirmations} confirmations"
+                        f"[clear] stopped tracking {txhash.hex()} after {confirmations} confirmations"
                     )
                 continue
             self.log.info(

@@ -68,8 +68,14 @@ transaction_eip1559 = {
 }
 
 #
-# Define Hooks
+# Define Hooks (optional)
 #
+
+
+def on_broadcast(tx: PendingTx):
+    txhash = tx.txhash.hex()
+    print(f"[alert] Transaction has been broadcasted ({txhash})!")
+    print(f"View on PolygonScan: https://mumbai.polygonscan.com/tx/{txhash}")
 
 
 def on_transaction_finalized(tx: FinalizedTx):
@@ -89,17 +95,33 @@ def on_transaction_timeout(tx: PendingTx):
     print(f"[alert] Transaction has timed out ({txhash})!")
 
 
+def on_transaction_reverted(tx: FinalizedTx):
+    txhash = tx.receipt['transactionHash'].hex()
+    print(f"[alert] Transaction reverted ({txhash})!")
+
+
+def on_error(tx: PendingTx, error: Exception):
+    print(f"[alert] Transaction #{tx.id} has errored ({error})!")
+
+
 #
 # Queue Transaction(s)
 #
 
-tracker = TransactionTracker(w3=w3, signer=account)
+tracker = TransactionTracker(w3=w3)
 _future_txs = tracker.queue_transactions(
+
+    # required
     params=[
         legacy_transaction,
         transaction_eip1559
     ],
-    info={"message": f"something wonderful is happening..."},  # optional
+    signer=account,
+
+    # optional
+    info={"message": f"something wonderful is happening..."},
+    on_broadcast=on_broadcast,
+    on_revert=on_transaction_reverted,
     on_finalized=on_transaction_finalized,
     on_capped=on_transaction_capped,
     on_timeout=on_transaction_timeout

@@ -1,12 +1,14 @@
+import contextlib
 from typing import Optional, Union, Callable
 
 from twisted.internet import reactor
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
-from web3.types import PendingTx as PendingTxData
+from web3.types import PendingTx as PendingTxData, RPCError
 from web3.types import TxData, TxReceipt, Wei
 
-from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
+from nucypher.blockchain.eth.trackers.transactions.exceptions import TransactionReverted, InsufficientFunds
+from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx, FutureTx
 from nucypher.utilities.logging import Logger
 
 txtracker_log = Logger("tx.tracker")
@@ -48,18 +50,41 @@ def _get_receipt(w3: Web3, data: Union[TxData, PendingTxData]) -> Optional[TxRec
         txtracker_log.info(
             f"Transaction {data['hash'].hex()} was reverted by EVM with status {status}"
         )
-        return receipt
+        raise TransactionReverted(receipt)
     return receipt
 
 
-def fire_hook(hook: Callable, tx: AsyncTx) -> None:
-    """Fire a hook in a separate thread."""
+def fire_hook(hook: Callable, tx: AsyncTx, *args, **kwargs) -> None:
+    """
+    Fire a hook in a separate thread.
+    Try exceptionally hard not to crash the transaction
+    tracker tasks while dispatching hooks.
+    """
 
-    def _hook():
+    def _hook() -> None:
+        """I'm inside a thread!"""
         try:
-            hook(tx)
+            hook(tx, *args, **kwargs)
         except Exception as e:
             txtracker_log.warn(f'[hook] {e}')
 
-    reactor.callInThread(_hook)
-    txtracker_log.info(f"[hook] fired hook {hook} for transaction #atx-{tx.id}")
+    with contextlib.suppress(Exception):
+        reactor.callInThread(_hook)
+        txtracker_log.info(f"[hook] fired hook {hook} for transaction #atx-{tx.id}")
+
+
+def _handle_rpc_error(e: Exception, tx: FutureTx) -> None:
+    try:
+        error = RPCError(**e.args[0])
+    except TypeError:
+        txtracker_log.critical(f"[error] transaction #atx-{tx.id}|{tx.params['nonce']} failed with {e}")
+    else:
+        txtracker_log.critical(
+            f"[error] transaction #atx-{tx.id}|{tx.params['nonce']} failed with {error['code']} | {error['message']}"
+        )
+        if error["code"] == -32000:
+            if "insufficient funds" in error["message"]:
+                raise InsufficientFunds
+        hook = tx.on_error
+        if hook:
+            fire_hook(hook=hook, tx=tx, error=e)
