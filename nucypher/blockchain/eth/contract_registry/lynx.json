@@ -1,5 +1,374 @@
 {
     "80001": {
+        "BetaProgramInitiator": {
+            "address": "0xb6e6512F4c9A74Ef1b742d832852769F3CEE646c",
+            "abi": [
+                {
+                    "type": "constructor",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "_coordinator",
+                            "type": "address",
+                            "internalType": "contract Coordinator"
+                        },
+                        {
+                            "name": "_executor",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "AddressEmptyCode",
+                    "inputs": [
+                        {
+                            "name": "target",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "AddressInsufficientBalance",
+                    "inputs": [
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "FailedInnerCall",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "SafeERC20FailedOperation",
+                    "inputs": [
+                        {
+                            "name": "token",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "event",
+                    "name": "FailedRequestRefunded",
+                    "inputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": true
+                        },
+                        {
+                            "name": "refundAmount",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RequestCanceled",
+                    "inputs": [
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RequestExecuted",
+                    "inputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": true
+                        },
+                        {
+                            "name": "ritualId",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RequestRegistered",
+                    "inputs": [
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": true
+                        },
+                        {
+                            "name": "providers",
+                            "type": "address[]",
+                            "internalType": "address[]",
+                            "indexed": false
+                        },
+                        {
+                            "name": "authority",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": false
+                        },
+                        {
+                            "name": "duration",
+                            "type": "uint32",
+                            "internalType": "uint32",
+                            "indexed": false
+                        },
+                        {
+                            "name": "accessController",
+                            "type": "address",
+                            "internalType": "contract IEncryptionAuthorizer",
+                            "indexed": false
+                        },
+                        {
+                            "name": "payment",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "NO_RITUAL",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "cancelInitiationRequest",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "coordinator",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract Coordinator"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "currency",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "contract IERC20"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "executeInitiationRequest",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "executor",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getProviders",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getRequestsLength",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "refundFailedRequest",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "registerInitiationRequest",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "providers",
+                            "type": "address[]",
+                            "internalType": "address[]"
+                        },
+                        {
+                            "name": "authority",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "duration",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "accessController",
+                            "type": "address",
+                            "internalType": "contract IEncryptionAuthorizer"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "requestIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "requests",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "authority",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "duration",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "accessController",
+                            "type": "address",
+                            "internalType": "contract IEncryptionAuthorizer"
+                        },
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "ritualId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "payment",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                }
+            ],
+            "tx_hash": "0xa96fa3337c1259b97b31b86afa8f8a606d1d8ef8529d570a404c28cac5f4f0fd",
+            "block_number": 44702414,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
+        },
         "Coordinator": {
             "address": "0x530608219a8A671FD183534b17E2a2CE09e782a4",
             "abi": [
@@ -769,63 +1138,7 @@
                         }
                     ]
                 },
-              {
-                "type": "function",
-                "name": "getParticipants",
-                "stateMutability": "view",
-                "inputs": [
-                  {
-                    "internalType": "uint32",
-                    "name": "ritualId",
-                    "type": "uint32"
-                  },
-                  {
-                    "internalType": "uint256",
-                    "name": "startIndex",
-                    "type": "uint256"
-                  },
-                  {
-                    "internalType": "uint256",
-                    "name": "maxParticipants",
-                    "type": "uint256"
-                  },
-                  {
-                    "internalType": "bool",
-                    "name": "includeTranscript",
-                    "type": "bool"
-                  }
-                ],
-                "outputs": [
-                  {
-                    "components": [
-                      {
-                        "internalType": "address",
-                        "name": "provider",
-                        "type": "address"
-                      },
-                      {
-                        "internalType": "bool",
-                        "name": "aggregated",
-                        "type": "bool"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "transcript",
-                        "type": "bytes"
-                      },
-                      {
-                        "internalType": "bytes",
-                        "name": "decryptionRequestStaticKey",
-                        "type": "bytes"
-                      }
-                    ],
-                    "internalType": "struct Coordinator.Participant[]",
-                    "name": "",
-                    "type": "tuple[]"
-                  }
-                ]
-              },
-              {
+                {
                     "type": "function",
                     "name": "getParticipantFromProvider",
                     "stateMutability": "view",
@@ -880,6 +1193,62 @@
                             "name": "ritualId",
                             "type": "uint32",
                             "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "tuple[]",
+                            "components": [
+                                {
+                                    "name": "provider",
+                                    "type": "address",
+                                    "internalType": "address"
+                                },
+                                {
+                                    "name": "aggregated",
+                                    "type": "bool",
+                                    "internalType": "bool"
+                                },
+                                {
+                                    "name": "transcript",
+                                    "type": "bytes",
+                                    "internalType": "bytes"
+                                },
+                                {
+                                    "name": "decryptionRequestStaticKey",
+                                    "type": "bytes",
+                                    "internalType": "bytes"
+                                }
+                            ],
+                            "internalType": "struct Coordinator.Participant[]"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getParticipants",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "ritualId",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "startIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "maxParticipants",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "includeTranscript",
+                            "type": "bool",
+                            "internalType": "bool"
                         }
                     ],
                     "outputs": [
