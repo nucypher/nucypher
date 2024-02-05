@@ -14,6 +14,7 @@ from nucypher.cli.actions.configure import (
     handle_missing_configuration_file,
     perform_startup_ip_check,
 )
+from nucypher.cli.actions.migrate import migrate
 from nucypher.cli.actions.select import (
     select_client_account,
     select_config_file,
@@ -54,11 +55,6 @@ from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_OPERATOR_ETH_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
-)
-from nucypher.config.migrations import MIGRATIONS
-from nucypher.config.migrations.common import (
-    InvalidMigration,
-    WrongConfigurationVersion,
 )
 from nucypher.crypto.keystore import Keystore
 from nucypher.utilities.prometheus.metrics import PrometheusMetricsConfig
@@ -481,37 +477,7 @@ def config(general_config, config_options, config_file, force, action):
         )
         config_options.rest_host = rest_host
     elif action == "migrate":
-        for jump, migration in MIGRATIONS.items():
-            old, new = jump
-            emitter.message(f"Checking migration {old} -> {new}")
-            if not migration:
-                emitter.echo(
-                    f"Migration {old} -> {new} not found.",
-                    color="yellow",
-                    verbosity=1,
-                )
-                continue  # no migration script
-            try:
-                migration(config_file)
-                emitter.echo(
-                    f"Successfully ran migration {old} -> {new}",
-                    color="green",
-                    verbosity=1,
-                )
-
-            except WrongConfigurationVersion:
-                emitter.echo(
-                    f"Migration {old} -> {new} not required.",
-                    color="yellow",
-                    verbosity=1,
-                )
-                continue  # already migrated
-
-            except InvalidMigration as e:
-                emitter.error(f"Migration {old} -> {new} failed: {str(e)}")
-                return click.Abort()
-
-        emitter.echo("Done! ✨", color="green", verbosity=1)
+        migrate(emitter=emitter, config_file=config_file)
         return  # Don't run the rest of the command
 
     elif action:

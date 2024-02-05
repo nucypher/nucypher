@@ -10,10 +10,11 @@ from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.base import Signer
 from nucypher.cli.actions.configure import get_config_filepaths
+from nucypher.cli.actions.migrate import migrate
 from nucypher.cli.literature import (
     DEFAULT_TO_LONE_CONFIG_FILE,
     GENERIC_SELECT_ACCOUNT,
-    IGNORE_OLD_CONFIGURATION,
+    MIGRATE_OLD_CONFIGURATION,
     NO_ACCOUNTS,
     NO_CONFIGURATIONS_ON_DISK,
     SELECT_DOMAIN,
@@ -151,7 +152,10 @@ def select_config_file(emitter: StdoutEmitter,
     parsed_config_files = list()
     parsed_addresses_and_filenames = list()
     # parse configuration files for checksum address values
-    for fp in config_files:
+
+    i = 0
+    while i < len(config_files):
+        fp = config_files[i]
         try:
             config_checksum_address = config_class.address_from_filepath(fp)
             if checksum_address and config_checksum_address == checksum_address:
@@ -160,10 +164,17 @@ def select_config_file(emitter: StdoutEmitter,
 
             parsed_config_files.append(fp)
             parsed_addresses_and_filenames.append([config_checksum_address, Path(fp).name])  # store checksum & filename
-        except config_class.OldVersion:
-            # no use causing entire usage to crash if file can't be used anyway - inform the user; they can
-            # decide for themself
-            emitter.echo(IGNORE_OLD_CONFIGURATION.format(config_file=fp), color='yellow')
+        except config_class.OldVersion as e:
+            # attempt migration
+            emitter.echo(
+                MIGRATE_OLD_CONFIGURATION.format(config_file=fp, version=e.version),
+                color="yellow",
+            )
+            migrate(emitter=emitter, config_file=fp)
+            # retry migrated file
+            continue
+
+        i += 1
 
     if checksum_address:
         # shouldn't get here if checksum address was specified and corresponding file found
