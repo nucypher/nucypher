@@ -1,6 +1,7 @@
 import time
+from copy import deepcopy
 from enum import Enum
-from typing import Dict, List, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 
 from eth_typing import ChecksumAddress
 from eth_utils import keccak
@@ -13,7 +14,7 @@ from nucypher_core.ferveo import (
 )
 from web3.types import TxReceipt
 
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator, Ferveo
 from nucypher.crypto.powers import TransactingPower
 from tests.mock.agents import MockContractAgent
 from tests.mock.interfaces import MockBlockchain
@@ -21,18 +22,18 @@ from tests.mock.interfaces import MockBlockchain
 
 class MockCoordinatorAgent(MockContractAgent):
 
-    Participant = CoordinatorAgent.Ritual.Participant
-    Ritual = CoordinatorAgent.Ritual
-    RitualStatus = CoordinatorAgent.Ritual.Status
-    G1Point = CoordinatorAgent.Ritual.G1Point
-    G2Point = CoordinatorAgent.G2Point
+    Participant = Coordinator.Participant
+    Ritual = Coordinator.Ritual
+    RitualStatus = Coordinator.RitualStatus
+    G1Point = Ferveo.G1Point
+    G2Point = Ferveo.G2Point
 
     class ParticipantKey(NamedTuple):
         lastRitualId: int
-        publicKey: CoordinatorAgent.G2Point
+        publicKey: Ferveo.G2Point
 
     EVENTS = {}
-    rituals = []
+    _rituals = []
 
     class Events(Enum):
         START_RITUAL = 0
@@ -72,8 +73,15 @@ class MockCoordinatorAgent(MockContractAgent):
         self._operator_to_staking_provider = {}
 
     #
-    # Transactions
+    # Transactions - modify state
     #
+
+    def __find_participant_for_state_change(self, ritual_id, provider) -> Participant:
+        for p in self._rituals[ritual_id].participants:
+            if p.provider == provider:
+                return p
+
+        raise ValueError("participant not found")
 
     def initiate_ritual(
         self,
@@ -83,10 +91,11 @@ class MockCoordinatorAgent(MockContractAgent):
         access_controller: ChecksumAddress,
         transacting_power: TransactingPower,
     ) -> TxReceipt:
-        ritual_id = len(self.rituals)
+        ritual_id = len(self._rituals)
         init_timestamp = int(time.time_ns())
         end_timestamp = init_timestamp + duration
         ritual = self.Ritual(
+            id=ritual_id,
             initiator=transacting_power.account,
             authority=authority,
             access_controller=access_controller,
@@ -98,7 +107,7 @@ class MockCoordinatorAgent(MockContractAgent):
             dkg_size=len(providers),
             threshold=self.get_threshold_for_ritual_size(len(providers)),
         )
-        self.rituals.append(ritual)
+        self._rituals.append(ritual)
         self.emit_event(
             signal=self.Events.START_RITUAL,
             ritual_id=ritual_id,
@@ -112,16 +121,15 @@ class MockCoordinatorAgent(MockContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = False,
     ) -> TxReceipt:
-        ritual = self.rituals[ritual_id]
+        ritual = self._rituals[ritual_id]
         operator_address = transacting_power.account
         # either mapping is populated or just assume provider same as operator for testing
         provider = (
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant_from_provider(ritual_id, provider)
+        participant = self.__find_participant_for_state_change(ritual_id, provider)
         participant.transcript = bytes(transcript)
         ritual.total_transcripts += 1
         if ritual.total_transcripts == ritual.dkg_size:
@@ -133,7 +141,7 @@ class MockCoordinatorAgent(MockContractAgent):
                     p.provider for p in ritual.participants
                 ],  # TODO This should not be
             )
-        return self.blockchain.FAKE_RECEIPT
+        return self.blockchain.FAKE_TX_HASH
 
     def post_aggregation(
         self,
@@ -142,16 +150,15 @@ class MockCoordinatorAgent(MockContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = False,
     ) -> TxReceipt:
-        ritual = self.rituals[ritual_id]
+        ritual = self._rituals[ritual_id]
         operator_address = transacting_power.account
         # either mapping is populated or just assume provider same as operator for testing
         provider = (
             self._get_staking_provider_from_operator(operator=operator_address)
             or transacting_power.account
         )
-        participant = self.get_participant_from_provider(ritual_id, provider)
+        participant = self.__find_participant_for_state_change(ritual_id, provider)
         participant.aggregated = True
         participant.decryption_request_static_key = bytes(participant_public_key)
 
@@ -165,13 +172,10 @@ class MockCoordinatorAgent(MockContractAgent):
             ritual.aggregation_mismatch = True
             # don't increment aggregations
             # TODO Emit EndRitual here?
-            return self.blockchain.FAKE_RECEIPT
+            return self.blockchain.FAKE_TX_HASH
 
         ritual.total_aggregations += 1
-        return self.blockchain.FAKE_RECEIPT
-
-    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
-        return staking_provider in self._participant_keys_history
+        return self.blockchain.FAKE_TX_HASH
 
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower
@@ -190,7 +194,7 @@ class MockCoordinatorAgent(MockContractAgent):
 
         participant_keys.append(
             self.ParticipantKey(
-                lastRitualId=len(self.rituals),
+                lastRitualId=self.number_of_rituals(),
                 publicKey=self.G2Point.from_public_key(public_key),
             )
         )
@@ -198,34 +202,52 @@ class MockCoordinatorAgent(MockContractAgent):
         return self.blockchain.FAKE_RECEIPT
 
     #
-    # Calls
+    # Read Calls - don't change state (only use copies of objects)
     #
+
+    def is_provider_public_key_set(self, staking_provider: ChecksumAddress) -> bool:
+        return staking_provider in self._participant_keys_history
 
     def get_timeout(self) -> int:
         return self.timeout
 
     def number_of_rituals(self) -> int:
-        return len(self.rituals)
+        return len(self._rituals)
 
     def get_ritual(
-        self, ritual_id: int, with_participants: bool = True
-    ) -> CoordinatorAgent.Ritual:
-        return self.rituals[ritual_id]
+        self, ritual_id: int, transcripts: bool = False
+    ) -> Coordinator.Ritual:
+        ritual = self._rituals[ritual_id]
+        # return a copy of the ritual object; the original value is used for state
+        copied_ritual = deepcopy(ritual)
+        if not transcripts:
+            for participant in copied_ritual.participants:
+                participant.transcript = bytes()
+        return copied_ritual
 
-    def get_participants(self, ritual_id: int) -> List[Participant]:
-        return self.rituals[ritual_id].participants
+    def is_participant(self, ritual_id: int, provider: ChecksumAddress) -> bool:
+        try:
+            self.get_participant(ritual_id, provider, False)
+            return True
+        except ValueError:
+            return False
 
-    def get_participant_from_provider(
-        self, ritual_id: int, provider: ChecksumAddress
+    def get_participant(
+        self, ritual_id: int, provider: ChecksumAddress, transcript: bool = False
     ) -> Participant:
-        for p in self.rituals[ritual_id].participants:
+        for p in self._rituals[ritual_id].participants:
             if p.provider == provider:
-                return p
-
+                copied_participant = deepcopy(p)
+                if not transcript:
+                    copied_participant.transcript = bytes()
+                return copied_participant
         raise ValueError(f"Provider {provider} not found for ritual #{ritual_id}")
 
+    def get_providers(self, ritual_id: int) -> List[ChecksumAddress]:
+        return [p.provider for p in self._rituals[ritual_id].participants]
+
     def get_ritual_status(self, ritual_id: int) -> int:
-        ritual = self.rituals[ritual_id]
+        ritual = self._rituals[ritual_id]
         timestamp = int(ritual.init_timestamp)
         deadline = timestamp + self.timeout
         if timestamp == 0:
@@ -251,7 +273,7 @@ class MockCoordinatorAgent(MockContractAgent):
         return result == self.RitualStatus.ACTIVE
 
     def get_ritual_id_from_public_key(self, public_key: DkgPublicKey) -> int:
-        for i, ritual in enumerate(self.rituals):
+        for i, ritual in enumerate(self._rituals):
             if bytes(ritual.public_key) == bytes(public_key):
                 return i
 
@@ -259,9 +281,12 @@ class MockCoordinatorAgent(MockContractAgent):
             f"No ritual id found for public key 0x{bytes(public_key).hex()}"
         )
 
-    def get_ritual_public_key(self, ritual_id: int) -> DkgPublicKey:
+    def get_ritual_public_key(self, ritual_id: int) -> Optional[DkgPublicKey]:
         status = self.get_ritual_status(ritual_id=ritual_id)
-        if status != self.Ritual.Status.ACTIVE and status != self.Ritual.Status.EXPIRED:
+        if (
+            status != Coordinator.RitualStatus.ACTIVE
+            and status != Coordinator.RitualStatus.EXPIRED
+        ):
             # TODO should we raise here instead?
             return None
 
@@ -277,8 +302,8 @@ class MockCoordinatorAgent(MockContractAgent):
         participant_keys = self._participant_keys_history[provider]
         for participant_key in reversed(participant_keys):
             if participant_key.lastRitualId <= ritual_id:
-                g2Point = participant_key.publicKey
-                return g2Point.to_public_key()
+                g2_point = participant_key.publicKey
+                return g2_point.to_public_key()
 
         raise ValueError(
             f"Public key not found for provider {provider} for ritual #{ritual_id}"

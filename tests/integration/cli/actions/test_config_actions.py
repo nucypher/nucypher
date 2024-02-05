@@ -6,21 +6,17 @@ import pytest
 from nucypher.cli.actions import configure
 from nucypher.cli.actions.configure import (
     destroy_configuration,
-    forget,
     get_or_update_configuration,
     handle_invalid_configuration_file,
     handle_missing_configuration_file,
 )
 from nucypher.cli.literature import (
-    CONFIRM_FORGET_NODES,
     INVALID_CONFIGURATION_FILE_WARNING,
     INVALID_JSON_IN_CONFIGURATION_WARNING,
     MISSING_CONFIGURATION_FILE,
     SUCCESSFUL_DESTRUCTION,
-    SUCCESSFUL_FORGET_NODES,
     SUCCESSFUL_UPDATE_CONFIGURATION_VALUES,
 )
-from nucypher.config.base import CharacterConfiguration
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from tests.constants import YES
 
@@ -65,17 +61,6 @@ def config(request, mocker):
 
     yield config
     mocker.resetall()  # dont carry over context between functions
-
-
-def test_forget_cli_action(alice_test_config, test_emitter, mock_stdin, mocker, capsys):
-    mock_forget = mocker.patch.object(CharacterConfiguration, 'forget_nodes')
-    mock_stdin.line(YES)
-    forget(emitter=test_emitter, configuration=alice_test_config)
-    mock_forget.assert_called_once()
-    assert mock_stdin.empty()
-    captured = capsys.readouterr()
-    assert CONFIRM_FORGET_NODES in captured.out
-    assert SUCCESSFUL_FORGET_NODES in captured.out
 
 
 def test_update_configuration_cli_action(config, test_emitter, capsys):

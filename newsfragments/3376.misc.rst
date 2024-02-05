@@ -1,1 +1,0 @@
-Deprecate use of Goerli for Lynx testnets; use Sepolia instead.

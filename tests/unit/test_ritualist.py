@@ -1,6 +1,10 @@
+from unittest.mock import patch
+
 import pytest
+from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
@@ -18,6 +22,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
+    coordinator_agent.post_transcript = lambda *args, **kwargs: HexBytes("deadbeef1")
+    coordinator_agent.post_aggregation = lambda *args, **kwargs: HexBytes("deadbeef2")
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
@@ -55,15 +61,18 @@ def test_initiate_ritual(
     )
 
     participants = [
-        CoordinatorAgent.Ritual.Participant(
+        Coordinator.Participant(
             provider=c,
         )
-        for c in cohort
+        for i, c in enumerate(cohort)
     ]
 
     init_timestamp = 123456
     end_timestamp = init_timestamp + duration
-    ritual = CoordinatorAgent.Ritual(
+    number_of_rituals = agent.number_of_rituals()
+    ritual_id = number_of_rituals - 1
+    ritual = Coordinator.Ritual(
+        id=ritual_id,
         initiator=transacting_power.account,
         authority=transacting_power.account,
         access_controller=global_allow_list,
@@ -74,11 +83,8 @@ def test_initiate_ritual(
         participants=participants,
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participants = lambda *args, **kwargs: participants
 
     assert receipt["transactionHash"]
-    number_of_rituals = agent.number_of_rituals()
-    ritual_id = number_of_rituals - 1
     return ritual_id
 
 
@@ -91,14 +97,15 @@ def test_perform_round_1(
     get_random_checksum_address,
 ):
     participants = dict()
-    for checksum_address in cohort:
-        participants[checksum_address] = CoordinatorAgent.Ritual.Participant(
+    for i, checksum_address in enumerate(cohort):
+        participants[checksum_address] = Coordinator.Participant(
             provider=checksum_address,
         )
 
     init_timestamp = 123456
     end_timestamp = init_timestamp + 100
-    ritual = CoordinatorAgent.Ritual(
+    ritual = Coordinator.Ritual(
+        id=0,
         initiator=random_address,
         authority=random_address,
         access_controller=get_random_checksum_address(),
@@ -110,19 +117,18 @@ def test_perform_round_1(
         participants=list(participants.values()),
     )
     agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participants = lambda *args, **kwargs: participants
-    agent.get_participant_from_provider = lambda ritual_id, provider: participants[
+    agent.get_participant = lambda ritual_id, provider, transcript: participants[
         provider
     ]
 
     # ensure no operation performed for non-application-state
     non_application_states = [
-        CoordinatorAgent.Ritual.Status.NON_INITIATED,
-        CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS,
-        CoordinatorAgent.Ritual.Status.ACTIVE,
-        CoordinatorAgent.Ritual.Status.EXPIRED,
-        CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
-        CoordinatorAgent.Ritual.Status.DKG_INVALID,
+        Coordinator.RitualStatus.NON_INITIATED,
+        Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS,
+        Coordinator.RitualStatus.ACTIVE,
+        Coordinator.RitualStatus.EXPIRED,
+        Coordinator.RitualStatus.DKG_TIMEOUT,
+        Coordinator.RitualStatus.DKG_INVALID,
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
@@ -133,16 +139,16 @@ def test_perform_round_1(
 
     # set correct state
     agent.get_ritual_status = (
-        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+        lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
-    tx_hash = ursula.perform_round_1(
+    original_tx_hash = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    assert tx_hash is not None
+    assert original_tx_hash is not None
 
     # ensure tx hash is stored
-    assert ursula.dkg_storage.get_transcript_receipt(ritual_id=0) == tx_hash
+    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) == original_tx_hash
 
     # try again
     tx_hash = ursula.perform_round_1(
@@ -150,12 +156,66 @@ def test_perform_round_1(
     )
     assert tx_hash is None  # no execution since pending tx already present
 
+    # pending tx gets mined and removed from storage - receipt status is 1
+    mock_receipt = {"status": 1}
+    with patch.object(
+        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
+    ):
+        tx_hash = ursula.perform_round_1(
+            ritual_id=0, authority=random_address, participants=cohort, timestamp=0
+        )
+        # no execution since pending tx was present and determined to be mined
+        assert tx_hash is None
+        # tx hash removed since tx receipt was obtained - outcome moving
+        # forward is represented on contract
+        assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is None
+
+    # reset tx hash
+    ursula.dkg_storage.store_transcript_txhash(ritual_id=0, txhash=original_tx_hash)
+
+    # pending tx gets mined and removed from storage - receipt
+    # status is 0 i.e. evm revert - so use contract state which indicates
+    # to submit transcript
+    mock_receipt = {"status": 0}
+    with patch.object(
+        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
+    ):
+        with patch.object(
+            agent, "post_transcript", lambda *args, **kwargs: HexBytes("A1B1")
+        ):
+            mock_tx_hash = ursula.perform_round_1(
+                ritual_id=0, authority=random_address, participants=cohort, timestamp=0
+            )
+            # execution occurs because evm revert causes execution to be retried
+            assert mock_tx_hash == HexBytes("A1B1")
+            # tx hash changed since original tx hash removed due to status being 0
+            # and new tx hash added
+            # forward is represented on contract
+            assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) == mock_tx_hash
+            assert (
+                ursula.dkg_storage.get_transcript_txhash(ritual_id=0)
+                != original_tx_hash
+            )
+
+    # reset tx hash
+    ursula.dkg_storage.store_transcript_txhash(ritual_id=0, txhash=original_tx_hash)
+
+    # don't clear if tx hash mismatched
+    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is not None
+    assert not ursula.dkg_storage.clear_transcript_txhash(
+        ritual_id=0, txhash=HexBytes("abcd")
+    )
+    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is not None
+
     # clear tx hash
-    ursula.dkg_storage.store_transcript_receipt(ritual_id=0, txhash_or_receipt=None)
+    assert ursula.dkg_storage.clear_transcript_txhash(
+        ritual_id=0, txhash=original_tx_hash
+    )
+    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is None
 
     # participant already posted transcript
-    participant = agent.get_participant_from_provider(
-        ritual_id=0, provider=ursula.checksum_address
+    participant = agent.get_participant(
+        ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.transcript = bytes(random_transcript)
 
@@ -163,7 +223,8 @@ def test_perform_round_1(
     tx_hash = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    assert tx_hash is None  # no execution performed
+    # no execution performed since already posted transcript
+    assert tx_hash is None
 
     # participant no longer already posted aggregated transcript
     participant.transcript = bytes()
@@ -183,8 +244,8 @@ def test_perform_round_2(
     get_random_checksum_address,
 ):
     participants = dict()
-    for checksum_address in cohort:
-        participant = CoordinatorAgent.Ritual.Participant(
+    for i, checksum_address in enumerate(cohort):
+        participant = Coordinator.Participant(
             transcript=bytes(random_transcript),
             provider=checksum_address,
         )
@@ -194,7 +255,8 @@ def test_perform_round_2(
     init_timestamp = 123456
     end_timestamp = init_timestamp + 100
 
-    ritual = CoordinatorAgent.Ritual(
+    ritual = Coordinator.Ritual(
+        id=0,
         initiator=transacting_power.account,
         authority=transacting_power.account,
         access_controller=get_random_checksum_address(),
@@ -209,19 +271,18 @@ def test_perform_round_2(
     )
 
     agent.get_ritual = lambda *args, **kwargs: ritual
-    agent.get_participants = lambda *args, **kwargs: participants
-    agent.get_participant_from_provider = lambda ritual_id, provider: participants[
+    agent.get_participant = lambda ritual_id, provider, transcript: participants[
         provider
     ]
 
     # ensure no operation performed for non-application-state
     non_application_states = [
-        CoordinatorAgent.Ritual.Status.NON_INITIATED,
-        CoordinatorAgent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS,
-        CoordinatorAgent.Ritual.Status.ACTIVE,
-        CoordinatorAgent.Ritual.Status.EXPIRED,
-        CoordinatorAgent.Ritual.Status.DKG_TIMEOUT,
-        CoordinatorAgent.Ritual.Status.DKG_INVALID,
+        Coordinator.RitualStatus.NON_INITIATED,
+        Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS,
+        Coordinator.RitualStatus.ACTIVE,
+        Coordinator.RitualStatus.EXPIRED,
+        Coordinator.RitualStatus.DKG_TIMEOUT,
+        Coordinator.RitualStatus.DKG_INVALID,
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
@@ -230,28 +291,77 @@ def test_perform_round_2(
 
     # set correct state
     agent.get_ritual_status = (
-        lambda *args, **kwargs: CoordinatorAgent.Ritual.Status.DKG_AWAITING_AGGREGATIONS
+        lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")
-    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert tx_hash is not None
+    original_tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert original_tx_hash is not None
 
     # check tx hash
-    assert ursula.dkg_storage.get_aggregated_transcript_receipt(ritual_id=0) == tx_hash
+    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) == original_tx_hash
 
     # try again
     tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert tx_hash is None  # no execution since pending tx already present
 
-    # clear tx hash
-    ursula.dkg_storage.store_aggregated_transcript_receipt(
-        ritual_id=0, txhash_or_receipt=None
+    # pending tx gets mined and removed from storage - receipt status is 1
+    mock_receipt = {"status": 1}
+    with patch.object(
+        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
+    ):
+        tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+        # no execution since pending tx was present and determined to be mined
+        assert tx_hash is None
+        # tx hash removed since tx receipt was obtained - outcome moving
+        # forward is represented on contract
+        assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is None
+
+    # reset tx hash
+    ursula.dkg_storage.store_aggregation_txhash(ritual_id=0, txhash=original_tx_hash)
+
+    # pending tx gets mined and removed from storage - receipt
+    # status is 0 i.e. evm revert - so use contract state which indicates
+    # to submit transcript
+    mock_receipt = {"status": 0}
+    with patch.object(
+        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
+    ):
+        with patch.object(
+            agent, "post_aggregation", lambda *args, **kwargs: HexBytes("A1B1")
+        ):
+            mock_tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
+            # execution occurs because evm revert causes execution to be retried
+            assert mock_tx_hash == HexBytes("A1B1")
+            # tx hash changed since original tx hash removed due to status being 0
+            # and new tx hash added
+            # forward is represented on contract
+            assert (
+                ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) == mock_tx_hash
+            )
+            assert (
+                ursula.dkg_storage.get_aggregation_txhash(ritual_id=0)
+                != original_tx_hash
+            )
+
+    # reset tx hash
+    ursula.dkg_storage.store_aggregation_txhash(ritual_id=0, txhash=original_tx_hash)
+
+    # don't clear if tx hash mismatched
+    assert not ursula.dkg_storage.clear_aggregated_txhash(
+        ritual_id=0, txhash=HexBytes("1234")
     )
+    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is not None
+
+    # clear tx hash
+    assert ursula.dkg_storage.clear_aggregated_txhash(
+        ritual_id=0, txhash=original_tx_hash
+    )
+    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is None
 
     # participant already posted aggregated transcript
-    participant = agent.get_participant_from_provider(
-        ritual_id=0, provider=ursula.checksum_address
+    participant = agent.get_participant(
+        ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.aggregated = True
 

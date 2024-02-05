@@ -58,7 +58,6 @@ from tests.mock.interfaces import MockBlockchain
 from tests.mock.performance_mocks import (
     mock_cert_generation,
     mock_cert_loading,
-    mock_cert_storage,
     mock_keep_learning,
     mock_message_verification,
     mock_record_fleet_state,
@@ -102,14 +101,6 @@ def temp_dir_path():
     temp_dir = tempfile.TemporaryDirectory(prefix='nucypher-test-')
     yield Path(temp_dir.name)
     temp_dir.cleanup()
-
-
-@pytest.fixture(scope='function')
-def certificates_tempdir():
-    custom_filepath = '/tmp/nucypher-test-certificates-'
-    cert_tmpdir = tempfile.TemporaryDirectory(prefix=custom_filepath)
-    yield Path(cert_tmpdir.name)
-    cert_tmpdir.cleanup()
 
 #
 # Accounts
@@ -389,7 +380,6 @@ def get_random_checksum_address():
 @pytest.fixture(scope="module")
 def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
     mocks = (
-        mock_cert_storage,
         mock_cert_loading,
         mock_rest_app_creation,
         mock_cert_generation,
@@ -452,7 +442,7 @@ def highperf_mocked_alice(
         reload_metadata=False,
     )
 
-    with mock_cert_storage, mock_verify_node, mock_message_verification, mock_keep_learning:
+    with mock_verify_node, mock_message_verification, mock_keep_learning:
         alice = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
     yield alice
     # TODO: Where does this really, truly belong?
@@ -473,7 +463,7 @@ def highperf_mocked_bob(fleet_of_highperf_mocked_ursulas):
         reload_metadata=False,
     )
 
-    with mock_cert_storage, mock_verify_node, mock_record_fleet_state, mock_keep_learning:
+    with mock_verify_node, mock_record_fleet_state, mock_keep_learning:
         bob = config.produce(known_nodes=list(fleet_of_highperf_mocked_ursulas)[:1])
     yield bob
     bob._learning_task.stop()

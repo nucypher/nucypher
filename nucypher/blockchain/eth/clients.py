@@ -1,5 +1,3 @@
-
-
 import os
 import time
 from functools import cached_property
@@ -63,7 +61,8 @@ LOCAL_CHAINS = {
     5777: "Ganache/TestRPC"
 }
 
-# TODO: This list is incomplete, but it suffices for the moment - See #1857
+# This list is not exhaustive,
+# but is sufficient for the current needs of the project.
 POA_CHAINS = {
     4,  # Rinkeby
     5,  # Goerli
@@ -572,4 +571,4 @@ class EthereumTesterClient(EthereumClient):
         return signature_and_stuff['signature']
 
     def parse_transaction_data(self, transaction):
-        return transaction.data  # TODO: See https://github.com/ethereum/eth-tester/issues/173
+        return transaction.data  # See https://github.com/ethereum/eth-tester/issues/173

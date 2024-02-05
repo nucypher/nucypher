@@ -5,20 +5,16 @@ import pytest
 import pytest_twisted as pt
 from twisted.internet import threads
 
-from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.characters.base import Learner
 from nucypher.cli.literature import NO_CONFIGURATIONS_ON_DISK
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
-    NUCYPHER_ENVVAR_KEYSTORE_PASSWORD,
     TEMPORARY_DOMAIN_NAME,
 )
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
 from tests.constants import (
     INSECURE_DEVELOPMENT_PASSWORD,
-    MOCK_IP_ADDRESS,
     TEST_ETH_PROVIDER_URI,
     TEST_POLYGON_PROVIDER_URI,
 )
@@ -130,83 +126,3 @@ def test_ursula_learns_via_cli(click_runner, ursulas, testerchain):
 
     # Check that CLI Ursula reports that it remembers the teacher and saves the TLS certificate
     assert f"Saved TLS certificate for {LOOPBACK_ADDRESS}" in result.output
-
-
-@pytest.mark.skip(reason="This test is poorly written and is failing.")
-@pt.inlineCallbacks
-def test_persistent_node_storage_integration(
-    click_runner, custom_filepath, testerchain, ursulas, agency_local_registry, mocker
-):
-    mocker.patch.object(ActiveRitualTracker, "start")
-    (
-        alice,
-        ursula,
-        another_ursula,
-        staking_provider,
-        *all_yall,
-    ) = testerchain.unassigned_accounts
-    filename = UrsulaConfiguration.generate_filename()
-    another_ursula_configuration_file_location = custom_filepath / filename
-
-    init_args = (
-        "ursula",
-        "init",
-        "--eth-endpoint",
-        TEST_ETH_PROVIDER_URI,
-        "--polygon-endpoint",
-        TEST_POLYGON_PROVIDER_URI,
-        "--operator-address",
-        another_ursula,
-        "--domain",
-        TEMPORARY_DOMAIN_NAME,
-        "--rest-host",
-        MOCK_IP_ADDRESS,
-        "--config-root",
-        str(custom_filepath.absolute()),
-        "--registry-filepath",
-        str(agency_local_registry.filepath.absolute()),
-    )
-
-    envvars = {NUCYPHER_ENVVAR_KEYSTORE_PASSWORD: INSECURE_DEVELOPMENT_PASSWORD}
-    result = click_runner.invoke(
-        nucypher_cli, init_args, catch_exceptions=False, env=envvars
-    )
-    assert result.exit_code == 0
-
-    teacher = ursulas[-1]
-    teacher_uri = teacher.rest_information()[0].uri
-
-    start_pytest_ursula_services(ursula=teacher)
-
-    user_input = f'{INSECURE_DEVELOPMENT_PASSWORD}\n'
-
-    run_args = ('ursula', 'run',
-                '--dry-run',
-                '--debug',
-                '--config-file', str(another_ursula_configuration_file_location.absolute()),
-                '--teacher', teacher_uri)
-
-    Operator.READY_TIMEOUT = 1
-    with pytest.raises(Operator.ActorError):
-        # Operator init success, but not bonded.
-        result = yield threads.deferToThread(click_runner.invoke,
-                                             nucypher_cli, run_args,
-                                             catch_exceptions=False,
-                                             input=user_input,
-                                             env=envvars)
-    assert result.exit_code == 0
-
-    # Run an Ursula amidst the other configuration files
-    run_args = ('ursula', 'run',
-                '--dry-run',
-                '--debug',
-                '--config-file',  str(another_ursula_configuration_file_location.absolute()))
-
-    with pytest.raises(Operator.ActorError):
-        # Operator init success, but not bonded.
-        result = yield threads.deferToThread(click_runner.invoke,
-                                             nucypher_cli, run_args,
-                                             catch_exceptions=False,
-                                             input=user_input,
-                                             env=envvars)
-    assert result.exit_code == 0

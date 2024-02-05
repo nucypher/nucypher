@@ -3,6 +3,7 @@ from eth_account._utils.legacy_transactions import Transaction
 from eth_utils import to_checksum_address
 from nucypher_core.ferveo import Keypair
 
+from nucypher.blockchain.eth.models import Ferveo
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
@@ -121,7 +122,7 @@ def test_transacting_power_sign_transaction(testerchain):
 
 def test_transacting_power_sign_agent_transaction(testerchain, coordinator_agent):
     public_key = Keypair.random().public_key()
-    g2_point = coordinator_agent.G2Point.from_public_key(public_key)
+    g2_point = Ferveo.G2Point.from_public_key(public_key)
     contract_function = coordinator_agent.contract.functions.setProviderPublicKey(
         g2_point
     )

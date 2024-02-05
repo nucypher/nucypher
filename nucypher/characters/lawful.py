@@ -1,7 +1,6 @@
 import contextlib
 import json
 import time
-from pathlib import Path
 from queue import Queue
 from typing import (
     Any,
@@ -26,7 +25,7 @@ from constant_sorrow.constants import (
     STRANGER_ALICE,
 )
 from cryptography.hazmat.primitives.serialization import Encoding
-from cryptography.x509 import Certificate, NameOID
+from cryptography.x509 import Certificate
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address
 from nucypher_core import (
@@ -79,6 +78,7 @@ from nucypher.blockchain.eth.agents import (
     TACoApplicationAgent,
 )
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -91,7 +91,6 @@ from nucypher.characters.banners import (
     URSULA_BANNER,
 )
 from nucypher.characters.base import Character, Learner
-from nucypher.config.storages import NodeStorage
 from nucypher.crypto.keypairs import HostingKeypair
 from nucypher.crypto.powers import (
     DecryptingPower,
@@ -696,10 +695,9 @@ class Bob(Character):
         )
         return ritual_id
 
-    def get_ritual_from_id(self, ritual_id) -> CoordinatorAgent.Ritual:
-        ritual = self._get_coordinator_agent().get_ritual(
-            ritual_id, with_participants=True
-        )
+    def get_ritual(self, ritual_id) -> Coordinator.Ritual:
+        agent = self._get_coordinator_agent()
+        ritual = agent.get_ritual(ritual_id, transcripts=False)
         return ritual
 
     def threshold_decrypt(
@@ -712,7 +710,7 @@ class Bob(Character):
         ritual_id = self.get_ritual_id_from_public_key(
             public_key=threshold_message_kit.acp.public_key
         )
-        ritual = self.get_ritual_from_id(ritual_id=ritual_id)
+        ritual = self.get_ritual(ritual_id=ritual_id)
 
         if ursulas:
             for ursula in ursulas:
@@ -730,10 +728,9 @@ class Bob(Character):
             variant=variant,
             context=context,
         )
-        participant_public_keys = ritual.participant_public_keys
         decryption_shares = self._get_decryption_shares(
             decryption_request=decryption_request,
-            participant_public_keys=participant_public_keys,
+            participant_public_keys=ritual.participant_public_keys,
             threshold=ritual.threshold,
             timeout=decryption_timeout,
         )
@@ -791,14 +788,12 @@ class Ursula(Teacher, Character, Operator):
         domain: str,
         is_me: bool = True,
         certificate: Optional[Certificate] = None,
-        certificate_filepath: Optional[Path] = None,
         metadata: Optional[NodeMetadata] = None,
         # Blockchain
         checksum_address: Optional[ChecksumAddress] = None,
         operator_address: Optional[ChecksumAddress] = None,
         client_password: Optional[str] = None,
         transacting_power: Optional[TransactingPower] = None,
-        operator_signature_from_metadata=NOT_SIGNED,
         eth_endpoint: Optional[str] = None,
         polygon_endpoint: Optional[str] = None,
         condition_blockchain_endpoints: Optional[Dict[int, List[str]]] = None,
@@ -848,9 +843,8 @@ class Ursula(Teacher, Character, Operator):
                 )
 
             except Exception:
-                # TODO: Move this lower to encapsulate the Operator init in a try/except block.
-                # TODO: Do not announce self to "other nodes" until this init is finished.
-                # It's not possible to finish constructing this node.
+                # It's not possible to finish constructing this node...
+                # This block is here to ensure that the reactor is stopped in tests.
                 self.stop(halt_reactor=False)
                 raise
 
@@ -859,11 +853,6 @@ class Ursula(Teacher, Character, Operator):
 
             # Server
             self.rest_server = self._make_local_server(host=rest_host, port=rest_port)
-
-            # Self-signed TLS certificate of self for Teacher.__init__
-            certificate_filepath = self._crypto_power.power_ups(
-                TLSHostingPower
-            ).keypair.certificate_filepath
             certificate = self._crypto_power.power_ups(
                 TLSHostingPower
             ).keypair.certificate
@@ -871,9 +860,6 @@ class Ursula(Teacher, Character, Operator):
             # Only *YOU* can prevent forest fires
             self.revoked_policies: Set[bytes] = set()
 
-            # Care to introduce yourself?
-            message = "THIS IS YOU: {}: {}".format(self.__class__.__name__, self)
-            self.log.info(message)
             self.log.info(self.banner.format(self.nickname))
 
         else:
@@ -884,11 +870,7 @@ class Ursula(Teacher, Character, Operator):
             self.__operator_address = None
 
         # Teacher (All Modes)
-        Teacher.__init__(
-            self,
-            certificate=certificate,
-            certificate_filepath=certificate_filepath,
-        )
+        Teacher.__init__(self, certificate=certificate)
 
         self._prometheus_metrics_tracker = None
 
@@ -1223,22 +1205,9 @@ class Ursula(Teacher, Character, Operator):
         # Parse node URI
         host, port, staking_provider_address = parse_node_uri(seed_uri)
 
-        # Fetch the hosts TLS certificate and read the common name
-        try:
-            certificate, _filepath = network_middleware.client.get_certificate(
-                host=host, port=port
-            )
-        except NodeSeemsToBeDown as e:
-            e.args += (f"While trying to load seednode {seed_uri}",)
-            e.crash_right_now = True
-            raise
-        real_host = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[
-            0
-        ].value
-
         # Load the host as a potential seed node
         potential_seed_node = cls.from_rest_url(
-            host=real_host,
+            host=host,
             port=port,
             network_middleware=network_middleware,
         )
@@ -1259,10 +1228,6 @@ class Ursula(Teacher, Character, Operator):
                 )
 
         return potential_seed_node
-
-    @classmethod
-    def from_storage(cls, node_storage: NodeStorage, checksum_adress: str) -> "Ursula":
-        return node_storage.get(checksum_address=checksum_adress)
 
     #
     # Properties
@@ -1343,6 +1308,7 @@ class Ursula(Teacher, Character, Operator):
             previous_fleet_states=previous_fleet_states,
             known_nodes=known_nodes_info,
             balance_eth=balance_eth,
+            block_height=self.ritual_tracker.scanner.get_last_scanned_block(),
         )
 
     def as_external_validator(self) -> Validator:
@@ -1379,6 +1345,7 @@ class LocalUrsulaStatus(NamedTuple):
     previous_fleet_states: List[ArchivedFleetState]
     known_nodes: Optional[List[RemoteUrsulaStatus]]
     balance_eth: float
+    block_height: int
 
     def to_json(self) -> Dict[str, Any]:
         if self.known_nodes is None:
@@ -1399,6 +1366,7 @@ class LocalUrsulaStatus(NamedTuple):
             ],
             known_nodes=known_nodes_json,
             balance_eth=self.balance_eth,
+            block_height=self.block_height,
         )
 
 

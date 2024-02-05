@@ -130,8 +130,6 @@ def test_corrupted_configuration(
     assert default_filename in top_level_config_root, "JSON configuration file was not created"
 
     expected_fields = [
-        # TODO: Only using in-memory node storage for now
-        # 'known_nodes',
         'keystore',
         default_filename
     ]

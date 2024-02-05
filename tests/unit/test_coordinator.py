@@ -5,6 +5,7 @@ import pytest
 from eth_account import Account
 from nucypher_core import SessionStaticSecret
 
+from nucypher.blockchain.eth.models import Coordinator
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
 
@@ -28,7 +29,7 @@ def coordinator():
 
 
 def test_mock_coordinator_creation(coordinator):
-    assert len(coordinator.rituals) == 0
+    assert coordinator.number_of_rituals() == 0
 
 
 def test_mock_coordinator_initiation(
@@ -38,7 +39,7 @@ def test_mock_coordinator_initiation(
     random_address,
     get_random_checksum_address,
 ):
-    assert len(coordinator.rituals) == 0
+    assert coordinator.number_of_rituals() == 0
     mock_transacting_power = mocker.Mock()
     mock_transacting_power.account = random_address
     coordinator.initiate_ritual(
@@ -48,11 +49,9 @@ def test_mock_coordinator_initiation(
         access_controller=get_random_checksum_address(),
         transacting_power=mock_transacting_power,
     )
-    assert len(coordinator.rituals) == 1
-
     assert coordinator.number_of_rituals() == 1
 
-    ritual = coordinator.rituals[0]
+    ritual = coordinator._rituals[0]
     assert len(ritual.participants) == DKG_SIZE
     for p in ritual.participants:
         assert p.transcript == bytes()
@@ -70,10 +69,10 @@ def test_mock_coordinator_initiation(
 def test_mock_coordinator_round_1(
     nodes_transacting_powers, coordinator, random_transcript
 ):
-    ritual = coordinator.rituals[0]
+    ritual = coordinator._rituals[0]
     assert (
         coordinator.get_ritual_status(0)
-        == MockCoordinatorAgent.RitualStatus.DKG_AWAITING_TRANSCRIPTS
+        == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
     for p in ritual.participants:
@@ -107,10 +106,10 @@ def test_mock_coordinator_round_2(
     dkg_public_key,
     random_transcript,
 ):
-    ritual = coordinator.rituals[0]
+    ritual = coordinator._rituals[0]
     assert (
         coordinator.get_ritual_status(0)
-        == MockCoordinatorAgent.RitualStatus.DKG_AWAITING_AGGREGATIONS
+        == Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
     for p in ritual.participants:
@@ -140,4 +139,4 @@ def test_mock_coordinator_round_2(
     assert p.decryption_request_static_key == bytes(participant_public_keys[index])
 
     assert len(coordinator.EVENTS) == 2  # no additional event emitted here?
-    assert coordinator.get_ritual_status(0) == MockCoordinatorAgent.RitualStatus.ACTIVE
+    assert coordinator.get_ritual_status(0) == Coordinator.RitualStatus.ACTIVE

@@ -11,7 +11,7 @@ from web3.contract.contract import ContractEvent
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
 
@@ -256,7 +256,7 @@ def test_get_participation_state_start_aggregation_round_participation_not_alrea
     # actually participating now
     #
     def participating(*args, **kwargs):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
             transcript=os.urandom(32),
@@ -390,7 +390,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     # actually participating now: ritual successful
     #
     def participating(*args, **kwargs):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=True,
             transcript=os.urandom(32),
@@ -419,7 +419,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     # actually participating now: ritual not successful - transcript and aggregate not posted
     #
     def participating(*args, **kwargs):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
             transcript=bytes(),
@@ -452,7 +452,7 @@ def test_get_participation_state_end_ritual_participation_not_already_tracked(
     # actually participating now: not successful - transcript posted, aggregate not posted
     #
     def participating(*args, **kwargs):
-        participant = CoordinatorAgent.Ritual.Participant(
+        participant = Coordinator.Participant(
             provider=ChecksumAddress(ursula.checksum_address),
             aggregated=False,
             transcript=os.urandom(32),

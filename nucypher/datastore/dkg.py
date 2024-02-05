@@ -1,9 +1,8 @@
 from collections import defaultdict
-from typing import Optional, Union
+from typing import Optional
 
 from hexbytes import HexBytes
 from nucypher_core.ferveo import AggregatedTranscript, Transcript
-from web3.types import TxReceipt
 
 
 class DKGStorage:
@@ -19,19 +18,20 @@ class DKGStorage:
         data = self.data["transcripts"].get(ritual_id)
         if not data:
             return None
-
         transcript = Transcript.from_bytes(data)
         return transcript
 
-    def store_transcript_receipt(
-        self, ritual_id: int, txhash_or_receipt: Union[TxReceipt, HexBytes]
-    ) -> None:
-        self.data["transcript_receipts"][ritual_id] = txhash_or_receipt
+    def store_transcript_txhash(self, ritual_id: int, txhash: HexBytes) -> None:
+        self.data["transcript_tx_hashes"][ritual_id] = txhash
 
-    def get_transcript_receipt(
-        self, ritual_id: int
-    ) -> Optional[Union[TxReceipt, HexBytes]]:
-        return self.data["transcript_receipts"].get(ritual_id)
+    def clear_transcript_txhash(self, ritual_id: int, txhash: HexBytes) -> bool:
+        if self.get_transcript_txhash(ritual_id) == txhash:
+            del self.data["transcript_tx_hashes"][ritual_id]
+            return True
+        return False
+
+    def get_transcript_txhash(self, ritual_id: int) -> Optional[HexBytes]:
+        return self.data["transcript_tx_hashes"].get(ritual_id)
 
     def store_aggregated_transcript(self, ritual_id: int, aggregated_transcript: AggregatedTranscript) -> None:
         self.data["aggregated_transcripts"][ritual_id] = bytes(aggregated_transcript)
@@ -46,15 +46,17 @@ class DKGStorage:
         aggregated_transcript = AggregatedTranscript.from_bytes(data)
         return aggregated_transcript
 
-    def store_aggregated_transcript_receipt(
-        self, ritual_id: int, txhash_or_receipt: Union[TxReceipt, HexBytes]
-    ) -> None:
-        self.data["aggregated_transcript_receipts"][ritual_id] = txhash_or_receipt
+    def store_aggregation_txhash(self, ritual_id: int, txhash: HexBytes) -> None:
+        self.data["aggregation_tx_hashes"][ritual_id] = txhash
 
-    def get_aggregated_transcript_receipt(
-        self, ritual_id: int
-    ) -> Optional[Union[TxReceipt, HexBytes]]:
-        return self.data["aggregated_transcript_receipts"].get(ritual_id)
+    def clear_aggregated_txhash(self, ritual_id: int, txhash: HexBytes) -> bool:
+        if self.get_aggregation_txhash(ritual_id) == txhash:
+            del self.data["aggregation_tx_hashes"][ritual_id]
+            return True
+        return False
+
+    def get_aggregation_txhash(self, ritual_id: int) -> Optional[HexBytes]:
+        return self.data["aggregation_tx_hashes"].get(ritual_id)
 
     def store_public_key(self, ritual_id: int, public_key: bytes) -> None:
         self.data["public_keys"][ritual_id] = public_key

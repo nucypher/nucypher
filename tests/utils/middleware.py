@@ -1,7 +1,6 @@
 import random
 import socket
 import time
-from pathlib import Path
 
 import requests
 from flask import Response
@@ -61,18 +60,12 @@ class _TestMiddlewareClient(NucypherMiddlewareClient):
 
     def invoke_method(self, method, url, *args, **kwargs):
         self.clean_params(kwargs)
-
-        _cert_location = kwargs.pop("verify")  # TODO: Is this something that can be meaningfully tested?
         kwargs.pop("timeout", None)  # Just get rid of timeout; not needed for the test client.
         response = method(url, *args, **kwargs)
         return response
 
     def clean_params(self, request_kwargs):
         request_kwargs["query_string"] = request_kwargs.pop("params", {})
-
-    def get_certificate(self, port, *args, **kwargs):
-        ursula = self._get_ursula_by_port(port)
-        return ursula.certificate, Path()
 
 
 class MockRestMiddleware(RestMiddleware):

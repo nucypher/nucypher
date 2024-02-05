@@ -9,7 +9,7 @@ from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth import actors
-from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.policy.conditions.utils import camel_case_to_snake
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
@@ -51,7 +51,7 @@ class EventActuator(EventScanner):
 class EventScannerTask(SimpleTask):
     """Task that runs the event scanner in a looping call."""
 
-    INTERVAL = 20  # seconds
+    INTERVAL = 120  # seconds
 
     def __init__(self, scanner: Callable, *args, **kwargs):
         self.scanner = scanner
@@ -241,15 +241,21 @@ class ActiveRitualTracker:
 
     def _get_ritual_participant_info(
         self, ritual_id: int
-    ) -> Optional[CoordinatorAgent.Ritual.Participant]:
+    ) -> Optional[Coordinator.Participant]:
         """
         Returns node's participant information for the provided
         ritual id; None if node is not participating in the ritual
         """
-        participants = self.coordinator_agent.get_participants(ritual_id=ritual_id)
-        for p in participants:
-            if p.provider == self.operator.checksum_address:
-                return p
+        is_participant = self.coordinator_agent.is_participant(
+            ritual_id=ritual_id, provider=self.operator.checksum_address
+        )
+        if is_participant:
+            participant = self.coordinator_agent.get_participant(
+                ritual_id=ritual_id,
+                provider=self.operator.checksum_address,
+                transcript=True,
+            )
+            return participant
 
         return None
 

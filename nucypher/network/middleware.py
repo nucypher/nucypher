@@ -1,25 +1,16 @@
 import os
-import socket
-import ssl
-import time
 from http import HTTPStatus
-from pathlib import Path
 from typing import Optional, Sequence, Tuple, Union
 
-import requests
 from constant_sorrow.constants import EXEMPT_FROM_VERIFICATION
-from cryptography import x509
-from cryptography.hazmat.backends import default_backend
 from nucypher_core import FleetStateChecksum, MetadataRequest, NodeMetadata
-from requests.exceptions import SSLError
 
 from nucypher import characters
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.config.storages import ForgetfulNodeStorage, NodeStorage
-from nucypher.network.exceptions import NodeSeemsToBeDown
+from nucypher.utilities.certs import P2PSession
 from nucypher.utilities.logging import Logger
 
-SSL_LOGGER = Logger('ssl-middleware')
+SSL_LOGGER = Logger("ssl-middleware")
 EXEMPT_FROM_VERIFICATION.bool_value(False)
 
 # It’s a good practice to set connect timeouts to slightly larger
@@ -35,14 +26,13 @@ MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT = os.getenv(
 
 
 class NucypherMiddlewareClient:
-    library = requests
+    library = P2PSession()
     timeout = MIDDLEWARE_DEFAULT_CONNECT_TIMEOUT
 
     def __init__(
         self,
         eth_endpoint: Optional[str],
         registry: Optional[ContractRegistry] = None,
-        storage: Optional[NodeStorage] = None,
         *args,
         **kwargs,
     ):
@@ -51,39 +41,6 @@ class NucypherMiddlewareClient:
 
         self.registry = registry
         self.eth_endpoint = eth_endpoint
-        self.storage = storage or ForgetfulNodeStorage()  # for certificate storage
-
-    def get_certificate(
-        self,
-        host,
-        port,
-        timeout=MIDDLEWARE_DEFAULT_CERTIFICATE_TIMEOUT,
-        retry_attempts: int = 3,
-        retry_rate: int = 2,
-        current_attempt: int = 0,
-    ):
-        socket.setdefaulttimeout(timeout)  # Set Socket Timeout
-
-        try:
-            SSL_LOGGER.debug(f"Fetching {host}:{port} TLS certificate")
-            certificate_pem = ssl.get_server_certificate(addr=(host, port))
-            certificate = ssl.PEM_cert_to_DER_cert(certificate_pem)
-
-        except socket.timeout:
-            if current_attempt == retry_attempts:
-                message = f"No Response from {host}:{port} after {retry_attempts} attempts"
-                SSL_LOGGER.info(message)
-                raise ConnectionRefusedError("No response from {}:{}".format(host, port))
-            SSL_LOGGER.info(f"No Response from {host}:{port}. Retrying in {retry_rate} seconds...")
-            time.sleep(retry_rate)
-            return self.get_certificate(host, port, timeout, retry_attempts, retry_rate, current_attempt + 1)
-
-        except OSError:
-            raise  # TODO: #1835
-
-        certificate = x509.load_der_x509_certificate(certificate, backend=default_backend())
-        filepath = self.storage.store_node_certificate(certificate=certificate, port=port)
-        return certificate, filepath
 
     @staticmethod
     def response_cleaner(response):
@@ -109,7 +66,9 @@ class NucypherMiddlewareClient:
     def parse_node_or_host_and_port(self, node, host, port):
         if node:
             if any((host, port)):
-                raise ValueError("Don't pass host and port if you are passing the node.")
+                raise ValueError(
+                    "Don't pass host and port if you are passing the node."
+                )
             host, port = node.rest_interface.host, node.rest_interface.port
         elif not (host and port):
             raise ValueError("You need to pass either the node or a host and port.")
@@ -157,36 +116,31 @@ class NucypherMiddlewareClient:
             host=host,
             port=port,
             path="public_information",
+            timeout=2,
         )
         return response.content
 
     def __getattr__(self, method_name):
         # Quick sanity check.
         if method_name not in ("post", "get", "put", "patch", "delete"):
-            raise TypeError(f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'.")
+            raise TypeError(
+                f"This client is for HTTP only - you need to use a real HTTP verb, not '{method_name}'."
+            )
 
-        def method_wrapper(path,
-                           node_or_sprout=None,
-                           host=None,
-                           port=None,
-                           *args, **kwargs):
-
+        def method_wrapper(
+            path, node_or_sprout=None, host=None, port=None, *args, **kwargs
+        ):
             # Get interface
-            host, port, http_client = self.verify_and_parse_node_or_host_and_port(node_or_sprout, host, port)
+            host, port, http_client = self.verify_and_parse_node_or_host_and_port(
+                node_or_sprout, host, port
+            )
             endpoint = f"https://{host}:{port}/{path}"
             method = getattr(http_client, method_name)
+            response = self._execute_method(method, endpoint, *args, **kwargs)
 
-            response = self._execute_method(node_or_sprout,
-                                            host,
-                                            port,
-                                            method,
-                                            endpoint,
-                                            *args,
-                                            **kwargs)
             # Handle response
             cleaned_response = self.response_cleaner(response)
             if cleaned_response.status_code >= 300:
-
                 if cleaned_response.status_code == HTTPStatus.BAD_REQUEST:
                     raise RestMiddleware.BadRequest(reason=cleaned_response.text)
 
@@ -211,38 +165,9 @@ class NucypherMiddlewareClient:
 
         return method_wrapper
 
-    def _execute_method(self,
-                        node_or_sprout,
-                        host,
-                        port,
-                        method,
-                        endpoint,
-                        *args, **kwargs):
-        # Use existing cached SSL certificate or fetch fresh copy and retry
-        cached_cert_filepath = Path(self.storage.generate_certificate_filepath(host=host, port=port))
-        if cached_cert_filepath.exists():
-            # already cached try it
-            try:
-                # Send request
-                response = self.invoke_method(method, endpoint, verify=cached_cert_filepath,
-                                              *args, **kwargs)
-
-                # successful use of cached certificate
-                return response
-            except SSLError as e:
-                # ignore this exception - probably means that our cached cert may not be up-to-date.
-                SSL_LOGGER.debug(f"Cached cert for {host}:{port} is invalid {e}")
-
-        # Fetch fresh copy of SSL certificate
-        try:
-            certificate, filepath = self.get_certificate(host=host, port=port)
-        except NodeSeemsToBeDown as e:
-            raise RestMiddleware.Unreachable(
-                message=f'Node {node_or_sprout} {host}:{port} is unreachable: {e}')
-
+    def _execute_method(self, method, endpoint, *args, **kwargs):
         # Send request
-        response = self.invoke_method(method, endpoint, verify=filepath,
-                                      *args, **kwargs)
+        response = self.invoke_method(method, endpoint, *args, **kwargs)
         return response
 
     def node_selector(self, node):
@@ -263,28 +188,35 @@ class RestMiddleware:
 
     class UnexpectedResponse(Exception):
         """Based for all HTTP status codes"""
+
         def __init__(self, message, status, *args, **kwargs):
             super().__init__(message, *args, **kwargs)
             self.status = status
 
     class NotFound(UnexpectedResponse):
         """Raised for HTTP 404"""
+
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.NOT_FOUND, *args, **kwargs)
 
     class BadRequest(UnexpectedResponse):
         """Raised for HTTP 400"""
+
         def __init__(self, reason, *args, **kwargs):
             self.reason = reason
-            super().__init__(message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs)
+            super().__init__(
+                message=reason, status=HTTPStatus.BAD_REQUEST, *args, **kwargs
+            )
 
     class PaymentRequired(UnexpectedResponse):
         """Raised for HTTP 402"""
+
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.PAYMENT_REQUIRED, *args, **kwargs)
 
     class Unauthorized(UnexpectedResponse):
         """Raised for HTTP 403"""
+
         def __init__(self, *args, **kwargs):
             super().__init__(status=HTTPStatus.FORBIDDEN, *args, **kwargs)
 
@@ -332,15 +264,18 @@ class RestMiddleware:
         response = self.client.get(node_or_sprout=node, path="ping")
         return response
 
-    def get_nodes_via_rest(self,
-                           node,
-                           fleet_state_checksum: FleetStateChecksum,
-                           announce_nodes: Sequence[NodeMetadata]):
-
-        request = MetadataRequest(fleet_state_checksum=fleet_state_checksum,
-                                  announce_nodes=announce_nodes)
-        response = self.client.post(node_or_sprout=node,
-                                    path="node_metadata",
-                                    data=bytes(request),
-                                    )
+    def get_nodes_via_rest(
+        self,
+        node,
+        fleet_state_checksum: FleetStateChecksum,
+        announce_nodes: Sequence[NodeMetadata],
+    ):
+        request = MetadataRequest(
+            fleet_state_checksum=fleet_state_checksum, announce_nodes=announce_nodes
+        )
+        response = self.client.post(
+            node_or_sprout=node,
+            path="node_metadata",
+            data=bytes(request),
+        )
         return response

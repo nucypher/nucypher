@@ -10,6 +10,7 @@ from twisted.internet.threads import deferToThread
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.crypto.powers import RitualisticPower
@@ -169,7 +170,7 @@ def test_ursula_ritualist(
             # verify that the ritual is in the correct state
             assert (
                 mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
-                == mock_coordinator_agent.Ritual.Status.DKG_AWAITING_TRANSCRIPTS
+                == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
             )
 
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
@@ -180,6 +181,11 @@ def test_ursula_ritualist(
             print(
                 "==================== BLOCKING UNTIL DKG FINALIZED ===================="
             )
+            assert (
+                mock_coordinator_agent.get_ritual_status(ritual_id=ritual_id)
+                == Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
+            )
+
             execute_round_2(ritual_id, cohort)
 
         def finality(_):
@@ -187,7 +193,7 @@ def test_ursula_ritualist(
             print("==================== CHECKING DKG FINALITY ====================")
 
             status = mock_coordinator_agent.get_ritual_status(ritual_id)
-            assert status == mock_coordinator_agent.Ritual.Status.ACTIVE
+            assert status == Coordinator.RitualStatus.ACTIVE
             for ursula in cohort:
                 assert ursula.dkg_storage.get_transcript(ritual_id) is not None
 
@@ -232,7 +238,9 @@ def test_ursula_ritualist(
 
             def expired_ritual():
                 print("============ DKG DECRYPTION EXPIRED RITUAL =============")
-                ritual = mock_coordinator_agent.get_ritual(ritual_id)
+                ritual = mock_coordinator_agent._rituals[
+                    ritual_id
+                ]  # if mocking state, use underlying object
                 time_in_past = mock_coordinator_agent.blockchain.get_blocktime() - 1
                 with patch.object(ritual, "end_timestamp", time_in_past):
                     with pytest.raises(

@@ -14,9 +14,6 @@ from nucypher.cli.actions.configure import (
     handle_missing_configuration_file,
     perform_startup_ip_check,
 )
-from nucypher.cli.actions.configure import (
-    forget as forget_nodes,
-)
 from nucypher.cli.actions.select import (
     select_client_account,
     select_config_file,
@@ -369,18 +366,6 @@ def destroy(general_config, config_options, config_file, force):
     _pre_launch_warnings(emitter, dev=config_options.dev, force=force)
     ursula_config = config_options.create_config(emitter, config_file)
     destroy_configuration(emitter, character_config=ursula_config, force=force)
-
-
-@ursula.command()
-@group_config_options
-@option_config_file
-@group_general_config
-def forget(general_config, config_options, config_file):
-    """Forget all known nodes."""
-    emitter = setup_emitter(general_config, config_options.operator_address)
-    _pre_launch_warnings(emitter, dev=config_options.dev, force=None)
-    ursula_config = config_options.create_config(emitter, config_file)
-    forget_nodes(emitter, configuration=ursula_config)
 
 
 @ursula.command()

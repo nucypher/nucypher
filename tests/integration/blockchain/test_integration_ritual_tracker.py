@@ -7,6 +7,7 @@ import pytest
 
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 
 
@@ -152,7 +153,7 @@ def test_first_scan_start_block_calc_is_not_perfect_go_back_more_blocks(ritualis
         seconds=target_average_block_time * sample_window
     ).epoch
 
-    expected_number_blocks_in_past = (int)(ritual_timeout / target_average_block_time)
+    expected_number_blocks_in_past = int(ritual_timeout / target_average_block_time)
     expected_timestamp = now.subtract(seconds=ritual_timeout).epoch
 
     initial_calc_potential_first_scan_block_number = (
@@ -248,22 +249,22 @@ def test_get_ritual_participant_info(ritualist, get_random_checksum_address):
 
     participants = []
     # random participants
-    for i in range(0, 3):
-        participant = CoordinatorAgent.Ritual.Participant(
-            provider=get_random_checksum_address()
-        )
+    for _ in range(0, 3):
+        participant = Coordinator.Participant(provider=get_random_checksum_address())
         participants.append(participant)
-    mocked_agent.get_participants.return_value = participants
+
+    mocked_agent.is_participant.return_value = False
 
     # operator not in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
     assert participant_info is None
 
     # add operator to participants list
-    participant = CoordinatorAgent.Ritual.Participant(
-        provider=ritualist.checksum_address
-    )
+    participant = Coordinator.Participant(provider=ritualist.checksum_address)
     participants.append(participant)
+
+    mocked_agent.is_participant.return_value = True
+    mocked_agent.get_participant.return_value = participant
 
     # operator in participants list
     participant_info = active_ritual_tracker._get_ritual_participant_info(ritual_id=0)
@@ -279,13 +280,11 @@ def test_get_participation_state_values_from_contract(
 
     participants = []
     # random participants
-    for i in range(0, 5):
-        participant = CoordinatorAgent.Ritual.Participant(
-            provider=get_random_checksum_address()
-        )
+    for _ in range(0, 5):
+        participant = Coordinator.Participant(provider=get_random_checksum_address())
         participants.append(participant)
 
-    mocked_agent.get_participants.return_value = participants
+    mocked_agent.is_participant.return_value = False
 
     # not participating so everything should be False
     (
@@ -298,10 +297,10 @@ def test_get_participation_state_values_from_contract(
     assert not posted_aggregate
 
     # add operator to participants list
-    ritual_participant = CoordinatorAgent.Ritual.Participant(
-        provider=ritualist.checksum_address
-    )
+    ritual_participant = Coordinator.Participant(provider=ritualist.checksum_address)
     participants.append(ritual_participant)
+    mocked_agent.is_participant.return_value = True
+    mocked_agent.get_participant.return_value = ritual_participant
 
     # participating, but nothing submitted
     (
