@@ -950,7 +950,6 @@ class Ursula(Teacher, Character, Operator):
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,
-        dkg_tracking: bool = True,
         transaction_tracking: bool = True,
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
@@ -966,17 +965,19 @@ class Ursula(Teacher, Character, Operator):
         #
 
         if emitter:
-            emitter.message("Starting services", color="yellow")
+            emitter.message("Starting services...", color="yellow")
 
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
             if emitter:
-                emitter.message(f"✓ Node Discovery ({self.domain})", color="green")
+                emitter.message(f"✓ P2P Networking ({self.domain})", color="green")
 
         if transaction_tracking:
+            # Uncomment to enable tracking for both chains.
+            # mainnet.tracker.start(now=False)
             polygon.tracker.start(now=False)
             if emitter:
-                emitter.message("✓ Polygon Transaction Tracking", color="green")
+                emitter.message("✓ Transaction Autopilot", color="green")
 
         if ritual_tracking:
             self.ritual_tracker.start()
@@ -995,10 +996,6 @@ class Ursula(Teacher, Character, Operator):
         self._operator_bonded_tracker.start(now=eager)
         if emitter:
             emitter.message("✓ Start Operator Bonded Tracker", color="green")
-
-        if dkg_tracking:
-            if emitter:
-                emitter.message("✓ Start DKG Phase Retries", color="green")
 
         if prometheus_config:
             self._prometheus_metrics_tracker = start_prometheus_exporter(

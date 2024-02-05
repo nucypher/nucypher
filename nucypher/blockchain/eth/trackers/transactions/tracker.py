@@ -1,5 +1,5 @@
 import time
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 
 from eth_account.signers.local import LocalAccount
 from twisted.internet.defer import Deferred
@@ -13,7 +13,8 @@ from nucypher.blockchain.eth.trackers.transactions.exceptions import (
 )
 from nucypher.blockchain.eth.trackers.transactions.state import _TrackerState
 from nucypher.blockchain.eth.trackers.transactions.strategies import (
-    SpeedupStrategy, AsyncTxStrategy,
+    AsyncTxStrategy,
+    SpeedupStrategy,
 )
 from nucypher.blockchain.eth.trackers.transactions.tx import (
     FinalizedTx,
@@ -53,13 +54,12 @@ class _TransactionTracker(SimpleTask):
     BLOCK_SAMPLE_SIZE = 10_000  # blocks
 
     def __init__(
-            self,
-            w3: Web3,
-            timeout: Optional[int] = None,
-            strategy: Optional[AsyncTxStrategy] = None,
-            disk_cache: bool = False
+        self,
+        w3: Web3,
+        timeout: Optional[int] = None,
+        strategy: Optional[AsyncTxStrategy] = None,
+        disk_cache: bool = False,
     ):
-
         # public
         self.w3 = w3
         self.signers = {}

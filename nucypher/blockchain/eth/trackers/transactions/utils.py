@@ -9,7 +9,6 @@ from web3.types import RPCError, TxData, TxReceipt, Wei
 
 from nucypher.blockchain.eth.trackers.transactions.exceptions import (
     InsufficientFunds,
-    TransactionReverted,
 )
 from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx, FutureTx
 from nucypher.utilities.logging import Logger

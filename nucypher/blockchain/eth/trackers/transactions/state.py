@@ -24,11 +24,7 @@ class _TrackerState:
     __DEFAULT_FILEPATH = Path(APP_DIR.user_cache_dir) / ".txs.json"
     __COUNTER = 0  # id generator
 
-    def __init__(
-            self,
-            disk_cache: bool,
-            filepath: Optional[Path] = None
-    ):
+    def __init__(self, disk_cache: bool, filepath: Optional[Path] = None):
         self.__filepath = filepath or self.__DEFAULT_FILEPATH
         self.__queue: Deque[FutureTx] = deque()
         self.__active: Optional[PendingTx] = None
