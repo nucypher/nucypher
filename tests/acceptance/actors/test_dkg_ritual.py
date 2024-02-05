@@ -173,10 +173,22 @@ def test_dkg_initiation(coordinator_agent, accounts, initiator, cohort, global_a
 def test_dkg_finality(coordinator_agent, ritual_id, cohort, clock, interval, testerchain):
     print("==================== AWAITING DKG FINALITY ====================")
 
+    # enforce a testing timeout to avoid infinite loops
+    timeout = 10
     while coordinator_agent.get_ritual_status(ritual_id) != Coordinator.RitualStatus.ACTIVE:
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=interval)
         yield deferLater(reactor, 0.1, lambda: None)
+        timeout -= 1
+        if timeout == 0:
+            import traceback
+            raise TimeoutError(
+                f"Timed out waiting for DKG finality. "
+                f"Ritual ID: {ritual_id} "
+                f"Clock Calls: {clock.calls} "
+                f"Transcript: {cohort[0].transcript}"
+                f"Stack: {traceback.format_stack()}"
+            )
 
     status = coordinator_agent.get_ritual_status(ritual_id)
     assert status == Coordinator.RitualStatus.ACTIVE
@@ -186,6 +198,7 @@ def test_dkg_finality(coordinator_agent, ritual_id, cohort, clock, interval, tes
         "ritual_events_last_scanned_block_number"
     )
     assert last_scanned_block > 0
+    yield
 
 
 def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
@@ -248,6 +261,7 @@ def test_unauthorized_decryption(bob, cohort, threshold_message_kit, ritual_id):
         "threshold_decryption_num_failures_total"
     )
     assert len(cohort) == int(num_failures)  # each ursula in cohort had a failure
+    yield
 
 
 @pytest_twisted.inlineCallbacks
