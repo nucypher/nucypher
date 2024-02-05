@@ -3,7 +3,7 @@ import random
 import time
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union, Tuple
 
 import maya
 from eth_typing import ChecksumAddress
@@ -381,6 +381,13 @@ class Operator(BaseActor):
 
         return True
 
+    @staticmethod
+    def _phase_id(
+            ritual_id: int,
+            phase: int
+    ) -> Tuple[RitualId, int]:
+        return RitualId(ritual_id), phase
+
     def perform_round_1(
         self,
         ritual_id: int,
@@ -388,29 +395,58 @@ class Operator(BaseActor):
         participants: List[ChecksumAddress],
         timestamp: int,
     ) -> Optional[AsyncTx]:
-        """Perform round 1 of the DKG protocol for a given ritual ID on this node."""
+        """
+        Perform phase 1 of the DKG protocol for a given ritual ID on this node.
+
+        This method is idempotent and will not submit a transcript if one has
+        already been submitted. It is dispatched by the EventActuator when it
+        receives a StartRitual event from the blockchain.  Since the EventActuator
+        scans overlapping blocks, it is possible that this method will be called
+        multiple times for the same ritual.  This method will check the state of
+        the ritual and participant on the blockchain before submitting a transcript.
+
+        If a there is a tracked AsyncTx for the given ritual and round
+        combination, this method will return the tracked transaction.  If there is
+        no tracked transaction, this method will submit a transcript and return the
+        resulting FutureTx.
+
+        Returning None indicates that no action was required or taken.
+
+        Errors raised by this method are not explicitly caught and are expected
+        to be handled by the EventActuator.
+        """
         if self.checksum_address not in participants:
-            # should never get here
-            self.log.error(
-                f"Not part of ritual {ritual_id}; no need to submit transcripts"
-            )
-            raise RuntimeError(
-                f"Not participating in ritual {ritual_id}; should not have been notified"
-            )
+            # ERROR: This is an abnormal state since this method
+            # is designed to be invoked only when this node
+            # is an on-chain participant in the Coordinator.StartRitual event.
+            #
+            # This is a *nearly* a critical error.  It's possible that the
+            # log it as an error and return None to avoid crashing upstack
+            # async tasks and drawing unnecessary amounts of attention to the issue.
+            message = (f"{self.checksum_address}|{self.wallet_address} "
+                       f"is not a member of ritual {ritual_id}")
+            self.log.error(message)
+            return
 
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):
             self.log.debug("No action required for phase 1 of DKG protocol for some reason or another.")
             return
 
-        identifier = RitualId(ritual_id), PHASE1
-        tx = self.ritual_tracker.active_rituals.get(identifier)
-        if tx:
+        # check if there is  already pending tx for this ritual + round combination
+        async_tx = self.ritual_tracker.active_rituals.get(
+            self._phase_id(ritual_id, PHASE1)
+        )
+        if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx"
-                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {tx.final})"
+                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})"
             )
-            return tx
+            return async_tx
+
+        #
+        # Perform phase 1 of the DKG protocol
+        #
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -441,7 +477,7 @@ class Operator(BaseActor):
             raise e
 
         # publish the transcript and store the receipt
-        tx = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
+        async_tx = self.publish_transcript(ritual_id=ritual.id, transcript=transcript)
 
         # logging
         arrival = ritual.total_transcripts + 1
@@ -449,7 +485,7 @@ class Operator(BaseActor):
             f"{self.transacting_power.account[:8]} submitted a transcript for "
             f"DKG ritual #{ritual.id} ({arrival}/{ritual.dkg_size}) with authority {authority}."
         )
-        return tx
+        return async_tx
 
     def _is_phase_2_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 2 action."""
@@ -488,14 +524,15 @@ class Operator(BaseActor):
             return
 
         # check if there is a pending tx for this ritual + round combination
-        identifier = RitualId(ritual_id), PHASE2
-        tx = self.ritual_tracker.active_rituals.get(identifier)
-        if tx:
+        async_tx = self.ritual_tracker.active_rituals.get(
+            self._phase_id(ritual_id, PHASE2)
+        )
+        if async_tx:
             self.log.info(
                 f"Active ritual in progress Node {self.transacting_power.account} has submitted tx"
-                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {tx.final})."
+                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})."
             )
-            return tx
+            return async_tx
 
         ritual = self.coordinator_agent.get_ritual(
             ritual_id=ritual_id,
@@ -528,7 +565,7 @@ class Operator(BaseActor):
 
         # publish the transcript with network-wide jitter to avoid tx congestion
         time.sleep(random.randint(0, self.AGGREGATION_SUBMISSION_MAX_DELAY))
-        future_tx = self.publish_aggregated_transcript(
+        async_tx = self.publish_aggregated_transcript(
             ritual_id=ritual.id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
@@ -543,7 +580,7 @@ class Operator(BaseActor):
         if total >= ritual.dkg_size:
             self.log.debug(f"DKG ritual #{ritual.id} should now be finalized")
 
-        return future_tx
+        return async_tx
 
     def derive_decryption_share(
         self,

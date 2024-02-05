@@ -174,7 +174,7 @@ class _TrackerState:
         # configure hooks
         tx.on_broadcast = on_broadcast
         tx.on_timeout = on_timeout
-        tx.on_capped = on_capped
+        tx.on_halt = on_capped
         tx.on_finalized = on_finalized
         tx.on_revert = on_revert
         tx.on_error = on_error

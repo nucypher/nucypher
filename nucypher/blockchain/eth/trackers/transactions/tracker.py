@@ -8,7 +8,7 @@ from web3.exceptions import TransactionNotFound
 from web3.types import TxReceipt
 
 from nucypher.blockchain.eth.trackers.transactions.exceptions import (
-    StrategyLimitExceeded,
+    Halt,
     TransactionReverted,
 )
 from nucypher.blockchain.eth.trackers.transactions.state import _TrackerState
@@ -52,11 +52,9 @@ class _TransactionTracker(SimpleTask):
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 10_000  # blocks
 
-    def __init__(self, w3: Web3, signers: Optional[Iterable[LocalAccount]] = None):
+    def __init__(self, w3: Web3):
         self.w3 = w3
-        if not signers:
-            signers = list()
-        self.signers = {signer.address: signer for signer in signers}
+        self.signers = {}
         self.strategy = self._STRATEGY(w3=w3)
         self.timeout = self._TIMEOUT
         self.__state = _TrackerState()
@@ -96,8 +94,8 @@ class _TransactionTracker(SimpleTask):
         1. timeout
         2. reverted
         3. finalized
-        4. capped
-        5. (re)strategize & (re)broadcast
+        4. strategize: halt
+        5. strategize: retry
 
         Returns True if the pending transaction has been cleared
         and the queue is ready for the next transaction.
@@ -114,7 +112,7 @@ class _TransactionTracker(SimpleTask):
                 fire_hook(hook=hook, tx=self.__state.active)
             return True
 
-        # Outcome 2: the pending transaction was reverted
+        # Outcome 2: the pending transaction was reverted (final error)
         try:
             receipt = self.__get_receipt()
         except TransactionReverted:
@@ -124,7 +122,7 @@ class _TransactionTracker(SimpleTask):
             self.__state.clear_active()
             return True
 
-        # Outcome 3: pending transaction is finalized
+        # Outcome 3: pending transaction is finalized (final success)
         if receipt:
             final_txhash = receipt["transactionHash"]
             confirmations = self.__get_confirmations(tx=self.__state.active)
@@ -136,7 +134,7 @@ class _TransactionTracker(SimpleTask):
             return True
 
         # Outcome 4: pending transaction is capped
-        if self.__state.active.capped:
+        if self.__state.active.halt:
             return False
 
         # Outcome 5: pending transaction has been sped up
@@ -178,8 +176,8 @@ class _TransactionTracker(SimpleTask):
             params = self.strategy.execute(
                 params=_make_tx_params(self.__state.active.data),
             )
-        except StrategyLimitExceeded as e:
-            self.__state.active.capped = True
+        except Halt as e:
+            self.__state.active.halt = True
             self.log.warn(
                 f"[cap] pending transaction {self.__state.active.txhash.hex()} has been capped: {e}"
             )
@@ -188,7 +186,7 @@ class _TransactionTracker(SimpleTask):
             # be sped up again (without increasing the cap).  For now, we just
             # let the transaction timeout and remove it, but this may cascade
             # into a chain of capped transactions if the cap is not increased / is too low.
-            hook = self.__state.active.on_capped
+            hook = self.__state.active.on_halt
             if hook:
                 fire_hook(hook=hook, tx=self.__state.active)
             return
@@ -204,7 +202,7 @@ class _TransactionTracker(SimpleTask):
         Attempts to broadcast the next (future) transaction in the queue.
         If the transaction is not successful, it is re-queued.
         """
-        future_tx = self.__state._pop()
+        future_tx = self.__state._pop()  # popleft
         future_tx.params = _make_tx_params(future_tx.params)
         signer = self.__get_signer(future_tx._from)
         nonce = self.w3.eth.get_transaction_count(signer.address, "latest")
@@ -344,7 +342,7 @@ class _TransactionTracker(SimpleTask):
             clear = self.__handle_active_tx()
             if not clear:
                 # active transaction is still pending
-                return
+                return  # wait for next cycle
 
         if self.fire:
             self.__broadcast()

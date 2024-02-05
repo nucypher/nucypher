@@ -50,6 +50,7 @@ from nucypher.blockchain.eth.models import Coordinator, Ferveo, PHASE1, PHASE2
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
+from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,
@@ -797,17 +798,17 @@ class CoordinatorAgent(EthereumContractAgent):
         transcript: Transcript,
         transacting_power: TransactingPower,
         fire_and_forget: bool = True,
-    ) -> Union[TxReceipt, HexBytes]:
+    ) -> Union[TxReceipt, AsyncTx]:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
-        receipt = self.blockchain.send_transaction(
+        tx = self.blockchain.send_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power,
             fire_and_forget=fire_and_forget,
             info={"ritual_id": ritual_id, "phase": PHASE1},
         )
-        return receipt
+        return tx
 
     @contract_api(TRANSACTION)
     def post_aggregation(

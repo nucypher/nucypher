@@ -179,6 +179,7 @@ def test_dkg_initiation(coordinator_agent, accounts, initiator, cohort, global_a
 @pytest_twisted.inlineCallbacks
 def test_dkg_finality(coordinator_agent, ritual_id, cohort, clock, interval, testerchain):
     print("==================== AWAITING DKG FINALITY ====================")
+
     while coordinator_agent.get_ritual_status(ritual_id) != Coordinator.RitualStatus.ACTIVE:
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=interval)

@@ -5,7 +5,7 @@ from web3 import Web3
 from web3.types import Gwei, TxParams, Wei
 
 from nucypher.blockchain.eth.trackers.transactions.exceptions import (
-    StrategyLimitExceeded,
+    Halt,
 )
 from nucypher.blockchain.eth.trackers.transactions.utils import (
     _log_gas_weather,
@@ -71,7 +71,7 @@ class SpeedupStrategy(AsyncTxStrategy):
         fee_increase = round(Web3.from_wei(new_max_fee - old_max_fee, "gwei"), 4)
 
         if new_tip > self.MAX_TIP:
-            raise StrategyLimitExceeded(
+            raise Halt(
                 f"Pending transaction maxPriorityFeePerGas exceeds spending cap {self.MAX_TIP}"
             )
 

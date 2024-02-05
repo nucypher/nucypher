@@ -77,7 +77,16 @@ class TransactionTracker(_TransactionTracker):
     def queue_transactions(
         self, params: List[TxParams], signer: LocalAccount, *args, **kwargs
     ) -> List[FutureTx]:
-        """Queue a list of transactions for broadcast and subsequent tracking."""
+        """
+        Queue a list of transactions for broadcast and subsequent tracking.
+
+        Sorts incoming transactions by nonce. The tracker is tolerant
+        to nonce collisions, but it's best to avoid them when possible,
+        plus it's a good practice to broadcast transactions in the
+        order they were originally created in by the caller.
+        """
+        params = sorted(params, key=lambda x: x["nonce"])
+
         future_txs = []
         for _params in params:
             future_txs.append(

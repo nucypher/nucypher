@@ -16,7 +16,7 @@ class AsyncTx(ABC):
     final: bool = field(default=None, init=False)
     on_broadcast: Optional[Callable] = field(default=None, init=False)
     on_finalized: Optional[Callable] = field(default=None, init=False)
-    on_capped: Optional[Callable] = field(default=None, init=False)
+    on_halt: Optional[Callable] = field(default=None, init=False)
     on_timeout: Optional[Callable] = field(default=None, init=False)
     on_revert: Optional[Callable] = field(default=None, init=False)
     on_error: Optional[Callable] = field(default=None, init=False)
@@ -76,7 +76,7 @@ class PendingTx(AsyncTx):
     txhash: TxHash
     created: int
     data: Optional[TxData] = None
-    capped: bool = False
+    halt: bool = False
 
     def __hash__(self) -> int:
         return hash(self.txhash)
@@ -87,7 +87,7 @@ class PendingTx(AsyncTx):
             "txhash": self.txhash.hex(),
             "created": self.created,
             "data": self.data,
-            "capped": self.capped,
+            "halt": self.halt,
         }
 
     @classmethod
@@ -96,7 +96,7 @@ class PendingTx(AsyncTx):
             id=int(data["id"]),
             txhash=HexBytes(data["txhash"]),
             created=int(data["created"]),
-            capped=bool(data["capped"]),
+            halt=bool(data["halt"]),
             data=dict(data) if data else dict(),
         )
 
