@@ -46,7 +46,7 @@ from nucypher.blockchain.eth.constants import (
 )
 from nucypher.blockchain.eth.decorators import contract_api
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
-from nucypher.blockchain.eth.models import Coordinator, Ferveo, PHASE1, PHASE2
+from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator, Ferveo
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
@@ -695,7 +695,7 @@ class CoordinatorAgent(EthereumContractAgent):
         data = self.contract.functions.getParticipant(
             ritual_id, provider, transcript
         ).call()
-        participant = next(iter(Coordinator.Ritual.make_participants(data)))
+        participant = next(iter(Coordinator.Ritual.make_participants([data])))
         return participant
 
     @contract_api(CONTRACT_CALL)
