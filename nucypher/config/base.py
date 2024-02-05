@@ -106,7 +106,9 @@ class BaseConfiguration(ABC):
         pass
 
     class OldVersion(InvalidConfiguration):
-        pass
+        def __init__(self, version: int, *args, **kwargs):
+            self.version = version
+            super().__init__(*args, *kwargs)
 
     def __init__(
         self,
@@ -301,8 +303,9 @@ class BaseConfiguration(ABC):
         if version != cls.VERSION:
             label = f"'{payload_label}' " if payload_label else ""
             raise cls.OldVersion(
+                version,
                 f"Configuration {label} is the wrong version "
-                f"Expected version {cls.VERSION}; Got version {version}"
+                f"Expected version {cls.VERSION}; Got version {version}",
             )
 
         deserialized_payload = cast_paths_from(cls, deserialized_payload)
