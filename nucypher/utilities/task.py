@@ -16,6 +16,7 @@ class SimpleTask(ABC):
         self.interval = interval
         self.log = Logger(self.__class__.__name__)
         self._task = LoopingCall(self.run)
+        self._task.clock = self.CLOCK
 
     @property
     def running(self) -> bool:

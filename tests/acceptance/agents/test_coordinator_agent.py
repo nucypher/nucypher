@@ -54,15 +54,6 @@ def transacting_powers(testerchain, cohort_ursulas):
     ]
 
 
-@pytest.fixture(scope='module')
-def clock(testerchain, agent):
-    custom_clock = Clock()
-    testerchain.tracker.w3 = agent.blockchain.w3
-    testerchain.tracker._task.clock = custom_clock
-    testerchain.tracker.start()
-    return custom_clock
-
-
 def test_coordinator_properties(agent):
     assert len(agent.contract_address) == 42
     assert agent.contract.address == agent.contract_address
@@ -127,21 +118,20 @@ def test_initiate_ritual(
 
 @pytest_twisted.inlineCallbacks
 def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cohort, clock):
+    testerchain.tracker.start()
 
     ritual_id = agent.number_of_rituals() - 1
     for i, transacting_power in enumerate(transacting_powers):
-        tx = agent.post_transcript(
+        async_tx = agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
         )
 
-        while not tx.final:
+        while not async_tx.final:
             yield clock.advance(testerchain.tracker._task.interval)
-            yield deferLater(reactor, 1, lambda: None)
-            time.sleep(1)
 
-        receipt = testerchain.wait_for_receipt(tx.txhash)
+        receipt = testerchain.wait_for_receipt(async_tx.txhash)
         post_transcript_events = (
             agent.contract.events.TranscriptPosted().process_receipt(receipt)
         )
@@ -172,11 +162,12 @@ def test_post_aggregation(
     testerchain,
     clock,
 ):
+    testerchain.tracker.start()
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
     for i, transacting_power in enumerate(transacting_powers):
         participant_public_key = SessionStaticSecret.random().public_key()
-        tx = agent.post_aggregation(
+        async_tx = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
@@ -185,9 +176,10 @@ def test_post_aggregation(
         )
         participant_public_keys[cohort[i]] = participant_public_key
 
-        while tx not in testerchain.tracker.finalized:
+        while not async_tx.final:
             yield clock.advance(testerchain.tracker._task.interval)
-        receipt = testerchain.wait_for_receipt(tx.txhash)
+
+        receipt = testerchain.wait_for_receipt(async_tx.txhash)
 
         post_aggregation_events = (
             agent.contract.events.AggregationPosted().process_receipt(receipt)

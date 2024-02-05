@@ -311,6 +311,7 @@ class BlockchainInterface:
         # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
+            self.tracker.w3 = self.w3  # share this web3 instance with the tracker
             self.client = EthereumClient.from_w3(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(

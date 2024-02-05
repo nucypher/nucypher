@@ -25,6 +25,7 @@ from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
+from nucypher.blockchain.eth.trackers.transactions.tracker import _TransactionTracker
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -47,6 +48,7 @@ from nucypher.policy.payment import SubscriptionManagerPayment
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 from nucypher.utilities.networking import LOOPBACK_ADDRESS
+from nucypher.utilities.task import SimpleTask
 from tests.constants import (
     MIN_OPERATOR_SECONDS,
     MOCK_CUSTOM_INSTALLATION_PATH,
@@ -668,13 +670,13 @@ def valid_user_address_context():
     }
 
 
-# @pytest.fixture(scope='module', autouse=True)
-# def control_time():
-#     clock = Clock()
-#     EventScannerTask.CLOCK = clock
-#     EventScannerTask.INTERVAL = .1
-#     clock.llamas = 0
-#     return clock
+@pytest.fixture(scope='session', autouse=True)
+def clock():
+    """Distorts the space-time continuum.  Use with caution."""
+    clock = Clock()
+    SimpleTask.CLOCK = clock
+    SimpleTask.INTERVAL = 1
+    return clock
 
 
 @pytest.fixture(scope="module")

@@ -7,7 +7,7 @@ import pytest_twisted
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY
 from twisted.internet import reactor
-from twisted.internet.task import Clock, deferLater
+from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -111,16 +111,9 @@ def condition(test_registry):
     return ConditionLingo(condition_to_use).to_dict()
 
 
-@pytest.fixture(scope='module')
-def clock():
-    _clock = Clock()
-    return _clock
-
-
 @pytest.fixture(scope='module', autouse=True)
-def transaction_tracker(testerchain, clock, coordinator_agent):
+def transaction_tracker(testerchain, coordinator_agent):
     testerchain.tracker.w3 = coordinator_agent.blockchain.w3
-    testerchain.tracker._task.clock = clock
     testerchain.tracker.start()
 
 
