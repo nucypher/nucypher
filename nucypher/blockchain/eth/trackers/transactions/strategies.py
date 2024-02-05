@@ -44,10 +44,10 @@ class AsyncTxStrategy(ABC):
 class SpeedupStrategy(AsyncTxStrategy):
     """Speedup strategy for pending transactions."""
 
-    _NAME = "speedup"
-
     SPEEDUP_FACTOR = 1.125  # 12.5% increase
     MAX_TIP = Gwei(1)  # gwei maxPriorityFeePerGas per transaction
+
+    _NAME = f"speedup-{SPEEDUP_FACTOR}%"
 
     def _calculate_speedup_fee(self, tx: TxParams) -> Tuple[Wei, Wei]:
         base_fee = self.w3.eth.get_block("latest")["baseFeePerGas"]

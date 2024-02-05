@@ -13,7 +13,7 @@ from nucypher.blockchain.eth.trackers.transactions.exceptions import (
 )
 from nucypher.blockchain.eth.trackers.transactions.state import _TrackerState
 from nucypher.blockchain.eth.trackers.transactions.strategies import (
-    SpeedupStrategy,
+    SpeedupStrategy, AsyncTxStrategy,
 )
 from nucypher.blockchain.eth.trackers.transactions.tx import (
     FinalizedTx,
@@ -52,12 +52,22 @@ class _TransactionTracker(SimpleTask):
     BLOCK_INTERVAL = 20  # ~20 blocks
     BLOCK_SAMPLE_SIZE = 10_000  # blocks
 
-    def __init__(self, w3: Web3):
+    def __init__(
+            self,
+            w3: Web3,
+            timeout: Optional[int] = None,
+            strategy: Optional[AsyncTxStrategy] = None,
+            disk_cache: bool = False
+    ):
+
+        # public
         self.w3 = w3
         self.signers = {}
-        self.strategy = self._STRATEGY(w3=w3)
-        self.timeout = self._TIMEOUT
-        self.__state = _TrackerState()
+        self.timeout = timeout or self._TIMEOUT
+        self.strategy = strategy or self._STRATEGY(w3=w3)
+
+        # internal
+        self.__state = _TrackerState(disk_cache=disk_cache)
         super().__init__(interval=self.INTERVAL)
 
     #
@@ -112,13 +122,15 @@ class _TransactionTracker(SimpleTask):
                 fire_hook(hook=hook, tx=self.__state.active)
             return True
 
-        # Outcome 2: the pending transaction was reverted (final error)
         try:
             receipt = self.__get_receipt()
+
+        # Outcome 2: the pending transaction was reverted (final error)
         except TransactionReverted:
-            hook = self.__state.active.on_revert
-            if hook:
-                fire_hook(hook=hook, tx=self.__state.active)
+            revert_hook = self.__state.active.on_revert
+            if revert_hook:
+                fire_hook(hook=revert_hook, tx=self.__state.active)
+            # clear the active transaction slot
             self.__state.clear_active()
             return True
 
@@ -130,14 +142,15 @@ class _TransactionTracker(SimpleTask):
                 f"[finalized] Transaction #atx-{self.__state.active.id} has been finalized "
                 f"with {confirmations} confirmations txhash: {final_txhash.hex()}"
             )
+            # clear the active transaction slot
             self.__state.finalize_active_tx(receipt=receipt)
             return True
 
-        # Outcome 4: pending transaction is capped
+        # Outcome 4: pending transaction is halted by strategy
         if self.__state.active.halt:
             return False
 
-        # Outcome 5: pending transaction has been sped up
+        # Outcome 5: retry the pending transaction with the strategy
         self.__strategize()
         return False
 
@@ -153,8 +166,17 @@ class _TransactionTracker(SimpleTask):
         return signer
 
     def __fire(self, tx: FutureTx, msg: str) -> Optional[PendingTx]:
-        """Signs and broadcasts a transaction. Handles RPC errors and state changes."""
-        signer = self.__get_signer(tx._from)
+        """
+        Signs and broadcasts a transaction, handling RPC errors
+        and internal state changes.
+
+        On success, returns the `PendingTx` object.
+        On failure, returns None.
+
+        Morphs a `FutureTx` into a `PendingTx` and advances it
+        into the active transaction slot if broadcast is successful.
+        """
+        signer: LocalAccount = self.__get_signer(tx._from)
         try:
             txhash = self.w3.eth.send_raw_transaction(
                 signer.sign_transaction(tx.params).rawTransaction
@@ -165,12 +187,13 @@ class _TransactionTracker(SimpleTask):
         self.log.info(
             f"[{msg}] fired transaction #atx-{tx.id}|{tx.params['nonce']}|{txhash.hex()}"
         )
-        self.__state.evolve_future(tx=tx, txhash=txhash)
-        hook = tx.on_broadcast
-        if hook:
-            fire_hook(hook=hook, tx=tx)
+        pending_tx = self.__state.morph(tx=tx, txhash=txhash)
+        txtracker_log.info(f"[state] #atx-{pending_tx.id} queued -> pending")
+        if tx.on_broadcast:
+            fire_hook(hook=tx.on_broadcast, tx=tx)
+        return pending_tx
 
-    def __strategize(self) -> Optional[TxHash]:
+    def __strategize(self) -> Optional[PendingTx]:
         """Retry the currently tracked pending transaction with the configured strategy."""
         try:
             params = self.strategy.execute(
@@ -192,17 +215,18 @@ class _TransactionTracker(SimpleTask):
             return
 
         # use the strategy-generated transaction parameters
-        pending_tx = self.__fire(tx=params, msg="speedup")
+        pending_tx = self.__fire(tx=params, msg=self.strategy.name)
         self.log.info(
             f"[{self.strategy.name}] transaction #{pending_tx.id} has been re-broadcasted"
         )
+        return pending_tx
 
     def __broadcast(self) -> Optional[TxHash]:
         """
-        Attempts to broadcast the next (future) transaction in the queue.
-        If the transaction is not successful, it is re-queued.
+        Attempts to broadcast the next `FutureTx` in the queue.
+        If the broadcast is not successful, it is re-queued.
         """
-        future_tx = self.__state._pop()  # popleft
+        future_tx = self.__state.pop()  # popleft
         future_tx.params = _make_tx_params(future_tx.params)
         signer = self.__get_signer(future_tx._from)
         nonce = self.w3.eth.get_transaction_count(signer.address, "latest")
@@ -212,17 +236,25 @@ class _TransactionTracker(SimpleTask):
                 f"by another transaction. Updating queued tx nonce {future_tx.params['nonce']} -> {nonce}"
             )
         future_tx.params["nonce"] = nonce
-        self.__fire(tx=future_tx, msg="broadcast")
-        if not self.__state.active:
-            self.__state._requeue(future_tx)
-        return self.__state.active.txhash
+        pending_tx = self.__fire(tx=future_tx, msg="broadcast")
+        if not pending_tx:
+            self.__state.requeue(future_tx)
+            return
+        return pending_tx.txhash
 
     #
     # Monitoring
     #
 
     def __get_receipt(self) -> Optional[TxReceipt]:
-        """Make and RPC call to get the pending transaction data."""
+        """
+        Hits eth_getTransaction and eth_getTransactionReceipt
+        for the active pending txhash and checks if
+        it has been finalized or reverted.
+
+        Returns the receipt if the transaction has been finalized.
+        NOTE: Performs state changes
+        """
         try:
             txdata = self.w3.eth.get_transaction(self.__state.active.txhash)
             self.__state.active.data = txdata
@@ -234,6 +266,16 @@ class _TransactionTracker(SimpleTask):
             return
 
         receipt = _get_receipt(w3=self.w3, data=txdata)
+        status = receipt.get("status")
+        if status == 0:
+            # If status in response equals 1 the transaction was successful.
+            # If it is equals 0 the transaction was reverted by EVM.
+            # https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.get_transaction_receipt
+            txtracker_log.info(
+                f"Transaction {txdata['hash'].hex()} was reverted by EVM with status {status}"
+            )
+            raise TransactionReverted(receipt)
+
         if receipt:
             txtracker_log.info(
                 f"[accepted] Transaction {txdata['nonce']}|{txdata['hash'].hex()} "
@@ -370,7 +412,6 @@ class _TransactionTracker(SimpleTask):
         return False
 
     def start(self, now: bool = True) -> Deferred:
-        self.__state.restore()
         if now:
             self.log.info("[txtracker] starting transaction tracker now")
         else:

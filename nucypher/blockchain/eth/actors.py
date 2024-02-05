@@ -55,7 +55,7 @@ from nucypher.crypto.powers import (
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import RitualId
+from nucypher.types import RitualId, PhaseId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 
@@ -382,11 +382,8 @@ class Operator(BaseActor):
         return True
 
     @staticmethod
-    def _phase_id(
-            ritual_id: int,
-            phase: int
-    ) -> Tuple[RitualId, int]:
-        return RitualId(ritual_id), phase
+    def _phase_id(ritual_id: int, phase: int) -> Tuple[RitualId, PhaseId]:
+        return RitualId(ritual_id), PhaseId(phase)
 
     def perform_round_1(
         self,

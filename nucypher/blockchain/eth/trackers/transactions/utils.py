@@ -44,16 +44,6 @@ def _get_receipt(w3: Web3, data: Union[TxData, PendingTxData]) -> Optional[TxRec
         receipt = w3.eth.get_transaction_receipt(data["hash"])
     except TransactionNotFound:
         return
-    status = receipt.get("status")
-    if status == 0:
-        # If status in response equals 1 the transaction was successful.
-        # If it is equals 0 the transaction was reverted by EVM.
-        # https://web3py.readthedocs.io/en/stable/web3.eth.html#web3.eth.Eth.get_transaction_receipt
-        # TODO: What follow-up actions can be taken if the transaction was reverted?
-        txtracker_log.info(
-            f"Transaction {data['hash'].hex()} was reverted by EVM with status {status}"
-        )
-        raise TransactionReverted(receipt)
     return receipt
 
 

@@ -24,11 +24,18 @@ class _TrackerState:
     __DEFAULT_FILEPATH = Path(APP_DIR.user_cache_dir) / ".txs.json"
     __COUNTER = 0  # id generator
 
-    def __init__(self, filepath: Optional[Path] = None):
+    def __init__(
+            self,
+            disk_cache: bool,
+            filepath: Optional[Path] = None
+    ):
         self.__filepath = filepath or self.__DEFAULT_FILEPATH
         self.__queue: Deque[FutureTx] = deque()
         self.__active: Optional[PendingTx] = None
         self.finalized: Set[FinalizedTx] = set()
+        self.disk_cache = disk_cache
+        if disk_cache:
+            self.restore()
 
     def to_dict(self) -> Dict:
         """Serialize the state to a JSON string."""
@@ -40,6 +47,8 @@ class _TrackerState:
 
     def commit(self) -> None:
         """Write the state to the cache file."""
+        if not self.disk_cache:
+            return
         with open(self.__filepath, "w+t") as file:
             data = json.dumps(self.to_dict())
             file.write(data)
@@ -48,8 +57,11 @@ class _TrackerState:
     def restore(self) -> bool:
         """
         Restore the state from the cache file.
-        Returns True if the cache file exists and was successfully restored with data.
+        Returns True if the cache file exists and was successfully
+        restored with data.
         """
+        if not self.disk_cache:
+            return False
 
         # read & parse
         if not self.__filepath.exists():
@@ -74,7 +86,7 @@ class _TrackerState:
 
         return bool(data)
 
-    def __track_active(self, tx: PendingTx) -> None:
+    def __set_active(self, tx: PendingTx) -> None:
         """Update the active transaction (destructive operation)."""
         old = None
         if self.__active:
@@ -88,9 +100,9 @@ class _TrackerState:
             return
         txtracker_log.debug(f"[state] tracked active transaction {tx.txhash.hex()}")
 
-    def evolve_future(self, tx: FutureTx, txhash: TxHash) -> None:
+    def morph(self, tx: FutureTx, txhash: TxHash) -> PendingTx:
         """
-        Evolve a future transaction into a pending transaction.
+        Morphs a future transaction into a pending transaction.
         Uses polymorphism to transform the future transaction into a pending transaction.
         """
         tx.txhash = txhash
@@ -98,8 +110,8 @@ class _TrackerState:
         tx.capped = False
         tx.__class__ = PendingTx
         tx: PendingTx
-        self.__track_active(tx=tx)
-        txtracker_log.info(f"[state] #atx-{self.__active.id} queued -> pending")
+        self.__set_active(tx=tx)
+        return tx
 
     def finalize_active_tx(self, receipt: TxReceipt) -> None:
         """
@@ -138,11 +150,11 @@ class _TrackerState:
         """Return the queue of transactions."""
         return self.__queue
 
-    def _pop(self) -> FutureTx:
+    def pop(self) -> FutureTx:
         """Pop the next transaction from the queue."""
         return self.__queue.popleft()
 
-    def _requeue(self, tx: FutureTx) -> None:
+    def requeue(self, tx: FutureTx) -> None:
         """Re-queue a transaction for broadcast and subsequent tracking."""
         self.__queue.append(tx)
         self.commit()
@@ -151,7 +163,7 @@ class _TrackerState:
             f"priority {len(self.__queue)}"
         )
 
-    def _queue(
+    def queue(
         self,
         params: TxParams,
         _from: ChecksumAddress,

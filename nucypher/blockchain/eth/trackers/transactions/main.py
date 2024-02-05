@@ -71,7 +71,7 @@ class TransactionTracker(_TransactionTracker):
         """
         if signer.address not in self.signers:
             self.signers[signer.address] = signer
-        tx = self.__state._queue(_from=signer.address, params=params, *args, **kwargs)
+        tx = self.__state.queue(_from=signer.address, params=params, *args, **kwargs)
         return tx
 
     def queue_transactions(
