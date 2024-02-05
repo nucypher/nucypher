@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
@@ -18,6 +19,7 @@ from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Va
 from twisted.internet.task import Clock
 from web3 import Web3
 
+import nucypher
 import tests
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
@@ -767,3 +769,14 @@ def mock_operator_aggregation_delay(module_mocker):
         "nucypher.blockchain.eth.actors.Operator.AGGREGATION_SUBMISSION_MAX_DELAY",
         PropertyMock(return_value=1),
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_default_tracker_cache(session_mocker):
+    mock = session_mocker.patch.object(
+        nucypher.blockchain.eth.trackers.transactions.state._TrackerState,
+        "_TrackerState__DEFAULT_FILEPATH",
+        new_callable=session_mocker.PropertyMock,
+    )
+    mock.return_value = Path(tempfile.gettempdir()) / f".test-txs-{time.time()}.json"
+    return mock
