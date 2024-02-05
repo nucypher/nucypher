@@ -110,8 +110,6 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
 
     @rest_app.route('/node_metadata', methods=["POST"])
     def node_metadata_exchange():
-        response_headers = {"Content-Type": "application/octet-stream"}
-
         try:
             metadata_request = MetadataRequest.from_bytes(request.data)
         except ValueError as e:
@@ -120,16 +118,16 @@ def _make_rest_app(this_node, log: Logger) -> Flask:
             return Response(str(e), status=HTTPStatus.BAD_REQUEST)
 
         # If these nodes already have the same fleet state, no exchange is necessary.
+        response_headers = {"Content-Type": "application/octet-stream"}
 
         if metadata_request.fleet_state_checksum == this_node.known_nodes.checksum:
             # log.debug("Learner already knew fleet state {}; doing nothing.".format(learner_fleet_state))  # 1712
-            headers = {'Content-Type': 'application/octet-stream'}
             # No nodes in the response: same fleet state
             response_payload = MetadataResponsePayload(timestamp_epoch=this_node.known_nodes.timestamp.epoch,
                                                        announce_nodes=[])
             response = MetadataResponse(this_node.stamp.as_umbral_signer(),
                                         response_payload)
-            return Response(bytes(response), headers=headers)
+            return Response(bytes(response), headers=response_headers)
 
         if metadata_request.announce_nodes:
             for metadata in metadata_request.announce_nodes:
