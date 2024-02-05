@@ -272,14 +272,6 @@
             "markers": "python_version >= '3.8'",
             "version": "==1.7.0"
         },
-        "bytestring-splitter": {
-            "hashes": [
-                "sha256:4713e5d3a13321ae020c271f3c29dd0bbfb6fcb7875ac8b365ff9cf9863a0db0",
-                "sha256:9aa4a786371416feae1fdc53b32a5d8daa162e68677cddb1c4dd2336ffecefa4"
-            ],
-            "index": "pypi",
-            "version": "==2.4.1"
-        },
         "certifi": {
             "hashes": [
                 "sha256:9b469f3a900bf28dc19b8cfbf8019bf47f7fdd1a65a1d4ffb98fc14166beb4d1",
@@ -1111,12 +1103,6 @@
             "index": "pypi",
             "markers": "python_version >= '3.8'",
             "version": "==1.0.7"
-        },
-        "msgpack-python": {
-            "hashes": [
-                "sha256:378cc8a6d3545b532dfd149da715abae4fda2a3adb6d74e525d0d5e51f46909b"
-            ],
-            "version": "==0.5.6"
         },
         "multidict": {
             "hashes": [
