@@ -26,9 +26,11 @@ class _TrackerState:
 
     def __init__(self, disk_cache: bool, filepath: Optional[Path] = None):
         self.__filepath = filepath or self.__DEFAULT_FILEPATH
+
         self.__queue: Deque[FutureTx] = deque()
         self.__active: Optional[PendingTx] = None
         self.finalized: Set[FinalizedTx] = set()
+
         self.disk_cache = disk_cache
         if disk_cache:
             self.restore()

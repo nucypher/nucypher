@@ -321,14 +321,14 @@ class Operator(BaseActor):
         return result
 
     def publish_transcript(self, ritual_id: int, transcript: Transcript) -> AsyncTx:
-        tx = self.coordinator_agent.post_transcript(
+        async_tx = self.coordinator_agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcript,
             transacting_power=self.transacting_power,
         )
-        identifier = RitualId(ritual_id), PHASE1
-        self.ritual_tracker.active_rituals[identifier] = tx
-        return tx
+        identifier = self._phase_id(ritual_id, PHASE1)
+        self.ritual_tracker.active_rituals[identifier] = async_tx
+        return async_tx
 
     def publish_aggregated_transcript(
         self,

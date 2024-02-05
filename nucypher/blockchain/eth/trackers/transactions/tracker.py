@@ -104,6 +104,7 @@ class _TransactionTracker(SimpleTask):
         1. timeout
         2. reverted
         3. finalized
+
         4. strategize: halt
         5. strategize: retry
 
