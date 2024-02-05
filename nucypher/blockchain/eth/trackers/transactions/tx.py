@@ -130,7 +130,7 @@ def _serialize_tx_params(params: TxParams) -> Dict:
         "type": params.get("type"),
         "to": params["to"],
         "value": params["value"],
-        "data":  data,
+        "data": data,
         "maxPriorityFeePerGas": params.get("maxPriorityFeePerGas"),
         "maxFeePerGas": params.get("maxFeePerGas"),
         "gasPrice": params.get("gasPrice"),
@@ -155,17 +155,19 @@ def _serialize_tx_receipt(receipt: TxReceipt) -> Dict:
 
 
 def _deserialize_tx_receipt(receipt: Dict) -> TxReceipt:
-    return TxReceipt({
-        "transactionHash": HexBytes(receipt["transactionHash"]),
-        "transactionIndex": receipt["transactionIndex"],
-        "blockHash": HexBytes(receipt["blockHash"]),
-        "blockNumber": receipt["blockNumber"],
-        "from": receipt["from"],
-        "to": receipt["to"],
-        "cumulativeGasUsed": receipt["cumulativeGasUsed"],
-        "gasUsed": receipt["gasUsed"],
-        "status": receipt["status"],
-    })
+    return TxReceipt(
+        {
+            "transactionHash": HexBytes(receipt["transactionHash"]),
+            "transactionIndex": receipt["transactionIndex"],
+            "blockHash": HexBytes(receipt["blockHash"]),
+            "blockNumber": receipt["blockNumber"],
+            "from": receipt["from"],
+            "to": receipt["to"],
+            "cumulativeGasUsed": receipt["cumulativeGasUsed"],
+            "gasUsed": receipt["gasUsed"],
+            "status": receipt["status"],
+        }
+    )
 
 
 def _make_tx_params(data: TxData) -> TxParams:
@@ -177,14 +179,16 @@ def _make_tx_params(data: TxData) -> TxParams:
     data object as queried from the RPC provider (eth_getTransaction) into a transaction
     parameters object for strategics and re-broadcast (LocalAccount.sign_transaction).
     """
-    params = TxParams({
+    params = TxParams(
+        {
             "nonce": data["nonce"],
             "chainId": data["chainId"],
             "gas": data["gas"],
             "to": data["to"],
             "value": data["value"],
             "data": data.get("data", b""),
-    })
+        }
+    )
     if "gasPrice" in data:
         params["type"] = "0x01"
         params["gasPrice"] = data["gasPrice"]

@@ -1,13 +1,16 @@
 import contextlib
-from typing import Optional, Union, Callable
+from typing import Callable, Optional, Union
 
 from twisted.internet import reactor
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
-from web3.types import PendingTx as PendingTxData, RPCError
-from web3.types import TxData, TxReceipt, Wei
+from web3.types import PendingTx as PendingTxData
+from web3.types import RPCError, TxData, TxReceipt, Wei
 
-from nucypher.blockchain.eth.trackers.transactions.exceptions import TransactionReverted, InsufficientFunds
+from nucypher.blockchain.eth.trackers.transactions.exceptions import (
+    InsufficientFunds,
+    TransactionReverted,
+)
 from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx, FutureTx
 from nucypher.utilities.logging import Logger
 
@@ -66,7 +69,7 @@ def fire_hook(hook: Callable, tx: AsyncTx, *args, **kwargs) -> None:
         try:
             hook(tx, *args, **kwargs)
         except Exception as e:
-            txtracker_log.warn(f'[hook] {e}')
+            txtracker_log.warn(f"[hook] {e}")
 
     with contextlib.suppress(Exception):
         reactor.callInThread(_hook)
@@ -77,7 +80,9 @@ def _handle_rpc_error(e: Exception, tx: FutureTx) -> None:
     try:
         error = RPCError(**e.args[0])
     except TypeError:
-        txtracker_log.critical(f"[error] transaction #atx-{tx.id}|{tx.params['nonce']} failed with {e}")
+        txtracker_log.critical(
+            f"[error] transaction #atx-{tx.id}|{tx.params['nonce']} failed with {e}"
+        )
     else:
         txtracker_log.critical(
             f"[error] transaction #atx-{tx.id}|{tx.params['nonce']} failed with {error['code']} | {error['message']}"

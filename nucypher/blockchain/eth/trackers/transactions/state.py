@@ -3,7 +3,7 @@ import time
 from collections import deque
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Deque, Dict, Optional, Set, Callable
+from typing import Callable, Deque, Dict, Optional, Set
 
 from eth_typing import ChecksumAddress
 from web3.types import TxParams, TxReceipt
@@ -14,7 +14,7 @@ from nucypher.blockchain.eth.trackers.transactions.tx import (
     PendingTx,
     TxHash,
 )
-from nucypher.blockchain.eth.trackers.transactions.utils import txtracker_log, fire_hook
+from nucypher.blockchain.eth.trackers.transactions.utils import fire_hook, txtracker_log
 from nucypher.config.constants import APP_DIR
 
 
@@ -35,11 +35,7 @@ class _TrackerState:
         active = self.__active.to_dict() if self.__active else {}
         queue = [tx.to_dict() for tx in self.__queue]
         finalized = [tx.to_dict() for tx in self.finalized]
-        _dict = {
-            "queue": queue,
-            "active": active,
-            "finalized": finalized
-        }
+        _dict = {"queue": queue, "active": active, "finalized": finalized}
         return _dict
 
     def commit(self) -> None:
@@ -156,16 +152,16 @@ class _TrackerState:
         )
 
     def _queue(
-            self,
-            params: TxParams,
-            _from: ChecksumAddress,
-            info: Dict[str, str] = None,
-            on_broadcast: Optional[Callable] = None,
-            on_timeout: Optional[Callable] = None,
-            on_capped: Optional[Callable] = None,
-            on_finalized: Optional[Callable] = None,
-            on_revert: Optional[Callable] = None,
-            on_error: Optional[Callable] = None,
+        self,
+        params: TxParams,
+        _from: ChecksumAddress,
+        info: Dict[str, str] = None,
+        on_broadcast: Optional[Callable] = None,
+        on_timeout: Optional[Callable] = None,
+        on_capped: Optional[Callable] = None,
+        on_finalized: Optional[Callable] = None,
+        on_revert: Optional[Callable] = None,
+        on_error: Optional[Callable] = None,
     ) -> FutureTx:
         """Queue a new transaction for broadcast and subsequent tracking."""
         tx = FutureTx(
@@ -187,7 +183,6 @@ class _TrackerState:
         self.commit()
         self.__COUNTER += 1
         txtracker_log.info(
-            f"[state] queued transaction #atx-{tx.id} "
-            f"priority {len(self.__queue)}"
+            f"[state] queued transaction #atx-{tx.id} " f"priority {len(self.__queue)}"
         )
         return tx

@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Union, Iterable
+from typing import Iterable, Optional, Union
 
 from eth_account.signers.local import LocalAccount
 from twisted.internet.defer import Deferred
@@ -25,8 +25,9 @@ from nucypher.blockchain.eth.trackers.transactions.tx import (
 from nucypher.blockchain.eth.trackers.transactions.utils import (
     _get_average_blocktime,
     _get_receipt,
+    _handle_rpc_error,
+    fire_hook,
     txtracker_log,
-    fire_hook, _handle_rpc_error,
 )
 from nucypher.utilities.task import SimpleTask
 
@@ -189,10 +190,7 @@ class _TransactionTracker(SimpleTask):
             # into a chain of capped transactions if the cap is not increased / is too low.
             hook = self.__state.active.on_capped
             if hook:
-                fire_hook(
-                    hook=hook,
-                    tx=self.__state.active
-                )
+                fire_hook(hook=hook, tx=self.__state.active)
             return
 
         # use the strategy-generated transaction parameters
@@ -247,7 +245,9 @@ class _TransactionTracker(SimpleTask):
 
     def __get_confirmations(self, tx: Union[PendingTx, FinalizedTx]) -> int:
         current_block = self.w3.eth.block_number
-        txhash = tx.txhash if isinstance(tx, PendingTx) else tx.receipt["transactionHash"]
+        txhash = (
+            tx.txhash if isinstance(tx, PendingTx) else tx.receipt["transactionHash"]
+        )
         try:
             tx_receipt = self.w3.eth.get_transaction_receipt(txhash)
             tx_block = tx_receipt["blockNumber"]
@@ -316,7 +316,9 @@ class _TransactionTracker(SimpleTask):
 
     def handle_errors(self, *args, **kwargs) -> None:
         """Handles unexpected errors during task processing."""
-        self.log.warn("[recovery] error during transaction: {}".format(args[0].getTraceback()))
+        self.log.warn(
+            "[recovery] error during transaction: {}".format(args[0].getTraceback())
+        )
         self.__state.commit()
         time.sleep(self._RPC_THROTTLE)
         if not self._task.running:
@@ -374,5 +376,7 @@ class _TransactionTracker(SimpleTask):
         if now:
             self.log.info("[txtracker] starting transaction tracker now")
         else:
-            self.log.info(f"[txtracker] starting transaction tracker in {self.INTERVAL} seconds")
+            self.log.info(
+                f"[txtracker] starting transaction tracker in {self.INTERVAL} seconds"
+            )
         return super().start(now=now)

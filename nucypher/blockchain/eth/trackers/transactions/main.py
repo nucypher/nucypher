@@ -62,11 +62,8 @@ class TransactionTracker(_TransactionTracker):
         return self.__state.finalized
 
     def queue_transaction(
-            self,
-            params: TxParams,
-            signer: LocalAccount,
-            *args, **kwargs
-            ) -> FutureTx:
+        self, params: TxParams, signer: LocalAccount, *args, **kwargs
+    ) -> FutureTx:
         """
         Queue a new transaction for broadcast and subsequent tracking.
         Optionally provide a dictionary of additional string data
@@ -74,27 +71,16 @@ class TransactionTracker(_TransactionTracker):
         """
         if signer.address not in self.signers:
             self.signers[signer.address] = signer
-        tx = self.__state._queue(
-            _from=signer.address,
-            params=params,
-            *args, **kwargs
-        )
+        tx = self.__state._queue(_from=signer.address, params=params, *args, **kwargs)
         return tx
 
     def queue_transactions(
-            self,
-            params: List[TxParams],
-            signer: LocalAccount,
-            *args, **kwargs
+        self, params: List[TxParams], signer: LocalAccount, *args, **kwargs
     ) -> List[FutureTx]:
         """Queue a list of transactions for broadcast and subsequent tracking."""
         future_txs = []
         for _params in params:
             future_txs.append(
-                self.queue_transaction(
-                    signer=signer,
-                    params=_params,
-                    *args, **kwargs
-                )
+                self.queue_transaction(signer=signer, params=_params, *args, **kwargs)
             )
         return future_txs
