@@ -135,7 +135,7 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cl
         post_transcript_events = (
             agent.contract.events.TranscriptPosted().process_receipt(receipt)
         )
-        # assert len(post_transcript_events) == 1
+        assert len(post_transcript_events) == 1
         event = post_transcript_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["transcriptDigest"] == keccak(transcripts[i])
