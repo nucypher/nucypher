@@ -954,8 +954,10 @@ class Ursula(Teacher, Character, Operator):
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
 
-        mainnet = BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.eth_endpoint)
-        polygon = BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.polygon_endpoint)
+        BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.eth_endpoint)
+        polygon = BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.polygon_endpoint
+        )
 
         if preflight:
             self.__preflight()
@@ -1151,7 +1153,6 @@ class Ursula(Teacher, Character, Operator):
         """
         seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
-
 
     @classmethod
     def from_teacher_uri(

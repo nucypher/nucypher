@@ -98,7 +98,7 @@ class ActiveRitualTracker:
 
     def __init__(
         self,
-        operator: "actors.Operator",
+        operator,
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         self.log = Logger("RitualTracker")

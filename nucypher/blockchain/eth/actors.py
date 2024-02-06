@@ -77,15 +77,17 @@ class BaseActor:
         checksum_address: Optional[ChecksumAddress] = None,
     ):
         if not (bool(checksum_address) ^ bool(transacting_power)):
-            error = f'Pass transacting power or checksum address, got {checksum_address} and {transacting_power}.'
+            error = f"Pass transacting power or checksum address, got {checksum_address} and {transacting_power}."
             raise ValueError(error)
 
         try:
             parent_address = self.checksum_address
             if checksum_address is not None:
                 if parent_address != checksum_address:
-                    raise ValueError(f"Can't have two different ethereum addresses. "
-                                     f"Got {parent_address} and {checksum_address}.")
+                    raise ValueError(
+                        f"Can't have two different ethereum addresses. "
+                        f"Got {parent_address} and {checksum_address}."
+                    )
         except AttributeError:
             if transacting_power:
                 self.checksum_address = transacting_power.account
@@ -113,9 +115,11 @@ class BaseActor:
     @property
     def eth_balance(self) -> Decimal:
         """Return this actor's current ETH balance"""
-        blockchain = BlockchainInterfaceFactory.get_interface()  # TODO: EthAgent?  #1509
+        blockchain = (
+            BlockchainInterfaceFactory.get_interface()
+        )  # TODO: EthAgent?  #1509
         balance = blockchain.client.get_balance(self.wallet_address)
-        return Web3.from_wei(balance, 'ether')
+        return Web3.from_wei(balance, "ether")
 
     @property
     def wallet_address(self):
@@ -301,7 +305,7 @@ class Operator(BaseActor):
                 # Local
                 external_validator = Validator(
                     address=self.checksum_address,
-                    public_key=self.ritual_power.public_key()
+                    public_key=self.ritual_power.public_key(),
                 )
             else:
                 # Remote
@@ -420,14 +424,18 @@ class Operator(BaseActor):
             # This is a *nearly* a critical error.  It's possible that the
             # log it as an error and return None to avoid crashing upstack
             # async tasks and drawing unnecessary amounts of attention to the issue.
-            message = (f"{self.checksum_address}|{self.wallet_address} "
-                       f"is not a member of ritual {ritual_id}")
+            message = (
+                f"{self.checksum_address}|{self.wallet_address} "
+                f"is not a member of ritual {ritual_id}"
+            )
             self.log.error(message)
             return
 
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):
-            self.log.debug("No action required for phase 1 of DKG protocol for some reason or another.")
+            self.log.debug(
+                "No action required for phase 1 of DKG protocol for some reason or another."
+            )
             return
 
         # check if there is  already pending tx for this ritual + round combination
@@ -545,14 +553,15 @@ class Operator(BaseActor):
         transcripts = (Transcript.from_bytes(bytes(t)) for t in ritual.transcripts)
         messages = list(zip(validators, transcripts))
         try:
-            aggregated_transcript, dkg_public_key = (
-                self.ritual_power.aggregate_transcripts(
-                    threshold=ritual.threshold,
-                    shares=ritual.shares,
-                    checksum_address=self.checksum_address,
-                    ritual_id=ritual.id,
-                    transcripts=messages,
-                )
+            (
+                aggregated_transcript,
+                dkg_public_key,
+            ) = self.ritual_power.aggregate_transcripts(
+                threshold=ritual.threshold,
+                shares=ritual.shares,
+                checksum_address=self.checksum_address,
+                ritual_id=ritual.id,
+                transcripts=messages,
             )
         except Exception as e:
             self.log.debug(
@@ -590,7 +599,9 @@ class Operator(BaseActor):
         if not self.coordinator_agent.is_ritual_active(ritual_id=ritual.id):
             raise self.ActorError(f"Ritual #{ritual.id} is not active.")
         validators = list(self._resolve_validators(ritual))
-        aggregated_transcript = AggregatedTranscript.from_bytes(bytes(ritual.aggregated_transcript))
+        aggregated_transcript = AggregatedTranscript.from_bytes(
+            bytes(ritual.aggregated_transcript)
+        )
         decryption_share = self.ritual_power.derive_decryption_share(
             nodes=validators,
             threshold=ritual.threshold,
@@ -600,7 +611,7 @@ class Operator(BaseActor):
             aggregated_transcript=aggregated_transcript,
             ciphertext_header=ciphertext_header,
             aad=aad,
-            variant=variant
+            variant=variant,
         )
         return decryption_share
 

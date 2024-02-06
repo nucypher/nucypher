@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple, Union
 from eth_account._utils.signing import to_standard_signature_bytes
 from eth_account.datastructures import SignedTransaction
 from eth_typing.evm import ChecksumAddress
-from hexbytes import HexBytes
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
     EncryptedThresholdDecryptionResponse,

@@ -6,8 +6,6 @@ import pytest
 import pytest_twisted
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY
-from twisted.internet import reactor
-from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -45,12 +43,12 @@ def plaintext():
     return "peace at dawn"
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def interval(testerchain):
     return testerchain.tx_machine._task.interval
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def signer(testerchain):
     return Web3Signer(testerchain.client)
 
@@ -111,13 +109,13 @@ def condition(test_registry):
     return ConditionLingo(condition_to_use).to_dict()
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def transaction_tracker(testerchain, coordinator_agent):
     testerchain.tx_machine.w3 = coordinator_agent.blockchain.w3
     testerchain.tx_machine.start()
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def cohort(testerchain, clock, coordinator_agent, ursulas, dkg_size):
     nodes = list(sorted(ursulas[:dkg_size], key=lambda x: int(x.checksum_address, 16)))
     assert len(nodes) == dkg_size
@@ -127,15 +125,24 @@ def cohort(testerchain, clock, coordinator_agent, ursulas, dkg_size):
     return nodes
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def threshold_message_kit(coordinator_agent, plaintext, condition, signer, ritual_id):
     encrypting_key = coordinator_agent.get_ritual_public_key(ritual_id=ritual_id)
     enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
     return enrico.encrypt_for_dkg(plaintext=plaintext.encode(), conditions=condition)
 
 
-def test_dkg_initiation(coordinator_agent, accounts, initiator, cohort, global_allow_list,
-                        testerchain, ritual_token, ritual_id, duration):
+def test_dkg_initiation(
+    coordinator_agent,
+    accounts,
+    initiator,
+    cohort,
+    global_allow_list,
+    testerchain,
+    ritual_token,
+    ritual_id,
+    duration,
+):
     print("==================== INITIALIZING ====================")
     cohort_staking_provider_addresses = list(u.checksum_address for u in cohort)
 
@@ -158,22 +165,27 @@ def test_dkg_initiation(coordinator_agent, accounts, initiator, cohort, global_a
     )
 
     testerchain.time_travel(seconds=1)
-    testerchain.wait_for_receipt(receipt['transactionHash'])
+    testerchain.wait_for_receipt(receipt["transactionHash"])
 
     # check that the ritual was created on-chain
     assert coordinator_agent.number_of_rituals() == ritual_id + 1
     assert (
-            coordinator_agent.get_ritual_status(ritual_id)
-            == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
+        coordinator_agent.get_ritual_status(ritual_id)
+        == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
-    testerchain.wait_for_receipt(receipt['transactionHash'])
+    testerchain.wait_for_receipt(receipt["transactionHash"])
 
 
 @pytest_twisted.inlineCallbacks
-def test_dkg_finality(coordinator_agent, ritual_id, cohort, clock, interval, testerchain):
+def test_dkg_finality(
+    coordinator_agent, ritual_id, cohort, clock, interval, testerchain
+):
     print("==================== AWAITING DKG FINALITY ====================")
 
-    while coordinator_agent.get_ritual_status(ritual_id) != Coordinator.RitualStatus.ACTIVE:
+    while (
+        coordinator_agent.get_ritual_status(ritual_id)
+        != Coordinator.RitualStatus.ACTIVE
+    ):
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=interval)
 
@@ -195,14 +207,14 @@ def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
     print("==================== VERIFYING DKG FINALITY ====================")
     for ursula in cohort:
         assert (
-                len(
-                    coordinator_agent.get_participant(
-                        ritual_id=ritual_id,
-                        provider=ursula.checksum_address,
-                        transcript=True,
-                    ).transcript
-                )
-                > 0
+            len(
+                coordinator_agent.get_participant(
+                    ritual_id=ritual_id,
+                    provider=ursula.checksum_address,
+                    transcript=True,
+                ).transcript
+            )
+            > 0
         ), "no transcript found for ursula"
         print(f"Ursula {ursula.checksum_address} has submitted a transcript")
 
@@ -210,9 +222,7 @@ def test_transcript_publication(coordinator_agent, cohort, ritual_id, dkg_size):
 def test_get_participants(coordinator_agent, cohort, ritual_id, dkg_size):
     pagination_sizes = range(0, dkg_size)  # 0 means get all in one call
     for page_size in pagination_sizes:
-        with patch.object(
-                coordinator_agent, "_get_page_size", return_value=page_size
-        ):
+        with patch.object(coordinator_agent, "_get_page_size", return_value=page_size):
             ritual = coordinator_agent.get_ritual(ritual_id, transcripts=True)
             for i, participant in enumerate(ritual.participants):
                 assert participant.provider == cohort[i].checksum_address
@@ -223,7 +233,9 @@ def test_get_participants(coordinator_agent, cohort, ritual_id, dkg_size):
                 assert len(ritual.participants) == dkg_size
 
 
-def test_encrypt(coordinator_agent, condition, ritual_id, plaintext, testerchain, signer):
+def test_encrypt(
+    coordinator_agent, condition, ritual_id, plaintext, testerchain, signer
+):
     print("==================== DKG ENCRYPTION ====================")
     encrypting_key = coordinator_agent.get_ritual_public_key(ritual_id=ritual_id)
     plaintext = plaintext.encode()
@@ -238,8 +250,8 @@ def test_unauthorized_decryption(bob, cohort, threshold_message_kit, ritual_id):
     print("======== DKG DECRYPTION (UNAUTHORIZED) ========")
     bob.start_learning_loop(now=True)
     with pytest.raises(
-            Ursula.NotEnoughUrsulas,
-            match=f"Encrypted data not authorized for ritual {ritual_id}",
+        Ursula.NotEnoughUrsulas,
+        match=f"Encrypted data not authorized for ritual {ritual_id}",
     ):
         yield bob.threshold_decrypt(
             threshold_message_kit=threshold_message_kit,
@@ -247,17 +259,23 @@ def test_unauthorized_decryption(bob, cohort, threshold_message_kit, ritual_id):
 
     # check prometheus metric for decryption requests
     # since all running on the same machine - the value is not per-ursula but rather all
-    num_failures = REGISTRY.get_sample_value(
-        "threshold_decryption_num_failures_total"
-    )
+    num_failures = REGISTRY.get_sample_value("threshold_decryption_num_failures_total")
     assert len(cohort) == int(num_failures)  # each ursula in cohort had a failure
     yield
 
 
 @pytest_twisted.inlineCallbacks
 def test_authorized_decryption(
-        bob, global_allow_list, accounts, coordinator_agent,
-        threshold_message_kit, signer, initiator, ritual_id, plaintext):
+    bob,
+    global_allow_list,
+    accounts,
+    coordinator_agent,
+    threshold_message_kit,
+    signer,
+    initiator,
+    ritual_id,
+    plaintext,
+):
     print("==================== DKG DECRYPTION (AUTHORIZED) ====================")
     # authorize Enrico to encrypt for ritual
     global_allow_list.authorize(
@@ -299,5 +317,5 @@ def test_encryption_and_decryption_prometheus_metrics():
         "decryption_request_processing_count"
     )
     assert num_decryption_requests == (
-            num_decryption_successes + num_decryption_failures
+        num_decryption_successes + num_decryption_failures
     )

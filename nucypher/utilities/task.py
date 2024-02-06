@@ -9,6 +9,7 @@ from nucypher.utilities.logging import Logger
 
 class SimpleTask(ABC):
     """Simple Twisted Looping Call abstract base class."""
+
     INTERVAL = NotImplemented
     CLOCK = reactor
 
@@ -48,5 +49,5 @@ class SimpleTask(ABC):
     @staticmethod
     def clean_traceback(failure: Failure) -> str:
         # FIXME: Amazing.
-        cleaned_traceback = failure.getTraceback().replace('{', '').replace('}', '')
+        cleaned_traceback = failure.getTraceback().replace("{", "").replace("}", "")
         return cleaned_traceback
