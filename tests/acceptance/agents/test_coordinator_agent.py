@@ -129,11 +129,9 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cl
         yield clock.advance(testerchain.tx_machine._task.interval)
     testerchain.tx_machine.stop()
 
-    for atx in txs:
-
-        receipt = testerchain.wait_for_receipt(atx.txhash)
+    for i, atx in enumerate(txs):
         post_transcript_events = (
-            agent.contract.events.TranscriptPosted().process_receipt(receipt)
+            agent.contract.events.TranscriptPosted().process_receipt(atx.receipt)
         )
         assert len(post_transcript_events) == 1
         event = post_transcript_events[0]
@@ -166,8 +164,9 @@ def test_post_aggregation(
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
     txs = []
+    participant_public_key = SessionStaticSecret.random().public_key()
+
     for i, transacting_power in enumerate(transacting_powers):
-        participant_public_key = SessionStaticSecret.random().public_key()
         async_tx = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
@@ -182,14 +181,12 @@ def test_post_aggregation(
         yield clock.advance(testerchain.tx_machine._task.interval)
     testerchain.tx_machine.stop()
 
-    for atx in txs:
+    for i, atx in enumerate(txs):
         participant_public_keys[cohort[i]] = participant_public_key
-        receipt = testerchain.wait_for_receipt(atx.txhash)
-
         post_aggregation_events = (
-            agent.contract.events.AggregationPosted().process_receipt(receipt)
+            agent.contract.events.AggregationPosted().process_receipt(atx.receipt)
         )
-        # assert len(post_aggregation_events) == 1
+        assert len(post_aggregation_events) == 1
         event = post_aggregation_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["aggregatedTranscriptDigest"] == keccak(
