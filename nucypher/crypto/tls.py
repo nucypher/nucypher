@@ -5,6 +5,7 @@ from typing import ClassVar, Optional, Tuple
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
@@ -31,7 +32,7 @@ def generate_self_signed_certificate(
     secret_seed: Optional[bytes] = None,
     days_valid: int = 365,
     curve: ClassVar[EllipticCurve] = _TLS_CURVE,
-) -> Tuple[Certificate]:
+) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
     if secret_seed:
         private_bn = int.from_bytes(secret_seed[: _TLS_CURVE.key_size // 8], "big")
         private_key = ec.derive_private_key(private_value=private_bn, curve=curve())
