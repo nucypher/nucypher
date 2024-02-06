@@ -13,7 +13,6 @@ from typing import (
     Optional,
     Tuple,
     Type,
-    Union,
     cast,
 )
 
@@ -25,7 +24,6 @@ from constant_sorrow.constants import (
 )
 from eth_typing.evm import ChecksumAddress
 from eth_utils import to_checksum_address, to_int
-from hexbytes import HexBytes
 from nucypher_core import SessionStaticKey
 from nucypher_core.ferveo import (
     AggregatedTranscript,
@@ -69,7 +67,7 @@ class EthereumContractAgent:
 
     # TODO - #842: Gas Management
     DEFAULT_TRANSACTION_GAS_LIMITS: Dict[str, Optional[Wei]]
-    DEFAULT_TRANSACTION_GAS_LIMITS = {'default': None}
+    DEFAULT_TRANSACTION_GAS_LIMITS = {"default": None}
 
     class ContractNotDeployed(Exception):
         """Raised when attempting to access a contract that is not deployed on the current network."""
@@ -87,7 +85,6 @@ class EthereumContractAgent:
         contract: Optional[Contract] = None,
         transaction_gas: Optional[Wei] = None,
     ):
-
         self.log = Logger(self.__class__.__name__)
         self.registry = registry
 
@@ -104,7 +101,9 @@ class EthereumContractAgent:
         self.__contract = contract
         self.events = events.ContractEvents(contract)
         if not transaction_gas:
-            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS['default']
+            transaction_gas = EthereumContractAgent.DEFAULT_TRANSACTION_GAS_LIMITS[
+                "default"
+            ]
         self.transaction_gas = transaction_gas
 
         self.log.info(
@@ -134,7 +133,6 @@ class EthereumContractAgent:
 
 
 class NucypherTokenAgent(EthereumContractAgent):
-
     contract_name: str = NUCYPHER_TOKEN_CONTRACT_NAME
 
     @contract_api(CONTRACT_CALL)
@@ -159,9 +157,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         increase: types.NuNits,
     ) -> TxReceipt:
         """Increase the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.increaseAllowance(spender_address, increase)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+        contract_function: ContractFunction = self.contract.functions.increaseAllowance(
+            spender_address, increase
+        )
+        receipt: TxReceipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
     @contract_api(TRANSACTION)
@@ -172,9 +173,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         decrease: types.NuNits,
     ) -> TxReceipt:
         """Decrease the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.decreaseAllowance(spender_address, decrease)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+        contract_function: ContractFunction = self.contract.functions.decreaseAllowance(
+            spender_address, decrease
+        )
+        receipt: TxReceipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
     @contract_api(TRANSACTION)
@@ -187,11 +191,17 @@ class NucypherTokenAgent(EthereumContractAgent):
         """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
         self._validate_zero_allowance(amount, spender_address, transacting_power)
 
-        payload: TxParams = {'gas': Wei(500_000)}  # TODO #842: gas needed for use with geth! <<<< Is this still open?
-        contract_function: ContractFunction = self.contract.functions.approve(spender_address, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              payload=payload,
-                                                              transacting_power=transacting_power)
+        payload: TxParams = {
+            "gas": Wei(500_000)
+        }  # TODO #842: gas needed for use with geth! <<<< Is this still open?
+        contract_function: ContractFunction = self.contract.functions.approve(
+            spender_address, amount
+        )
+        receipt: TxReceipt = self.blockchain.send_transaction(
+            contract_function=contract_function,
+            payload=payload,
+            transacting_power=transacting_power,
+        )
         return receipt
 
     @contract_api(TRANSACTION)
@@ -202,9 +212,12 @@ class NucypherTokenAgent(EthereumContractAgent):
         transacting_power: TransactingPower,
     ) -> TxReceipt:
         """Transfer an amount of tokens from the sender address to the target address."""
-        contract_function: ContractFunction = self.contract.functions.transfer(target_address, amount)
-        receipt: TxReceipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                              transacting_power=transacting_power)
+        contract_function: ContractFunction = self.contract.functions.transfer(
+            target_address, amount
+        )
+        receipt: TxReceipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
     @contract_api(TRANSACTION)
@@ -220,23 +233,30 @@ class NucypherTokenAgent(EthereumContractAgent):
 
         payload = None
         if gas_limit:  # TODO: Gas management - #842
-            payload = {'gas': gas_limit}
-        approve_and_call: ContractFunction = self.contract.functions.approveAndCall(target_address, amount, call_data)
-        approve_and_call_receipt: TxReceipt = self.blockchain.send_transaction(contract_function=approve_and_call,
-                                                                               transacting_power=transacting_power,
-                                                                               payload=payload)
+            payload = {"gas": gas_limit}
+        approve_and_call: ContractFunction = self.contract.functions.approveAndCall(
+            target_address, amount, call_data
+        )
+        approve_and_call_receipt: TxReceipt = self.blockchain.send_transaction(
+            contract_function=approve_and_call,
+            transacting_power=transacting_power,
+            payload=payload,
+        )
         return approve_and_call_receipt
 
     def _validate_zero_allowance(self, amount, target_address, transacting_power):
         if amount == 0:
             return
-        current_allowance = self.get_allowance(owner=transacting_power.account, spender=target_address)
+        current_allowance = self.get_allowance(
+            owner=transacting_power.account, spender=target_address
+        )
         if current_allowance != 0:
-            raise self.RequirementError(f"Token allowance for spender {target_address} must be 0")
+            raise self.RequirementError(
+                f"Token allowance for spender {target_address} must be 0"
+            )
 
 
 class SubscriptionManagerAgent(EthereumContractAgent):
-
     contract_name: str = SUBSCRIPTION_MANAGER_CONTRACT_NAME
 
     class PolicyInfo(NamedTuple):
@@ -268,7 +288,7 @@ class SubscriptionManagerAgent(EthereumContractAgent):
             end_timestamp=record[2],
             size=record[3],
             # If the policyOwner addr is null, we return the sponsor addr instead of the owner.
-            owner=record[0] if record[4] == NULL_ADDRESS else record[4]
+            owner=record[0] if record[4] == NULL_ADDRESS else record[4],
         )
         return policy_info
 
@@ -277,27 +297,25 @@ class SubscriptionManagerAgent(EthereumContractAgent):
     #
 
     @contract_api(TRANSACTION)
-    def create_policy(self,
-                      policy_id: bytes,
-                      transacting_power: TransactingPower,
-                      size: int,
-                      start_timestamp: Timestamp,
-                      end_timestamp: Timestamp,
-                      value: Wei,
-                      owner_address: Optional[ChecksumAddress] = None) -> TxReceipt:
+    def create_policy(
+        self,
+        policy_id: bytes,
+        transacting_power: TransactingPower,
+        size: int,
+        start_timestamp: Timestamp,
+        end_timestamp: Timestamp,
+        value: Wei,
+        owner_address: Optional[ChecksumAddress] = None,
+    ) -> TxReceipt:
         owner_address = owner_address or transacting_power.account
-        payload: TxParams = {'value': value}
+        payload: TxParams = {"value": value}
         contract_function: ContractFunction = self.contract.functions.createPolicy(
-            policy_id,
-            owner_address,
-            size,
-            start_timestamp,
-            end_timestamp
+            policy_id, owner_address, size, start_timestamp, end_timestamp
         )
         receipt = self.blockchain.send_transaction(
             contract_function=contract_function,
             payload=payload,
-            transacting_power=transacting_power
+            transacting_power=transacting_power,
         )
         return receipt
 
@@ -567,7 +585,9 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
         # remove reserved fields
-        info: list = self.contract.functions.stakingProviderInfo(staking_provider).call()
+        info: list = self.contract.functions.stakingProviderInfo(
+            staking_provider
+        ).call()
         return TACoApplicationAgent.StakingProviderInfo(*info[0:3])
 
     @contract_api(CONTRACT_CALL)
@@ -611,11 +631,19 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     #
 
     @contract_api(TRANSACTION)
-    def bond_operator(self, staking_provider: ChecksumAddress, operator: ChecksumAddress, transacting_power: TransactingPower) -> TxReceipt:
+    def bond_operator(
+        self,
+        staking_provider: ChecksumAddress,
+        operator: ChecksumAddress,
+        transacting_power: TransactingPower,
+    ) -> TxReceipt:
         """For use by threshold operator accounts only."""
-        contract_function: ContractFunction = self.contract.functions.bondOperator(staking_provider, operator)
-        receipt = self.blockchain.send_transaction(contract_function=contract_function,
-                                                   transacting_power=transacting_power)
+        contract_function: ContractFunction = self.contract.functions.bondOperator(
+            staking_provider, operator
+        )
+        receipt = self.blockchain.send_transaction(
+            contract_function=contract_function, transacting_power=transacting_power
+        )
         return receipt
 
 
@@ -864,7 +892,9 @@ class ContractAgency:
     """Where agents live and die."""
 
     # TODO: Enforce singleton - #1506 - Okay, actually, make this into a module
-    __agents: Dict[str, Dict[Type[EthereumContractAgent], EthereumContractAgent]] = dict()
+    __agents: Dict[str, Dict[Type[EthereumContractAgent], EthereumContractAgent]] = (
+        dict()
+    )
 
     @classmethod
     def get_agent(
@@ -925,7 +955,7 @@ class ContractAgency:
             agent_class=agent_class,
             registry=registry,
             blockchain_endpoint=blockchain_endpoint,
-            contract_version=contract_version
+            contract_version=contract_version,
         )
         return agent
 
@@ -958,7 +988,9 @@ class WeightedSampler:
             return []
 
         if quantity > len(self):
-            raise ValueError("Cannot sample more than the total amount of elements without replacement")
+            raise ValueError(
+                "Cannot sample more than the total amount of elements without replacement"
+            )
 
         samples = []
 
@@ -983,7 +1015,6 @@ class WeightedSampler:
 
 
 class StakingProvidersReservoir:
-
     def __init__(self, staking_provider_map: Dict[ChecksumAddress, int]):
         self._sampler = WeightedSampler(staking_provider_map)
         self._rng = random.SystemRandom()
