@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Dict
 from urllib.parse import urlparse
 
-from setuptools import find_packages, setup
+from setuptools import find_namespace_packages, setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 
@@ -151,7 +151,9 @@ setup(
     extras_require=EXTRAS,
 
     # Package Data
-    packages=find_packages(exclude=["scripts"]),
+    packages=find_namespace_packages(
+        exclude=["scripts", "nucypher.utilities.templates"]
+    ),
     include_package_data=True,
     zip_safe=False,
 

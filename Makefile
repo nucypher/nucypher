@@ -40,13 +40,13 @@ release: clean
 
 dist: clean
     # Build a source distribution and wheel
-	python setup.py sdist bdist_wheel
+	python3 -m build
 	ls -l dist
 
 smoke-test: clean
     # Build a source distribution and wheel then build a smoke test virtual env from the wheel
-	python setup.py sdist bdist_wheel
-	python scripts/release/test_package.py
+	python3 -m build
+	python3 scripts/release/test_package.py
 
 lock: clean
     # Relock dependencies

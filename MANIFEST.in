@@ -4,11 +4,13 @@ include README.md
 include requirements.txt
 include dev-requirements.txt
 
+recursive-exclude tests/ *
+
 recursive-exclude * __pycache__
 global-exclude *.py[cod]
 
 recursive-include nucypher/blockchain/eth/contract_registry *.json
 recursive-include nucypher/policy/conditions *.json
 recursive-include nucypher/network/templates *.html *.mako
-recursive-include nucypher/utilities/templates *.html *.mako
+recursive-exclude nucypher/utilities/templates *.html *.mako
 recursive-include nucypher/acumen/ *json
