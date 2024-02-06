@@ -1,16 +1,11 @@
 import os
-import time
 
 import pytest
 import pytest_twisted
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
-from twisted.internet import reactor
-from twisted.internet.task import Clock, deferLater
 
-from nucypher.blockchain.eth.agents import (
-    CoordinatorAgent,
-)
+from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
@@ -117,21 +112,26 @@ def test_initiate_ritual(
 
 
 @pytest_twisted.inlineCallbacks
-def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cohort, clock):
-    testerchain.tracker.start()
-
+def test_post_transcript(agent, transcripts, transacting_powers, testerchain, clock):
     ritual_id = agent.number_of_rituals() - 1
+
+    txs = []
     for i, transacting_power in enumerate(transacting_powers):
         async_tx = agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
         )
+        txs.append(async_tx)
 
-        while not async_tx.final:
-            yield clock.advance(testerchain.tracker._task.interval)
+    testerchain.tx_machine.start()
+    while not all([tx.final for tx in txs]):
+        yield clock.advance(testerchain.tx_machine._task.interval)
+    testerchain.tx_machine.stop()
 
-        receipt = testerchain.wait_for_receipt(async_tx.txhash)
+    for atx in txs:
+
+        receipt = testerchain.wait_for_receipt(atx.txhash)
         post_transcript_events = (
             agent.contract.events.TranscriptPosted().process_receipt(receipt)
         )
@@ -162,9 +162,10 @@ def test_post_aggregation(
     testerchain,
     clock,
 ):
-    testerchain.tracker.start()
+    testerchain.tx_machine.start()
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
+    txs = []
     for i, transacting_power in enumerate(transacting_powers):
         participant_public_key = SessionStaticSecret.random().public_key()
         async_tx = agent.post_aggregation(
@@ -174,12 +175,16 @@ def test_post_aggregation(
             participant_public_key=participant_public_key,
             transacting_power=transacting_power,
         )
+        txs.append(async_tx)
+
+    testerchain.tx_machine.start()
+    while not all([tx.final for tx in txs]):
+        yield clock.advance(testerchain.tx_machine._task.interval)
+    testerchain.tx_machine.stop()
+
+    for atx in txs:
         participant_public_keys[cohort[i]] = participant_public_key
-
-        while not async_tx.final:
-            yield clock.advance(testerchain.tracker._task.interval)
-
-        receipt = testerchain.wait_for_receipt(async_tx.txhash)
+        receipt = testerchain.wait_for_receipt(atx.txhash)
 
         post_aggregation_events = (
             agent.contract.events.AggregationPosted().process_receipt(receipt)

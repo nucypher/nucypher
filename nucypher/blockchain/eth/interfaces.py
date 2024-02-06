@@ -213,7 +213,7 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
-        self.tracker = AutomaticTxMachine(w3=self.w3)
+        self.tx_machine = AutomaticTxMachine(w3=self.w3)
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?
@@ -311,7 +311,7 @@ class BlockchainInterface:
         # Connect if not connected
         try:
             self.w3 = self.Web3(provider=self._provider)
-            self.tracker.w3 = self.w3  # share this web3 instance with the tracker
+            self.tx_machine.w3 = self.w3  # share this web3 instance with the tracker
             self.client = EthereumClient.from_w3(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
@@ -638,7 +638,7 @@ class BlockchainInterface:
             # TODO: This is a bit of a hack. temporary solution until incoming PR #3382 is merged.
             signer = transacting_power._signer._get_signer(transacting_power.account)
 
-            async_tx = self.tracker.queue_transaction(
+            async_tx = self.tx_machine.queue_transaction(
                 info=info,
                 params=transaction,
                 signer=signer,

@@ -6,6 +6,8 @@ import pytest
 import pytest_twisted
 from hexbytes import HexBytes
 from prometheus_client import REGISTRY
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
@@ -45,7 +47,7 @@ def plaintext():
 
 @pytest.fixture(scope='module')
 def interval(testerchain):
-    return testerchain.tracker._task.interval
+    return testerchain.tx_machine._task.interval
 
 
 @pytest.fixture(scope='module')
@@ -111,8 +113,8 @@ def condition(test_registry):
 
 @pytest.fixture(scope='module', autouse=True)
 def transaction_tracker(testerchain, coordinator_agent):
-    testerchain.tracker.w3 = coordinator_agent.blockchain.w3
-    testerchain.tracker.start()
+    testerchain.tx_machine.w3 = coordinator_agent.blockchain.w3
+    testerchain.tx_machine.start()
 
 
 @pytest.fixture(scope='module')
@@ -171,10 +173,12 @@ def test_dkg_initiation(coordinator_agent, accounts, initiator, cohort, global_a
 def test_dkg_finality(coordinator_agent, ritual_id, cohort, clock, interval, testerchain):
     print("==================== AWAITING DKG FINALITY ====================")
 
-    # enforce a testing timeout to avoid infinite loops
     while coordinator_agent.get_ritual_status(ritual_id) != Coordinator.RitualStatus.ACTIVE:
         yield clock.advance(interval)
         yield testerchain.time_travel(seconds=interval)
+
+    testerchain.tx_machine.stop()
+    assert not testerchain.tx_machine.running
 
     status = coordinator_agent.get_ritual_status(ritual_id)
     assert status == Coordinator.RitualStatus.ACTIVE

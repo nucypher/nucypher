@@ -975,7 +975,7 @@ class Ursula(Teacher, Character, Operator):
         if transaction_tracking:
             # Uncomment to enable tracking for both chains.
             # mainnet.tracker.start(now=False)
-            polygon.tracker.start(now=False)
+            polygon.tx_machine.start(now=False)
             if emitter:
                 emitter.message("✓ Transaction Autopilot", color="green")
 

@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Tuple
 from unittest.mock import PropertyMock
 
+import atxm
 import maya
 import pytest
-from atxm.state import _State
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
@@ -774,7 +774,7 @@ def mock_operator_aggregation_delay(module_mocker):
 @pytest.fixture(scope="session", autouse=True)
 def mock_default_tracker_cache(session_mocker):
     mock = session_mocker.patch.object(
-        _State,
+        atxm.state._State,
         "_FILEPATH",
         new_callable=session_mocker.PropertyMock,
     )
