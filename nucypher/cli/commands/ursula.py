@@ -120,9 +120,12 @@ class UrsulaConfigOptions:
             )
         else:
             if not config_file:
-                config_file = select_config_file(emitter=emitter,
-                                                 checksum_address=self.operator_address,
-                                                 config_class=UrsulaConfiguration)
+                config_file = select_config_file(
+                    emitter=emitter,
+                    checksum_address=self.operator_address,
+                    config_class=UrsulaConfiguration,
+                    do_auto_migrate=True,
+                )
             try:
                 return UrsulaConfiguration.from_configuration_file(
                     emitter=emitter,

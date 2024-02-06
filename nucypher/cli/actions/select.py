@@ -14,9 +14,11 @@ from nucypher.cli.actions.migrate import migrate
 from nucypher.cli.literature import (
     DEFAULT_TO_LONE_CONFIG_FILE,
     GENERIC_SELECT_ACCOUNT,
+    IGNORE_OLD_CONFIGURATION,
     MIGRATE_OLD_CONFIGURATION,
     NO_ACCOUNTS,
     NO_CONFIGURATIONS_ON_DISK,
+    PROMPT_TO_MIGRATE,
     SELECT_DOMAIN,
     SELECTED_ACCOUNT,
 )
@@ -117,11 +119,13 @@ def select_domain(emitter: StdoutEmitter, message: Optional[str] = None) -> str:
     return domain
 
 
-def select_config_file(emitter: StdoutEmitter,
-                       config_class: Type[CharacterConfiguration],
-                       config_root: Optional[Path] = None,
-                       checksum_address: str = None,
-                       ) -> Path:
+def select_config_file(
+    emitter: StdoutEmitter,
+    config_class: Type[CharacterConfiguration],
+    config_root: Optional[Path] = None,
+    checksum_address: str = None,
+    do_auto_migrate: bool = False,
+) -> Path:
     """
     Selects a nucypher character configuration file from the disk automatically or interactively.
 
@@ -135,6 +139,10 @@ def select_config_file(emitter: StdoutEmitter,
 
     - If there are multiple character configurations on the disk in the same configuration root,
       use interactive selection.
+
+    - If the configuration file is old and:
+        1. `do_auto_migration` is False then prompt user
+        2. `do_auto_migration` is True then try migrating the file, and retry loading
 
     - Aborts if there are no configurations associated with the supplied character configuration class.
 
@@ -165,14 +173,27 @@ def select_config_file(emitter: StdoutEmitter,
             parsed_config_files.append(fp)
             parsed_addresses_and_filenames.append([config_checksum_address, Path(fp).name])  # store checksum & filename
         except config_class.OldVersion as e:
-            # attempt migration
-            emitter.echo(
-                MIGRATE_OLD_CONFIGURATION.format(config_file=fp, version=e.version),
-                color="yellow",
-            )
-            migrate(emitter=emitter, config_file=fp)
-            # retry migrated file
-            continue
+            attempt_migration = True
+            if not do_auto_migrate:
+                if not click.confirm(
+                    PROMPT_TO_MIGRATE.format(config_file=fp, version=e.version)
+                ):
+                    emitter.echo(
+                        IGNORE_OLD_CONFIGURATION.format(
+                            config_file=fp, version=e.version
+                        ),
+                        color="yellow",
+                    )
+                    attempt_migration = False
+
+            if attempt_migration:
+                emitter.echo(
+                    MIGRATE_OLD_CONFIGURATION.format(config_file=fp, version=e.version),
+                    color="yellow",
+                )
+                migrate(emitter=emitter, config_file=fp)
+                # retry reading migrated file
+                continue
 
         i += 1
 
