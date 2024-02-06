@@ -4,6 +4,7 @@ import pytest
 import requests
 from requests import Response
 
+from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.registry import (
     EmbeddedRegistrySource,
     GithubRegistrySource,
@@ -56,6 +57,13 @@ def test_github_registry_source(registry_data):
     assert data == registry_data
     assert source.data == registry_data
     assert data == source.data
+
+
+@pytest.mark.parametrize("domain", list(domains.SUPPORTED_DOMAINS.values()))
+def test_get_actual_github_registry_file(domain):
+    source = GithubRegistrySource(domain=domain)
+    assert str(domain.eth_chain.id) in source.data
+    assert str(domain.polygon_chain.id) in source.data
 
 
 def test_local_registry_source(registry_data, test_registry_filepath):
