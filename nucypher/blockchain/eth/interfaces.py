@@ -5,6 +5,8 @@ from typing import Callable, Dict, NamedTuple, Optional, Union
 from urllib.parse import urlparse
 
 import requests
+from atxm import AutomaticTxMachine
+from atxm.tx import AsyncTx
 from constant_sorrow.constants import (
     INSUFFICIENT_FUNDS,
     NO_BLOCKCHAIN_CONNECTION,
@@ -24,7 +26,7 @@ from web3.contract.contract import Contract, ContractConstructor, ContractFuncti
 from web3.exceptions import TimeExhausted
 from web3.middleware import geth_poa_middleware
 from web3.providers import BaseProvider
-from web3.types import TxReceipt, TxParams
+from web3.types import TxParams, TxReceipt
 
 from nucypher.blockchain.eth.clients import POA_CHAINS, EthereumClient, InfuraClient
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -37,8 +39,6 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.trackers.transactions import TransactionTracker
-from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
 from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
@@ -213,7 +213,7 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
-        self.tracker = TransactionTracker(w3=self.w3)
+        self.tracker = AutomaticTxMachine(w3=self.w3)
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in ('slow', 'medium', 'fast', 'free', None):  # FIXME: What is 'None' doing here?

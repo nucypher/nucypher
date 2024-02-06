@@ -17,6 +17,7 @@ from typing import (
     cast,
 )
 
+from atxm.tx import AsyncTx
 from constant_sorrow.constants import (
     # type: ignore
     CONTRACT_CALL,
@@ -50,7 +51,6 @@ from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator, Ferveo
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
-from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
 from nucypher.config.constants import (
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE,
     NUCYPHER_ENVVAR_STAKING_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE,

@@ -3,9 +3,10 @@ import random
 import time
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Union, Tuple
+from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
 
 import maya
+from atxm.tx import AsyncTx
 from eth_typing import ChecksumAddress
 from nucypher_core import (
     EncryptedThresholdDecryptionRequest,
@@ -44,7 +45,6 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.trackers import dkg
 from nucypher.blockchain.eth.trackers.bonding import OperatorBondedTracker
-from nucypher.blockchain.eth.trackers.transactions.tx import AsyncTx
 from nucypher.blockchain.eth.utils import truncate_checksum_address
 from nucypher.crypto.powers import (
     CryptoPower,
@@ -55,7 +55,7 @@ from nucypher.crypto.powers import (
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import RitualId, PhaseId
+from nucypher.types import PhaseId, RitualId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 

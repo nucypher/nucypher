@@ -1,9 +1,9 @@
 from typing import Union
 
+from atxm.tx import FutureTx
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.clients import EthereumTesterClient
-from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
 

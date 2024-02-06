@@ -12,6 +12,7 @@ from unittest.mock import PropertyMock
 
 import maya
 import pytest
+from atxm.state import _State
 from click.testing import CliRunner
 from eth_account import Account
 from eth_utils import to_checksum_address
@@ -19,13 +20,10 @@ from nucypher_core.ferveo import AggregatedTranscript, DkgPublicKey, Keypair, Va
 from twisted.internet.task import Clock
 from web3 import Web3
 
-import nucypher
 import tests
 from nucypher.blockchain.eth.actors import Operator
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
-from nucypher.blockchain.eth.trackers.dkg import EventScannerTask
-from nucypher.blockchain.eth.trackers.transactions.tracker import _TransactionTracker
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
     AliceConfiguration,
@@ -776,8 +774,8 @@ def mock_operator_aggregation_delay(module_mocker):
 @pytest.fixture(scope="session", autouse=True)
 def mock_default_tracker_cache(session_mocker):
     mock = session_mocker.patch.object(
-        nucypher.blockchain.eth.trackers.transactions.state._TrackerState,
-        "_TrackerState__DEFAULT_FILEPATH",
+        _State,
+        "_FILEPATH",
         new_callable=session_mocker.PropertyMock,
     )
     mock.return_value = Path(tempfile.gettempdir()) / f".test-txs-{time.time()}.json"

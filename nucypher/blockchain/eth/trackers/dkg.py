@@ -1,17 +1,17 @@
 import datetime
 import os
 import time
-from typing import Callable, List, Optional, Tuple, Dict
+from typing import Callable, Dict, List, Optional, Tuple
 
 import maya
+from atxm.tx import AsyncTx, FutureTx
 from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.trackers.transactions.tx import FutureTx, AsyncTx
 from nucypher.policy.conditions.utils import camel_case_to_snake
-from nucypher.types import RitualId, PhaseId
+from nucypher.types import PhaseId, RitualId
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
