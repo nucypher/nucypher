@@ -797,18 +797,16 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = True,
-    ) -> Union[TxReceipt, AsyncTx]:
+    ) -> AsyncTx:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
-        tx = self.blockchain.send_transaction(
+        atx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power,
-            fire_and_forget=fire_and_forget,
             info={"ritual_id": ritual_id, "phase": PHASE1},
         )
-        return tx
+        return atx
 
     @contract_api(TRANSACTION)
     def post_aggregation(
@@ -818,22 +816,20 @@ class CoordinatorAgent(EthereumContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
-        fire_and_forget: bool = True,
-    ) -> Union[TxReceipt, HexBytes]:
+    ) -> AsyncTx:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
             aggregatedTranscript=bytes(aggregated_transcript),
             dkgPublicKey=Ferveo.G1Point.from_dkg_public_key(public_key),
             decryptionRequestStaticKey=bytes(participant_public_key),
         )
-        receipt = self.blockchain.send_transaction(
+        atx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
-            fire_and_forget=fire_and_forget,
             info={"ritual_id": ritual_id, "phase": PHASE2},
         )
-        return receipt
+        return atx
 
     @contract_api(CONTRACT_CALL)
     def get_ritual_initiation_cost(

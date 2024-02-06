@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 
 import requests
 from atxm import AutomaticTxMachine
-from atxm.tx import AsyncTx
 from constant_sorrow.constants import (
     INSUFFICIENT_FUNDS,
     NO_BLOCKCHAIN_CONNECTION,
@@ -568,13 +567,9 @@ class BlockchainInterface:
         confirmations: int = 0,
     ) -> Union[TxReceipt, HexBytes]:
         """
-        Takes a transaction dictionary, signs it with the configured signer, then broadcasts the signed
-        transaction using the ethereum provider's eth_sendRawTransaction RPC endpoint.
-        Optionally blocks for receipt and confirmation with 'confirmations', and 'fire_and_forget' flags.
-
-        If 'fire and forget' is True this method returns the transaction hash only, without waiting for a receipt -
-        otherwise return the transaction receipt.
-
+        Takes a transaction dictionary, signs it with the configured signer,
+        then broadcasts the signed transaction using the RPC provider's
+        eth_sendRawTransaction endpoint.
         """
         emitter = StdoutEmitter()
         try:
@@ -663,6 +658,41 @@ class BlockchainInterface:
 
         return receipt
 
+    def send_async_transaction(
+        self,
+        contract_function: ContractFunction,
+        transacting_power: TransactingPower,
+        transaction_gas_limit: Optional[int] = None,
+        gas_estimation_multiplier: float = 1.15,
+        info: Optional[Dict] = None,
+        payload: dict = None,
+    ) -> TxReceipt:
+        transaction = self.build_contract_transaction(
+            contract_function=contract_function,
+            sender_address=transacting_power.account,
+            payload=payload,
+            transaction_gas_limit=transaction_gas_limit,
+            gas_estimation_multiplier=gas_estimation_multiplier,
+            log_now=False,
+        )
+
+        basic_info = {
+            "name": contract_function.fn_name,
+            "contract": contract_function.address,
+        }
+        if info:
+            basic_info.update(info)
+
+        # TODO: This is a bit of a hack. temporary solution until incoming PR #3382 is merged.
+        signer = transacting_power._signer._get_signer(transacting_power.account)
+
+        async_tx = self.tx_machine.queue_transaction(
+            info=info,
+            params=transaction,
+            signer=signer,
+        )
+        return async_tx
+
     @validate_checksum_address
     def send_transaction(
         self,
@@ -673,41 +703,15 @@ class BlockchainInterface:
         gas_estimation_multiplier: Optional[
             float
         ] = 1.15,  # TODO: Workaround for #2635, #2337
-        confirmations: int = 0,
-        fire_and_forget: bool = False,
-        info: Optional[Dict] = None,
-    ) -> Union[TxReceipt, AsyncTx]:
+    ) -> TxReceipt:
         transaction = self.build_contract_transaction(
             contract_function=contract_function,
             sender_address=transacting_power.account,
             payload=payload,
             transaction_gas_limit=transaction_gas_limit,
             gas_estimation_multiplier=gas_estimation_multiplier,
-            log_now=not fire_and_forget,
+            log_now=True,
         )
-
-        if fire_and_forget:
-            if confirmations > 0:
-                raise ValueError(
-                    "Cannot use 'confirmations' and 'fire_and_forget' options together."
-                )
-            basic_info = {
-                "name": contract_function.fn_name,
-                "contract": contract_function.address,
-            }
-            if info:
-                basic_info.update(info)
-
-            # TODO: This is a bit of a hack. temporary solution until incoming PR #3382 is merged.
-            signer = transacting_power._signer._get_signer(transacting_power.account)
-
-            async_tx = self.tx_machine.queue_transaction(
-                info=info,
-                params=transaction,
-                signer=signer,
-            )
-            return async_tx
-
         try:
             transaction_name = contract_function.fn_name.upper()
         except AttributeError:
@@ -720,7 +724,6 @@ class BlockchainInterface:
             transacting_power=transacting_power,
             transaction_dict=transaction,
             transaction_name=transaction_name,
-            confirmations=confirmations,
         )
         return receipt
 
