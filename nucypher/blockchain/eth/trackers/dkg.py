@@ -24,7 +24,6 @@ class EventActuator(EventScanner):
         self,
         hooks: List[Callable],
         clear: bool = True,
-        chain_reorg_rescan_window: int = 10,
         *args,
         **kwargs,
     ):
@@ -32,9 +31,7 @@ class EventActuator(EventScanner):
         if clear and os.path.exists(JSONifiedState.STATE_FILENAME):
             os.remove(JSONifiedState.STATE_FILENAME)
         self.hooks = hooks
-        super().__init__(
-            chain_reorg_rescan_window=chain_reorg_rescan_window, *args, **kwargs
-        )
+        super().__init__(*args, **kwargs)
 
     def process_event(
         self, event: AttributeDict, get_block_when: Callable[[int], datetime.datetime]
@@ -69,7 +66,11 @@ class EventScannerTask(SimpleTask):
 
 class ActiveRitualTracker:
 
+    CHAIN_REORG_SCAN_WINDOW = 20
+
     MAX_CHUNK_SIZE = 10000
+
+    MIN_CHUNK_SIZE = 60  # 60 blocks @ 2s per block on Polygon = 120s of blocks (somewhat related to interval)
 
     # how often to check/purge for expired cached values - 8hrs?
     _PARTICIPATION_STATES_PURGE_INTERVAL = 60 * 60 * 8
@@ -134,7 +135,9 @@ class ActiveRitualTracker:
             filters={"address": self.contract.address},
             # How many maximum blocks at the time we request from JSON-RPC,
             # and we are unlikely to exceed the response size limit of the JSON-RPC server
-            max_chunk_scan_size=self.MAX_CHUNK_SIZE
+            max_chunk_scan_size=self.MAX_CHUNK_SIZE,
+            min_chunk_scan_size=self.MIN_CHUNK_SIZE,
+            chain_reorg_rescan_window=self.CHAIN_REORG_SCAN_WINDOW,
         )
 
         self.task = EventScannerTask(scanner=self.scan)
