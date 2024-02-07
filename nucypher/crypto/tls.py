@@ -1,14 +1,16 @@
 import datetime
 from ipaddress import IPv4Address
 from pathlib import Path
-from typing import ClassVar, Optional, Tuple
+from typing import Optional, Tuple, Type
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.backends.openssl.ec import _EllipticCurvePrivateKey
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+from cryptography.hazmat.primitives.asymmetric.ec import (
+    EllipticCurve,
+    EllipticCurvePrivateKey,
+)
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509 import Certificate
 from cryptography.x509.oid import NameOID
@@ -31,8 +33,8 @@ def generate_self_signed_certificate(
     host: str,
     secret_seed: Optional[bytes] = None,
     days_valid: int = 365,
-    curve: ClassVar[EllipticCurve] = _TLS_CURVE,
-) -> Tuple[Certificate, _EllipticCurvePrivateKey]:
+    curve: Type[EllipticCurve] = _TLS_CURVE,
+) -> Tuple[Certificate, EllipticCurvePrivateKey]:
     if secret_seed:
         private_bn = int.from_bytes(secret_seed[: _TLS_CURVE.key_size // 8], "big")
         private_key = ec.derive_private_key(private_value=private_bn, curve=curve())
