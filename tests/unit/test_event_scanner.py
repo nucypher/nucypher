@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
+from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker, EventScannerTask
 from nucypher.utilities.events import EventScanner, EventScannerState, JSONifiedState
 
 CHAIN_REORG_WINDOW = ActiveRitualTracker.CHAIN_REORG_SCAN_WINDOW
@@ -293,3 +293,18 @@ class MyEventScanner(EventScanner):
     @property
     def scan_chunk_calls_made(self):
         return self.chunk_calls_made
+
+
+def test_event_scanner_task():
+    scanner = EventScanner(
+        web3=Mock(),
+        contract=Mock(),
+        state=Mock(),
+        events=[],
+        filters={},
+        chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
+    )
+    task = EventScannerTask(scanner.scan)
+
+    assert task.interval == EventScannerTask.INTERVAL
+    assert task.scanner == scanner.scan
