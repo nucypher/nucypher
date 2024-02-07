@@ -1,3 +1,4 @@
+import math
 import time
 from datetime import datetime
 from typing import Tuple
@@ -5,9 +6,10 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from nucypher.blockchain.eth.trackers.dkg import ActiveRitualTracker
 from nucypher.utilities.events import EventScanner, EventScannerState, JSONifiedState
 
-CHAIN_REORG_WINDOW = 10
+CHAIN_REORG_WINDOW = ActiveRitualTracker.CHAIN_REORG_SCAN_WINDOW
 
 
 def test_estimate_next_chunk_size():
@@ -79,8 +81,8 @@ def test_suggested_scan_start_block():
     last_scanned_blocks = [19, 100, 242341, 151552423]
     for last_scanned_block in last_scanned_blocks:
         state.get_last_scanned_block.return_value = last_scanned_block
-        assert scanner.get_suggested_scan_start_block() == (
-            last_scanned_block - CHAIN_REORG_WINDOW
+        assert scanner.get_suggested_scan_start_block() == max(
+            1, last_scanned_block - CHAIN_REORG_WINDOW
         )
 
 
@@ -172,7 +174,7 @@ def test_scan_when_events_always_found(chunk_size):
     assert scanner.get_suggested_scan_start_block() == (end_block - CHAIN_REORG_WINDOW)
 
 
-@pytest.mark.parametrize("chunk_size", [2, 6, 7, 11, 15])
+@pytest.mark.parametrize("chunk_size", [2, 6, 7, 11, 15, 30])
 def test_scan_when_events_never_found(chunk_size):
     state = JSONifiedState(persistent=False)
     state.reset()  # TODO why is this needed if persistent is False
@@ -202,6 +204,9 @@ def test_scan_when_events_never_found(chunk_size):
     assert total_chunks_scanned == len(expected_calls)
     assert len(all_processed) == 0  # no events processed
     assert scanner.scan_chunk_calls_made == expected_calls
+    assert len(scanner.scan_chunk_calls_made) <= math.ceil(
+        (end_block - start_block) / chunk_size
+    )
     assert scanner.get_last_scanned_block() == end_block
 
     # check value for next scan
