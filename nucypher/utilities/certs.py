@@ -1,4 +1,3 @@
-import socket
 import ssl
 import time
 from typing import Dict, NamedTuple
@@ -37,16 +36,8 @@ def _replace_hostname_with_ip(url: str, ip_address: str) -> str:
 
 def _fetch_server_cert(address: Address) -> Certificate:
     """Fetch the server certificate from the given address."""
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-
-    with socket.create_connection(address) as sock:
-        with context.wrap_socket(sock, server_hostname=address.hostname) as ssock:
-            sock.close()  # close the insecure socket
-            certificate_bin = ssock.getpeercert(binary_form=True)
-
-    certificate = Certificate(ssl.DER_cert_to_PEM_cert(certificate_bin))
+    certificate_pem = ssl.get_server_certificate(address)
+    certificate = Certificate(certificate_pem)
     return certificate
 
 
