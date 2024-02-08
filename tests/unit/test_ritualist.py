@@ -1,7 +1,7 @@
 import pytest
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.models import Coordinator
+from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
 from tests.constants import MOCK_ETH_PROVIDER_URI
@@ -130,33 +130,35 @@ def test_perform_round_1(
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
-        tx = ursula.perform_round_1(
+        result = ursula.perform_round_1(
             ritual_id=0, authority=random_address, participants=cohort, timestamp=0
         )
-        assert tx is None  # no execution performed
+        assert result is None  # no execution performed
 
     # set correct state
     agent.get_ritual_status = (
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
-    ursula.perform_round_1(
+    async_tx = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
     # ensure tx is tracked
+    assert async_tx
     assert len(ursula.ritual_tracker.active_rituals) == 1
 
     pid01 = ursula._phase_id(0, 1)
     assert ursula.ritual_tracker.active_rituals[pid01]
 
     # try again
-    ursula.perform_round_1(
+    asynx_tx2 = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
+    assert asynx_tx2 is async_tx
     assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    assert ursula.ritual_tracker.active_rituals[pid01] is asynx_tx2
 
     # participant already posted transcript
     participant = agent.get_participant(
@@ -165,19 +167,21 @@ def test_perform_round_1(
     participant.transcript = bytes(random_transcript)
 
     # try submitting again
-    ursula.perform_round_1(
+    result = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
+    assert result is None
     assert len(ursula.ritual_tracker.active_rituals) == 1
     assert ursula.ritual_tracker.active_rituals[pid01]
 
     # participant no longer already posted aggregated transcript
     participant.transcript = bytes()
-    ursula.perform_round_1(
+    async_tx3 = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
+    assert async_tx3 is async_tx
     assert len(ursula.ritual_tracker.active_rituals) == 1
     assert ursula.ritual_tracker.active_rituals[pid01]
 
@@ -236,9 +240,9 @@ def test_perform_round_2(
         agent.get_ritual_status = lambda *args, **kwargs: state
         ursula.perform_round_2(ritual_id=0, timestamp=0)
 
-    pid02 = ursula._phase_id(0, 2)
-    assert ursula.ritual_tracker.active_rituals[pid02]
     assert len(ursula.ritual_tracker.active_rituals) == 1
+    pid01 = ursula._phase_id(ritual_id=0, phase=PHASE1)
+    assert ursula.ritual_tracker.active_rituals[pid01]
 
     # set correct state
     agent.get_ritual_status = (
@@ -246,20 +250,27 @@ def test_perform_round_2(
     )
 
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")
-    ursula.perform_round_2(ritual_id=0, timestamp=0)
+    async_tx = ursula.perform_round_2(ritual_id=0, timestamp=0)
 
-    # check tx hash tracking
+    # check async tx tracking
     assert len(ursula.ritual_tracker.active_rituals) == 2
+    pid02 = ursula._phase_id(ritual_id=0, phase=PHASE2)
+    assert ursula.ritual_tracker.active_rituals[pid02]
 
-    # try again
-    ursula.perform_round_2(ritual_id=0, timestamp=0)
+    # trying again yields same tx
+    async_tx2 = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert len(ursula.ritual_tracker.active_rituals) == 2
+    assert async_tx2 is async_tx
 
+    # No action required
     participant = agent.get_participant(
         ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.aggregated = True
-    ursula.perform_round_2(ritual_id=0, timestamp=0)
+    result = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert result is None
 
-    # participant no longer already posted aggregated transcript
+    # Action required but async tx already fired
     participant.aggregated = False
-    ursula.perform_round_2(ritual_id=0, timestamp=0)
+    async_tx4 = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert async_tx4 is async_tx

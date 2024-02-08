@@ -264,7 +264,9 @@ def test_unauthorized_decryption(bob, cohort, threshold_message_kit, ritual_id):
     yield
 
 
-def check_decrypt_without_any_cached_values(threshold_message_kit, ritual_id, cohort, bob, coordinator_agent, plaintext):
+def check_decrypt_without_any_cached_values(
+    threshold_message_kit, ritual_id, cohort, bob, coordinator_agent, plaintext
+):
     print("==================== DKG DECRYPTION NO CACHE ====================")
     original_validators = cohort[0].dkg_storage.get_validators(ritual_id)
 

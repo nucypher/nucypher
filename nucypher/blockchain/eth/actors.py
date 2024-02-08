@@ -367,16 +367,16 @@ class Operator(BaseActor):
         participant_public_key = self.threshold_request_power.get_pubkey_from_ritual_id(
             ritual_id
         )
-        tx = self.coordinator_agent.post_aggregation(
+        async_tx = self.coordinator_agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=public_key,
             participant_public_key=participant_public_key,
             transacting_power=self.transacting_power,
         )
-        identifier = (RitualId(ritual_id), PHASE2)
-        self.ritual_tracker.active_rituals[identifier] = tx
-        return tx
+        identifier = self._phase_id(ritual_id=ritual_id, phase=PHASE2)
+        self.ritual_tracker.active_rituals[identifier] = async_tx
+        return async_tx
 
     def _is_phase_1_action_required(self, ritual_id: int) -> bool:
         """Check whether node needs to perform a DKG round 1 action."""
@@ -553,7 +553,7 @@ class Operator(BaseActor):
 
         # check if there is a pending tx for this ritual + round combination
         async_tx = self.ritual_tracker.active_rituals.get(
-            self._phase_id(ritual_id, PHASE2)
+            self._phase_id(ritual_id=ritual_id, phase=PHASE2)
         )
         if async_tx:
             self.log.info(
