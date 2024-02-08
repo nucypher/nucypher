@@ -301,14 +301,16 @@ class EventScanner:
         current_chunk_size = min(self.max_scan_chunk_size, current_chunk_size)
         return int(current_chunk_size)
 
-    def scan(self, start_block, end_block, start_chunk_size=20) -> Tuple[list, int]:
+    def scan(
+        self, start_block, end_block, start_chunk_size: Optional[int] = None
+    ) -> Tuple[list, int]:
         """Perform a scan for events.
 
         :param start_block: The first block included in the scan
 
         :param end_block: The last block included in the scan
 
-        :param start_chunk_size: How many blocks we try to fetch over JSON-RPC on the first attempt
+        :param start_chunk_size: How many blocks we try to fetch over JSON-RPC on the first attempt; min chunk size if not specified
 
         :return: [All processed events, number of chunks used]
         """
@@ -321,7 +323,7 @@ class EventScanner:
         current_block = start_block
 
         # Scan in chunks, commit between
-        chunk_size = start_chunk_size
+        chunk_size = start_chunk_size or self.min_scan_chunk_size
         last_scan_duration = last_logs_found = 0
         total_chunks_scanned = 0
 

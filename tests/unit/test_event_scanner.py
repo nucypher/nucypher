@@ -163,9 +163,7 @@ def test_scan_when_events_always_found(chunk_size):
         scanner, start_block, end_block
     )
 
-    all_processed, total_chunks_scanned = scanner.scan(
-        start_block, end_block, start_chunk_size=chunk_size
-    )
+    all_processed, total_chunks_scanned = scanner.scan(start_block, end_block)
     assert total_chunks_scanned == len(expected_calls)
     assert scanner.scan_chunk_calls_made == expected_calls
     assert scanner.get_last_scanned_block() == end_block
@@ -197,9 +195,7 @@ def test_scan_when_events_never_found(chunk_size):
         scanner, start_block, end_block
     )
 
-    all_processed, total_chunks_scanned = scanner.scan(
-        start_block, end_block, start_chunk_size=chunk_size
-    )
+    all_processed, total_chunks_scanned = scanner.scan(start_block, end_block)
 
     assert total_chunks_scanned == len(expected_calls)
     assert len(all_processed) == 0  # no events processed
@@ -239,9 +235,7 @@ def test_scan_when_events_never_found_super_large_chunk_sizes():
         scanner, start_block, end_block
     )
 
-    all_processed, total_chunks_scanned = scanner.scan(
-        start_block, end_block, start_chunk_size=min_chunk_size
-    )
+    all_processed, total_chunks_scanned = scanner.scan(start_block, end_block)
 
     assert total_chunks_scanned == len(expected_calls)
     assert len(all_processed) == 0  # no events processed
