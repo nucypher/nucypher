@@ -22,7 +22,7 @@ from hexbytes.main import HexBytes
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
-from web3.middleware import geth_poa_middleware
+from web3.middleware import geth_poa_middleware, simple_cache_middleware
 from web3.providers import BaseProvider
 from web3.types import TxReceipt
 
@@ -209,7 +209,7 @@ class BlockchainInterface:
         self.endpoint = endpoint
         self._provider = provider
         self.w3 = NO_BLOCKCHAIN_CONNECTION
-        self.client = NO_BLOCKCHAIN_CONNECTION
+        self.client: EthereumClient = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
@@ -258,6 +258,9 @@ class BlockchainInterface:
         if self.poa is True:
             self.log.debug('Injecting POA middleware at layer 0')
             self.client.inject_middleware(geth_poa_middleware, layer=0)
+
+        self.log.debug("Adding simple_cache_middleware")
+        self.client.add_middleware(simple_cache_middleware)
 
         # TODO:  See #2770
         # self.configure_gas_strategy()
