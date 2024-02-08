@@ -9,7 +9,7 @@ base58==1.0.3
 bitarray==2.9.2
 cached-property==1.5.2
 certifi==2024.2.2; python_version >= '3.6'
-cffi==1.16.0; python_version >= '3.8'
+cffi==1.16.0; platform_python_implementation != 'PyPy'
 cfgv==3.4.0; python_version >= '3.8'
 charset-normalizer==3.3.2; python_full_version >= '3.7.0'
 click==8.1.7; python_version >= '3.7'
@@ -31,7 +31,7 @@ eth-keys==0.4.0
 eth-pydantic-types==0.1.0a5; python_version >= '3.8' and python_version < '4'
 eth-rlp==1.0.1; python_version >= '3.8' and python_version < '4'
 eth-tester==0.9.1b2; python_full_version >= '3.6.8' and python_version < '4'
-eth-typing==3.5.2; python_full_version >= '3.7.2' and python_version < '4'
+eth-typing==3.5.2; python_version < '4' and python_full_version >= '3.7.2'
 eth-utils==2.3.1; python_version >= '3.7' and python_version < '4'
 ethpm-types==0.6.7; python_version >= '3.8' and python_version < '4'
 evm-trace==0.1.2; python_version >= '3.8' and python_version < '4'
@@ -112,7 +112,7 @@ rpds-py==0.17.1; python_version >= '3.8'
 safe-pysha3==1.0.4
 semantic-version==2.10.0; python_version >= '2.7'
 setuptools==69.0.3; python_version >= '3.8'
-six==1.16.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'
+six==1.16.0; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'
 sortedcontainers==2.4.0
 sqlalchemy==2.0.25; python_version >= '3.7'
 stack-data==0.6.3
