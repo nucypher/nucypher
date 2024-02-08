@@ -89,7 +89,7 @@ def test_send_request(session, mocker):
     assert response == "response"
 
 
-@pytest.mark.skip(reason="This test uses a real network connection")
+@pytest.mark.xfail(reason="This test uses a real network connection")
 def test_https_request_with_cert_caching():
     # Create a session with certificate caching
     session = P2PSession()
@@ -103,7 +103,7 @@ def test_https_request_with_cert_caching():
     assert response.status_code == 200
 
 
-@pytest.mark.skip(reason="This test uses a real network connection")
+@pytest.mark.xfail(reason="This test uses a real network connection")
 def test_https_request_with_cert_refresh():
     # Create a session with certificate caching
     session = P2PSession()
