@@ -1,13 +1,12 @@
-
-
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Optional
 
 import requests
 from constant_sorrow.constants import FAST, FASTEST, MEDIUM, SLOW
 from web3 import Web3
-from web3.types import TxParams, Wei
+from web3.types import Wei
 
 
 class Datafeed(ABC):
@@ -35,6 +34,13 @@ class Datafeed(ABC):
         return f"{self.name} ({self.api_url})"
 
 
+@dataclass
+class GasFeePricing:
+    max_priority_fee: Wei
+    max_fee: Wei
+    block: int
+
+
 class EthereumGasPriceDatafeed(Datafeed):
     """Base class for Ethereum gas price data feeds"""
 
@@ -49,22 +55,13 @@ class EthereumGasPriceDatafeed(Datafeed):
     }
 
     @abstractmethod
-    def _parse_gas_prices(self):
+    def _parse_gas_fee_pricing(self, speed) -> GasFeePricing:
         return NotImplementedError
 
-    def get_gas_price(self, speed: Optional[str] = None) -> Wei:
+    def get_gas_fee_pricing(self, speed: Optional[str] = None) -> GasFeePricing:
         speed = speed or self._default_speed
-        self._parse_gas_prices()
-        gas_price_wei = Wei(self.gas_prices[self.get_canonical_speed(speed)])
-        return gas_price_wei
-
-    @classmethod
-    def construct_gas_strategy(cls, speed: Optional[str] = None):
-        def gas_price_strategy(web3: Web3, transaction_params: TxParams = None) -> Wei:
-            feed = cls()
-            gas_price = feed.get_gas_price(speed=speed)
-            return gas_price
-        return gas_price_strategy
+        gas_fee_pricing = self._parse_gas_fee_pricing(self.get_canonical_speed(speed))
+        return gas_fee_pricing
 
     @classmethod
     def get_canonical_speed(cls, speed: str):
@@ -82,60 +79,40 @@ class EthereumGasPriceDatafeed(Datafeed):
             raise LookupError(message)
 
 
-class EtherchainGasPriceDatafeed(EthereumGasPriceDatafeed):
-    """Gas price datafeed from Etherchain"""
-
-    name = "Etherchain datafeed"
-    api_url = "https://www.etherchain.org/api/gasPriceOracle"
+class PolygonGasStationDatafeed(EthereumGasPriceDatafeed):
+    """
+    Gas price datafeed from Polygon Gas Station.
+    See https://docs.polygon.technology/tools/gas/polygon-gas-station/
+    """
     _speed_names = {
-        SLOW: 'safeLow',
-        MEDIUM: 'standard',
-        FAST: 'fast',
-        FASTEST: 'fastest'
+        SLOW: "safeLow",
+        MEDIUM: "standard",
+        FAST: "fast",
+        FASTEST: "fast",
     }
     _default_speed = 'fast'
 
-    def _parse_gas_prices(self):
+    def _parse_suggestion(self, key) -> GasFeePricing:
+        suggestion = self._raw_data[self._speed_names[key]]
+        return GasFeePricing(
+            max_priority_fee=Web3.to_wei(suggestion["maxPriorityFee"], "gwei"),
+            max_fee=Web3.to_wei(suggestion["maxFee"], "gwei"),
+            block=int(self._raw_data["blockNumber"]),
+        )
+
+    def _parse_gas_fee_pricing(self, speed) -> GasFeePricing:
         self._probe_feed()
-        self.gas_prices = {self.get_canonical_speed(k): int(Web3.to_wei(v, 'gwei')) for k, v in self._raw_data.items()}
+        suggestion = self._parse_suggestion(speed)
+        return suggestion
 
 
-class UpvestGasPriceDatafeed(EthereumGasPriceDatafeed):
-    """Gas price datafeed from Upvest"""
-
-    name = "Upvest datafeed"
-    api_url = "https://fees.upvest.co/estimate_eth_fees"
-    _speed_names = {
-        SLOW: 'slow',
-        MEDIUM: 'medium',
-        FAST: 'fast',
-        FASTEST: 'fastest'
-    }
-    _default_speed = 'fastest'
-
-    def _parse_gas_prices(self):
-        self._probe_feed()
-        self.gas_prices = {self.get_canonical_speed(k): int(Web3.to_wei(v, 'gwei'))
-                           for k, v in self._raw_data['estimates'].items()}
+class PolygonMainnetGasStationDatafeed(PolygonGasStationDatafeed):
+    chain_id = 137
+    name = "Polygon Mainnet Gas Station datafeed"
+    api_url = "https://gasstation.polygon.technology/v2"
 
 
-class ZoltuGasPriceDatafeed(EthereumGasPriceDatafeed):
-    """Gas price datafeed from gas-oracle.zoltu.io"""
-
-    name = "gas-oracle.zoltu.io datafeed"
-    api_url = "https://gas-oracle.zoltu.io"
-    _speed_names = {
-        SLOW: 'percentile_40',
-        MEDIUM: 'percentile_75',
-        FAST: 'percentile_95',
-        FASTEST: 'percentile_98'
-    }
-    _default_speed = 'fast'
-
-    def _parse_gas_prices(self):
-        self._probe_feed()
-        self.gas_prices = dict()
-        for canonical_speed_name, zoltu_speed in self._speed_names.items():
-            gwei_price = self._raw_data[zoltu_speed].split(" ")[0]
-            wei_price = int(Web3.to_wei(gwei_price, 'gwei'))
-            self.gas_prices[canonical_speed_name] = wei_price
+class PolygonMumbaiGasStationDatafeed(PolygonGasStationDatafeed):
+    chain_id = 80001
+    name = "Polygon Mumbai Gas Station datafeed"
+    api_url = "https://gasstation-testnet.polygon.technology/v2"
