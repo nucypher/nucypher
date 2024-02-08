@@ -30,9 +30,7 @@ click = ">=7.0"
 colorama = "*"
 tabulate = "*"
 # Serialization
-bytestring-splitter = ">=2.4.0"
 marshmallow = "*"
-msgpack = "*"
 # Utilities
 aiohttp = "*"
 appdirs = "*"
