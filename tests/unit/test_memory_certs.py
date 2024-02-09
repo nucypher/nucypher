@@ -112,7 +112,7 @@ def test_https_request_with_cert_refresh():
 
     # Manually expire the cached certificate
     hostname, port = P2PSession._resolve_address(VALID_URL)
-    session.cache._expirations[(hostname, port)] = 0
+    session.certificate_cache._expirations[(hostname, port)] = 0
 
     # Send another request to the same URL (it should refresh the certificate)
     response = session.get(VALID_URL)
@@ -124,7 +124,9 @@ def test_https_request_with_invalid_cached_cert_and_refresh():
     session = P2PSession()
     hostname, port = P2PSession._resolve_address(VALID_URL)
 
-    session.cache.set(Address(hostname, port), VALID_BUT_INCORRECT_CERT_FOR_VALID_URL)
+    session.certificate_cache.set(
+        Address(hostname, port), VALID_BUT_INCORRECT_CERT_FOR_VALID_URL
+    )
 
     # Send a request (it should succeed after retrying and refreshing cert)
     response = session.get(VALID_URL)
