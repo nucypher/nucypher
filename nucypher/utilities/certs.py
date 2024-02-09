@@ -19,19 +19,13 @@ class Address(NamedTuple):
     port: int
 
 
-def _replace_hostname_with_ip(url: str, ip_address: str) -> str:
+def _replace_with_resolved_address(url: str, resolved_address: Address) -> str:
     """Replace the hostname in the URL with the provided IP address."""
     parsed_url = urlparse(url)
-    return urlunparse(
-        (
-            parsed_url.scheme,
-            f"{ip_address}:{parsed_url.port or ''}",
-            parsed_url.path,
-            parsed_url.params,
-            parsed_url.query,
-            parsed_url.fragment,
-        )
-    )
+    components = list(parsed_url)
+    # modify netloc entry
+    components[1] = f"{resolved_address.hostname}:{resolved_address.port}"
+    return urlunparse(tuple(components))
 
 
 def _fetch_server_cert(address: Address) -> Certificate:
@@ -137,7 +131,7 @@ class P2PSession(Session):
         address = self._resolve_address(url=request.url)  # resolves dns
         certificate = self.__get_or_refresh_certificate(address)  # cache by resolved ip
         self.adapter.trust_certificate(certificate=certificate)
-        url = _replace_hostname_with_ip(url=request.url, ip_address=address.hostname)
+        url = _replace_with_resolved_address(url=request.url, resolved_address=address)
         request.url = url  # replace the hostname with the resolved IP address
         try:
             return super().send(request, *args, **kwargs)
