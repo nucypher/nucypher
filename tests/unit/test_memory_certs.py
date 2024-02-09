@@ -20,6 +20,19 @@ MIIDXTCCAkWgAwIBAgIJALm157+YvLEhMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
 ...
 -----END CERTIFICATE-----"""
 
+VALID_BUT_INCORRECT_CERT_FOR_VALID_URL = """-----BEGIN CERTIFICATE-----
+MIIBgzCCAQigAwIBAgIUYZMjb9wgSIv0G3H9zP6Xezi3y6kwCgYIKoZIzj0EAwQw
+GDEWMBQGA1UEAwwNMTg4LjE2Ni4yNy40NjAeFw0yNDAxMzAxMjQ0MzhaFw0yNTAx
+MjkxMjQ0MzhaMBgxFjAUBgNVBAMMDTE4OC4xNjYuMjcuNDYwdjAQBgcqhkjOPQIB
+BgUrgQQAIgNiAASnd+YYrbrV3WW/hb1+4+RRD/lWLkcgKM5JjZLjuwNU/Ndr1vEl
+qOAwbz+fcdwgJ7SAkSoK2fQOt90NnnBPDA12MCc0ScwyiQxS7Cm382B4h3No4M4Z
+E3bLLn1u69g9Y26jEzARMA8GA1UdEQQIMAaHBLymGy4wCgYIKoZIzj0EAwQDaQAw
+ZgIxAL4cpbec9Hs8O4uXB8zESJJ32err5jejFhWOFexppRTNjhM5copO9c8x24zJ
+IzqeQgIxALCe9ynrDkT/tOtBNjvPiNvR8aosRsgdsQCcbk3fUCsYXSXTuphpDgMf
+IKaHuG9nuw==
+-----END CERTIFICATE-----
+"""
+
 
 @pytest.fixture
 def cache():
@@ -104,6 +117,18 @@ def test_https_request_with_cert_refresh():
     session.cache._expirations[(hostname, port)] = 0
 
     # Send another request to the same URL (it should refresh the certificate)
+    response = session.get(VALID_URL)
+    assert response.status_code == 200
+
+
+def test_https_request_with_invalid_cached_cert_and_refresh():
+    # Create a session with certificate caching
+    session = P2PSession()
+    hostname, port = P2PSession._resolve_address(VALID_URL)
+
+    session.cache.set(Address(hostname, port), VALID_BUT_INCORRECT_CERT_FOR_VALID_URL)
+
+    # Send a request (it should succeed after retrying and refreshing cert)
     response = session.get(VALID_URL)
     assert response.status_code == 200
 
