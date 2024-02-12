@@ -11,7 +11,6 @@ where events are added wherever the scanner left off.
 import csv
 import datetime
 import json
-import logging
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -30,6 +29,7 @@ from web3.types import BlockIdentifier
 
 from nucypher.blockchain.eth.agents import EthereumContractAgent
 from nucypher.blockchain.eth.events import EventRecord
+from nucypher.utilities.logging import Logger
 
 
 def generate_events_csv_filepath(contract_name: str, event_name: str) -> Path:
@@ -68,7 +68,7 @@ def write_events_to_csv_file(csv_file: Path,
     return True
 
 
-logger = logging.getLogger(__name__)
+logger = Logger("events")
 
 
 class EventScannerState(ABC):
@@ -155,7 +155,7 @@ class EventScanner:
         :param chain_reorg_rescan_window: Number of blocks to rescan in case of chain reorganization (to prevent missed blocks)
         """
 
-        self.logger = logger
+        self.logger = Logger(self.__class__.__name__)
         self.contract = contract
         self.web3 = web3
         self.state = state
@@ -268,7 +268,9 @@ class EventScanner:
         # from our in-memory cache
         block_when = get_block_when(block_number)
 
-        logger.debug("Processing event %s, block:%d count:%d", event["event"], event["blockNumber"])
+        self.logger.debug(
+            f"Processing event {event['event']}, block: {block_number}",
+        )
         processed = self.state.process_event(block_when, event)
         return processed
 
@@ -337,9 +339,9 @@ class EventScanner:
             estimated_end_block = min(
                 current_block + chunk_size, end_block
             )  # either entire full chunk, or we are at the last chunk
-            logger.debug(
-                "Scanning for blocks: %d - %d, chunk size %d, last chunk scan took %f, last logs found %d",
-                current_block, estimated_end_block, chunk_size, last_scan_duration, last_logs_found)
+            self.logger.debug(
+                f"Scanning for blocks: {current_block} - {estimated_end_block}, chunk size {chunk_size}, last chunk scan took {last_scan_duration}, last logs found {last_logs_found}"
+            )
 
             start = time.time()
             actual_end_block, end_block_timestamp, new_entries = self.scan_chunk(current_block, estimated_end_block)
@@ -404,7 +406,9 @@ def _fetch_events_for_all_contracts(
         toBlock=to_block
     )
 
-    logger.debug("Querying eth_get_logs with the following parameters: %s", event_filter_params)
+    logger.debug(
+        f"Querying eth_get_logs with the following parameters: {event_filter_params}"
+    )
 
     # Call JSON-RPC API on your Ethereum node.
     # get_logs() returns raw AttributedDict entries
