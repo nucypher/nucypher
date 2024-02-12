@@ -13,9 +13,7 @@ CHAIN_REORG_WINDOW = ActiveRitualTracker.CHAIN_REORG_SCAN_WINDOW
 
 
 def test_estimate_next_chunk_size():
-    scanner = EventScanner(
-        web3=Mock(), contract=Mock(), state=Mock(), events=[], filters={}
-    )
+    scanner = EventScanner(web3=Mock(), contract=Mock(), state=Mock(), events=[])
 
     # no prior events found
     current_chunk_size = 20
@@ -63,7 +61,6 @@ def test_suggested_scan_start_block():
         contract=Mock(),
         state=state,
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
 
@@ -94,7 +91,6 @@ def test_suggested_scan_end_block():
         contract=Mock(),
         state=Mock(),
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
 
@@ -112,7 +108,6 @@ def test_get_block_timestamp():
         contract=Mock(),
         state=Mock(),
         events=[],
-        filters={},
     )
 
     now = time.time()
@@ -132,7 +127,6 @@ def test_scan_invalid_start_end_block():
         contract=Mock(),
         state=Mock(),
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
 
@@ -153,7 +147,6 @@ def test_scan_when_events_always_found(chunk_size):
         contract=Mock(),
         state=state,
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
         min_chunk_scan_size=chunk_size,
         target_end_block=end_block,
@@ -184,7 +177,6 @@ def test_scan_when_events_never_found(chunk_size):
         contract=Mock(),
         state=state,
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
         min_chunk_scan_size=chunk_size,
         return_event_for_scan_chunk=False,  # min chunk size not used (but scales up)
@@ -223,7 +215,6 @@ def test_scan_when_events_never_found_super_large_chunk_sizes():
         contract=Mock(),
         state=state,
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
         min_chunk_scan_size=min_chunk_size,
         max_chunk_scan_size=max_chunk_size,
@@ -295,7 +286,6 @@ def test_event_scanner_task():
         contract=Mock(),
         state=Mock(),
         events=[],
-        filters={},
         chain_reorg_rescan_window=CHAIN_REORG_WINDOW,
     )
     task = EventScannerTask(scanner.scan)
