@@ -132,7 +132,6 @@ class ActiveRitualTracker:
             state=self.state,
             contract=self.contract,
             events=self.events,
-            filters={"address": self.contract.address},
             # How many maximum blocks at the time we request from JSON-RPC,
             # and we are unlikely to exceed the response size limit of the JSON-RPC server
             max_chunk_scan_size=self.MAX_CHUNK_SIZE,
