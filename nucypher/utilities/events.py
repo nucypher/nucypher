@@ -363,7 +363,7 @@ class EventScanner:
 def _fetch_events_for_contract(
     web3, contract, events, from_block: int, to_block: int
 ) -> Iterable:
-    """Get events using eth_get_logs API.
+    """Get events using eth_getLogs API.
 
     This method is detached from any contract instance.
 
@@ -398,7 +398,7 @@ def _fetch_events_for_contract(
         event_filter_params["toBlock"] = to_block
 
     logger.debug(
-        f"Querying eth_get_logs with the following parameters: {event_filter_params}"
+        f"Querying eth_getLogs with the following parameters: {event_filter_params}"
     )
 
     # Call JSON-RPC API on your Ethereum node.
