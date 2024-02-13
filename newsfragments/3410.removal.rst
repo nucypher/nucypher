@@ -1,2 +1,0 @@
-Removes the /node_metadata GET endpoint
-

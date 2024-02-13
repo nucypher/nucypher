@@ -1,1 +1,0 @@
-Optimize EventScanner chunking for Polygon given its blocktime.

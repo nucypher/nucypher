@@ -1,1 +1,0 @@
-Incorrect use of ``INTERVAL`` class variable for ``SimpleTask`` - it affected the interval for the ``EventScannerTask``.

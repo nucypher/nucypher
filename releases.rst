@@ -4,7 +4,48 @@ Releases
 
 .. towncrier release notes start
 
-v7.2.0 (2024-01-30)
+v7.2.0 (2024-02-13)
+-------------------
+
+Features
+~~~~~~~~
+
+- Automatically migrate configuration files if detected as using an older version. (`#3432 <https://github.com/nucypher/nucypher/issues/3432>`__)
+- Add workflow for pushing published releases to pypi (`#3433 <https://github.com/nucypher/nucypher/issues/3433>`__)
+
+
+Bugfixes
+~~~~~~~~
+
+- Incorrect use of ``INTERVAL`` class variable for ``SimpleTask`` - it affected the interval for the ``EventScannerTask``. (`#3435 <https://github.com/nucypher/nucypher/issues/3435>`__)
+- Properly update ssl contexts to use updated CA cert data for a node which has been restarted. (`#3440 <https://github.com/nucypher/nucypher/issues/3440>`__)
+
+
+Deprecations and Removals
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Removes the /node_metadata GET endpoint (`#3410 <https://github.com/nucypher/nucypher/issues/3410>`__)
+
+
+Misc
+~~~~
+
+- Peer TLS certificates are no longer stored on the node's disk. (`#3307 <https://github.com/nucypher/nucypher/issues/3307>`__)
+- Optimizes blockchain reads for dkg coordination and artifacts for call data volume. (`#3419 <https://github.com/nucypher/nucypher/issues/3419>`__)
+- Improve caching of data needed for threshold decryption by the node - reduces RPC calls and decryption time. (`#3428 <https://github.com/nucypher/nucypher/issues/3428>`__)
+- Optimize EventScanner chunking for Polygon given its blocktime. (`#3434 <https://github.com/nucypher/nucypher/issues/3434>`__)
+- Update EventScanner to obtain events of different types as part of the same RPC
+  call to reduce the volume of rpc calls. (`#3444 <https://github.com/nucypher/nucypher/issues/3444>`__)
+
+
+Internal Development Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-  (`#3387 <https://github.com/nucypher/nucypher/issues/3387>`__, `#3414 <https://github.com/nucypher/nucypher/issues/3414>`__, `#3420 <https://github.com/nucypher/nucypher/issues/3420>`__, `#3445 <https://github.com/nucypher/nucypher/issues/3445>`__)
+- Reintroduce ``simple_cache_middleware`` to cache some RPC calls like ``eth_chainId``. (`#3436 <https://github.com/nucypher/nucypher/issues/3436>`__)
+
+
+v7.1.0 (2024-01-30)
 -------------------
 
 Features

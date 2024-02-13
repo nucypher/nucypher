@@ -1,1 +1,0 @@
-Optimizes blockchain reads for dkg coordination and artifacts for call data volume.

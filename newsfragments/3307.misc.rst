@@ -1,1 +1,0 @@
-Peer TLS certificates are no longer stored on the node's disk.

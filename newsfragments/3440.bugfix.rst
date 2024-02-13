@@ -1,1 +1,0 @@
-Properly update ssl contexts to use updated CA cert data for a node which has been restarted.

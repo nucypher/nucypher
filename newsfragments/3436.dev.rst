@@ -1,1 +1,0 @@
-Reintroduce ``simple_cache_middleware`` to cache some RPC calls like ``eth_chainId``.
