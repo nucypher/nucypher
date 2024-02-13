@@ -1,0 +1,2 @@
+Update EventScanner to obtain events of different types as part of the same RPC
+call to reduce the volume of rpc calls.
