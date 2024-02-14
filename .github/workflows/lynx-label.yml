@@ -1,4 +1,4 @@
-name: '🥼🐳 Publish Lynx Experimental'
+name: '🥼 Publish Lynx Experimental'
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ on:
 jobs:
   lynx-docker:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.labels.*.name == 'lynx'
+    if: github.event.pull_request.labels.*.name == 'Lynx 🐳'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
