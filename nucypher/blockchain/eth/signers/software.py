@@ -161,7 +161,12 @@ class KeystoreSigner(Signer):
             raise self.InvalidKeyfile(error)
         else:
             if not is_address(address):
-                raise self.InvalidKeyfile(f"'{path}' does not contain a valid ethereum address")
+                try:
+                    address = to_checksum_address(address)
+                except ValueError:
+                    raise self.InvalidKeyfile(
+                        f"'{path}' does not contain a valid ethereum address"
+                    )
             address = to_checksum_address(address)
         return address, key_metadata
 

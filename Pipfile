@@ -9,19 +9,20 @@ python_version = "3"
 [packages]
 nucypher-core = "==0.13.0"
 # Cryptography
-cryptography = ">=3.2"
+cryptography = "*"
 mnemonic = "*"
 pynacl = ">=1.4.0"
 pyopenssl = "*"
 # Ethereum
-eth-abi = "<5.0.0"  # eth-ape restriction
-eth-tester = "<0.10.0,>0.9.0"  # web3[tester]
-eth-account = "<0.9,>=0.8.0"
+eth-abi = "*"
+eth-tester = "<0.10"
+eth-account = "*"
 eth-utils = "*"
 web3 = ">=6.0.0"
+atxm = ">=0.2.0"
 # Web
 flask = "*"
-hendrix = ">=4.0"
+hendrix = ">=5.0"
 requests = "*"
 mako = "*"
 # CLI
@@ -29,9 +30,7 @@ click = ">=7.0"
 colorama = "*"
 tabulate = "*"
 # Serialization
-bytestring-splitter = ">=2.4.0"
 marshmallow = "*"
-msgpack = "*"
 # Utilities
 aiohttp = "*"
 appdirs = "*"
@@ -39,8 +38,9 @@ constant-sorrow = ">=0.1.0a9"
 maya = "*"
 pendulum = ">=3.0.0b1"
 prometheus-client = "*"
-setuptools = "*"  # for distutils
-urllib3 = "<2,>=1.26.16"  # eth-ape
+setuptools = "*"
+urllib3 = "*"
+watchdog = "<4,>=3"
 
 
 [dev-packages]
