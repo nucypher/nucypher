@@ -10,16 +10,19 @@ on:
 jobs:
   lynx-docker:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.labels.*.name == 'Lynx 🐳'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Print a message if 'lynx' label is present
+        if: github.event.pull_request.labels.*.name == 'Lynx 🐳'
         run: echo "The 'lynx' label is present. Proceeding with Docker build and push operations."
 
+      - name: Print the labels
+        run: echo "The labels are ${{ github.event.pull_request.labels }}"
+
       - name: Call Docker Workflow if Label is Present
-        if: steps.label-check.outputs.has-lynx-label == 'true'
+        if: github.event.pull_request.labels.*.name == 'Lynx 🐳'
         uses: ./.github/workflows/lynx-docker.yml@main
         with:
           docker_username: ${{ secrets.DOCKER_USERNAME }}
