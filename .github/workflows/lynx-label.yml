@@ -8,22 +8,29 @@ on:
       - epic-*
 
 jobs:
-  lynx-docker:
+  check-labels:
     runs-on: ubuntu-latest
+    outputs:
+      has-matching-label: ${{ steps.label-check.outputs.match-found }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - id: label-check
+        name: Check for Specific Label
+        run: |
+          LABEL_MATCH="Lynx" 
+          MATCH_FOUND="false"
+          for label in $(echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | jq -r '.[]'); do
+            echo "label=$label" >> $GITHUB_OUTPUT
+            if [[ "$label" == "$LABEL_MATCH" ]]; then
+              MATCH_FOUND="true"
+              break
+            fi
+          done
+          echo "match-found=$MATCH_FOUND" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_OUTPUT: $GITHUB_ENV
 
-      - name: Print a message if 'lynx' label is present
-        if: github.event.pull_request.labels.*.name == 'Lynx 🐳'
-        run: echo "The 'lynx' label is present. Proceeding with Docker build and push operations."
-
-      - name: Print the labels
-        run: echo "The labels are ${{ github.event.pull_request.labels }}"
-
-      - name: Call Docker Workflow if Label is Present
-        if: github.event.pull_request.labels.*.name == 'Lynx 🐳'
-        uses: ./.github/workflows/lynx-docker.yml@main
-        with:
-          docker_username: ${{ secrets.DOCKER_USERNAME }}
-          docker_password: ${{ secrets.DOCKER_PASSWORD }}
+  dispatch:
+    needs: check-labels
+    if: needs.check-labels.outputs.has-matching-label == 'true'
+    uses: ./.github/workflows/lynx-docker.yml
+    secrets: inherit
