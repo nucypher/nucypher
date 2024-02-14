@@ -1,0 +1,26 @@
+name: '🥼🐳 Publish Lynx Experimental'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - v*.*.*
+      - epic-*
+
+jobs:
+  lynx-docker:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.labels.*.name == 'lynx'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Print a message if 'lynx' label is present
+        run: echo "The 'lynx' label is present. Proceeding with Docker build and push operations."
+
+      - name: Call Docker Workflow if Label is Present
+        if: steps.label-check.outputs.has-lynx-label == 'true'
+        uses: ./.github/workflows/lynx-docker.yml@main
+        with:
+          docker_username: ${{ secrets.DOCKER_USERNAME }}
+          docker_password: ${{ secrets.DOCKER_PASSWORD }}
