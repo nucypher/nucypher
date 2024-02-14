@@ -1,10 +1,13 @@
-name: Build and Push Docker Image (version tags)
+name: Publish Lynx Docker Image
 
 on:
   push:
     tags: [ 'v*.*.*' ]
     branches:
       - 'v*.*.*'
+  pull_request:
+    types:
+      - labeled
 
 jobs:
   docker:

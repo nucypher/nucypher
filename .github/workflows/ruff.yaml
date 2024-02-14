@@ -1,4 +1,4 @@
-name: 🧹 Lint with Ruff
+name: '🧹 Lint with Ruff'
 
 on:
   pull_request:

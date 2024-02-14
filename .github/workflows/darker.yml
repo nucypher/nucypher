@@ -1,4 +1,4 @@
-name: 🧹 Darker
+name: '🧹 Darker'
 
 on:
   pull_request:
