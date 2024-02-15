@@ -133,8 +133,8 @@ class BlockchainInterface:
             else:
                 cost = transaction_fee + self.payload.get("value", 0)
                 message = (
-                    f'{self.name} from {self.payload["from"][:8]} - {self.base_message}.'
-                    f"Calculated cost is {prettify_eth_amount(cost)},"
+                    f'{self.name} from {self.payload["from"][:8]} - {self.base_message}. '
+                    f"Calculated cost is {prettify_eth_amount(cost)}, "
                     f"but sender only has {prettify_eth_amount(self.get_balance())}."
                 )
             return message
@@ -656,7 +656,7 @@ class BlockchainInterface:
             tx = self.client.get_transaction(txhash)
             if tx["gas"] == receipt["gasUsed"]:
                 raise self.InterfaceError(
-                    f"Transaction consumed 100% of transaction gas."
+                    f"Transaction consumed 100% of transaction gas. "
                     f"Full receipt: \n {pprint.pformat(receipt, indent=2)}"
                 )
 

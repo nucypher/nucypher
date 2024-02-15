@@ -1,6 +1,7 @@
 import json
 import random
 import time
+import traceback
 from collections import defaultdict
 from decimal import Decimal
 from typing import DefaultDict, Dict, List, Optional, Set, Union
@@ -25,7 +26,6 @@ from nucypher_core.ferveo import (
     Transcript,
     Validator,
 )
-from twisted.internet import reactor
 from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
@@ -436,23 +436,13 @@ class Operator(BaseActor):
         to be handled by the EventActuator.
         """
         if self.checksum_address not in participants:
-            # ERROR: This is an abnormal state since this method
-            # is designed to be invoked only when this node
-            # is an on-chain participant in the Coordinator.StartRitual event.
-            #
-            # This is a *nearly* a critical error.  It's possible that the
-            # log it as an error and return None to avoid crashing upstack
-            # async tasks and drawing unnecessary amounts of attention to the issue.
             message = (
                 f"{self.checksum_address}|{self.wallet_address} "
                 f"is not a member of ritual {ritual_id}"
             )
-            try:
-                raise RuntimeError(message)
-            finally:
-                # log and stop reactor; this will crash the application.
-                self.log.critical(message)
-                return reactor.stop()
+            stack_trace = traceback.format_stack()
+            self.log.critical(f"{message}\n{stack_trace}")
+            return
 
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):

@@ -55,10 +55,10 @@ class EventScannerTask(SimpleTask):
         self.scanner = scanner
         super().__init__()
 
-    def run(self):
+    def run(self) -> None:
         self.scanner()
 
-    def handle_errors(self, *args, **kwargs):
+    def handle_errors(self, *args, **kwargs) -> None:
         self.log.warn(
             "Error during ritual event scanning: {}".format(args[0].getTraceback())
         )
@@ -209,13 +209,13 @@ class ActiveRitualTracker:
         # if non-zero block found - return the block before
         return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
 
-    def start(self):
+    def start(self) -> None:
         """Start the event scanner task."""
-        return self.task.start()
+        self.task.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the event scanner task."""
-        return self.task.stop()
+        self.task.stop()
 
     def _action_required(self, ritual_event: AttributeDict) -> bool:
         """Check if an action is required for a given ritual event."""
