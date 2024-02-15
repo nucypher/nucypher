@@ -1,16 +1,17 @@
 import datetime
 import os
 import time
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import maya
+from atxm.tx import AsyncTx, FutureTx
 from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
-from nucypher.blockchain.eth import actors
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.policy.conditions.utils import camel_case_to_snake
+from nucypher.types import PhaseId
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
@@ -50,15 +51,17 @@ class EventScannerTask(SimpleTask):
 
     INTERVAL = 120  # seconds
 
-    def __init__(self, scanner: Callable, *args, **kwargs):
+    def __init__(self, scanner: Callable):
         self.scanner = scanner
-        super().__init__(*args, **kwargs)
+        super().__init__()
 
-    def run(self):
+    def run(self) -> None:
         self.scanner()
 
-    def handle_errors(self, *args, **kwargs):
-        self.log.warn("Error during ritual event scanning: {}".format(args[0].getTraceback()))
+    def handle_errors(self, *args, **kwargs) -> None:
+        self.log.warn(
+            "Error during ritual event scanning: {}".format(args[0].getTraceback())
+        )
         if not self._task.running:
             self.log.warn("Restarting event scanner task!")
             self.start(now=False)  # take a breather
@@ -67,9 +70,7 @@ class EventScannerTask(SimpleTask):
 class ActiveRitualTracker:
 
     CHAIN_REORG_SCAN_WINDOW = 20
-
     MAX_CHUNK_SIZE = 10000
-
     MIN_CHUNK_SIZE = 60  # 60 blocks @ 2s per block on Polygon = 120s of blocks (somewhat related to interval)
 
     # how often to check/purge for expired cached values - 8hrs?
@@ -97,7 +98,7 @@ class ActiveRitualTracker:
 
     def __init__(
         self,
-        operator: "actors.Operator",
+        operator,
         persistent: bool = False,  # TODO: use persistent storage?
     ):
         self.log = Logger("RitualTracker")
@@ -121,6 +122,8 @@ class ActiveRitualTracker:
             self.contract.events.StartAggregationRound,
             self.contract.events.EndRitual,
         ]
+
+        self.__phase_txs: Dict[PhaseId, FutureTx] = {}
 
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
@@ -164,6 +167,10 @@ class ActiveRitualTracker:
     def contract(self):
         return self.coordinator_agent.contract
 
+    @property
+    def active_rituals(self) -> Dict[PhaseId, AsyncTx]:
+        return self.__phase_txs
+
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
     def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:
         """
@@ -172,7 +179,7 @@ class ActiveRitualTracker:
         w3 = self.web3
         timeout = self.coordinator_agent.get_timeout()
 
-        latest_block = w3.eth.get_block('latest')
+        latest_block = w3.eth.get_block("latest")
         if latest_block.number == 0:
             return 0
 
@@ -202,13 +209,13 @@ class ActiveRitualTracker:
         # if non-zero block found - return the block before
         return expected_start_block.number - 1 if expected_start_block.number > 0 else 0
 
-    def start(self):
+    def start(self) -> None:
         """Start the event scanner task."""
-        return self.task.start()
+        self.task.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop the event scanner task."""
-        return self.task.stop()
+        self.task.stop()
 
     def _action_required(self, ritual_event: AttributeDict) -> bool:
         """Check if an action is required for a given ritual event."""
@@ -389,8 +396,10 @@ class ActiveRitualTracker:
             camel_case_to_snake(k): v for k, v in ritual_event.args.items()
         }
         event_type = getattr(self.contract.events, ritual_event.event)
+
         def task():
             self.actions[event_type](timestamp=timestamp, **formatted_kwargs)
+
         if defer:
             d = threads.deferToThread(task)
             d.addErrback(self.task.handle_errors)
@@ -416,14 +425,18 @@ class ActiveRitualTracker:
 
     def __scan(self, start_block, end_block, account):
         # Run the scan
-        self.log.debug(f"({account[:8]}) Scanning events in block range {start_block} - {end_block}")
+        self.log.debug(
+            f"({account[:8]}) Scanning events in block range {start_block} - {end_block}"
+        )
         start = time.time()
         result, total_chunks_scanned = self.scanner.scan(start_block, end_block)
         if self.persistent:
             self.state.save()
         duration = time.time() - start
-        self.log.debug(f"Scanned total of {len(result)} events, in {duration} seconds, "
-                       f"total {total_chunks_scanned} chunk scans performed")
+        self.log.debug(
+            f"Scanned total of {len(result)} events, in {duration} seconds, "
+            f"total {total_chunks_scanned} chunk scans performed"
+        )
 
     def scan(self):
         """

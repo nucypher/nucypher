@@ -953,11 +953,10 @@ class Ursula(Teacher, Character, Operator):
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
 
-        # Connect to Provider
-        if not BlockchainInterfaceFactory.is_interface_initialized(
-            endpoint=self.eth_endpoint
-        ):
-            BlockchainInterfaceFactory.initialize_interface(endpoint=self.eth_endpoint)
+        BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.eth_endpoint)
+        BlockchainInterfaceFactory.get_or_create_interface(
+            endpoint=self.polygon_endpoint
+        )
 
         if preflight:
             self.__preflight()
@@ -967,12 +966,12 @@ class Ursula(Teacher, Character, Operator):
         #
 
         if emitter:
-            emitter.message("Starting services", color="yellow")
+            emitter.message("Starting services...", color="yellow")
 
         if discovery and not self.lonely:
             self.start_learning_loop(now=eager)
             if emitter:
-                emitter.message(f"✓ Node Discovery ({self.domain})", color="green")
+                emitter.message(f"✓ P2P Networking ({self.domain})", color="green")
 
         if ritual_tracking:
             self.ritual_tracker.start()
@@ -1146,7 +1145,6 @@ class Ursula(Teacher, Character, Operator):
         """
         seed_uri = f"{seednode_metadata.checksum_address}@{seednode_metadata.rest_host}:{seednode_metadata.rest_port}"
         return cls.from_seed_and_stake_info(seed_uri=seed_uri, *args, **kwargs)
-
 
     @classmethod
     def from_teacher_uri(

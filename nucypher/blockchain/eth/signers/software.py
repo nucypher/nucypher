@@ -1,5 +1,3 @@
-
-
 import json
 from json.decoder import JSONDecodeError
 from pathlib import Path
@@ -8,9 +6,10 @@ from urllib.parse import urlparse
 
 from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
+from eth_account.datastructures import SignedTransaction
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils.address import is_address, to_checksum_address
+from eth_utils.address import is_address, to_canonical_address, to_checksum_address
 from hexbytes.main import BytesLike, HexBytes
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -18,21 +17,28 @@ from nucypher.blockchain.eth.signers.base import Signer
 
 
 class Web3Signer(Signer):
-
     def __init__(self, client):
         super().__init__()
         self.__client = client
+
+    def _get_signer(self, account: str) -> LocalAccount:
+        """Test helper to get a signer from the client's backend"""
+        account = to_canonical_address(account)
+        _eth_tester = self.__client.w3.provider.ethereum_tester
+        signer = Account.from_key(_eth_tester.backend._key_lookup[account]._raw_key)
+        return signer
 
     @classmethod
     def uri_scheme(cls) -> str:
         return NotImplemented  # web3 signer uses a "passthrough" scheme
 
     @classmethod
-    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Web3Signer':
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> "Web3Signer":
         from nucypher.blockchain.eth.interfaces import (
             BlockchainInterface,
             BlockchainInterfaceFactory,
         )
+
         try:
             blockchain = BlockchainInterfaceFactory.get_or_create_interface(
                 endpoint=uri
@@ -57,9 +63,17 @@ class Web3Signer(Signer):
         except AttributeError:
             return False
         else:
-            HW_WALLET_URL_PREFIXES = ('trezor', 'ledger')
-            hw_accounts = [w['accounts'] for w in wallets if w['url'].startswith(HW_WALLET_URL_PREFIXES)]
-            hw_addresses = [to_checksum_address(account['address']) for sublist in hw_accounts for account in sublist]
+            HW_WALLET_URL_PREFIXES = ("trezor", "ledger")
+            hw_accounts = [
+                w["accounts"]
+                for w in wallets
+                if w["url"].startswith(HW_WALLET_URL_PREFIXES)
+            ]
+            hw_addresses = [
+                to_checksum_address(account["address"])
+                for sublist in hw_accounts
+                for account in sublist
+            ]
             return account in hw_addresses
 
     @validate_checksum_address
@@ -67,7 +81,9 @@ class Web3Signer(Signer):
         if self.is_device(account=account):
             unlocked = True
         else:
-            unlocked = self.__client.unlock_account(account=account, password=password, duration=duration)
+            unlocked = self.__client.unlock_account(
+                account=account, password=password, duration=duration
+            )
         return unlocked
 
     @validate_checksum_address
@@ -83,9 +99,11 @@ class Web3Signer(Signer):
         signature = self.__client.sign_message(account=account, message=message)
         return HexBytes(signature)
 
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
-        signed_raw_transaction = self.__client.sign_transaction(transaction_dict=transaction_dict)
-        return signed_raw_transaction
+    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
+        signed_transaction = self.__client.sign_transaction(
+            transaction_dict=transaction_dict
+        )
+        return signed_transaction
 
 
 class KeystoreSigner(Signer):
@@ -116,7 +134,7 @@ class KeystoreSigner(Signer):
 
     @classmethod
     def uri_scheme(cls) -> str:
-        return 'keystore'
+        return "keystore"
 
     def __read_keystore(self, path: Path) -> None:
         """Read the keystore directory from the disk and populate accounts."""
@@ -126,11 +144,15 @@ class KeystoreSigner(Signer):
             elif path.is_file():
                 paths = (path,)
             else:
-                raise self.InvalidSignerURI(f'Invalid keystore file or directory "{path}"')
+                raise self.InvalidSignerURI(
+                    f'Invalid keystore file or directory "{path}"'
+                )
         except FileNotFoundError:
             raise self.InvalidSignerURI(f'No such keystore file or directory "{path}"')
         except OSError as exc:
-            raise self.InvalidSignerURI(f'Error accessing keystore file or directory "{path}": {exc}')
+            raise self.InvalidSignerURI(
+                f'Error accessing keystore file or directory "{path}": {exc}'
+            )
         for path in paths:
             account, key_metadata = self.__handle_keyfile(path=path)
             self.__keys[account] = key_metadata
@@ -138,9 +160,9 @@ class KeystoreSigner(Signer):
     @staticmethod
     def __read_keyfile(path: Path) -> tuple:
         """Read an individual keystore key file from the disk"""
-        with open(path, 'r') as keyfile:
+        with open(path, "r") as keyfile:
             key_metadata = json.load(keyfile)
-        address = key_metadata['address']
+        address = key_metadata["address"]
         return address, key_metadata
 
     def __handle_keyfile(self, path: Path) -> Tuple[str, dict]:
@@ -171,7 +193,7 @@ class KeystoreSigner(Signer):
         return address, key_metadata
 
     @validate_checksum_address
-    def __get_signer(self, account: str) -> LocalAccount:
+    def _get_signer(self, account: str) -> LocalAccount:
         """Lookup a known keystore account by its checksum address or raise an error"""
         try:
             return self.__signers[account]
@@ -191,14 +213,14 @@ class KeystoreSigner(Signer):
         return self.__path
 
     @classmethod
-    def from_signer_uri(cls, uri: str, testnet: bool = False) -> 'Signer':
-        """Return a keystore signer from URI string i.e. keystore:///my/path/keystore """
+    def from_signer_uri(cls, uri: str, testnet: bool = False) -> "Signer":
+        """Return a keystore signer from URI string i.e. keystore:///my/path/keystore"""
         decoded_uri = urlparse(uri)
         if decoded_uri.scheme != cls.uri_scheme() or decoded_uri.netloc:
             raise cls.InvalidSignerURI(uri)
         path = decoded_uri.path
         if not path:
-            raise cls.InvalidSignerURI('Blank signer URI - No keystore path provided')
+            raise cls.InvalidSignerURI("Blank signer URI - No keystore path provided")
         return cls(path=Path(path), testnet=testnet)
 
     @validate_checksum_address
@@ -228,10 +250,14 @@ class KeystoreSigner(Signer):
                 if not password:
                     # It is possible that password is None here passed from the above layer
                     # causing Account.decrypt to crash, expecting a value for password.
-                    raise self.AuthenticationFailed('No password supplied to unlock account.')
+                    raise self.AuthenticationFailed(
+                        "No password supplied to unlock account."
+                    )
                 raise
             except ValueError as e:
-                raise self.AuthenticationFailed("Invalid or incorrect ethereum account password.") from e
+                raise self.AuthenticationFailed(
+                    "Invalid or incorrect ethereum account password."
+                ) from e
         return True
 
     @validate_checksum_address
@@ -249,27 +275,31 @@ class KeystoreSigner(Signer):
         return account not in self.__signers
 
     @validate_checksum_address
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
         """
         Produce a raw signed ethereum transaction signed by the account specified
         in the 'from' field of the transaction dictionary.
         """
 
-        sender = transaction_dict['from']
-        signer = self.__get_signer(account=sender)
+        sender = transaction_dict["from"]
+        signer = self._get_signer(account=sender)
 
         # TODO: Handle this at a higher level?
         # Do not include a 'to' field for contract creation.
-        if not transaction_dict['to']:
-            transaction_dict = dissoc(transaction_dict, 'to')
+        if not transaction_dict["to"]:
+            transaction_dict = dissoc(transaction_dict, "to")
 
-        raw_transaction = signer.sign_transaction(transaction_dict=transaction_dict).rawTransaction
+        raw_transaction = signer.sign_transaction(
+            transaction_dict=transaction_dict
+        ).rawTransaction
         return raw_transaction
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        signer = self.__get_signer(account=account)
-        signature = signer.sign_message(signable_message=encode_defunct(primitive=message)).signature
+        signer = self._get_signer(account=account)
+        signature = signer.sign_message(
+            signable_message=encode_defunct(primitive=message)
+        ).signature
         return HexBytes(signature)
 
 
@@ -325,15 +355,15 @@ class InMemorySigner(Signer):
                 raise self.AccountLocked(account=account)
 
     @validate_checksum_address
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
         sender = transaction_dict["from"]
         signer = self.__get_signer(account=sender)
         if not transaction_dict["to"]:
             transaction_dict = dissoc(transaction_dict, "to")
-        raw_transaction = signer.sign_transaction(
+        signed_transaction = signer.sign_transaction(
             transaction_dict=transaction_dict
         ).rawTransaction
-        return raw_transaction
+        return signed_transaction
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
