@@ -4,6 +4,7 @@ from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
+from nucypher.types import PhaseId
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
 from tests.mock.interfaces import MockBlockchain
@@ -148,7 +149,7 @@ def test_perform_round_1(
     assert async_tx
     assert len(ursula.ritual_tracker.active_rituals) == 1
 
-    pid01 = ursula._phase_id(0, 1)
+    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
     assert ursula.ritual_tracker.active_rituals[pid01]
 
     # try again
@@ -241,7 +242,7 @@ def test_perform_round_2(
         ursula.perform_round_2(ritual_id=0, timestamp=0)
 
     assert len(ursula.ritual_tracker.active_rituals) == 1
-    pid01 = ursula._phase_id(ritual_id=0, phase=PHASE1)
+    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
     assert ursula.ritual_tracker.active_rituals[pid01]
 
     # set correct state
@@ -254,7 +255,7 @@ def test_perform_round_2(
 
     # check async tx tracking
     assert len(ursula.ritual_tracker.active_rituals) == 2
-    pid02 = ursula._phase_id(ritual_id=0, phase=PHASE2)
+    pid02 = PhaseId(ritual_id=0, phase=PHASE2)
     assert ursula.ritual_tracker.active_rituals[pid02]
 
     # trying again yields same tx
