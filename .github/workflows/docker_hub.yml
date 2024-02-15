@@ -1,0 +1,56 @@
+name: Docker Hub 🐳 push latest tag
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+  
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # Install GitHub CLI
+    - name: Install GitHub CLI
+      run: |
+        sudo apt update
+        sudo apt install -y gh
+
+    # Determine if this is the latest release
+    - name: Check latest release
+      id: check_latest
+      run: |
+        LATEST_TAG=$(gh release list --limit 100 | sort -V | tail -1 | awk '{print $1}')
+        CURRENT_TAG=${GITHUB_REF#refs/tags/}
+        echo "Current Tag: $CURRENT_TAG"
+        echo "Latest Tag: $LATEST_TAG"
+        if [[ "$CURRENT_TAG" = "$LATEST_TAG" ]]; then
+          echo "This is the latest release."
+          echo "::set-output name=is_latest::true"
+        else
+          echo "This is not the latest release."
+          echo "::set-output name=is_latest::false"
+        fi
+
+    - name: Docker Meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: nucypher/nucypher
+        tags: |
+          type=semver,pattern={{version}}
+          latest=${{ steps.check_latest.outputs.is_latest }}
+
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}  

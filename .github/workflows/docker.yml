@@ -23,28 +23,6 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # Install GitHub CLI
-    - name: Install GitHub CLI
-      run: |
-        sudo apt update
-        sudo apt install -y gh
-
-    # Determine if this is the latest release
-    - name: Check latest release
-      id: check_latest
-      run: |
-        LATEST_TAG=$(gh release list --limit 100 | sort -V | tail -1 | awk '{print $1}')
-        CURRENT_TAG=${GITHUB_REF#refs/tags/}
-        echo "Current Tag: $CURRENT_TAG"
-        echo "Latest Tag: $LATEST_TAG"
-        if [[ "$CURRENT_TAG" = "$LATEST_TAG" ]]; then
-          echo "This is the latest release."
-          echo "::set-output name=is_latest::true"
-        else
-          echo "This is not the latest release."
-          echo "::set-output name=is_latest::false"
-        fi
-
     - name: Update Development Package Metadata
       if: ${{ github.ref_type == 'branch' }}
       run: |
@@ -62,19 +40,6 @@ jobs:
         push: true
         tags: nucypher/nucypher:lynx
 
-    - name: Determine Docker Tags
-      id: docker_tags
-      run: |
-        # Base tags
-        TAGS="nucypher/nucypher:${{ github.ref_name }},nucypher/nucypher:lynx"
-        
-        # Conditionally append 'latest' tag
-        if [[ "${{ steps.check_latest.outputs.is_latest }}" == 'true' ]]; then
-          TAGS="${TAGS},nucypher/nucypher:latest"
-        fi
-        
-        echo "DOCKER_TAGS=${TAGS}" >> $GITHUB_ENV
-
     - name: Build and push Docker image (tag)
       if: ${{ github.ref_type == 'tag' }}
       uses: docker/build-push-action@v5
@@ -82,4 +47,6 @@ jobs:
         context: ${{ github.workspace }}
         file: ./deploy/docker/Dockerfile
         push: true
-        tags: ${{ env.DOCKER_TAGS }}
+        tags: |
+          nucypher/nucypher:${{github.ref_name}}
+          nucypher/nucypher:lynx
