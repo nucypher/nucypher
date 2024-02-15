@@ -3,7 +3,7 @@ import random
 import time
 from collections import defaultdict
 from decimal import Decimal
-from typing import DefaultDict, Dict, List, Optional, Set, Tuple, Union
+from typing import DefaultDict, Dict, List, Optional, Set, Union
 
 import maya
 from atxm.tx import AsyncTx
@@ -56,7 +56,7 @@ from nucypher.datastore.dkg import DKGStorage
 from nucypher.policy.conditions.evm import _CONDITION_CHAINS
 from nucypher.policy.conditions.utils import evaluate_condition_lingo
 from nucypher.policy.payment import ContractPayment
-from nucypher.types import PhaseId, RitualId
+from nucypher.types import PhaseId
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import Logger
 
@@ -352,7 +352,7 @@ class Operator(BaseActor):
             transcript=transcript,
             transacting_power=self.transacting_power,
         )
-        identifier = self._phase_id(ritual_id, PHASE1)
+        identifier = PhaseId(ritual_id, PHASE1)
         self.ritual_tracker.active_rituals[identifier] = async_tx
         return async_tx
 
@@ -374,7 +374,7 @@ class Operator(BaseActor):
             participant_public_key=participant_public_key,
             transacting_power=self.transacting_power,
         )
-        identifier = self._phase_id(ritual_id=ritual_id, phase=PHASE2)
+        identifier = PhaseId(ritual_id=ritual_id, phase=PHASE2)
         self.ritual_tracker.active_rituals[identifier] = async_tx
         return async_tx
 
@@ -406,10 +406,6 @@ class Operator(BaseActor):
             return False
 
         return True
-
-    @staticmethod
-    def _phase_id(ritual_id: int, phase: int) -> Tuple[RitualId, PhaseId]:
-        return RitualId(ritual_id), PhaseId(phase)
 
     def perform_round_1(
         self,
@@ -461,9 +457,7 @@ class Operator(BaseActor):
             return
 
         # check if there is  already pending tx for this ritual + round combination
-        async_tx = self.ritual_tracker.active_rituals.get(
-            self._phase_id(ritual_id, PHASE1)
-        )
+        async_tx = self.ritual_tracker.active_rituals.get(PhaseId(ritual_id, PHASE1))
         if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
@@ -553,7 +547,7 @@ class Operator(BaseActor):
 
         # check if there is a pending tx for this ritual + round combination
         async_tx = self.ritual_tracker.active_rituals.get(
-            self._phase_id(ritual_id=ritual_id, phase=PHASE2)
+            PhaseId(ritual_id=ritual_id, phase=PHASE2)
         )
         if async_tx:
             self.log.info(

@@ -11,7 +11,7 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.policy.conditions.utils import camel_case_to_snake
-from nucypher.types import PhaseId, RitualId
+from nucypher.types import PhaseId
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
@@ -123,7 +123,7 @@ class ActiveRitualTracker:
             self.contract.events.EndRitual,
         ]
 
-        self.__phase_txs: Dict[Tuple[RitualId, PhaseId], FutureTx] = {}
+        self.__phase_txs: Dict[PhaseId, FutureTx] = {}
 
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
@@ -168,7 +168,7 @@ class ActiveRitualTracker:
         return self.coordinator_agent.contract
 
     @property
-    def active_rituals(self) -> Dict[Tuple[RitualId, PhaseId], AsyncTx]:
+    def active_rituals(self) -> Dict[PhaseId, AsyncTx]:
         return self.__phase_txs
 
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
