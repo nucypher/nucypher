@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from twisted.internet import reactor
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
@@ -24,7 +25,7 @@ class SimpleTask(ABC):
         """Determine whether the task is already running."""
         return self._task.running
 
-    def start(self, now: bool = False):
+    def start(self, now: bool = False) -> Deferred:
         """Start task."""
         if not self.running:
             d = self._task.start(interval=self.interval, now=now)

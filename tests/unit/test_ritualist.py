@@ -20,8 +20,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
-    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.FAKE_ASYNX_TX
-    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.FAKE_ASYNX_TX
+    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
+    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
@@ -152,13 +152,13 @@ def test_perform_round_1(
     assert ursula.ritual_tracker.active_rituals[pid01]
 
     # try again
-    asynx_tx2 = ursula.perform_round_1(
+    async_tx2 = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
-    assert asynx_tx2 is async_tx
+    assert async_tx2 is async_tx
     assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01] is asynx_tx2
+    assert ursula.ritual_tracker.active_rituals[pid01] is async_tx2
 
     # participant already posted transcript
     participant = agent.get_participant(

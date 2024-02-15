@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import requests
 from atxm import AutomaticTxMachine
+from atxm.tx import AsyncTx
 from constant_sorrow.constants import (
     INSUFFICIENT_FUNDS,
     NO_BLOCKCHAIN_CONNECTION,
@@ -669,7 +670,7 @@ class BlockchainInterface:
         gas_estimation_multiplier: float = 1.15,
         info: Optional[Dict] = None,
         payload: dict = None,
-    ) -> TxReceipt:
+    ) -> AsyncTx:
         transaction = self.build_contract_transaction(
             contract_function=contract_function,
             sender_address=transacting_power.account,
