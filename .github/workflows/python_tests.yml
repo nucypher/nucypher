@@ -75,6 +75,9 @@ jobs:
         run: python -m pytest tests/integration
 
       # Acceptance tests
+      - name: Install old version of ape-solidity (temporary workaround for ape issue for acceptance test)
+        run: pip install ape-solidity==0.6.11
+
       - name: Agents Tests (Coverage)
         if: matrix.python-version == '3.12'
         working-directory: tests/acceptance
