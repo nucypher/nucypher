@@ -25,6 +25,7 @@ from nucypher_core.ferveo import (
     Transcript,
     Validator,
 )
+from twisted.internet import reactor
 from web3 import HTTPProvider, Web3
 from web3.types import TxReceipt
 
@@ -446,8 +447,12 @@ class Operator(BaseActor):
                 f"{self.checksum_address}|{self.wallet_address} "
                 f"is not a member of ritual {ritual_id}"
             )
-            self.log.error(message)
-            return
+            try:
+                raise RuntimeError(message)
+            finally:
+                # log and stop reactor; this will crash the application.
+                self.log.critical(message)
+                return reactor.stop()
 
         # check phase 1 contract state
         if not self._is_phase_1_action_required(ritual_id=ritual_id):
