@@ -428,7 +428,7 @@ class Operator(BaseActor):
         multiple times for the same ritual.  This method will check the state of
         the ritual and participant on the blockchain before submitting a transcript.
 
-        If a there is a tracked AsyncTx for the given ritual and round
+        If there is a tracked AsyncTx for the given ritual and round
         combination, this method will return the tracked transaction.  If there is
         no tracked transaction, this method will submit a transcript and return the
         resulting FutureTx.
@@ -466,7 +466,7 @@ class Operator(BaseActor):
         )
         if async_tx:
             self.log.info(
-                f"Active ritual in progress: {self.transacting_power.account} has submitted tx"
+                f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
                 f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})"
             )
             return async_tx
@@ -558,7 +558,7 @@ class Operator(BaseActor):
         if async_tx:
             self.log.info(
                 f"Active ritual in progress Node {self.transacting_power.account} has submitted tx"
-                f"for ritual #{ritual_id}, phase #{PHASE1} (final: {async_tx.final})."
+                f"for ritual #{ritual_id}, phase #{PHASE2} (final: {async_tx.final})."
             )
             return async_tx
 

@@ -14,7 +14,7 @@ class MockBlockchain(TesterBlockchain):
 
     FAKE_TX_HASH = HexBytes(b"FAKE29890FAKE8349804")
 
-    FAKE_ASYNX_TX = FutureTx(
+    FAKE_ASYNC_TX = FutureTx(
         id=1,
         params={
             "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),

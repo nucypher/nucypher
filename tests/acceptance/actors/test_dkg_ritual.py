@@ -194,8 +194,6 @@ def test_dkg_finality(
 
     status = coordinator_agent.get_ritual_status(ritual_id)
     assert status == Coordinator.RitualStatus.ACTIVE
-    status = coordinator_agent.get_ritual_status(ritual_id)
-    assert status == Coordinator.RitualStatus.ACTIVE
     last_scanned_block = REGISTRY.get_sample_value(
         "ritual_events_last_scanned_block_number"
     )
