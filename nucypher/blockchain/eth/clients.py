@@ -6,6 +6,7 @@ from typing import Union
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
 from cytoolz.dicttoolz import dissoc
 from eth_account import Account
+from eth_account.datastructures import SignedTransaction
 from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber, ChecksumAddress
 from eth_utils import to_canonical_address, to_checksum_address
@@ -555,13 +556,12 @@ class EthereumTesterClient(EthereumClient):
             raise self.UnknownAccount(account)
         return signing_key
 
-    def sign_transaction(self, transaction_dict: dict) -> bytes:
+    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
         # Sign using a local private key
         address = to_canonical_address(transaction_dict['from'])
         signing_key = self.__get_signing_key(account=address)
         signed_transaction = self.w3.eth.account.sign_transaction(transaction_dict, private_key=signing_key)
-        rlp_transaction = signed_transaction.rawTransaction
-        return rlp_transaction
+        return signed_transaction
 
     def sign_message(self, account: str, message: bytes) -> str:
         """Sign, EIP-191 (Geth) Style"""

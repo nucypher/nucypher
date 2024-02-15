@@ -141,7 +141,7 @@ class MockCoordinatorAgent(MockContractAgent):
                     p.provider for p in ritual.participants
                 ],  # TODO This should not be
             )
-        return self.blockchain.FAKE_TX_HASH
+        return self.blockchain.FAKE_ASYNC_TX
 
     def post_aggregation(
         self,
@@ -172,10 +172,10 @@ class MockCoordinatorAgent(MockContractAgent):
             ritual.aggregation_mismatch = True
             # don't increment aggregations
             # TODO Emit EndRitual here?
-            return self.blockchain.FAKE_TX_HASH
+            return self.blockchain.FAKE_ASYNC_TX
 
         ritual.total_aggregations += 1
-        return self.blockchain.FAKE_TX_HASH
+        return self.blockchain.FAKE_ASYNC_TX
 
     def set_provider_public_key(
         self, public_key: FerveoPublicKey, transacting_power: TransactingPower

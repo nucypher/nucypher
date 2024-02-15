@@ -90,6 +90,7 @@ class TesterBlockchain(BlockchainInterface):
             *args,
             **kwargs,
         )
+
         self.log = Logger("test-blockchain")
         self.connect()
 
