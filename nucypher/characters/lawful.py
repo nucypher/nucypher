@@ -950,12 +950,11 @@ class Ursula(Teacher, Character, Operator):
         preflight: bool = True,
         block_until_ready: bool = True,
         eager: bool = False,
-        transaction_tracking: bool = True,
     ) -> None:
         """Schedule and start select ursula services, then optionally start the reactor."""
 
         BlockchainInterfaceFactory.get_or_create_interface(endpoint=self.eth_endpoint)
-        polygon = BlockchainInterfaceFactory.get_or_create_interface(
+        BlockchainInterfaceFactory.get_or_create_interface(
             endpoint=self.polygon_endpoint
         )
 
@@ -973,13 +972,6 @@ class Ursula(Teacher, Character, Operator):
             self.start_learning_loop(now=eager)
             if emitter:
                 emitter.message(f"✓ P2P Networking ({self.domain})", color="green")
-
-        if transaction_tracking:
-            # Uncomment to enable tracking for both chains.
-            # mainnet.tracker.start(now=False)
-            polygon.tx_machine.start(now=False)
-            if emitter:
-                emitter.message("✓ Transaction Autopilot", color="green")
 
         if ritual_tracking:
             self.ritual_tracker.start()

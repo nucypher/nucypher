@@ -129,9 +129,9 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cl
         yield clock.advance(testerchain.tx_machine._task.interval)
     testerchain.tx_machine.stop()
 
-    for i, atx in enumerate(txs):
+    for i, async_tx in enumerate(txs):
         post_transcript_events = (
-            agent.contract.events.TranscriptPosted().process_receipt(atx.receipt)
+            agent.contract.events.TranscriptPosted().process_receipt(async_tx.receipt)
         )
         # assert len(post_transcript_events) == 1
         event = post_transcript_events[0]
@@ -181,10 +181,10 @@ def test_post_aggregation(
         yield clock.advance(testerchain.tx_machine._task.interval)
     testerchain.tx_machine.stop()
 
-    for i, atx in enumerate(txs):
+    for i, async_tx in enumerate(txs):
         participant_public_keys[cohort[i]] = participant_public_key
         post_aggregation_events = (
-            agent.contract.events.AggregationPosted().process_receipt(atx.receipt)
+            agent.contract.events.AggregationPosted().process_receipt(async_tx.receipt)
         )
         assert len(post_aggregation_events) == 1
         event = post_aggregation_events[0]

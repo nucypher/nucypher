@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
@@ -25,25 +24,24 @@ class SimpleTask(ABC):
         """Determine whether the task is already running."""
         return self._task.running
 
-    def start(self, now: bool = False) -> Deferred:
+    def start(self, now: bool = False) -> None:
         """Start task."""
         if not self.running:
             d = self._task.start(interval=self.interval, now=now)
             d.addErrback(self.handle_errors)
-            return d
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop task."""
         if self.running:
             self._task.stop()
 
     @abstractmethod
-    def run(self):
+    def run(self) -> None:
         """Task method that should be periodically run."""
         raise NotImplementedError
 
     @abstractmethod
-    def handle_errors(self, *args, **kwargs):
+    def handle_errors(self, *args, **kwargs) -> None:
         """Error callback for error handling during execution."""
         raise NotImplementedError
 

@@ -141,69 +141,6 @@ class NucypherTokenAgent(EthereumContractAgent):
         balance: int = self.contract.functions.balanceOf(address).call()
         return types.NuNits(balance)
 
-    @contract_api(CONTRACT_CALL)
-    def get_allowance(
-        self, owner: ChecksumAddress, spender: ChecksumAddress
-    ) -> types.NuNits:
-        """Check the amount of tokens that an owner allowed to a spender"""
-        allowance: int = self.contract.functions.allowance(owner, spender).call()
-        return types.NuNits(allowance)
-
-    @contract_api(TRANSACTION)
-    def increase_allowance(
-        self,
-        transacting_power: TransactingPower,
-        spender_address: ChecksumAddress,
-        increase: types.NuNits,
-    ) -> TxReceipt:
-        """Increase the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.increaseAllowance(
-            spender_address, increase
-        )
-        receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
-        )
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def decrease_allowance(
-        self,
-        transacting_power: TransactingPower,
-        spender_address: ChecksumAddress,
-        decrease: types.NuNits,
-    ) -> TxReceipt:
-        """Decrease the allowance of a spender address funded by a sender address"""
-        contract_function: ContractFunction = self.contract.functions.decreaseAllowance(
-            spender_address, decrease
-        )
-        receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=contract_function, transacting_power=transacting_power
-        )
-        return receipt
-
-    @contract_api(TRANSACTION)
-    def approve_transfer(
-        self,
-        amount: types.NuNits,
-        spender_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-    ) -> TxReceipt:
-        """Approve the spender address to transfer an amount of tokens on behalf of the sender address"""
-        self._validate_zero_allowance(amount, spender_address, transacting_power)
-
-        payload: TxParams = {
-            "gas": Wei(500_000)
-        }  # TODO #842: gas needed for use with geth! <<<< Is this still open?
-        contract_function: ContractFunction = self.contract.functions.approve(
-            spender_address, amount
-        )
-        receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=contract_function,
-            payload=payload,
-            transacting_power=transacting_power,
-        )
-        return receipt
-
     @contract_api(TRANSACTION)
     def transfer(
         self,
@@ -219,41 +156,6 @@ class NucypherTokenAgent(EthereumContractAgent):
             contract_function=contract_function, transacting_power=transacting_power
         )
         return receipt
-
-    @contract_api(TRANSACTION)
-    def approve_and_call(
-        self,
-        amount: types.NuNits,
-        target_address: ChecksumAddress,
-        transacting_power: TransactingPower,
-        call_data: bytes = b"",
-        gas_limit: Optional[Wei] = None,
-    ) -> TxReceipt:
-        self._validate_zero_allowance(amount, target_address, transacting_power)
-
-        payload = None
-        if gas_limit:  # TODO: Gas management - #842
-            payload = {"gas": gas_limit}
-        approve_and_call: ContractFunction = self.contract.functions.approveAndCall(
-            target_address, amount, call_data
-        )
-        approve_and_call_receipt: TxReceipt = self.blockchain.send_transaction(
-            contract_function=approve_and_call,
-            transacting_power=transacting_power,
-            payload=payload,
-        )
-        return approve_and_call_receipt
-
-    def _validate_zero_allowance(self, amount, target_address, transacting_power):
-        if amount == 0:
-            return
-        current_allowance = self.get_allowance(
-            owner=transacting_power.account, spender=target_address
-        )
-        if current_allowance != 0:
-            raise self.RequirementError(
-                f"Token allowance for spender {target_address} must be 0"
-            )
 
 
 class SubscriptionManagerAgent(EthereumContractAgent):
@@ -829,12 +731,12 @@ class CoordinatorAgent(EthereumContractAgent):
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
         )
-        atx = self.blockchain.send_async_transaction(
+        async_tx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power,
             info={"ritual_id": ritual_id, "phase": PHASE1},
         )
-        return atx
+        return async_tx
 
     @contract_api(TRANSACTION)
     def post_aggregation(
@@ -851,13 +753,13 @@ class CoordinatorAgent(EthereumContractAgent):
             dkgPublicKey=Ferveo.G1Point.from_dkg_public_key(public_key),
             decryptionRequestStaticKey=bytes(participant_public_key),
         )
-        atx = self.blockchain.send_async_transaction(
+        async_tx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
             info={"ritual_id": ritual_id, "phase": PHASE2},
         )
-        return atx
+        return async_tx
 
     @contract_api(CONTRACT_CALL)
     def get_ritual_initiation_cost(
