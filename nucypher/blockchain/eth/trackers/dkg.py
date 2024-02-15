@@ -53,7 +53,7 @@ class EventScannerTask(SimpleTask):
 
     def __init__(self, scanner: Callable):
         self.scanner = scanner
-        super().__init__(interval=self.INTERVAL)
+        super().__init__()
 
     def run(self):
         self.scanner()
