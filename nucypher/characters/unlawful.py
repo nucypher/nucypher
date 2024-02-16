@@ -2,7 +2,6 @@ from copy import copy
 from unittest import mock
 from unittest.mock import Mock, patch
 
-from eth_tester.exceptions import ValidationError
 from nucypher_core import NodeMetadata
 
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -120,6 +119,12 @@ class Vladimir(Ursula):
         """
         Upload Vladimir's ETH keys to the keychain via web3.
         """
+        try:
+            from eth_tester.exceptions import ValidationError
+        except ImportError:
+            raise DevelopmentInstallationRequired(
+                importable_name="eth_tester.exceptions.ValidationError"
+            )
         try:
             password = 'iamverybadass'
             blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)

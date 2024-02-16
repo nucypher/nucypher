@@ -8,16 +8,9 @@ import requests
 from atxm import AutomaticTxMachine
 from atxm.tx import AsyncTx
 from constant_sorrow.constants import (
-    INSUFFICIENT_FUNDS,
-    NO_BLOCKCHAIN_CONNECTION,
-    UNKNOWN_TX_STATUS,
-)
-from eth_tester import EthereumTester
-from eth_tester.exceptions import (
-    TransactionFailed as TestTransactionFailed,
-)
-from eth_tester.exceptions import (
-    ValidationError,
+    INSUFFICIENT_FUNDS,  # noqa
+    NO_BLOCKCHAIN_CONNECTION,  # noqa
+    UNKNOWN_TX_STATUS,  # noqa
 )
 from eth_utils import to_checksum_address
 from hexbytes.main import HexBytes
@@ -50,7 +43,7 @@ from nucypher.utilities.gas_strategies import (
 from nucypher.utilities.logging import Logger
 
 Web3Providers = Union[
-    IPCProvider, WebsocketProvider, HTTPProvider, EthereumTester
+    IPCProvider, WebsocketProvider, HTTPProvider
 ]  # TODO: Move to types.py
 
 
@@ -540,7 +533,7 @@ class BlockchainInterface:
                     payload, block_identifier="latest"
                 )
             transaction_dict = contract_function.build_transaction(payload)
-        except (TestTransactionFailed, ValidationError, ValueError) as error:
+        except ValueError as error:
             # Note: Geth (1.9.15) raises ValueError in the same condition that pyevm raises ValidationError here.
             # Treat this condition as "Transaction Failed" during gas estimation.
             raise self._handle_failed_transaction(
@@ -610,7 +603,7 @@ class BlockchainInterface:
                 signed_transaction.rawTransaction
             )  # <--- BROADCAST
             emitter.message(f"TXHASH {txhash.hex()}", color="yellow")
-        except (TestTransactionFailed, ValueError):
+        except ValueError:
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
 
         #
