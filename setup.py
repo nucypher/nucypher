@@ -99,7 +99,7 @@ class PostDevelopCommand(develop):
 
 def read_requirements(path):
     with open(BASE_DIR / path) as f:
-        _pipenv_flags, *lines = f.read().split('\n')
+        lines = f.read().split('\n')
 
     # TODO remove when will be no more git dependencies in requirements.txt
     # Transforms VCS requirements to PEP 508

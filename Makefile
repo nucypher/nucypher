@@ -7,8 +7,6 @@ help:
 	@echo "dist - build wheels and source distribution"
 	@echo "smoke-test - build a source distribution and spawn an active virtual environment"
 	@echo "lock - Regenerate dependency locks"
-	@echo "env - Regenerate locks and create a new development pipenv"
-	@echo "install - Development installation via pipenv"
 
 clean: clean-build clean-pyc
 
@@ -51,17 +49,3 @@ smoke-test: clean
 lock: clean
     # Relock dependencies
 	scripts/dependencies/relock_dependencies.sh
-
-env: lock
-    # Relock dependencies and generate a pipenv virtualenv from the result
-	pipenv run pip install -e .[dev]
-	pipenv shell
-	nucypher --version
-
-install: clean
-	pipenv --rm
-    # Development installation
-	pipenv run pip install -e .[dev]
-	# Show installed version and verify entry point
-	pipenv shell
-	nucypher --version
