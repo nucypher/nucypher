@@ -1,6 +1,42 @@
-[build-system]
-requires = ["setuptools", "setuptools-rust", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.poetry]
+name = "nucypher"
+version = "7.3.0"
+authors = ["NuCypher"]
+description = "A threshold access control application to empower privacy in decentralized systems."
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4"
+nucypher-core = "==0.13.0"
+cryptography = "*"
+mnemonic = "*"
+pyopenssl = "*"
+web3 = '^6.0.0'
+atxm = "*"
+flask = "*"
+hendrix = "*"
+requests = "*"
+maya = '*'
+mako = "*"
+click = '*'
+colorama = '*'
+tabulate = '*'
+marshmallow = '*'
+appdirs = '*'
+constant-sorrow = '^0.1.0a9'
+prometheus-client = '*'
+time-machine = "^2.13.0"
+
+[tool.poetry.dev-dependencies]
+pytest = '<7'
+pytest-cov = '*'
+pytest-mock = '*'
+pytest-timeout = '*'
+pytest-twisted = '*'
+eth-ape = "^0.6.27"
+ape-solidity = '*'
+coverage = '^7.3.2'
+pre-commit = '^2.12.1'
+
 
 [tool.towncrier]
     package = "nucypher"
