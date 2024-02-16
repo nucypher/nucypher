@@ -5,8 +5,7 @@ Demos:
   - examples/**/*
 
 Dependencies:
-  - Pipfile
-  - Pipfile.lock
+  - poetry.lock
   - setup.py
   - dev-requirements.txt
   - requirements.txt
