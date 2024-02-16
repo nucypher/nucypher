@@ -75,9 +75,6 @@ setup(
     author_email=ABOUT['__email__'],
     description=ABOUT['__summary__'],
     license=ABOUT['__license__'],
-    keywords="nucypher, threshold, taco, "
-    "threshold cryptography, "
-    "distributed key generation, "
-    "proxy re-encryption",
+    keywords="threshold access control, distributed key generation",
     classifiers=PYPI_CLASSIFIERS,
 )
