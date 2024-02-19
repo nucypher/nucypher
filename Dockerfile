@@ -2,13 +2,7 @@
 FROM rust:alpine as builder
 
 # Install dependencies
-RUN apk update && apk add --no-cache \
-    expat      \
-    libffi     \
-    musl-dev   \
-    libgcc     \
-    libstdc++  \
-    openssl
+RUN apk update && apk add --no-cache expat libffi musl-dev libgcc libstdc++ openssl
 
 WORKDIR /nucypher
 
@@ -30,11 +24,7 @@ COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /usr/bin /usr/bin
 
 # Install dependencies
-RUN apk update && apk add --no-cache \
-    bash       \
-    expat      \
-    libffi     \
-    openssl
+RUN apk update && apk add --no-cache bash expat libffi openssl
 
 # Dedicate a user to run the service
 ARG USER=ursula
@@ -46,4 +36,5 @@ ENV HOME="/home/$USER"
 # ship it
 WORKDIR $HOME
 USER $USER
-CMD ["/bin/bash"]
+ENTRYPOINT ["nucypher"]
+CMD ["--version"]
