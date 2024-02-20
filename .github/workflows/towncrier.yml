@@ -1,0 +1,33 @@
+name: Run Towncrier and Commit
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  towncrier:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Towncrier
+      run: |
+        pip install towncrier
+
+    - name: Run Towncrier
+      run: |
+        towncrier build --yes
+
+    - name: Get Version
+      id: get_version
+      run: |
+        VERSION=$(python setup.py --version)
+        echo "::set-output name=version::$VERSION"
+
+    - name: Commit
+      run: |
+        git add .
+        git commit -m "Publish v${{ steps.get_version.outputs.version }} release notes."
