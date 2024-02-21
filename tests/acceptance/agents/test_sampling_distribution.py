@@ -16,6 +16,7 @@ from nucypher.crypto.powers import TransactingPower
 def test_sampling_distribution(
     testerchain,
     taco_application_agent,
+    taco_child_application_agent,  # TODO undo and fix as part of #3458
     threshold_staking,
     coordinator_agent,
     deployer_account,
@@ -61,7 +62,7 @@ def test_sampling_distribution(
     sampled, failed = 0, 0
     while sampled < SAMPLES:
         try:
-            reservoir = taco_application_agent.get_staking_provider_reservoir()
+            reservoir = taco_child_application_agent.get_staking_provider_reservoir()
             addresses = set(reservoir.draw(quantity))
             addresses.discard(NULL_ADDRESS)
         except taco_application_agent.NotEnoughStakingProviders:
