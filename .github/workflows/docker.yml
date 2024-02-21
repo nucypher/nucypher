@@ -2,9 +2,7 @@ name: Build and Push Docker Image (version tags)
 
 on:
   push:
-    tags: [ 'v*.*.*' ]
-    branches:
-      - 'v*.*.*'
+    tags: [ 'v*.*.*', 'lynx-*']
 
 jobs:
   docker:

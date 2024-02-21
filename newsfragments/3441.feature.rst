@@ -1,0 +1,1 @@
+Ensure github latest release tag is synced with Docker hub
