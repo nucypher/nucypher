@@ -368,6 +368,8 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         authorized: int
         operator_confirmed: bool
         index: int
+        deauthorizing: int
+        end_deauthorization: int
 
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
