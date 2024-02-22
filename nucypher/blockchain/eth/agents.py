@@ -525,7 +525,7 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results
+                start_index, max_results, 0  # TODO address via #3458
             ).call()
         )
         return active_staking_providers_info
