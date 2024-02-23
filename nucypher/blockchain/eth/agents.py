@@ -368,6 +368,8 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         authorized: int
         operator_confirmed: bool
         index: int
+        deauthorizing: int
+        end_deauthorization: int
 
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
@@ -523,7 +525,7 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results
+                start_index, max_results, 0  # TODO address via #3458
             ).call()
         )
         return active_staking_providers_info
