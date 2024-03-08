@@ -126,6 +126,10 @@ class UrsulaConfigOptions:
                     config_class=UrsulaConfiguration,
                     do_auto_migrate=True,
                 )
+            else:
+                # config file specified
+                migrate(emitter=emitter, config_file=config_file)
+
             try:
                 return UrsulaConfiguration.from_configuration_file(
                     emitter=emitter,
