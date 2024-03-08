@@ -118,6 +118,8 @@ def test_ursula_run_ip_checkup(
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
 
+    mocker.patch("nucypher.cli.commands.ursula.migrate", return_value=None)
+
     ursula_test_config.rest_host = MOCK_IP_ADDRESS
     mocker.patch.object(
         UrsulaConfiguration, "from_configuration_file", return_value=ursula_test_config
