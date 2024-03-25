@@ -125,9 +125,6 @@ def test_ursula_run_ip_checkup(
         UrsulaConfiguration, "from_configuration_file", return_value=ursula_test_config
     )
 
-    # Setup
-    teacher = ursulas[2]
-
     # manual teacher
     run_args = (
         "ursula",
