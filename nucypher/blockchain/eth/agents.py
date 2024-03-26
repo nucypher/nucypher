@@ -249,10 +249,10 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         raise NotImplementedError
 
     def get_all_active_staking_providers(
-        self, pagination_size: Optional[int] = None
+        self, pagination_size: Optional[int] = None, duration: int = 0
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         n_tokens, staking_providers = self._get_active_stakers(
-            pagination_size=pagination_size
+            pagination_size=pagination_size, duration=duration
         )
         return n_tokens, staking_providers
 
@@ -272,10 +272,11 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
         self,
         without: Iterable[ChecksumAddress] = None,
         pagination_size: Optional[int] = None,
+        duration: int = 0,
     ) -> "StakingProvidersReservoir":
         # pagination_size = pagination_size or self.get_staking_providers_population()
         n_tokens, stake_provider_map = self.get_all_active_staking_providers(
-            pagination_size=pagination_size
+            pagination_size=pagination_size, duration=duration
         )
 
         if n_tokens == 0:
@@ -309,7 +310,9 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
         return staking_providers
 
-    def _get_active_stakers(self, pagination_size: Optional[int] = None):
+    def _get_active_stakers(
+        self, pagination_size: Optional[int] = None, duration: int = 0
+    ):
         if pagination_size is None:
             pagination_size = (
                 self.DEFAULT_PROVIDERS_PAGINATION_SIZE_LIGHT_NODE
@@ -332,7 +335,9 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
                     (
                         batch_authorized_tokens,
                         batch_staking_providers,
-                    ) = self.get_active_staking_providers(start_index, pagination_size)
+                    ) = self.get_active_staking_providers(
+                        start_index, pagination_size, duration
+                    )
                 except Exception as e:
                     if "timeout" not in str(e):
                         # exception unrelated to pagination size and timeout
