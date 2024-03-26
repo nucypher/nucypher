@@ -87,8 +87,6 @@ def test_get_staker_population(taco_application_agent, staking_providers):
     )
 
 
-# TODO #3458
-@pytest.mark.skip("Skip until issue #3458 is addressed")
 @pytest.mark.usefixtures("staking_providers", "ursulas")
 def test_sample_staking_providers(taco_application_agent):
     all_staking_providers = list(taco_application_agent.get_staking_providers())
