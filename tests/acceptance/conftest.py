@@ -167,11 +167,11 @@ def taco_application(
         maya.now().epoch + COMMITMENT_DEADLINE,
     )
 
-    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
         taco_application_implementation.address,
         deployer_account.address,
         b"",
-        sender=deployer_account,
     )
     proxy_contract = nucypher_dependency.TACoApplication.at(proxy.address)
 
@@ -194,11 +194,11 @@ def taco_child_application(
         MIN_AUTHORIZATION,
     )
 
-    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
         taco_child_application_implementation.address,
         deployer_account.address,
         b"",
-        sender=deployer_account,
     )
     proxy_contract = nucypher_dependency.TACoChildApplication.at(proxy.address)
     taco_application.setChildApplication(
@@ -226,11 +226,11 @@ def coordinator(
     encoded_initializer_function = _coordinator.initialize.encode_input(
         TIMEOUT, MAX_DKG_SIZE, deployer_account.address
     )
-    proxy = oz_dependency.TransparentUpgradeableProxy.deploy(
+    proxy = deployer_account.deploy(
+        oz_dependency.TransparentUpgradeableProxy,
         _coordinator.address,
         deployer_account.address,
         encoded_initializer_function,
-        sender=deployer_account,
     )
 
     proxy_contract = nucypher_dependency.Coordinator.at(proxy.address)

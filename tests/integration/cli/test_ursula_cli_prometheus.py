@@ -20,6 +20,9 @@ def mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prome
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
 
+    # Mock migration
+    mocker.patch("nucypher.cli.commands.ursula.migrate", return_value=None)
+
     # Mock Ursula configuration
     mocker.patch.object(
         UrsulaConfiguration, "from_configuration_file", return_value=ursula_test_config
