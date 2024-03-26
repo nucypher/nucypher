@@ -1,14 +1,13 @@
-from unittest.mock import patch
-
 import pytest
-from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
-from nucypher.blockchain.eth.models import Coordinator
+from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import RitualisticPower, TransactingPower
+from nucypher.types import PhaseId
 from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.mock.coordinator import MockCoordinatorAgent
+from tests.mock.interfaces import MockBlockchain
 
 
 @pytest.fixture(scope="module")
@@ -22,8 +21,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
-    coordinator_agent.post_transcript = lambda *args, **kwargs: HexBytes("deadbeef1")
-    coordinator_agent.post_aggregation = lambda *args, **kwargs: HexBytes("deadbeef2")
+    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
+    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
@@ -132,86 +131,35 @@ def test_perform_round_1(
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
-        tx_hash = ursula.perform_round_1(
+        result = ursula.perform_round_1(
             ritual_id=0, authority=random_address, participants=cohort, timestamp=0
         )
-        assert tx_hash is None  # no execution performed
+        assert result is None  # no execution performed
 
     # set correct state
     agent.get_ritual_status = (
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
-    original_tx_hash = ursula.perform_round_1(
+    async_tx = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    assert original_tx_hash is not None
 
-    # ensure tx hash is stored
-    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) == original_tx_hash
+    # ensure tx is tracked
+    assert async_tx
+    assert len(ursula.ritual_tracker.active_rituals) == 1
+
+    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
+    assert ursula.ritual_tracker.active_rituals[pid01]
 
     # try again
-    tx_hash = ursula.perform_round_1(
+    async_tx2 = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    assert tx_hash is None  # no execution since pending tx already present
 
-    # pending tx gets mined and removed from storage - receipt status is 1
-    mock_receipt = {"status": 1}
-    with patch.object(
-        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
-    ):
-        tx_hash = ursula.perform_round_1(
-            ritual_id=0, authority=random_address, participants=cohort, timestamp=0
-        )
-        # no execution since pending tx was present and determined to be mined
-        assert tx_hash is None
-        # tx hash removed since tx receipt was obtained - outcome moving
-        # forward is represented on contract
-        assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is None
-
-    # reset tx hash
-    ursula.dkg_storage.store_transcript_txhash(ritual_id=0, txhash=original_tx_hash)
-
-    # pending tx gets mined and removed from storage - receipt
-    # status is 0 i.e. evm revert - so use contract state which indicates
-    # to submit transcript
-    mock_receipt = {"status": 0}
-    with patch.object(
-        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
-    ):
-        with patch.object(
-            agent, "post_transcript", lambda *args, **kwargs: HexBytes("A1B1")
-        ):
-            mock_tx_hash = ursula.perform_round_1(
-                ritual_id=0, authority=random_address, participants=cohort, timestamp=0
-            )
-            # execution occurs because evm revert causes execution to be retried
-            assert mock_tx_hash == HexBytes("A1B1")
-            # tx hash changed since original tx hash removed due to status being 0
-            # and new tx hash added
-            # forward is represented on contract
-            assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) == mock_tx_hash
-            assert (
-                ursula.dkg_storage.get_transcript_txhash(ritual_id=0)
-                != original_tx_hash
-            )
-
-    # reset tx hash
-    ursula.dkg_storage.store_transcript_txhash(ritual_id=0, txhash=original_tx_hash)
-
-    # don't clear if tx hash mismatched
-    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is not None
-    assert not ursula.dkg_storage.clear_transcript_txhash(
-        ritual_id=0, txhash=HexBytes("abcd")
-    )
-    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is not None
-
-    # clear tx hash
-    assert ursula.dkg_storage.clear_transcript_txhash(
-        ritual_id=0, txhash=original_tx_hash
-    )
-    assert ursula.dkg_storage.get_transcript_txhash(ritual_id=0) is None
+    assert async_tx2 is async_tx
+    assert len(ursula.ritual_tracker.active_rituals) == 1
+    assert ursula.ritual_tracker.active_rituals[pid01] is async_tx2
 
     # participant already posted transcript
     participant = agent.get_participant(
@@ -220,18 +168,23 @@ def test_perform_round_1(
     participant.transcript = bytes(random_transcript)
 
     # try submitting again
-    tx_hash = ursula.perform_round_1(
+    result = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    # no execution performed since already posted transcript
-    assert tx_hash is None
+
+    assert result is None
+    assert len(ursula.ritual_tracker.active_rituals) == 1
+    assert ursula.ritual_tracker.active_rituals[pid01]
 
     # participant no longer already posted aggregated transcript
     participant.transcript = bytes()
-    tx_hash = ursula.perform_round_1(
+    async_tx3 = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-    assert tx_hash is not None  # execution occurs
+
+    assert async_tx3 is async_tx
+    assert len(ursula.ritual_tracker.active_rituals) == 1
+    assert ursula.ritual_tracker.active_rituals[pid01]
 
 
 def test_perform_round_2(
@@ -286,8 +239,11 @@ def test_perform_round_2(
     ]
     for state in non_application_states:
         agent.get_ritual_status = lambda *args, **kwargs: state
-        tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-        assert tx_hash is None  # no execution performed
+        ursula.perform_round_2(ritual_id=0, timestamp=0)
+
+    assert len(ursula.ritual_tracker.active_rituals) == 1
+    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
+    assert ursula.ritual_tracker.active_rituals[pid01]
 
     # set correct state
     agent.get_ritual_status = (
@@ -295,81 +251,27 @@ def test_perform_round_2(
     )
 
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")
-    original_tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert original_tx_hash is not None
+    async_tx = ursula.perform_round_2(ritual_id=0, timestamp=0)
 
-    # check tx hash
-    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) == original_tx_hash
+    # check async tx tracking
+    assert len(ursula.ritual_tracker.active_rituals) == 2
+    pid02 = PhaseId(ritual_id=0, phase=PHASE2)
+    assert ursula.ritual_tracker.active_rituals[pid02]
 
-    # try again
-    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert tx_hash is None  # no execution since pending tx already present
+    # trying again yields same tx
+    async_tx2 = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert len(ursula.ritual_tracker.active_rituals) == 2
+    assert async_tx2 is async_tx
 
-    # pending tx gets mined and removed from storage - receipt status is 1
-    mock_receipt = {"status": 1}
-    with patch.object(
-        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
-    ):
-        tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-        # no execution since pending tx was present and determined to be mined
-        assert tx_hash is None
-        # tx hash removed since tx receipt was obtained - outcome moving
-        # forward is represented on contract
-        assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is None
-
-    # reset tx hash
-    ursula.dkg_storage.store_aggregation_txhash(ritual_id=0, txhash=original_tx_hash)
-
-    # pending tx gets mined and removed from storage - receipt
-    # status is 0 i.e. evm revert - so use contract state which indicates
-    # to submit transcript
-    mock_receipt = {"status": 0}
-    with patch.object(
-        agent.blockchain.client, "get_transaction_receipt", return_value=mock_receipt
-    ):
-        with patch.object(
-            agent, "post_aggregation", lambda *args, **kwargs: HexBytes("A1B1")
-        ):
-            mock_tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-            # execution occurs because evm revert causes execution to be retried
-            assert mock_tx_hash == HexBytes("A1B1")
-            # tx hash changed since original tx hash removed due to status being 0
-            # and new tx hash added
-            # forward is represented on contract
-            assert (
-                ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) == mock_tx_hash
-            )
-            assert (
-                ursula.dkg_storage.get_aggregation_txhash(ritual_id=0)
-                != original_tx_hash
-            )
-
-    # reset tx hash
-    ursula.dkg_storage.store_aggregation_txhash(ritual_id=0, txhash=original_tx_hash)
-
-    # don't clear if tx hash mismatched
-    assert not ursula.dkg_storage.clear_aggregated_txhash(
-        ritual_id=0, txhash=HexBytes("1234")
-    )
-    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is not None
-
-    # clear tx hash
-    assert ursula.dkg_storage.clear_aggregated_txhash(
-        ritual_id=0, txhash=original_tx_hash
-    )
-    assert ursula.dkg_storage.get_aggregation_txhash(ritual_id=0) is None
-
-    # participant already posted aggregated transcript
+    # No action required
     participant = agent.get_participant(
         ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.aggregated = True
+    result = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert result is None
 
-    # try submitting again
-    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert tx_hash is None  # no execution performed
-
-    # participant no longer already posted aggregated transcript
+    # Action required but async tx already fired
     participant.aggregated = False
-    tx_hash = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert tx_hash is not None  # execution occurs
+    async_tx4 = ursula.perform_round_2(ritual_id=0, timestamp=0)
+    assert async_tx4 is async_tx

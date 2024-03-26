@@ -61,13 +61,15 @@ def mock_operator_bonding(session_mocker):
 
 
 @pytest.fixture(scope="module")
-def testerchain(mock_testerchain, module_mocker) -> MockBlockchain:
+def testerchain(mock_testerchain, module_mocker, clock) -> MockBlockchain:
     def always_use_mock(*a, **k):
         return mock_testerchain
 
     module_mocker.patch.object(
         BlockchainInterfaceFactory, "get_interface", always_use_mock
     )
+
+    mock_testerchain.tx_machine._task.clock = clock
     return mock_testerchain
 
 

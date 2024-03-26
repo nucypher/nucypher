@@ -1,12 +1,11 @@
 import os
 
 import pytest
+import pytest_twisted
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
 
-from nucypher.blockchain.eth.agents import (
-    CoordinatorAgent,
-)
+from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
@@ -112,18 +111,27 @@ def test_initiate_ritual(
     assert ritual_dkg_key is None  # no dkg key available until ritual is completed
 
 
-def test_post_transcript(agent, transcripts, transacting_powers, testerchain):
+@pytest_twisted.inlineCallbacks
+def test_post_transcript(agent, transcripts, transacting_powers, testerchain, clock):
     ritual_id = agent.number_of_rituals() - 1
+
+    txs = []
     for i, transacting_power in enumerate(transacting_powers):
-        txhash = agent.post_transcript(
+        async_tx = agent.post_transcript(
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
         )
+        txs.append(async_tx)
 
-        receipt = testerchain.wait_for_receipt(txhash)
+    testerchain.tx_machine.start()
+    while not all([tx.final for tx in txs]):
+        yield clock.advance(testerchain.tx_machine._task.interval)
+    testerchain.tx_machine.stop()
+
+    for i, async_tx in enumerate(txs):
         post_transcript_events = (
-            agent.contract.events.TranscriptPosted().process_receipt(receipt)
+            agent.contract.events.TranscriptPosted().process_receipt(async_tx.receipt)
         )
         # assert len(post_transcript_events) == 1
         event = post_transcript_events[0]
@@ -142,6 +150,7 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain):
     assert ritual_dkg_key is None  # no dkg key available until ritual is completed
 
 
+@pytest_twisted.inlineCallbacks
 def test_post_aggregation(
     agent,
     aggregated_transcript,
@@ -149,24 +158,35 @@ def test_post_aggregation(
     transacting_powers,
     cohort,
     testerchain,
+    clock,
 ):
+    testerchain.tx_machine.start()
     ritual_id = agent.number_of_rituals() - 1
     participant_public_keys = {}
+    txs = []
+    participant_public_key = SessionStaticSecret.random().public_key()
+
     for i, transacting_power in enumerate(transacting_powers):
-        participant_public_key = SessionStaticSecret.random().public_key()
-        txhash = agent.post_aggregation(
+        async_tx = agent.post_aggregation(
             ritual_id=ritual_id,
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
             participant_public_key=participant_public_key,
             transacting_power=transacting_power,
         )
+        txs.append(async_tx)
+
+    testerchain.tx_machine.start()
+    while not all([tx.final for tx in txs]):
+        yield clock.advance(testerchain.tx_machine._task.interval)
+    testerchain.tx_machine.stop()
+
+    for i, async_tx in enumerate(txs):
         participant_public_keys[cohort[i]] = participant_public_key
-        receipt = testerchain.wait_for_receipt(txhash)
         post_aggregation_events = (
-            agent.contract.events.AggregationPosted().process_receipt(receipt)
+            agent.contract.events.AggregationPosted().process_receipt(async_tx.receipt)
         )
-        # assert len(post_aggregation_events) == 1
+        assert len(post_aggregation_events) == 1
         event = post_aggregation_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["aggregatedTranscriptDigest"] == keccak(

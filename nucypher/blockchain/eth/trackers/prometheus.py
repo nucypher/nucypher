@@ -9,11 +9,11 @@ class PrometheusMetricsTracker(SimpleTask):
         self.metrics_collectors = collectors
         super().__init__(interval=interval)
 
-    def run(self):
+    def run(self) -> None:
         for collector in self.metrics_collectors:
             collector.collect()
 
-    def handle_errors(self, *args, **kwargs):
+    def handle_errors(self, *args, **kwargs) -> None:
         self.log.warn(
             "Error during prometheus metrics collection: {}".format(
                 args[0].getTraceback()

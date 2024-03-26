@@ -318,19 +318,21 @@ def test_ursula_ritualist(
 
             ritual = mock_coordinator_agent.get_ritual(ritual_id)
             num_used_ursulas = 0
-            for ursula_index, ursula in enumerate(cohort):
+            for ursula in cohort:
                 stored_ritual = ursula.dkg_storage.get_active_ritual(ritual_id)
                 if not stored_ritual:
                     # this ursula was not used for threshold decryption; skip
                     continue
 
                 assert stored_ritual == ritual
-
                 stored_validators = ursula.dkg_storage.get_validators(ritual_id)
-                num_used_ursulas += 1
-                for v_index, v in enumerate(stored_validators):
-                    assert v.address == original_validators[v_index].address
-                    assert v.public_key == original_validators[v_index].public_key
+                if stored_validators:
+                    for v_index, v in enumerate(stored_validators):
+                        assert v.address == original_validators[v_index].address
+                        assert v.public_key == original_validators[v_index].public_key
+
+                    # increment here - timing issue since multiple ursulas contacted at the same time
+                    num_used_ursulas += 1
 
             assert num_used_ursulas >= ritual.threshold
             print("===================== DECRYPTION SUCCESSFUL =====================")

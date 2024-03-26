@@ -1,11 +1,7 @@
-from typing import Union
 from urllib.parse import urlparse
 
-from eth_tester import EthereumTester, PyEVMBackend
-from eth_tester.backends.mock.main import MockBackend
 from web3 import HTTPProvider, IPCProvider, WebsocketProvider
 from web3.providers import BaseProvider
-from web3.providers.eth_tester.main import EthereumTesterProvider
 
 from nucypher.exceptions import DevelopmentInstallationRequired
 
@@ -49,7 +45,8 @@ def _get_auto_provider(endpoint) -> BaseProvider:
     return w3.provider
 
 
-def _get_pyevm_test_backend() -> PyEVMBackend:
+def _get_pyevm_test_backend():
+
     try:
         # TODO: Consider packaged support of --dev mode with testerchain
         from tests.constants import NUMBER_OF_ETH_TEST_ACCOUNTS, PYEVM_GAS_LIMIT
@@ -57,13 +54,21 @@ def _get_pyevm_test_backend() -> PyEVMBackend:
         raise DevelopmentInstallationRequired(importable_name='tests.constants')
 
     # Initialize
+    from eth_tester import PyEVMBackend
     genesis_params = PyEVMBackend._generate_genesis_params(overrides={'gas_limit': PYEVM_GAS_LIMIT})
     pyevm_backend = PyEVMBackend(genesis_parameters=genesis_params)
     pyevm_backend.reset_to_genesis(genesis_params=genesis_params, num_accounts=NUMBER_OF_ETH_TEST_ACCOUNTS)
     return pyevm_backend
 
 
-def _get_ethereum_tester(test_backend: Union[PyEVMBackend, MockBackend]) -> EthereumTesterProvider:
+def _get_ethereum_tester(test_backend):
+    try:
+        from eth_tester import EthereumTester
+        from web3.providers.eth_tester.main import EthereumTesterProvider
+    except ImportError:
+        raise DevelopmentInstallationRequired(
+            importable_name="web3.providers.eth_tester"
+        )
     eth_tester = EthereumTester(backend=test_backend, auto_mine_transactions=True)
     provider = EthereumTesterProvider(ethereum_tester=eth_tester)
     return provider
@@ -79,6 +84,10 @@ def _get_pyevm_test_provider(endpoint) -> BaseProvider:
 
 def _get_mock_test_provider(endpoint) -> BaseProvider:
     # https://github.com/ethereum/eth-tester#mockbackend
+    try:
+        from eth_tester import MockBackend
+    except ImportError:
+        raise DevelopmentInstallationRequired(importable_name="eth_tester.MockBackend")
     mock_backend = MockBackend()
     provider = _get_ethereum_tester(test_backend=mock_backend)
     return provider

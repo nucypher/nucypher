@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Parse optional flag -k, to be used when we want to base the process on an existing Pipfile.lock
+# Parse optional flag -k, to be used when we want to base the process on an existing poetry.lock
 KEEP_LOCK=false
 OPTIND=1
 while getopts 'k' opt; do
@@ -15,14 +15,21 @@ shift "$(( OPTIND - 1 ))"
 # can change output file names with relock_dependencies.sh <prefix>
 PREFIX=${1:-requirements}
 
+# setup export plugin
+poetry self add poetry-plugin-export
+poetry config warnings.export false
+
+# update poetry and pip
+poetry self update
+pip install --upgrade pip
+
 # these steps might fail, but that's okay.
 if ! "$KEEP_LOCK"; then
-    echo "Removing existing Pipfile.lock file"
-    rm -f Pipfile.lock
+    echo "Removing existing poetry.lock file"
+    rm -f poetry.lock
 fi
 
 echo "Removing existing requirement files"
-pipenv --rm
 rm -f $PREFIX.txt
 rm -f dev-$PREFIX.txt
 
@@ -33,11 +40,11 @@ pip cache purge
 set -e
 
 echo "Building Development Requirements"
-pipenv --python 3.12 lock --clear --pre --dev-only
-pipenv requirements --dev-only > dev-$PREFIX.txt
+poetry lock
+poetry export -o dev-requirements.txt --without-hashes --with dev
+
 
 echo "Building Standard Requirements"
-pipenv --python 3.12 lock --clear --pre
-pipenv requirements > $PREFIX.txt
+poetry export -o requirements.txt --without-hashes --without dev
 
 echo "OK!"

@@ -1,9 +1,8 @@
-
-
 from abc import ABC, abstractmethod
 from typing import List
 from urllib.parse import urlparse
 
+from eth_account.datastructures import SignedTransaction
 from eth_typing.evm import ChecksumAddress
 from hexbytes.main import HexBytes
 
@@ -79,7 +78,7 @@ class Signer(ABC):
         return NotImplemented
 
     @abstractmethod
-    def sign_transaction(self, transaction_dict: dict) -> HexBytes:
+    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
         return NotImplemented
 
     @abstractmethod

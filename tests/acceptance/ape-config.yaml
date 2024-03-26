@@ -10,13 +10,16 @@ dependencies:
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 5.0.0
+    config_override:
+      solidity:
+        version: 0.8.23
+        evm_version: paris
 
 solidity:
   version: 0.8.23
   evm_version: paris
   import_remapping:
     - "@openzeppelin/contracts=openzeppelin/v5.0.0"
-
 
 test:
   provider:
