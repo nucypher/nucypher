@@ -240,7 +240,7 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @abstractmethod
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int
     ) -> Tuple[int, List[bytes]]:
         raise NotImplementedError
 
@@ -258,12 +258,12 @@ class StakerSamplingApplicationAgent(EthereumContractAgent):
 
     @contract_api(CONTRACT_CALL)
     def get_active_staking_providers(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int = 0
     ) -> Tuple[types.TuNits, Dict[ChecksumAddress, types.TuNits]]:
         (
             total_authorized_tokens,
             staking_providers_info,
-        ) = self._get_active_staking_providers_raw(start_index, max_results)
+        ) = self._get_active_staking_providers_raw(start_index, max_results, duration)
 
         staking_providers = self._process_active_staker_info(staking_providers_info)
         return types.TuNits(total_authorized_tokens), staking_providers
@@ -428,7 +428,7 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int
     ) -> Tuple[int, List[bytes]]:
         get_active_providers_overloaded_function = (
             self.contract.get_function_by_signature(
@@ -436,7 +436,7 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
             )
         )
         active_staking_providers_info = get_active_providers_overloaded_function(
-            start_index, max_results, 0  # TODO address via #3458
+            start_index, max_results, duration
         ).call()
         return active_staking_providers_info
 
@@ -526,11 +526,11 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
 
     @contract_api(CONTRACT_CALL)
     def _get_active_staking_providers_raw(
-        self, start_index: int, max_results: int
+        self, start_index: int, max_results: int, duration: int
     ) -> Tuple[int, List[bytes]]:
         active_staking_providers_info = (
             self.contract.functions.getActiveStakingProviders(
-                start_index, max_results, 0  # TODO address via #3458
+                start_index, max_results, duration
             ).call()
         )
         return active_staking_providers_info
