@@ -4,6 +4,7 @@ from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.domains import EthChain, PolygonChain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
@@ -61,28 +62,28 @@ conditions = {
         "operands": [
             {
                 "conditionType": ConditionType.RPC.value,
-                "chain": 1,
+                "chain": EthChain.MAINNET.id,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": "==", "value": 0},
             },
             {
                 "conditionType": ConditionType.RPC.value,
-                "chain": 137,
+                "chain": PolygonChain.MAINNET.id,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": "==", "value": 0},
             },
             {
                 "conditionType": ConditionType.RPC.value,
-                "chain": 11155111,
+                "chain": EthChain.SEPOLIA.id,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": ">", "value": 1},
             },
             {
                 "conditionType": ConditionType.RPC.value,
-                "chain": 80001,
+                "chain": PolygonChain.AMOY.id,
                 "method": "eth_getBalance",
                 "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
                 "returnValueTest": {"comparator": "==", "value": 0},
