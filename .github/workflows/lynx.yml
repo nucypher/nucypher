@@ -12,7 +12,7 @@ on:
 
 env: # TODO: Use variables when GH supports it for forks. See https://github.com/orgs/community/discussions/44322
   DEMO_L1_PROVIDER_URI: "https://sepolia.infura.io/v3/3747007a284045d483c342fb39889a30"
-  DEMO_L2_PROVIDER_URI: "https://polygon-mumbai.infura.io/v3/3747007a284045d483c342fb39889a30"
+  DEMO_L2_PROVIDER_URI: "https://polygon-amoy.infura.io/v3/3747007a284045d483c342fb39889a30"
   COLLECT_PROFILER_STATS: ""  # any value is fine
 
 jobs:

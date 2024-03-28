@@ -53,7 +53,8 @@ PUBLIC_CHAINS = {
     100: "xDai",
     137: "Polygon/Mainnet",
     11155111: "Sepolia",
-    80001: "Polygon/Mumbai"
+    80001: "Polygon/Mumbai",
+    80002: "Polygon/Amoy",
 }
 
 LOCAL_CHAINS = {
@@ -72,6 +73,7 @@ POA_CHAINS = {
     10200,  # gnosis/chiado,
     137,  # Polygon/Mainnet
     80001,  # "Polygon/Mumbai"
+    80002,  # "Polygon/Amoy"
 }
 
 

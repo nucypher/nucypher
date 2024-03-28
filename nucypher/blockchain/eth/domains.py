@@ -20,7 +20,7 @@ class EthChain(ChainInfo, Enum):
 
 class PolygonChain(ChainInfo, Enum):
     MAINNET = (137, "polygon")
-    MUMBAI = (80001, "mumbai")
+    AMOY = (80002, "amoy")
 
 
 class TACoDomain:
@@ -83,11 +83,11 @@ MAINNET = TACoDomain(
 LYNX = TACoDomain(
     name="lynx",
     eth_chain=EthChain.SEPOLIA,
-    polygon_chain=PolygonChain.MUMBAI,
+    polygon_chain=PolygonChain.AMOY,
     condition_chains=(
         EthChain.MAINNET,
         EthChain.SEPOLIA,
-        PolygonChain.MUMBAI,
+        PolygonChain.AMOY,
         PolygonChain.MAINNET,
     ),
 )
@@ -95,8 +95,8 @@ LYNX = TACoDomain(
 TAPIR = TACoDomain(
     name="tapir",
     eth_chain=EthChain.SEPOLIA,
-    polygon_chain=PolygonChain.MUMBAI,
-    condition_chains=(EthChain.SEPOLIA, PolygonChain.MUMBAI),
+    polygon_chain=PolygonChain.AMOY,
+    condition_chains=(EthChain.SEPOLIA, PolygonChain.AMOY),
 )
 
 

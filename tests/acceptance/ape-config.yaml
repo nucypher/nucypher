@@ -6,7 +6,7 @@ plugins:
 dependencies:
   - name: nucypher-contracts
     github: nucypher/nucypher-contracts
-    ref: main
+    ref: 0.20.0  # todo reset to main after rebasing over v7.3.x
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
     version: 5.0.0

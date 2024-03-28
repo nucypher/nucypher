@@ -4,6 +4,7 @@ from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.domains import PolygonChain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
@@ -58,7 +59,7 @@ eth_balance_condition = {
     "version": ConditionLingo.VERSION,
     "condition": {
         "conditionType": ConditionType.RPC.value,
-        "chain": 80001,
+        "chain": PolygonChain.AMOY.id,
         "method": "eth_getBalance",
         "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
         "returnValueTest": {"comparator": "==", "value": 0},

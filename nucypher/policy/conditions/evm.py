@@ -49,7 +49,7 @@ _CONDITION_CHAINS = {
     1: "ethereum/mainnet",
     11155111: "ethereum/sepolia",
     137: "polygon/mainnet",
-    80001: "polygon/mumbai",
+    80002: "polygon/amoy",
     # TODO: Permit support for these chains
     # 100: "gnosis/mainnet",
     # 10200: "gnosis/chiado",
