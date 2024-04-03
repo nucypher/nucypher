@@ -585,17 +585,16 @@ class BlockchainInterface:
         if transacting_power.is_device:
             emitter.message(
                 f"Confirm transaction {transaction_name} on hardware wallet... "
-                f"({max_cost} ETH @ {max_price_gwei} gwei)",
+                f"({max_cost} @ {max_price_gwei} gwei)",
                 color="yellow",
             )
-        signed_transaction = transacting_power.sign_transaction(transaction_dict)
+        signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
         #
-
         emitter.message(
-            f"Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} ETH @ {max_price_gwei} gwei)",
+            f"Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} @ {max_price_gwei} gwei)",
             color="yellow",
         )
         try:
