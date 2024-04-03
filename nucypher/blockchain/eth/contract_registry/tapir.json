@@ -2334,9 +2334,9 @@
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         }
     },
-    "80001": {
+    "80002": {
         "BetaProgramInitiator": {
-            "address": "0x070fbc5a82776A1fd9945824d0719E4E7a5Ac01c",
+            "address": "0x418e991fD07cfA950855F820023AF6191E18B6df",
             "abi": [
                 {
                     "type": "constructor",
@@ -2700,12 +2700,12 @@
                     ]
                 }
             ],
-            "tx_hash": "0x78cd0d69f29577ce123a19e8a67ffbd945206b19f488f3989e9e75d331df1389",
-            "block_number": 44702626,
+            "tx_hash": "0x21d379cc84b0b373497a5da3bd1da00a1cc8706f6efef21316cfba2a82cde7e2",
+            "block_number": 5393140,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "Coordinator": {
-            "address": "0xdED71c37e4e17aF2c825c2A4441Dd6BF5A98D194",
+            "address": "0xE690b6bCC0616Dc5294fF84ff4e00335cA52C388",
             "abi": [
                 {
                     "type": "constructor",
@@ -4480,12 +4480,12 @@
                     "outputs": []
                 }
             ],
-            "tx_hash": "0x4e7afe59ed54ded86f68bc3044357f80d2e8175c60548f8d40871e8ef2c11206",
-            "block_number": 44554907,
+            "tx_hash": "0xc1b97df91385ff99feb29f80b9a6c8d861544b8fa1693bc980a6c7324fdc8899",
+            "block_number": 5392992,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "GlobalAllowList": {
-            "address": "0xd5D1A0259A18774CFe7Eb0b183C99839383Be4f0",
+            "address": "0xcc537b292d142dABe2424277596d8FFCC3e6A12D",
             "abi": [
                 {
                     "type": "constructor",
@@ -4653,12 +4653,12 @@
                     ]
                 }
             ],
-            "tx_hash": "0x758af74bcedd32f238f2b1460532f75a3c5dcecc3e42caae0bf1ff32289cf020",
-            "block_number": 44554922,
+            "tx_hash": "0xad3cb8e085c8da332b9513edbde0f90ed8ca0be1e9dfe3f28082fe2770e7df17",
+            "block_number": 5393004,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "MockPolygonChild": {
-            "address": "0xBD367FeeB095D6612724814E27F3fbc7BCCFd80D",
+            "address": "0x970b5f6A299813cA9DC45Be8446929b6513903f9",
             "abi": [
                 {
                     "type": "constructor",
@@ -4872,12 +4872,12 @@
                     "outputs": []
                 }
             ],
-            "tx_hash": "0x49bac49c127eeadcfdd0939470a2c433ebbe9307921387188c53cba41eb88118",
-            "block_number": 44554858,
+            "tx_hash": "0xafc4b19b2620836601adf59c140edc206fd87a26f926014f77b2432c516b1624",
+            "block_number": 5392963,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "OpenAccessAuthorizer": {
-            "address": "0x23177458642a0Cf50000d8EAE53B0248475D3EdE",
+            "address": "0x33270a0B88d0Ffb6B0b4FBA119ca6a7263DeF675",
             "abi": [
                 {
                     "type": "function",
@@ -4909,497 +4909,541 @@
                     ]
                 }
             ],
-            "tx_hash": "0x9ca790512e619a8cb9729c9be3a3e9a4f8d35b9b4a107aceb34ec3fc47b1a106",
-            "block_number": 41671721,
+            "tx_hash": "0x8bbd39406559c99b6dc35df89c604c645b0996aac2908ce9e75f2d38367d294a",
+            "block_number": 5196868,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "SubscriptionManager": {
-            "address": "0xb9015d7B35Ce7c81ddE38eF7136Baa3B1044f313",
+            "address": "0x811389558a2C0B65ff56652d5E5bBF5DbC9A4358",
             "abi": [
                 {
-                    "anonymous": false,
+                    "type": "error",
+                    "name": "AccessControlBadConfirmation",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "AccessControlUnauthorizedAccount",
                     "inputs": [
                         {
-                            "indexed": false,
-                            "internalType": "uint256",
-                            "name": "oldFeeRate",
-                            "type": "uint256"
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
                         },
                         {
-                            "indexed": false,
-                            "internalType": "uint256",
-                            "name": "newFeeRate",
-                            "type": "uint256"
+                            "name": "neededRole",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
                         }
-                    ],
+                    ]
+                },
+                {
+                    "type": "error",
+                    "name": "InvalidInitialization",
+                    "inputs": []
+                },
+                {
+                    "type": "error",
+                    "name": "NotInitializing",
+                    "inputs": []
+                },
+                {
+                    "type": "event",
                     "name": "FeeRateUpdated",
-                    "type": "event"
-                },
-                {
-                    "anonymous": false,
                     "inputs": [
                         {
-                            "indexed": true,
-                            "internalType": "bytes16",
-                            "name": "policyId",
-                            "type": "bytes16"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "address",
-                            "name": "sponsor",
-                            "type": "address"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "address",
-                            "name": "owner",
-                            "type": "address"
-                        },
-                        {
-                            "indexed": false,
-                            "internalType": "uint16",
-                            "name": "size",
-                            "type": "uint16"
-                        },
-                        {
-                            "indexed": false,
-                            "internalType": "uint32",
-                            "name": "startTimestamp",
-                            "type": "uint32"
-                        },
-                        {
-                            "indexed": false,
-                            "internalType": "uint32",
-                            "name": "endTimestamp",
-                            "type": "uint32"
-                        },
-                        {
-                            "indexed": false,
+                            "name": "oldFeeRate",
+                            "type": "uint256",
                             "internalType": "uint256",
-                            "name": "cost",
-                            "type": "uint256"
+                            "indexed": false
+                        },
+                        {
+                            "name": "newFeeRate",
+                            "type": "uint256",
+                            "internalType": "uint256",
+                            "indexed": false
                         }
                     ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "Initialized",
+                    "inputs": [
+                        {
+                            "name": "version",
+                            "type": "uint64",
+                            "internalType": "uint64",
+                            "indexed": false
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
                     "name": "PolicyCreated",
-                    "type": "event"
-                },
-                {
-                    "anonymous": false,
                     "inputs": [
                         {
-                            "indexed": true,
-                            "internalType": "bytes32",
-                            "name": "role",
-                            "type": "bytes32"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "bytes32",
-                            "name": "previousAdminRole",
-                            "type": "bytes32"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "bytes32",
-                            "name": "newAdminRole",
-                            "type": "bytes32"
-                        }
-                    ],
-                    "name": "RoleAdminChanged",
-                    "type": "event"
-                },
-                {
-                    "anonymous": false,
-                    "inputs": [
-                        {
-                            "indexed": true,
-                            "internalType": "bytes32",
-                            "name": "role",
-                            "type": "bytes32"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "address",
-                            "name": "account",
-                            "type": "address"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "address",
-                            "name": "sender",
-                            "type": "address"
-                        }
-                    ],
-                    "name": "RoleGranted",
-                    "type": "event"
-                },
-                {
-                    "anonymous": false,
-                    "inputs": [
-                        {
-                            "indexed": true,
-                            "internalType": "bytes32",
-                            "name": "role",
-                            "type": "bytes32"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "address",
-                            "name": "account",
-                            "type": "address"
-                        },
-                        {
-                            "indexed": true,
-                            "internalType": "address",
-                            "name": "sender",
-                            "type": "address"
-                        }
-                    ],
-                    "name": "RoleRevoked",
-                    "type": "event"
-                },
-                {
-                    "inputs": [],
-                    "name": "DEFAULT_ADMIN_ROLE",
-                    "outputs": [
-                        {
-                            "internalType": "bytes32",
-                            "name": "",
-                            "type": "bytes32"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                },
-                {
-                    "inputs": [],
-                    "name": "SET_RATE_ROLE",
-                    "outputs": [
-                        {
-                            "internalType": "bytes32",
-                            "name": "",
-                            "type": "bytes32"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                },
-                {
-                    "inputs": [],
-                    "name": "WITHDRAW_ROLE",
-                    "outputs": [
-                        {
-                            "internalType": "bytes32",
-                            "name": "",
-                            "type": "bytes32"
-                        }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
-                },
-                {
-                    "inputs": [
-                        {
+                            "name": "policyId",
+                            "type": "bytes16",
                             "internalType": "bytes16",
-                            "name": "_policyId",
-                            "type": "bytes16"
+                            "indexed": true
                         },
                         {
+                            "name": "sponsor",
+                            "type": "address",
                             "internalType": "address",
-                            "name": "_policyOwner",
-                            "type": "address"
+                            "indexed": true
                         },
                         {
+                            "name": "owner",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "size",
+                            "type": "uint16",
                             "internalType": "uint16",
-                            "name": "_size",
-                            "type": "uint16"
+                            "indexed": false
                         },
                         {
+                            "name": "startTimestamp",
+                            "type": "uint32",
                             "internalType": "uint32",
-                            "name": "_startTimestamp",
-                            "type": "uint32"
+                            "indexed": false
                         },
                         {
+                            "name": "endTimestamp",
+                            "type": "uint32",
                             "internalType": "uint32",
-                            "name": "_endTimestamp",
-                            "type": "uint32"
-                        }
-                    ],
-                    "name": "createPolicy",
-                    "outputs": [],
-                    "stateMutability": "payable",
-                    "type": "function"
-                },
-                {
-                    "inputs": [],
-                    "name": "feeRate",
-                    "outputs": [
+                            "indexed": false
+                        },
                         {
+                            "name": "cost",
+                            "type": "uint256",
                             "internalType": "uint256",
-                            "name": "",
-                            "type": "uint256"
+                            "indexed": false
                         }
                     ],
-                    "stateMutability": "view",
-                    "type": "function"
+                    "anonymous": false
                 },
                 {
+                    "type": "event",
+                    "name": "RoleAdminChanged",
                     "inputs": [
                         {
-                            "internalType": "bytes16",
-                            "name": "_policyID",
-                            "type": "bytes16"
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "previousAdminRole",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "newAdminRole",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
                         }
                     ],
-                    "name": "getPolicy",
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RoleGranted",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "event",
+                    "name": "RoleRevoked",
+                    "inputs": [
+                        {
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32",
+                            "indexed": true
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        },
+                        {
+                            "name": "sender",
+                            "type": "address",
+                            "internalType": "address",
+                            "indexed": true
+                        }
+                    ],
+                    "anonymous": false
+                },
+                {
+                    "type": "function",
+                    "name": "DEFAULT_ADMIN_ROLE",
+                    "stateMutability": "view",
+                    "inputs": [],
                     "outputs": [
                         {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "SET_RATE_ROLE",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "WITHDRAW_ROLE",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "createPolicy",
+                    "stateMutability": "payable",
+                    "inputs": [
+                        {
+                            "name": "_policyId",
+                            "type": "bytes16",
+                            "internalType": "bytes16"
+                        },
+                        {
+                            "name": "_policyOwner",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_size",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "_startTimestamp",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "_endTimestamp",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "feeRate",
+                    "stateMutability": "view",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getPolicy",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "_policyID",
+                            "type": "bytes16",
+                            "internalType": "bytes16"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "tuple",
                             "components": [
                                 {
-                                    "internalType": "address payable",
                                     "name": "sponsor",
-                                    "type": "address"
+                                    "type": "address",
+                                    "internalType": "address payable"
                                 },
                                 {
-                                    "internalType": "uint32",
                                     "name": "startTimestamp",
-                                    "type": "uint32"
+                                    "type": "uint32",
+                                    "internalType": "uint32"
                                 },
                                 {
-                                    "internalType": "uint32",
                                     "name": "endTimestamp",
-                                    "type": "uint32"
+                                    "type": "uint32",
+                                    "internalType": "uint32"
                                 },
                                 {
-                                    "internalType": "uint16",
                                     "name": "size",
-                                    "type": "uint16"
+                                    "type": "uint16",
+                                    "internalType": "uint16"
                                 },
                                 {
-                                    "internalType": "address",
                                     "name": "owner",
-                                    "type": "address"
+                                    "type": "address",
+                                    "internalType": "address"
                                 }
                             ],
-                            "internalType": "struct SubscriptionManager.Policy",
-                            "name": "",
-                            "type": "tuple"
+                            "internalType": "struct SubscriptionManager.Policy"
                         }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
+                    ]
                 },
                 {
-                    "inputs": [
-                        {
-                            "internalType": "uint16",
-                            "name": "_size",
-                            "type": "uint16"
-                        },
-                        {
-                            "internalType": "uint32",
-                            "name": "_startTimestamp",
-                            "type": "uint32"
-                        },
-                        {
-                            "internalType": "uint32",
-                            "name": "_endTimestamp",
-                            "type": "uint32"
-                        }
-                    ],
+                    "type": "function",
                     "name": "getPolicyCost",
-                    "outputs": [
-                        {
-                            "internalType": "uint256",
-                            "name": "",
-                            "type": "uint256"
-                        }
-                    ],
                     "stateMutability": "view",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes32",
-                            "name": "role",
-                            "type": "bytes32"
+                            "name": "_size",
+                            "type": "uint16",
+                            "internalType": "uint16"
+                        },
+                        {
+                            "name": "_startTimestamp",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        },
+                        {
+                            "name": "_endTimestamp",
+                            "type": "uint32",
+                            "internalType": "uint32"
                         }
                     ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "getRoleAdmin",
-                    "outputs": [
-                        {
-                            "internalType": "bytes32",
-                            "name": "",
-                            "type": "bytes32"
-                        }
-                    ],
                     "stateMutability": "view",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes32",
                             "name": "role",
-                            "type": "bytes32"
-                        },
-                        {
-                            "internalType": "address",
-                            "name": "account",
-                            "type": "address"
+                            "type": "bytes32",
+                            "internalType": "bytes32"
                         }
                     ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "grantRole",
-                    "outputs": [],
                     "stateMutability": "nonpayable",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes32",
                             "name": "role",
-                            "type": "bytes32"
+                            "type": "bytes32",
+                            "internalType": "bytes32"
                         },
                         {
-                            "internalType": "address",
                             "name": "account",
-                            "type": "address"
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "hasRole",
-                    "outputs": [
-                        {
-                            "internalType": "bool",
-                            "name": "",
-                            "type": "bool"
-                        }
-                    ],
                     "stateMutability": "view",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "uint256",
-                            "name": "_feeRate",
-                            "type": "uint256"
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "initialize",
-                    "outputs": [],
                     "stateMutability": "nonpayable",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes16",
-                            "name": "_policyID",
-                            "type": "bytes16"
+                            "name": "_feeRate",
+                            "type": "uint256",
+                            "internalType": "uint256"
                         }
                     ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "isPolicyActive",
-                    "outputs": [
-                        {
-                            "internalType": "bool",
-                            "name": "",
-                            "type": "bool"
-                        }
-                    ],
                     "stateMutability": "view",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes32",
-                            "name": "role",
-                            "type": "bytes32"
-                        },
-                        {
-                            "internalType": "address",
-                            "name": "account",
-                            "type": "address"
+                            "name": "_policyID",
+                            "type": "bytes16",
+                            "internalType": "bytes16"
                         }
                     ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "bool",
+                            "internalType": "bool"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "renounceRole",
-                    "outputs": [],
                     "stateMutability": "nonpayable",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes32",
                             "name": "role",
-                            "type": "bytes32"
+                            "type": "bytes32",
+                            "internalType": "bytes32"
                         },
                         {
-                            "internalType": "address",
-                            "name": "account",
-                            "type": "address"
+                            "name": "callerConfirmation",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "revokeRole",
-                    "outputs": [],
                     "stateMutability": "nonpayable",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "uint256",
-                            "name": "_ratePerSecond",
-                            "type": "uint256"
+                            "name": "role",
+                            "type": "bytes32",
+                            "internalType": "bytes32"
+                        },
+                        {
+                            "name": "account",
+                            "type": "address",
+                            "internalType": "address"
                         }
                     ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "setFeeRate",
-                    "outputs": [],
                     "stateMutability": "nonpayable",
-                    "type": "function"
-                },
-                {
                     "inputs": [
                         {
-                            "internalType": "bytes4",
-                            "name": "interfaceId",
-                            "type": "bytes4"
+                            "name": "_ratePerSecond",
+                            "type": "uint256",
+                            "internalType": "uint256"
                         }
                     ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
                     "name": "supportsInterface",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "interfaceId",
+                            "type": "bytes4",
+                            "internalType": "bytes4"
+                        }
+                    ],
                     "outputs": [
                         {
-                            "internalType": "bool",
                             "name": "",
-                            "type": "bool"
+                            "type": "bool",
+                            "internalType": "bool"
                         }
-                    ],
-                    "stateMutability": "view",
-                    "type": "function"
+                    ]
                 },
                 {
+                    "type": "function",
+                    "name": "sweep",
+                    "stateMutability": "nonpayable",
                     "inputs": [
                         {
-                            "internalType": "address payable",
                             "name": "recipient",
-                            "type": "address"
+                            "type": "address",
+                            "internalType": "address payable"
                         }
                     ],
-                    "name": "sweep",
-                    "outputs": [],
-                    "stateMutability": "nonpayable",
-                    "type": "function"
+                    "outputs": []
                 }
             ],
-            "tx_hash": "0xf502961a38a98d7a59abe4c28d354fbcd213a967447a548af7441c3fe9547422",
-            "block_number": 25203956,
-            "deployer": "0xA5DC704642d9630636dc7d4976da9e46dcEd8BCD"
+            "tx_hash": "0x9a02db05c96318d8b0abfd5030c98cd013d670f46012ac1fbabf1564d40d2b6c",
+            "block_number": 5347313,
+            "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "TACoChildApplication": {
-            "address": "0x3a0Cd9EeF5A812Dc62f81D3b705daAf21561E33c",
+            "address": "0x489287Ed5BdF7a35fEE411FBdCc47331093D0769",
             "abi": [
                 {
                     "type": "constructor",
@@ -5859,12 +5903,12 @@
                     "outputs": []
                 }
             ],
-            "tx_hash": "0xdf1f50af284e50c3d2554c70f346e1a38e9d00d85012b5117d13acec2ce42f73",
-            "block_number": 44554870,
+            "tx_hash": "0x79cd34db513606db9080a729ce0012077a89ecc3f5eaf5fa524e8682eff37767",
+            "block_number": 5392971,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         },
         "TapirRitualToken": {
-            "address": "0xc154D3D874664792c145d055Cc0C3BC961a75aA6",
+            "address": "0xf91afFE7cf1d9c367Cb56eDd70C0941a4E8570d9",
             "abi": [
                 {
                     "type": "constructor",
@@ -6186,8 +6230,8 @@
                     ]
                 }
             ],
-            "tx_hash": "0xe835713bde2ff3daf48bfb3f7e5c0af1e64f5a44490d5d196c34fc512e3f3ff4",
-            "block_number": 44554884,
+            "tx_hash": "0x15c88783abe5dfb38592ebd99e76571a19b5a2e76922bd89becf88ea7d97bc41",
+            "block_number": 5392980,
             "deployer": "0x3B42d26E19FF860bC4dEbB920DD8caA53F93c600"
         }
     }
