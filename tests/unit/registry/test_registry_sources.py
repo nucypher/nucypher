@@ -59,7 +59,6 @@ def test_github_registry_source(registry_data):
     assert data == source.data
 
 
-@pytest.mark.skip("Skip until contract registry updated to use amoy instead of mumbai")
 @pytest.mark.parametrize("domain", list(domains.SUPPORTED_DOMAINS.values()))
 def test_get_actual_github_registry_file(domain):
     source = GithubRegistrySource(domain=domain)
