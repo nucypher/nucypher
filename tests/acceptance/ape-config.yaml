@@ -7,13 +7,19 @@ dependencies:
   - name: nucypher-contracts
     github: nucypher/nucypher-contracts
     ref: main
-  - name: openzeppelin
-    github: OpenZeppelin/openzeppelin-contracts
-    version: 5.0.0
     config_override:
       solidity:
         version: 0.8.23
         evm_version: paris
+        import_remapping:
+          - "@openzeppelin/contracts=openzeppelin/v5.0.0"
+          - "@openzeppelin-upgradeable/contracts=openzeppelin-upgradeable/v5.0.0"
+          - "@fx-portal/contracts=fx-portal/v1.0.5"
+          - "@threshold/contracts=threshold/v1.2.1"
+
+  - name: openzeppelin
+    github: OpenZeppelin/openzeppelin-contracts
+    version: 5.0.0
 
 solidity:
   version: 0.8.23
