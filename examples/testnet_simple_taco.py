@@ -4,6 +4,7 @@ from nucypher_core.ferveo import DkgPublicKey
 
 from nucypher.blockchain.eth import domains
 from nucypher.blockchain.eth.agents import CoordinatorAgent
+from nucypher.blockchain.eth.domains import PolygonChain
 from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.blockchain.eth.signers import InMemorySigner
 from nucypher.characters.lawful import Bob, Enrico
@@ -39,7 +40,7 @@ coordinator_agent = CoordinatorAgent(
     blockchain_endpoint=polygon_endpoint,
     registry=registry,
 )
-ritual_id = 5  # got this from a side channel
+ritual_id = 0  # got this from a side channel
 ritual = coordinator_agent.get_ritual(ritual_id)
 
 # known authorized encryptor for ritual 3
@@ -58,7 +59,7 @@ eth_balance_condition = {
     "version": ConditionLingo.VERSION,
     "condition": {
         "conditionType": ConditionType.RPC.value,
-        "chain": 80001,
+        "chain": PolygonChain.AMOY.id,
         "method": "eth_getBalance",
         "parameters": ["0x210eeAC07542F815ebB6FD6689637D8cA2689392", "latest"],
         "returnValueTest": {"comparator": "==", "value": 0},

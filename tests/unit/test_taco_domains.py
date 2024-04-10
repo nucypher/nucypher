@@ -36,7 +36,7 @@ def test_eth_chains(eth_chain_test):
     "poly_chain_test",
     (
         (PolygonChain.MAINNET, "polygon", 137),
-        (PolygonChain.MUMBAI, "mumbai", 80001),
+        (PolygonChain.AMOY, "amoy", 80002),
     ),
 )
 def test_polygon_chains(poly_chain_test):
@@ -59,11 +59,11 @@ def test_polygon_chains(poly_chain_test):
             domains.LYNX,
             "lynx",
             EthChain.SEPOLIA,
-            PolygonChain.MUMBAI,
+            PolygonChain.AMOY,
             (
                 EthChain.MAINNET,
                 EthChain.SEPOLIA,
-                PolygonChain.MUMBAI,
+                PolygonChain.AMOY,
                 PolygonChain.MAINNET,
             ),
         ),
@@ -71,8 +71,8 @@ def test_polygon_chains(poly_chain_test):
             domains.TAPIR,
             "tapir",
             EthChain.SEPOLIA,
-            PolygonChain.MUMBAI,
-            (EthChain.SEPOLIA, PolygonChain.MUMBAI),
+            PolygonChain.AMOY,
+            (EthChain.SEPOLIA, PolygonChain.AMOY),
         ),
     ),
 )
