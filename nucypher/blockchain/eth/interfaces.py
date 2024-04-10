@@ -588,7 +588,7 @@ class BlockchainInterface:
                 f"({max_cost} @ {max_price_gwei} gwei)",
                 color="yellow",
             )
-        signed_raw_transaction = transacting_power.sign_transaction(transaction_dict)
+        signed_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
