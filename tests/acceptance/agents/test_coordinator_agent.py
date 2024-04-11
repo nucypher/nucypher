@@ -4,6 +4,8 @@ import pytest
 import pytest_twisted
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
@@ -141,6 +143,18 @@ def test_post_transcript(
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["transcriptDigest"] == keccak(transcripts[i])
 
+    # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
+    yield deferLater(reactor, 0.2, lambda: None)
+    assert mock_async_hooks.on_broadcast.call_count == len(txs)
+    assert mock_async_hooks.on_finalized.call_count == len(txs)
+    for async_tx in txs:
+        assert async_tx.successful is True
+
+    # failure hooks not called
+    assert mock_async_hooks.on_broadcast_failure.call_count == 0
+    assert mock_async_hooks.on_fault.call_count == 0
+    assert mock_async_hooks.on_insufficient_funds.call_count == 0
+
     ritual = agent.get_ritual(ritual_id, transcripts=True)
     assert [p.transcript for p in ritual.participants] == transcripts
 
@@ -204,6 +218,18 @@ def test_post_aggregation(
         assert p.decryption_request_static_key == bytes(
             participant_public_keys[p.provider]
         )
+
+    # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
+    yield deferLater(reactor, 0.2, lambda: None)
+    assert mock_async_hooks.on_broadcast.call_count == len(txs)
+    assert mock_async_hooks.on_finalized.call_count == len(txs)
+    for async_tx in txs:
+        assert async_tx.successful is True
+
+    # failure hooks not called
+    assert mock_async_hooks.on_broadcast_failure.call_count == 0
+    assert mock_async_hooks.on_fault.call_count == 0
+    assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
     ritual = agent.get_ritual(ritual_id)
     assert ritual.participant_public_keys == participant_public_keys
