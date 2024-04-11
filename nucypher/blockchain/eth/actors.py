@@ -365,14 +365,14 @@ class Operator(BaseActor):
             )
 
         def on_broadcast_failure(tx: FutureTx, e: Exception):
-            # although error, tx was not removed from queue
+            # although error, tx was not removed from atxm
             self.log.warn(
                 f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
                 f"failed to broadcast {e}; the same tx will be retried"
             )
 
         def on_fault(tx: FaultedTx):
-            # fault means that tx was removed from queue
+            # fault means that tx was removed from atxm
             error = f"({tx.error})" if tx.error else ""
             self.log.warn(
                 f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
@@ -383,7 +383,7 @@ class Operator(BaseActor):
             resubmit_tx()
 
         def on_finalized(tx: FinalizedTx):
-            # finalized means that tx was removed from queue
+            # finalized means that tx was removed from atxm
             if not tx.successful:
                 self.log.warn(
                     f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
@@ -392,9 +392,14 @@ class Operator(BaseActor):
 
                 # submit a new one.
                 resubmit_tx()
+            else:
+                # success and blockchain updated - no need to store tx anymore
+                self.dkg_storage.clear_ritual_phase_async_tx(
+                    phase_id=phase_id, async_tx=tx
+                )
 
         def on_insufficient_funds(tx: Union[FutureTx, PendingTx], e: InsufficientFunds):
-            # although error, tx was not removed from queue
+            # although error, tx was not removed from atxm
             self.log.error(
                 f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
                 f"cannot be executed because {self.transacting_power.account[:8]} "
