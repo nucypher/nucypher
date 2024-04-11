@@ -44,7 +44,10 @@ from nucypher.blockchain.eth.constants import (
     TACO_CHILD_APPLICATION_CONTRACT_NAME,
 )
 from nucypher.blockchain.eth.decorators import contract_api
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator, Ferveo
 from nucypher.blockchain.eth.registry import (
     ContractRegistry,
@@ -729,6 +732,7 @@ class CoordinatorAgent(EthereumContractAgent):
         ritual_id: int,
         transcript: Transcript,
         transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> AsyncTx:
         contract_function: ContractFunction = self.contract.functions.postTranscript(
             ritualId=ritual_id, transcript=bytes(transcript)
@@ -736,6 +740,7 @@ class CoordinatorAgent(EthereumContractAgent):
         async_tx = self.blockchain.send_async_transaction(
             contract_function=contract_function,
             transacting_power=transacting_power,
+            async_tx_hooks=async_tx_hooks,
             info={"ritual_id": ritual_id, "phase": PHASE1},
         )
         return async_tx
@@ -748,6 +753,7 @@ class CoordinatorAgent(EthereumContractAgent):
         public_key: DkgPublicKey,
         participant_public_key: SessionStaticKey,
         transacting_power: TransactingPower,
+        async_tx_hooks: BlockchainInterface.AsyncTxHooks,
     ) -> AsyncTx:
         contract_function: ContractFunction = self.contract.functions.postAggregation(
             ritualId=ritual_id,
@@ -759,6 +765,7 @@ class CoordinatorAgent(EthereumContractAgent):
             contract_function=contract_function,
             gas_estimation_multiplier=1.4,
             transacting_power=transacting_power,
+            async_tx_hooks=async_tx_hooks,
             info={"ritual_id": ritual_id, "phase": PHASE2},
         )
         return async_tx

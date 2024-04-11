@@ -6,7 +6,9 @@ from urllib.parse import urlparse
 
 import requests
 from atxm import AutomaticTxMachine
-from atxm.tx import AsyncTx
+from atxm.exceptions import InsufficientFunds
+from atxm.strategies import ExponentialSpeedupStrategy
+from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
 from constant_sorrow.constants import (
     INSUFFICIENT_FUNDS,  # noqa
     NO_BLOCKCHAIN_CONNECTION,  # noqa
@@ -131,6 +133,23 @@ class BlockchainInterface:
                     f"but sender only has {prettify_eth_amount(self.get_balance())}."
                 )
             return message
+
+    class AsyncTxHooks:
+        def __init__(
+            self,
+            on_broadcast_failure: Callable[[FutureTx, Exception], None],
+            on_fault: Callable[[FaultedTx], None],
+            on_finalized: Callable[[FinalizedTx], None],
+            on_insufficient_funds: Callable[
+                [Union[FutureTx, PendingTx], InsufficientFunds], None
+            ],
+            on_broadcast: Optional[Callable[["PendingTx"], None]] = None,
+        ):
+            self.on_broadcast_failure = on_broadcast_failure
+            self.on_fault = on_fault
+            self.on_finalized = on_finalized
+            self.on_insufficient_funds = on_insufficient_funds
+            self.on_broadcast = on_broadcast
 
     def __init__(
         self,
@@ -658,9 +677,10 @@ class BlockchainInterface:
         self,
         contract_function: ContractFunction,
         transacting_power: TransactingPower,
+        async_tx_hooks: AsyncTxHooks,
         transaction_gas_limit: Optional[int] = None,
         gas_estimation_multiplier: float = 1.15,
-        info: Optional[Dict] = None,
+        info: Optional[Dict[str, str]] = None,
         payload: dict = None,
     ) -> AsyncTx:
         transaction = self.build_contract_transaction(
@@ -686,6 +706,11 @@ class BlockchainInterface:
             info=info,
             params=transaction,
             signer=signer,
+            on_broadcast=async_tx_hooks.on_broadcast,
+            on_broadcast_failure=async_tx_hooks.on_broadcast_failure,
+            on_fault=async_tx_hooks.on_fault,
+            on_finalized=async_tx_hooks.on_finalized,
+            on_insufficient_funds=async_tx_hooks.on_insufficient_funds,
         )
         return async_tx
 
