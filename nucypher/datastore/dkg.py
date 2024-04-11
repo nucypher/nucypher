@@ -29,12 +29,12 @@ class DKGStorage:
     ]
 
     def __init__(self):
-        self.data = defaultdict(dict)
+        self._data = defaultdict(dict)
 
     def clear(self, ritual_id):
         for key in self._KEYS:
             try:
-                del self.data[key][ritual_id]
+                del self._data[key][ritual_id]
             except KeyError:
                 continue
 
@@ -49,24 +49,24 @@ class DKGStorage:
 
     def store_ritual_phase_async_tx(self, phase_id: PhaseId, async_tx: AsyncTx):
         key = self.__get_phase_key(phase_id.phase)
-        self.data[key][phase_id.ritual_id] = async_tx
+        self._data[key][phase_id.ritual_id] = async_tx
 
     def clear_ritual_phase_async_tx(self, phase_id: PhaseId, async_tx: AsyncTx) -> bool:
         key = self.__get_phase_key(phase_id.phase)
-        if self.data[key][phase_id.ritual_id] is async_tx:
-            del self.data[key][phase_id.ritual_id]
+        if self._data[key][phase_id.ritual_id] is async_tx:
+            del self._data[key][phase_id.ritual_id]
             return True
         return False
 
     def get_ritual_phase_async_tx(self, phase_id: PhaseId) -> Optional[AsyncTx]:
         key = self.__get_phase_key(phase_id.phase)
-        return self.data[key].get(phase_id.ritual_id)
+        return self._data[key].get(phase_id.ritual_id)
 
     def store_validators(self, ritual_id: int, validators: List[Validator]) -> None:
-        self.data[self._KEY_VALIDATORS][ritual_id] = list(validators)
+        self._data[self._KEY_VALIDATORS][ritual_id] = list(validators)
 
     def get_validators(self, ritual_id: int) -> Optional[List[Validator]]:
-        validators = self.data[self._KEY_VALIDATORS].get(ritual_id)
+        validators = self._data[self._KEY_VALIDATORS].get(ritual_id)
         if not validators:
             return None
 
@@ -79,7 +79,7 @@ class DKGStorage:
         if active_ritual.total_aggregations != active_ritual.dkg_size:
             # safeguard against a non-active ritual being cached
             raise ValueError("Only active rituals can be cached")
-        self.data[self._KEY_ACTIVE_RITUAL][active_ritual.id] = active_ritual
+        self._data[self._KEY_ACTIVE_RITUAL][active_ritual.id] = active_ritual
 
     def get_active_ritual(self, ritual_id: int) -> Optional[Coordinator.Ritual]:
-        return self.data[self._KEY_ACTIVE_RITUAL].get(ritual_id)
+        return self._data[self._KEY_ACTIVE_RITUAL].get(ritual_id)
