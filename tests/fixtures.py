@@ -3,14 +3,12 @@ import json
 import os
 import shutil
 import tempfile
-import time
 from datetime import timedelta
 from functools import partial
 from pathlib import Path
 from typing import Tuple
 from unittest.mock import PropertyMock
 
-import atxm
 import maya
 import pytest
 from click.testing import CliRunner
@@ -22,7 +20,10 @@ from web3 import Web3
 
 import tests
 from nucypher.blockchain.eth.actors import Operator
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
+from nucypher.blockchain.eth.interfaces import (
+    BlockchainInterface,
+    BlockchainInterfaceFactory,
+)
 from nucypher.blockchain.eth.signers.software import KeystoreSigner
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.config.characters import (
@@ -783,12 +784,14 @@ def mock_operator_aggregation_delay(module_mocker):
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def mock_default_tracker_cache(session_mocker):
-    mock = session_mocker.patch.object(
-        atxm.state._State,
-        "_FILEPATH",
-        new_callable=session_mocker.PropertyMock,
+@pytest.fixture
+def mock_async_hooks(mocker):
+    hooks = BlockchainInterface.AsyncTxHooks(
+        on_broadcast=mocker.Mock(),
+        on_broadcast_failure=mocker.Mock(),
+        on_fault=mocker.Mock(),
+        on_finalized=mocker.Mock(),
+        on_insufficient_funds=mocker.Mock(),
     )
-    mock.return_value = Path(tempfile.gettempdir()) / f".test-txs-{time.time()}.json"
-    return mock
+
+    return hooks

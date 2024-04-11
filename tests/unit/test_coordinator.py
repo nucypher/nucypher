@@ -67,7 +67,7 @@ def test_mock_coordinator_initiation(
 
 
 def test_mock_coordinator_round_1(
-    nodes_transacting_powers, coordinator, random_transcript
+    nodes_transacting_powers, coordinator, random_transcript, mock_async_hooks
 ):
     ritual = coordinator._rituals[0]
     assert (
@@ -84,7 +84,8 @@ def test_mock_coordinator_round_1(
         coordinator.post_transcript(
             ritual_id=0,
             transcript=transcript,
-            transacting_power=nodes_transacting_powers[node_address]
+            transacting_power=nodes_transacting_powers[node_address],
+            async_tx_hooks=mock_async_hooks,
         )
 
         performance = ritual.participants[index]
@@ -105,6 +106,7 @@ def test_mock_coordinator_round_2(
     aggregated_transcript,
     dkg_public_key,
     random_transcript,
+    mock_async_hooks,
 ):
     ritual = coordinator._rituals[0]
     assert (
@@ -123,7 +125,8 @@ def test_mock_coordinator_round_2(
             aggregated_transcript=aggregated_transcript,
             public_key=dkg_public_key,
             participant_public_key=participant_public_key,
-            transacting_power=nodes_transacting_powers[node_address]
+            transacting_power=nodes_transacting_powers[node_address],
+            async_tx_hooks=mock_async_hooks,
         )
         participant_public_keys.append(participant_public_key)
         if index == len(nodes_transacting_powers) - 1:

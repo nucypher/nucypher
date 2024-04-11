@@ -112,7 +112,9 @@ def test_initiate_ritual(
 
 
 @pytest_twisted.inlineCallbacks
-def test_post_transcript(agent, transcripts, transacting_powers, testerchain, clock):
+def test_post_transcript(
+    agent, transcripts, transacting_powers, testerchain, clock, mock_async_hooks
+):
     ritual_id = agent.number_of_rituals() - 1
 
     txs = []
@@ -121,6 +123,7 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cl
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
+            async_tx_hooks=mock_async_hooks,
         )
         txs.append(async_tx)
 
@@ -159,6 +162,7 @@ def test_post_aggregation(
     cohort,
     testerchain,
     clock,
+    mock_async_hooks,
 ):
     testerchain.tx_machine.start()
     ritual_id = agent.number_of_rituals() - 1
@@ -173,6 +177,7 @@ def test_post_aggregation(
             public_key=dkg_public_key,
             participant_public_key=participant_public_key,
             transacting_power=transacting_power,
+            async_tx_hooks=mock_async_hooks,
         )
         txs.append(async_tx)
 
