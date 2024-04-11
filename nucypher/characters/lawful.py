@@ -996,8 +996,12 @@ class Ursula(Teacher, Character, Operator):
                 ursula=self, prometheus_config=prometheus_config
             )
             if emitter:
+                if prometheus_config.listen_address:
+                    prometheus_addr = prometheus_config.listen_address
+                else:
+                    prometheus_addr = self.rest_interface.host
                 emitter.message(
-                    f"✓ Prometheus Exporter http://{self.rest_interface.host}:"
+                    f"✓ Prometheus Exporter http://{prometheus_addr}:"
                     f"{prometheus_config.port}/metrics",
                     color="green",
                 )
