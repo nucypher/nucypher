@@ -21,8 +21,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
-    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
-    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
+    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.mock_async_tx()
+    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.mock_async_tx()
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
