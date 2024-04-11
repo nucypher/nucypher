@@ -231,7 +231,14 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client: EthereumClient = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
-        self.tx_machine = AutomaticTxMachine(w3=self.w3)
+
+        speedup_strategy = ExponentialSpeedupStrategy(
+            w3=self.w3,
+            min_time_between_speedups=120,
+        )  # speedup txs if not mined after 2 mins.
+        self.tx_machine = AutomaticTxMachine(
+            w3=self.w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
+        )
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in (
