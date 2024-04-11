@@ -141,16 +141,19 @@ def test_perform_round_1(
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
+    phase_id = PhaseId(ritual_id=0, phase=PHASE1)
+
+    assert (
+        ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is None
+    ), "no tx data as yet"
+
     async_tx = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
     # ensure tx is tracked
     assert async_tx
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-
-    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx
 
     # try again
     async_tx2 = ursula.perform_round_1(
@@ -158,23 +161,18 @@ def test_perform_round_1(
     )
 
     assert async_tx2 is async_tx
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01] is async_tx2
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx2
 
     # participant already posted transcript
     participant = agent.get_participant(
         ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.transcript = bytes(random_transcript)
-
     # try submitting again
     result = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-
     assert result is None
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01]
 
     # participant no longer already posted aggregated transcript
     participant.transcript = bytes()
@@ -183,8 +181,7 @@ def test_perform_round_1(
     )
 
     assert async_tx3 is async_tx
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx3
 
 
 def test_perform_round_2(
@@ -241,27 +238,33 @@ def test_perform_round_2(
         agent.get_ritual_status = lambda *args, **kwargs: state
         ursula.perform_round_2(ritual_id=0, timestamp=0)
 
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    phase_1_id = PhaseId(ritual_id=0, phase=PHASE1)
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_1_id) is not None
 
     # set correct state
     agent.get_ritual_status = (
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
+    phase_2_id = PhaseId(ritual_id=0, phase=PHASE2)
+
+    assert (
+        ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_2_id) is None
+    ), "no tx data as yet"
+
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")
     async_tx = ursula.perform_round_2(ritual_id=0, timestamp=0)
 
     # check async tx tracking
-    assert len(ursula.ritual_tracker.active_rituals) == 2
-    pid02 = PhaseId(ritual_id=0, phase=PHASE2)
-    assert ursula.ritual_tracker.active_rituals[pid02]
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx
+    assert (
+        ursula.dkg_storage.get_ritual_phase_async_tx(phase_1_id) is not async_tx
+    ), "phase 1 separate from phase 2"
 
     # trying again yields same tx
     async_tx2 = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert len(ursula.ritual_tracker.active_rituals) == 2
     assert async_tx2 is async_tx
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx2
 
     # No action required
     participant = agent.get_participant(
@@ -275,3 +278,4 @@ def test_perform_round_2(
     participant.aggregated = False
     async_tx4 = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert async_tx4 is async_tx
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx4

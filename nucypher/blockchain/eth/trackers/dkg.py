@@ -1,17 +1,15 @@
 import datetime
 import os
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import maya
-from atxm.tx import AsyncTx, FutureTx
 from prometheus_client import REGISTRY, Gauge
 from twisted.internet import threads
 from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.models import Coordinator
 from nucypher.policy.conditions.utils import camel_case_to_snake
-from nucypher.types import PhaseId
 from nucypher.utilities.cache import TTLCache
 from nucypher.utilities.events import EventScanner, JSONifiedState
 from nucypher.utilities.logging import Logger
@@ -123,8 +121,6 @@ class ActiveRitualTracker:
             self.contract.events.EndRitual,
         ]
 
-        self.__phase_txs: Dict[PhaseId, FutureTx] = {}
-
         # TODO: Remove the default JSON-RPC retry middleware
         # as it correctly cannot handle eth_getLogs block range throttle down.
         # self.web3.middleware_onion.remove(http_retry_request_middleware)
@@ -166,10 +162,6 @@ class ActiveRitualTracker:
     @property
     def contract(self):
         return self.coordinator_agent.contract
-
-    @property
-    def active_rituals(self) -> Dict[PhaseId, AsyncTx]:
-        return self.__phase_txs
 
     # TODO: should sample_window_size be additionally configurable/chain-dependent?
     def _get_first_scan_start_block_number(self, sample_window_size: int = 100) -> int:

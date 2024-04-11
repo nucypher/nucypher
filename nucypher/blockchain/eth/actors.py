@@ -419,7 +419,9 @@ class Operator(BaseActor):
             transacting_power=self.transacting_power,
             async_tx_hooks=async_tx_hooks,
         )
-        self.ritual_tracker.active_rituals[identifier] = async_tx
+        self.dkg_storage.store_ritual_phase_async_tx(
+            phase_id=identifier, async_tx=async_tx
+        )
         return async_tx
 
     def publish_aggregated_transcript(
@@ -445,8 +447,9 @@ class Operator(BaseActor):
             transacting_power=self.transacting_power,
             async_tx_hooks=async_tx_hooks,
         )
-
-        self.ritual_tracker.active_rituals[identifier] = async_tx
+        self.dkg_storage.store_ritual_phase_async_tx(
+            phase_id=identifier, async_tx=async_tx
+        )
         return async_tx
 
     def _is_phase_1_action_required(self, ritual_id: int) -> bool:
@@ -521,8 +524,10 @@ class Operator(BaseActor):
             )
             return
 
-        # check if there is  already pending tx for this ritual + round combination
-        async_tx = self.ritual_tracker.active_rituals.get(PhaseId(ritual_id, PHASE1))
+        # check if there is already pending tx for this ritual + round combination
+        async_tx = self.dkg_storage.get_ritual_phase_async_tx(
+            phase_id=PhaseId(ritual_id, PHASE1)
+        )
         if async_tx:
             self.log.info(
                 f"Active ritual in progress: {self.transacting_power.account} has submitted tx "
@@ -611,12 +616,12 @@ class Operator(BaseActor):
             return
 
         # check if there is a pending tx for this ritual + round combination
-        async_tx = self.ritual_tracker.active_rituals.get(
-            PhaseId(ritual_id=ritual_id, phase=PHASE2)
+        async_tx = self.dkg_storage.get_ritual_phase_async_tx(
+            phase_id=PhaseId(ritual_id, PHASE2)
         )
         if async_tx:
             self.log.info(
-                f"Active ritual in progress Node {self.transacting_power.account} has submitted tx"
+                f"Active ritual in progress: {self.transacting_power.account} has submitted tx"
                 f"for ritual #{ritual_id}, phase #{PHASE2} (final: {async_tx.final})."
             )
             return async_tx
