@@ -1,4 +1,5 @@
 import pytest
+from atxm.exceptions import Fault, InsufficientFunds
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
@@ -279,3 +280,154 @@ def test_perform_round_2(
     async_tx4 = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert async_tx4 is async_tx
     assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx4
+
+
+def test_async_tx_hooks_phase_1(ursula, mocker):
+    ritual_id = 0
+    transcript = mocker.Mock()
+    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE1)
+
+    mock_publish_transcript = mocker.Mock()
+    mocker.patch.object(ursula, "publish_transcript", mock_publish_transcript)
+
+    mock_publish_aggregated_transcript = mocker.Mock()
+    mocker.patch.object(
+        ursula, "publish_aggregated_transcript", mock_publish_aggregated_transcript
+    )
+
+    async_tx_hooks = ursula._setup_async_hooks(phase_id, ritual_id, transcript)
+    mock_tx = mocker.Mock()
+    mock_tx.id = 1
+
+    resubmit_call_count = 0
+
+    # broadcast - no callback
+    assert async_tx_hooks.on_broadcast is None
+
+    # broadcast failure - just logging
+    async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    assert mock_publish_transcript.call_count == 0
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # fault
+    mock_tx.fault = Fault.ERROR
+    mock_tx.error = "fault error"
+    async_tx_hooks.on_fault(mock_tx)
+    resubmit_call_count += 1
+    assert mock_publish_transcript.call_count == resubmit_call_count, "tx resubmitted"
+    mock_publish_transcript.assert_called_with(ritual_id, transcript)
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    clear_ritual_spy = mocker.spy(ursula.dkg_storage, "clear_ritual_phase_async_tx")
+
+    # finalized - unsuccessful
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    resubmit_call_count += 1
+    assert mock_publish_transcript.call_count == resubmit_call_count, "tx resubmitted"
+    mock_publish_transcript.assert_called_with(ritual_id, transcript)
+    assert clear_ritual_spy.call_count == 0, "not called because unsuccessful"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # finalized - successful
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == resubmit_call_count
+    ), "no change because successful"
+    clear_ritual_spy.assert_called_once_with(
+        phase_id, mock_tx
+    ), "cleared tx because successful"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert mock_publish_transcript.call_count == resubmit_call_count, "no change"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+
+def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_public_key):
+    ritual_id = 0
+    aggregated_transcript = aggregated_transcript
+    public_key = dkg_public_key
+    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE2)
+
+    mock_publish_transcript = mocker.Mock()
+    mocker.patch.object(ursula, "publish_transcript", mock_publish_transcript)
+
+    mock_publish_aggregated_transcript = mocker.Mock()
+    mocker.patch.object(
+        ursula, "publish_aggregated_transcript", mock_publish_aggregated_transcript
+    )
+
+    async_tx_hooks = ursula._setup_async_hooks(
+        phase_id, ritual_id, aggregated_transcript, public_key
+    )
+    mock_tx = mocker.Mock()
+    mock_tx.id = 1
+
+    resubmit_call_count = 0
+
+    # broadcast - no callback
+    assert async_tx_hooks.on_broadcast is None
+
+    # broadcast failure - just logging
+    async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+    assert mock_publish_aggregated_transcript.call_count == 0
+
+    # fault
+    mock_tx.fault = Fault.TIMEOUT
+    mock_tx.error = "fault error"
+    async_tx_hooks.on_fault(mock_tx)
+    resubmit_call_count += 1
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "tx resubmitted"
+    mock_publish_aggregated_transcript.assert_called_with(
+        ritual_id, aggregated_transcript, public_key
+    )
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    clear_ritual_spy = mocker.spy(ursula.dkg_storage, "clear_ritual_phase_async_tx")
+
+    # finalized - unsuccessful
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    resubmit_call_count += 1
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "tx resubmitted"
+    mock_publish_aggregated_transcript.assert_called_with(
+        ritual_id, aggregated_transcript, public_key
+    )
+    assert clear_ritual_spy.call_count == 0, "not called because unsuccessful"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    # finalized - successful
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "no change because successful"
+    clear_ritual_spy.assert_called_once_with(
+        phase_id, mock_tx
+    ), "cleared tx because successful"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "no change"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
