@@ -351,7 +351,9 @@ class Operator(BaseActor):
 
         return result
 
-    def _setup_async_hooks(self, phase_id: PhaseId, *args):
+    def _setup_async_hooks(
+        self, phase_id: PhaseId, *args
+    ) -> BlockchainInterface.AsyncTxHooks:
         tx_type = "POST_TRANSCRIPT" if phase_id.phase == PHASE1 else "POST_AGGREGATE"
 
         def resubmit_tx():
