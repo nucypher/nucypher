@@ -298,14 +298,20 @@ def test_async_tx_hooks_phase_1(ursula, mocker):
     async_tx_hooks = ursula._setup_async_hooks(phase_id, ritual_id, transcript)
     mock_tx = mocker.Mock()
     mock_tx.id = 1
+    mock_tx.params = MockBlockchain.FAKE_TX_PARAMS
 
     resubmit_call_count = 0
 
-    # broadcast - no callback
-    assert async_tx_hooks.on_broadcast is None
-
     # broadcast failure - just logging
     async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    assert mock_publish_transcript.call_count == 0
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # broadcast - just logging
+    mock_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    async_tx_hooks.on_broadcast(mock_tx)
     assert mock_publish_transcript.call_count == 0
     assert (
         mock_publish_aggregated_transcript.call_count == 0
@@ -375,16 +381,22 @@ def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_publi
     )
     mock_tx = mocker.Mock()
     mock_tx.id = 1
+    mock_tx.params = MockBlockchain.FAKE_TX_PARAMS
 
     resubmit_call_count = 0
-
-    # broadcast - no callback
-    assert async_tx_hooks.on_broadcast is None
 
     # broadcast failure - just logging
     async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
     assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
     assert mock_publish_aggregated_transcript.call_count == 0
+
+    # broadcast - just logging
+    mock_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    async_tx_hooks.on_broadcast(mock_tx)
+    assert mock_publish_transcript.call_count == 0
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
 
     # fault
     mock_tx.fault = Fault.TIMEOUT

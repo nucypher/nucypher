@@ -24,17 +24,16 @@ class MockBlockchain(TesterBlockchain):
         "status": 1,
     }
 
-    _FAKE_TX_PARAMS = (
-        {
-            "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
-            "from": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
-            "gas": 1,
-            "gasPrice": 1,
-            "value": 1,
-            "data": b"",
-            "nonce": 1,
-        },
-    )
+    FAKE_TX_PARAMS = {
+        "type": 0,  # legacy
+        "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+        "from": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+        "gas": 1,
+        "gasPrice": 1,
+        "value": 1,
+        "data": b"",
+        "nonce": 1,
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,7 +51,7 @@ class MockBlockchain(TesterBlockchain):
     ) -> FutureTx:
         future_tx = FutureTx(
             id=1,
-            params=cls._FAKE_TX_PARAMS,
+            params=cls.FAKE_TX_PARAMS,
         )
         if async_tx_hooks:
             future_tx.on_broadcast = async_tx_hooks.on_broadcast

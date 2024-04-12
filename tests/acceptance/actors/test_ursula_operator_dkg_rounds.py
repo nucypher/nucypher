@@ -5,6 +5,7 @@ from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
 from nucypher.types import PhaseId
+from tests.mock.interfaces import MockBlockchain
 
 
 @pytest_twisted.inlineCallbacks
@@ -144,8 +145,19 @@ def perform_round_1_with_fault_tolerance(
         publish_aggregated_transcript_spy.call_count == 0
     ), "phase 2 method never called"
 
-    # no on_broadcast callback
-    assert original_async_tx.on_broadcast is None
+    # broadcast callback called - must mock existing tx since it wasn't actually broadcasted as yet
+    mocked_pending_tx = mocker.Mock()
+    mocked_pending_tx.params = original_async_tx.params
+    mocked_pending_tx.id = original_async_tx.id
+    mocked_pending_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    original_async_tx.on_broadcast(mocked_pending_tx)
+    assert (
+        publish_transcript_spy.call_count == publish_transcript_call_count
+    ), "no change"
+    assert (
+        publish_aggregated_transcript_spy.call_count == 0
+    ), "phase 2 method never called"
+    assert len(testerchain.tx_machine.queued) == 1
 
     # insufficient funds callback called
     original_async_tx.on_insufficient_funds(original_async_tx, InsufficientFunds())
@@ -311,8 +323,18 @@ def perform_round_2_with_fault_tolerance(
     ), "no change"
     assert publish_transcript_spy.call_count == 0, "phase 1 method never called"
 
-    # no on_broadcast callback
-    assert original_async_tx.on_broadcast is None
+    # broadcast callback called - must mock existing tx since it wasn't actually broadcasted as yet
+    mocked_pending_tx = mocker.Mock()
+    mocked_pending_tx.params = original_async_tx.params
+    mocked_pending_tx.id = original_async_tx.id
+    mocked_pending_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    original_async_tx.on_broadcast(mocked_pending_tx)
+    assert (
+        publish_aggregated_transcript_spy.call_count
+        == publish_aggregated_transcript_call_count
+    ), "no change"
+    assert publish_transcript_spy.call_count == 0, "phase 1 method never called"
+    assert len(testerchain.tx_machine.queued) == 1
 
     # insufficient funds callback called
     original_async_tx.on_insufficient_funds(original_async_tx, InsufficientFunds())
