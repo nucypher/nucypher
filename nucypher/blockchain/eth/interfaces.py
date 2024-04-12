@@ -34,7 +34,11 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
+from nucypher.blockchain.eth.utils import (
+    get_transaction_name,
+    get_tx_cost_data,
+    prettify_eth_amount,
+)
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
@@ -143,13 +147,24 @@ class BlockchainInterface:
             on_insufficient_funds: Callable[
                 [Union[FutureTx, PendingTx], InsufficientFunds], None
             ],
-            on_broadcast: Optional[Callable[["PendingTx"], None]] = None,
+            on_broadcast: Optional[Callable[[PendingTx], None]] = None,
         ):
             self.on_broadcast_failure = on_broadcast_failure
             self.on_fault = on_fault
             self.on_finalized = on_finalized
             self.on_insufficient_funds = on_insufficient_funds
-            self.on_broadcast = on_broadcast
+            self.on_broadcast = (
+                on_broadcast if on_broadcast else self.__default_on_broadcast
+            )
+
+        @staticmethod
+        def __default_on_broadcast(tx: PendingTx):
+            emitter = StdoutEmitter()
+            max_cost, max_price_gwei, tx_type = get_tx_cost_data(tx.params)
+            emitter.message(
+                f"Broadcasted {tx_type} async tx {tx.id} with TXHASH {tx.txhash.hex()} ({max_cost} @ {max_price_gwei} gwei)",
+                color="yellow",
+            )
 
     def __init__(
         self,
@@ -595,18 +610,7 @@ class BlockchainInterface:
         eth_sendRawTransaction endpoint.
         """
         emitter = StdoutEmitter()
-        try:
-            # post-london fork transactions (Type 2)
-            max_unit_price = transaction_dict["maxFeePerGas"]
-            tx_type = "EIP-1559"
-        except KeyError:
-            # pre-london fork "legacy" transactions (Type 0)
-            max_unit_price = transaction_dict["gasPrice"]
-            tx_type = "Legacy"
-
-        max_price_gwei = Web3.from_wei(max_unit_price, "gwei")
-        max_cost_wei = max_unit_price * transaction_dict["gas"]
-        max_cost = Web3.from_wei(max_cost_wei, "ether")
+        max_cost, max_price_gwei, tx_type = get_tx_cost_data(transaction_dict)
 
         if transacting_power.is_device:
             emitter.message(
