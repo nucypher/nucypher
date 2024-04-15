@@ -430,11 +430,14 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
     def _get_active_staking_providers_raw(
         self, start_index: int, max_results: int
     ) -> Tuple[int, List[bytes]]:
-        active_staking_providers_info = (
-            self.contract.functions.getActiveStakingProviders(
-                start_index, max_results
-            ).call()
+        get_active_providers_overloaded_function = (
+            self.contract.get_function_by_signature(
+                "getActiveStakingProviders(uint256,uint256,uint32)"
+            )
         )
+        active_staking_providers_info = get_active_providers_overloaded_function(
+            start_index, max_results, 0  # TODO address via #3458
+        ).call()
         return active_staking_providers_info
 
 
@@ -638,7 +641,10 @@ class CoordinatorAgent(EthereumContractAgent):
     ) -> Iterable[Coordinator.Participant]:
         if max_results < 0:
             raise ValueError("Max results must be greater than or equal to zero.")
-        data = self.contract.functions.getParticipants(
+        get_participants_overloaded_function = self.contract.get_function_by_signature(
+            "getParticipants(uint32,uint256,uint256,bool)"
+        )
+        data = get_participants_overloaded_function(
             ritual_id, start_index, max_results, transcripts
         ).call()
         participants = Coordinator.Ritual.make_participants(data=data)
