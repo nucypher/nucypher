@@ -391,7 +391,7 @@ def destroy(general_config, config_options, config_file, force):
 )
 @click.option(
     "--metrics-listen-address",
-    help="Run a Prometheus metrics exporter on specified IP address",
+    help="Run a Prometheus metrics exporter on the specified IP address",
     default="",
 )
 @click.option(
