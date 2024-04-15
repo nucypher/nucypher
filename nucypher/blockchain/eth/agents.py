@@ -446,11 +446,6 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
         operator_confirmed: bool
         operator_start_timestamp: int
 
-    class OperatorInfo(NamedTuple):
-        address: ChecksumAddress
-        confirmed: bool
-        start_timestamp: Timestamp
-
     @contract_api(CONTRACT_CALL)
     def get_min_authorization(self) -> int:
         result = self.contract.functions.minimumAuthorization().call()

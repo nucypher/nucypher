@@ -962,13 +962,6 @@ class Operator(BaseActor):
                 color="green",
             )
 
-    def get_work_is_needed_check(self):
-        def func(self):
-            # we have not confirmed yet
-            return not self.is_confirmed
-
-        return func
-
 
 class PolicyAuthor(NucypherTokenActor):
     """Alice base class for blockchain operations, mocking up new policies!"""
