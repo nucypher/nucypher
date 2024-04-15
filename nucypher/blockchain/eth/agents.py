@@ -398,7 +398,9 @@ class TACoChildApplicationAgent(StakerSamplingApplicationAgent):
         self, staking_provider: ChecksumAddress
     ) -> StakingProviderInfo:
         result = self.contract.functions.stakingProviderInfo(staking_provider).call()
-        return TACoChildApplicationAgent.StakingProviderInfo(*result)
+        return TACoChildApplicationAgent.StakingProviderInfo(
+            *result[0 : len(TACoChildApplicationAgent.StakingProviderInfo._fields)]
+        )
 
     @contract_api(CONTRACT_CALL)
     def is_operator_confirmed(self, operator_address: ChecksumAddress) -> bool:
@@ -495,7 +497,9 @@ class TACoApplicationAgent(StakerSamplingApplicationAgent):
         info: list = self.contract.functions.stakingProviderInfo(
             staking_provider
         ).call()
-        return TACoApplicationAgent.StakingProviderInfo(*info[0:3])
+        return TACoApplicationAgent.StakingProviderInfo(
+            *info[0 : len(TACoApplicationAgent.StakingProviderInfo._fields)]
+        )
 
     @contract_api(CONTRACT_CALL)
     def get_authorized_stake(self, staking_provider: ChecksumAddress) -> int:
