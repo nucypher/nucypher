@@ -77,7 +77,7 @@ def test_ursula_cli_prometheus(
     ), "Wrong value for start_now in prometheus_config"
 
 
-def test_ursula_cli_prometheus_metrics_non_default_port_and_interval(
+def test_ursula_cli_prometheus_metrics_non_default_config(
     click_runner,
     mocker,
     ursulas,
@@ -88,6 +88,7 @@ def test_ursula_cli_prometheus_metrics_non_default_port_and_interval(
 ):
     port = 6666
     interval = 30
+    listen_address = "192.0.2.101"
 
     mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prometheus)
 
@@ -101,6 +102,8 @@ def test_ursula_cli_prometheus_metrics_non_default_port_and_interval(
         "--prometheus",
         "--metrics-port",
         str(port),
+        "--metrics-listen-address",
+        listen_address,
         "--metrics-interval",
         str(interval),
     )
@@ -111,8 +114,7 @@ def test_ursula_cli_prometheus_metrics_non_default_port_and_interval(
 
     assert result.exit_code == 0, result.output
     assert (
-        f"✓ Prometheus Exporter http://{MOCK_IP_ADDRESS}:{port}/metrics"
-        in result.output
+        f"✓ Prometheus Exporter http://{listen_address}:{port}/metrics" in result.output
     ), "CLI didn't print Prometheus exporter check"
 
     mock_prometheus.assert_called_once()
@@ -120,7 +122,8 @@ def test_ursula_cli_prometheus_metrics_non_default_port_and_interval(
         mock_prometheus.call_args.kwargs["prometheus_config"].port == port
     ), "Wrong port set in prometheus_config"
     assert (
-        mock_prometheus.call_args.kwargs["prometheus_config"].listen_address == ""
+        mock_prometheus.call_args.kwargs["prometheus_config"].listen_address
+        == listen_address
     ), "Wrong listen address set in prometheus_config"
     assert (
         mock_prometheus.call_args.kwargs["prometheus_config"].collection_interval

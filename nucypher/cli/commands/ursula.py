@@ -390,6 +390,11 @@ def destroy(general_config, config_options, config_file, force):
     type=NETWORK_PORT,
 )
 @click.option(
+    "--metrics-listen-address",
+    help="Run a Prometheus metrics exporter on the specified IP address",
+    default="",
+)
+@click.option(
     "--metrics-interval",
     help="The frequency of metrics collection in seconds (if prometheus enabled)",
     type=click.INT,
@@ -407,6 +412,7 @@ def run(
     dry_run,
     prometheus,
     metrics_port,
+    metrics_listen_address,
     metrics_interval,
     force,
     ip_checkup,
@@ -422,7 +428,9 @@ def run(
     prometheus_config = None
     if prometheus:
         prometheus_config = PrometheusMetricsConfig(
-            port=metrics_port, collection_interval=metrics_interval
+            port=metrics_port,
+            listen_address=metrics_listen_address,
+            collection_interval=metrics_interval,
         )
 
     ursula_config, URSULA = character_options.create_character(

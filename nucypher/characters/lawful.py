@@ -645,9 +645,9 @@ class Bob(Character):
                 requester_public_key=requester_public_key,
             )
             shared_secrets[ursula_checksum_address] = shared_secret
-            decryption_request_mapping[
-                ursula_checksum_address
-            ] = encrypted_decryption_request
+            decryption_request_mapping[ursula_checksum_address] = (
+                encrypted_decryption_request
+            )
 
         decryption_client = self._threshold_decryption_client_class(learner=self)
         successes, failures = decryption_client.gather_encrypted_decryption_shares(
@@ -996,8 +996,11 @@ class Ursula(Teacher, Character, Operator):
                 ursula=self, prometheus_config=prometheus_config
             )
             if emitter:
+                prometheus_addr = (
+                    prometheus_config.listen_address or self.rest_interface.host
+                )
                 emitter.message(
-                    f"✓ Prometheus Exporter http://{self.rest_interface.host}:"
+                    f"✓ Prometheus Exporter http://{prometheus_addr}:"
                     f"{prometheus_config.port}/metrics",
                     color="green",
                 )
