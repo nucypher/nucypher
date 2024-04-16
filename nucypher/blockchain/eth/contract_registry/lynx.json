@@ -5768,9 +5768,21 @@
                             "indexed": true
                         },
                         {
-                            "name": "amount",
+                            "name": "authorized",
                             "type": "uint96",
                             "internalType": "uint96",
+                            "indexed": false
+                        },
+                        {
+                            "name": "deauthorizing",
+                            "type": "uint96",
+                            "internalType": "uint96",
+                            "indexed": false
+                        },
+                        {
+                            "name": "endDeauthorization",
+                            "type": "uint64",
+                            "internalType": "uint64",
                             "indexed": false
                         }
                     ],
@@ -5874,6 +5886,64 @@
                 },
                 {
                     "type": "function",
+                    "name": "eligibleStake",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "_endDate",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint96",
+                            "internalType": "uint96"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
+                    "name": "getActiveStakingProviders",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "_startIndex",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "_maxStakingProviders",
+                            "type": "uint256",
+                            "internalType": "uint256"
+                        },
+                        {
+                            "name": "_cohortDuration",
+                            "type": "uint32",
+                            "internalType": "uint32"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "allAuthorizedTokens",
+                            "type": "uint96",
+                            "internalType": "uint96"
+                        },
+                        {
+                            "name": "activeStakingProviders",
+                            "type": "bytes32[]",
+                            "internalType": "bytes32[]"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "getActiveStakingProviders",
                     "stateMutability": "view",
                     "inputs": [
@@ -5961,6 +6031,25 @@
                 },
                 {
                     "type": "function",
+                    "name": "pendingAuthorizationDecrease",
+                    "stateMutability": "view",
+                    "inputs": [
+                        {
+                            "name": "_stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        }
+                    ],
+                    "outputs": [
+                        {
+                            "name": "",
+                            "type": "uint96",
+                            "internalType": "uint96"
+                        }
+                    ]
+                },
+                {
+                    "type": "function",
                     "name": "rootApplication",
                     "stateMutability": "view",
                     "inputs": [],
@@ -6003,6 +6092,16 @@
                             "name": "index",
                             "type": "uint248",
                             "internalType": "uint248"
+                        },
+                        {
+                            "name": "deauthorizing",
+                            "type": "uint96",
+                            "internalType": "uint96"
+                        },
+                        {
+                            "name": "endDeauthorization",
+                            "type": "uint64",
+                            "internalType": "uint64"
                         }
                     ]
                 },
@@ -6036,9 +6135,37 @@
                             "internalType": "address"
                         },
                         {
-                            "name": "amount",
+                            "name": "authorized",
                             "type": "uint96",
                             "internalType": "uint96"
+                        }
+                    ],
+                    "outputs": []
+                },
+                {
+                    "type": "function",
+                    "name": "updateAuthorization",
+                    "stateMutability": "nonpayable",
+                    "inputs": [
+                        {
+                            "name": "stakingProvider",
+                            "type": "address",
+                            "internalType": "address"
+                        },
+                        {
+                            "name": "authorized",
+                            "type": "uint96",
+                            "internalType": "uint96"
+                        },
+                        {
+                            "name": "deauthorizing",
+                            "type": "uint96",
+                            "internalType": "uint96"
+                        },
+                        {
+                            "name": "endDeauthorization",
+                            "type": "uint64",
+                            "internalType": "uint64"
                         }
                     ],
                     "outputs": []
