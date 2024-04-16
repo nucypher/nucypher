@@ -1,0 +1,1 @@
+Nodes will better handle the effects of compatible contract changes such as additions to structs and overloaded functions.
