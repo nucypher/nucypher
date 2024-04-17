@@ -15,7 +15,6 @@ from constant_sorrow.constants import (
     UNKNOWN_TX_STATUS,  # noqa
 )
 from eth_utils import to_checksum_address
-from hexbytes.main import HexBytes
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
@@ -603,7 +602,7 @@ class BlockchainInterface:
         transaction_dict: Dict,
         transaction_name: str = "",
         confirmations: int = 0,
-    ) -> Union[TxReceipt, HexBytes]:
+    ) -> TxReceipt:
         """
         Takes a transaction dictionary, signs it with the configured signer,
         then broadcasts the signed transaction using the RPC provider's
