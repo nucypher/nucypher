@@ -317,6 +317,18 @@ def test_async_tx_hooks_phase_1(ursula, mocker):
         mock_publish_aggregated_transcript.call_count == 0
     ), "phase 2 publish never called"
 
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert mock_publish_transcript.call_count == resubmit_call_count, "no change"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    #
+    # With resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_1_action_required", return_value=True)
+
     # fault
     mock_tx.fault = Fault.ERROR
     mock_tx.error = "fault error"
@@ -354,12 +366,28 @@ def test_async_tx_hooks_phase_1(ursula, mocker):
         mock_publish_aggregated_transcript.call_count == 0
     ), "phase 2 publish never called"
 
-    # insufficient funds - just logging
-    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
-    assert mock_publish_transcript.call_count == resubmit_call_count, "no change"
+    #
+    # Without resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_1_action_required", return_value=False)
+    current_call_count = mock_publish_transcript.call_count
+
+    async_tx_hooks.on_fault(mock_tx)
     assert (
-        mock_publish_aggregated_transcript.call_count == 0
-    ), "phase 2 publish never called"
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
 
 
 def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_public_key):
@@ -397,6 +425,18 @@ def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_publi
     assert (
         mock_publish_aggregated_transcript.call_count == 0
     ), "phase 2 publish never called"
+
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "no change"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    #
+    # With resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_2_action_required", return_value=True)
 
     # fault
     mock_tx.fault = Fault.TIMEOUT
@@ -437,9 +477,25 @@ def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_publi
     ), "cleared tx because successful"
     assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
 
-    # insufficient funds - just logging
-    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    #
+    # Without resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_2_action_required", return_value=False)
+    current_call_count = mock_publish_transcript.call_count
+
+    async_tx_hooks.on_fault(mock_tx)
     assert (
-        mock_publish_aggregated_transcript.call_count == resubmit_call_count
-    ), "no change"
-    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"

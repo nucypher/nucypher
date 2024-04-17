@@ -358,10 +358,23 @@ class Operator(BaseActor):
 
         def resubmit_tx():
             if phase_id.phase == PHASE1:
+                # check status of ritual before resubmitting; prevent infinite loops
+                if not self._is_phase_1_action_required(ritual_id=phase_id.ritual_id):
+                    self.log.info(
+                        f"No need to resubmit tx: additional action not required for ritual# {phase_id.ritual_id} (status={self.coordinator_agent.get_ritual_status(phase_id.ritual_id)})"
+                    )
+                    return
                 async_tx = self.publish_transcript(*args)
             else:
+                # check status of ritual before resubmitting; prevent infinite loops
+                if not self._is_phase_2_action_required(ritual_id=phase_id.ritual_id):
+                    self.log.info(
+                        f"No need to resubmit tx: additional action not required for ritual# {phase_id.ritual_id} (status={self.coordinator_agent.get_ritual_status(phase_id.ritual_id)})"
+                    )
+                    return
                 async_tx = self.publish_aggregated_transcript(*args)
-            self.log.debug(
+
+            self.log.info(
                 f"{self.transacting_power.account[:8]} resubmitted a new async tx {async_tx.id} "
                 f"for DKG ritual #{phase_id.ritual_id}"
             )
