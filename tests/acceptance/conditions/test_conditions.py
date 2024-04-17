@@ -7,8 +7,12 @@ import pytest
 from hexbytes import HexBytes
 from web3 import Web3
 from web3.providers import BaseProvider
+from web3.types import ABIFunction
 
-from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
+from nucypher.blockchain.eth.agents import (
+    ContractAgency,
+    SubscriptionManagerAgent,
+)
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.policy.conditions.context import (
     USER_ADDRESS_CONTEXT,
@@ -788,3 +792,154 @@ def test_single_retrieve_with_onchain_conditions(enacted_policy, bob, ursulas):
     )
 
     assert cleartexts == messages
+
+
+@pytest.mark.usefixtures("staking_providers")
+def test_contract_condition_using_overloaded_function(
+    taco_child_application_agent, condition_providers
+):
+    (
+        total_staked,
+        providers,
+    ) = taco_child_application_agent._get_active_staking_providers_raw(0, 10)
+    expected_result = [
+        total_staked,
+        [
+            HexBytes(provider_bytes).hex() for provider_bytes in providers
+        ],  # must be json serializable
+    ]
+
+    context = {
+        ":expectedStakingProviders": expected_result,
+    }  # user-defined context vars
+
+    #
+    # valid overloaded function - 2 params
+    #
+    valid_abi_2_params = {
+        "type": "function",
+        "name": "getActiveStakingProviders",
+        "stateMutability": "view",
+        "inputs": [
+            {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
+            {
+                "name": "_maxStakingProviders",
+                "type": "uint256",
+                "internalType": "uint256",
+            },
+        ],
+        "outputs": [
+            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
+            {
+                "name": "activeStakingProviders",
+                "type": "bytes32[]",
+                "internalType": "bytes32[]",
+            },
+        ],
+    }
+    condition = ContractCondition(
+        contract_address=taco_child_application_agent.contract.address,
+        function_abi=ABIFunction(valid_abi_2_params),
+        method="getActiveStakingProviders",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
+        parameters=[0, 10],
+    )
+    condition_result, call_result = condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result, "results match and condition passes"
+    json_serializable_result = [
+        call_result[0],
+        [HexBytes(provider_bytes).hex() for provider_bytes in call_result[1]],
+    ]
+    assert expected_result == json_serializable_result
+
+    #
+    # valid overloaded function - 3 params
+    #
+    valid_abi_3_params = {
+        "type": "function",
+        "name": "getActiveStakingProviders",
+        "stateMutability": "view",
+        "inputs": [
+            {"name": "_startIndex", "type": "uint256", "internalType": "uint256"},
+            {
+                "name": "_maxStakingProviders",
+                "type": "uint256",
+                "internalType": "uint256",
+            },
+            {"name": "_cohortDuration", "type": "uint32", "internalType": "uint32"},
+        ],
+        "outputs": [
+            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
+            {
+                "name": "activeStakingProviders",
+                "type": "bytes32[]",
+                "internalType": "bytes32[]",
+            },
+        ],
+    }
+    condition = ContractCondition(
+        contract_address=taco_child_application_agent.contract.address,
+        function_abi=ABIFunction(valid_abi_3_params),
+        method="getActiveStakingProviders",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
+        parameters=[0, 10, 0],
+    )
+    condition_result, call_result = condition.verify(
+        providers=condition_providers, **context
+    )
+    assert condition_result, "results match and condition passes"
+    json_serializable_result = [
+        call_result[0],
+        [HexBytes(provider_bytes).hex() for provider_bytes in call_result[1]],
+    ]
+    assert expected_result == json_serializable_result
+
+    #
+    # valid overloaded contract abi but wrong parameters
+    #
+    condition = ContractCondition(
+        contract_address=taco_child_application_agent.contract.address,
+        function_abi=ABIFunction(valid_abi_3_params),
+        method="getActiveStakingProviders",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
+        parameters=[0, 10],  # 2 params instead of 3 (old overloaded function)
+    )
+    with pytest.raises(RPCExecutionFailed):
+        _ = condition.verify(providers=condition_providers, **context)
+
+    #
+    # invalid abi
+    #
+    invalid_abi_all_bool_inputs = {
+        "type": "function",
+        "name": "getActiveStakingProviders",
+        "stateMutability": "view",
+        "inputs": [
+            {"name": "_startIndex", "type": "bool", "internalType": "bool"},
+            {"name": "_maxStakingProviders", "type": "bool", "internalType": "bool"},
+            {"name": "_cohortDuration", "type": "bool", "internalType": "bool"},
+        ],
+        "outputs": [
+            {"name": "allAuthorizedTokens", "type": "uint96", "internalType": "uint96"},
+            {
+                "name": "activeStakingProviders",
+                "type": "bytes32[]",
+                "internalType": "bytes32[]",
+            },
+        ],
+    }
+    condition = ContractCondition(
+        contract_address=taco_child_application_agent.contract.address,
+        function_abi=ABIFunction(invalid_abi_all_bool_inputs),
+        method="getActiveStakingProviders",
+        chain=TESTERCHAIN_CHAIN_ID,
+        return_value_test=ReturnValueTest("==", ":expectedStakingProviders"),
+        parameters=[False, False, False],  # parameters match fake abi
+    )
+    with pytest.raises(RPCExecutionFailed):
+        _ = condition.verify(providers=condition_providers, **context)
