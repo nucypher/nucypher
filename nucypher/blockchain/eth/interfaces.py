@@ -158,6 +158,7 @@ class BlockchainInterface:
 
         @staticmethod
         def __default_on_broadcast(tx: PendingTx):
+            # TODO review use of emitter - #3482
             emitter = StdoutEmitter()
             max_cost, max_price_gwei, tx_type = get_tx_cost_data(tx.params)
             emitter.message(
@@ -622,6 +623,7 @@ class BlockchainInterface:
         #
         # Broadcast
         #
+        # TODO review use of emitter - #3482
         emitter.message(
             f"Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} @ {max_price_gwei} gwei)",
             color="yellow",
