@@ -1,0 +1,1 @@
+Console logging was not using the correct log format, log levels were not adhered to for limiting log messages, and global log observers not correctly managed.
