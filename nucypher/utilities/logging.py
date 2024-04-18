@@ -1,16 +1,14 @@
-
-
-
 import pathlib
+import sys
 from contextlib import contextmanager
 
 from twisted.logger import (
     FileLogObserver,
     LogLevel,
-    formatEvent,
     formatEventAsClassicLogText,
     globalLogPublisher,
     jsonFileLogObserver,
+    textFileLogObserver,
 )
 from twisted.logger import Logger as TwistedLogger
 from twisted.python.logfile import LogFile
@@ -76,11 +74,11 @@ class GlobalLoggerSettings:
 
     @classmethod
     def start_console_logging(cls):
-        globalLogPublisher.addObserver(console_observer)
+        globalLogPublisher.addObserver(textFileLogObserver(sys.stdout))
 
     @classmethod
     def stop_console_logging(cls):
-        globalLogPublisher.removeObserver(console_observer)
+        globalLogPublisher.removeObserver(textFileLogObserver(sys.stdout))
 
     @classmethod
     @contextmanager
@@ -116,11 +114,6 @@ class GlobalLoggerSettings:
     @classmethod
     def stop_sentry_logging(cls):
         globalLogPublisher.removeObserver(sentry_observer)
-
-
-def console_observer(event):
-    if event['log_level'] >= GlobalLoggerSettings.log_level:
-        print(formatEvent(event))
 
 
 class _SentryInitGuard:
