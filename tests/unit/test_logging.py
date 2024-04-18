@@ -5,9 +5,9 @@ from json.encoder import py_encode_basestring_ascii
 
 import pytest
 from twisted.logger import Logger as TwistedLogger
-from twisted.logger import formatEvent, jsonFileLogObserver
+from twisted.logger import LogLevel, formatEvent, jsonFileLogObserver
 
-from nucypher.utilities.logging import Logger
+from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
 def naive_print_observer(event):
@@ -146,3 +146,33 @@ def test_even_nucypher_json_logger_is_cool():
         logged_event = file.getvalue()
         assert '"log_level": {"name": "info"' in logged_event
         assert f'"log_format": "{expected_processing(string)}"' in logged_event
+
+
+@pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
+def test_log_level_adhered_to(global_log_level):
+    old_log_level = GlobalLoggerSettings.log_level.name
+    try:
+        GlobalLoggerSettings.set_log_level(global_log_level.name)
+
+        received_events = []
+
+        def logger_observer(event):
+            received_events.append(event)
+
+        logger = Logger("test-logger")
+        logger.observer = logger_observer
+
+        message = "People without self-doubt should never put themselves in a position of complete power"  # - Chuck Rhoades (Billions)
+        num_logged_events = 0
+
+        for level in LogLevel._enumerants.values():
+            # call logger.<level>(message)
+            getattr(logger, level.name)(message)
+
+            if level >= global_log_level:
+                num_logged_events += 1
+            # else not logged
+
+            assert len(received_events) == num_logged_events
+    finally:
+        GlobalLoggerSettings.set_log_level(old_log_level)
