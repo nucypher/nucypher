@@ -1,4 +1,5 @@
 import pytest
+from atxm.exceptions import Fault, InsufficientFunds
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import PHASE1, PHASE2, Coordinator
@@ -21,8 +22,8 @@ def agent(mock_contract_agency, ursulas) -> MockCoordinatorAgent:
             if ursula.checksum_address == provider:
                 return ursula.public_keys(RitualisticPower)
 
-    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
-    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.FAKE_ASYNC_TX
+    coordinator_agent.post_transcript = lambda *a, **kw: MockBlockchain.mock_async_tx()
+    coordinator_agent.post_aggregation = lambda *a, **kw: MockBlockchain.mock_async_tx()
     coordinator_agent.get_provider_public_key = mock_get_provider_public_key
     return coordinator_agent
 
@@ -141,16 +142,19 @@ def test_perform_round_1(
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
 
+    phase_id = PhaseId(ritual_id=0, phase=PHASE1)
+
+    assert (
+        ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is None
+    ), "no tx data as yet"
+
     async_tx = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
 
     # ensure tx is tracked
     assert async_tx
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-
-    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx
 
     # try again
     async_tx2 = ursula.perform_round_1(
@@ -158,23 +162,18 @@ def test_perform_round_1(
     )
 
     assert async_tx2 is async_tx
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01] is async_tx2
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx2
 
     # participant already posted transcript
     participant = agent.get_participant(
         ritual_id=0, provider=ursula.checksum_address, transcript=False
     )
     participant.transcript = bytes(random_transcript)
-
     # try submitting again
     result = ursula.perform_round_1(
         ritual_id=0, authority=random_address, participants=cohort, timestamp=0
     )
-
     assert result is None
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01]
 
     # participant no longer already posted aggregated transcript
     participant.transcript = bytes()
@@ -183,8 +182,7 @@ def test_perform_round_1(
     )
 
     assert async_tx3 is async_tx
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_id) is async_tx3
 
 
 def test_perform_round_2(
@@ -241,27 +239,33 @@ def test_perform_round_2(
         agent.get_ritual_status = lambda *args, **kwargs: state
         ursula.perform_round_2(ritual_id=0, timestamp=0)
 
-    assert len(ursula.ritual_tracker.active_rituals) == 1
-    pid01 = PhaseId(ritual_id=0, phase=PHASE1)
-    assert ursula.ritual_tracker.active_rituals[pid01]
+    phase_1_id = PhaseId(ritual_id=0, phase=PHASE1)
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_1_id) is not None
 
     # set correct state
     agent.get_ritual_status = (
         lambda *args, **kwargs: Coordinator.RitualStatus.DKG_AWAITING_AGGREGATIONS
     )
 
+    phase_2_id = PhaseId(ritual_id=0, phase=PHASE2)
+
+    assert (
+        ursula.dkg_storage.get_ritual_phase_async_tx(phase_id=phase_2_id) is None
+    ), "no tx data as yet"
+
     mocker.patch("nucypher.crypto.ferveo.dkg.verify_aggregate")
     async_tx = ursula.perform_round_2(ritual_id=0, timestamp=0)
 
     # check async tx tracking
-    assert len(ursula.ritual_tracker.active_rituals) == 2
-    pid02 = PhaseId(ritual_id=0, phase=PHASE2)
-    assert ursula.ritual_tracker.active_rituals[pid02]
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx
+    assert (
+        ursula.dkg_storage.get_ritual_phase_async_tx(phase_1_id) is not async_tx
+    ), "phase 1 separate from phase 2"
 
     # trying again yields same tx
     async_tx2 = ursula.perform_round_2(ritual_id=0, timestamp=0)
-    assert len(ursula.ritual_tracker.active_rituals) == 2
     assert async_tx2 is async_tx
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx2
 
     # No action required
     participant = agent.get_participant(
@@ -275,3 +279,223 @@ def test_perform_round_2(
     participant.aggregated = False
     async_tx4 = ursula.perform_round_2(ritual_id=0, timestamp=0)
     assert async_tx4 is async_tx
+    assert ursula.dkg_storage.get_ritual_phase_async_tx(phase_2_id) is async_tx4
+
+
+def test_async_tx_hooks_phase_1(ursula, mocker):
+    ritual_id = 0
+    transcript = mocker.Mock()
+    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE1)
+
+    mock_publish_transcript = mocker.Mock()
+    mocker.patch.object(ursula, "publish_transcript", mock_publish_transcript)
+
+    mock_publish_aggregated_transcript = mocker.Mock()
+    mocker.patch.object(
+        ursula, "publish_aggregated_transcript", mock_publish_aggregated_transcript
+    )
+
+    async_tx_hooks = ursula._setup_async_hooks(phase_id, ritual_id, transcript)
+    mock_tx = mocker.Mock()
+    mock_tx.id = 1
+    mock_tx.params = MockBlockchain.FAKE_TX_PARAMS
+
+    resubmit_call_count = 0
+
+    # broadcast failure - just logging
+    async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    assert mock_publish_transcript.call_count == 0
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # broadcast - just logging
+    mock_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    async_tx_hooks.on_broadcast(mock_tx)
+    assert mock_publish_transcript.call_count == 0
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert mock_publish_transcript.call_count == resubmit_call_count, "no change"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    #
+    # With resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_1_action_required", return_value=True)
+
+    # fault
+    mock_tx.fault = Fault.ERROR
+    mock_tx.error = "fault error"
+    async_tx_hooks.on_fault(mock_tx)
+    resubmit_call_count += 1
+    assert mock_publish_transcript.call_count == resubmit_call_count, "tx resubmitted"
+    mock_publish_transcript.assert_called_with(ritual_id, transcript)
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    clear_ritual_spy = mocker.spy(ursula.dkg_storage, "clear_ritual_phase_async_tx")
+
+    # finalized - unsuccessful
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    resubmit_call_count += 1
+    assert mock_publish_transcript.call_count == resubmit_call_count, "tx resubmitted"
+    mock_publish_transcript.assert_called_with(ritual_id, transcript)
+    assert clear_ritual_spy.call_count == 0, "not called because unsuccessful"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # finalized - successful
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == resubmit_call_count
+    ), "no change because successful"
+    clear_ritual_spy.assert_called_once_with(
+        phase_id, mock_tx
+    ), "cleared tx because successful"
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    #
+    # Without resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_1_action_required", return_value=False)
+    current_call_count = mock_publish_transcript.call_count
+
+    async_tx_hooks.on_fault(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+
+def test_async_tx_hooks_phase_2(ursula, mocker, aggregated_transcript, dkg_public_key):
+    ritual_id = 0
+    aggregated_transcript = aggregated_transcript
+    public_key = dkg_public_key
+    phase_id = PhaseId(ritual_id=ritual_id, phase=PHASE2)
+
+    mock_publish_transcript = mocker.Mock()
+    mocker.patch.object(ursula, "publish_transcript", mock_publish_transcript)
+
+    mock_publish_aggregated_transcript = mocker.Mock()
+    mocker.patch.object(
+        ursula, "publish_aggregated_transcript", mock_publish_aggregated_transcript
+    )
+
+    async_tx_hooks = ursula._setup_async_hooks(
+        phase_id, ritual_id, aggregated_transcript, public_key
+    )
+    mock_tx = mocker.Mock()
+    mock_tx.id = 1
+    mock_tx.params = MockBlockchain.FAKE_TX_PARAMS
+
+    resubmit_call_count = 0
+
+    # broadcast failure - just logging
+    async_tx_hooks.on_broadcast_failure(mock_tx, Exception("test"))
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+    assert mock_publish_aggregated_transcript.call_count == 0
+
+    # broadcast - just logging
+    mock_tx.txhash = MockBlockchain.FAKE_TX_HASH
+    async_tx_hooks.on_broadcast(mock_tx)
+    assert mock_publish_transcript.call_count == 0
+    assert (
+        mock_publish_aggregated_transcript.call_count == 0
+    ), "phase 2 publish never called"
+
+    # insufficient funds - just logging
+    async_tx_hooks.on_insufficient_funds(mock_tx, InsufficientFunds())
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "no change"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    #
+    # With resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_2_action_required", return_value=True)
+
+    # fault
+    mock_tx.fault = Fault.TIMEOUT
+    mock_tx.error = "fault error"
+    async_tx_hooks.on_fault(mock_tx)
+    resubmit_call_count += 1
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "tx resubmitted"
+    mock_publish_aggregated_transcript.assert_called_with(
+        ritual_id, aggregated_transcript, public_key
+    )
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    clear_ritual_spy = mocker.spy(ursula.dkg_storage, "clear_ritual_phase_async_tx")
+
+    # finalized - unsuccessful
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    resubmit_call_count += 1
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "tx resubmitted"
+    mock_publish_aggregated_transcript.assert_called_with(
+        ritual_id, aggregated_transcript, public_key
+    )
+    assert clear_ritual_spy.call_count == 0, "not called because unsuccessful"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    # finalized - successful
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_aggregated_transcript.call_count == resubmit_call_count
+    ), "no change because successful"
+    clear_ritual_spy.assert_called_once_with(
+        phase_id, mock_tx
+    ), "cleared tx because successful"
+    assert mock_publish_transcript.call_count == 0, "phase 1 publish never called"
+
+    #
+    # Without resubmitted tx
+    #
+    mocker.patch.object(ursula, "_is_phase_2_action_required", return_value=False)
+    current_call_count = mock_publish_transcript.call_count
+
+    async_tx_hooks.on_fault(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = True
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"
+
+    mock_tx.successful = False
+    async_tx_hooks.on_finalized(mock_tx)
+    assert (
+        mock_publish_transcript.call_count == current_call_count
+    ), "no action needed, so not called"

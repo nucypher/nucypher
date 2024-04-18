@@ -1,9 +1,10 @@
-from typing import Union
+from typing import Optional, Union
 
 from atxm.tx import FutureTx
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
 
@@ -14,25 +15,24 @@ class MockBlockchain(TesterBlockchain):
 
     FAKE_TX_HASH = HexBytes(b"FAKE29890FAKE8349804")
 
-    FAKE_ASYNC_TX = FutureTx(
-        id=1,
-        params={
-            "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
-            "gas": 1,
-            "gasPrice": 1,
-            "value": 1,
-            "data": b"",
-            "nonce": 1,
-        },
-        _from=HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
-    )
-
     FAKE_RECEIPT = {
         "transactionHash": FAKE_TX_HASH,
         "gasUsed": 1,
         "blockNumber": 1,
         "blockHash": HexBytes(b"FAKE43434343FAKE43443434"),
         "contractAddress": HexBytes(b"0xdeadbeef"),
+        "status": 1,
+    }
+
+    FAKE_TX_PARAMS = {
+        "type": 0,  # legacy
+        "to": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+        "from": HexBytes(b"FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE"),
+        "gas": 1,
+        "gasPrice": 1,
+        "value": 1,
+        "data": b"",
+        "nonce": 1,
     }
 
     def __init__(self, *args, **kwargs):
@@ -45,6 +45,22 @@ class MockBlockchain(TesterBlockchain):
     ) -> dict:
         return self.FAKE_RECEIPT
 
+    @classmethod
+    def mock_async_tx(
+        cls, async_tx_hooks: Optional[BlockchainInterface.AsyncTxHooks] = None
+    ) -> FutureTx:
+        future_tx = FutureTx(
+            id=1,
+            params=cls.FAKE_TX_PARAMS,
+        )
+        if async_tx_hooks:
+            future_tx.on_broadcast = async_tx_hooks.on_broadcast
+            future_tx.on_broadcast_failure = async_tx_hooks.on_broadcast_failure
+            future_tx.on_fault = async_tx_hooks.on_fault
+            future_tx.on_finalized = async_tx_hooks.on_finalized
+            future_tx.on_insufficient_funds = async_tx_hooks.on_insufficient_funds
+
+        return future_tx
 
 class MockEthereumClient(EthereumTesterClient):
 

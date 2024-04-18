@@ -11,7 +11,7 @@ cryptography = "*"
 pynacl = ">=1.4.0"
 mnemonic = "*"
 pyopenssl = "*"
-web3 = '^6.0.0'
+web3 = '^6.15.1'
 atxm = "*"
 flask = "*"
 hendrix = "*"
@@ -26,6 +26,7 @@ appdirs = '*'
 constant-sorrow = '^0.1.0a9'
 prometheus-client = '*'
 time-machine = "^2.13.0"
+twisted = "^24.2.0rc1"
 
 [tool.poetry.dev-dependencies]
 pytest = '<7'

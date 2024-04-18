@@ -1,4 +1,3 @@
-
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
@@ -19,7 +18,6 @@ def test_ursula_operator_confirmation(
     threshold_staking,
     taco_application_agent,
     taco_child_application_agent,
-    test_registry,
     deployer_account,
 ):
     staking_provider = testerchain.stake_provider_account(0)

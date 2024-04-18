@@ -173,7 +173,6 @@ def test_dkg_initiation(
         coordinator_agent.get_ritual_status(ritual_id)
         == Coordinator.RitualStatus.DKG_AWAITING_TRANSCRIPTS
     )
-    testerchain.wait_for_receipt(receipt["transactionHash"])
 
 
 @pytest_twisted.inlineCallbacks

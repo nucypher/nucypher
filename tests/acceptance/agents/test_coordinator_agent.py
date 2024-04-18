@@ -4,6 +4,8 @@ import pytest
 import pytest_twisted
 from eth_utils import keccak
 from nucypher_core import SessionStaticSecret
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
@@ -112,7 +114,9 @@ def test_initiate_ritual(
 
 
 @pytest_twisted.inlineCallbacks
-def test_post_transcript(agent, transcripts, transacting_powers, testerchain, clock):
+def test_post_transcript(
+    agent, transcripts, transacting_powers, testerchain, clock, mock_async_hooks
+):
     ritual_id = agent.number_of_rituals() - 1
 
     txs = []
@@ -121,6 +125,7 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cl
             ritual_id=ritual_id,
             transcript=transcripts[i],
             transacting_power=transacting_power,
+            async_tx_hooks=mock_async_hooks,
         )
         txs.append(async_tx)
 
@@ -137,6 +142,18 @@ def test_post_transcript(agent, transcripts, transacting_powers, testerchain, cl
         event = post_transcript_events[0]
         assert event["args"]["ritualId"] == ritual_id
         assert event["args"]["transcriptDigest"] == keccak(transcripts[i])
+
+    # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
+    yield deferLater(reactor, 0.2, lambda: None)
+    assert mock_async_hooks.on_broadcast.call_count == len(txs)
+    assert mock_async_hooks.on_finalized.call_count == len(txs)
+    for async_tx in txs:
+        assert async_tx.successful is True
+
+    # failure hooks not called
+    assert mock_async_hooks.on_broadcast_failure.call_count == 0
+    assert mock_async_hooks.on_fault.call_count == 0
+    assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
     ritual = agent.get_ritual(ritual_id, transcripts=True)
     assert [p.transcript for p in ritual.participants] == transcripts
@@ -159,6 +176,7 @@ def test_post_aggregation(
     cohort,
     testerchain,
     clock,
+    mock_async_hooks,
 ):
     testerchain.tx_machine.start()
     ritual_id = agent.number_of_rituals() - 1
@@ -173,6 +191,7 @@ def test_post_aggregation(
             public_key=dkg_public_key,
             participant_public_key=participant_public_key,
             transacting_power=transacting_power,
+            async_tx_hooks=mock_async_hooks,
         )
         txs.append(async_tx)
 
@@ -199,6 +218,18 @@ def test_post_aggregation(
         assert p.decryption_request_static_key == bytes(
             participant_public_keys[p.provider]
         )
+
+    # ensure relevant hooks are called (once for each tx) OR not called (failure ones)
+    yield deferLater(reactor, 0.2, lambda: None)
+    assert mock_async_hooks.on_broadcast.call_count == len(txs)
+    assert mock_async_hooks.on_finalized.call_count == len(txs)
+    for async_tx in txs:
+        assert async_tx.successful is True
+
+    # failure hooks not called
+    assert mock_async_hooks.on_broadcast_failure.call_count == 0
+    assert mock_async_hooks.on_fault.call_count == 0
+    assert mock_async_hooks.on_insufficient_funds.call_count == 0
 
     ritual = agent.get_ritual(ritual_id)
     assert ritual.participant_public_keys == participant_public_keys

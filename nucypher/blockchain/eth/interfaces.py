@@ -6,14 +6,15 @@ from urllib.parse import urlparse
 
 import requests
 from atxm import AutomaticTxMachine
-from atxm.tx import AsyncTx
+from atxm.exceptions import InsufficientFunds
+from atxm.strategies import ExponentialSpeedupStrategy
+from atxm.tx import AsyncTx, FaultedTx, FinalizedTx, FutureTx, PendingTx
 from constant_sorrow.constants import (
     INSUFFICIENT_FUNDS,  # noqa
     NO_BLOCKCHAIN_CONNECTION,  # noqa
     UNKNOWN_TX_STATUS,  # noqa
 )
 from eth_utils import to_checksum_address
-from hexbytes.main import HexBytes
 from web3 import HTTPProvider, IPCProvider, Web3, WebsocketProvider
 from web3.contract.contract import Contract, ContractConstructor, ContractFunction
 from web3.exceptions import TimeExhausted
@@ -32,7 +33,11 @@ from nucypher.blockchain.eth.providers import (
     _get_websocket_provider,
 )
 from nucypher.blockchain.eth.registry import ContractRegistry
-from nucypher.blockchain.eth.utils import get_transaction_name, prettify_eth_amount
+from nucypher.blockchain.eth.utils import (
+    get_transaction_name,
+    get_tx_cost_data,
+    prettify_eth_amount,
+)
 from nucypher.crypto.powers import TransactingPower
 from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.gas_strategies import (
@@ -132,6 +137,35 @@ class BlockchainInterface:
                 )
             return message
 
+    class AsyncTxHooks:
+        def __init__(
+            self,
+            on_broadcast_failure: Callable[[FutureTx, Exception], None],
+            on_fault: Callable[[FaultedTx], None],
+            on_finalized: Callable[[FinalizedTx], None],
+            on_insufficient_funds: Callable[
+                [Union[FutureTx, PendingTx], InsufficientFunds], None
+            ],
+            on_broadcast: Optional[Callable[[PendingTx], None]] = None,
+        ):
+            self.on_broadcast_failure = on_broadcast_failure
+            self.on_fault = on_fault
+            self.on_finalized = on_finalized
+            self.on_insufficient_funds = on_insufficient_funds
+            self.on_broadcast = (
+                on_broadcast if on_broadcast else self.__default_on_broadcast
+            )
+
+        @staticmethod
+        def __default_on_broadcast(tx: PendingTx):
+            # TODO review use of emitter - #3482
+            emitter = StdoutEmitter()
+            max_cost, max_price_gwei, tx_type = get_tx_cost_data(tx.params)
+            emitter.message(
+                f"Broadcasted {tx_type} async tx {tx.id} with TXHASH {tx.txhash.hex()} ({max_cost} @ {max_price_gwei} gwei)",
+                color="yellow",
+            )
+
     def __init__(
         self,
         emitter=None,  # TODO # 1754
@@ -212,7 +246,14 @@ class BlockchainInterface:
         self.w3 = NO_BLOCKCHAIN_CONNECTION
         self.client: EthereumClient = NO_BLOCKCHAIN_CONNECTION
         self.is_light = light
-        self.tx_machine = AutomaticTxMachine(w3=self.w3)
+
+        speedup_strategy = ExponentialSpeedupStrategy(
+            w3=self.w3,
+            min_time_between_speedups=120,
+        )  # speedup txs if not mined after 2 mins.
+        self.tx_machine = AutomaticTxMachine(
+            w3=self.w3, tx_exec_timeout=self.TIMEOUT, strategies=[speedup_strategy]
+        )
 
         # TODO: Not ready to give users total flexibility. Let's stick for the moment to known values. See #2447
         if gas_strategy not in (
@@ -562,25 +603,14 @@ class BlockchainInterface:
         transaction_dict: Dict,
         transaction_name: str = "",
         confirmations: int = 0,
-    ) -> Union[TxReceipt, HexBytes]:
+    ) -> TxReceipt:
         """
         Takes a transaction dictionary, signs it with the configured signer,
         then broadcasts the signed transaction using the RPC provider's
         eth_sendRawTransaction endpoint.
         """
         emitter = StdoutEmitter()
-        try:
-            # post-london fork transactions (Type 2)
-            max_unit_price = transaction_dict["maxFeePerGas"]
-            tx_type = "EIP-1559"
-        except KeyError:
-            # pre-london fork "legacy" transactions (Type 0)
-            max_unit_price = transaction_dict["gasPrice"]
-            tx_type = "Legacy"
-
-        max_price_gwei = Web3.from_wei(max_unit_price, "gwei")
-        max_cost_wei = max_unit_price * transaction_dict["gas"]
-        max_cost = Web3.from_wei(max_cost_wei, "ether")
+        max_cost, max_price_gwei, tx_type = get_tx_cost_data(transaction_dict)
 
         if transacting_power.is_device:
             emitter.message(
@@ -593,6 +623,7 @@ class BlockchainInterface:
         #
         # Broadcast
         #
+        # TODO review use of emitter - #3482
         emitter.message(
             f"Broadcasting {transaction_name} {tx_type} Transaction ({max_cost} @ {max_price_gwei} gwei)",
             color="yellow",
@@ -658,9 +689,10 @@ class BlockchainInterface:
         self,
         contract_function: ContractFunction,
         transacting_power: TransactingPower,
+        async_tx_hooks: AsyncTxHooks,
         transaction_gas_limit: Optional[int] = None,
         gas_estimation_multiplier: float = 1.15,
-        info: Optional[Dict] = None,
+        info: Optional[Dict[str, str]] = None,
         payload: dict = None,
     ) -> AsyncTx:
         transaction = self.build_contract_transaction(
@@ -686,6 +718,11 @@ class BlockchainInterface:
             info=info,
             params=transaction,
             signer=signer,
+            on_broadcast=async_tx_hooks.on_broadcast,
+            on_broadcast_failure=async_tx_hooks.on_broadcast_failure,
+            on_fault=async_tx_hooks.on_fault,
+            on_finalized=async_tx_hooks.on_finalized,
+            on_insufficient_funds=async_tx_hooks.on_insufficient_funds,
         )
         return async_tx
 
