@@ -186,5 +186,6 @@ class Logger(TwistedLogger):
         return escaped_string
 
     def emit(self, level, format=None, **kwargs):
-        clean_format = self.escape_format_string(str(format))
-        super().emit(level=level, format=clean_format, **kwargs)
+        if level >= GlobalLoggerSettings.log_level:
+            clean_format = self.escape_format_string(str(format))
+            super().emit(level=level, format=clean_format, **kwargs)
