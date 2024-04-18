@@ -93,7 +93,7 @@ class GlobalLoggerSettings:
     @classmethod
     def _start_logging(cls, logging_type: LoggingType):
         if cls._is_already_configured(logging_type):
-            print(f"{logging_type.value} logger already configured")
+            # no-op
             return
 
         if logging_type == cls.LoggingType.CONSOLE:
@@ -145,12 +145,17 @@ class GlobalLoggerSettings:
     @classmethod
     @contextmanager
     def pause_all_logging_while(cls):
-        former_observers = tuple(globalLogPublisher._observers)
-        for observer in former_observers:
+        all_former_observers = tuple(globalLogPublisher._observers)
+        former_global_observers = dict(cls._observers)
+        for observer in all_former_observers:
             globalLogPublisher.removeObserver(observer)
+        cls._observers.clear()
+
         yield
-        for observer in former_observers:
+        cls._observers.clear()
+        for observer in all_former_observers:
             globalLogPublisher.addObserver(observer)
+        cls._observers.update(former_global_observers)
 
 
 class _SentryInitGuard:

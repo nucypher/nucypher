@@ -1,11 +1,16 @@
-
-
+from functools import partial
 from io import StringIO
 from json.encoder import py_encode_basestring_ascii
+from unittest import mock
 
 import pytest
 from twisted.logger import Logger as TwistedLogger
-from twisted.logger import LogLevel, formatEvent, jsonFileLogObserver
+from twisted.logger import (
+    LogLevel,
+    formatEvent,
+    globalLogPublisher,
+    jsonFileLogObserver,
+)
 
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
@@ -176,3 +181,57 @@ def test_log_level_adhered_to(global_log_level):
             assert len(received_events) == num_logged_events
     finally:
         GlobalLoggerSettings.set_log_level(old_log_level)
+
+
+@pytest.mark.parametrize(
+    "start_logging_fn, stop_logging_fn, logging_type",
+    (
+        (
+            GlobalLoggerSettings.start_console_logging,
+            GlobalLoggerSettings.stop_console_logging,
+            GlobalLoggerSettings.LoggingType.CONSOLE,
+        ),
+        (
+            GlobalLoggerSettings.start_text_file_logging,
+            GlobalLoggerSettings.stop_text_file_logging,
+            GlobalLoggerSettings.LoggingType.TEXT,
+        ),
+        (
+            GlobalLoggerSettings.start_json_file_logging,
+            GlobalLoggerSettings.stop_json_file_logging,
+            GlobalLoggerSettings.LoggingType.JSON,
+        ),
+        (
+            partial(GlobalLoggerSettings.start_sentry_logging, dsn="mock_dsn"),
+            GlobalLoggerSettings.stop_sentry_logging,
+            GlobalLoggerSettings.LoggingType.SENTRY,
+        ),
+    ),
+)
+@mock.patch("nucypher.utilities.logging.initialize_sentry", return_value=None)
+def test_addition_removal_global_observers(
+    sentry_mock_init, start_logging_fn, stop_logging_fn, logging_type
+):
+    with GlobalLoggerSettings.pause_all_logging_while():
+        # start logging
+        start_logging_fn()
+        assert len(globalLogPublisher._observers) == 1
+        assert len(GlobalLoggerSettings._observers) == 1
+        original_global_observer = GlobalLoggerSettings._observers[logging_type]
+        assert original_global_observer is not None
+        assert original_global_observer in globalLogPublisher._observers
+
+        # try starting again - noop
+        start_logging_fn()
+        assert len(globalLogPublisher._observers) == 1
+        assert original_global_observer in globalLogPublisher._observers
+        assert len(GlobalLoggerSettings._observers) == 1
+        assert GlobalLoggerSettings._observers[logging_type] == original_global_observer
+
+        # stop logging
+        stop_logging_fn()
+        assert len(globalLogPublisher._observers) == 0
+        assert len(GlobalLoggerSettings._observers) == 0
+
+        # try stopping again, when already stopped/removed - noop
+        stop_logging_fn()
