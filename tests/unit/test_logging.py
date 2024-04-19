@@ -12,6 +12,7 @@ from twisted.logger import (
     jsonFileLogObserver,
 )
 
+from nucypher.utilities.emitters import StdoutEmitter
 from nucypher.utilities.logging import GlobalLoggerSettings, Logger
 
 
@@ -249,3 +250,44 @@ def test_addition_removal_global_observers(
 
         # try stopping again, when already stopped/removed - noop
         stop_logging_fn()
+
+
+def test_stdout_emitter_link_to_logging(mocker):
+    message = "Learn from the mistakes of others. You can’t live long enough to make them all yourself."  # - Eleanor Roosevelt
+    emit_fn = mocker.Mock()
+    with mocker.patch("nucypher.utilities.logging.Logger.emit", side_effect=emit_fn):
+        call_count = 0
+        assert emit_fn.call_count == call_count
+
+        emitter = StdoutEmitter()
+
+        # message(...)
+        for verbosity in [0, 1, 2]:
+            emitter.message(message=message, verbosity=verbosity)
+            call_count += 1
+            assert emit_fn.call_count == call_count
+
+            if verbosity < 2:
+                emit_fn.assert_called_with(LogLevel.info, message)
+            else:
+                emit_fn.assert_called_with(LogLevel.debug, message)
+
+        # echo(...)
+        for verbosity in [0, 1, 2]:
+            emitter.echo(message=message, verbosity=verbosity)
+            assert (
+                emit_fn.call_count == call_count
+            ), "user interactions so no change in call count"
+
+        # error(...)
+        exception = ValueError(message)
+        emitter.error(exception)
+        call_count += 1
+        assert emit_fn.call_count == call_count
+        emit_fn.assert_called_with(LogLevel.error, str(exception))
+
+        # banner(...)
+        emitter.banner(banner=message)
+        assert (
+            emit_fn.call_count == call_count
+        ), "just a banner so no change in call count"
