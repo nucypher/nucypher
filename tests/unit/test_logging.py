@@ -153,6 +153,20 @@ def test_even_nucypher_json_logger_is_cool():
         assert f'"log_format": "{expected_processing(string)}"' in logged_event
 
 
+def test_pause_all_logging_while():
+    # get state beforehand
+    former_global_observers = dict(GlobalLoggerSettings._observers)
+    former_registered_observers = list(globalLogPublisher._observers)
+    with GlobalLoggerSettings.pause_all_logging_while():
+        # within context manager
+        assert len(GlobalLoggerSettings._observers) == 0
+        assert len(globalLogPublisher._observers) == 0
+
+    # exited context manager
+    assert former_global_observers == GlobalLoggerSettings._observers
+    assert former_registered_observers == globalLogPublisher._observers
+
+
 @pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
 def test_log_level_adhered_to(global_log_level):
     old_log_level = GlobalLoggerSettings.log_level.name
