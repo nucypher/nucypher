@@ -1,16 +1,15 @@
-
-
-
 import pathlib
+import sys
 from contextlib import contextmanager
+from enum import Enum
 
 from twisted.logger import (
     FileLogObserver,
     LogLevel,
-    formatEvent,
     formatEventAsClassicLogText,
     globalLogPublisher,
     jsonFileLogObserver,
+    textFileLogObserver,
 )
 from twisted.logger import Logger as TwistedLogger
 from twisted.python.logfile import LogFile
@@ -69,58 +68,94 @@ class GlobalLoggerSettings:
 
     log_level = LogLevel.levelWithName("info")
     _json_ipc = False  # TODO: Oh no... #1754
+    _observers = dict()
+
+    class LoggingType(Enum):
+        CONSOLE = "console"
+        TEXT = "text"
+        JSON = "json"
+        SENTRY = "sentry"
 
     @classmethod
     def set_log_level(cls, log_level_name):
         cls.log_level = LogLevel.levelWithName(log_level_name)
 
     @classmethod
+    def _stop_logging(cls, logging_type: LoggingType):
+        observer = cls._observers.pop(logging_type, None)
+        if observer:
+            globalLogPublisher.removeObserver(observer)
+
+    @classmethod
+    def _is_already_configured(cls, logging_type: LoggingType) -> bool:
+        return logging_type in cls._observers
+
+    @classmethod
+    def _start_logging(cls, logging_type: LoggingType):
+        if cls._is_already_configured(logging_type):
+            # no-op
+            return
+
+        if logging_type == cls.LoggingType.CONSOLE:
+            observer = textFileLogObserver(sys.stdout)
+        elif logging_type == cls.LoggingType.TEXT:
+            observer = get_text_file_observer()
+        elif logging_type == cls.LoggingType.JSON:
+            observer = get_json_file_observer()
+        else:
+            # sentry
+            observer = sentry_observer
+
+        cls._observers[logging_type] = observer
+        globalLogPublisher.addObserver(observer)
+
+    @classmethod
     def start_console_logging(cls):
-        globalLogPublisher.addObserver(console_observer)
+        cls._start_logging(cls.LoggingType.CONSOLE)
 
     @classmethod
     def stop_console_logging(cls):
-        globalLogPublisher.removeObserver(console_observer)
-
-    @classmethod
-    @contextmanager
-    def pause_all_logging_while(cls):
-        former_observers = tuple(globalLogPublisher._observers)
-        for observer in former_observers:
-            globalLogPublisher.removeObserver(observer)
-        yield
-        for observer in former_observers:
-            globalLogPublisher.addObserver(observer)
+        cls._stop_logging(cls.LoggingType.CONSOLE)
 
     @classmethod
     def start_text_file_logging(cls):
-        globalLogPublisher.addObserver(get_text_file_observer())
+        cls._start_logging(cls.LoggingType.TEXT)
 
     @classmethod
     def stop_text_file_logging(cls):
-        globalLogPublisher.removeObserver(get_text_file_observer())
+        cls._stop_logging(cls.LoggingType.TEXT)
 
     @classmethod
     def start_json_file_logging(cls):
-        globalLogPublisher.addObserver(get_json_file_observer())
+        cls._start_logging(cls.LoggingType.JSON)
 
     @classmethod
     def stop_json_file_logging(cls):
-        globalLogPublisher.removeObserver(get_json_file_observer())
+        cls._stop_logging(cls.LoggingType.JSON)
 
     @classmethod
     def start_sentry_logging(cls, dsn: str):
         _SentryInitGuard.init(dsn)
-        globalLogPublisher.addObserver(sentry_observer)
+        cls._start_logging(cls.LoggingType.SENTRY)
 
     @classmethod
     def stop_sentry_logging(cls):
-        globalLogPublisher.removeObserver(sentry_observer)
+        cls._stop_logging(cls.LoggingType.SENTRY)
 
+    @classmethod
+    @contextmanager
+    def pause_all_logging_while(cls):
+        all_former_observers = tuple(globalLogPublisher._observers)
+        former_global_observers = dict(cls._observers)
+        for observer in all_former_observers:
+            globalLogPublisher.removeObserver(observer)
+        cls._observers.clear()
 
-def console_observer(event):
-    if event['log_level'] >= GlobalLoggerSettings.log_level:
-        print(formatEvent(event))
+        yield
+        cls._observers.clear()
+        for observer in all_former_observers:
+            globalLogPublisher.addObserver(observer)
+        cls._observers.update(former_global_observers)
 
 
 class _SentryInitGuard:
@@ -186,5 +221,6 @@ class Logger(TwistedLogger):
         return escaped_string
 
     def emit(self, level, format=None, **kwargs):
-        clean_format = self.escape_format_string(str(format))
-        super().emit(level=level, format=clean_format, **kwargs)
+        if level >= GlobalLoggerSettings.log_level:
+            clean_format = self.escape_format_string(str(format))
+            super().emit(level=level, format=clean_format, **kwargs)

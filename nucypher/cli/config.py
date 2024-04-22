@@ -23,18 +23,21 @@ class GroupGeneralConfig:
     sentry_endpoint = os.environ.get("NUCYPHER_SENTRY_DSN", NUCYPHER_SENTRY_ENDPOINT)
     log_to_sentry = get_env_bool("NUCYPHER_SENTRY_LOGS", False)
     log_to_file = get_env_bool("NUCYPHER_FILE_LOGS", True)
+    log_to_json_file = get_env_bool("NUCYPHER_JSON_LOGS", False)
 
-    def __init__(self,
-                 json_ipc: bool,
-                 verbose: bool,
-                 quiet: bool,
-                 no_logs: bool,
-                 console_logs: bool,
-                 file_logs: bool,
-                 sentry_logs: bool,
-                 log_level: bool,
-                 debug: bool):
-
+    def __init__(
+        self,
+        json_ipc: bool,
+        verbose: bool,
+        quiet: bool,
+        no_logs: bool,
+        console_logs: bool,
+        file_logs: bool,
+        json_logs: bool,
+        sentry_logs: bool,
+        log_level: bool,
+        debug: bool,
+    ):
         self.log = Logger(self.__class__.__name__)
 
         # Session Emitter for pre and post character control engagement.
@@ -66,6 +69,8 @@ class GroupGeneralConfig:
         # Defaults
         if file_logs is None:
             file_logs = self.log_to_file
+        if json_logs is None:
+            json_logs = self.log_to_json_file
         if sentry_logs is None:
             sentry_logs = self.log_to_sentry
 
@@ -78,6 +83,7 @@ class GroupGeneralConfig:
         if no_logs:
             console_logs = False
             file_logs = False
+            json_logs = False
             sentry_logs = False
         if json_ipc:
             console_logs = False
@@ -88,6 +94,7 @@ class GroupGeneralConfig:
             GlobalLoggerSettings.start_console_logging()
         if file_logs:
             GlobalLoggerSettings.start_text_file_logging()
+        if json_logs:
             GlobalLoggerSettings.start_json_file_logging()
         if sentry_logs:
             GlobalLoggerSettings.start_sentry_logging(self.sentry_endpoint)
@@ -116,7 +123,12 @@ group_general_config = group_options(
 
     file_logs=click.option(
         '--file-logs/--no-file-logs',
-        help="Enable/disable logging to file. Defaults to NUCYPHER_FILE_LOGS, or to `--file-logs` if it is not set.",
+        help="Enable/disable logging to text file. Defaults to NUCYPHER_FILE_LOGS, or to `--file-logs` if it is not set.",
+        default=None,
+    ),
+    json_logs=click.option(
+        "--json-logs/--no-json-logs",
+        help="Enable/disable logging to a json file. Defaults to NUCYPHER_JSON_LOGS, or to `--no-json-logs` if it is not set.",
         default=None),
 
     sentry_logs=click.option(

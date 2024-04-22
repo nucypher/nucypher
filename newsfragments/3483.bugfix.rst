@@ -1,0 +1,2 @@
+Console logging was not using the correct log format, log levels were not adhered to for limiting log messages, and global log observers not correctly managed.
+Improved the StdoutEmitter to better utilize the logger so that information is not lost.
