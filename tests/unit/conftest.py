@@ -119,3 +119,17 @@ def random_transcript(get_random_checksum_address):
     )
 
     return transcript
+
+
+@pytest.fixture(scope="module")
+def tx_dict():
+    _tx_dict = {
+        "chainId": 1,
+        "nonce": 2,
+        "gasPrice": 2000000000000,
+        "gas": 314159,
+        "to": "0xd3CdA913deB6f67967B99D67aCDFa1712C293601",
+        "value": 12345,
+        "data": b"in that metric, kman is above reproach",  # thank you friends
+    }
+    yield _tx_dict
