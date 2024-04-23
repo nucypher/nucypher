@@ -13,7 +13,11 @@ from twisted.logger import (
 )
 
 from nucypher.utilities.emitters import StdoutEmitter
-from nucypher.utilities.logging import GlobalLoggerSettings, Logger
+from nucypher.utilities.logging import (
+    GlobalLoggerSettings,
+    Logger,
+    observer_log_level_wrapper,
+)
 
 
 def naive_print_observer(event):
@@ -169,15 +173,12 @@ def test_pause_all_logging_while():
 
 
 @pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
-def test_log_level_adhered_to(global_log_level):
+def test_log_level_adhered_to(global_log_level, mocker):
     old_log_level = GlobalLoggerSettings.log_level.name
     try:
         GlobalLoggerSettings.set_log_level(global_log_level.name)
 
-        received_events = []
-
-        def logger_observer(event):
-            received_events.append(event)
+        logger_observer = mocker.Mock()
 
         logger = Logger("test-logger")
         logger.observer = logger_observer
@@ -193,7 +194,80 @@ def test_log_level_adhered_to(global_log_level):
                 num_logged_events += 1
             # else not logged
 
-            assert len(received_events) == num_logged_events
+            assert logger_observer.call_count == num_logged_events
+    finally:
+        GlobalLoggerSettings.set_log_level(old_log_level)
+
+
+@pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
+def test_observer_log_level_wrapper_for_adhering_to_log_levels(
+    global_log_level, mocker
+):
+    old_log_level = GlobalLoggerSettings.log_level.name
+    try:
+        GlobalLoggerSettings.set_log_level(global_log_level.name)
+
+        logger_observer = mocker.Mock()
+
+        logger = TwistedLogger("test-logger")
+        logger.observer = observer_log_level_wrapper(logger_observer)
+
+        message = "People without self-doubt should never put themselves in a position of complete power"  # - Chuck Rhoades (Billions)
+        num_logged_events = 0
+
+        for level in LogLevel._enumerants.values():
+            # call logger.<level>(message)
+            getattr(logger, level.name)(message)
+
+            if level >= global_log_level:
+                num_logged_events += 1
+            # else not logged
+
+            assert logger_observer.call_count == num_logged_events
+    finally:
+        GlobalLoggerSettings.set_log_level(old_log_level)
+
+
+@pytest.mark.parametrize("global_log_level", LogLevel._enumerants.values())
+def test_global_observer_uses_wrapper_for_adhering_to_log_levels(
+    global_log_level, mocker
+):
+    original_method = observer_log_level_wrapper
+
+    logger_observer = mocker.Mock()
+
+    def adjusted_call(observer):
+        # replace observer used with our Mock
+        return original_method(logger_observer)
+
+    old_log_level = GlobalLoggerSettings.log_level.name
+    try:
+        GlobalLoggerSettings.set_log_level(global_log_level.name)
+
+        with GlobalLoggerSettings.pause_all_logging_while():
+            # patch call to wrapper, to replace global observer with our own
+            mocker.patch(
+                "nucypher.utilities.logging.observer_log_level_wrapper",
+                side_effect=adjusted_call,
+            )
+
+            GlobalLoggerSettings.start_console_logging()
+            assert len(GlobalLoggerSettings._observers) == 1
+
+            logger = TwistedLogger("test-logger")
+            message = "People without self-doubt should never put themselves in a position of complete power"  # - Chuck Rhoades (Billions)
+
+            num_logged_events = 0
+
+            for level in LogLevel._enumerants.values():
+                # call logger.<level>(message)
+                getattr(logger, level.name)(message)
+
+                if level >= global_log_level:
+                    num_logged_events += 1
+                # else not logged
+
+                assert logger_observer.call_count == num_logged_events
     finally:
         GlobalLoggerSettings.set_log_level(old_log_level)
 
