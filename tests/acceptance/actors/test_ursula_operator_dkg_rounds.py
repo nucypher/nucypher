@@ -170,24 +170,34 @@ def perform_round_1_with_fault_tolerance(
     assert len(testerchain.tx_machine.queued) == 1
 
     # broadcast failure callback called
+    # tx is explicitly removed and resubmitted by callback
     original_async_tx.on_broadcast_failure(original_async_tx, Exception())
+    publish_transcript_call_count += 1  # on_fault should trigger resubmission
     assert (
         publish_transcript_spy.call_count == publish_transcript_call_count
-    ), "no change"
+    ), "updated call"
     assert (
         publish_aggregated_transcript_spy.call_count == 0
     ), "phase 2 method never called"
+    resubmitted_after_broadcast_failure_async_tx = (
+        ursula_experiencing_problems.dkg_storage.get_ritual_phase_async_tx(phase_id)
+    )
+    assert (
+        resubmitted_after_broadcast_failure_async_tx is not original_async_tx
+    ), "cache updated with resubmitted tx"
     assert len(testerchain.tx_machine.queued) == 1
 
     # on_fault callback called - this should cause a resubmission of tx because
     # tx was removed from atxm after faulting
     testerchain.tx_machine.remove_queued_transaction(
-        original_async_tx
+        resubmitted_after_broadcast_failure_async_tx
     )  # simulate removal from atxm
     assert len(testerchain.tx_machine.queued) == 0
-    original_async_tx.fault = Fault.ERROR
-    original_async_tx.error = None
-    original_async_tx.on_fault(original_async_tx)
+    resubmitted_after_broadcast_failure_async_tx.fault = Fault.ERROR
+    resubmitted_after_broadcast_failure_async_tx.error = None
+    resubmitted_after_broadcast_failure_async_tx.on_fault(
+        resubmitted_after_broadcast_failure_async_tx
+    )
     publish_transcript_call_count += 1  # on_fault should trigger resubmission
     assert (
         publish_transcript_spy.call_count == publish_transcript_call_count
@@ -200,7 +210,8 @@ def perform_round_1_with_fault_tolerance(
         ursula_experiencing_problems.dkg_storage.get_ritual_phase_async_tx(phase_id)
     )
     assert (
-        resubmitted_after_fault_async_tx is not original_async_tx
+        resubmitted_after_fault_async_tx
+        is not resubmitted_after_broadcast_failure_async_tx
     ), "cache updated with resubmitted tx"
     assert len(testerchain.tx_machine.queued) == 1
 
@@ -346,23 +357,35 @@ def perform_round_2_with_fault_tolerance(
     assert len(testerchain.tx_machine.queued) == 1
 
     # broadcast failure callback called
+    # tx is explicitly removed and resubmitted by callback
     original_async_tx.on_broadcast_failure(original_async_tx, Exception())
+    publish_aggregated_transcript_call_count += (
+        1  # on_fault should trigger resubmission
+    )
     assert (
         publish_aggregated_transcript_spy.call_count
         == publish_aggregated_transcript_call_count
-    ), "no change"
+    ), "updated call"
     assert publish_transcript_spy.call_count == 0, "phase 1 method never called"
+    resubmitted_after_broadcast_failure_async_tx = (
+        ursula_experiencing_problems.dkg_storage.get_ritual_phase_async_tx(phase_id)
+    )
+    assert (
+        resubmitted_after_broadcast_failure_async_tx is not original_async_tx
+    ), "cache updated with resubmitted tx"
     assert len(testerchain.tx_machine.queued) == 1
 
     # on_fault callback called - this should cause a resubmission of tx because
     # tx was removed from atxm after faulting
     testerchain.tx_machine.remove_queued_transaction(
-        original_async_tx
+        resubmitted_after_broadcast_failure_async_tx
     )  # simulate removal from atxm
     assert len(testerchain.tx_machine.queued) == 0
-    original_async_tx.fault = Fault.ERROR
-    original_async_tx.error = None
-    original_async_tx.on_fault(original_async_tx)
+    resubmitted_after_broadcast_failure_async_tx.fault = Fault.ERROR
+    resubmitted_after_broadcast_failure_async_tx.error = None
+    resubmitted_after_broadcast_failure_async_tx.on_fault(
+        resubmitted_after_broadcast_failure_async_tx
+    )
     publish_aggregated_transcript_call_count += (
         1  # on_fault should trigger resubmission
     )
@@ -376,7 +399,8 @@ def perform_round_2_with_fault_tolerance(
         ursula_experiencing_problems.dkg_storage.get_ritual_phase_async_tx(phase_id)
     )
     assert (
-        resubmitted_after_fault_async_tx is not original_async_tx
+        resubmitted_after_fault_async_tx
+        is not resubmitted_after_broadcast_failure_async_tx
     ), "cache updated with resubmitted tx"
     assert len(testerchain.tx_machine.queued) == 1
 
