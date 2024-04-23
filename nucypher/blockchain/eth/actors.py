@@ -385,6 +385,13 @@ class Operator(BaseActor):
                 f"{tx_type} async tx {tx.id} for DKG ritual# {phase_id.ritual_id} "
                 f"failed to broadcast {e}; the same tx will be retried"
             )
+            # either multiple retries already completed for recoverable error,
+            # or simply a non-recoverable error - remove and resubmit
+            # (analogous action to a node restart of old)
+            self.coordinator_agent.blockchain.tx_machine.remove_queued_transaction(tx)
+
+            # submit a new one
+            resubmit_tx()
 
         def on_fault(tx: FaultedTx):
             # fault means that tx was removed from atxm
