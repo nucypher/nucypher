@@ -6,7 +6,6 @@ from urllib.parse import urlparse
 
 from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
-from eth_account.datastructures import SignedTransaction
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
 from eth_utils.address import is_address, to_canonical_address, to_checksum_address
@@ -99,11 +98,11 @@ class Web3Signer(Signer):
         signature = self.__client.sign_message(account=account, message=message)
         return HexBytes(signature)
 
-    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
-        signed_transaction = self.__client.sign_transaction(
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
+        raw_transaction = self.__client.sign_transaction(
             transaction_dict=transaction_dict
         )
-        return signed_transaction
+        return raw_transaction
 
 
 class KeystoreSigner(Signer):
@@ -275,7 +274,7 @@ class KeystoreSigner(Signer):
         return account not in self.__signers
 
     @validate_checksum_address
-    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
         """
         Produce a raw signed ethereum transaction signed by the account specified
         in the 'from' field of the transaction dictionary.
@@ -355,15 +354,15 @@ class InMemorySigner(Signer):
                 raise self.AccountLocked(account=account)
 
     @validate_checksum_address
-    def sign_transaction(self, transaction_dict: dict) -> SignedTransaction:
+    def sign_transaction(self, transaction_dict: dict) -> bytes:
         sender = transaction_dict["from"]
         signer = self.__get_signer(account=sender)
         if not transaction_dict["to"]:
             transaction_dict = dissoc(transaction_dict, "to")
-        signed_transaction = signer.sign_transaction(
+        raw_transaction = signer.sign_transaction(
             transaction_dict=transaction_dict
         ).rawTransaction
-        return signed_transaction
+        return raw_transaction
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:

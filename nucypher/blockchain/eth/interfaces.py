@@ -617,7 +617,7 @@ class BlockchainInterface:
                 f"({max_cost} @ {max_price_gwei} gwei)",
                 color="yellow",
             )
-        signed_transaction = transacting_power.sign_transaction(transaction_dict)
+        raw_transaction = transacting_power.sign_transaction(transaction_dict)
 
         #
         # Broadcast
@@ -627,9 +627,7 @@ class BlockchainInterface:
             color="yellow",
         )
         try:
-            txhash = self.client.send_raw_transaction(
-                signed_transaction.rawTransaction
-            )  # <--- BROADCAST
+            txhash = self.client.send_raw_transaction(raw_transaction)  # <--- BROADCAST
             emitter.message(f"TXHASH {txhash.hex()}", color="yellow")
         except ValueError:
             raise  # TODO: Unify with Transaction failed handling -- Entry point for _handle_failed_transaction
