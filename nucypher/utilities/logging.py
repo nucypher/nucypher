@@ -2,9 +2,11 @@ import pathlib
 import sys
 from contextlib import contextmanager
 from enum import Enum
+from typing import Callable
 
 from twisted.logger import (
     FileLogObserver,
+    LogEvent,
     LogLevel,
     formatEventAsClassicLogText,
     globalLogPublisher,
@@ -106,8 +108,11 @@ class GlobalLoggerSettings:
             # sentry
             observer = sentry_observer
 
-        cls._observers[logging_type] = observer
-        globalLogPublisher.addObserver(observer)
+        # wrap to adhere to log level since other loggers rely on observer to differentiate
+        wrapped_observer = observer_log_level_wrapper(observer)
+
+        globalLogPublisher.addObserver(wrapped_observer)
+        cls._observers[logging_type] = wrapped_observer
 
     @classmethod
     def start_console_logging(cls):
@@ -224,3 +229,11 @@ class Logger(TwistedLogger):
         if level >= GlobalLoggerSettings.log_level:
             clean_format = self.escape_format_string(str(format))
             super().emit(level=level, format=clean_format, **kwargs)
+
+
+def observer_log_level_wrapper(observer: Callable[[LogEvent], None]):
+    def log_level_wrapper(event: LogEvent):
+        if event["log_level"] >= GlobalLoggerSettings.log_level:
+            observer(event)
+
+    return log_level_wrapper
