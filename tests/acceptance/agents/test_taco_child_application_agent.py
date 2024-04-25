@@ -154,3 +154,33 @@ def test_sample_staking_providers(taco_child_application_agent, duration):
     assert len(set(providers)) == 3
     assert len(set(providers).intersection(all_staking_providers)) == 3
     assert len(set(providers).intersection(exclude_providers)) == 0
+
+
+def test_get_staking_provider_info(
+    taco_child_application_agent, ursulas, get_random_checksum_address
+):
+    # existing staker
+    staking_provider, operator_address = (
+        ursulas[0].checksum_address,
+        ursulas[0].operator_address,
+    )
+    info = taco_child_application_agent.staking_provider_info(
+        staking_provider=staking_provider
+    )
+    assert info.operator == operator_address
+    assert info.authorized > taco_child_application_agent.get_min_authorization()
+    assert info.operator_confirmed is True
+    assert info.index == 1
+    assert info.deauthorizing == 0
+    assert info.end_deauthorization == 0
+
+    # non-existent staker
+    info = taco_child_application_agent.staking_provider_info(
+        get_random_checksum_address()
+    )
+    assert info.operator == NULL_ADDRESS
+    assert info.authorized == 0
+    assert info.operator_confirmed is False
+    assert info.index == 0
+    assert info.deauthorizing == 0
+    assert info.end_deauthorization == 0

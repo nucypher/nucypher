@@ -2,7 +2,6 @@ import random
 
 import pytest
 
-from nucypher.blockchain.eth.agents import TACoApplicationAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
@@ -139,17 +138,19 @@ def test_sample_staking_providers(taco_application_agent, duration):
 
 
 def test_get_staking_provider_info(
-    testerchain, taco_application_agent, get_random_checksum_address
+    taco_application_agent, ursulas, get_random_checksum_address
 ):
-    staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
-    info: TACoApplicationAgent.StakingProviderInfo = (
-        taco_application_agent.get_staking_provider_info(
-            staking_provider=staking_provider_account
-        )
+    # existing staker
+    staking_provider, operator_address = (
+        ursulas[0].checksum_address,
+        ursulas[0].operator_address,
+    )
+    info = taco_application_agent.get_staking_provider_info(
+        staking_provider=staking_provider
     )
     assert info.operator_start_timestamp > 0
-    assert info.operator == operator_account
-    assert info.operator_confirmed is False
+    assert info.operator == operator_address
+    assert info.operator_confirmed is True
 
     # non-existent staker
     info = taco_application_agent.get_staking_provider_info(
