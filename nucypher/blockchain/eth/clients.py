@@ -38,22 +38,10 @@ class Web3ClientUnexpectedVersionString(Web3ClientError):
     pass
 
 
-# TODO: Consider creating a ChainInventory class and/or moving this to a separate module
-
 PUBLIC_CHAINS = {
-    0: "Olympic",
     1: "Mainnet",
-    2: "Morden",
-    3: "Ropsten",
-    4: "Rinkeby",
-    5: "Goerli",
-    6: "Kotti",
-    42: "Kovan",
-    77: "Sokol",
-    100: "xDai",
     137: "Polygon/Mainnet",
     11155111: "Sepolia",
-    80001: "Polygon/Mumbai",
     80002: "Polygon/Amoy",
 }
 
