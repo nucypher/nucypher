@@ -84,7 +84,7 @@ def test_interactive_initialize_ursula(click_runner, mocker, tmpdir):
 
 
 def test_initialize_custom_configuration_root(
-    click_runner, custom_filepath: Path, testerchain
+    click_runner, custom_filepath: Path, accounts
 ):
     deploy_port = select_test_port()
     # Use a custom local filepath for configuration
@@ -104,7 +104,7 @@ def test_initialize_custom_configuration_root(
         "--polygon-endpoint",
         MOCK_ETH_PROVIDER_URI,
         "--operator-address",
-        testerchain.ursulas_accounts[0],
+        accounts.ursulas_accounts[0],
     )
     result = click_runner.invoke(
         nucypher_cli, init_args, input=FAKE_PASSWORD_CONFIRMED, catch_exceptions=False

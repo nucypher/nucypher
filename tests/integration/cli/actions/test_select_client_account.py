@@ -5,7 +5,6 @@ import pytest
 from eth_utils import is_checksum_address
 from web3 import Web3
 
-from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
 from nucypher.blockchain.eth.signers.software import Web3Signer
@@ -21,14 +20,17 @@ from tests.constants import (
 
 @pytest.mark.parametrize("selection", range(NUMBER_OF_ETH_TEST_ACCOUNTS))
 def test_select_client_account(
-    mock_stdin, test_emitter, testerchain, selection, capsys
+    mock_stdin, test_emitter, testerchain, accounts, selection, capsys, mocker
 ):
     """Fine-grained assertions about the return value of interactive client account selection"""
+    signer = mocker.Mock()
+    signer.accounts = accounts.accounts
+
     mock_stdin.line(str(selection))
-    expected_account = testerchain.client.accounts[selection]
+    expected_account = accounts.accounts[selection]
     selected_account = select_client_account(
         emitter=test_emitter,
-        signer=Web3Signer(testerchain.client),
+        signer=signer,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
         domain=TEMPORARY_DOMAIN_NAME,
     )
@@ -50,11 +52,13 @@ def test_select_client_account_with_no_accounts(
     testerchain,
     capsys,
 ):
-    mocker.patch.object(EthereumClient, "accounts", return_value=[])
+    signer = mocker.Mock()
+    signer.accounts = []
+
     with pytest.raises(click.Abort):
         select_client_account(
             emitter=test_emitter,
-            signer=Web3Signer(testerchain.client),
+            signer=signer,
             polygon_endpoint=MOCK_ETH_PROVIDER_URI,
             domain=TEMPORARY_DOMAIN_NAME,
         )
@@ -81,11 +85,13 @@ def test_select_client_account_ambiguous_source(
 
 
 @pytest.mark.parametrize("selection", range(NUMBER_OF_ETH_TEST_ACCOUNTS))
+@pytest.mark.usefixtures("mock_registry_sources")
 def test_select_client_account_valid_sources(
     mocker,
     mock_stdin,
     test_emitter,
     testerchain,
+    accounts,
     patch_keystore,
     mock_accounts,
     selection,
@@ -93,15 +99,19 @@ def test_select_client_account_valid_sources(
 ):
     # From External Signer
     mock_stdin.line(str(selection))
+
+    signer = mocker.Mock()
+    signer.accounts = accounts.accounts
+
     mock_signer = mocker.patch.object(
-        KeystoreSigner, "from_signer_uri", return_value=Web3Signer(testerchain.client)
+        KeystoreSigner, "from_signer_uri", return_value=signer
     )
     selected_account = select_client_account(
         domain=TEMPORARY_DOMAIN_NAME,
         emitter=test_emitter,
         signer_uri=MOCK_SIGNER_URI,
     )
-    expected_account = testerchain.client.accounts[selection]
+    expected_account = accounts.accounts[selection]
     assert selected_account == expected_account
     mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI, testnet=True)
     assert mock_stdin.empty()
@@ -113,11 +123,11 @@ def test_select_client_account_valid_sources(
 
     # From Wallet
     mock_stdin.line(str(selection))
-    expected_account = testerchain.client.accounts[selection]
+    expected_account = accounts.accounts[selection]
     selected_account = select_client_account(
         domain=TEMPORARY_DOMAIN_NAME,
         emitter=test_emitter,
-        signer=Web3Signer(testerchain.client),
+        signer=signer,
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()
@@ -128,8 +138,11 @@ def test_select_client_account_valid_sources(
     )
 
     # From pre-initialized Provider
+    mock_signer = mocker.patch.object(
+        Web3Signer, "from_signer_uri", return_value=signer
+    )
     mock_stdin.line(str(selection))
-    expected_account = testerchain.client.accounts[selection]
+    expected_account = accounts.accounts[selection]
     selected_account = select_client_account(
         domain=TEMPORARY_DOMAIN_NAME,
         emitter=test_emitter,
@@ -183,6 +196,7 @@ def test_select_client_account_with_balance_display(
     mock_stdin,
     test_emitter,
     testerchain,
+    accounts,
     capsys,
     selection,
     show_matic,
@@ -199,7 +213,7 @@ def test_select_client_account_with_balance_display(
     )
 
     # check for accurate selection consistency with client index
-    assert selected_account == testerchain.client.accounts[selection]
+    assert selected_account == accounts[selection]
     assert mock_stdin.empty()
 
     # Display account info
@@ -212,7 +226,7 @@ def test_select_client_account_with_balance_display(
     for column_name in headers:
         assert column_name in captured.out, f'"{column_name}" column was not displayed'
 
-    for account in testerchain.client.accounts:
+    for account in accounts:
         assert account in captured.out
 
         if show_matic:

@@ -8,10 +8,7 @@ from twisted.internet.task import Clock
 
 from nucypher.characters.lawful import Bob, Enrico
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
-from tests.constants import (
-    MOCK_ETH_PROVIDER_URI,
-    NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN,
-)
+from tests.constants import MOCK_ETH_PROVIDER_URI
 from tests.utils.middleware import MockRestMiddleware
 
 
@@ -38,7 +35,7 @@ def test_bob_full_retrieve_flow(
     assert b"Welcome to flippering number 0." == delivered_cleartexts[0]
 
 
-def test_bob_retrieves(alice, ursulas):
+def test_bob_retrieves(accounts, alice, ursulas):
     """A test to show that Bob can retrieve data from Ursula"""
 
     # Let's partition Ursulas in two parts
@@ -60,7 +57,7 @@ def test_bob_retrieves(alice, ursulas):
 
     # Alice creates a policy granting access to Bob
     # Just for fun, let's assume she distributes KFrags among Ursulas unknown to Bob
-    shares = NUMBER_OF_URSULAS_IN_DEVELOPMENT_DOMAIN - 2
+    shares = accounts.NUMBER_OF_URSULAS_IN_TESTS - 2
     label = b'label://' + os.urandom(32)
     contract_end_datetime = maya.now() + datetime.timedelta(days=5)
     policy = alice.grant(

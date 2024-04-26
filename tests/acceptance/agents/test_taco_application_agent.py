@@ -29,13 +29,14 @@ def test_authorized_tokens(
 
 def test_staking_providers_and_operators_relationships(
     testerchain,
+    accounts,
     taco_application_agent,
     threshold_staking,
     taco_application,
     deployer_account,
     get_random_checksum_address,
 ):
-    staking_provider_account, operator_account, *other = testerchain.unassigned_accounts
+    staking_provider_account, operator_account, *other = accounts.unassigned_accounts
     threshold_staking.setRoles(staking_provider_account, sender=deployer_account)
     threshold_staking.authorizationIncreased(
         staking_provider_account,

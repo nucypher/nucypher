@@ -12,16 +12,18 @@ def mock_ursula_run(mocker, ursulas, monkeypatch, ursula_test_config, mock_prome
     ursula_test_config.rest_host = MOCK_IP_ADDRESS
 
     # Mock worker qualification
-    staking_provider = ursulas[1]
+    worker = ursulas[1]
 
     def set_staking_provider_address(operator):
-        operator.checksum_address = staking_provider.checksum_address
+        operator.checksum_address = worker.checksum_address
         return True
 
     monkeypatch.setattr(Operator, "block_until_ready", set_staking_provider_address)
 
     # Mock migration
     mocker.patch("nucypher.cli.commands.ursula.migrate", return_value=None)
+
+    ursula_test_config.operator_address = worker.operator_address
 
     # Mock Ursula configuration
     mocker.patch.object(

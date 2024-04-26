@@ -153,7 +153,7 @@ def test_dkg_initiation(
     ritual_token.approve(
         coordinator_agent.contract_address,
         amount,
-        sender=accounts[initiator.transacting_power.account],
+        sender=accounts.get_ape_account(initiator.transacting_power.account),
     )
 
     receipt = coordinator_agent.initiate_ritual(
@@ -314,7 +314,7 @@ def test_authorized_decryption(
     global_allow_list.authorize(
         ritual_id,
         [signer.accounts[0]],
-        sender=accounts[initiator.transacting_power.account],
+        sender=accounts.get_ape_account(initiator.transacting_power.account),
     )
 
     # ritual_id, ciphertext, conditions are obtained from the side channel

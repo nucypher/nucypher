@@ -41,18 +41,18 @@ all_configurations = tuple(
 )
 @pytest.mark.parametrize("character,configuration", characters_and_configurations)
 def test_development_character_configurations(
-    character, configuration, mocker, testerchain
+    character, configuration, mocker, accounts
 ):
     params = dict(
         dev_mode=True,
         lonely=True,
         domain=TEMPORARY_DOMAIN_NAME,
-        checksum_address=testerchain.unassigned_accounts[0],
+        checksum_address=accounts.unassigned_accounts[0],
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     if character is Ursula:
-        params.update(dict(operator_address=testerchain.unassigned_accounts[0]))
+        params.update(dict(operator_address=accounts.unassigned_accounts[0]))
     config = configuration(**params)
 
     assert config.is_me is True
@@ -160,11 +160,11 @@ def test_default_character_configuration_preservation(
             expected_filepath.unlink()
 
 
-def test_ursula_development_configuration(testerchain):
+def test_ursula_development_configuration(accounts):
     config = UrsulaConfiguration(
         dev_mode=True,
-        checksum_address=testerchain.unassigned_accounts[0],
-        operator_address=testerchain.unassigned_accounts[1],
+        checksum_address=accounts.unassigned_accounts[0],
+        operator_address=accounts.unassigned_accounts[1],
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,

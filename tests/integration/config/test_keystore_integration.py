@@ -66,7 +66,7 @@ def test_generate_alice_keystore(temp_dir_path):
 
 
 @pytest.mark.usefixtures("mock_registry_sources")
-def test_characters_use_keystore(temp_dir_path, testerchain):
+def test_characters_use_keystore(temp_dir_path, testerchain, accounts):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD,
         keystore_dir=temp_dir_path
@@ -83,7 +83,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         pre_payment_method=pre_payment_method,
     )
     Bob(
@@ -101,7 +101,7 @@ def test_characters_use_keystore(temp_dir_path, testerchain):
         rest_port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        operator_address=testerchain.ursulas_accounts[0],
+        operator_address=accounts.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
         condition_blockchain_endpoints={TESTERCHAIN_CHAIN_ID: MOCK_ETH_PROVIDER_URI},
     )
@@ -154,7 +154,7 @@ def test_tls_hosting_certificate_remains_the_same(temp_dir_path, mocker):
 
 
 @pytest.mark.usefixtures("mock_sign_message")
-def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
+def test_ritualist(temp_dir_path, testerchain, accounts, dkg_public_key):
     keystore = Keystore.generate(
         password=INSECURE_DEVELOPMENT_PASSWORD, keystore_dir=temp_dir_path
     )
@@ -171,7 +171,7 @@ def test_ritualist(temp_dir_path, testerchain, dkg_public_key):
         rest_port=12345,
         domain=TEMPORARY_DOMAIN_NAME,
         pre_payment_method=pre_payment_method,
-        operator_address=testerchain.ursulas_accounts[0],
+        operator_address=accounts.ursulas_accounts[0],
         signer=Web3Signer(testerchain.client),
         eth_endpoint=MOCK_ETH_PROVIDER_URI,
         polygon_endpoint=MOCK_ETH_PROVIDER_URI,

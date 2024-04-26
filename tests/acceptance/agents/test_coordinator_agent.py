@@ -9,7 +9,6 @@ from twisted.internet.task import deferLater
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -44,9 +43,9 @@ def cohort_ursulas(cohort, taco_application_agent):
 
 
 @pytest.fixture(scope='module')
-def transacting_powers(testerchain, cohort_ursulas):
+def transacting_powers(accounts, cohort_ursulas):
     return [
-        TransactingPower(account=ursula, signer=Web3Signer(testerchain.client))
+        TransactingPower(account=ursula, signer=accounts.get_account_signer(ursula))
         for ursula in cohort_ursulas
     ]
 
@@ -79,7 +78,7 @@ def test_initiate_ritual(
     ritual_token.approve(
         agent.contract_address,
         amount,
-        sender=accounts[initiator.transacting_power.account],
+        sender=accounts.get_ape_account(initiator.transacting_power.account),
     )
 
     authority = get_random_checksum_address()
