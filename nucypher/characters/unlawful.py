@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 from nucypher_core import NodeMetadata
 
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Alice, Ursula
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import CryptoPower
@@ -49,8 +49,6 @@ class Vladimir(Ursula):
 
         crypto_power = CryptoPower(power_ups=target_ursula._default_crypto_powerups)
 
-        cls.attach_transacting_key(blockchain=eth_blockchain)
-
         # Vladimir does not care about payment.
         bogus_pre_payment_method = FreeReencryptions()
         bogus_pre_payment_method.provider = Mock()
@@ -73,7 +71,7 @@ class Vladimir(Ursula):
             network_middleware=cls.network_middleware,
             checksum_address=cls.fraud_address,
             operator_address=cls.fraud_address,
-            signer=Web3Signer(eth_blockchain.client),
+            signer=InMemorySigner(private_key=cls.fraud_key),
             eth_endpoint=eth_blockchain.endpoint,
             polygon_endpoint=polygon_blockchain.endpoint,
             pre_payment_method=bogus_pre_payment_method,
@@ -113,28 +111,6 @@ class Vladimir(Ursula):
         vladimir._metadata = fake_metadata
 
         return vladimir
-
-    @classmethod
-    def attach_transacting_key(cls, blockchain):
-        """
-        Upload Vladimir's ETH keys to the keychain via web3.
-        """
-        try:
-            from eth_tester.exceptions import ValidationError
-        except ImportError:
-            raise DevelopmentInstallationRequired(
-                importable_name="eth_tester.exceptions.ValidationError"
-            )
-        try:
-            password = 'iamverybadass'
-            blockchain.w3.provider.ethereum_tester.add_account(cls.fraud_key, password=password)
-        except (ValidationError,):
-            # check if Vlad's key is already on the keystore...
-            if cls.fraud_address in blockchain.client.accounts:
-                return True
-            else:
-                raise
-        return True
 
 
 class Amonia(Alice):
