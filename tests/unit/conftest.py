@@ -8,7 +8,7 @@ from nucypher.blockchain.eth.registry import ContractRegistry
 from nucypher.crypto.ferveo import dkg
 from nucypher.crypto.powers import TransactingPower
 from nucypher.network.nodes import Teacher
-from tests.constants import TEMPORARY_DOMAIN
+from tests.constants import MOCK_ETH_PROVIDER_URI, TEMPORARY_DOMAIN
 from tests.mock.interfaces import MockBlockchain, MockEthereumClient
 from tests.utils.registry import MockRegistrySource, mock_registry_sources
 
@@ -28,6 +28,8 @@ def test_registry(module_mocker):
 @pytest.fixture(scope='function')
 def mock_ethereum_client(mocker):
     web3_mock = mocker.Mock()
+    web3_mock.provider = mocker.Mock()
+    web3_mock.provider.endpoint_uri = MOCK_ETH_PROVIDER_URI
     mock_client = MockEthereumClient(w3=web3_mock)
     return mock_client
 

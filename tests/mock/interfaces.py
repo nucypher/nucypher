@@ -62,10 +62,11 @@ class MockBlockchain(TesterBlockchain):
 
         return future_tx
 
+
 class MockEthereumClient(EthereumTesterClient):
 
     def __init__(self, w3):
-        super().__init__(w3=w3, node_technology=None, version=None, platform=None, backend=None)
+        super().__init__(w3=w3)
 
     def add_middleware(self, middleware):
         pass
