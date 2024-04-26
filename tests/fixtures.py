@@ -68,6 +68,7 @@ from tests.mock.performance_mocks import (
     mock_rest_app_creation,
     mock_verify_node,
 )
+from tests.utils.blockchain import ReservedTestAccountManager
 from tests.utils.config import (
     make_alice_test_configuration,
     make_bob_test_configuration,
@@ -78,7 +79,12 @@ from tests.utils.middleware import (
     MockRestMiddlewareForLargeFleetTests,
 )
 from tests.utils.policy import generate_random_label
-from tests.utils.ursula import MOCK_KNOWN_URSULAS_CACHE, make_ursulas, select_test_port
+from tests.utils.ursula import (
+    MOCK_KNOWN_URSULAS_CACHE,
+    make_random_ursulas,
+    make_reserved_ursulas,
+    select_test_port,
+)
 
 test_logger = Logger("test-logger")
 
@@ -111,6 +117,12 @@ def temp_dir_path():
 #
 
 
+@pytest.fixture(scope="session", autouse=True)
+def accounts():
+    """a la ape"""
+    return ReservedTestAccountManager()
+
+
 @pytest.fixture(scope="module")
 def random_account():
     key = Account.create(extra_entropy="lamborghini mercy")
@@ -129,13 +141,12 @@ def random_address(random_account):
 
 
 @pytest.fixture(scope="module")
-def ursula_test_config(test_registry, temp_dir_path, testerchain):
+def ursula_test_config(test_registry, temp_dir_path):
     config = make_ursula_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
         rest_port=select_test_port(),
-        operator_address=testerchain.ursulas_accounts.pop(),
     )
     yield config
     config.cleanup()
@@ -144,12 +155,12 @@ def ursula_test_config(test_registry, temp_dir_path, testerchain):
 
 
 @pytest.fixture(scope="module")
-def alice_test_config(ursulas, testerchain, test_registry):
+def alice_test_config(ursulas, accounts, test_registry):
     config = make_alice_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
         known_nodes=ursulas,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         test_registry=test_registry,
     )
     yield config
@@ -157,11 +168,11 @@ def alice_test_config(ursulas, testerchain, test_registry):
 
 
 @pytest.fixture(scope="module")
-def bob_test_config(testerchain, test_registry):
+def bob_test_config(accounts, test_registry):
     config = make_bob_test_configuration(
         eth_endpoint=TEST_ETH_PROVIDER_URI,
         test_registry=test_registry,
-        checksum_address=testerchain.bob_account,
+        checksum_address=accounts.bob_account,
     )
     yield config
     config.cleanup()
@@ -259,30 +270,32 @@ def random_policy_label():
 
 
 @pytest.fixture(scope="module")
-def alice(alice_test_config, ursulas, testerchain):
-    alice = alice_test_config.produce()
+def alice(alice_test_config, accounts):
+    alice = alice_test_config.produce(
+        signer=accounts.get_account_signer(accounts.alice_account)
+    )
     yield alice
     alice.disenchant()
 
 
 @pytest.fixture(scope="module")
-def bob(bob_test_config, testerchain):
+def bob(bob_test_config, accounts):
     bob = bob_test_config.produce(
         polygon_endpoint=TEST_ETH_PROVIDER_URI,
+        signer=accounts.get_account_signer(accounts.bob_account),
     )
     yield bob
     bob.disenchant()
 
 
 @pytest.fixture(scope="function")
-def lonely_ursula_maker(ursula_test_config, testerchain):
+def lonely_ursula_maker(ursula_test_config, accounts):
     class _PartialUrsulaMaker:
         _partial = partial(
-            make_ursulas,
+            make_reserved_ursulas,
+            accounts=accounts,
             ursula_config=ursula_test_config,
             know_each_other=False,
-            staking_provider_addresses=testerchain.stake_providers_accounts,
-            operator_addresses=testerchain.ursulas_accounts,
         )
         _made = []
 
@@ -399,24 +412,15 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
     except AttributeError:
         quantity = 5000  # Bigass fleet by default; that's kinda the point.
 
-    staking_addresses = (
-        to_checksum_address("0x" + os.urandom(20).hex()) for _ in range(5000)
-    )
-    operator_addresses = (
-        to_checksum_address("0x" + os.urandom(20).hex()) for _ in range(5000)
-    )
-
     with GlobalLoggerSettings.pause_all_logging_while():
         with contextlib.ExitStack() as stack:
             for mock in mocks:
                 stack.enter_context(mock)
 
-            _ursulas = make_ursulas(
+            _ursulas = make_random_ursulas(
                 ursula_config=ursula_test_config,
                 quantity=quantity,
                 know_each_other=False,
-                staking_provider_addresses=staking_addresses,
-                operator_addresses=operator_addresses,
             )
             all_ursulas = {u.checksum_address: u for u in _ursulas}
 
@@ -439,13 +443,13 @@ def fleet_of_highperf_mocked_ursulas(ursula_test_config, request, testerchain):
 def highperf_mocked_alice(
     fleet_of_highperf_mocked_ursulas,
     monkeymodule,
-    testerchain,
+    accounts,
 ):
     config = AliceConfiguration(
         dev_mode=True,
         domain=TEMPORARY_DOMAIN_NAME,
         eth_endpoint=TEST_ETH_PROVIDER_URI,
-        checksum_address=testerchain.alice_account,
+        checksum_address=accounts.alice_account,
         network_middleware=MockRestMiddlewareForLargeFleetTests(
             eth_endpoint=TEST_ETH_PROVIDER_URI
         ),
@@ -691,16 +695,15 @@ def clock():
 
 
 @pytest.fixture(scope="module")
-def ursulas(testerchain, ursula_test_config, staking_providers):
+def ursulas(accounts, ursula_test_config, staking_providers):
     if MOCK_KNOWN_URSULAS_CACHE:
         # TODO: Is this a safe assumption / test behaviour?
         # raise RuntimeError("Ursulas cache was unclear at fixture loading time.  Did you use one of the ursula maker functions without cleaning up?")
         MOCK_KNOWN_URSULAS_CACHE.clear()
 
-    _ursulas = make_ursulas(
+    _ursulas = make_reserved_ursulas(
+        accounts=accounts,
         ursula_config=ursula_test_config,
-        staking_provider_addresses=testerchain.stake_providers_accounts,
-        operator_addresses=testerchain.ursulas_accounts,
         know_each_other=True,
     )
     for u in _ursulas:

@@ -49,13 +49,13 @@ def pytest_addhooks(pluginmanager):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def mock_sample_reservoir(testerchain, mock_contract_agency):
+def mock_sample_reservoir(accounts, mock_contract_agency):
     def mock_reservoir(
         without: Optional[Iterable[ChecksumAddress]] = None, *args, **kwargs
     ):
         addresses = {
             address: 1
-            for address in testerchain.stake_providers_accounts
+            for address in accounts.stake_providers_accounts
             if address not in without
         }
         return StakingProvidersReservoir(addresses)
@@ -166,13 +166,13 @@ def agency(mock_contract_agency):
 
 @pytest.fixture(scope="function")
 def mock_funding_and_bonding(
-    testerchain, mocker, mock_taco_application_agent, mock_taco_child_application_agent
+    accounts, mocker, mock_taco_application_agent, mock_taco_child_application_agent
 ):
     # funding
     mocker.patch.object(EthereumClient, "get_balance", return_value=1)
 
     # bonding
-    staking_provider = testerchain.stake_providers_accounts[0]
+    staking_provider = accounts.stake_providers_accounts[0]
     mock_taco_application_agent.get_staking_provider_from_operator.return_value = (
         staking_provider
     )
@@ -262,12 +262,14 @@ def real_operator_get_staking_provider_address():
 
 @pytest.mark.usefixtures("monkeymodule")
 @pytest.fixture(scope="module", autouse=True)
-def staking_providers(real_operator_get_staking_provider_address, testerchain):
+def staking_providers(real_operator_get_staking_provider_address, accounts):
     def faked(self, *args, **kwargs):
-        return testerchain.stake_providers_accounts[testerchain.ursulas_accounts.index(self.transacting_power.account)]
+        return accounts.stake_providers_accounts[
+            accounts.ursulas_accounts.index(self.transacting_power.account)
+        ]
 
     Operator.get_staking_provider_address = faked
-    return testerchain.stake_providers_accounts
+    return accounts.stake_providers_accounts
 
 
 @pytest.fixture(scope="module")
