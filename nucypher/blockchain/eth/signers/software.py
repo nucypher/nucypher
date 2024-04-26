@@ -20,6 +20,7 @@ class Web3Signer(Signer):
         super().__init__()
         self.__client = client
 
+    @validate_checksum_address
     def _get_signer(self, account: str) -> LocalAccount:
         """Test helper to get a signer from the client's backend"""
         account = to_canonical_address(account)
@@ -343,7 +344,7 @@ class InMemorySigner(Signer):
         return True
 
     @validate_checksum_address
-    def __get_signer(self, account: str) -> LocalAccount:
+    def _get_signer(self, account: str) -> LocalAccount:
         """Lookup a known keystore account by its checksum address or raise an error"""
         try:
             return self.__signers[account]
@@ -356,7 +357,7 @@ class InMemorySigner(Signer):
     @validate_checksum_address
     def sign_transaction(self, transaction_dict: dict) -> bytes:
         sender = transaction_dict["from"]
-        signer = self.__get_signer(account=sender)
+        signer = self._get_signer(account=sender)
         if not transaction_dict["to"]:
             transaction_dict = dissoc(transaction_dict, "to")
         raw_transaction = signer.sign_transaction(
@@ -366,7 +367,7 @@ class InMemorySigner(Signer):
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        signer = self.__get_signer(account=account)
+        signer = self._get_signer(account=account)
         signature = signer.sign_message(
             signable_message=encode_defunct(primitive=message)
         ).signature
