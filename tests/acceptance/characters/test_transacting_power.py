@@ -91,7 +91,7 @@ def test_transacting_power_sign_message(testerchain, accounts):
 
     # Test invalid address/pubkey pair
     is_verified = verify_eip_191(
-        address=accounts.accounts[1],
+        address=accounts.accounts_addresses[1],
         message=data_to_sign,
         signature=signature,
     )

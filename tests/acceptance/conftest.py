@@ -81,7 +81,7 @@ def accounts():
 
 @pytest.fixture(scope="module")
 def deployer_account(accounts):
-    return accounts.ape_accounts[0]
+    return accounts[0]
 
 
 @pytest.fixture(scope="module")
@@ -343,7 +343,7 @@ def staking_providers(
         taco_application.bondOperator(
             provider_address,
             operator_address,
-            sender=accounts.get_ape_account(provider_address),
+            sender=accounts[provider_address],
         )
 
         # track

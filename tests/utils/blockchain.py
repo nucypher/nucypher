@@ -1,9 +1,11 @@
+from functools import cached_property
 from typing import List, Union
 
 import maya
 from ape.api import AccountAPI
 from ape.managers.accounts import TestAccountManager
 from eth_tester.exceptions import TransactionFailed
+from eth_typing import ChecksumAddress
 from hexbytes import HexBytes
 
 from nucypher.blockchain.eth.interfaces import (
@@ -29,25 +31,23 @@ class ReservedTestAccountManager(TestAccountManager):
     _ETHERBASE = 0
     _ALICE = 1
     _BOB = 2
-    _FIRST_STAKING_PROVIDER = 5
+    _FIRST_STAKING_PROVIDER = 3
     _FIRST_URSULA = _FIRST_STAKING_PROVIDER + NUMBER_OF_STAKING_PROVIDERS_IN_TESTS
+
+    # Unassigned
+    _FIRST_UNASSIGNED = _FIRST_URSULA + NUMBER_OF_URSULAS_IN_TESTS
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__accounts = None
         self.__ape_accounts = None
 
-    @property
-    def accounts(self) -> List[str]:
-        if self.__accounts:
-            return self.__accounts
-
-        test_accounts = [account.address for account in self.ape_accounts]
-        self.__accounts = test_accounts
+    @cached_property
+    def accounts_addresses(self) -> List[str]:
+        test_accounts = [account.address for account in self.accounts]
         return test_accounts
 
     @property
-    def ape_accounts(self) -> List[AccountAPI]:
+    def accounts(self) -> List[AccountAPI]:
         if self.__ape_accounts:
             return self.__ape_accounts
 
@@ -67,62 +67,50 @@ class ReservedTestAccountManager(TestAccountManager):
         return test_accounts
 
     @property
-    def etherbase_account(self):
-        return self[self._ETHERBASE]
+    def etherbase_account(self) -> ChecksumAddress:
+        return self[self._ETHERBASE].address
 
     @property
-    def alice_account(self):
-        return self[self._ALICE]
+    def alice_account(self) -> ChecksumAddress:
+        return self[self._ALICE].address
 
     @property
-    def bob_account(self):
-        return self[self._BOB]
+    def bob_account(self) -> ChecksumAddress:
+        return self[self._BOB].address
 
     def ursula_account(self, index):
         if index not in self.__OPERATORS_RANGE:
             raise ValueError(
                 f"Ursula index must be lower than {self.NUMBER_OF_URSULAS_IN_TESTS}"
             )
-        return self[index + self._FIRST_URSULA]
+        return self[index + self._FIRST_URSULA].address
 
     @property
-    def ursulas_accounts(self):
+    def ursulas_accounts(self) -> List[ChecksumAddress]:
         return list(self.ursula_account(i) for i in self.__OPERATORS_RANGE)
 
-    def stake_provider_account(self, index):
+    def stake_provider_account(self, index) -> ChecksumAddress:
         if index not in self.__STAKING_PROVIDERS_RANGE:
             raise ValueError(
                 f"Stake provider index must be lower than {self.NUMBER_OF_URSULAS_IN_TESTS}"
             )
-        return self[index + self._FIRST_STAKING_PROVIDER]
+        return self[index + self._FIRST_STAKING_PROVIDER].address
 
     @property
-    def stake_providers_accounts(self):
+    def stake_providers_accounts(self) -> List[ChecksumAddress]:
         return list(
             self.stake_provider_account(i) for i in self.__STAKING_PROVIDERS_RANGE
         )
 
     @property
-    def unassigned_accounts(self):
-        special_accounts = [
-            self.etherbase_account,
-            self.alice_account,
-            self.bob_account,
+    def unassigned_accounts(self) -> List[ChecksumAddress]:
+        unassigned = [
+            account.address for account in self.accounts[self._FIRST_UNASSIGNED :]
         ]
-        assigned_accounts = set(
-            self.stake_providers_accounts + self.ursulas_accounts + special_accounts
-        )
-        accounts = set(self.accounts)
-        return list(accounts.difference(assigned_accounts))
-
-    def get_ape_account(self, account_address: str) -> AccountAPI:
-        account_index = self.accounts.index(account_address)
-        ape_account = self.ape_accounts[account_index]
-        return ape_account
+        return unassigned
 
     def get_account_signer(self, account_address: str) -> Signer:
-        ape_account = self.get_ape_account(account_address)
-        return InMemorySigner(private_key=ape_account.private_key)
+        return InMemorySigner(private_key=self[account_address].private_key)
 
 
 def free_gas_price_strategy(w3, transaction_params=None):

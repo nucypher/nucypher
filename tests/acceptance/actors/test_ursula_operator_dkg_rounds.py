@@ -73,7 +73,7 @@ def initiate_dkg(
     ritual_token.approve(
         coordinator_agent.contract_address,
         amount,
-        sender=accounts.get_ape_account(initiator.transacting_power.account),
+        sender=accounts[initiator.transacting_power.account],
     )
     receipt = coordinator_agent.initiate_ritual(
         providers=cohort_addresses,

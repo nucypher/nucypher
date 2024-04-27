@@ -24,10 +24,10 @@ def test_select_client_account(
 ):
     """Fine-grained assertions about the return value of interactive client account selection"""
     signer = mocker.Mock()
-    signer.accounts = accounts.accounts
+    signer.accounts = accounts.accounts_addresses
 
     mock_stdin.line(str(selection))
-    expected_account = accounts.accounts[selection]
+    expected_account = accounts.accounts_addresses[selection]
     selected_account = select_client_account(
         emitter=test_emitter,
         signer=signer,
@@ -101,7 +101,7 @@ def test_select_client_account_valid_sources(
     mock_stdin.line(str(selection))
 
     signer = mocker.Mock()
-    signer.accounts = accounts.accounts
+    signer.accounts = accounts.accounts_addresses
 
     mock_signer = mocker.patch.object(
         KeystoreSigner, "from_signer_uri", return_value=signer
@@ -111,7 +111,7 @@ def test_select_client_account_valid_sources(
         emitter=test_emitter,
         signer_uri=MOCK_SIGNER_URI,
     )
-    expected_account = accounts.accounts[selection]
+    expected_account = accounts.accounts_addresses[selection]
     assert selected_account == expected_account
     mock_signer.assert_called_once_with(uri=MOCK_SIGNER_URI, testnet=True)
     assert mock_stdin.empty()
@@ -123,7 +123,7 @@ def test_select_client_account_valid_sources(
 
     # From Wallet
     mock_stdin.line(str(selection))
-    expected_account = accounts.accounts[selection]
+    expected_account = accounts.accounts_addresses[selection]
     selected_account = select_client_account(
         domain=TEMPORARY_DOMAIN_NAME,
         emitter=test_emitter,
@@ -142,7 +142,7 @@ def test_select_client_account_valid_sources(
         Web3Signer, "from_signer_uri", return_value=signer
     )
     mock_stdin.line(str(selection))
-    expected_account = accounts.accounts[selection]
+    expected_account = accounts.accounts_addresses[selection]
     selected_account = select_client_account(
         domain=TEMPORARY_DOMAIN_NAME,
         emitter=test_emitter,

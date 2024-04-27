@@ -78,7 +78,7 @@ def test_initiate_ritual(
     ritual_token.approve(
         agent.contract_address,
         amount,
-        sender=accounts.get_ape_account(initiator.transacting_power.account),
+        sender=accounts[initiator.transacting_power.account],
     )
 
     authority = get_random_checksum_address()
