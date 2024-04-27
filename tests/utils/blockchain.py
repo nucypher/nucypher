@@ -13,9 +13,7 @@ from nucypher.blockchain.eth.signers import Signer
 from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.utilities.gas_strategies import EXPECTED_CONFIRMATION_TIME_IN_SECONDS
 from nucypher.utilities.logging import Logger
-from tests.constants import (
-    TEST_ETH_PROVIDER_URI,
-)
+from tests.constants import NUMBER_OF_ETH_TEST_ACCOUNTS, TEST_ETH_PROVIDER_URI
 
 
 class ReservedTestAccountManager(TestAccountManager):
@@ -37,20 +35,36 @@ class ReservedTestAccountManager(TestAccountManager):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__accounts = None
+        self.__ape_accounts = None
 
     @property
     def accounts(self) -> List[str]:
         if self.__accounts:
             return self.__accounts
 
-        test_accounts = [test_account.address for test_account in super().accounts]
-
+        test_accounts = [account.address for account in self.ape_accounts]
         self.__accounts = test_accounts
         return test_accounts
 
     @property
     def ape_accounts(self) -> List[AccountAPI]:
-        return list(super(ReservedTestAccountManager, self).accounts)
+        if self.__ape_accounts:
+            return self.__ape_accounts
+
+        test_accounts = [test_account for test_account in list(super().accounts)]
+
+        # additional accounts only needed/applicable for unit/integration tests since acceptance
+        # tests use a ape-config.yml to specify number of accounts.
+        additional_required_accounts = NUMBER_OF_ETH_TEST_ACCOUNTS - len(test_accounts)
+        if additional_required_accounts > 0:
+            for i in range(additional_required_accounts):
+                new_test_account = super(
+                    ReservedTestAccountManager, self
+                ).generate_test_account()
+                test_accounts.append(new_test_account)
+
+        self.__ape_accounts = test_accounts
+        return test_accounts
 
     @property
     def etherbase_account(self):
