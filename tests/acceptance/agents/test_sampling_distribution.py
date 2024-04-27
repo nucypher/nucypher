@@ -22,7 +22,7 @@ def test_sampling_distribution(
     accounts,
 ):
     # setup
-    stake_provider_accounts = accounts.stake_providers_accounts
+    stake_provider_accounts = accounts.staking_providers_accounts
     amount = taco_application_agent.get_min_authorization()
     all_locked_tokens = len(stake_provider_accounts) * amount
 

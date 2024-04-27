@@ -89,7 +89,7 @@ class ReservedTestAccountManager(TestAccountManager):
     def ursulas_accounts(self) -> List[ChecksumAddress]:
         return list(self.ursula_account(i) for i in self.__OPERATORS_RANGE)
 
-    def stake_provider_account(self, index) -> ChecksumAddress:
+    def staking_provider_account(self, index) -> ChecksumAddress:
         if index not in self.__STAKING_PROVIDERS_RANGE:
             raise ValueError(
                 f"Stake provider index must be lower than {self.NUMBER_OF_URSULAS_IN_TESTS}"
@@ -97,9 +97,9 @@ class ReservedTestAccountManager(TestAccountManager):
         return self[index + self._FIRST_STAKING_PROVIDER].address
 
     @property
-    def stake_providers_accounts(self) -> List[ChecksumAddress]:
+    def staking_providers_accounts(self) -> List[ChecksumAddress]:
         return list(
-            self.stake_provider_account(i) for i in self.__STAKING_PROVIDERS_RANGE
+            self.staking_provider_account(i) for i in self.__STAKING_PROVIDERS_RANGE
         )
 
     @property

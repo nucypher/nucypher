@@ -74,7 +74,7 @@ def make_reserved_ursulas(
 ):
     num_values = quantity or accounts.NUMBER_OF_URSULAS_IN_TESTS
 
-    staking_providers = accounts.stake_providers_accounts[:num_values]
+    staking_providers = accounts.staking_providers_accounts[:num_values]
     operator_signers = [
         accounts.get_account_signer(operator_address)
         for operator_address in accounts.ursulas_accounts[:num_values]

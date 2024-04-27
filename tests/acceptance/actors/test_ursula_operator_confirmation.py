@@ -21,7 +21,7 @@ def test_ursula_operator_confirmation(
     deployer_account,
     accounts,
 ):
-    staking_provider = accounts.stake_provider_account(0)
+    staking_provider = accounts.staking_provider_account(0)
     operator_address = accounts.ursula_account(0)
     min_authorization = taco_application_agent.get_min_authorization()
 

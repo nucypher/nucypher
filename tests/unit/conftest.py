@@ -78,12 +78,12 @@ def testerchain(mock_testerchain, module_mocker, clock) -> MockBlockchain:
 @pytest.fixture(scope="module", autouse=True)
 def staking_providers(accounts, test_registry, monkeymodule):
     def faked(self, *args, **kwargs):
-        return accounts.stake_providers_accounts[
+        return accounts.staking_providers_accounts[
             accounts.ursulas_accounts.index(self.transacting_power.account)
         ]
 
     Operator.get_staking_provider_address = faked
-    return accounts.stake_providers_accounts
+    return accounts.staking_providers_accounts
 
 
 @pytest.fixture(scope="module", autouse=True)

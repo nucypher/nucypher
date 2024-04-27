@@ -16,10 +16,10 @@ def test_account_organization():
     assert account_manager.bob_account == account_addresses[2]
 
     # staking provider addresses
-    staking_providers = account_manager.stake_providers_accounts
+    staking_providers = account_manager.staking_providers_accounts
     assert staking_providers == account_addresses[3:13]
     for i in range(len(staking_providers)):
-        assert account_manager.stake_provider_account(i) == staking_providers[i]
+        assert account_manager.staking_provider_account(i) == staking_providers[i]
 
     # ursula addresses
     ursulas = account_manager.ursulas_accounts

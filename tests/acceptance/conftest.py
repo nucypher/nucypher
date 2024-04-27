@@ -328,7 +328,7 @@ def staking_providers(
 
     staking_providers = list()
     for provider_address, operator_address in zip(
-        accounts.stake_providers_accounts, accounts.ursulas_accounts
+        accounts.staking_providers_accounts, accounts.ursulas_accounts
     ):
         # for a random amount
         amount = minimum_stake + random.randrange(BONUS_TOKENS_FOR_TESTS)
