@@ -44,11 +44,6 @@ PUBLIC_CHAINS = {
     80002: "Polygon/Amoy",
 }
 
-LOCAL_CHAINS = {
-    1337: "GethDev",
-    5777: "Ganache/TestRPC"
-}
-
 # This list is not exhaustive,
 # but is sufficient for the current needs of the project.
 POA_CHAINS = {
@@ -135,23 +130,8 @@ class EthereumClient:
 
     @property
     def chain_name(self) -> str:
-        chain_inventory = LOCAL_CHAINS if self.is_local else PUBLIC_CHAINS
-        name = chain_inventory.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
+        name = PUBLIC_CHAINS.get(self.chain_id, UNKNOWN_DEVELOPMENT_CHAIN_ID)
         return name
-
-    def lock_account(self, account) -> bool:
-        if self.is_local:
-            return True
-        return NotImplemented
-
-    def unlock_account(self, account, password, duration=None) -> bool:
-        if self.is_local:
-            return True
-        return NotImplemented
-
-    @property
-    def is_local(self):
-        return self.chain_id not in PUBLIC_CHAINS
 
     @property
     def is_connected(self):

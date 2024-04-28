@@ -8,7 +8,7 @@ from cytoolz.dicttoolz import dissoc
 from eth_account.account import Account
 from eth_account.messages import encode_defunct
 from eth_account.signers.local import LocalAccount
-from eth_utils.address import is_address, to_canonical_address, to_checksum_address
+from eth_utils.address import is_address, to_checksum_address
 from hexbytes.main import BytesLike, HexBytes
 
 from nucypher.blockchain.eth.decorators import validate_checksum_address
@@ -21,12 +21,10 @@ class Web3Signer(Signer):
         self.__client = client
 
     @validate_checksum_address
-    def _get_signer(self, account: str) -> LocalAccount:
-        """Test helper to get a signer from the client's backend"""
-        account = to_canonical_address(account)
-        _eth_tester = self.__client.w3.provider.ethereum_tester
-        signer = Account.from_key(_eth_tester.backend._key_lookup[account]._raw_key)
-        return signer
+    def _get_signer(self, account: str):
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
+        )
 
     @classmethod
     def uri_scheme(cls) -> str:
@@ -79,20 +77,20 @@ class Web3Signer(Signer):
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None):
         if self.is_device(account=account):
-            unlocked = True
-        else:
-            unlocked = self.__client.unlock_account(
-                account=account, password=password, duration=duration
-            )
-        return unlocked
+            return True
+
+        raise NotImplementedError(
+            "Can't manage accounts via external blockchain clients; provide an explicit Signer"
+        )
 
     @validate_checksum_address
     def lock_account(self, account: str):
         if self.is_device(account=account):
-            result = None  # TODO: Force Disconnect Devices?
-        else:
-            result = self.__client.lock_account(account=account)
-        return result
+            return None  # TODO: Force Disconnect Devices?
+
+        raise NotImplementedError(
+            "Can't manage accounts via external blockchain clients; provide an explicit Signer"
+        )
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
