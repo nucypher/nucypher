@@ -283,9 +283,9 @@ def test_rpc_condition_evaluation_no_connection_to_chain(
     side_effect=_dont_validate_user_address,
 )
 def test_rpc_condition_evaluation_with_context_var_in_return_value_test(
-    get_context_value_mock, testerchain, condition_providers
+    get_context_value_mock, testerchain, accounts, condition_providers
 ):
-    account, *other_accounts = testerchain.client.accounts
+    account, *other_accounts = accounts.accounts_addresses
     balance = testerchain.client.get_balance(account)
 
     # we have balance stored, use for rpc condition with context variable
@@ -358,9 +358,13 @@ def test_erc20_evm_condition_evaluation_with_custom_context_variable(
     side_effect=_dont_validate_user_address,
 )
 def test_erc721_evm_condition_owner_evaluation(
-    get_context_value_mock, testerchain, test_registry, erc721_evm_condition_owner, condition_providers
+    get_context_value_mock,
+    accounts,
+    test_registry,
+    erc721_evm_condition_owner,
+    condition_providers,
 ):
-    account, *other_accounts = testerchain.client.accounts
+    account, *other_accounts = accounts.accounts_addresses
     # valid owner of nft
     context = {
         USER_ADDRESS_CONTEXT: {"address": account},
@@ -397,9 +401,13 @@ def test_erc721_evm_condition_owner_evaluation(
     side_effect=_dont_validate_user_address,
 )
 def test_erc721_evm_condition_balanceof_evaluation(
-    get_context_value_mock, testerchain, test_registry, erc721_evm_condition_balanceof, condition_providers
+    get_context_value_mock,
+    accounts,
+    test_registry,
+    erc721_evm_condition_balanceof,
+    condition_providers,
 ):
-    account, *other_accounts = testerchain.client.accounts
+    account, *other_accounts = accounts.accounts_addresses
     context = {USER_ADDRESS_CONTEXT: {"address": account}}  # owner of NFT
     condition_result, call_result = erc721_evm_condition_balanceof.verify(
         providers=condition_providers, **context

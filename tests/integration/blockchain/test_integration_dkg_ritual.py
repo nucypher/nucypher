@@ -11,7 +11,7 @@ from web3.datastructures import AttributeDict
 
 from nucypher.blockchain.eth.agents import CoordinatorAgent
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.crypto.powers import RitualisticPower
 from nucypher.policy.conditions.lingo import ConditionLingo, ConditionType
@@ -123,7 +123,6 @@ def execute_round_2(ritual_id: int, cohort: List[Ursula]):
         )
 
 
-@pytest.mark.usefixtures("mock_sign_message")
 @pytest.mark.parametrize("dkg_size, ritual_id, variant", PARAMS)
 @pytest_twisted.inlineCallbacks()
 def test_ursula_ritualist(
@@ -212,8 +211,7 @@ def test_ursula_ritualist(
             plaintext = PLAINTEXT.encode()
 
             # create Enrico
-            signer = Web3Signer(client=testerchain.client)
-            enrico = Enrico(encrypting_key=encrypting_key, signer=signer)
+            enrico = Enrico(encrypting_key=encrypting_key, signer=InMemorySigner())
 
             # encrypt
             print(f"encrypting for DKG with key {bytes(encrypting_key).hex()}")

@@ -132,7 +132,6 @@ def test_geth_web3_client():
     interface = GethClientTestBlockchain(endpoint="https://my.geth:8545")
     interface.connect()
     assert isinstance(interface.client, EthereumClient)
-    assert interface.client.is_local is False
     assert interface.client.chain_id == CHAIN_ID  # Hardcoded above
 
 

@@ -10,7 +10,7 @@ from prometheus_client import REGISTRY
 from nucypher.blockchain.eth.agents import ContractAgency, SubscriptionManagerAgent
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
 from nucypher.blockchain.eth.models import Coordinator
-from nucypher.blockchain.eth.signers.software import Web3Signer
+from nucypher.blockchain.eth.signers.software import InMemorySigner
 from nucypher.characters.lawful import Enrico, Ursula
 from nucypher.policy.conditions.evm import ContractCondition, RPCCondition
 from nucypher.policy.conditions.lingo import (
@@ -49,8 +49,8 @@ def interval(testerchain):
 
 
 @pytest.fixture(scope="module")
-def signer(testerchain):
-    return Web3Signer(testerchain.client)
+def signer():
+    return InMemorySigner()
 
 
 @pytest.fixture(scope="module")

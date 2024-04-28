@@ -3,7 +3,6 @@ import random
 import pytest
 
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -51,7 +50,8 @@ def test_staking_providers_and_operators_relationships(
     )
 
     tpower = TransactingPower(
-        account=staking_provider_account, signer=Web3Signer(testerchain.client)
+        account=staking_provider_account,
+        signer=accounts.get_account_signer(staking_provider_account),
     )
     _txhash = taco_application_agent.bond_operator(
         transacting_power=tpower,

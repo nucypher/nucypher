@@ -5,9 +5,7 @@ import pytest
 from eth_utils import is_checksum_address
 from web3 import Web3
 
-from nucypher.blockchain.eth.interfaces import BlockchainInterfaceFactory
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.actions.select import select_client_account
 from nucypher.cli.literature import GENERIC_SELECT_ACCOUNT, NO_ACCOUNTS
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
@@ -128,47 +126,6 @@ def test_select_client_account_valid_sources(
         domain=TEMPORARY_DOMAIN_NAME,
         emitter=test_emitter,
         signer=signer,
-    )
-    assert selected_account == expected_account
-    assert mock_stdin.empty()
-    captured = capsys.readouterr()
-    assert (
-        GENERIC_SELECT_ACCOUNT in captured.out
-        and f"Selected {selection}" in captured.out
-    )
-
-    # From pre-initialized Provider
-    mock_signer = mocker.patch.object(
-        Web3Signer, "from_signer_uri", return_value=signer
-    )
-    mock_stdin.line(str(selection))
-    expected_account = accounts.accounts_addresses[selection]
-    selected_account = select_client_account(
-        domain=TEMPORARY_DOMAIN_NAME,
-        emitter=test_emitter,
-        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
-    )
-    assert selected_account == expected_account
-    assert mock_stdin.empty()
-    captured = capsys.readouterr()
-    assert (
-        GENERIC_SELECT_ACCOUNT in captured.out
-        and f"Selected {selection}" in captured.out
-    )
-
-    # From uninitialized Provider
-    mock_stdin.line(str(selection))
-    mocker.patch.object(
-        BlockchainInterfaceFactory, "is_interface_initialized", return_value=False
-    )
-    mocker.patch.object(BlockchainInterfaceFactory, "_interfaces", return_value={})
-    mocker.patch.object(
-        BlockchainInterfaceFactory, "get_interface", return_value=testerchain
-    )
-    selected_account = select_client_account(
-        domain=TEMPORARY_DOMAIN_NAME,
-        emitter=test_emitter,
-        polygon_endpoint=MOCK_ETH_PROVIDER_URI,
     )
     assert selected_account == expected_account
     assert mock_stdin.empty()

@@ -8,7 +8,6 @@ from web3 import Web3
 
 from nucypher.blockchain.eth.agents import ContractAgency, TACoApplicationAgent
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.cli.main import nucypher_cli
 from nucypher.config.characters import UrsulaConfiguration
 from nucypher.config.constants import (
@@ -67,7 +66,7 @@ def mock_funded_account_password_keystore(
     )
 
     provider_power = TransactingPower(
-        account=provider_address, signer=Web3Signer(testerchain.client)
+        account=provider_address, signer=accounts.get_account_signer(provider_address)
     )
     provider_power.unlock(password=INSECURE_DEVELOPMENT_PASSWORD)
 

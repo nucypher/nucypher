@@ -9,7 +9,6 @@ from nucypher.blockchain.eth.agents import (
     WeightedSampler,
 )
 from nucypher.blockchain.eth.constants import NULL_ADDRESS
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.crypto.powers import TransactingPower
 
 
@@ -36,7 +35,10 @@ def test_sampling_distribution(
             provider_address, 0, amount, sender=deployer_account
         )
 
-        power = TransactingPower(account=provider_address, signer=Web3Signer(testerchain.client))
+        power = TransactingPower(
+            account=provider_address,
+            signer=accounts.get_account_signer(provider_address),
+        )
 
         # We assume that the staking provider knows in advance the account of her operator
         taco_application_agent.bond_operator(

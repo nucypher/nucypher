@@ -4,7 +4,6 @@ from eth_utils import to_checksum_address
 from nucypher_core.ferveo import Keypair
 
 from nucypher.blockchain.eth.models import Ferveo
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Character
 from nucypher.config.constants import TEMPORARY_DOMAIN_NAME
 from nucypher.crypto.powers import TransactingPower
@@ -29,7 +28,7 @@ def test_character_transacting_power_signing(testerchain, test_registry, account
     # Manually consume the power up
     transacting_power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(eth_address),
         account=eth_address,
     )
 
@@ -72,7 +71,7 @@ def test_transacting_power_sign_message(testerchain, accounts):
     eth_address = accounts.etherbase_account
     power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(eth_address),
         account=eth_address,
     )
 
@@ -102,7 +101,7 @@ def test_transacting_power_sign_transaction(testerchain, accounts):
     eth_address = accounts.unassigned_accounts[2]
     power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(eth_address),
         account=eth_address,
     )
 
@@ -158,7 +157,7 @@ def test_transacting_power_sign_agent_transaction(
     # Sign with Transacting Power
     transacting_power = TransactingPower(
         password=INSECURE_DEVELOPMENT_PASSWORD,
-        signer=Web3Signer(testerchain.client),
+        signer=accounts.get_account_signer(accounts.etherbase_account),
         account=accounts.etherbase_account,
     )
     signed_raw_transaction = transacting_power.sign_transaction(unsigned_transaction)

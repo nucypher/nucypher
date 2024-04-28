@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -22,7 +21,6 @@ from nucypher.blockchain.eth.registry import (
     ContractRegistry,
 )
 from nucypher.blockchain.eth.signers import KeystoreSigner
-from nucypher.blockchain.eth.signers.software import Web3Signer
 from nucypher.characters.lawful import Ursula
 from nucypher.cli.types import ChecksumAddress
 from nucypher.config.characters import UrsulaConfiguration
@@ -62,14 +60,6 @@ def mock_sample_reservoir(accounts, mock_contract_agency):
 
     mock_agent = mock_contract_agency.get_agent(TACoApplicationAgent)
     mock_agent.get_staking_provider_reservoir = mock_reservoir
-
-
-@pytest.fixture(scope="function")
-def mock_sign_message(mocker):
-    mocked_sign_message = mocker.patch.object(
-        Web3Signer, "sign_message", return_value=os.urandom(32)
-    )
-    return mocked_sign_message
 
 
 @pytest.fixture(scope="function", autouse=True)
