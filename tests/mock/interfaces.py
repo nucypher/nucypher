@@ -3,7 +3,7 @@ from typing import Optional, Union
 from atxm.tx import FutureTx
 from hexbytes import HexBytes
 
-from nucypher.blockchain.eth.clients import EthereumTesterClient
+from nucypher.blockchain.eth.clients import EthereumClient
 from nucypher.blockchain.eth.interfaces import BlockchainInterface
 from tests.constants import MOCK_ETH_PROVIDER_URI, TESTERCHAIN_CHAIN_ID
 from tests.utils.blockchain import TesterBlockchain
@@ -63,7 +63,7 @@ class MockBlockchain(TesterBlockchain):
         return future_tx
 
 
-class MockEthereumClient(EthereumTesterClient):
+class MockEthereumClient(EthereumClient):
 
     def __init__(self, w3):
         super().__init__(w3=w3)

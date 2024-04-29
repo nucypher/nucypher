@@ -55,53 +55,30 @@ class Web3Signer(Signer):
 
     @validate_checksum_address
     def is_device(self, account: str):
-        try:
-            # TODO: Temporary fix for #1128 and #1385. It's ugly af, but it works. Move somewhere else?
-            wallets = self.__client.wallets
-        except AttributeError:
-            return False
-        else:
-            HW_WALLET_URL_PREFIXES = ("trezor", "ledger")
-            hw_accounts = [
-                w["accounts"]
-                for w in wallets
-                if w["url"].startswith(HW_WALLET_URL_PREFIXES)
-            ]
-            hw_addresses = [
-                to_checksum_address(account["address"])
-                for sublist in hw_accounts
-                for account in sublist
-            ]
-            return account in hw_addresses
+        return False
 
     @validate_checksum_address
     def unlock_account(self, account: str, password: str, duration: int = None):
-        if self.is_device(account=account):
-            return True
-
         raise NotImplementedError(
             "Can't manage accounts via external blockchain clients; provide an explicit Signer"
         )
 
     @validate_checksum_address
     def lock_account(self, account: str):
-        if self.is_device(account=account):
-            return None  # TODO: Force Disconnect Devices?
-
         raise NotImplementedError(
             "Can't manage accounts via external blockchain clients; provide an explicit Signer"
         )
 
     @validate_checksum_address
     def sign_message(self, account: str, message: bytes, **kwargs) -> HexBytes:
-        signature = self.__client.sign_message(account=account, message=message)
-        return HexBytes(signature)
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
+        )
 
     def sign_transaction(self, transaction_dict: dict) -> bytes:
-        raw_transaction = self.__client.sign_transaction(
-            transaction_dict=transaction_dict
+        raise NotImplementedError(
+            "Can't sign via external blockchain clients; provide an explicit Signer"
         )
-        return raw_transaction
 
 
 class KeystoreSigner(Signer):

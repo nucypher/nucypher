@@ -352,7 +352,7 @@ class BlockchainInterface:
         try:
             self.w3 = self.Web3(provider=self._provider)
             self.tx_machine.w3 = self.w3  # share this web3 instance with the tracker
-            self.client = EthereumClient.from_w3(w3=self.w3)
+            self.client = EthereumClient(w3=self.w3)
         except requests.ConnectionError:  # RPC
             raise self.ConnectionFailed(
                 f"Connection Failed - {str(self.endpoint)} - is RPC enabled?"

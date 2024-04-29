@@ -3,11 +3,7 @@ from functools import cached_property
 from typing import Union
 
 from constant_sorrow.constants import UNKNOWN_DEVELOPMENT_CHAIN_ID
-from cytoolz.dicttoolz import dissoc
-from eth_account import Account
-from eth_account.messages import encode_defunct
 from eth_typing.evm import BlockNumber
-from eth_utils import to_canonical_address
 from web3 import Web3
 from web3._utils.threads import Timeout
 from web3.contract.contract import Contract
@@ -112,21 +108,6 @@ class EthereumClient:
         else:
             self.log.debug("Adding RPC retry middleware to client")
             self.add_middleware(RetryRequestMiddleware)
-
-    @classmethod
-    def _get_variant(cls, w3):
-        return cls
-
-    @classmethod
-    def from_w3(cls, w3: Web3) -> 'EthereumClient':
-        instance_class = EthereumClient
-        chain_id = cls._get_chain_id(w3)
-        # TODO is this sufficient
-        if chain_id not in PUBLIC_CHAINS:
-            instance_class = EthereumTesterClient
-
-        instance = instance_class(w3)
-        return instance
 
     @property
     def chain_name(self) -> str:
@@ -261,18 +242,6 @@ class EthereumClient:
             # TODO: Consider adding an optional param in this exception to include extra info (e.g. new block)
         return True
 
-    def sign_transaction(self, transaction_dict: dict) -> bytes:
-        # Do not include a 'to' field for contract creation.
-        if transaction_dict["to"] == b"":
-            transaction_dict = dissoc(transaction_dict, "to")
-
-        # Sign
-        result = self.w3.eth.sign_transaction(transaction_dict)
-
-        # Return RLP bytes
-        rlp_encoded_transaction = result.raw
-        return rlp_encoded_transaction
-
     def get_transaction(self, transaction_hash) -> dict:
         return self.w3.eth.get_transaction(transaction_hash)
 
@@ -288,9 +257,6 @@ class EthereumClient:
 
     def send_raw_transaction(self, transaction_bytes: bytes) -> str:
         return self.w3.eth.send_raw_transaction(transaction_bytes)
-
-    def sign_message(self, account: str, message: bytes) -> str:
-        return self.w3.eth.sign(account, data=message)
 
     def get_blocktime(self):
         highest_block = self.w3.eth.get_block('latest')
@@ -316,30 +282,3 @@ class EthereumClient:
             chain_id = int(result)
 
         return chain_id
-
-
-class EthereumTesterClient(EthereumClient):
-    def __get_signing_key(self, account: bytes):
-        """Get signing key of test account"""
-        account = to_canonical_address(account)
-        try:
-            signing_key = self.w3.provider.ethereum_tester.backend._key_lookup[account]._raw_key
-        except KeyError:
-            raise self.UnknownAccount(account)
-        return signing_key
-
-    def sign_transaction(self, transaction_dict: dict) -> bytes:
-        # Sign using a local private key
-        address = to_canonical_address(transaction_dict['from'])
-        signing_key = self.__get_signing_key(account=address)
-        raw_transaction = self.w3.eth.account.sign_transaction(
-            transaction_dict, private_key=signing_key
-        ).rawTransaction
-        return raw_transaction
-
-    def sign_message(self, account: str, message: bytes) -> str:
-        """Sign, EIP-191 (Geth) Style"""
-        signing_key = self.__get_signing_key(account=account)
-        signable_message = encode_defunct(primitive=message)
-        signature_and_stuff = Account.sign_message(signable_message=signable_message, private_key=signing_key)
-        return signature_and_stuff['signature']
