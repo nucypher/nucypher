@@ -1,0 +1,1 @@
+Remove specialized blockchain clients since RPC endpoints should no longer handle accounts/signing.
