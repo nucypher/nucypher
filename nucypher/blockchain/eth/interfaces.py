@@ -384,29 +384,22 @@ class BlockchainInterface:
 
         if endpoint and not provider:
             uri_breakdown = urlparse(endpoint)
-
-            if uri_breakdown.scheme == "tester":
-                providers = {
-                    "pyevm": _get_pyevm_test_provider,
-                    "mock": _get_mock_test_provider,
-                }
-                provider_scheme = uri_breakdown.netloc
-
+            provider_scheme = (
+                uri_breakdown.netloc
+                if uri_breakdown.scheme == "tester"
+                else uri_breakdown.scheme
+            )
+            if provider_scheme == "pyevm":
+                self._provider = _get_pyevm_test_provider(endpoint)
+            elif provider_scheme == "mock":
+                self._provider = _get_mock_test_provider(endpoint)
+            elif provider_scheme == "http" or provider_scheme == "https":
+                self._provider = _get_http_provider(endpoint)
             else:
-                providers = {
-                    "http": _get_http_provider,
-                    "https": _get_http_provider,
-                }
-                provider_scheme = uri_breakdown.scheme
-
-            try:
-                self._provider = providers[provider_scheme](endpoint)
-            except KeyError:
                 raise self.UnsupportedProvider(
                     f"{endpoint} is an invalid or unsupported blockchain provider URI"
                 )
-            else:
-                self.endpoint = endpoint or NO_BLOCKCHAIN_CONNECTION
+            self.endpoint = endpoint or NO_BLOCKCHAIN_CONNECTION
         else:
             self._provider = provider
 
